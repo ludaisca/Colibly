@@ -34,6 +34,9 @@ export async function GET(req: Request) {
         lastMessage: true,
         lastMessageAt: true,
         unreadCount: true,
+        contactId: true,
+        assignedToId: true,
+        assignedTo: { select: { id: true, name: true } },
         createdAt: true,
         updatedAt: true,
         account: {
