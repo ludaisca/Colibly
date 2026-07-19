@@ -253,7 +253,7 @@ export function AppShell({
           <div className="md:hidden flex-1 flex items-center">
             <Link href="/dashboard" className="flex items-center gap-1.5">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-on-accent font-bold text-xs">
-                W
+                C
               </div>
               <span className="text-sm font-semibold tracking-tight">
                 SundayCRM

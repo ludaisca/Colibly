@@ -1,4 +1,6 @@
-# SundayCRM — WhatsApp Business CRM
+# SundayCRM
+
+> Fork de [SundayCRM](https://github.com/ludaisca/SundayCRM) (punto de divergencia: tag `fork-point-2026-07-18`), en evolución hacia un CRM multi-tenant y multi-canal. Hoy el comportamiento es idéntico a SundayCRM — ver [`docs/FORK_PLAN.md`](docs/FORK_PLAN.md) para la hoja de ruta de las fases de multi-tenancy y abstracción de canal.
 
 CRM de WhatsApp Business construido sobre la API oficial de Meta (Cloud API): bandeja de chats en tiempo real, bots de IA multimodales, calificación automática de leads, campañas masivas por plantilla, recuperación de leads abandonados y sincronización con Google Sheets — todo con control de acceso por rol y soporte multi-cuenta/multi-número.
 
