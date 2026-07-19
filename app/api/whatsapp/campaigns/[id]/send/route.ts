@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { campaignQueue } from "@/lib/queue";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   _req: Request,
@@ -12,6 +13,11 @@ export async function POST(
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { allowed } = await rateLimit(`campaign-send:${session.user.id}`, 5, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
     const { id } = await params;

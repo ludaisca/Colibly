@@ -3,6 +3,7 @@ import { createHmac, createHash } from "crypto";
 import type { RecipientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
+import { rateLimit } from "@/lib/rate-limit";
 
 interface WebhookMessage {
   from: string;
@@ -396,6 +397,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const forwarded = req.headers.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
+    const { allowed } = await rateLimit(`webhook:${ip}`, 300, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const rawBody = await req.text();
     const body = JSON.parse(rawBody);
     const signature = req.headers.get("x-hub-signature-256");
@@ -420,7 +428,7 @@ export async function POST(req: Request) {
           const account = await resolveAccountByWabaAndPhone(wabaId, value.display_phone_number);
           if (account) {
             const sigValid = await validateSignature(rawBody, signature, account.appSecret);
-            if (sigValid || !account.appSecret) {
+            if (sigValid) {
               await applyPhoneNumberQualityUpdate(wabaId, value);
             }
           }
@@ -432,7 +440,7 @@ export async function POST(req: Request) {
           const account = await resolveAccountByWabaAndPhone(wabaId, value.phone_number);
           if (account) {
             const sigValid = await validateSignature(rawBody, signature, account.appSecret);
-            if (sigValid || !account.appSecret) {
+            if (sigValid) {
               await applyAccountUpdate(wabaId, value);
             }
           }
@@ -447,7 +455,7 @@ export async function POST(req: Request) {
             : null;
           if (account) {
             const sigValid = await validateSignature(rawBody, signature, account.appSecret);
-            if (sigValid || !account.appSecret) {
+            if (sigValid) {
               await applyUserPreferences(value);
             }
           }
@@ -466,7 +474,7 @@ export async function POST(req: Request) {
         if (!account) continue;
 
         const sigValid = await validateSignature(rawBody, signature, account.appSecret);
-        if (!sigValid && account.appSecret) continue;
+        if (!sigValid) continue;
 
         await prisma.wAAccount.update({
           where: { id: account.id },

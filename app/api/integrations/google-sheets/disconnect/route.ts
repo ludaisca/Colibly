@@ -3,11 +3,17 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { createGoogleOAuthClient } from "@/lib/google/oauth-client";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { allowed } = await rateLimit(`gsheets-disconnect:${session.user.id}`, 5, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
   }
 
   const account = await prisma.googleAccount.findUnique({ where: { userId: session.user.id } });

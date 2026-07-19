@@ -3,11 +3,17 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { encrypt } from "@/lib/crypto";
 import { createGoogleOAuthClient, GOOGLE_SHEETS_SCOPES } from "@/lib/google/oauth-client";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { allowed } = await rateLimit(`gsheets-connect:${session.user.id}`, 5, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
   }
 
   const oauth2Client = createGoogleOAuthClient();

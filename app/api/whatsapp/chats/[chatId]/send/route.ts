@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMessageSchema } from "@/lib/validations";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   req: Request,
@@ -13,6 +14,11 @@ export async function POST(
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { allowed } = await rateLimit(`chat-send:${session.user.id}`, 30, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiados mensajes enviados, espera un momento" }, { status: 429 });
     }
 
     const { chatId } = await params;

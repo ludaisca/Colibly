@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { waAccountUpdateSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validateToken } from "@/lib/whatsapp";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   req: Request,
@@ -70,6 +71,11 @@ export async function PATCH(
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { allowed } = await rateLimit(`account-mutate:${session.user.id}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
     const { id } = await params;
@@ -164,6 +170,11 @@ export async function DELETE(
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { allowed } = await rateLimit(`account-mutate:${session.user.id}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
     const { id } = await params;

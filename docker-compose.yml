@@ -3,7 +3,7 @@ services:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "${DB_PASSWORD:-postgres}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}"
       POSTGRES_DB: sunday_crm_db
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -20,7 +20,7 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "PGPASSWORD=${DB_PASSWORD:-postgres} psql -h db -U postgres -d sunday_crm_db -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
+      sh -c "PGPASSWORD=${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno} psql -h db -U postgres -d sunday_crm_db -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
     restart: "no"
 
   redis:
@@ -38,7 +38,7 @@ services:
     expose:
       - "5000"
     environment:
-      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:-postgres}@db:5432/sunday_crm_db"
+      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}@db:5432/sunday_crm_db"
       AUTH_SECRET: "${AUTH_SECRET}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
       REDIS_URL: "redis://redis:6379"

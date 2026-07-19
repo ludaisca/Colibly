@@ -5,12 +5,18 @@ import { prisma } from "@/lib/prisma";
 import { waAccountSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validateToken } from "@/lib/whatsapp";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { allowed } = await rateLimit(`account-create:${session.user.id}`, 10, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
     const body = await req.json();

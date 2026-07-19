@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   req: Request,
@@ -10,6 +11,11 @@ export async function POST(
     const session = await auth();
     if (!session?.user?.id || session.user.role !== "admin") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const { allowed } = await rateLimit(`account-share:${session.user.id}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
     const { id } = await params;
@@ -58,6 +64,11 @@ export async function DELETE(
     const session = await auth();
     if (!session?.user?.id || session.user.role !== "admin") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const { allowed } = await rateLimit(`account-share:${session.user.id}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
     const { id } = await params;

@@ -52,7 +52,7 @@ No hay suite de tests automatizada — la verificación es `tsc --noEmit` + `lin
 | `DATABASE_URL` | conexión a PostgreSQL |
 | `REDIS_URL` | conexión a Redis |
 | `AUTH_SECRET` | secreto de NextAuth (`openssl rand -base64 32`) |
-| `DB_PASSWORD` | password del PostgreSQL del compose de producción (default `postgres`) |
+| `DB_PASSWORD` | password del PostgreSQL del compose de producción — **obligatoria**, `docker compose up` aborta si falta |
 | `ENCRYPTION_KEY` | clave AES-256 para credenciales cifradas en DB (`openssl rand -hex 32`) |
 | `NEXT_PUBLIC_APP_URL` | URL pública de la app |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_OAUTH_REDIRECT_URI` | credenciales OAuth para la sincronización con Google Sheets (opcional) |

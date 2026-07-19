@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { syncGoogleSheetsForUser } from "@/lib/google/sheets-sync";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { allowed } = await rateLimit(`gsheets-sync:${session.user.id}`, 3, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
   }
 
   const account = await prisma.googleAccount.findUnique({ where: { userId: session.user.id } });

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { rateLimit } from "@/lib/rate-limit";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
@@ -43,6 +44,11 @@ export async function PATCH(req: Request) {
     const session = await auth();
     if (!session?.user?.id || session.user.role !== "admin") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const { allowed } = await rateLimit(`user-role-change:${session.user.id}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
     const body = await req.json();
@@ -104,6 +110,11 @@ export async function POST(req: Request) {
     const session = await auth();
     if (!session?.user?.id || session.user.role !== "admin") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const { allowed } = await rateLimit(`user-create:${session.user.id}`, 10, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
     const body = await req.json();

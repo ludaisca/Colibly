@@ -31,13 +31,15 @@ RUN npm run build
 
 FROM base AS runner
 RUN apk add --no-cache wget
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./
-COPY scripts/startup.sh ./startup.sh
-RUN chmod +x startup.sh
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001 -G nodejs
+COPY --from=builder --chown=nextjs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./
+COPY --chown=nextjs:nodejs scripts/startup.sh ./startup.sh
+RUN mkdir -p /app/media && chown nextjs:nodejs /app/media && chmod +x startup.sh
+USER nextjs
 EXPOSE 5000
 CMD ["./startup.sh"]
