@@ -33,6 +33,7 @@ export function EntityAvatar({ id, name, size = "md", className }: EntityAvatarP
       aria-hidden="true"
       className={cn(
         "inline-flex shrink-0 select-none items-center justify-center rounded-bubble bg-entity-bg font-semibold text-entity",
+        "transition-transform duration-fast ease-brand hover:scale-105",
         SIZE[size],
         hueClassFor(id),
         className

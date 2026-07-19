@@ -46,7 +46,28 @@ export function NotificationBell() {
     try {
       const res = await fetch("/api/whatsapp/notifications?limit=20");
       const data = await res.json();
-      if (Array.isArray(data.items)) setItems(data.items);
+      if (Array.isArray(data.items)) {
+        setItems((prev) => {
+          // Merge en lugar de reemplazo: con el dropdown abierto, reemplazar
+          // el array completo cada 25s (aunque nada haya cambiado) causaba un
+          // re-render/parpadeo del dropdown sin motivo.
+          const items = data.items as NotificationItem[];
+          const byId = new Map(items.map((n) => [n.id, n]));
+          let changed = false;
+          const merged = prev.map((n) => {
+            const fresh = byId.get(n.id);
+            if (fresh && (fresh.read !== n.read || fresh.title !== n.title || fresh.body !== n.body)) {
+              changed = true;
+              return fresh;
+            }
+            return n;
+          });
+          const known = new Set(prev.map((n) => n.id));
+          const prepended = items.filter((n) => !known.has(n.id));
+          if (prepended.length > 0) changed = true;
+          return changed ? [...prepended, ...merged] : prev;
+        });
+      }
       if (typeof data.unreadCount === "number") setUnreadCount(data.unreadCount);
     } catch {
       // silent — notification polling should not surface errors to the user

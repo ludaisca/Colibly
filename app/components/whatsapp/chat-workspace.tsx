@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Search,
   Send,
@@ -10,6 +11,9 @@ import {
   User,
   Check,
   CheckCheck,
+  Clock,
+  AlertCircle,
+  RotateCw,
   FileAudio,
   Video,
   FileText,
@@ -32,6 +36,7 @@ import { ChatAssigneePicker } from "@/app/components/whatsapp/chat-assignee-pick
 import { ChatTagPicker } from "@/app/components/whatsapp/chat-tag-picker";
 import { LeadScoreBadge } from "@/app/components/whatsapp/lead-score-badge";
 import { ChatCostBadge } from "@/app/components/whatsapp/chat-cost-badge";
+import { ChatBubblesSkeleton } from "@/app/components/whatsapp/chat-skeletons";
 import { mediaEndpointFor, isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { hueClassFor } from "@/app/components/ui/hue";
@@ -93,6 +98,9 @@ interface Message {
   bytesSize: number | null;
   status: string | null;
   timestamp: string;
+  /** Solo en mensajes optimistas locales (id "temp-…"): preview del archivo
+   *  adjunto antes de que exista un mediaId real servido por el proxy. */
+  localPreviewUrl?: string;
 }
 
 function formatTime(ts: string): string {
@@ -163,7 +171,7 @@ interface PreviewMedia {
 }
 
 function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: PreviewMedia) => void }) {
-  const mediaSrc = msg.mediaUrl ? mediaEndpointFor(msg.id) : null;
+  const mediaSrc = msg.localPreviewUrl ?? (msg.mediaUrl ? mediaEndpointFor(msg.id) : null);
 
   if (msg.messageType === "image" || msg.messageType === "sticker") {
     if (!mediaSrc) {
@@ -264,19 +272,28 @@ function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: Pre
   return null;
 }
 
-function MessageBubble({ msg, onPreview }: { msg: Message; onPreview: (media: PreviewMedia) => void }) {
+function MessageBubble({
+  msg,
+  onPreview,
+  onRetry,
+}: {
+  msg: Message;
+  onPreview: (media: PreviewMedia) => void;
+  onRetry?: (msg: Message) => void;
+}) {
   const isInbound = msg.direction === "INBOUND";
-  const hasMedia = msg.messageType !== "text" && (msg.mediaUrl || msg.mediaId);
+  const hasMedia = msg.messageType !== "text" && (msg.mediaUrl || msg.mediaId || msg.localPreviewUrl);
   const caption = msg.caption ?? (hasMedia && msg.body && msg.body !== `[${msg.messageType}]` ? msg.body : null);
+  const isFailed = msg.status === "failed";
 
   return (
     <div className={`flex ${isInbound ? "justify-start" : "justify-end"}`}>
       <div
-        className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed ${
+        className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
           isInbound
             ? "rounded-2xl rounded-tl-sm bg-surface text-foreground"
             : "rounded-bubble-br bg-accent text-on-accent"
-        }`}
+        } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {hasMedia && (
           <div className="mb-1 space-y-1">
@@ -289,9 +306,20 @@ function MessageBubble({ msg, onPreview }: { msg: Message; onPreview: (media: Pr
         <div className={`flex items-center justify-end gap-1 mt-1 ${
           isInbound ? "text-muted-darker" : "text-on-accent/70"
         }`}>
+          {isFailed && (
+            <button
+              type="button"
+              onClick={() => onRetry?.(msg)}
+              className="flex items-center gap-1 text-[10px] font-medium text-danger hover:underline mr-1"
+            >
+              <RotateCw size={10} /> Reintentar
+            </button>
+          )}
           <span className="text-[10px]">{formatBubbleTime(msg.timestamp)}</span>
           {!isInbound && msg.status && (
             <span className="text-[10px]">
+              {msg.status === "sending" && <Clock size={10} />}
+              {msg.status === "failed" && <AlertCircle size={10} className="text-danger" />}
               {msg.status === "sent" && <Check size={10} />}
               {msg.status === "delivered" && <CheckCheck size={10} />}
               {msg.status === "read" && <CheckCheck size={10} className="text-info" />}
@@ -389,6 +417,13 @@ export function ChatWorkspace({
   // scrollHeight previo a un prepend de historial — permite restaurar la
   // posición de lectura en vez de que el contenido "salte" hacia abajo.
   const prependHeightRef = useRef<number | null>(null);
+  // Payload original de cada mensaje optimista, por tempId — permite
+  // reintentar un envío fallido sin pedirle al usuario que lo reescriba.
+  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null }>>(new Map());
+  // CSS ya neutraliza animate-* globalmente (globals.css), pero motion no
+  // corre por CSS — se apaga a mano la transición de entrada/salida de
+  // burbujas cuando el usuario prefiere menos movimiento.
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -697,63 +732,113 @@ export function ChatWorkspace({
     e.target.value = "";
   }
 
+  // Hace el envío real (upload + send o solo send) y resuelve el mensaje
+  // optimista `tempId` ya insertado en pantalla: lo reemplaza por el mensaje
+  // real que devuelve el servidor, o lo marca "failed" con opción de
+  // reintentar. Compartido por el submit del composer y por el botón
+  // "Reintentar" de una burbuja fallida.
+  const performSend = useCallback(
+    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null }) => {
+      if (!selectedChatId || !selectedChat) return;
+      try {
+        let data;
+        if (opts.file) {
+          const uploadForm = new FormData();
+          uploadForm.append("file", opts.file);
+          uploadForm.append("accountId", selectedChat.accountId);
+
+          const upRes = await fetch(`/api/whatsapp/media`, { method: "POST", body: uploadForm });
+          const upData = await upRes.json();
+          if (!upRes.ok) throw new Error(upData.error ?? "Error al subir el medio");
+
+          const type = detectMessageType(opts.file);
+          const caption = opts.text.trim() || undefined;
+          const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type,
+              mediaId: upData.mediaId,
+              mimeType: upData.mimeType,
+              filename: upData.filename,
+              caption,
+              localMediaPath: upData.localMediaPath,
+              bytesSize: upData.bytesSize,
+            }),
+          });
+          data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "Error al enviar");
+        } else {
+          const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "text", body: opts.text.trim() }),
+          });
+          data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "Error al enviar");
+        }
+        // El id real puede ya estar en pantalla si el poll de 5s lo trajo
+        // antes que esta respuesta — se descarta cualquier duplicado.
+        setMessages((prev) => [...prev.filter((m) => m.id !== tempId && m.id !== data.id), data]);
+        if (opts.filePreviewUrl) URL.revokeObjectURL(opts.filePreviewUrl);
+        pendingSendsRef.current.delete(tempId);
+        refreshChats();
+      } catch (err) {
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
+        toastError(err instanceof Error ? err.message : "Error al enviar");
+      }
+    },
+    [selectedChatId, selectedChat, toastError, refreshChats]
+  );
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!newMessage.trim() && !attachment) return;
     if (!selectedChatId || !selectedChat) return;
+
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const text = newMessage;
+    const file = attachment;
+    const filePreviewUrl = file ? attachmentPreview : null;
+
+    const optimisticMessage: Message = {
+      id: tempId,
+      direction: "OUTBOUND",
+      messageType: file ? detectMessageType(file) : "text",
+      body: file ? null : text.trim(),
+      caption: file && text.trim() ? text.trim() : null,
+      mediaId: null,
+      mediaUrl: file ? "pending" : null,
+      localPreviewUrl: filePreviewUrl ?? undefined,
+      mimeType: file?.type ?? null,
+      filename: file?.name ?? null,
+      bytesSize: file?.size ?? null,
+      status: "sending",
+      timestamp: new Date().toISOString(),
+    };
+
+    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl });
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setNewMessage("");
+    // Reset del composer sin revocar el object URL todavía — la burbuja
+    // optimista lo sigue usando hasta que el envío se confirme o falle.
+    setAttachment(null);
+    setAttachmentPreview(null);
+
     setSending(true);
-    try {
-      if (attachment) {
-        const uploadForm = new FormData();
-        uploadForm.append("file", attachment);
-        uploadForm.append("accountId", selectedChat.accountId);
-
-        const upRes = await fetch(`/api/whatsapp/media`, {
-          method: "POST",
-          body: uploadForm,
-        });
-        const upData = await upRes.json();
-        if (!upRes.ok) throw new Error(upData.error ?? "Error al subir el medio");
-
-        const type = detectMessageType(attachment);
-        const caption = newMessage.trim() || undefined;
-        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type,
-            mediaId: upData.mediaId,
-            mimeType: upData.mimeType,
-            filename: upData.filename,
-            caption,
-            localMediaPath: upData.localMediaPath,
-            bytesSize: upData.bytesSize,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Error al enviar");
-        setMessages((prev) => [...prev, data]);
-        setNewMessage("");
-        clearAttachment();
-        refreshChats();
-      } else {
-        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "text", body: newMessage.trim() }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Error al enviar");
-        setMessages((prev) => [...prev, data]);
-        setNewMessage("");
-        refreshChats();
-      }
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : "Error al enviar");
-    } finally {
-      setSending(false);
-    }
+    await performSend(tempId, { text, file, filePreviewUrl });
+    setSending(false);
   }
+
+  const handleRetry = useCallback(
+    (msg: Message) => {
+      const pending = pendingSendsRef.current.get(msg.id);
+      if (!pending) return;
+      setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, status: "sending" } : m)));
+      performSend(msg.id, pending);
+    },
+    [performSend]
+  );
 
   async function handleStatusChange(newStatus: ChatStatus) {
     if (!selectedChatId) return;
@@ -1029,9 +1114,7 @@ export function ChatWorkspace({
 
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {loadingMessages ? (
-                <div className="flex items-center justify-center py-12">
-                  <Spinner />
-                </div>
+                <ChatBubblesSkeleton className="h-full" />
               ) : messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <EmptyState icon={MessageSquare} title="Sin mensajes" description="Aún no hay mensajes en este chat." />
@@ -1050,22 +1133,30 @@ export function ChatWorkspace({
                     </Button>
                   </div>
                 )}
-                {messages.map((msg, i) => {
-                  const prev = messages[i - 1];
-                  const showDivider = !prev || new Date(prev.timestamp).toDateString() !== new Date(msg.timestamp).toDateString();
-                  return (
-                    <div key={msg.id}>
-                      {showDivider && (
-                        <div className="flex justify-center my-3">
-                          <span className="text-[11px] font-medium text-muted-darker bg-surface border border-border px-2.5 py-1 rounded-full">
-                            {formatDayDivider(msg.timestamp)}
-                          </span>
-                        </div>
-                      )}
-                      <MessageBubble msg={msg} onPreview={setPreviewMedia} />
-                    </div>
-                  );
-                })}
+                <AnimatePresence initial={false}>
+                  {messages.map((msg, i) => {
+                    const prev = messages[i - 1];
+                    const showDivider = !prev || new Date(prev.timestamp).toDateString() !== new Date(msg.timestamp).toDateString();
+                    return (
+                      <motion.div
+                        key={msg.id}
+                        initial={shouldReduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
+                        transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: [0.4, 0, 0.2, 1] }}
+                      >
+                        {showDivider && (
+                          <div className="flex justify-center my-3">
+                            <span className="text-[11px] font-medium text-muted-darker bg-surface border border-border px-2.5 py-1 rounded-full">
+                              {formatDayDivider(msg.timestamp)}
+                            </span>
+                          </div>
+                        )}
+                        <MessageBubble msg={msg} onPreview={setPreviewMedia} onRetry={handleRetry} />
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
                 </>
               )}
               <div ref={messagesEndRef} />

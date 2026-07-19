@@ -27,6 +27,19 @@ export function Dropdown({
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
 
+  // Igual que modal.tsx: "visible" se mantiene true durante la animación de
+  // salida para no desmontar de golpe — solo baja a false al terminar
+  // animate-scale-out (onAnimationEnd).
+  const [visible, setVisible] = useState(isOpen);
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
+    if (isOpen) setVisible(true);
+  }
+  const handleAnimationEnd = useCallback(() => {
+    if (!isOpen) setVisible(false);
+  }, [isOpen]);
+
   const toggle = useCallback(() => setOpen(!isOpen), [isOpen, setOpen]);
   const close = useCallback(() => setOpen(false), [setOpen]);
 
@@ -61,13 +74,15 @@ export function Dropdown({
       >
         {trigger}
       </div>
-      {isOpen && (
+      {visible && (
         <div
           className={cn(
-            "absolute z-50 mt-1.5 min-w-[180px] rounded-xl border border-border bg-surface shadow-lg py-1 animate-fade-in",
-            align === "right" ? "right-0" : "left-0"
+            "absolute z-50 mt-1.5 min-w-[180px] rounded-xl border border-border bg-surface shadow-lg py-1",
+            isOpen ? "animate-scale-in" : "animate-scale-out",
+            align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"
           )}
           onClick={close}
+          onAnimationEnd={handleAnimationEnd}
         >
           {children}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { Suspense, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -9,6 +9,7 @@ import { Drawer } from "./drawer";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
 import { Breadcrumb } from "./breadcrumb";
+import { RouteProgressBar } from "./route-progress-bar";
 import { cn } from "./cn";
 
 export interface NavItem {
@@ -199,6 +200,9 @@ export function AppShell({
 
   return (
     <div className={cn("flex bg-background", fullBleed ? "h-svh" : "min-h-svh")}>
+      <Suspense fallback={null}>
+        <RouteProgressBar />
+      </Suspense>
       <aside
         className={cn(
           "hidden md:flex border-r border-border/60 bg-background flex-col shrink-0 transition-all duration-200",

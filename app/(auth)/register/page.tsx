@@ -60,7 +60,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       <div className="flex justify-center">
         <Logo href="/" brand="SundayCRM" size="lg" />
       </div>

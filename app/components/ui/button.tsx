@@ -12,7 +12,7 @@ type Size = "sm" | "md" | "lg";
 // burbuja del rediseño y mezclar rounded-lg + rounded-bubble-br en el mismo
 // elemento dejaría el resultado a merced del orden del CSS generado.
 const VARIANT: Record<Variant, string> = {
-  primary:   "rounded-bubble-br bg-accent text-on-accent font-semibold hover:bg-accent-hover disabled:opacity-60",
+  primary:   "rounded-bubble-br bg-accent text-on-accent font-semibold hover:bg-accent-hover hover:shadow-md disabled:opacity-60 disabled:shadow-none",
   secondary: "rounded-lg border border-border text-foreground bg-transparent hover:bg-surface-light disabled:opacity-60",
   ghost:     "rounded-lg text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-60",
   danger:    "rounded-lg bg-danger-bg text-danger border border-danger-border hover:bg-danger/20 disabled:opacity-60",
@@ -55,8 +55,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const base = cn(
-      "inline-flex items-center justify-center transition-colors cursor-pointer select-none",
+      "inline-flex items-center justify-center cursor-pointer select-none",
+      "transition-[background-color,color,border-color,box-shadow,transform] duration-fast ease-brand",
       "focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+      variant !== "link" && "hover:-translate-y-px active:translate-y-0 active:scale-[0.98]",
       variant !== "link" && SIZE[size],
       VARIANT[variant],
       fullWidth && "w-full",

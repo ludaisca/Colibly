@@ -197,6 +197,24 @@
 }
 
 /* ─────────────────────────────────────────────────
+   DURACIÓN/EASING DE MARCA — expone --dur-fast/--dur/--dur-slow/--ease
+   (definidos arriba) como utilidades Tailwind reales, para que los
+   componentes dejen de inventar cada uno su propia duración.
+   ───────────────────────────────────────────────── */
+@utility duration-fast {
+  transition-duration: var(--dur-fast);
+}
+@utility duration-base {
+  transition-duration: var(--dur);
+}
+@utility duration-slow {
+  transition-duration: var(--dur-slow);
+}
+@utility ease-brand {
+  transition-timing-function: var(--ease);
+}
+
+/* ─────────────────────────────────────────────────
    GLOBAL BASE
    ───────────────────────────────────────────────── */
 html {
