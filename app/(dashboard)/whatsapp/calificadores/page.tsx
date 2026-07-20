@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Plus, Target, Trash2, Pencil, Sparkles, Clock, Download } from "lucide-react";
-import { Card, CardBody } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Switch } from "@/app/components/ui/switch";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
@@ -233,46 +232,42 @@ function CalificadoresTab() {
         </Button>
       </div>
 
-      <Card>
-        <CardBody>
-          <Table
-            columns={columns}
-            rows={items}
-            rowKey={(r) => r.id}
-            loading={loading}
-            error={fetchError}
-            onRetry={fetchItems}
-            emptyIcon={Target}
-            emptyTitle="Sin calificadores"
-            emptyDescription="Crea tu primer calificador para empezar a calificar leads desde los chats."
-            mobileCard={(r) => {
-              const provider = columns.find((c) => c.key === "provider")!;
-              const schedule = columns.find((c) => c.key === "schedule")!;
-              const active = columns.find((c) => c.key === "isActive")!;
-              return (
-                <div className="space-y-1.5 min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-foreground truncate">{r.name}</span>
-                    <div onClick={(e) => e.stopPropagation()}>{active.render(r)}</div>
-                  </div>
-                  {provider.render(r)}
-                  {schedule.render(r)}
-                </div>
-              );
-            }}
-            rowActions={(r) => (
-              <>
-                <DropdownItem icon={Pencil} onClick={() => { setEditId(r.id); setModalOpen(true); }}>
-                  Editar
-                </DropdownItem>
-                <DropdownItem icon={Trash2} onClick={() => setDeleteId(r.id)}>
-                  Eliminar
-                </DropdownItem>
-              </>
-            )}
-          />
-        </CardBody>
-      </Card>
+      <Table
+        columns={columns}
+        rows={items}
+        rowKey={(r) => r.id}
+        loading={loading}
+        error={fetchError}
+        onRetry={fetchItems}
+        emptyIcon={Target}
+        emptyTitle="Sin calificadores"
+        emptyDescription="Crea tu primer calificador para empezar a calificar leads desde los chats."
+        mobileCard={(r) => {
+          const provider = columns.find((c) => c.key === "provider")!;
+          const schedule = columns.find((c) => c.key === "schedule")!;
+          const active = columns.find((c) => c.key === "isActive")!;
+          return (
+            <div className="space-y-1.5 min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-foreground truncate">{r.name}</span>
+                <div onClick={(e) => e.stopPropagation()}>{active.render(r)}</div>
+              </div>
+              {provider.render(r)}
+              {schedule.render(r)}
+            </div>
+          );
+        }}
+        rowActions={(r) => (
+          <>
+            <DropdownItem icon={Pencil} onClick={() => { setEditId(r.id); setModalOpen(true); }}>
+              Editar
+            </DropdownItem>
+            <DropdownItem icon={Trash2} onClick={() => setDeleteId(r.id)}>
+              Eliminar
+            </DropdownItem>
+          </>
+        )}
+      />
 
       <LeadScorerFormModal
         open={modalOpen}
@@ -529,54 +524,50 @@ function LeadsTab() {
         <p className="text-xs text-muted-darker">{selectedIds.size} lead(s) seleccionado(s).</p>
       )}
 
-      <Card>
-        <CardBody>
-          <Table
-            columns={columns}
-            rows={pageRows}
-            rowKey={(r) => r.id}
-            loading={loading}
-            error={fetchError}
-            onRetry={fetchRows}
-            onRowClick={(r) => setDetailId(r.id)}
-            emptyIcon={Sparkles}
-            emptyTitle="Sin leads calificados"
-            emptyDescription="Los chats que califiques manualmente o mediante ejecución automática aparecerán aquí."
-            mobileCard={(r) => {
-              const label = columns.find((c) => c.key === "label")!;
-              return (
-                <div className="flex items-start gap-3 min-w-0 w-full">
-                  <div onClick={(e) => e.stopPropagation()} className="pt-0.5 shrink-0">
-                    <Checkbox checked={selectedIds.has(r.id)} onChange={() => toggleSelected(r.id)} />
-                  </div>
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm truncate">{r.chat.name || r.chat.remoteJid.split("@")[0]}</span>
-                      {label.render(r)}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-darker">
-                      <span>{r.chat.remoteJid.split("@")[0]}</span>
-                      <span>·</span>
-                      <span className="truncate">{r.chat.account.name}</span>
-                      <span>·</span>
-                      <span className="truncate">{r.scorer.name}</span>
-                    </div>
-                    <p className="text-xs text-muted-darker line-clamp-2">{r.summary}</p>
-                    <p className="text-[11px] text-muted-darker">
-                      {new Date(r.updatedAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}
-                    </p>
-                  </div>
+      <Table
+        columns={columns}
+        rows={pageRows}
+        rowKey={(r) => r.id}
+        loading={loading}
+        error={fetchError}
+        onRetry={fetchRows}
+        onRowClick={(r) => setDetailId(r.id)}
+        emptyIcon={Sparkles}
+        emptyTitle="Sin leads calificados"
+        emptyDescription="Los chats que califiques manualmente o mediante ejecución automática aparecerán aquí."
+        mobileCard={(r) => {
+          const label = columns.find((c) => c.key === "label")!;
+          return (
+            <div className="flex items-start gap-3 min-w-0 w-full">
+              <div onClick={(e) => e.stopPropagation()} className="pt-0.5 shrink-0">
+                <Checkbox checked={selectedIds.has(r.id)} onChange={() => toggleSelected(r.id)} />
+              </div>
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-sm truncate">{r.chat.name || r.chat.remoteJid.split("@")[0]}</span>
+                  {label.render(r)}
                 </div>
-              );
-            }}
-          />
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-4 pt-4 border-t border-border">
-              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+                <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-darker">
+                  <span>{r.chat.remoteJid.split("@")[0]}</span>
+                  <span>·</span>
+                  <span className="truncate">{r.chat.account.name}</span>
+                  <span>·</span>
+                  <span className="truncate">{r.scorer.name}</span>
+                </div>
+                <p className="text-xs text-muted-darker line-clamp-2">{r.summary}</p>
+                <p className="text-[11px] text-muted-darker">
+                  {new Date(r.updatedAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}
+                </p>
+              </div>
             </div>
-          )}
-        </CardBody>
-      </Card>
+          );
+        }}
+      />
+      {totalPages > 1 && (
+        <div className="flex justify-center pt-2">
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+        </div>
+      )}
 
       <Modal
         open={!!detailRow}

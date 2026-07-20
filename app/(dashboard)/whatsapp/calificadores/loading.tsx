@@ -1,6 +1,5 @@
 import { PageHeader } from "@/app/components/ui/page-header";
 import { Skeleton, SkeletonRow } from "@/app/components/ui/skeleton";
-import { Card, CardBody } from "@/app/components/ui/card";
 
 export default function CalificadoresLoading() {
   return (
@@ -15,15 +14,11 @@ export default function CalificadoresLoading() {
         <Skeleton className="h-9 w-40 mb-[-1px]" />
       </div>
 
-      <Card>
-        <CardBody>
-          <div className="divide-y divide-border">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <SkeletonRow key={i} cols={5} />
-            ))}
-          </div>
-        </CardBody>
-      </Card>
+      <div className="divide-y divide-border rounded-xl border border-border">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <SkeletonRow key={i} cols={5} />
+        ))}
+      </div>
     </div>
   );
 }

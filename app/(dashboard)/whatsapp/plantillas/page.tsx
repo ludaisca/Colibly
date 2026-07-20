@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, RefreshCw, MessageSquareText } from "lucide-react";
-import { Card, CardBody } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
 import { Badge } from "@/app/components/ui/badge";
@@ -161,15 +160,11 @@ function TemplatesContent() {
       )}
 
       {!selectedAccountId ? (
-        <Card>
-          <CardBody>
-            <EmptyState
-              icon={MessageSquareText}
-              title="Selecciona una cuenta"
-              description="Elige una cuenta WhatsApp para ver sus plantillas."
-            />
-          </CardBody>
-        </Card>
+        <EmptyState
+          icon={MessageSquareText}
+          title="Selecciona una cuenta"
+          description="Elige una cuenta WhatsApp para ver sus plantillas."
+        />
       ) : (
         <EntityList
           rows={templates}

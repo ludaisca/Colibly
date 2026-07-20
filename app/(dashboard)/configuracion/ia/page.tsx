@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { ArrowLeft, Save, Eye, EyeOff, RefreshCw, MessageCircleHeart } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardBody, CardFooter } from "@/app/components/ui/card";
+import { Save, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { FormField } from "@/app/components/ui/form-field";
 import { Spinner } from "@/app/components/ui/spinner";
-import { PageHeader } from "@/app/components/ui/page-header";
+import { SectionHeader } from "@/app/components/ui/section-header";
+import { DetailPage } from "@/app/components/ui/detail-page";
 import { Switch } from "@/app/components/ui/switch";
 import { useToast } from "@/app/components/ui/toast";
 
@@ -177,19 +176,14 @@ export default function IASettingsPage() {
   if (loading) return <div className="flex items-center justify-center py-16"><Spinner /></div>;
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      <Link href="/configuracion" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors mb-3">
-        <ArrowLeft size={14} /> Volver a configuración
-      </Link>
-      <PageHeader
-        title="Configuración IA"
-        description="Administra las API keys y preferencias de los proveedores de inteligencia artificial."
-      />
-
-      <Card>
-        <form onSubmit={handleSave}>
-          <CardBody>
-            <div className="space-y-5">
+    <DetailPage
+      backHref="/configuracion"
+      backLabel="Volver a configuración"
+      title="Configuración IA"
+      description="Administra las API keys y preferencias de los proveedores de inteligencia artificial."
+    >
+      <section className="space-y-5">
+        <form onSubmit={handleSave} className="space-y-5">
               <FormField label="OpenRouter API Key" hint="Usada para acceder a modelos vía OpenRouter (Gemini, GPT-4, Claude, etc.)">
                 {(id) => (
                   <div className="relative">
@@ -279,96 +273,86 @@ export default function IASettingsPage() {
                   />
                 )}
               </FormField>
-            </div>
-          </CardBody>
-          <CardFooter>
+
+          <div>
             <Button type="submit" icon={saving ? undefined : Save} disabled={saving}>
               {saving ? <Spinner /> : "Guardar"}
             </Button>
-          </CardFooter>
+          </div>
         </form>
-      </Card>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <MessageCircleHeart size={16} className="text-accent" />
-            <CardTitle>Recuperación de leads</CardTitle>
+      <section className="space-y-5">
+        <SectionHeader title="Recuperación de leads" />
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Reactivar leads que dejan de responder</p>
+            <p className="text-xs text-muted-darker">
+              Cuando un lead se queda &quot;en visto&quot;, el mismo bot de esa cuenta le manda hasta 2 mensajes de seguimiento, generados con IA y coherentes con la conversación.
+            </p>
           </div>
-        </CardHeader>
-        <CardBody>
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Reactivar leads que dejan de responder</p>
-                <p className="text-xs text-muted-darker">
-                  Cuando un lead se queda &quot;en visto&quot;, el mismo bot de esa cuenta le manda hasta 2 mensajes de seguimiento, generados con IA y coherentes con la conversación.
-                </p>
-              </div>
-              <Switch checked={recoveryEnabled} onCheckedChange={setRecoveryEnabled} />
-            </div>
+          <Switch checked={recoveryEnabled} onCheckedChange={setRecoveryEnabled} />
+        </div>
 
-            {recoveryEnabled && (
-              <>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <FormField label="Horas de silencio para el mensaje 1" hint="Medido desde el último mensaje del lead">
-                    {(id) => (
-                      <Input
-                        id={id}
-                        type="number"
-                        min="1"
-                        value={recoveryFirstHours}
-                        onChange={(e) => setRecoveryFirstHours(Number(e.target.value))}
-                      />
-                    )}
-                  </FormField>
-                  <FormField label="Horas de silencio para el mensaje 2" hint="Vacío = solo se manda 1 mensaje">
-                    {(id) => (
-                      <Input
-                        id={id}
-                        type="number"
-                        min="1"
-                        value={recoverySecondHours}
-                        onChange={(e) => setRecoverySecondHours(e.target.value)}
-                        placeholder="Deshabilitado"
-                      />
-                    )}
-                  </FormField>
-                </div>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <FormField label="Horario de negocio — desde">
-                    {(id) => (
-                      <Select id={id} value={String(recoveryHourStart)} onChange={(e) => setRecoveryHourStart(Number(e.target.value))}>
-                        {Array.from({ length: 24 }, (_, h) => (
-                          <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
-                        ))}
-                      </Select>
-                    )}
-                  </FormField>
-                  <FormField label="Horario de negocio — hasta">
-                    {(id) => (
-                      <Select id={id} value={String(recoveryHourEnd)} onChange={(e) => setRecoveryHourEnd(Number(e.target.value))}>
-                        {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => (
-                          <option key={h} value={h}>{String(h % 24).padStart(2, "0")}:00</option>
-                        ))}
-                      </Select>
-                    )}
-                  </FormField>
-                </div>
-                <p className="text-[11px] text-muted-darker">
-                  Solo se envían mensajes de texto libre dentro de la ventana de 24h de Meta (desde el último mensaje del lead). Si ya pasaron más de 24h, el sistema no manda nada — no hay plantilla de reactivación configurada todavía. Respeta el presupuesto mensual de IA de arriba.
-                </p>
-              </>
-            )}
-
-            <div className="pt-1">
-              <Button size="sm" variant="secondary" icon={savingRecovery ? undefined : Save} onClick={handleSaveRecovery} disabled={savingRecovery}>
-                {savingRecovery ? <Spinner /> : "Guardar recuperación de leads"}
-              </Button>
+        {recoveryEnabled && (
+          <>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField label="Horas de silencio para el mensaje 1" hint="Medido desde el último mensaje del lead">
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="number"
+                    min="1"
+                    value={recoveryFirstHours}
+                    onChange={(e) => setRecoveryFirstHours(Number(e.target.value))}
+                  />
+                )}
+              </FormField>
+              <FormField label="Horas de silencio para el mensaje 2" hint="Vacío = solo se manda 1 mensaje">
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="number"
+                    min="1"
+                    value={recoverySecondHours}
+                    onChange={(e) => setRecoverySecondHours(e.target.value)}
+                    placeholder="Deshabilitado"
+                  />
+                )}
+              </FormField>
             </div>
-          </div>
-        </CardBody>
-      </Card>
-    </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField label="Horario de negocio — desde">
+                {(id) => (
+                  <Select id={id} value={String(recoveryHourStart)} onChange={(e) => setRecoveryHourStart(Number(e.target.value))}>
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                    ))}
+                  </Select>
+                )}
+              </FormField>
+              <FormField label="Horario de negocio — hasta">
+                {(id) => (
+                  <Select id={id} value={String(recoveryHourEnd)} onChange={(e) => setRecoveryHourEnd(Number(e.target.value))}>
+                    {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => (
+                      <option key={h} value={h}>{String(h % 24).padStart(2, "0")}:00</option>
+                    ))}
+                  </Select>
+                )}
+              </FormField>
+            </div>
+            <p className="text-[11px] text-muted-darker">
+              Solo se envían mensajes de texto libre dentro de la ventana de 24h de Meta (desde el último mensaje del lead). Si ya pasaron más de 24h, el sistema no manda nada — no hay plantilla de reactivación configurada todavía. Respeta el presupuesto mensual de IA de arriba.
+            </p>
+          </>
+        )}
+
+        <div className="pt-1">
+          <Button size="sm" variant="secondary" icon={savingRecovery ? undefined : Save} onClick={handleSaveRecovery} disabled={savingRecovery}>
+            {savingRecovery ? <Spinner /> : "Guardar recuperación de leads"}
+          </Button>
+        </div>
+      </section>
+    </DetailPage>
   );
 }

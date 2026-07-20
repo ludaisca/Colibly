@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Send, Trash2, Users } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardBody } from "@/app/components/ui/card";
+import { Send, Trash2, Users } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -12,6 +10,9 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Banner } from "@/app/components/ui/banner";
 import { Pagination } from "@/app/components/ui/pagination";
 import { Table, type TableColumn } from "@/app/components/ui/table";
+import { KpiStrip } from "@/app/components/ui/kpi-strip";
+import { SectionHeader } from "@/app/components/ui/section-header";
+import { DetailPage } from "@/app/components/ui/detail-page";
 import { useToast } from "@/app/components/ui/toast";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "info" | "danger" | "neutral" }> = {
@@ -142,16 +143,14 @@ export default function CampaignDetailPage() {
     ? Math.round(((campaign.sentCount) / campaign.recipientCount) * 100) : 0;
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <Link href="/whatsapp/campanas" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors mb-3">
-        <ArrowLeft size={14} /> Volver a campañas
-      </Link>
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{campaign.name}</h1>
-          <p className="text-sm text-muted-darker mt-1">{campaign.waAccount.name} · {campaign.waTemplate.name}</p>
-        </div>
-        <div className="flex gap-2">
+    <DetailPage
+      backHref="/whatsapp/campanas"
+      backLabel="Volver a campañas"
+      title={campaign.name}
+      description={`${campaign.waAccount.name} · ${campaign.waTemplate.name}`}
+      maxWidth="max-w-3xl"
+      actions={
+        <>
           {(campaign.status === "DRAFT" || campaign.status === "SCHEDULED") && (
             <Button icon={Send} size="sm" onClick={handleSend} disabled={sending}>
               {sending ? <Spinner /> : "Enviar ahora"}
@@ -160,31 +159,23 @@ export default function CampaignDetailPage() {
           {campaign.status === "DRAFT" && (
             <Button variant="danger" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)} />
           )}
-        </div>
-      </div>
+        </>
+      }
+    >
+      <div className="space-y-8">
+        <KpiStrip
+          size="compact"
+          items={[
+            { label: "Destinatarios", value: String(campaign.recipientCount) },
+            { label: "Enviados", value: String(campaign.sentCount) },
+            { label: "Entregados", value: String(campaign.deliveredCount) },
+            { label: "Leídos", value: String(campaign.readCount) },
+          ]}
+        />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {(["recipientCount", "sentCount", "deliveredCount", "readCount"] as const).map(k => {
-          const labels: Record<string, string> = {
-            recipientCount: "Destinatarios",
-            sentCount: "Enviados",
-            deliveredCount: "Entregados",
-            readCount: "Leídos",
-          };
-          return (
-            <Card key={k}>
-              <CardBody>
-                <p className="text-xs text-muted-darker">{labels[k]}</p>
-                <p className="text-2xl font-bold mt-1">{campaign[k]}</p>
-              </CardBody>
-            </Card>
-          );
-        })}
-      </div>
-
-      {campaign.status !== "DRAFT" && (
-        <Card>
-          <CardBody>
+        {campaign.status !== "DRAFT" && (
+          <section className="space-y-3">
+            <SectionHeader title="Progreso de envío" />
             <div className="flex items-center gap-3">
               <div className="flex-1 bg-surface rounded-full h-2 overflow-hidden relative">
                 <div
@@ -206,15 +197,11 @@ export default function CampaignDetailPage() {
                 {statusBadge.label}
               </Badge>
             </div>
-          </CardBody>
-        </Card>
-      )}
+          </section>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Destinatarios ({campaign.recipientCount})</CardTitle>
-        </CardHeader>
-        <CardBody>
+        <section className="space-y-4">
+          <SectionHeader title={`Destinatarios (${campaign.recipientCount})`} />
           <Table
             columns={recipientColumns}
             rows={recipients}
@@ -236,12 +223,12 @@ export default function CampaignDetailPage() {
             }}
           />
           {totalPages > 1 && (
-            <div className="flex justify-center mt-4 pt-4 border-t border-border">
+            <div className="flex justify-center pt-2">
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </CardBody>
-      </Card>
+        </section>
+      </div>
 
       <ConfirmDialog
         open={deleteOpen}
@@ -256,6 +243,6 @@ export default function CampaignDetailPage() {
           setDeleteOpen(false);
         }}
       />
-    </div>
+    </DetailPage>
   );
 }
