@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Trash2, Power, PowerOff, Send, Upload, X } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardBody } from "@/app/components/ui/card";
+import { Trash2, Power, PowerOff, Send, Upload, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Input } from "@/app/components/ui/input";
@@ -13,6 +11,9 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Banner } from "@/app/components/ui/banner";
 import { Table, type TableColumn } from "@/app/components/ui/table";
+import { SectionHeader } from "@/app/components/ui/section-header";
+import { KpiStrip } from "@/app/components/ui/kpi-strip";
+import { DetailPage, DetailRow } from "@/app/components/ui/detail-page";
 import { useToast } from "@/app/components/ui/toast";
 import { BotFormModal } from "../_form";
 
@@ -51,7 +52,12 @@ interface UsageData {
   recent: Array<{ totalTokens: number; estimatedCost: number; createdAt: string }>;
 }
 
-const TABS = ["config", "knowledge", "test", "uso"] as const;
+const TABS = [
+  { id: "config", label: "Configuración" },
+  { id: "knowledge", label: "Conocimiento" },
+  { id: "test", label: "Probar" },
+  { id: "uso", label: "Uso" },
+] as const;
 
 export default function BotDetailPage() {
   const params = useParams();
@@ -59,7 +65,7 @@ export default function BotDetailPage() {
   const { success, error: toastError } = useToast();
   const id = params.id as string;
 
-  const [tab, setTab] = useState<(typeof TABS)[number]>("config");
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("config");
   const [bot, setBot] = useState<BotDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -230,23 +236,17 @@ export default function BotDetailPage() {
   if (!bot) return <Banner tone="danger" title="Bot no encontrado">El bot solicitado no existe.</Banner>;
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <Link href="/whatsapp/bots" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors mb-3">
-        <ArrowLeft size={14} /> Volver a bots
-      </Link>
-      {bot.status === "ERROR" && (
-        <Banner tone="danger" title="Este bot dejó de responder por un error">
-          Quedó marcado en estado de error tras un fallo (API key inválida, error del proveedor, etc.) y no procesará mensajes nuevos aunque esté &quot;Activo&quot;. Pausa y vuelve a activarlo para reintentar.
-        </Banner>
-      )}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{bot.name}</h1>
-          <p className="text-sm text-muted-darker mt-1">
-            {bot.waAccount?.name ?? "Sin cuenta (solo pruebas)"} · {bot.provider === "openrouter" ? "OpenRouter" : "Gemini"} · {bot.model}
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <DetailPage
+      backHref="/whatsapp/bots"
+      backLabel="Volver a bots"
+      title={bot.name}
+      description={`${bot.waAccount?.name ?? "Sin cuenta (solo pruebas)"} · ${bot.provider === "openrouter" ? "OpenRouter" : "Gemini"} · ${bot.model}`}
+      maxWidth="max-w-3xl"
+      tabs={TABS as unknown as { id: string; label: string }[]}
+      activeTab={tab}
+      onTabChange={(t) => setTab(t as (typeof TABS)[number]["id"])}
+      actions={
+        <>
           <Button
             icon={bot.isActive ? PowerOff : Power}
             variant={bot.isActive ? "secondary" : "primary"}
@@ -258,170 +258,123 @@ export default function BotDetailPage() {
           </Button>
           <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>Editar</Button>
           <Button variant="danger" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)} />
-        </div>
-      </div>
-
-      <div className="flex gap-1 border-b border-border">
-        {TABS.map((t) => {
-          const labels: Record<string, string> = {
-            config: "Configuración",
-            knowledge: "Conocimiento",
-            test: "Probar",
-            uso: "Uso",
-          };
-          return (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-foreground"
-              }`}
-            >
-              {labels[t]}
-            </button>
-          );
-        })}
-      </div>
+        </>
+      }
+    >
+      {bot.status === "ERROR" && (
+        <Banner tone="danger" title="Este bot dejó de responder por un error">
+          Quedó marcado en estado de error tras un fallo (API key inválida, error del proveedor, etc.) y no procesará mensajes nuevos aunque esté &quot;Activo&quot;. Pausa y vuelve a activarlo para reintentar.
+        </Banner>
+      )}
 
       {tab === "config" && (
-        <Card>
-          <CardBody>
-            <dl className="space-y-3">
-              <Row label="Prompt del sistema" value={bot.systemPrompt} />
-              <Row label="Temperatura" value={String(bot.temperature)} />
-              <Row label="Max tokens" value={String(bot.maxTokens)} />
-              <Row label="Memoria" value={bot.memoryType === "RECENT" ? `Reciente (${bot.memoryLimit} msgs)` : bot.memoryType === "SUMMARY" ? "Resumen acumulativo" : "Ninguna"} />
-              <Row label="RAG" value={bot.ragEnabled ? "Activado" : "Desactivado"} />
-              <Row label="Creado" value={new Date(bot.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })} />
-            </dl>
-          </CardBody>
-        </Card>
+        <section>
+          <dl className="space-y-3">
+            <DetailRow label="Prompt del sistema" value={bot.systemPrompt} />
+            <DetailRow label="Temperatura" value={String(bot.temperature)} />
+            <DetailRow label="Max tokens" value={String(bot.maxTokens)} />
+            <DetailRow label="Memoria" value={bot.memoryType === "RECENT" ? `Reciente (${bot.memoryLimit} msgs)` : bot.memoryType === "SUMMARY" ? "Resumen acumulativo" : "Ninguna"} />
+            <DetailRow label="RAG" value={bot.ragEnabled ? "Activado" : "Desactivado"} />
+            <DetailRow label="Creado" value={new Date(bot.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })} />
+          </dl>
+        </section>
       )}
 
       {tab === "knowledge" && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle>Subir documento</CardTitle></CardHeader>
-            <CardBody>
-              <div className="space-y-3">
-                <FormField label="Título">
-                  {(id) => <Input id={id} value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="Ej: Manual de soporte" />}
-                </FormField>
-                <FormField label="Archivo" hint=".txt, .md, .csv, .json (máx 10MB)">
-                  {(id) => (
-                    <input
-                      id={id}
-                      ref={fileRef}
-                      type="file"
-                      accept=".txt,.md,.csv,.json"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                      className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-light file:text-foreground hover:file:bg-surface file:cursor-pointer"
-                    />
-                  )}
-                </FormField>
-                <Button icon={Upload} size="sm" onClick={handleUpload} disabled={uploading || !selectedFile}>
-                  {uploading ? <Spinner /> : "Indexar documento"}
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
+        <div className="space-y-8">
+          <section className="space-y-4">
+            <SectionHeader title="Subir documento" />
+            <div className="space-y-3">
+              <FormField label="Título">
+                {(id) => <Input id={id} value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="Ej: Manual de soporte" />}
+              </FormField>
+              <FormField label="Archivo" hint=".txt, .md, .csv, .json (máx 10MB)">
+                {(id) => (
+                  <input
+                    id={id}
+                    ref={fileRef}
+                    type="file"
+                    accept=".txt,.md,.csv,.json"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                    className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-light file:text-foreground hover:file:bg-surface file:cursor-pointer"
+                  />
+                )}
+              </FormField>
+              <Button icon={Upload} size="sm" onClick={handleUpload} disabled={uploading || !selectedFile}>
+                {uploading ? <Spinner /> : "Indexar documento"}
+              </Button>
+            </div>
+          </section>
 
-          <Card>
-            <CardHeader><CardTitle>Documentos indexados ({knowledge.length})</CardTitle></CardHeader>
-            <CardBody>
-              {knowledgeLoading ? <Spinner /> : knowledge.length === 0 ? (
-                <p className="text-sm text-muted py-4 text-center">Sin documentos. Sube archivos para la base de conocimiento.</p>
-              ) : (
-                <div className="divide-y divide-border -mx-5">
-                  {knowledge.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between px-5 py-3">
-                      <div>
-                        <p className="text-sm font-medium">{doc.title}</p>
-                        <p className="text-xs text-muted-darker">Chunk {doc.chunkIndex}{doc.sourceName ? ` · ${doc.sourceName}` : ""} · {new Date(doc.createdAt).toLocaleDateString("es-MX")}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={deletingDocId === doc.id ? undefined : X}
-                        onClick={() => handleDeleteDoc(doc.id)}
-                        disabled={deletingDocId === doc.id}
-                      />
+          <section className="space-y-4">
+            <SectionHeader title={`Documentos indexados (${knowledge.length})`} />
+            {knowledgeLoading ? <Spinner /> : knowledge.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted">Sin documentos. Sube archivos para la base de conocimiento.</p>
+            ) : (
+              <div className="divide-y divide-border rounded-xl border border-border">
+                {knowledge.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{doc.title}</p>
+                      <p className="text-xs text-muted-darker">Chunk {doc.chunkIndex}{doc.sourceName ? ` · ${doc.sourceName}` : ""} · {new Date(doc.createdAt).toLocaleDateString("es-MX")}</p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardBody>
-          </Card>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={deletingDocId === doc.id ? undefined : X}
+                      onClick={() => handleDeleteDoc(doc.id)}
+                      disabled={deletingDocId === doc.id}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
 
       {tab === "test" && (
-        <Card>
-          <CardHeader><CardTitle>Probar el bot</CardTitle></CardHeader>
-          <CardBody>
-            <div className="space-y-4">
-              <FormField label="Mensaje de prueba">
-                {(id) => (
-                  <Textarea id={id} value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Escribe un mensaje para probar..." rows={3} />
-                )}
-              </FormField>
-              <Button icon={Send} size="sm" onClick={handleTest} disabled={testing || !testMessage.trim()}>
-                {testing ? <Spinner /> : "Enviar"}
-              </Button>
-              {testResponse && (
-                <div className="p-4 bg-surface rounded-lg border border-border">
-                  <p className="text-xs text-muted-darker mb-2 font-medium">Respuesta:</p>
-                  <p className="text-sm whitespace-pre-wrap">{testResponse}</p>
-                </div>
-              )}
+        <section className="space-y-4">
+          <SectionHeader title="Probar el bot" />
+          <FormField label="Mensaje de prueba">
+            {(id) => (
+              <Textarea id={id} value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Escribe un mensaje para probar..." rows={3} />
+            )}
+          </FormField>
+          <Button icon={Send} size="sm" onClick={handleTest} disabled={testing || !testMessage.trim()}>
+            {testing ? <Spinner /> : "Enviar"}
+          </Button>
+          {testResponse && (
+            <div className="rounded-lg border border-border bg-surface p-4">
+              <p className="mb-2 text-xs font-medium text-muted-darker">Respuesta:</p>
+              <p className="whitespace-pre-wrap text-sm">{testResponse}</p>
             </div>
-          </CardBody>
-        </Card>
+          )}
+        </section>
       )}
 
       {tab === "uso" && (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardBody>
-                <p className="text-xs text-muted-darker">Hoy</p>
-                <p className="text-xl font-bold">{usageData?.today.totalTokens?.toLocaleString() ?? "—"}</p>
-                <p className="text-xs text-muted-darker">tokens · ${(usageData?.today?.estimatedCost ?? 0).toFixed(4)}</p>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <p className="text-xs text-muted-darker">Este mes</p>
-                <p className="text-xl font-bold">{usageData?.month.totalTokens?.toLocaleString() ?? "—"}</p>
-                <p className="text-xs text-muted-darker">tokens · ${(usageData?.month?.estimatedCost ?? 0).toFixed(4)}</p>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <p className="text-xs text-muted-darker">Total</p>
-                <p className="text-xl font-bold">{usageData?.total.totalTokens?.toLocaleString() ?? "—"}</p>
-                <p className="text-xs text-muted-darker">tokens · ${(usageData?.total?.estimatedCost ?? 0).toFixed(4)}</p>
-              </CardBody>
-            </Card>
-          </div>
+        <div className="space-y-8">
+          <KpiStrip
+            size="compact"
+            items={[
+              { label: "Hoy", value: usageData?.today.totalTokens?.toLocaleString() ?? "—", hint: `$${(usageData?.today?.estimatedCost ?? 0).toFixed(4)}` },
+              { label: "Este mes", value: usageData?.month.totalTokens?.toLocaleString() ?? "—", hint: `$${(usageData?.month?.estimatedCost ?? 0).toFixed(4)}` },
+              { label: "Total", value: usageData?.total.totalTokens?.toLocaleString() ?? "—", hint: `$${(usageData?.total?.estimatedCost ?? 0).toFixed(4)}` },
+            ]}
+          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Últimas interacciones ({usageData?.total.interactions ?? 0} total)
-              </CardTitle>
-            </CardHeader>
-            <CardBody>
-              <Table
-                columns={usageColumns}
-                rows={usageData?.recent ?? []}
-                rowKey={(u) => `${u.createdAt}-${u.totalTokens}-${u.estimatedCost}`}
-                loading={usageLoading}
-                emptyIcon={Send}
-                emptyTitle="Sin datos de uso aún"
-              />
-            </CardBody>
-          </Card>
+          <section className="space-y-4">
+            <SectionHeader title={`Últimas interacciones (${usageData?.total.interactions ?? 0} total)`} />
+            <Table
+              columns={usageColumns}
+              rows={usageData?.recent ?? []}
+              rowKey={(u) => `${u.createdAt}-${u.totalTokens}-${u.estimatedCost}`}
+              loading={usageLoading}
+              emptyIcon={Send}
+              emptyTitle="Sin datos de uso aún"
+            />
+          </section>
         </div>
       )}
 
@@ -441,15 +394,6 @@ export default function BotDetailPage() {
         editId={bot.id}
         onSaved={fetchBot}
       />
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between border-b border-border pb-3">
-      <dt className="text-sm text-muted-darker">{label}</dt>
-      <dd className="text-sm max-w-[60%] text-right truncate">{value}</dd>
-    </div>
+    </DetailPage>
   );
 }

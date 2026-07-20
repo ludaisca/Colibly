@@ -3,9 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardBody } from "@/app/components/ui/card";
+import { Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X, ArrowLeft } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -14,6 +12,8 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Banner } from "@/app/components/ui/banner";
 import { Switch } from "@/app/components/ui/switch";
+import { SectionHeader } from "@/app/components/ui/section-header";
+import { DetailPage, DetailRow } from "@/app/components/ui/detail-page";
 import { useToast } from "@/app/components/ui/toast";
 
 interface AccountDetail {
@@ -121,7 +121,7 @@ export default function CuentaDetailPage() {
       if (Array.isArray(sharedData)) setSharedUsers(sharedData);
       if (Array.isArray(usersData)) setAllUsers(usersData);
     } catch {
-      // silencioso — la tarjeta de compartir es secundaria a la info principal de la cuenta
+      // silencioso — la sección de compartir es secundaria a la info principal de la cuenta
     }
   }, [id]);
 
@@ -257,51 +257,34 @@ export default function CuentaDetailPage() {
   const badge = STATUS_BADGE[account.status] ?? { label: account.status, tone: "neutral" as const };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      <div>
-        <Link href="/whatsapp/cuentas" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors mb-3">
-          <ArrowLeft size={14} />
-          Volver a cuentas
-        </Link>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">{account.name}</h1>
-          <Badge tone={badge.tone}>{badge.label}</Badge>
-        </div>
-      </div>
-
+    <DetailPage
+      backHref="/whatsapp/cuentas"
+      backLabel="Volver a cuentas"
+      title={account.name}
+      badge={<Badge tone={badge.tone}>{badge.label}</Badge>}
+    >
       {account.status === "ERROR" && account.errorMessage && (
         <Banner tone="danger" title="Error en la cuenta">
           {account.errorMessage}
         </Banner>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Información de la cuenta</CardTitle>
-        </CardHeader>
-        <CardBody>
+      <div className="space-y-8">
+        <section className="space-y-4">
+          <SectionHeader title="Información de la cuenta" />
           <dl className="space-y-4">
-            <div className="flex justify-between border-b border-border pb-3">
-              <dt className="text-sm text-muted-darker">Número</dt>
-              <dd className="text-sm font-mono">{account.phoneNumber ?? "—"}</dd>
-            </div>
-            <div className="flex justify-between border-b border-border pb-3">
-              <dt className="text-sm text-muted-darker">Phone Number ID</dt>
-              <dd className="text-sm font-mono">{account.phoneNumberId}</dd>
-            </div>
-            <div className="flex justify-between border-b border-border pb-3">
-              <dt className="text-sm text-muted-darker">WABA ID</dt>
-              <dd className="text-sm font-mono">{account.wabaId ?? "—"}</dd>
-            </div>
-            <div className="flex justify-between items-center border-b border-border pb-3 gap-3">
-              <dt className="text-sm text-muted-darker shrink-0">App ID</dt>
+            <DetailRow label="Número" value={<span className="font-mono">{account.phoneNumber ?? "—"}</span>} />
+            <DetailRow label="Phone Number ID" value={<span className="font-mono">{account.phoneNumberId}</span>} />
+            <DetailRow label="WABA ID" value={<span className="font-mono">{account.wabaId ?? "—"}</span>} />
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+              <dt className="shrink-0 text-sm text-muted-darker">App ID</dt>
               {editingAppId ? (
-                <div className="flex items-center gap-2 flex-1 justify-end">
+                <div className="flex flex-1 items-center justify-end gap-2">
                   <Input
                     value={appIdDraft}
                     onChange={(e) => setAppIdDraft(e.target.value)}
                     placeholder="123456789012345"
-                    className="text-sm font-mono max-w-[200px]"
+                    className="max-w-[200px] font-mono text-sm"
                   />
                   <Button size="sm" onClick={handleSaveAppId} disabled={savingAppId}>
                     {savingAppId ? <Spinner /> : "Guardar"}
@@ -311,16 +294,16 @@ export default function CuentaDetailPage() {
                   </Button>
                 </div>
               ) : (
-                <dd className="text-sm font-mono flex items-center gap-2">
+                <dd className="flex items-center gap-2 font-mono text-sm">
                   {account.appId ?? "—"}
-                  <button onClick={startEditAppId} className="text-muted-darker hover:text-foreground transition-colors" aria-label="Editar App ID">
+                  <button onClick={startEditAppId} className="text-muted-darker transition-colors hover:text-foreground" aria-label="Editar App ID">
                     <Pencil size={13} />
                   </button>
                 </dd>
               )}
             </div>
             {account.qualityRating && (
-              <div className="flex justify-between border-b border-border pb-3">
+              <div className="flex items-center justify-between border-b border-border pb-3">
                 <dt className="text-sm text-muted-darker">Calidad del número</dt>
                 <dd className="flex items-center gap-2">
                   <Badge tone={qualityTone(account.qualityRating)} size="sm">{account.qualityRating}</Badge>
@@ -330,25 +313,19 @@ export default function CuentaDetailPage() {
                 </dd>
               </div>
             )}
-            <div className="flex justify-between border-b border-border pb-3">
-              <dt className="text-sm text-muted-darker">Chats activos</dt>
-              <dd className="text-sm font-medium">{account._count.chats}</dd>
-            </div>
-            <div className="flex justify-between border-b border-border pb-3">
-              <dt className="text-sm text-muted-darker">Plantillas</dt>
-              <dd className="text-sm font-medium">{account._count.templates}</dd>
-            </div>
-            <div className="flex justify-between border-b border-border pb-3">
-              <dt className="text-sm text-muted-darker">Última actividad</dt>
-              <dd className="text-sm">
-                {account.lastActivity
+            <DetailRow label="Chats activos" value={account._count.chats} />
+            <DetailRow label="Plantillas" value={account._count.templates} />
+            <DetailRow
+              label="Última actividad"
+              value={
+                account.lastActivity
                   ? new Date(account.lastActivity).toLocaleDateString("es-MX", {
                       day: "2-digit", month: "long", year: "numeric",
                       hour: "2-digit", minute: "2-digit",
                     })
-                  : "—"}
-              </dd>
-            </div>
+                  : "—"
+              }
+            />
             <div className="flex justify-between">
               <dt className="text-sm text-muted-darker">Creada</dt>
               <dd className="text-sm">
@@ -358,19 +335,15 @@ export default function CuentaDetailPage() {
               </dd>
             </div>
           </dl>
-        </CardBody>
-      </Card>
+        </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuración del webhook</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <p className="text-sm text-muted mb-3">
+        <section className="space-y-4">
+          <SectionHeader title="Configuración del webhook" />
+          <p className="text-sm text-muted">
             Configura esta URL en tu App de Meta para recibir mensajes entrantes.
           </p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 bg-surface px-3 py-2 rounded-lg text-xs font-mono break-all">
+            <code className="flex-1 break-all rounded-lg bg-surface px-3 py-2 font-mono text-xs">
               {getWebhookUrl()}
             </code>
             <Button
@@ -382,14 +355,10 @@ export default function CuentaDetailPage() {
               {copied ? "Copiado" : "Copiar"}
             </Button>
           </div>
-        </CardBody>
-      </Card>
+        </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Asignación de chats</CardTitle>
-        </CardHeader>
-        <CardBody>
+        <section className="space-y-4">
+          <SectionHeader title="Asignación de chats" />
           <div className="flex items-center justify-between py-1">
             <div>
               <p className="text-sm font-medium text-foreground">Auto-asignación de chats nuevos</p>
@@ -399,21 +368,17 @@ export default function CuentaDetailPage() {
             </div>
             <Switch checked={account.autoAssignEnabled} onCheckedChange={handleToggleAutoAssign} />
           </div>
-        </CardBody>
-      </Card>
+        </section>
 
-      {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Compartir cuenta</CardTitle>
-          </CardHeader>
-          <CardBody>
-            <p className="text-sm text-muted mb-3">
+        {isAdmin && (
+          <section className="space-y-4">
+            <SectionHeader title="Compartir cuenta" />
+            <p className="text-sm text-muted">
               Los usuarios con acceso pueden ver los chats, contactos y campañas de esta cuenta — dentro de lo que su propio rol ya permite ver. Compartir no cambia sus permisos de menú.
             </p>
 
             {sharedUsers.length > 0 ? (
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2">
                 {sharedUsers.map((u) => (
                   <Badge key={u.id} tone="neutral" size="sm" className="gap-1.5">
                     {u.name ?? u.email} · {ROLE_LABEL[u.role] ?? u.role}
@@ -428,7 +393,7 @@ export default function CuentaDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-darker mb-4">Todavía no compartes esta cuenta con nadie.</p>
+              <p className="text-xs text-muted-darker">Todavía no compartes esta cuenta con nadie.</p>
             )}
 
             <div className="flex items-center gap-2">
@@ -446,23 +411,23 @@ export default function CuentaDetailPage() {
                 {sharing ? <Spinner /> : "Compartir"}
               </Button>
             </div>
-          </CardBody>
-        </Card>
-      )}
+          </section>
+        )}
 
-      <div className="flex gap-3 flex-wrap">
-        <Button href={`/whatsapp/chat?accountId=${account.id}`} icon={MessageCircle}>Abrir chats</Button>
-        <Button href={`/whatsapp/plantillas?accountId=${account.id}`} variant="secondary" icon={FileText}>Gestionar plantillas</Button>
-        <Button variant="secondary" icon={RefreshCw} onClick={fetchAccount}>
-          Actualizar
-        </Button>
-        <Button
-          variant="danger"
-          icon={Trash2}
-          onClick={() => setDeleteOpen(true)}
-        >
-          Eliminar
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button href={`/whatsapp/chat?accountId=${account.id}`} icon={MessageCircle}>Abrir chats</Button>
+          <Button href={`/whatsapp/plantillas?accountId=${account.id}`} variant="secondary" icon={FileText}>Gestionar plantillas</Button>
+          <Button variant="secondary" icon={RefreshCw} onClick={fetchAccount}>
+            Actualizar
+          </Button>
+          <Button
+            variant="danger"
+            icon={Trash2}
+            onClick={() => setDeleteOpen(true)}
+          >
+            Eliminar
+          </Button>
+        </div>
       </div>
 
       <ConfirmDialog
@@ -474,6 +439,6 @@ export default function CuentaDetailPage() {
         tone="danger"
         onConfirm={handleDelete}
       />
-    </div>
+    </DetailPage>
   );
 }
