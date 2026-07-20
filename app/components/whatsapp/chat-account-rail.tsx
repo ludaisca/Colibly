@@ -35,7 +35,7 @@ export function ChatAccountRail({ accounts, selectedAccountId, onSelect, unreadB
 
       <div className="my-1 h-px w-8 bg-border" />
 
-      <div className="flex flex-col items-center gap-2 overflow-y-auto">
+      <div className="scrollbar-thin flex flex-col items-center gap-2 overflow-y-auto">
         {accounts.map((acc) => (
           <RailButton
             key={acc.id}
@@ -72,8 +72,14 @@ function RailButton({
       title={label}
       aria-pressed={active}
       className={cn(
-        "relative rounded-bubble p-0.5 transition-colors duration-fast ease-brand",
-        active ? "ring-2 ring-accent" : "opacity-80 hover:opacity-100"
+        "relative flex rounded-bubble transition-opacity duration-fast ease-brand",
+        // ring-offset (no padding en el botón) para que el aro no pegue
+        // directo al borde del avatar — a este tamaño, un ring pegado sin
+        // separación choca con la esquina asimétrica de rounded-bubble y se
+        // ve como si el ícono estuviera "cortado" en esa esquina.
+        active
+          ? "ring-2 ring-accent ring-offset-2 ring-offset-background"
+          : "opacity-80 hover:opacity-100"
       )}
     >
       {children}

@@ -110,7 +110,7 @@ export function ChatListPanel({
           </Select>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="scrollbar-thin flex-1 overflow-y-auto">
         {loadingChats ? (
           <div className="flex items-center justify-center py-12">
             <Spinner />

@@ -216,6 +216,33 @@
 }
 
 /* ─────────────────────────────────────────────────
+   SCROLLBAR DELGADO — para paneles con scroll interno (nav del sidebar,
+   rail de cuentas, lista de chats, hilo de mensajes). Sin esto, un <div>
+   con overflow-y hereda el scrollbar "clásico" con flechas que el tema
+   del sistema operativo le impone — muy distinto del scroll de la propia
+   ventana del navegador, y es lo que hace que el rail de chat se sienta
+   con un scrollbar "de más" que no aparece en el resto de la app.
+   ───────────────────────────────────────────────── */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-darker);
+}
+
+/* ─────────────────────────────────────────────────
    GLOBAL BASE
    ───────────────────────────────────────────────── */
 html {
