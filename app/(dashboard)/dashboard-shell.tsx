@@ -47,17 +47,17 @@ export function DashboardShell({
       ]
     : [
         {
-          title: "Análisis",
-          items: [
-            { href: "/dashboard",               label: "Panel",            icon: LayoutDashboard, exact: true },
-            { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
-          ],
-        },
-        {
           title: "Mensajería",
           items: [
             { href: "/whatsapp/chat",           label: "Bandeja de Chats", icon: MessageSquare },
             ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
+          ],
+        },
+        {
+          title: "Análisis",
+          items: [
+            { href: "/dashboard",               label: "Panel",            icon: LayoutDashboard, exact: true },
+            { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
           ],
         },
         {
