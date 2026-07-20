@@ -287,10 +287,20 @@ export function ChatThreadPanel({
             <ArrowLeft size={18} />
           </button>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <p className="text-sm font-semibold truncate">
                 {selectedChat.name ?? selectedChat.remoteJid}
               </p>
+              {selectedChat.contactId && (
+                <button
+                  onClick={onOpenContactDrawer}
+                  className="text-muted-darker hover:text-foreground transition-colors shrink-0"
+                  title="Ver contacto"
+                  aria-label="Ver contacto"
+                >
+                  <User size={15} />
+                </button>
+              )}
               <Badge tone={accountTone(selectedChat.accountId)} size="sm" className="shrink-0">
                 {selectedChat.account.name}
               </Badge>
@@ -301,15 +311,6 @@ export function ChatThreadPanel({
               </p>
             )}
           </div>
-          {selectedChat.contactId && (
-            <button
-              onClick={onOpenContactDrawer}
-              className="text-muted-darker hover:text-foreground transition-colors shrink-0"
-              title="Ver contacto"
-            >
-              <User size={18} />
-            </button>
-          )}
         </div>
 
         {/* Row 2: conversation metadata controls — free to wrap, never fights the name for space */}
