@@ -4,7 +4,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   MessageSquare,
-  User,
   Check,
   CheckCheck,
   Clock,
@@ -22,6 +21,7 @@ import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Modal } from "@/app/components/ui/modal";
+import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ChatAssigneePicker } from "@/app/components/whatsapp/chat-assignee-picker";
 import { ChatTagPicker } from "@/app/components/whatsapp/chat-tag-picker";
 import { LeadScoreBadge } from "@/app/components/whatsapp/lead-score-badge";
@@ -286,21 +286,27 @@ export function ChatThreadPanel({
           >
             <ArrowLeft size={18} />
           </button>
+          {/* Mismo EntityAvatar (id=accountId, mismo hue) que ya usan la fila
+              de la lista y el rail — coherencia visual entre las 3 vistas del
+              chat. Si hay contacto asociado, el propio avatar es el disparador
+              para abrir su ficha (mismo gesto que WhatsApp Web). */}
+          {selectedChat.contactId ? (
+            <button
+              onClick={onOpenContactDrawer}
+              className="shrink-0"
+              title="Ver contacto"
+              aria-label="Ver contacto"
+            >
+              <EntityAvatar id={selectedChat.accountId} name={selectedChat.name ?? selectedChat.remoteJid} size="sm" />
+            </button>
+          ) : (
+            <EntityAvatar id={selectedChat.accountId} name={selectedChat.name ?? selectedChat.remoteJid} size="sm" className="shrink-0" />
+          )}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <p className="text-sm font-semibold truncate">
                 {selectedChat.name ?? selectedChat.remoteJid}
               </p>
-              {selectedChat.contactId && (
-                <button
-                  onClick={onOpenContactDrawer}
-                  className="text-muted-darker hover:text-foreground transition-colors shrink-0"
-                  title="Ver contacto"
-                  aria-label="Ver contacto"
-                >
-                  <User size={15} />
-                </button>
-              )}
               <Badge tone={accountTone(selectedChat.accountId)} size="sm" className="shrink-0">
                 {selectedChat.account.name}
               </Badge>
