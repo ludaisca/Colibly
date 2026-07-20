@@ -41,8 +41,13 @@ export function ChatAccountRail({ accounts, selectedAccountId, onSelect, unreadB
           del rail y overflow-y-auto dispara nada más cuando hay más cuentas
           de las que caben — sin esto, el div media exacto a su contenido y
           hover:scale-105 en el avatar alcanzaba a "desbordarlo" por un par
-          de px, mostrando un scrollbar fantasma solo al pasar el mouse. */}
-      <div className="scrollbar-thin flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto py-1">
+          de px, mostrando un scrollbar fantasma solo al pasar el mouse.
+          w-full: sin esto, "items-center" del padre deja que este div se
+          encoja al ancho de su contenido (40px, igual al ícono) en vez de
+          heredar los 64px del rail — con cero margen a los lados, el aro de
+          selección (ring-offset + ring) no tenía dónde pintarse y se
+          recortaba contra el propio borde del contenedor. */}
+      <div className="scrollbar-thin flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto py-1">
         {accounts.map((acc) => (
           <RailButton
             key={acc.id}
