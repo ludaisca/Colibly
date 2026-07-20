@@ -8,7 +8,6 @@ import { Menu, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { Drawer } from "./drawer";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
-import { Breadcrumb } from "./breadcrumb";
 import { RouteProgressBar } from "./route-progress-bar";
 import { cn } from "./cn";
 
@@ -175,8 +174,8 @@ export function AppShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   // Chat is a dense, WhatsApp-Web-style inbox that manages its own internal
-  // scrolling panes — the standard page chrome (breadcrumb + p-8 padding)
-  // just eats space it needs, so this route gets a full-bleed shell instead.
+  // scrolling panes — the standard page chrome (p-8 padding) just eats space
+  // it needs, so this route gets a full-bleed shell instead.
   const pathname = usePathname();
   const fullBleed = pathname.startsWith("/whatsapp/chat");
 
@@ -265,11 +264,8 @@ export function AppShell({
             </Link>
           </div>
 
-          {/* Breadcrumb integrado al header (antes vivía dentro de <main>) —
-              en fullBleed nunca se renderizaba y se mantiene así. */}
-          <div className="hidden md:flex flex-1 items-center">
-            {!fullBleed && <Breadcrumb />}
-          </div>
+          {/* Spacer: empuja los controles de la derecha al borde del header. */}
+          <div className="hidden md:block flex-1" />
 
           <div className="flex items-center gap-1.5">
             <ThemeToggle />

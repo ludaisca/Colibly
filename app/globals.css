@@ -4,7 +4,7 @@
    BASE TOKENS — dark (default)
    ───────────────────────────────────────────────── */
 :root {
-  /* Surfaces — warm charcoal (hue tierra, no verde: el verde vive solo en
+  /* Surfaces — warm charcoal (hue tierra, no berry: el berry vive solo en
      --accent; los neutros cálidos hacen el fondo "de madera", no "de terminal") */
   --background:    #14120f;
   --foreground:    #f2efe9;
@@ -16,10 +16,10 @@
   --muted:         #a69f92;
   --muted-darker:  #7c7568;
 
-  /* Brand — WhatsApp green, refined */
-  --accent:        #22C55E;
-  --accent-hover:  #16A34A;
-  --on-accent:     #0d1512;
+  /* Brand — berry, deliberadamente alejado del verde WhatsApp (2026-07 rebrand) */
+  --accent:        #E0518F;
+  --accent-hover:  #C23D77;
+  --on-accent:     #ffffff;
 
   /* Semantic */
   --success:       #2dd4bf;
@@ -54,8 +54,9 @@
   --radius-xl: 1rem;
 
   /* Hue por entidad (cuentas WhatsApp) — lightness/chroma fijos por tema, solo
-     varía el hue. La paleta esquiva ~150° (accent verde) y ~180° (success teal)
-     para que el color de cuenta nunca se confunda con estados semánticos.
+     varía el hue. La paleta esquiva ~180° (success teal) y todo el rango
+     ~300-25° (accent berry, 2026-07 rebrand) para que el color de cuenta nunca
+     se confunda con estados semánticos ni con la marca.
      Solo asignar vía HUE_CLASS de lib/…/hue.ts — nunca interpolar "hue-N". */
   --entity: oklch(0.78 0.11 60); /* fallback si falta la clase hue-N */
 
@@ -80,8 +81,8 @@
   --muted:         #5d574b;
   --muted-darker:  #8f8878;
 
-  --accent:        #15803D;
-  --accent-hover:  #14532D;
+  --accent:        #B02D68;
+  --accent-hover:  #93214F;
   --on-accent:     #ffffff;
 
   --success:        #0d9488;
@@ -115,19 +116,19 @@
 .hue-1 { --entity: oklch(0.80 0.11 60);  }
 .hue-2 { --entity: oklch(0.82 0.10 95);  }
 .hue-3 { --entity: oklch(0.78 0.10 200); }
-.hue-4 { --entity: oklch(0.76 0.11 240); }
-.hue-5 { --entity: oklch(0.76 0.11 280); }
-.hue-6 { --entity: oklch(0.78 0.11 320); }
-.hue-7 { --entity: oklch(0.77 0.12 350); }
+.hue-4 { --entity: oklch(0.77 0.10 225); }
+.hue-5 { --entity: oklch(0.76 0.11 250); }
+.hue-6 { --entity: oklch(0.76 0.11 275); }
+.hue-7 { --entity: oklch(0.77 0.11 300); }
 
 .light .hue-0 { --entity: oklch(0.50 0.13 25);  }
 .light .hue-1 { --entity: oklch(0.52 0.12 60);  }
 .light .hue-2 { --entity: oklch(0.53 0.11 95);  }
 .light .hue-3 { --entity: oklch(0.50 0.10 200); }
-.light .hue-4 { --entity: oklch(0.48 0.12 240); }
-.light .hue-5 { --entity: oklch(0.48 0.12 280); }
-.light .hue-6 { --entity: oklch(0.50 0.12 320); }
-.light .hue-7 { --entity: oklch(0.50 0.13 350); }
+.light .hue-4 { --entity: oklch(0.49 0.10 225); }
+.light .hue-5 { --entity: oklch(0.48 0.11 250); }
+.light .hue-6 { --entity: oklch(0.48 0.11 275); }
+.light .hue-7 { --entity: oklch(0.49 0.11 300); }
 
 .hue-0, .hue-1, .hue-2, .hue-3, .hue-4, .hue-5, .hue-6, .hue-7 {
   --entity-bg: color-mix(in oklab, var(--entity) 14%, transparent);

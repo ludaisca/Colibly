@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 // Barra de progreso de navegación, sin dependencias (nprogress-style casero).
 // Next.js App Router no expone un evento público "la navegación empezó" —
 // se detecta de forma optimista al hacer clic en cualquier <a> interno (así
-// es como se navega en toda la app, ver <Link> en el sidebar/breadcrumb), y
+// es como se navega en toda la app, ver <Link> en el sidebar), y
 // se cierra cuando el pathname/searchParams realmente cambian (la señal de
 // que el nuevo segmento ya se montó). prefers-reduced-motion ya lo neutraliza
 // automáticamente vía la regla global en globals.css (son transiciones CSS
