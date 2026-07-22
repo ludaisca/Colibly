@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { resolveChatChannel } from "@/lib/chat-resolver";
 
 // One row here is one AI call — the closest thing to a "per message" cost
 // this schema can express: a bot reply is normally one call → one outbound
@@ -31,20 +31,17 @@ export async function GET(
     }
 
     const { chatId } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
-
-    const chat = await prisma.wAChat.findFirst({
-      where: { id: chatId, accountId: { in: accountIds } },
-      select: { id: true },
-    });
-
-    if (!chat) {
+    const resolved = await resolveChatChannel(chatId, session.user.id);
+    if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
+    // Los calificadores de leads (WALeadScorerUsage) no soportan Telegram
+    // todavía (fuera de alcance del MVP, ver plan) — solo el gasto de
+    // respuesta del bot aplica para ese canal.
     const [botUsage, scorerUsage] = await Promise.all([
       prisma.wABotUsage.findMany({
-        where: { waChatId: chatId },
+        where: resolved.channel === "TELEGRAM" ? { conversationId: chatId } : { waChatId: chatId },
         orderBy: { createdAt: "desc" },
         select: {
           model: true,
@@ -56,19 +53,21 @@ export async function GET(
           bot: { select: { name: true } },
         },
       }),
-      prisma.wALeadScorerUsage.findMany({
-        where: { waChatId: chatId },
-        orderBy: { createdAt: "desc" },
-        select: {
-          model: true,
-          promptTokens: true,
-          completionTokens: true,
-          totalTokens: true,
-          estimatedCost: true,
-          createdAt: true,
-          scorer: { select: { name: true } },
-        },
-      }),
+      resolved.channel === "TELEGRAM"
+        ? Promise.resolve([])
+        : prisma.wALeadScorerUsage.findMany({
+            where: { waChatId: chatId },
+            orderBy: { createdAt: "desc" },
+            select: {
+              model: true,
+              promptTokens: true,
+              completionTokens: true,
+              totalTokens: true,
+              estimatedCost: true,
+              createdAt: true,
+              scorer: { select: { name: true } },
+            },
+          }),
     ]);
 
     const entries: UsageEntry[] = [

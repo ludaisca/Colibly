@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
-import { Drawer } from "@/app/components/ui/drawer";
+import { Modal } from "@/app/components/ui/modal";
 import { Banner } from "@/app/components/ui/banner";
 import { Select } from "@/app/components/ui/select";
 import { MultiSelect } from "@/app/components/ui/multi-select";
@@ -190,17 +190,15 @@ export function ContactDrawer({
   }
 
   return (
-    <Drawer open onClose={onClose} side="right" title={contact?.name ?? contact?.remoteJid ?? "Contacto"} width="w-96">
+    <Modal open onClose={onClose} title={contact?.name ?? contact?.remoteJid ?? "Contacto"} size="md">
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Spinner />
         </div>
       ) : loadError || !contact ? (
-        <div className="p-4">
-          <Banner tone="danger">{loadError ?? "No se pudo cargar el contacto"}</Banner>
-        </div>
+        <Banner tone="danger">{loadError ?? "No se pudo cargar el contacto"}</Banner>
       ) : (
-        <div className="p-4 space-y-5">
+        <div className="space-y-5">
           {contact.optedOutMarketing && (
             <Banner tone="warning">
               Este contacto se dio de baja de mensajes de marketing por WhatsApp — no recibirá futuras campañas.
@@ -267,6 +265,6 @@ export function ContactDrawer({
           </div>
         </div>
       )}
-    </Drawer>
+    </Modal>
   );
 }

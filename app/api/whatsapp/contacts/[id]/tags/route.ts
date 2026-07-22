@@ -6,7 +6,7 @@ import { getUserAccountIds } from "@/lib/shared-accounts";
 async function getOwnedContact(userId: string, contactId: string) {
   const accountIds = await getUserAccountIds(userId);
   return prisma.contact.findFirst({
-    where: { id: contactId, accountId: { in: accountIds } },
+    where: { id: contactId, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId } }] },
   });
 }
 

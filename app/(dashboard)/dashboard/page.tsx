@@ -11,6 +11,7 @@ import {
   countChats,
   countCompletedCampaigns,
   countConnectedAccounts,
+  countTotalAccounts,
 } from "@/lib/estadisticas/global-counts";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { SectionHeader } from "@/app/components/ui/section-header";
@@ -51,9 +52,9 @@ export default async function DashboardPage() {
     campaignsTotal,
     campaignsCompleted,
   ] = await Promise.all([
-    Promise.resolve(accountIds.length),
-    countConnectedAccounts(accountIds),
-    countChats(accountIds),
+    countTotalAccounts(accountIds, userId),
+    countConnectedAccounts(accountIds, userId),
+    countChats(accountIds, userId),
     prisma.wAChat.aggregate({ where: { accountId: { in: accountIds } }, _sum: { unreadCount: true } }),
     prisma.wAChat.findMany({
       where: { accountId: { in: accountIds } },

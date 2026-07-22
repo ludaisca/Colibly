@@ -32,6 +32,13 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
+export const telegramAccountSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido").max(100),
+  botToken: z.string().min(1, "El token del bot es requerido").regex(/^\d+:[\w-]+$/, "Formato de token inválido — cópialo tal cual te lo dio @BotFather"),
+});
+
+export type TelegramAccountInput = z.infer<typeof telegramAccountSchema>;
+
 export const waAccountSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
   phoneNumberId: z.string().min(1, "El Phone Number ID es requerido").regex(/^\d+$/, "Debe ser un ID numérico"),
@@ -67,13 +74,25 @@ export const sendMessageSchema = z.object({
   { message: "Se requiere body para texto, o mediaId/localMediaPath para medios", path: ["body"] }
 );
 
+// Solo texto — el envío de media saliente por Telegram queda fuera de esta
+// primera pasada (ver "Fuera de alcance" en el plan de canales adicionales).
+export const telegramSendMessageSchema = z.object({
+  body: z.string().min(1, "El mensaje no puede estar vacío").max(4096, "El mensaje supera el límite de 4096 caracteres de Telegram"),
+});
+
+export type TelegramSendMessageInput = z.infer<typeof telegramSendMessageSchema>;
+
 export type WaAccountInput = z.infer<typeof waAccountSchema>;
 export type WaAccountUpdateInput = z.infer<typeof waAccountUpdateSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 
 export const botSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
+  // waAccountId y channelAccountId son mutuamente excluyentes: un bot atiende
+  // una cuenta de WhatsApp o una de un canal adicional (Telegram), nunca las
+  // dos — el pipeline de entrada las resuelve por separado.
   waAccountId: z.string().min(1).optional().nullable(),
+  channelAccountId: z.string().min(1).optional().nullable(),
   provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }),
   model: z.string().min(1, "El modelo es requerido"),
   systemPrompt: z.string().min(1, "El prompt del sistema es requerido"),
@@ -83,9 +102,30 @@ export const botSchema = z.object({
   memoryLimit: z.number().min(1).max(100).optional(),
   ragEnabled: z.boolean().optional(),
   humanizeEnabled: z.boolean().optional(),
-});
+}).refine(
+  (d) => !(d.waAccountId && d.channelAccountId),
+  { message: "Un bot no puede atender una cuenta de WhatsApp y una de Telegram a la vez", path: ["channelAccountId"] }
+);
 
-export const botUpdateSchema = botSchema.partial();
+// .partial() no existe en un ZodEffects (lo que devuelve .refine), así que el
+// schema de update se declara aparte en vez de derivarse del de creación.
+export const botUpdateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  waAccountId: z.string().min(1).optional().nullable(),
+  channelAccountId: z.string().min(1).optional().nullable(),
+  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }).optional(),
+  model: z.string().min(1).optional(),
+  systemPrompt: z.string().min(1).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().min(1).max(8192).optional(),
+  memoryType: z.enum(["NONE", "RECENT", "SUMMARY"]).optional(),
+  memoryLimit: z.number().min(1).max(100).optional(),
+  ragEnabled: z.boolean().optional(),
+  humanizeEnabled: z.boolean().optional(),
+}).refine(
+  (d) => !(d.waAccountId && d.channelAccountId),
+  { message: "Un bot no puede atender una cuenta de WhatsApp y una de Telegram a la vez", path: ["channelAccountId"] }
+);
 
 export const LEAD_SCORER_SCHEDULE_INTERVALS = [15, 30, 60, 180, 360, 720, 1440] as const;
 

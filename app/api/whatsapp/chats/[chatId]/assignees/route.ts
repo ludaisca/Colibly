@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
 import { getEligibleAssignees } from "@/lib/chat-assignees";
+import { resolveChatChannel } from "@/lib/chat-resolver";
 
 export async function GET(
   _req: Request,
@@ -15,10 +15,23 @@ export async function GET(
     }
 
     const { chatId } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
+    const resolved = await resolveChatChannel(chatId, session.user.id);
+    if (!resolved) {
+      return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
+    }
+
+    if (resolved.channel === "TELEGRAM") {
+      // Sin WAAccountShare equivalente todavía — el único elegible es el
+      // dueño de la cuenta de Telegram.
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: chatId },
+        select: { channelAccount: { select: { user: { select: { id: true, name: true, email: true } } } } },
+      });
+      return NextResponse.json(conversation ? [conversation.channelAccount.user] : []);
+    }
 
     const chat = await prisma.wAChat.findFirst({
-      where: { id: chatId, accountId: { in: accountIds } },
+      where: { id: chatId, accountId: { in: resolved.accountIds } },
       select: { accountId: true },
     });
 

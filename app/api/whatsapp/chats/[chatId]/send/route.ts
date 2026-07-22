@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendMessageSchema } from "@/lib/validations";
+import { sendMessageSchema, telegramSendMessageSchema } from "@/lib/validations";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { sendTelegramMessage } from "@/lib/telegram/send";
+import { resolveChatChannel } from "@/lib/chat-resolver";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(
@@ -22,12 +23,19 @@ export async function POST(
     }
 
     const { chatId } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
+    const resolved = await resolveChatChannel(chatId, session.user.id);
+    if (!resolved) {
+      return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
+    }
+
+    if (resolved.channel === "TELEGRAM") {
+      return sendTelegramReply(req, chatId, session.user.id);
+    }
 
     const chat = await prisma.wAChat.findFirst({
       where: {
         id: chatId,
-        accountId: { in: accountIds },
+        accountId: { in: resolved.accountIds },
       },
       include: { account: true },
     });
@@ -101,4 +109,62 @@ export async function POST(
       error instanceof Error ? error.message : "Error interno del servidor";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+// Solo texto — el composer de chat-workspace.tsx llama a este mismo endpoint
+// para ambos canales; el envío de media queda fuera de esta primera pasada
+// de Telegram (ver "Fuera de alcance" en el plan), así que un intento de
+// enviar type !== "text" simplemente no pasa la validación del schema.
+async function sendTelegramReply(req: Request, chatId: string, userId: string) {
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: chatId, channelAccount: { userId } },
+    include: { channelAccount: true },
+  });
+  if (!conversation) {
+    return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
+  }
+
+  const isFirstResponse = conversation.firstResponseAt === null;
+
+  const body = await req.json();
+  const parsed = telegramSendMessageSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const result = await sendTelegramMessage(conversation.channelAccount, {
+    to: conversation.externalId,
+    body: parsed.data.body,
+  });
+
+  const now = new Date();
+
+  const newMessage = await prisma.channelMessage.create({
+    data: {
+      externalMessageId: result.externalMessageId,
+      conversationId: conversation.id,
+      direction: "OUTBOUND",
+      messageType: "text",
+      body: parsed.data.body,
+      status: "sent",
+      senderId: userId,
+      timestamp: now,
+    },
+  });
+
+  await prisma.conversation.update({
+    where: { id: conversation.id },
+    data: {
+      lastMessage: parsed.data.body.slice(0, 500),
+      lastMessageAt: now,
+      ...(isFirstResponse ? { firstResponseAt: now } : {}),
+    },
+  });
+
+  await prisma.channelAccount.update({
+    where: { id: conversation.channelAccount.id },
+    data: { lastActivity: now },
+  });
+
+  return NextResponse.json(newMessage);
 }

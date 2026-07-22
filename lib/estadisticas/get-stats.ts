@@ -8,6 +8,7 @@ import {
   countChats,
   countCompletedCampaigns,
   countMessages,
+  countTotalAccounts,
 } from "@/lib/estadisticas/global-counts";
 import { CHAT_ATTRIBUTION_MESSAGE_QUERY, resolveChatAttribution } from "@/lib/whatsapp/chat-attribution";
 
@@ -160,6 +161,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     campaignsCompleted,
     botsList,
     usageByBot,
+    channelAccountsList,
     accountsList,
     chatCountsByAccount,
     monthlyCost,
@@ -170,9 +172,9 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     leadSheetStatusGroups,
     leadScores,
   ] = await Promise.all([
-    prisma.wAAccount.count({ where: accountWhere }),
-    countChats(accountIds),
-    countMessages(accountIds),
+    countTotalAccounts(accountIds, userId),
+    countChats(accountIds, userId),
+    countMessages(accountIds, userId),
     countBots(userId),
     countCampaigns(userId),
     prisma.wABotUsage.aggregate({
@@ -207,6 +209,12 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
       where: { bot: { userId } },
       _sum: { totalTokens: true, estimatedCost: true },
       _count: { _all: true },
+    }),
+    // Las cuentas de Telegram se agregan a la misma lista (phoneNumber null)
+    // para que el desglose por cuenta no las omita — ver accountBreakdown.
+    prisma.channelAccount.findMany({
+      where: { userId },
+      select: { id: true, name: true, _count: { select: { conversations: true } } },
     }),
     prisma.wAAccount.findMany({
       where: accountWhere,
@@ -289,14 +297,20 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     })
     .sort((a, b) => b.totalCost - a.totalCost);
 
-  const accountBreakdown = accountsList
-    .map((a) => ({
+  const accountBreakdown = [
+    ...accountsList.map((a) => ({
       id: a.id,
       name: a.name,
       phoneNumber: a.phoneNumber,
       chats: chatCountsByAccount.find((c) => c.accountId === a.id)?._count._all ?? 0,
-    }))
-    .sort((a, b) => b.chats - a.chats);
+    })),
+    ...channelAccountsList.map((a) => ({
+      id: a.id,
+      name: a.name,
+      phoneNumber: null,
+      chats: a._count.conversations,
+    })),
+  ].sort((a, b) => b.chats - a.chats);
 
   const agentMap = new Map<string, {
     userName: string | null;

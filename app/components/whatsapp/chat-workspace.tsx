@@ -102,36 +102,83 @@ export function ChatWorkspace({
     return params;
   }, [campaignFilter, hasRepliedFilter, accountFilter, debouncedSearch]);
 
+  // Mezcla /api/whatsapp/chats + /api/telegram/chats en una sola página
+  // ordenada por lastMessageAt. No es paginación combinada real a nivel de
+  // DB (cada fuente pagina por su cuenta y se fusiona en el cliente) — con
+  // el volumen de chats esperado por cuenta esto es suficiente y evita una
+  // vista SQL que uniera ambas tablas. Cuando el filtro de cuenta activo
+  // apunta a un solo canal, la otra fuente se omite (evita un 404 de "cuenta
+  // no encontrada" al pasarle un id que no le pertenece, y ahorra el fetch).
+  // waPage/tgPage van por separado a propósito: cada fuente pagina sobre su
+  // propio total, así que derivar una sola página del total mezclado saltaba
+  // registros (con 40 chats en cada canal, la primera página traía 30+30=60 y
+  // la siguiente pedía la página 3 de ambos — vacía en las dos, dejando 20
+  // chats inalcanzables y el botón "Cargar más" visible para siempre).
+  const fetchChatsPage = useCallback(async (waPage: number, tgPage: number, pageSize: number): Promise<{ items: ChatItem[]; total: number }> => {
+    const selectedAccountChannel = accountFilter ? accounts.find((a) => a.id === accountFilter)?.channel : undefined;
+    const skipWhatsapp = selectedAccountChannel === "TELEGRAM";
+    const skipTelegram = !!campaignFilter || selectedAccountChannel === "WHATSAPP";
+
+    const tgParams = new URLSearchParams({ page: String(tgPage), pageSize: String(pageSize) });
+    if (hasRepliedFilter) tgParams.set("hasReplied", hasRepliedFilter);
+    if (accountFilter) tgParams.set("accountId", accountFilter);
+    if (debouncedSearch) tgParams.set("search", debouncedSearch);
+
+    const [waData, tgData] = await Promise.all([
+      skipWhatsapp
+        ? Promise.resolve({ items: [] as ChatItem[], total: 0 })
+        : fetch(`/api/whatsapp/chats?${buildChatsParams(waPage, pageSize)}`).then((r) => r.json()),
+      skipTelegram
+        ? Promise.resolve({ items: [] as ChatItem[], total: 0 })
+        : fetch(`/api/telegram/chats?${tgParams}`).then((r) => r.json()),
+    ]);
+
+    const items = [...(Array.isArray(waData.items) ? waData.items : []), ...(Array.isArray(tgData.items) ? tgData.items : [])]
+      .sort((a, b) => {
+        const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        return bt - at;
+      });
+    const total = (waData.total ?? 0) + (tgData.total ?? 0);
+    return { items, total };
+  }, [accountFilter, accounts, campaignFilter, hasRepliedFilter, debouncedSearch, buildChatsParams]);
+
   const refreshChats = useCallback(async () => {
     try {
       const pageSize = Math.min(Math.max(chats.length, CHATS_PAGE_SIZE), 100);
-      const res = await fetch(`/api/whatsapp/chats?${buildChatsParams(1, pageSize)}`);
-      const data = await res.json();
-      if (Array.isArray(data.items)) {
-        setChats(data.items);
-        setChatsTotal(data.total ?? 0);
-      }
+      const { items, total } = await fetchChatsPage(1, 1, pageSize);
+      setChats(items);
+      setChatsTotal(total);
     } catch {
       toastError("Error al cargar chats");
     }
-  }, [chats.length, buildChatsParams, toastError]);
+  }, [chats.length, fetchChatsPage, toastError]);
 
   const loadMoreChats = useCallback(async () => {
     setLoadingMoreChats(true);
     try {
-      const nextPage = Math.floor(chats.length / CHATS_PAGE_SIZE) + 1;
-      const res = await fetch(`/api/whatsapp/chats?${buildChatsParams(nextPage, CHATS_PAGE_SIZE)}`);
-      const data = await res.json();
-      if (Array.isArray(data.items)) {
-        setChats((prev) => [...prev, ...data.items]);
-        setChatsTotal(data.total ?? 0);
-      }
+      // La página se calcula por canal según cuántos de sus chats ya hay en
+      // memoria. Cuando ese conteo no es múltiplo del tamaño de página, la
+      // petición vuelve a traer algunos ya cargados — de ahí el dedupe por id
+      // al anexar, que además cubre los que el polling haya insertado ya.
+      const waLoaded = chats.filter((c) => c.channel === "WHATSAPP").length;
+      const tgLoaded = chats.filter((c) => c.channel === "TELEGRAM").length;
+      const { items, total } = await fetchChatsPage(
+        Math.floor(waLoaded / CHATS_PAGE_SIZE) + 1,
+        Math.floor(tgLoaded / CHATS_PAGE_SIZE) + 1,
+        CHATS_PAGE_SIZE
+      );
+      setChats((prev) => {
+        const known = new Set(prev.map((c) => c.id));
+        return [...prev, ...items.filter((c) => !known.has(c.id))];
+      });
+      setChatsTotal(total);
     } catch {
       toastError("Error al cargar más chats");
     } finally {
       setLoadingMoreChats(false);
     }
-  }, [chats.length, buildChatsParams, toastError]);
+  }, [chats, fetchChatsPage, toastError]);
 
   // Handle URL changes to update state — tracked via a "previous prop" render-time
   // comparison (same idiom as Modal/Drawer's open/prevOpen) instead of an effect,
@@ -196,16 +243,26 @@ export function ChatWorkspace({
 
   // Cuentas para el selector — de la API, no derivadas de los chats cargados:
   // con el filtro de cuenta server-side, los chats en memoria pueden ser de
-  // una sola cuenta y el selector perdería las demás opciones.
+  // una sola cuenta y el selector perdería las demás opciones. Se mezclan
+  // cuentas de WhatsApp y Telegram en una sola lista — el rail/selector no
+  // distingue el canal, solo pinta id+nombre+color.
   useEffect(() => {
-    fetch("/api/whatsapp/accounts")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) {
-          setAccounts(d.map((a: { id: string; name: string; phoneNumber: string | null }) => ({
-            id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null,
-          })));
-        }
+    Promise.all([
+      fetch("/api/whatsapp/accounts").then((r) => r.json()),
+      fetch("/api/telegram/accounts").then((r) => r.json()),
+    ])
+      .then(([wa, tg]) => {
+        const waOptions: AccountOption[] = Array.isArray(wa)
+          ? wa.map((a: { id: string; name: string; phoneNumber: string | null }) => ({
+              id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null, channel: "WHATSAPP",
+            }))
+          : [];
+        const tgOptions: AccountOption[] = Array.isArray(tg)
+          ? tg.map((a: { id: string; name: string }) => ({
+              id: a.id, name: a.name, phoneNumber: null, channel: "TELEGRAM",
+            }))
+          : [];
+        setAccounts([...waOptions, ...tgOptions]);
       })
       .catch(() => {});
   }, []);
@@ -215,12 +272,9 @@ export function ChatWorkspace({
     async function reset() {
       setLoadingChats(true);
       try {
-        const res = await fetch(`/api/whatsapp/chats?${buildChatsParams(1, CHATS_PAGE_SIZE)}`);
-        const data = await res.json();
-        if (Array.isArray(data.items)) {
-          setChats(data.items);
-          setChatsTotal(data.total ?? 0);
-        }
+        const { items, total } = await fetchChatsPage(1, 1, CHATS_PAGE_SIZE);
+        setChats(items);
+        setChatsTotal(total);
       } catch {
         toastError("Error al cargar chats");
       } finally {
@@ -228,7 +282,7 @@ export function ChatWorkspace({
       }
     }
     reset();
-  }, [buildChatsParams, toastError]);
+  }, [fetchChatsPage, toastError]);
 
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
@@ -604,7 +658,7 @@ export function ChatWorkspace({
             <EmptyState
               icon={MessageSquare}
               title="Selecciona un chat"
-              description={chats.length === 0 ? "Conecta una cuenta de WhatsApp para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes."}
+              description={chats.length === 0 ? "Conecta una cuenta de WhatsApp o Telegram para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes."}
             />
           </div>
         ) : selectedChat ? (
@@ -644,6 +698,7 @@ export function ChatWorkspace({
               cannedIndex={cannedIndex}
               onCannedIndexChange={setCannedIndex}
               onInsertCanned={insertCannedResponse}
+              attachmentsDisabled={selectedChat.channel === "TELEGRAM"}
             />
           </>
         ) : (

@@ -27,6 +27,11 @@ interface ChatComposerProps {
   cannedIndex: number;
   onCannedIndexChange: (index: number) => void;
   onInsertCanned: (content: string) => void;
+
+  // Telegram no soporta adjuntos todavía (ver plan de canales adicionales) —
+  // en vez de dejar que el intento falle en el servidor, el clip se
+  // deshabilita directamente para ese canal.
+  attachmentsDisabled?: boolean;
 }
 
 export function ChatComposer({
@@ -44,6 +49,7 @@ export function ChatComposer({
   cannedIndex,
   onCannedIndexChange,
   onInsertCanned,
+  attachmentsDisabled = false,
 }: ChatComposerProps) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-2 px-4 py-3 border-t border-border bg-surface shrink-0 relative">
@@ -105,9 +111,9 @@ export function ChatComposer({
         <button
           type="button"
           onClick={onPickFile}
-          disabled={sending}
+          disabled={sending || attachmentsDisabled}
           className="text-accent hover:text-accent/80 transition-colors p-2.5 rounded-lg border border-accent/30 bg-accent/10 hover:bg-accent/15 disabled:opacity-50 shrink-0 cursor-pointer"
-          title="Adjuntar medio"
+          title={attachmentsDisabled ? "Los adjuntos no están disponibles para Telegram todavía" : "Adjuntar medio"}
           aria-label="Adjuntar medio"
         >
           <Paperclip size={20} />

@@ -276,9 +276,12 @@ export function ChatThreadPanel({
 
   return (
     <>
-      <div className="flex flex-col gap-2 px-4 py-3 border-b border-border bg-surface shrink-0">
-        {/* Row 1: identity — name/account always get room, icon actions stay put */}
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-x-3 gap-y-2 flex-wrap px-4 py-3 border-b border-border bg-surface shrink-0">
+        {/* Identidad: nombre/cuenta truncan antes de ceder espacio a los
+            controles de la derecha. Ambos grupos son items independientes de
+            este row — si no caben lado a lado, flex-wrap los apila en dos
+            líneas en vez de aplastarlos (pantallas angostas / mobile). */}
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onCloseChat}
             className="md:hidden text-muted-darker hover:text-foreground transition-colors shrink-0"
@@ -319,7 +322,7 @@ export function ChatThreadPanel({
           </div>
         </div>
 
-        {/* Row 2: conversation metadata controls — free to wrap, never fights the name for space */}
+        {/* Controles de la conversación, alineados a la derecha */}
         <div className="flex items-center gap-2 flex-wrap">
           <select
             value={selectedChat.status}
@@ -331,8 +334,15 @@ export function ChatThreadPanel({
               <option key={s} value={s}>{STATUS_BADGE[s].label}</option>
             ))}
           </select>
-          <ChatTagPicker key={selectedChat.id} chatId={selectedChat.id} />
-          <LeadScoreBadge key={`score-${selectedChat.id}`} chatId={selectedChat.id} />
+          {selectedChat.channel !== "TELEGRAM" && (
+            <>
+              {/* Etiquetas y calificación de leads no soportan Telegram
+                  todavía — ChatTag/WALeadScore siguen anclados a WAChat (ver
+                  plan de canales adicionales). */}
+              <ChatTagPicker key={selectedChat.id} chatId={selectedChat.id} />
+              <LeadScoreBadge key={`score-${selectedChat.id}`} chatId={selectedChat.id} />
+            </>
+          )}
           <ChatCostBadge key={`cost-${selectedChat.id}`} chatId={selectedChat.id} />
           <ChatAssigneePicker
             chatId={selectedChat.id}

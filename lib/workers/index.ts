@@ -1,5 +1,6 @@
 import { Worker } from "bullmq";
 import { processBotMessageJob } from "./bot-worker";
+import { processTelegramBotMessageJob } from "@/lib/telegram/bot-worker";
 import { processCampaignJob, processScheduledCampaignsTick } from "./campaign-worker";
 import { processRagJob } from "./rag-worker";
 import { processMediaDownloadJob } from "./media-worker";
@@ -23,10 +24,15 @@ export function startWorkers() {
   started = true;
 
   const botWorker = new Worker("bot-messages", async (job) => {
-    await processBotMessageJob(job.data, {
-      attemptsMade: job.attemptsMade,
-      maxAttempts: job.opts.attempts ?? 1,
-    });
+    const attemptInfo = { attemptsMade: job.attemptsMade, maxAttempts: job.opts.attempts ?? 1 };
+    // El productor decide la forma del payload: ingest-message.ts (WhatsApp)
+    // encola waChatId, lib/telegram/ingest-message.ts encola conversationId —
+    // mutuamente excluyentes, igual que WABot.waAccountId/channelAccountId.
+    if (job.data.conversationId) {
+      await processTelegramBotMessageJob(job.data, attemptInfo);
+    } else {
+      await processBotMessageJob(job.data, attemptInfo);
+    }
   }, { connection, concurrency: 3 });
 
   const campaignWorker = new Worker("campaign-send", async (job) => {

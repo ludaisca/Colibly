@@ -18,7 +18,7 @@ export async function GET(
     const accountIds = await getUserAccountIds(session.user.id);
 
     const contact = await prisma.contact.findFirst({
-      where: { id, accountId: { in: accountIds } },
+      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId: session.user.id } }] },
       select: {
         id: true,
         accountId: true,
@@ -60,7 +60,7 @@ export async function PATCH(
     const accountIds = await getUserAccountIds(session.user.id);
 
     const existing = await prisma.contact.findFirst({
-      where: { id, accountId: { in: accountIds } },
+      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId: session.user.id } }] },
     });
     if (!existing) {
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });

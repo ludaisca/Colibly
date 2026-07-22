@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox } from "lucide-react";
+import { Inbox, Send } from "lucide-react";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { cn } from "@/app/components/ui/cn";
 import type { AccountOption } from "./chat-shared";
@@ -55,6 +55,7 @@ export function ChatAccountRail({ accounts, selectedAccountId, onSelect, unreadB
             label={acc.name}
             unread={unreadByAccount[acc.id] ?? 0}
             onClick={() => onSelect(acc.id)}
+            channel={acc.channel}
           >
             <EntityAvatar id={acc.id} name={acc.name} size="md" />
           </RailButton>
@@ -69,12 +70,14 @@ function RailButton({
   label,
   unread,
   onClick,
+  channel,
   children,
 }: {
   active: boolean;
   label: string;
   unread: number;
   onClick: () => void;
+  channel?: "WHATSAPP" | "TELEGRAM";
   children: React.ReactNode;
 }) {
   return (
@@ -98,6 +101,13 @@ function RailButton({
       {unread > 0 && (
         <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">
           {unread > 99 ? "99+" : unread}
+        </span>
+      )}
+      {/* Solo Telegram lleva marca de canal — WhatsApp es el caso por
+          defecto/mayoritario y no necesita distinguirse a sí mismo. */}
+      {channel === "TELEGRAM" && (
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-on-accent ring-2 ring-background">
+          <Send size={9} />
         </span>
       )}
     </button>

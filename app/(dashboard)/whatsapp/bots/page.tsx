@@ -27,6 +27,8 @@ interface WaBot {
   createdAt: string;
   updatedAt: string;
   waAccount: { id: string; name: string; phoneNumber: string | null } | null;
+  channelAccountId: string | null;
+  channelAccount: { id: string; name: string } | null;
   _count: { conversations: number; knowledgeBots: number };
 }
 
@@ -115,7 +117,7 @@ export default function BotsPage() {
           return (
             <>
             <EntityRow
-              leading={<EntityAvatar id={bot.waAccountId ?? bot.id} name={bot.name} size="sm" />}
+              leading={<EntityAvatar id={bot.waAccountId ?? bot.channelAccountId ?? bot.id} name={bot.name} size="sm" />}
               title={
                 <Link
                   href={`/whatsapp/bots/${bot.id}`}
@@ -139,7 +141,11 @@ export default function BotsPage() {
               }
               subtitle={
                 <>
-                  {bot.waAccount?.name ?? "Sin cuenta (solo pruebas)"} · {bot.model} ·{" "}
+                  {/* Un bot de Telegram cuelga de channelAccount, no de
+                      waAccount — sin este fallback se mostraba como "Sin
+                      cuenta (solo pruebas)" aunque sí atiende mensajes reales. */}
+                  {bot.waAccount?.name
+                    ?? (bot.channelAccount ? `${bot.channelAccount.name} · Telegram` : "Sin cuenta (solo pruebas)")} · {bot.model} ·{" "}
                   {bot._count.conversations} conversaciones · {bot._count.knowledgeBots} docs
                 </>
               }

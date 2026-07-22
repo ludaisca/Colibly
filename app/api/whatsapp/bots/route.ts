@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { botSchema } from "@/lib/validations";
+import { getUserAccountIds } from "@/lib/shared-accounts";
 
 export async function POST(req: Request) {
   try {
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
     const {
       name,
       waAccountId,
+      channelAccountId,
       provider,
       model,
       systemPrompt,
@@ -38,11 +40,23 @@ export async function POST(req: Request) {
     } = parsed.data;
 
     if (waAccountId) {
-      const account = await prisma.wAAccount.findFirst({
-        where: { id: waAccountId, userId: session.user.id },
-      });
+      // getUserAccountIds (propias + compartidas vía WAAccountShare), no
+      // `userId: session.user.id`: con el filtro por dueño, un admin que
+      // recibió una cuenta compartida veía el número en el desplegable
+      // (GET /accounts sí las devuelve) pero al guardar le respondía
+      // "Cuenta no encontrada".
+      const allowedAccountIds = await getUserAccountIds(session.user.id);
+      if (!allowedAccountIds.includes(waAccountId)) {
+        return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+      }
+    }
 
-      if (!account) {
+    if (channelAccountId) {
+      const channelAccount = await prisma.channelAccount.findFirst({
+        where: { id: channelAccountId, userId: session.user.id },
+        select: { id: true },
+      });
+      if (!channelAccount) {
         return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
       }
     }
@@ -57,6 +71,7 @@ export async function POST(req: Request) {
       data: {
         userId: session.user.id,
         waAccountId: waAccountId ?? null,
+        channelAccountId: channelAccountId ?? null,
         name,
         provider,
         model,
@@ -128,10 +143,14 @@ export async function GET(req: Request) {
         isActive: true,
         status: true,
         waAccountId: true,
+        channelAccountId: true,
         createdAt: true,
         updatedAt: true,
         waAccount: {
           select: { id: true, name: true, phoneNumber: true },
+        },
+        channelAccount: {
+          select: { id: true, name: true },
         },
         _count: { select: { conversations: true, knowledgeBots: true } },
       },

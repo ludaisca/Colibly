@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { botUpdateSchema } from "@/lib/validations";
+import { getUserAccountIds } from "@/lib/shared-accounts";
 
 export async function GET(
   _req: Request,
@@ -35,6 +36,7 @@ export async function GET(
         isActive: true,
         status: true,
         waAccountId: true,
+        channelAccountId: true,
         createdAt: true,
         updatedAt: true,
         waAccount: {
@@ -95,14 +97,29 @@ export async function PATCH(
     if (fields.name) data.name = fields.name;
     if (fields.waAccountId !== undefined) {
       if (fields.waAccountId) {
-        const account = await prisma.wAAccount.findFirst({
-          where: { id: fields.waAccountId, userId: session.user.id },
-        });
-        if (!account) {
+        // Propias + compartidas (ver comentario equivalente en bots/route.ts).
+        const allowedAccountIds = await getUserAccountIds(session.user.id);
+        if (!allowedAccountIds.includes(fields.waAccountId)) {
           return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
         }
       }
       data.waAccountId = fields.waAccountId || null;
+      // Asignar un canal limpia el otro — son mutuamente excluyentes, y sin
+      // esto un bot que pasa de Telegram a WhatsApp conservaría ambos FKs.
+      if (fields.waAccountId) data.channelAccountId = null;
+    }
+    if (fields.channelAccountId !== undefined) {
+      if (fields.channelAccountId) {
+        const channelAccount = await prisma.channelAccount.findFirst({
+          where: { id: fields.channelAccountId, userId: session.user.id },
+          select: { id: true },
+        });
+        if (!channelAccount) {
+          return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+        }
+      }
+      data.channelAccountId = fields.channelAccountId || null;
+      if (fields.channelAccountId) data.waAccountId = null;
     }
     if (fields.provider) data.provider = fields.provider;
     if (fields.model) data.model = fields.model;
@@ -132,6 +149,7 @@ export async function PATCH(
         isActive: true,
         status: true,
         waAccountId: true,
+        channelAccountId: true,
         createdAt: true,
         updatedAt: true,
       },

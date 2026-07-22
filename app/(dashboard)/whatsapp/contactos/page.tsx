@@ -32,6 +32,7 @@ interface ContactRow {
   tags: Array<{ tag: { id: string; name: string; color: string } }>;
   chat: { id: string; unreadCount: number; lastMessageAt: string | null } | null;
   _count: { notes: number };
+  channel: "WHATSAPP" | "TELEGRAM";
 }
 
 function phoneFromJid(remoteJid: string): string {
@@ -93,11 +94,23 @@ export default function ContactosPage() {
     }
   }, [search, leadStatusFilter, accountFilter, page]);
 
+  // Ambos canales en una sola lista — el <Select> de cuenta filtra por id sin
+  // importar de qué canal venga (la API resuelve la columna correcta).
   const fetchAccounts = useCallback(async () => {
     try {
-      const res = await fetch("/api/whatsapp/accounts");
-      const data = await res.json();
-      if (Array.isArray(data)) setAccounts(data);
+      const [wa, tg] = await Promise.all([
+        fetch("/api/whatsapp/accounts").then((r) => r.json()),
+        fetch("/api/telegram/accounts").then((r) => r.json()),
+      ]);
+      const waOptions: AccountOption[] = Array.isArray(wa)
+        ? wa.map((a: { id: string; name: string; phoneNumber: string | null }) => ({
+            id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null,
+          }))
+        : [];
+      const tgOptions: AccountOption[] = Array.isArray(tg)
+        ? tg.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, phoneNumber: null }))
+        : [];
+      setAccounts([...waOptions, ...tgOptions]);
     } catch {
       toastError("Error al cargar cuentas");
     }
@@ -170,7 +183,7 @@ export default function ContactosPage() {
           onRowClick={(c) => setSelectedId(c.id)}
           emptyIcon={ContactIcon}
           emptyTitle="Sin contactos"
-          emptyDescription="Los contactos se crean automáticamente cuando recibes un mensaje de WhatsApp."
+          emptyDescription="Los contactos se crean automáticamente cuando recibes un mensaje de WhatsApp o Telegram."
           renderRow={(contact) => {
             const badge = LEAD_STATUS_BADGE[contact.leadStatus] ?? { label: contact.leadStatus, tone: "neutral" as const };
             const account = accounts.find((a) => a.id === contact.accountId);
@@ -189,7 +202,12 @@ export default function ContactosPage() {
                 }
                 subtitle={
                   <>
-                    <span className="font-mono">{phoneFromJid(contact.remoteJid)}</span>
+                    {/* En Telegram remoteJid es un chat_id numérico, no un
+                        teléfono — mostrarlo en la misma columna lo haría pasar
+                        por un número real. */}
+                    {contact.channel === "TELEGRAM"
+                      ? <span>Telegram</span>
+                      : <span className="font-mono">{phoneFromJid(contact.remoteJid)}</span>}
                     {accounts.length > 1 && account && <> · {account.name}</>}
                     {contact._count.notes > 0 && <> · {contact._count.notes} nota(s)</>}
                   </>

@@ -121,7 +121,11 @@ export async function GET(req: Request) {
       orderBy: { updatedAt: "desc" },
     });
 
-    return NextResponse.json(accounts);
+    // channel ya viene de WAAccount.channel (hoy solo META_CLOUD) — se
+    // sobreescribe con el discriminador de UI "WHATSAPP" para que
+    // chat-workspace.tsx pueda mezclar esta lista con /api/telegram/accounts
+    // sin importar qué proveedor de Meta sea internamente.
+    return NextResponse.json(accounts.map((a) => ({ ...a, channel: "WHATSAPP" as const })));
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error interno del servidor";

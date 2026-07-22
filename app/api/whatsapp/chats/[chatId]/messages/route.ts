@@ -1,7 +1,22 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { resolveChatChannel } from "@/lib/chat-resolver";
+
+const MESSAGE_SELECT = {
+  id: true,
+  direction: true,
+  messageType: true,
+  body: true,
+  caption: true,
+  mediaId: true,
+  mediaUrl: true,
+  mimeType: true,
+  filename: true,
+  bytesSize: true,
+  status: true,
+  timestamp: true,
+} as const;
 
 export async function GET(
   req: Request,
@@ -14,16 +29,8 @@ export async function GET(
     }
 
     const { chatId } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
-
-    const chat = await prisma.wAChat.findFirst({
-      where: {
-        id: chatId,
-        accountId: { in: accountIds },
-      },
-    });
-
-    if (!chat) {
+    const resolved = await resolveChatChannel(chatId, session.user.id);
+    if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
@@ -31,31 +38,28 @@ export async function GET(
     const before = searchParams.get("before");
     const limit = Math.min(Number(searchParams.get("limit")) || 50, 100);
 
-    const where: Record<string, unknown> = { chatId };
+    let beforeDate: Date | undefined;
     if (before) {
-      const beforeDate = new Date(before);
+      beforeDate = new Date(before);
       if (isNaN(beforeDate.getTime())) {
         return NextResponse.json({ error: "Parámetro 'before' inválido" }, { status: 400 });
       }
-      where.timestamp = { lt: beforeDate };
+    }
+
+    if (resolved.channel === "TELEGRAM") {
+      const messages = await prisma.channelMessage.findMany({
+        where: { conversationId: chatId, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
+        select: MESSAGE_SELECT,
+        orderBy: { timestamp: "desc" },
+        take: limit,
+      });
+      await prisma.conversation.update({ where: { id: chatId }, data: { unreadCount: 0 } });
+      return NextResponse.json(messages.reverse());
     }
 
     const messages = await prisma.wAMessage.findMany({
-      where,
-      select: {
-        id: true,
-        direction: true,
-        messageType: true,
-        body: true,
-        caption: true,
-        mediaId: true,
-        mediaUrl: true,
-        mimeType: true,
-        filename: true,
-        bytesSize: true,
-        status: true,
-        timestamp: true,
-      },
+      where: { chatId, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
+      select: MESSAGE_SELECT,
       orderBy: { timestamp: "desc" },
       take: limit,
     });

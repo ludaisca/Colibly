@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { resolveChatChannel } from "@/lib/chat-resolver";
 
 const VALID_STATUSES = ["OPEN", "PENDING", "RESOLVED"] as const;
 
@@ -16,14 +16,8 @@ export async function PATCH(
     }
 
     const { chatId } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
-
-    const chat = await prisma.wAChat.findFirst({
-      where: { id: chatId, accountId: { in: accountIds } },
-      select: { status: true },
-    });
-
-    if (!chat) {
+    const resolved = await resolveChatChannel(chatId, session.user.id);
+    if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
@@ -34,6 +28,19 @@ export async function PATCH(
       return NextResponse.json({ error: "Estado no válido" }, { status: 400 });
     }
 
+    if (resolved.channel === "TELEGRAM") {
+      const current = await prisma.conversation.findUniqueOrThrow({ where: { id: chatId }, select: { status: true } });
+      const wasResolved = current.status === "RESOLVED";
+      const willBeResolved = status === "RESOLVED";
+      const updated = await prisma.conversation.update({
+        where: { id: chatId },
+        data: { status, resolvedAt: willBeResolved ? new Date() : wasResolved && !willBeResolved ? null : undefined },
+        select: { id: true, status: true, resolvedAt: true },
+      });
+      return NextResponse.json(updated);
+    }
+
+    const chat = await prisma.wAChat.findUniqueOrThrow({ where: { id: chatId }, select: { status: true } });
     const wasResolved = chat.status === "RESOLVED";
     const willBeResolved = status === "RESOLVED";
 

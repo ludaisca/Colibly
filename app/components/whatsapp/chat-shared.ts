@@ -13,10 +13,13 @@ export const STATUS_BADGE: Record<ChatStatus, { label: string; tone: "info" | "w
   RESOLVED: { label: "Resuelto", tone: "success" },
 };
 
+export type Channel = "WHATSAPP" | "TELEGRAM";
+
 export interface AccountOption {
   id: string;
   name: string;
   phoneNumber: string | null;
+  channel?: Channel;
 }
 
 export interface ChatItem {
@@ -34,6 +37,7 @@ export interface ChatItem {
   assignedTo: { id: string; name: string | null } | null;
   account: { id: string; name: string; phoneNumber: string | null };
   campaign: { id: string; name: string } | null;
+  channel: Channel;
 }
 
 export interface CannedResponseItem {

@@ -106,6 +106,7 @@ export async function GET(req: Request) {
     const chats = rows.map(({ messages, ...chat }) => ({
       ...chat,
       campaign: resolveChatAttribution(messages),
+      channel: "WHATSAPP" as const,
     }));
 
     if (paginate) {

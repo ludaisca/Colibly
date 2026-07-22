@@ -18,6 +18,14 @@ export async function GET(req: Request) {
     }
 
     const accountIds = await getUserAccountIds(session.user.id);
+    // Los contactos de canales adicionales (Telegram) cuelgan de
+    // channelAccountId en vez de accountId — sin esto, un lead que escribe por
+    // Telegram genera su Contact pero queda invisible en el CRM.
+    const channelAccounts = await prisma.channelAccount.findMany({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+    const channelAccountIds = channelAccounts.map((a) => a.id);
 
     const { searchParams } = new URL(req.url);
     const accountId = searchParams.get("accountId");
@@ -25,20 +33,34 @@ export async function GET(req: Request) {
     const tagId = searchParams.get("tagId");
     const search = searchParams.get("search");
 
-    const where: Record<string, unknown> = {
-      accountId: accountId ? accountId : { in: accountIds },
-    };
-    if (accountId && !accountIds.includes(accountId)) {
+    if (accountId && !accountIds.includes(accountId) && !channelAccountIds.includes(accountId)) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
+
+    // El filtro de cuenta recibe un id que puede ser de cualquiera de los dos
+    // mundos — se aplica a la columna que corresponda. Va dentro de AND (no
+    // como where.OR suelto) porque el filtro de búsqueda de abajo también es
+    // un OR: asignar ambos al mismo nivel pisaría el alcance por cuenta y
+    // expondría contactos de otros usuarios.
+    const scopeFilter = accountId
+      ? channelAccountIds.includes(accountId)
+        ? { channelAccountId: accountId }
+        : { accountId }
+      : { OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] };
+
+    const andFilters: Record<string, unknown>[] = [scopeFilter];
+    if (search) {
+      andFilters.push({
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { remoteJid: { contains: search, mode: "insensitive" } },
+        ],
+      });
+    }
+
+    const where: Record<string, unknown> = { AND: andFilters };
     if (leadStatus) where.leadStatus = leadStatus;
     if (tagId) where.tags = { some: { tagId } };
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { remoteJid: { contains: search, mode: "insensitive" } },
-      ];
-    }
 
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
     const pageSize = Math.min(Math.max(Number(searchParams.get("pageSize")) || 25, 1), 100);
@@ -49,6 +71,7 @@ export async function GET(req: Request) {
         select: {
           id: true,
           accountId: true,
+          channelAccountId: true,
           remoteJid: true,
           name: true,
           leadStatus: true,
@@ -56,6 +79,7 @@ export async function GET(req: Request) {
           updatedAt: true,
           tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
           chat: { select: { id: true, unreadCount: true, lastMessageAt: true } },
+          conversation: { select: { id: true, unreadCount: true, lastMessageAt: true } },
           _count: { select: { notes: true } },
         },
         orderBy: { updatedAt: "desc" },
@@ -65,7 +89,16 @@ export async function GET(req: Request) {
       prisma.contact.count({ where }),
     ]);
 
-    return NextResponse.json({ items: contacts, total, page, pageSize });
+    // Se aplana a un solo shape (accountId + chat + channel) para que la UI no
+    // tenga que ramificar por canal — mismo criterio que GET /api/telegram/chats.
+    const items = contacts.map(({ channelAccountId, conversation, ...c }) => ({
+      ...c,
+      accountId: c.accountId ?? channelAccountId!,
+      chat: c.chat ?? conversation,
+      channel: c.accountId ? ("WHATSAPP" as const) : ("TELEGRAM" as const),
+    }));
+
+    return NextResponse.json({ items, total, page, pageSize });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error interno del servidor";

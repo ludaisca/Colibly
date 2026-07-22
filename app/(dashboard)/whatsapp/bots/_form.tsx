@@ -40,7 +40,9 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
   const { success, error: toastError } = useToast();
 
   const [name, setName] = useState("");
-  const [waAccountId, setWaAccountId] = useState("");
+  // Un solo id para ambos canales — el canal se deduce de `accounts` al
+  // guardar, para mandar waAccountId o channelAccountId según corresponda.
+  const [accountId, setAccountId] = useState("");
   const [provider, setProvider] = useState("openrouter");
   const [model, setModel] = useState("google/gemini-2.5-flash");
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -54,14 +56,14 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<Array<{ id: string; name: string }>>([]);
+  const [accounts, setAccounts] = useState<Array<{ id: string; name: string; channel: "WHATSAPP" | "TELEGRAM" }>>([]);
   const [models, setModels] = useState<ModelOption[]>(FALLBACK_MODELS.openrouter);
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelsProvider, setModelsProvider] = useState("openrouter");
 
   const resetForm = useCallback(() => {
     setName("");
-    setWaAccountId("");
+    setAccountId("");
     setProvider("openrouter");
     setModel("google/gemini-2.5-flash");
     setSystemPrompt("");
@@ -77,10 +79,15 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/whatsapp/accounts")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setAccounts(d);
+    Promise.all([
+      fetch("/api/whatsapp/accounts").then((r) => r.json()),
+      fetch("/api/telegram/accounts").then((r) => r.json()),
+    ])
+      .then(([wa, tg]) => {
+        setAccounts([
+          ...(Array.isArray(wa) ? wa.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "WHATSAPP" as const })) : []),
+          ...(Array.isArray(tg) ? tg.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "TELEGRAM" as const })) : []),
+        ]);
       })
       .catch(() => toastError("Error al cargar cuentas"));
   }, [open, toastError]);
@@ -129,7 +136,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
       .then((d) => {
         if (d.name) {
           setName(d.name);
-          setWaAccountId(d.waAccountId ?? "");
+          setAccountId(d.waAccountId ?? d.channelAccountId ?? "");
           setProvider(d.provider);
           setModel(d.model);
           setSystemPrompt(d.systemPrompt);
@@ -160,9 +167,13 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
     setError("");
     setSaving(true);
     try {
+      // Se mandan siempre ambos campos (uno con valor, el otro null) para que
+      // al reasignar el bot de un canal a otro el FK anterior quede limpio.
+      const selectedAccount = accounts.find((a) => a.id === accountId);
       const body = {
         name: name.trim(),
-        waAccountId: waAccountId || null,
+        waAccountId: selectedAccount?.channel === "WHATSAPP" ? accountId : null,
+        channelAccountId: selectedAccount?.channel === "TELEGRAM" ? accountId : null,
         provider,
         model,
         systemPrompt: systemPrompt.trim(),
@@ -221,12 +232,14 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
                 <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Soporte IA" error={errors.name} />
               )}
             </FormField>
-            <FormField label="Cuenta WhatsApp" hint="Opcional — sin cuenta el bot solo se puede usar en la pestaña «Probar», no responderá mensajes reales.">
+            <FormField label="Cuenta" hint="Opcional — sin cuenta el bot solo se puede usar en la pestaña «Probar», no responderá mensajes reales.">
               {(id) => (
-                <Select id={id} value={waAccountId} onChange={(e) => setWaAccountId(e.target.value)}>
+                <Select id={id} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
                   <option value="">Sin cuenta (solo pruebas)</option>
                   {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {a.channel === "TELEGRAM" ? "Telegram" : "WhatsApp"}
+                    </option>
                   ))}
                 </Select>
               )}

@@ -8,61 +8,64 @@ datasource db {
 }
 
 model User {
-  id       String   @id @default(cuid())
-  name     String?
-  email    String   @unique
-  password String?
-  role     String   @default("user")
+  id           String  @id @default(cuid())
+  name         String?
+  email        String  @unique
+  password     String?
+  role         String  @default("user")
   maxOpenChats Int?
 
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  waAccounts     WAAccount[]
-  waCampaigns    WACampaign[]
-  waBots         WABot[]
-  leadScorerBots WALeadScorerBot[]
-  appSettings    AppSettings?
-  googleAccount  GoogleAccount?
-  sharedAccounts WAAccountShare[]
-  notes          WANote[]
-  assignedChats  WAChat[]         @relation("ChatAssignments")
-  notifications  Notification[]
-  sentMessages   WAMessage[]
-  leadSheetSources LeadSheetSource[]
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+  waAccounts            WAAccount[]
+  waCampaigns           WACampaign[]
+  waBots                WABot[]
+  leadScorerBots        WALeadScorerBot[]
+  appSettings           AppSettings?
+  googleAccount         GoogleAccount?
+  sharedAccounts        WAAccountShare[]
+  notes                 WANote[]
+  assignedChats         WAChat[]          @relation("ChatAssignments")
+  notifications         Notification[]
+  sentMessages          WAMessage[]
+  leadSheetSources      LeadSheetSource[]
+  channelAccounts       ChannelAccount[]
+  assignedConversations Conversation[]
+  sentChannelMessages   ChannelMessage[]
 
   @@map("users")
 }
 
 model SystemConfig {
-  id                 String   @id @default("default")
-  allowRegistration  Boolean  @default(true)
-  businessName       String?
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                String   @id @default("default")
+  allowRegistration Boolean  @default(true)
+  businessName      String?
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("system_config")
 }
 
 model AppSettings {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   openrouterApiKey String?
   googleApiKey     String?
-  defaultProvider  String   @default("openrouter")
-  defaultModel     String   @default("google/gemini-2.5-flash")
+  defaultProvider  String  @default("openrouter")
+  defaultModel     String  @default("google/gemini-2.5-flash")
   monthlyBudgetUsd Float?
   budgetAlertMonth String?
 
   // Recuperación de leads: config global por usuario, aplica a todas sus
   // cuentas de WhatsApp. secondMessageHours null = solo se manda 1 mensaje.
-  leadRecoveryEnabled            Boolean  @default(false)
-  leadRecoveryFirstMessageHours  Int      @default(2)
-  leadRecoverySecondMessageHours Int?     @default(12)
-  leadRecoveryBusinessHourStart  Int      @default(8)
-  leadRecoveryBusinessHourEnd    Int      @default(20)
-  leadRecoveryTimezone           String   @default("America/Mexico_City")
+  leadRecoveryEnabled            Boolean @default(false)
+  leadRecoveryFirstMessageHours  Int     @default(2)
+  leadRecoverySecondMessageHours Int?    @default(12)
+  leadRecoveryBusinessHourStart  Int     @default(8)
+  leadRecoveryBusinessHourEnd    Int     @default(20)
+  leadRecoveryTimezone           String  @default("America/Mexico_City")
 
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("app_settings")
 }
@@ -92,26 +95,26 @@ model GoogleAccount {
 }
 
 model WAAccount {
-  id              String           @id @default(cuid())
-  userId          String
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name            String
-  channel         WAChannel        @default(META_CLOUD)
-  phoneNumber     String?
-  phoneNumberId   String?
-  wabaId          String?
+  id                String          @id @default(cuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  channel           WAChannel       @default(META_CLOUD)
+  phoneNumber       String?
+  phoneNumberId     String?
+  wabaId            String?
   // Meta App ID that owns accessToken — required only for the Resumable Upload
   // API used when creating a template with a media header (distinct from wabaId,
   // which scopes template/message sends). Different WABA accounts can belong to
   // different Meta Apps, so this is per-account rather than a global env var.
-  appId           String?
-  accessToken     String?
-  verifyTokenHash String?
-  appSecret       String?
-  status            WaAccountStatus  @default(PENDING)
+  appId             String?
+  accessToken       String?
+  verifyTokenHash   String?
+  appSecret         String?
+  status            WaAccountStatus @default(PENDING)
   errorMessage      String?
   lastActivity      DateTime?
-  autoAssignEnabled Boolean          @default(false)
+  autoAssignEnabled Boolean         @default(false)
   // Reportados por el webhook `phone_number_quality_update` de Meta — no se
   // consultan por API, solo llegan de forma reactiva (push). qualityRating es
   // el valor crudo que manda Meta (p. ej. "GREEN"/"YELLOW"/"RED" o el nombre
@@ -120,22 +123,22 @@ model WAAccount {
   qualityRating     String?
   messagingTier     String?
   qualityUpdatedAt  DateTime?
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
 
-  chats           WAChat[]
-  templates       WATemplate[]
-  campaigns       WACampaign[]
-  bots            WABot[]
-  sharedWith      WAAccountShare[]
-  contacts        Contact[]
+  chats      WAChat[]
+  templates  WATemplate[]
+  campaigns  WACampaign[]
+  bots       WABot[]
+  sharedWith WAAccountShare[]
+  contacts   Contact[]
 
-  cannedResponses CannedResponse[]
+  cannedResponses  CannedResponse[]
   leadSheetSources LeadSheetSource[]
 
-  @@index([phoneNumberId])
   @@unique([phoneNumberId])
   @@unique([userId, name])
+  @@index([phoneNumberId])
   @@map("wa_accounts")
 }
 
@@ -163,8 +166,8 @@ model WAAccountShare {
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([waAccountId, userId])
+  @@index([userId])
   @@map("wa_account_shares")
 }
 
@@ -181,25 +184,115 @@ enum ChatStatus {
   RESOLVED
 }
 
+// Canales adicionales a WhatsApp (Telegram por ahora) — capa de adaptador
+// deliberadamente separada de WAAccount/WAChat/WAMessage: ese esquema es de
+// producción y no se toca. ChannelAccount/Conversation/ChannelMessage son
+// tablas nuevas y genéricas (no "TelegramAccount") para que el próximo canal
+// (p. ej. Email) las reutilice sin otro rediseño de esquema.
+enum Channel {
+  TELEGRAM
+}
+
+model ChannelAccount {
+  id                String          @id @default(cuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel           Channel
+  name              String
+  status            WaAccountStatus @default(PENDING)
+  errorMessage      String?
+  // JSON encriptado (AES-256-GCM vía lib/crypto.ts, mismo formato que
+  // WAAccount.accessToken) con las credenciales del proveedor. Cada canal
+  // tiene un shape distinto (Telegram: solo botToken; un futuro Email:
+  // host/puerto/usuario/password SMTP) — un blob evita repetir el patrón de
+  // columnas planas por proveedor que WAAccount fue acumulando.
+  credentials       String
+  autoAssignEnabled Boolean         @default(false)
+  lastActivity      DateTime?
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  conversations Conversation[]
+  contacts      Contact[]
+  bots          WABot[]
+
+  @@unique([userId, name])
+  @@map("channel_accounts")
+}
+
+model Conversation {
+  id               String         @id @default(cuid())
+  channelAccountId String
+  channelAccount   ChannelAccount @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  externalId       String
+  name             String?
+  isGroup          Boolean        @default(false)
+  contactId        String?        @unique
+  contact          Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  lastMessage      String?
+  lastMessageAt    DateTime?
+  unreadCount      Int            @default(0)
+  status           ChatStatus     @default(OPEN)
+  assignedToId     String?
+  assignedTo       User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  resolvedAt       DateTime?
+  firstResponseAt  DateTime?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  messages         ChannelMessage[]
+  botConversations WABotConversation[]
+
+  @@unique([channelAccountId, externalId])
+  @@index([assignedToId])
+  @@index([channelAccountId, lastMessageAt])
+  @@map("conversations")
+}
+
+model ChannelMessage {
+  id                String           @id @default(cuid())
+  externalMessageId String?
+  conversationId    String
+  conversation      Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction         MessageDirection
+  messageType       String
+  body              String?
+  caption           String?
+  mediaId           String?
+  mediaUrl          String?
+  mimeType          String?
+  filename          String?
+  bytesSize         Int?
+  status            String?
+  senderId          String?
+  sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  timestamp         DateTime
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  @@unique([conversationId, externalMessageId])
+  @@index([conversationId, timestamp])
+  @@map("channel_messages")
+}
+
 model WAChat {
-  id            String     @id @default(cuid())
-  accountId     String
-  account       WAAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  remoteJid     String
-  name          String?
-  isGroup       Boolean    @default(false)
-  lastMessage   String?
-  lastMessageAt DateTime?
-  unreadCount   Int        @default(0)
-  contactId     String?    @unique
-  contact       Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  assignedToId  String?
-  assignedTo    User?      @relation("ChatAssignments", fields: [assignedToId], references: [id], onDelete: SetNull)
+  id              String     @id @default(cuid())
+  accountId       String
+  account         WAAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  remoteJid       String
+  name            String?
+  isGroup         Boolean    @default(false)
+  lastMessage     String?
+  lastMessageAt   DateTime?
+  unreadCount     Int        @default(0)
+  contactId       String?    @unique
+  contact         Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  assignedToId    String?
+  assignedTo      User?      @relation("ChatAssignments", fields: [assignedToId], references: [id], onDelete: SetNull)
   status          ChatStatus @default(OPEN)
   resolvedAt      DateTime?
   firstResponseAt DateTime?
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
 
   messages         WAMessage[]
   botConversations WABotConversation[]
@@ -278,32 +371,32 @@ model WALeadScore {
 }
 
 model WAMessage {
-  id          String           @id @default(cuid())
-  wamid       String?
-  chatId      String
-  chat        WAChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  direction   MessageDirection
-  messageType String
-  body        String?
-  caption     String?
-  mediaId     String?
-  mediaUrl    String?
-  mimeType    String?
-  filename    String?
-  bytesSize   Int?
-  status      String?
-  senderId    String?
-  sender      User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
-  campaignId  String?
-  campaign    WACampaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  id                String           @id @default(cuid())
+  wamid             String?
+  chatId            String
+  chat              WAChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  direction         MessageDirection
+  messageType       String
+  body              String?
+  caption           String?
+  mediaId           String?
+  mediaUrl          String?
+  mimeType          String?
+  filename          String?
+  bytesSize         Int?
+  status            String?
+  senderId          String?
+  sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  campaignId        String?
+  campaign          WACampaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   // Igual que campaignId pero para envíos disparados por una fuente de leads
   // externa (LeadSheetSource) — nunca ambos a la vez, cada WAMessage viene de
   // como mucho un origen. Ver lib/whatsapp/chat-attribution.ts para cómo se
   // unifican ambos campos en una sola "atribución" del chat.
   leadSheetSourceId String?
   leadSheetSource   LeadSheetSource? @relation(fields: [leadSheetSourceId], references: [id], onDelete: SetNull)
-  timestamp   DateTime
-  createdAt   DateTime         @default(now()) @map("created_at")
+  timestamp         DateTime
+  createdAt         DateTime         @default(now()) @map("created_at")
 
   recoveryAttempt WALeadRecoveryAttempt?
 
@@ -344,7 +437,7 @@ model WALeadRecoveryAttempt {
 }
 
 model WATemplate {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   waAccountId String
   waAccount   WAAccount @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
   templateId  String
@@ -353,10 +446,10 @@ model WATemplate {
   category    String
   status      String
   components  Json
-  syncedAt    DateTime @default(now())
-  createdAt   DateTime @default(now()) @map("created_at")
+  syncedAt    DateTime  @default(now())
+  createdAt   DateTime  @default(now()) @map("created_at")
 
-  campaigns WACampaign[]
+  campaigns        WACampaign[]
   leadSheetSources LeadSheetSource[]
 
   @@unique([waAccountId, templateId])
@@ -369,30 +462,30 @@ model WATemplate {
 // arbitraria del usuario — la misma conexión OAuth (lib/google/sheets-client.ts) sirve
 // para leerla porque el scope otorgado no está restringido a los archivos creados por SundayCRM.
 model LeadSheetSource {
-  id            String     @id @default(cuid())
-  userId        String
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  waAccountId   String
-  waAccount     WAAccount  @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
-  waTemplateId  String
-  waTemplate    WATemplate @relation(fields: [waTemplateId], references: [id], onDelete: Cascade)
-  name          String
-  spreadsheetId String
-  sheetName     String
-  phoneColumn   String
-  nameColumn    String?
+  id                String     @id @default(cuid())
+  userId            String
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  waAccountId       String
+  waAccount         WAAccount  @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  waTemplateId      String
+  waTemplate        WATemplate @relation(fields: [waTemplateId], references: [id], onDelete: Cascade)
+  name              String
+  spreadsheetId     String
+  sheetName         String
+  phoneColumn       String
+  nameColumn        String?
   // Nombres de columna de la hoja, en el orden {{1}},{{2}},... del body de la plantilla.
-  bodyColumns   Json
+  bodyColumns       Json
   // Igual que WACampaign.headerParam/buttonParam: valores estáticos (no por fila) —
   // texto o Meta media id para el header, sufijo de URL para el botón dinámico.
-  headerParam   String?
-  buttonParam   String?
-  enabled       Boolean    @default(true)
-  lastRunAt     DateTime?
-  lastImportedCount Int    @default(0)
-  lastError     String?
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  headerParam       String?
+  buttonParam       String?
+  enabled           Boolean    @default(true)
+  lastRunAt         DateTime?
+  lastImportedCount Int        @default(0)
+  lastError         String?
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
 
   importedRows LeadSheetImportedRow[]
   messages     WAMessage[]
@@ -427,30 +520,30 @@ model LeadSheetImportedRow {
 }
 
 model WACampaign {
-  id              String               @id @default(cuid())
-  userId          String
-  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  waAccountId     String
-  waAccount       WAAccount            @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
-  waTemplateId    String
-  waTemplate      WATemplate           @relation(fields: [waTemplateId], references: [id], onDelete: Cascade)
-  name            String
-  status          CampaignStatus       @default(DRAFT)
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  waAccountId    String
+  waAccount      WAAccount      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  waTemplateId   String
+  waTemplate     WATemplate     @relation(fields: [waTemplateId], references: [id], onDelete: Cascade)
+  name           String
+  status         CampaignStatus @default(DRAFT)
   // Global values applied to every recipient — unlike body parameters (per-recipient,
   // see WACampaignRecipient.parameters), header text/media and button URL suffixes are
   // the same for the whole campaign in WhatsApp's template model.
-  headerParam     String?
-  buttonParam     String?
-  scheduledAt     DateTime?
-  sentAt          DateTime?
-  completedAt     DateTime?
-  recipientCount  Int                  @default(0)
-  sentCount       Int                  @default(0)
-  deliveredCount  Int                  @default(0)
-  readCount       Int                  @default(0)
-  failedCount     Int                  @default(0)
-  createdAt       DateTime             @default(now()) @map("created_at")
-  updatedAt       DateTime             @updatedAt @map("updated_at")
+  headerParam    String?
+  buttonParam    String?
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  completedAt    DateTime?
+  recipientCount Int            @default(0)
+  sentCount      Int            @default(0)
+  deliveredCount Int            @default(0)
+  readCount      Int            @default(0)
+  failedCount    Int            @default(0)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
   recipients WACampaignRecipient[]
   messages   WAMessage[]
@@ -496,25 +589,29 @@ enum RecipientStatus {
 }
 
 model WABot {
-  id           String        @id @default(cuid())
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  waAccountId  String?
-  waAccount    WAAccount?    @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
-  name         String
-  provider     String
-  model        String
-  systemPrompt String        @db.Text
-  temperature  Float         @default(0.7)
-  maxTokens    Int           @default(1024)
-  memoryType   BotMemoryType @default(RECENT)
-  memoryLimit  Int           @default(20)
-  ragEnabled   Boolean       @default(false)
-  humanizeEnabled Boolean    @default(false)
-  isActive     Boolean       @default(false)
-  status       BotStatus     @default(ACTIVE)
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  waAccountId      String?
+  waAccount        WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
+  // Mutuamente excluyente con waAccountId a nivel de aplicación — un bot sirve
+  // a una cuenta de WhatsApp o a una cuenta de canal (Telegram), nunca ambas.
+  channelAccountId String?
+  channelAccount   ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: SetNull)
+  name             String
+  provider         String
+  model            String
+  systemPrompt     String          @db.Text
+  temperature      Float           @default(0.7)
+  maxTokens        Int             @default(1024)
+  memoryType       BotMemoryType   @default(RECENT)
+  memoryLimit      Int             @default(20)
+  ragEnabled       Boolean         @default(false)
+  humanizeEnabled  Boolean         @default(false)
+  isActive         Boolean         @default(false)
+  status           BotStatus       @default(ACTIVE)
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
 
   conversations WABotConversation[]
   knowledgeBots WABotKnowledgeBot[]
@@ -537,25 +634,31 @@ enum BotStatus {
 }
 
 model WABotConversation {
-  id              String   @id @default(cuid())
-  botId           String
-  bot             WABot    @relation(fields: [botId], references: [id], onDelete: Cascade)
-  waChatId        String
-  waChat          WAChat   @relation(fields: [waChatId], references: [id], onDelete: Cascade)
-  summary         String?  @db.Text
+  id             String        @id @default(cuid())
+  botId          String
+  bot            WABot         @relation(fields: [botId], references: [id], onDelete: Cascade)
+  // waChatId/conversationId son mutuamente excluyentes según el tipo de bot
+  // (ver WABot.waAccountId/channelAccountId) — ambos opcionales para permitir
+  // el historial de un bot sirviendo a Telegram sin FK a WAChat.
+  waChatId       String?
+  waChat         WAChat?       @relation(fields: [waChatId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  summary        String?       @db.Text
 
   @@unique([botId, waChatId])
+  @@unique([botId, conversationId])
   @@map("wa_bot_conversations")
 }
 
 model WABotKnowledge {
-  id         String   @id @default(cuid())
+  id         String                     @id @default(cuid())
   title      String
-  content    String   @db.Text
+  content    String                     @db.Text
   embedding  Unsupported("vector(768)")
   chunkIndex Int
   sourceName String?
-  createdAt  DateTime @default(now()) @map("created_at")
+  createdAt  DateTime                   @default(now()) @map("created_at")
 
   bots WABotKnowledgeBot[]
 
@@ -564,9 +667,9 @@ model WABotKnowledge {
 
 model WABotKnowledgeBot {
   knowledgeId String
-  botId        String
-  knowledge    WABotKnowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
-  bot          WABot          @relation(fields: [botId], references: [id], onDelete: Cascade)
+  botId       String
+  knowledge   WABotKnowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  bot         WABot          @relation(fields: [botId], references: [id], onDelete: Cascade)
 
   @@id([knowledgeId, botId])
   @@index([botId])
@@ -578,6 +681,9 @@ model WABotUsage {
   botId            String
   bot              WABot    @relation(fields: [botId], references: [id], onDelete: Cascade)
   waChatId         String?
+  // Igual que waChatId: referencia "blanda" (sin @relation), solo para
+  // atribuir el gasto a una conversación de Telegram en el costo por chat.
+  conversationId   String?
   model            String
   promptTokens     Int
   completionTokens Int
@@ -598,32 +704,41 @@ enum LeadStatus {
 }
 
 model Contact {
-  id         String     @id @default(cuid())
-  accountId  String
-  account    WAAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  remoteJid  String
-  name       String?
+  id                String          @id @default(cuid())
+  // accountId/channelAccountId son mutuamente excluyentes (a nivel de
+  // aplicación, no de constraint DB): un Contact viene de WhatsApp o de un
+  // canal genérico (Telegram por ahora), nunca de ambos. Ambos opcionales en
+  // vez de una FK polimórfica real porque Prisma no soporta esa relación de
+  // forma nativa — mismo patrón ya usado en WABot.waAccountId/channelAccountId.
+  accountId         String?
+  account           WAAccount?      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  channelAccountId  String?
+  channelAccount    ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  remoteJid         String
+  name              String?
   // Nombre aprendido por un calificador de IA durante la conversación (campo
   // details.nombre_real de WALeadScore) — distinto de `name`, que viene del
   // CSV/hoja de origen (revisado por marketing) y nunca se pisa con esto.
   // Null hasta que algún calificador detecte un nombre real.
-  realName   String?
-  leadStatus LeadStatus @default(NEW)
+  realName          String?
+  leadStatus        LeadStatus      @default(NEW)
   // Reportado por el webhook `user_preferences` de Meta cuando el lead usa el
   // mecanismo nativo de WhatsApp para darse de baja de mensajes de marketing
   // (category "marketing_messages", value "stop"/"resume"). campaign-worker.ts
   // excluye a estos contactos de futuros envíos de campaña — no afecta
   // respuestas manuales/bot en un chat ya iniciado por el lead.
-  optedOutMarketing Boolean   @default(false)
+  optedOutMarketing Boolean         @default(false)
   optedOutAt        DateTime?
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
 
-  chat  WAChat?
-  tags  ContactTag[]
-  notes WANote[]
+  chat         WAChat?
+  conversation Conversation?
+  tags         ContactTag[]
+  notes        WANote[]
 
   @@unique([accountId, remoteJid])
+  @@unique([channelAccountId, remoteJid])
   @@index([accountId, leadStatus])
   @@map("contacts")
 }

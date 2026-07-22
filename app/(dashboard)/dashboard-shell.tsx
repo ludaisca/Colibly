@@ -12,6 +12,7 @@ import {
   FileText,
   Contact,
   Phone,
+  Send,
   Target,
 } from "lucide-react";
 import { AppShell, type NavItem, type NavGroup } from "@/app/components/ui/app-shell";
@@ -46,17 +47,15 @@ export function DashboardShell({
         },
       ]
     : [
+        // "Principal" agrupa el trabajo diario y abre con Panel porque es la
+        // pantalla de aterrizaje tras iniciar sesión — antes vivía en el
+        // segundo grupo, así que el primer ítem del menú no era donde caías.
         {
-          title: "Mensajería",
-          items: [
-            { href: "/whatsapp/chat",           label: "Bandeja de Chats", icon: MessageSquare },
-            ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
-          ],
-        },
-        {
-          title: "Análisis",
+          title: "Principal",
           items: [
             { href: "/dashboard",               label: "Panel",            icon: LayoutDashboard, exact: true },
+            { href: "/whatsapp/chat",           label: "Bandeja de Chats", icon: MessageSquare },
+            ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
             { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
           ],
         },
@@ -67,17 +66,20 @@ export function DashboardShell({
             { href: "/whatsapp/calificadores",  label: "Calificadores de Leads", icon: Target },
           ],
         },
+        // El alcance va en el título del grupo: plantillas y campañas son
+        // features de la API de WhatsApp y no aplican a los demás canales.
+        {
+          title: "Difusión WhatsApp",
+          items: [
+            { href: "/whatsapp/plantillas",     label: "Plantillas",       icon: FileText },
+            { href: "/whatsapp/campanas",       label: "Campañas Masivas", icon: Megaphone },
+          ],
+        },
         {
           title: "Canales",
           items: [
             { href: "/whatsapp/cuentas",        label: "Cuentas WhatsApp", icon: Phone },
-          ],
-        },
-        {
-          title: "Difusión",
-          items: [
-            { href: "/whatsapp/plantillas",     label: "Plantillas",       icon: FileText },
-            { href: "/whatsapp/campanas",       label: "Campañas Masivas", icon: Megaphone },
+            { href: "/telegram/cuentas",        label: "Cuentas Telegram", icon: Send },
           ],
         },
         {

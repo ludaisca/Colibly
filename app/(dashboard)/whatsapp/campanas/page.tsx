@@ -73,7 +73,10 @@ export default function CampaignsPage() {
               tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-foreground"
             }`}
           >
-            {t === "campanas" ? "Campañas" : "Automatización"}
+            {/* "Desde Google Sheets" y no "Automatización": ese nombre ya lo
+                usa un grupo del menú lateral (Bots IA + Calificadores), y
+                tenerlo en dos lugares para cosas distintas confundía. */}
+            {t === "campanas" ? "Campañas" : "Desde Google Sheets"}
           </button>
         ))}
       </div>
