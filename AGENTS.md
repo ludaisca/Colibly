@@ -13,7 +13,7 @@
 Everything runs in Docker. Never install dependencies or databases on the host.
 
 ```bash
-docker compose up --build   # dev server + postgres + redis, hot reload, port 3001
+docker compose up --build   # dev server + postgres + redis, hot reload, port 15100
 docker compose down -v      # full teardown including volumes
 npx tsc --noEmit            # type check
 npm run build               # production build check
@@ -73,7 +73,7 @@ RSC pages should have a sibling `loading.tsx` with skeleton placeholders — Nex
 ## Database
 
 ### Schema
-`prisma/schema.prisma` — 26 models. Key relationships: `User → WAAccount[]`, `User → AppSettings (1:1)`, `WABot ↔ WABotKnowledge (M:N via WABotKnowledgeBot)`, `WAAccount → WAAccountShare[] → User`, `WAChat → Contact (1:1)`, `Contact ↔ Tag (M:N via ContactTag)`, `User → WALeadScorerBot[]`, `WAChat → WALeadScore[] ← WALeadScorerBot` (one score per `(chatId, scorerId)` pair, see "Lead scoring" below), `WAChat → WALeadRecoveryAttempt[]` (see "Lead recovery" below). `WAMessage` carries all media metadata: `messageType` (`text`/`image`/`audio`/`video`/`document`/`sticker`), `caption`, `mediaId` (Meta id), `mediaUrl` (relative path under `MEDIA_ROOT`), `mimeType`, `filename`, `bytesSize` (`width`/`height`/`duration` were dropped 2026-07 — Meta's webhook never populated them). `body` is reused for both text and caption-derived text; `caption` is the dedicated caption field.
+`prisma/schema.prisma` — 30+ models. Key relationships: `User → WAAccount[]`, `User → AppSettings (1:1)`, `WABot ↔ WABotKnowledge (M:N via WABotKnowledgeBot)`, `WAAccount → WAAccountShare[] → User`, `WAChat → Contact (1:1)`, `Contact ↔ Tag (M:N via ContactTag)`, `User → WALeadScorerBot[]`, `WAChat → WALeadScore[] ← WALeadScorerBot` (one score per `(chatId, scorerId)` pair, see "Lead scoring" below), `WAChat → WALeadRecoveryAttempt[]` (see "Lead recovery" below). `WAMessage` carries all media metadata: `messageType` (`text`/`image`/`audio`/`video`/`document`/`sticker`), `caption`, `mediaId` (Meta id), `mediaUrl` (relative path under `MEDIA_ROOT`), `mimeType`, `filename`, `bytesSize` (`width`/`height`/`duration` were dropped 2026-07 — Meta's webhook never populated them). `body` is reused for both text and caption-derived text; `caption` is the dedicated caption field.
 
 ### Commands
 ```bash
@@ -95,7 +95,7 @@ Uses `prisma.$transaction()` for atomic `count() + create()` — prevents race c
 
 ## Redis + BullMQ
 
-8 queues, auto-started via `instrumentation.ts`:
+10 queues, auto-started via `instrumentation.ts`:
 
 | Queue | Concurrency | Timeout | Trigger |
 |---|---|---|---|
@@ -107,6 +107,8 @@ Uses `prisma.$transaction()` for atomic `count() + create()` — prevents race c
 | `bot-message-send` | 5 | 60s | `bot-worker.ts` when `WABot.humanizeEnabled` is on — delivers each split chunk of a "humanized" reply as its own delayed job |
 | `lead-scoring` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — scheduled scorer runs, see "Lead scoring" |
 | `lead-recovery` | 1 | 60s | Self-scheduled repeatable tick (`*/15 * * * *`) — re-engages silent leads, see "Lead recovery" |
+| `sheets-sync` | 1 | 60s | Self-scheduled repeatable tick (`*/15 * * * *`) — syncs `GoogleAccount` spreadsheet exports |
+| `lead-sheet-import` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — imports leads from `LeadSheetSource` sheets |
 
 - `media-cleanup-worker.ts:processMediaCleanupJob()` deletes `WAMessage.mediaUrl` files older than `MEDIA_RETENTION_DAYS` (env var, default 90) and clears the column, keeping the `media_data` volume bounded. No-ops if `MEDIA_RETENTION_DAYS <= 0`.
 - **Bot reply humanization** (`WABot.humanizeEnabled`, opt-in, default `false`): when on, `bot-worker.ts` splits the reply on blank lines (`lib/whatsapp/humanize.ts:splitReply()`) and enqueues each chunk on `bot-message-send` with a cumulative simulated-typing delay (`computeTypingDelay()`, ~40ms/char, capped 0.8–8s) instead of calling `sendWhatsAppMessage()` synchronously — keeps the main `bot-messages` job from holding its concurrency slot for the whole send sequence. `bot-send-worker.ts:processBotSendJob()` re-fetches the `WAAccount` and does the actual send + `WAMessage`/`WAChat` bookkeeping per chunk. Tone/pacing only — never use this to imply the chat isn't automated (WhatsApp's Business Messaging Policy expects disclosure where applicable).
@@ -303,6 +305,7 @@ Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the stan
 
 ## Gotchas summary
 
+- **`node_modules` belongs to Docker** — `npm install` on the host will fail with `EACCES`. Always install packages inside the container: `docker compose exec app npm install <pkg>`.
 - **`npm run build` inside the dev compose fails with `TypeError: Cannot read properties of null (reading 'useContext')` while prerendering** — `docker-compose.override.yml` sets `NODE_ENV=development`, which poisons the production build (dev React mixed into SSR chunks). It is NOT a code bug: run the build check as `docker compose run --rm -e NODE_ENV=production app sh -c "rm -rf .next && npm run build"`, then `docker compose run --rm -u root app sh -c "rm -rf .next"` + `docker compose up -d app` so the dev server doesn't boot on the production `.next`.
 - **Campaign visibility is per account, not per creator** — `GET /api/whatsapp/campaigns`, the `[id]` detail/DELETE and `send` all filter by `waAccountId ∈ getUserAccountIds()`; a `WAAccountShare` grantee can create/see/send campaigns on the shared account and the owner sees them too. Don't regress these back to `userId: session.user.id`.
 - **Role guards live in the APIs too, not just `proxy.ts`** — all `/api/whatsapp/bots/**` handlers 403 for any non-admin, and `GET /api/whatsapp/contacts` (the list) 403s for role `user` (the `contacts/[id]` detail stays open — the chat's ContactDrawer needs it). `PATCH /api/usuarios` refuses to demote the first-created admin or the last remaining admin.

@@ -3,7 +3,7 @@ services:
     build:
       target: dev
     ports:
-      - "3002:5000"
+      - "15100:5000"
     volumes:
       - .:/app
       - /app/node_modules
