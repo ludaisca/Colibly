@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Search, RefreshCw, Contact as ContactIcon } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
-import { Select } from "@/app/components/ui/select";
+import { FiltersPanel, type FilterFieldDef } from "@/app/components/ui/filters-panel";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -147,31 +147,37 @@ export default function ContactosPage() {
             placeholder="Buscar por nombre o número..."
             className="sm:max-w-xs flex-1"
           />
-          {accounts.length > 1 && (
-            <Select
-              value={accountFilter}
-              onChange={(e) => setAccountFilter(e.target.value)}
-              className="sm:max-w-[200px]"
-            >
-              <option value="">Todos los números</option>
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name}{acc.phoneNumber ? ` · ${acc.phoneNumber}` : ""}
-                </option>
-              ))}
-            </Select>
-          )}
-          <Select
-            value={leadStatusFilter}
-            onChange={(e) => setLeadStatusFilter(e.target.value)}
-            placeholder="Todos los estados"
-            className="sm:max-w-[180px]"
-          >
-            <option value="">Todos los estados</option>
-            {Object.entries(LEAD_STATUS_BADGE).map(([value, { label }]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </Select>
+          <FiltersPanel
+            panelTitle="Filtrar contactos"
+            fields={[
+              ...(accounts.length > 1
+                ? [{
+                    key: "account",
+                    label: "Cuenta",
+                    options: [
+                      { value: "", label: "Todos los números" },
+                      ...accounts.map((acc) => ({
+                        value: acc.id,
+                        label: acc.name + (acc.phoneNumber ? ` · ${acc.phoneNumber}` : ""),
+                      })),
+                    ],
+                  } satisfies FilterFieldDef]
+                : []),
+              {
+                key: "leadStatus",
+                label: "Estado",
+                options: [
+                  { value: "", label: "Todos los estados" },
+                  ...Object.entries(LEAD_STATUS_BADGE).map(([value, { label }]) => ({ value, label })),
+                ],
+              },
+            ]}
+            values={{ account: accountFilter, leadStatus: leadStatusFilter }}
+            onApply={(v) => {
+              setAccountFilter(v.account ?? "");
+              setLeadStatusFilter(v.leadStatus ?? "");
+            }}
+          />
         </div>
 
         <EntityList
@@ -207,7 +213,7 @@ export default function ContactosPage() {
                         por un número real. */}
                     {contact.channel === "TELEGRAM"
                       ? <span>Telegram</span>
-                      : <span className="font-mono">{phoneFromJid(contact.remoteJid)}</span>}
+                      : <span className="tabular-nums">{phoneFromJid(contact.remoteJid)}</span>}
                     {accounts.length > 1 && account && <> · {account.name}</>}
                     {contact._count.notes > 0 && <> · {contact._count.notes} nota(s)</>}
                   </>
