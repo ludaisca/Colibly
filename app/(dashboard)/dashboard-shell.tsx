@@ -14,6 +14,7 @@ import {
   Phone,
   Send,
   Target,
+  KanbanSquare,
 } from "lucide-react";
 import { AppShell, type NavItem, type NavGroup } from "@/app/components/ui/app-shell";
 import { NotificationBell } from "@/app/components/ui/notification-bell";
@@ -57,6 +58,7 @@ export function DashboardShell({
             { href: "/whatsapp/chat",           label: "Bandeja de Chats", icon: MessageSquare },
             ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
             { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
+            { href: "/ventas",                  label: "Pipeline",         icon: KanbanSquare, exact: true },
           ],
         },
         {

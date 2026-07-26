@@ -34,7 +34,7 @@ Three roles with different UIs and access:
 |---|---|---|
 | `admin` | everything: Panel, Estadísticas, Chats, Contactos, Bots IA, Calificadores, Cuentas, Plantillas, Campañas, Usuarios, Config | none |
 | `user` | like admin **minus** Contactos, Bots IA, Usuarios | `USER_BLOCKED`: `/whatsapp/contactos`, `/whatsapp/bots`, `/configuracion/ia` |
-| `ejecutivo` | Chats, Contactos, Config | `EXECUTIVE_BLOCKED`: `/dashboard`, `/estadisticas`, `/usuarios`, `/whatsapp/{bots,campanas,plantillas,cuentas}`, `/configuracion/ia` |
+| `ejecutivo` | Chats, Contactos, Config | `EXECUTIVE_BLOCKED`: `/dashboard`, `/estadisticas`, `/usuarios`, `/whatsapp/{bots,campanas,plantillas,cuentas}`, `/configuracion/ia`, `/ventas` |
 
 Two pages were removed in the 2026-07 nav flattening: the `/whatsapp` hub (its KPIs duplicated Panel, its account list duplicated `/whatsapp/cuentas`; the route survives only as a `redirect("/whatsapp/cuentas")` and the nav item "Cuentas WhatsApp" points straight at `/whatsapp/cuentas`) and `/whatsapp/conocimiento` (fully redundant with the knowledge tab inside `whatsapp/bots/[id]`, which remains the only knowledge UI — its role-gating rides on `/whatsapp/bots`).
 
@@ -225,6 +225,17 @@ Autonomous re-engagement of leads that went silent ("en visto"). Config lives **
 - **Meta 24h window**: only free-text messages inside Meta's 24h customer-service window (from the lead's last inbound) are sent — past 24h it sends nothing (no reactivation template configured yet).
 
 This runs unattended and messages real leads — treat `leadRecoveryEnabled` and the hour thresholds as production-sensitive settings; never flip them in the DB while testing without telling the user.
+
+### Pipeline (Kanban de ventas)
+
+`/ventas` — visual pipeline Kanban for leads. Uses `Contact.leadStatus` (enum: `NEW`/`CONTACTED`/`QUALIFIED`/`CUSTOMER`/`LOST`).
+
+- **Server Component pattern**: `ventas/page.tsx` (RSC, loads contacts grouped by `leadStatus` via `getUserAccountIds()`) → `ventas/_board.tsx` (`"use client"`, receives serialized `BoardData`).
+- **Drag & drop**: `@dnd-kit/core` (`useDraggable`/`useDroppable`/`DndContext`). On drop across columns, optimistic update in local state + `PATCH /api/whatsapp/contacts/[id]` with `{ leadStatus }` (already accepted by `contactUpdateSchema`).
+- **Cards**: `app/components/pipeline/lead-card.tsx` — show `EntityAvatar`, phone, tags (max 3 + overflow), last activity time, lead score bar with color-coded label (frio/tibio/caliente).
+- **Stage constants**: `lib/pipeline/stages.ts` — `PIPELINE_STAGES`, `STAGE_LABEL`, `STAGE_COLOR_BORDER`, `STAGE_COLOR_BG`, `STAGE_DOT_COLOR`.
+- **Roles**: accessible to admin + user, blocked for ejecutivo. Added to `PROTECTED` + `EXECUTIVE_BLOCKED` in `proxy.ts`.
+- **Nav**: "Pipeline" item with `KanbanSquare` icon in `dashboard-shell.tsx` "Principal" group.
 
 ### Conversation-level features (distinct from Contact-level)
 
