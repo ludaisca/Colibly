@@ -37,8 +37,8 @@ export interface AppShellProps {
 
 function activeClass(accent: "accent" | "danger") {
   return accent === "accent"
-    ? "bg-accent/10 text-accent font-semibold"
-    : "bg-danger-bg text-danger font-semibold";
+    ? "bg-accent text-on-accent font-semibold shadow-sm"
+    : "bg-danger text-on-accent font-semibold shadow-sm";
 }
 
 function SidebarContent({
@@ -71,11 +71,11 @@ function SidebarContent({
           className={cn(
             "flex items-center text-sm font-medium transition-all duration-150",
             collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2.5",
-            // El item activo lleva la esquina de burbuja — firma del rediseño;
-            // el resto conserva el radio estándar.
+            // El item activo es una píldora sólida de color — firma del rediseño
+            // "fresco y cercano"; el resto conserva el radio estándar.
             active
-              ? cn("rounded-bubble", activeClass(accent ?? "accent"))
-              : "rounded-lg text-muted hover:bg-surface-light hover:text-foreground"
+              ? cn("rounded-full", activeClass(accent ?? "accent"))
+              : "rounded-full text-muted hover:bg-surface-light hover:text-foreground"
           )}
         >
           <Icon size={18} className="shrink-0" />

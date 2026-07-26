@@ -166,7 +166,7 @@ function MessageBubble({
         className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
           isInbound
             ? "rounded-2xl rounded-tl-sm bg-surface text-foreground"
-            : "rounded-bubble-br bg-accent text-on-accent"
+            : "rounded-2xl rounded-tr-sm bg-accent text-on-accent"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {hasMedia && (

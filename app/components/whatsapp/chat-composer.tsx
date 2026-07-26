@@ -65,7 +65,7 @@ export function ChatComposer({
                 i === cannedIndex ? "bg-surface-light" : "hover:bg-surface-light"
               }`}
             >
-              <span className="font-mono text-accent">/{c.shortcut}</span>
+              <span className="font-semibold text-accent">/{c.shortcut}</span>
               <span className="text-muted-darker ml-2 truncate">{c.content}</span>
             </button>
           ))}

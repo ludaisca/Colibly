@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { cn } from "./cn";
 
-// Franja KPI del layout workbench — sustituye la fila de 4 StatCard con cajas.
-// Una sola fila densa con divisores, sin bordes ni iconos: puramente
-// tipográfica (cifra en font-mono, label eyebrow). Server-safe por diseño —
-// al no aceptar iconos como props, los RSC (dashboard, hub WhatsApp) la usan
-// directo sin chocar con la regla "no pasar componentes Lucide a client".
+// Franja KPI del layout workbench — grid de tarjetas con borde y sombra
+// suave, cifra protagonista en font-display + tabular-nums. Server-safe por
+// diseño — al no aceptar iconos como props, los RSC (dashboard, hub
+// WhatsApp) la usan directo sin chocar con la regla "no pasar componentes
+// Lucide a client".
 
 export interface KpiItem {
   label: string;
@@ -31,17 +31,17 @@ function KpiContent({ item, hero }: { item: KpiItem; hero: boolean }) {
       <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">
         {item.label}
       </p>
-      <p className="flex items-baseline gap-2">
+      <p className="flex items-baseline gap-2 flex-wrap">
         <span
           className={cn(
-            "font-mono font-semibold tracking-tight text-foreground",
+            "font-display font-extrabold tabular-nums tracking-tight text-foreground",
             hero ? "text-hero" : "text-2xl"
           )}
         >
           {item.value}
         </span>
         {item.delta && (
-          <span className={cn("font-mono text-xs", DELTA_TONE[item.deltaTone ?? "neutral"])}>
+          <span className={cn("text-xs font-bold tabular-nums", DELTA_TONE[item.deltaTone ?? "neutral"])}>
             {item.delta}
           </span>
         )}
@@ -63,21 +63,20 @@ export function KpiStrip({ items, size = "hero", className }: KpiStripProps) {
   return (
     <div
       className={cn(
-        "flex flex-wrap divide-border sm:divide-x",
+        "grid gap-3.5 grid-cols-2 lg:grid-cols-4",
         className
       )}
     >
       {items.map((item) => {
         const inner = <KpiContent item={item} hero={hero} />;
         const cellClass = cn(
-          "flex min-w-32 flex-1 flex-col gap-1 py-1",
-          "pr-6 sm:px-6 first:pl-0 sm:first:pl-0"
+          "flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow",
         );
         return item.href ? (
           <Link
             key={item.label}
             href={item.href}
-            className={cn(cellClass, "group rounded-md transition-colors hover:bg-surface/60")}
+            className={cn(cellClass, "hover:shadow-md hover:border-border")}
           >
             {inner}
           </Link>

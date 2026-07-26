@@ -29,7 +29,7 @@ export function ChatAccountRail({ accounts, selectedAccountId, onSelect, unreadB
     <div className="hidden w-16 min-h-0 shrink-0 flex-col items-center gap-2 border-r border-border bg-surface/40 py-3 lg:flex">
       <div className="shrink-0">
         <RailButton active={selectedAccountId === ""} label="Todas las cuentas" unread={totalUnread} onClick={() => onSelect("")}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-bubble bg-surface-light text-muted-darker">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light text-muted-darker">
             <Inbox size={18} />
           </span>
         </RailButton>
@@ -87,11 +87,9 @@ function RailButton({
       title={label}
       aria-pressed={active}
       className={cn(
-        "relative flex rounded-bubble transition-opacity duration-fast ease-brand",
-        // ring-offset (no padding en el botón) para que el aro no pegue
-        // directo al borde del avatar — a este tamaño, un ring pegado sin
-        // separación choca con la esquina asimétrica de rounded-bubble y se
-        // ve como si el ícono estuviera "cortado" en esa esquina.
+        "relative flex rounded-lg transition-opacity duration-fast ease-brand",
+        // ring-offset (no padding en el botón) para que el aro de selección
+        // no pegue directo al borde del avatar y se note como un halo propio.
         active
           ? "ring-2 ring-accent ring-offset-2 ring-offset-background"
           : "opacity-80 hover:opacity-100"
