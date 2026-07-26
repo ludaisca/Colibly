@@ -514,6 +514,7 @@ export async function POST(req: Request) {
                   mimeType,
                   filename,
                   caption,
+                  interactiveReplyId: msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? null,
                 });
               }
             })

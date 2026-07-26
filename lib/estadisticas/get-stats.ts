@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getMonthlyAiCost } from "@/lib/ai/budget";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import {
   countActiveBots,
   countBots,
@@ -138,6 +138,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
   }
 
   const accountIds = await getUserAccountIds(userId);
+  const channelAccountIds = await getUserChannelAccountIds(userId);
 
   const now = new Date();
   const today = startOfDayInTz(now);
@@ -170,7 +171,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     campaignsForMessageStats,
     leadSheetSources,
     leadSheetStatusGroups,
-    leadScores,
+    leadScoresWA,
   ] = await Promise.all([
     countTotalAccounts(accountIds, userId),
     countChats(accountIds, userId),
@@ -263,7 +264,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
       _count: { _all: true },
     }),
     prisma.wALeadScore.findMany({
-      where: { chat: { accountId: { in: accountIds } } },
+      where: { chatId: { not: null }, chat: { accountId: { in: accountIds } } },
       select: {
         chatId: true,
         score: true,
@@ -272,6 +273,22 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
       },
     }),
   ]);
+
+  // Telegram no tiene relación real hacia WALeadScore (referencia blanda,
+  // ver schema) ni conceptos de campaña/automatización — el score se resuelve
+  // en dos pasos y su "campaign" siempre es null.
+  const tgConversationIds = channelAccountIds.length > 0
+    ? (await prisma.conversation.findMany({
+        where: { channelAccountId: { in: channelAccountIds } },
+        select: { id: true },
+      })).map((c) => c.id)
+    : [];
+  const leadScoresTG = tgConversationIds.length > 0
+    ? await prisma.wALeadScore.findMany({
+        where: { conversationId: { in: tgConversationIds } },
+        select: { conversationId: true, score: true, label: true },
+      })
+    : [];
 
   const dailyMap: Record<string, number> = {};
   for (const m of recentMessages) {
@@ -408,10 +425,20 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
   ];
 
   const bestScorePerChat = new Map<string, { score: number; label: string; campaign: ReturnType<typeof resolveChatAttribution> }>();
-  for (const s of leadScores) {
-    const existing = bestScorePerChat.get(s.chatId);
+  for (const s of leadScoresWA) {
+    if (!s.chatId) continue;
+    const key = `wa:${s.chatId}`;
+    const existing = bestScorePerChat.get(key);
     if (!existing || s.score > existing.score) {
-      bestScorePerChat.set(s.chatId, { score: s.score, label: s.label, campaign: resolveChatAttribution(s.chat.messages) });
+      bestScorePerChat.set(key, { score: s.score, label: s.label, campaign: resolveChatAttribution(s.chat!.messages) });
+    }
+  }
+  for (const s of leadScoresTG) {
+    if (!s.conversationId) continue;
+    const key = `tg:${s.conversationId}`;
+    const existing = bestScorePerChat.get(key);
+    if (!existing || s.score > existing.score) {
+      bestScorePerChat.set(key, { score: s.score, label: s.label, campaign: null });
     }
   }
 

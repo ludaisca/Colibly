@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { leadScorerBotSchema } from "@/lib/validations";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 export async function POST(req: Request) {
   try {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { name, provider, model, systemPrompt, isActive, scheduleEnabled, scheduleIntervalMinutes, scheduleAccountIds } = parsed.data;
+    const { name, provider, model, systemPrompt, isActive, scheduleEnabled, scheduleIntervalMinutes, scheduleAccountIds, scheduleChannelAccountIds } = parsed.data;
 
     let validAccountIds: string[] = [];
     if (scheduleAccountIds && scheduleAccountIds.length > 0) {
@@ -31,6 +31,16 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Cuenta inválida en el alcance del calificador" }, { status: 400 });
       }
       validAccountIds = scheduleAccountIds;
+    }
+
+    let validChannelAccountIds: string[] = [];
+    if (scheduleChannelAccountIds && scheduleChannelAccountIds.length > 0) {
+      const ownedChannelIds = await getUserChannelAccountIds(session.user.id);
+      const ownedChannelSet = new Set(ownedChannelIds);
+      if (scheduleChannelAccountIds.some((id) => !ownedChannelSet.has(id))) {
+        return NextResponse.json({ error: "Cuenta inválida en el alcance del calificador" }, { status: 400 });
+      }
+      validChannelAccountIds = scheduleChannelAccountIds;
     }
 
     await prisma.appSettings.upsert({
@@ -50,6 +60,7 @@ export async function POST(req: Request) {
         scheduleEnabled: scheduleEnabled ?? false,
         scheduleIntervalMinutes: scheduleEnabled ? scheduleIntervalMinutes : null,
         scheduleAccountIds: validAccountIds,
+        scheduleChannelAccountIds: validChannelAccountIds,
       },
     });
 

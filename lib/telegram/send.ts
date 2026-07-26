@@ -1,6 +1,6 @@
 import type { ChannelAccount } from "@prisma/client";
 import { decrypt } from "@/lib/crypto";
-import { sendTextMessage } from "@/lib/telegram";
+import { sendTextMessage, sendMediaMessage, type TelegramMediaKind } from "@/lib/telegram";
 
 interface SendParams {
   to: string;
@@ -8,7 +8,7 @@ interface SendParams {
 }
 
 // Unified outbound sender for Telegram accounts — paralelo a
-// lib/whatsapp/send.ts:sendWhatsAppMessage. Solo texto por ahora.
+// lib/whatsapp/send.ts:sendWhatsAppMessage.
 export async function sendTelegramMessage(
   account: ChannelAccount,
   params: SendParams
@@ -16,4 +16,35 @@ export async function sendTelegramMessage(
   const { botToken } = JSON.parse(decrypt(account.credentials)) as { botToken: string };
   const result = await sendTextMessage(botToken, params.to, params.body);
   return { externalMessageId: String(result.message_id) };
+}
+
+const KIND_MAP: Record<"image" | "audio" | "video" | "document", TelegramMediaKind> = {
+  image: "photo",
+  audio: "audio",
+  video: "video",
+  document: "document",
+};
+
+interface SendMediaParams {
+  to: string;
+  type: "image" | "audio" | "video" | "document";
+  buffer: Buffer;
+  filename: string;
+  mimeType: string;
+  caption?: string;
+}
+
+export async function sendTelegramMedia(
+  account: ChannelAccount,
+  params: SendMediaParams
+): Promise<{ externalMessageId: string | null; fileId: string | null }> {
+  const { botToken } = JSON.parse(decrypt(account.credentials)) as { botToken: string };
+  const kind = KIND_MAP[params.type];
+  const result = await sendMediaMessage(botToken, params.to, kind, params.buffer, params.filename, params.mimeType, params.caption);
+  let fileId: string | null = null;
+  if (kind === "photo") fileId = result.photo?.at(-1)?.file_id ?? null;
+  else if (kind === "document") fileId = result.document?.file_id ?? null;
+  else if (kind === "audio") fileId = result.audio?.file_id ?? null;
+  else if (kind === "video") fileId = result.video?.file_id ?? null;
+  return { externalMessageId: String(result.message_id), fileId };
 }

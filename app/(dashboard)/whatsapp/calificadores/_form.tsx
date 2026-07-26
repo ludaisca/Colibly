@@ -16,7 +16,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { LEAD_SCORER_SCHEDULE_INTERVALS } from "@/lib/validations";
 
 interface ModelOption { id: string; name: string; }
-interface AccountOption { id: string; name: string; }
+interface AccountOption { id: string; name: string; channel: "WHATSAPP" | "TELEGRAM"; }
 
 const INTERVAL_LABEL: Record<number, string> = {
   15: "Cada 15 minutos",
@@ -59,7 +59,9 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
   const [isActive, setIsActive] = useState(true);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleIntervalMinutes, setScheduleIntervalMinutes] = useState(30);
-  const [scheduleAccountIds, setScheduleAccountIds] = useState<string[]>([]);
+  // Selección combinada (WhatsApp + Telegram) mostrada en un solo MultiSelect —
+  // se separa en scheduleAccountIds/scheduleChannelAccountIds recién al guardar.
+  const [scheduleScopeIds, setScheduleScopeIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -77,7 +79,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
     setIsActive(true);
     setScheduleEnabled(false);
     setScheduleIntervalMinutes(30);
-    setScheduleAccountIds([]);
+    setScheduleScopeIds([]);
     setErrors({});
     setError("");
   }, []);
@@ -110,10 +112,15 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/whatsapp/accounts")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setAccounts(d.map((a) => ({ id: a.id, name: a.name })));
+    Promise.all([
+      fetch("/api/whatsapp/accounts").then((r) => r.json()),
+      fetch("/api/telegram/accounts").then((r) => r.json()),
+    ])
+      .then(([wa, tg]) => {
+        setAccounts([
+          ...(Array.isArray(wa) ? wa.map((a) => ({ id: a.id, name: a.name, channel: "WHATSAPP" as const })) : []),
+          ...(Array.isArray(tg) ? tg.map((a) => ({ id: a.id, name: a.name, channel: "TELEGRAM" as const })) : []),
+        ]);
       })
       .catch(() => {});
   }, [open]);
@@ -142,7 +149,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
           setIsActive(d.isActive);
           setScheduleEnabled(d.scheduleEnabled ?? false);
           setScheduleIntervalMinutes(d.scheduleIntervalMinutes ?? 30);
-          setScheduleAccountIds(d.scheduleAccountIds ?? []);
+          setScheduleScopeIds([...(d.scheduleAccountIds ?? []), ...(d.scheduleChannelAccountIds ?? [])]);
         }
       })
       .catch(() => toastError("Error al cargar el calificador"))
@@ -164,6 +171,10 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
     setError("");
     setSaving(true);
     try {
+      const scopeSet = new Set(scheduleScopeIds);
+      const scheduleAccountIds = accounts.filter((a) => a.channel === "WHATSAPP" && scopeSet.has(a.id)).map((a) => a.id);
+      const scheduleChannelAccountIds = accounts.filter((a) => a.channel === "TELEGRAM" && scopeSet.has(a.id)).map((a) => a.id);
+
       const body = {
         name: name.trim(),
         provider,
@@ -173,6 +184,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
         scheduleEnabled,
         scheduleIntervalMinutes: scheduleEnabled ? scheduleIntervalMinutes : null,
         scheduleAccountIds: scheduleEnabled ? scheduleAccountIds : [],
+        scheduleChannelAccountIds: scheduleEnabled ? scheduleChannelAccountIds : [],
       };
 
       const url = isEditing ? `/api/whatsapp/lead-scorers/${editId}` : "/api/whatsapp/lead-scorers";
@@ -299,14 +311,17 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
                 </FormField>
                 <FormField
                   label="Cuentas a calificar"
-                  hint="Deja vacío para calificar automáticamente en todas tus cuentas. Selecciona una o varias para limitar el barrido a solo esas."
+                  hint="Deja vacío para calificar automáticamente en todas tus cuentas (WhatsApp y Telegram). Selecciona una o varias para limitar el barrido a solo esas."
                 >
                   {(id) => (
                     <MultiSelect
                       id={id}
-                      options={accounts.map((a) => ({ value: a.id, label: a.name }))}
-                      value={scheduleAccountIds}
-                      onChange={setScheduleAccountIds}
+                      options={accounts.map((a) => ({
+                        value: a.id,
+                        label: `${a.name} (${a.channel === "TELEGRAM" ? "Telegram" : "WhatsApp"})`,
+                      }))}
+                      value={scheduleScopeIds}
+                      onChange={setScheduleScopeIds}
                       placeholder="Todas las cuentas"
                     />
                   )}

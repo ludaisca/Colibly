@@ -6,8 +6,8 @@ import { getUserAccountIds } from "@/lib/shared-accounts";
 // colisión práctica entre ambas. En vez de duplicar cada ruta satélite
 // (assign/assignees/tags/usage/messages/status/send) bajo /api/telegram/,
 // esas rutas resuelven el canal con este helper y bifurcan internamente.
-// ChannelAccount no tiene equivalente de WAAccountShare todavía, así que la
-// membresía de Telegram se resuelve por channelAccount.userId directo.
+// La membresía de Telegram honra tanto la cuenta propia como el acceso vía
+// ChannelAccountShare, igual que getUserAccountIds() ya hace para WhatsApp.
 // Devuelve también los accountIds ya resueltos: los handlers que ramifican por
 // canal casi siempre vuelven a necesitarlos, y sin esto cada request ejecutaba
 // getUserAccountIds() dos veces (una aquí y otra en la ruta).
@@ -25,7 +25,7 @@ export async function resolveChatChannel(chatId: string, userId: string): Promis
   if (waChat) return { channel: "WHATSAPP", accountIds };
 
   const conversation = await prisma.conversation.findFirst({
-    where: { id: chatId, channelAccount: { userId } },
+    where: { id: chatId, channelAccount: { OR: [{ userId }, { sharedWith: { some: { userId } } }] } },
     select: { id: true },
   });
   if (conversation) return { channel: "TELEGRAM", accountIds };

@@ -32,6 +32,7 @@ model User {
   channelAccounts       ChannelAccount[]
   assignedConversations Conversation[]
   sentChannelMessages   ChannelMessage[]
+  sharedChannelAccounts ChannelAccountShare[]
 
   @@map("users")
 }
@@ -143,15 +144,20 @@ model WAAccount {
 }
 
 model CannedResponse {
-  id          String    @id @default(cuid())
-  waAccountId String
-  waAccount   WAAccount @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
-  shortcut    String
-  content     String
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id               String          @id @default(cuid())
+  waAccountId      String?
+  waAccount        WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  // Mutuamente excluyente con waAccountId a nivel de aplicación — mismo
+  // patrón que WABot.waAccountId/channelAccountId.
+  channelAccountId String?
+  channelAccount   ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  shortcut         String
+  content          String
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
 
   @@unique([waAccountId, shortcut])
+  @@unique([channelAccountId, shortcut])
   @@map("canned_responses")
 }
 
@@ -212,12 +218,26 @@ model ChannelAccount {
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
-  conversations Conversation[]
-  contacts      Contact[]
-  bots          WABot[]
+  conversations   Conversation[]
+  contacts        Contact[]
+  bots            WABot[]
+  cannedResponses CannedResponse[]
+  sharedWith      ChannelAccountShare[]
 
   @@unique([userId, name])
   @@map("channel_accounts")
+}
+
+model ChannelAccountShare {
+  id               String         @id @default(cuid())
+  channelAccountId String
+  channelAccount   ChannelAccount @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelAccountId, userId])
+  @@index([userId])
+  @@map("channel_account_shares")
 }
 
 model Conversation {
@@ -319,6 +339,11 @@ model WALeadScorerBot {
   scheduleEnabled         Boolean   @default(false)
   scheduleIntervalMinutes Int?
   scheduleAccountIds      String[]  @default([])
+  // Alcance separado para cuentas de Telegram — WAAccount.id y
+  // ChannelAccount.id son cuids de tablas distintas sin garantía de
+  // unicidad cruzada; mezclarlos en scheduleAccountIds arriesgaría
+  // colisiones silenciosas de id entre canales.
+  scheduleChannelAccountIds String[]  @default([])
   lastRunAt               DateTime?
   createdAt               DateTime  @default(now()) @map("created_at")
   updatedAt               DateTime  @updatedAt @map("updated_at")
@@ -335,6 +360,9 @@ model WALeadScorerUsage {
   scorerId         String
   scorer           WALeadScorerBot @relation(fields: [scorerId], references: [id], onDelete: Cascade)
   waChatId         String?
+  // Igual que waChatId: referencia blanda (sin @relation), solo para
+  // atribuir el gasto a una conversación de Telegram en el costo por chat.
+  conversationId   String?
   model            String
   promptTokens     Int
   completionTokens Int
@@ -348,8 +376,11 @@ model WALeadScorerUsage {
 
 model WALeadScore {
   id        String          @id @default(cuid())
-  chatId    String
-  chat      WAChat          @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId    String?
+  chat      WAChat?         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  // Referencia blanda a Conversation (Telegram) — mismo patrón que
+  // ChatTag.conversationId / WABotUsage.conversationId.
+  conversationId String?
   scorerId  String
   scorer    WALeadScorerBot @relation(fields: [scorerId], references: [id], onDelete: Cascade)
   score     Int
@@ -367,6 +398,7 @@ model WALeadScore {
   updatedAt DateTime        @updatedAt @map("updated_at")
 
   @@unique([chatId, scorerId])
+  @@unique([conversationId, scorerId])
   @@map("wa_lead_scores")
 }
 
@@ -384,6 +416,11 @@ model WAMessage {
   mimeType          String?
   filename          String?
   bytesSize         Int?
+  // Botones de respuesta rápida enviados (outbound) o el id de la respuesta
+  // recibida (inbound) para un mensaje interactivo de Meta — ver
+  // lib/whatsapp/send-interactive.ts. No existe en ChannelMessage (Telegram),
+  // fuera de alcance por ahora.
+  interactivePayload Json?
   status            String?
   senderId          String?
   sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
@@ -419,20 +456,28 @@ enum MessageDirection {
 // va un chat sin tener que resetear nada manualmente cuando el lead responde:
 // solo se cuentan los intentos con createdAt posterior al último INBOUND.
 model WALeadRecoveryAttempt {
-  id               String    @id @default(cuid())
-  chatId           String
-  chat             WAChat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  id               String     @id @default(cuid())
+  chatId           String?
+  chat             WAChat?    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  // Blanda, igual que messageId/channelMessageId más abajo — mutuamente
+  // excluyente con chatId a nivel de aplicación (ver ChatTag/CannedResponse
+  // para el mismo patrón dual-canal).
+  conversationId   String?
   attemptNumber    Int
-  messageId        String    @unique
-  message          WAMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId        String?    @unique
+  message          WAMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  // Blanda, sin @relation — preserva "un intento de recuperación por mensaje
+  // enviado" también para Telegram.
+  channelMessageId String?    @unique
   model            String
   promptTokens     Int
   completionTokens Int
   totalTokens      Int
   estimatedCost    Float
-  createdAt        DateTime  @default(now()) @map("created_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
 
   @@index([chatId, createdAt])
+  @@index([conversationId, createdAt])
   @@map("wa_lead_recovery_attempts")
 }
 
@@ -767,12 +812,19 @@ model ContactTag {
 }
 
 model ChatTag {
-  chatId String
-  chat   WAChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  id     String  @id @default(cuid())
+  chatId String?
+  chat   WAChat? @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  // Referencia blanda a Conversation (Telegram) — igual patrón que
+  // WABotUsage.conversationId, sin @relation. Mutuamente excluyente con
+  // chatId a nivel de aplicación.
+  conversationId String?
   tagId  String
   tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  @@id([chatId, tagId])
+  @@unique([chatId, tagId])
+  @@unique([conversationId, tagId])
   @@index([tagId])
   @@map("chat_tags")
 }

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { scoreChatWithScorer } from "@/lib/whatsapp/lead-scoring";
 import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import type { WALeadScorerBot } from "@prisma/client";
 
 // Scheduled runs are unattended, so keep each tick's blast radius bounded:
@@ -78,15 +78,64 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     })
     .slice(0, BATCH_SIZE_PER_SCORER);
 
+  let scoredAny = false;
+
   for (const chat of dueChats) {
     try {
-      await scoreChatWithScorer(chat.id, scorer);
+      await scoreChatWithScorer(chat.id, scorer, "WHATSAPP");
+      scoredAny = true;
     } catch (err) {
       console.error(`[lead-scoring] Error calificando chat ${chat.id} con el calificador ${scorer.id}:`, err);
     }
   }
 
-  if (dueChats.length > 0) {
+  // Telegram — mismo criterio de candidatos que arriba, pero con su propio
+  // tope BATCH_SIZE_PER_SCORER (no comparte cupo con la rama WhatsApp) y con
+  // su propio alcance de cuentas (scheduleChannelAccountIds). Conversation no
+  // tiene back-relation a WALeadScore (referencia blanda, sin @relation), así
+  // que el filtro de "ya calificado, no obsoleto" va en una query separada.
+  const eligibleChannelAccountIds = await getUserChannelAccountIds(scorer.userId);
+  const scopedChannelAccountIds = scorer.scheduleChannelAccountIds.length > 0
+    ? eligibleChannelAccountIds.filter((id) => scorer.scheduleChannelAccountIds.includes(id))
+    : eligibleChannelAccountIds;
+
+  if (scopedChannelAccountIds.length > 0) {
+    const tgCandidates = await prisma.conversation.findMany({
+      where: {
+        channelAccountId: { in: scopedChannelAccountIds },
+        status: { in: ["OPEN", "PENDING"] },
+        lastMessageAt: { not: null },
+        messages: { some: { direction: "INBOUND" } },
+      },
+      select: { id: true, lastMessageAt: true },
+      orderBy: { lastMessageAt: "desc" },
+      take: CANDIDATE_POOL,
+    });
+
+    const existingScores = await prisma.wALeadScore.findMany({
+      where: { conversationId: { in: tgCandidates.map((c) => c.id) }, scorerId: scorer.id },
+      select: { conversationId: true, updatedAt: true },
+    });
+    const lastScoreByConversation = new Map(existingScores.map((s) => [s.conversationId, s.updatedAt]));
+
+    const tgDueConversations = tgCandidates
+      .filter((c) => {
+        const lastScoreAt = lastScoreByConversation.get(c.id);
+        return !lastScoreAt || (c.lastMessageAt !== null && lastScoreAt < c.lastMessageAt);
+      })
+      .slice(0, BATCH_SIZE_PER_SCORER);
+
+    for (const conversation of tgDueConversations) {
+      try {
+        await scoreChatWithScorer(conversation.id, scorer, "TELEGRAM");
+        scoredAny = true;
+      } catch (err) {
+        console.error(`[lead-scoring] Error calificando conversación ${conversation.id} con el calificador ${scorer.id}:`, err);
+      }
+    }
+  }
+
+  if (scoredAny) {
     await checkBudgetAlert(scorer.userId, now);
   }
 

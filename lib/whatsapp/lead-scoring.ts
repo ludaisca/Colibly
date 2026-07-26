@@ -54,17 +54,24 @@ export class LeadScoringError extends Error {}
 // tick worker (lead-scoring-worker.ts) so both paths score identically and
 // log usage the same way — usage logging matters here because the scheduled
 // path runs unattended and its cost needs to show up in budget checks.
-export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBot) {
+export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBot, channel: "WHATSAPP" | "TELEGRAM") {
   // Los ÚLTIMOS 200 mensajes (desc + reverse), no los primeros: el contrato
   // JSON pide priorizar lo más reciente, y en chats largos los mensajes nuevos
   // son justo los que traen las señales de compra.
   const messages = (
-    await prisma.wAMessage.findMany({
-      where: { chatId },
-      orderBy: { timestamp: "desc" },
-      take: 200,
-      select: { direction: true, body: true, caption: true, messageType: true },
-    })
+    channel === "TELEGRAM"
+      ? await prisma.channelMessage.findMany({
+          where: { conversationId: chatId },
+          orderBy: { timestamp: "desc" },
+          take: 200,
+          select: { direction: true, body: true, caption: true, messageType: true },
+        })
+      : await prisma.wAMessage.findMany({
+          where: { chatId },
+          orderBy: { timestamp: "desc" },
+          take: 200,
+          select: { direction: true, body: true, caption: true, messageType: true },
+        })
   ).reverse();
 
   if (messages.length === 0) {
@@ -111,9 +118,12 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
   }
 
   const leadScore = await prisma.wALeadScore.upsert({
-    where: { chatId_scorerId: { chatId, scorerId: scorer.id } },
+    where:
+      channel === "TELEGRAM"
+        ? { conversationId_scorerId: { conversationId: chatId, scorerId: scorer.id } }
+        : { chatId_scorerId: { chatId, scorerId: scorer.id } },
     create: {
-      chatId,
+      ...(channel === "TELEGRAM" ? { conversationId: chatId } : { chatId }),
       scorerId: scorer.id,
       score: parsed.score,
       label: parsed.label,
@@ -137,10 +147,13 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
   // (que viene del CSV/hoja de origen y no debe tocarse) — se propaga siempre
   // que el modelo lo detecte, sin importar la calificación resultante.
   if (parsed.details?.nombre_real) {
-    const chat = await prisma.wAChat.findUnique({ where: { id: chatId }, select: { contactId: true } });
-    if (chat?.contactId) {
+    const contactId =
+      channel === "TELEGRAM"
+        ? (await prisma.conversation.findUnique({ where: { id: chatId }, select: { contactId: true } }))?.contactId
+        : (await prisma.wAChat.findUnique({ where: { id: chatId }, select: { contactId: true } }))?.contactId;
+    if (contactId) {
       await prisma.contact.update({
-        where: { id: chat.contactId },
+        where: { id: contactId },
         data: { realName: parsed.details.nombre_real },
       });
     }
@@ -155,7 +168,7 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
     await prisma.wALeadScorerUsage.create({
       data: {
         scorerId: scorer.id,
-        waChatId: chatId,
+        ...(channel === "TELEGRAM" ? { conversationId: chatId } : { waChatId: chatId }),
         model: scorer.model,
         promptTokens,
         completionTokens,

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { leadScorerBotUpdateSchema } from "@/lib/validations";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 export async function GET(
   _req: Request,
@@ -81,6 +81,16 @@ export async function PATCH(
         }
       }
       data.scheduleAccountIds = fields.scheduleAccountIds;
+    }
+    if (fields.scheduleChannelAccountIds !== undefined) {
+      if (fields.scheduleChannelAccountIds.length > 0) {
+        const ownedChannelIds = await getUserChannelAccountIds(session.user.id);
+        const ownedChannelSet = new Set(ownedChannelIds);
+        if (fields.scheduleChannelAccountIds.some((accId) => !ownedChannelSet.has(accId))) {
+          return NextResponse.json({ error: "Cuenta inválida en el alcance del calificador" }, { status: 400 });
+        }
+      }
+      data.scheduleChannelAccountIds = fields.scheduleChannelAccountIds;
     }
 
     // Turning scheduling off (or leaving it off) always clears the interval —

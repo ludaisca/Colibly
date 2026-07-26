@@ -19,12 +19,13 @@ interface CannedResponse {
 interface Props {
   open: boolean;
   onClose: () => void;
-  waAccountId: string;
+  accountId: string;
+  channel: "WHATSAPP" | "TELEGRAM";
   initialData?: CannedResponse | null;
   onSaved: () => void;
 }
 
-export function CannedResponseFormModal({ open, onClose, waAccountId, initialData = null, onSaved }: Props) {
+export function CannedResponseFormModal({ open, onClose, accountId, channel, initialData = null, onSaved }: Props) {
   const isEditing = !!initialData;
   const { success } = useToast();
 
@@ -68,7 +69,12 @@ export function CannedResponseFormModal({ open, onClose, waAccountId, initialDat
         body: JSON.stringify(
           isEditing
             ? { shortcut: shortcut.trim(), content: content.trim() }
-            : { waAccountId, shortcut: shortcut.trim(), content: content.trim() }
+            : {
+                waAccountId: channel === "WHATSAPP" ? accountId : null,
+                channelAccountId: channel === "TELEGRAM" ? accountId : null,
+                shortcut: shortcut.trim(),
+                content: content.trim(),
+              }
         ),
       });
       const data = await res.json();

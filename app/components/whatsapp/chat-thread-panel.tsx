@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Download,
   Maximize2,
+  CornerUpLeft,
 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -159,6 +160,7 @@ function MessageBubble({
   const hasMedia = msg.messageType !== "text" && (msg.mediaUrl || msg.mediaId || msg.localPreviewUrl);
   const caption = msg.caption ?? (hasMedia && msg.body && msg.body !== `[${msg.messageType}]` ? msg.body : null);
   const isFailed = msg.status === "failed";
+  const buttons = msg.messageType === "interactive" ? msg.interactivePayload?.buttons : undefined;
 
   return (
     <div className={`flex ${isInbound ? "justify-start" : "justify-end"}`}>
@@ -177,6 +179,20 @@ function MessageBubble({
         )}
         {!hasMedia && msg.body}
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
+        {buttons && buttons.length > 0 && (
+          // Un mensaje interactivo siempre es OUTBOUND (lo arma el agente), y
+          // esta burbuja ya es bg-accent/text-on-accent (ver arriba) — por
+          // eso el divisor/texto usan tonos on-accent, no los tokens neutros
+          // que usaría una burbuja inbound.
+          <div className="mt-2 pt-2 border-t border-on-accent/25 space-y-1">
+            {buttons.map((b) => (
+              <div key={b.id} className="flex items-center justify-center gap-1.5 text-xs py-1">
+                <CornerUpLeft size={12} />
+                <span>{b.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className={`flex items-center justify-end gap-1 mt-1 ${
           isInbound ? "text-muted-darker" : "text-on-accent/70"
         }`}>
@@ -334,15 +350,8 @@ export function ChatThreadPanel({
               <option key={s} value={s}>{STATUS_BADGE[s].label}</option>
             ))}
           </select>
-          {selectedChat.channel !== "TELEGRAM" && (
-            <>
-              {/* Etiquetas y calificación de leads no soportan Telegram
-                  todavía — ChatTag/WALeadScore siguen anclados a WAChat (ver
-                  plan de canales adicionales). */}
-              <ChatTagPicker key={selectedChat.id} chatId={selectedChat.id} />
-              <LeadScoreBadge key={`score-${selectedChat.id}`} chatId={selectedChat.id} />
-            </>
-          )}
+          <ChatTagPicker key={selectedChat.id} chatId={selectedChat.id} />
+          <LeadScoreBadge key={`score-${selectedChat.id}`} chatId={selectedChat.id} />
           <ChatCostBadge key={`cost-${selectedChat.id}`} chatId={selectedChat.id} />
           <ChatAssigneePicker
             chatId={selectedChat.id}

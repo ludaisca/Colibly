@@ -73,6 +73,9 @@ export interface Message {
   /** Solo en mensajes optimistas locales (id "temp-…"): preview del archivo
    *  adjunto antes de que exista un mediaId real servido por el proxy. */
   localPreviewUrl?: string;
+  /** Botones enviados (outbound, messageType "interactive") o id de la
+   *  respuesta recibida (inbound) — ver lib/whatsapp/send-interactive.ts. */
+  interactivePayload?: { buttons?: { id: string; title: string }[]; replyId?: string } | null;
 }
 
 export interface PreviewMedia {

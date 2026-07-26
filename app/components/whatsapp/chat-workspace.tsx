@@ -78,6 +78,10 @@ export function ChatWorkspace({
   // Media attachments state
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  // Botones de respuesta rápida en construcción para el próximo envío (solo
+  // WhatsApp Meta — ver "Mensajes interactivos" en AGENTS.md).
+  const [interactiveButtons, setInteractiveButtons] = useState<string[]>([]);
+  const [buttonsPanelOpen, setButtonsPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -86,7 +90,7 @@ export function ChatWorkspace({
   const prependHeightRef = useRef<number | null>(null);
   // Payload original de cada mensaje optimista, por tempId — permite
   // reintentar un envío fallido sin pedirle al usuario que lo reescriba.
-  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null }>>(new Map());
+  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }>>(new Map());
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -291,7 +295,11 @@ export function ChatWorkspace({
   // Fetch canned responses
   useEffect(() => {
     if (!selectedChat) return;
-    fetch(`/api/whatsapp/canned-responses?waAccountId=${selectedChat.accountId}`)
+    fetch(
+      selectedChat.channel === "TELEGRAM"
+        ? `/api/whatsapp/canned-responses?channelAccountId=${selectedChat.accountId}`
+        : `/api/whatsapp/canned-responses?waAccountId=${selectedChat.accountId}`
+    )
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d)) setCannedResponses(d);
@@ -455,16 +463,29 @@ export function ChatWorkspace({
   // reintentar. Compartido por el submit del composer y por el botón
   // "Reintentar" de una burbuja fallida.
   const performSend = useCallback(
-    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null }) => {
+    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }) => {
       if (!selectedChatId || !selectedChat) return;
       try {
         let data;
-        if (opts.file) {
+        if (opts.buttons.length > 0) {
+          const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "interactive",
+              body: opts.text.trim(),
+              buttons: opts.buttons.map((title) => ({ title })),
+            }),
+          });
+          data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "Error al enviar");
+        } else if (opts.file) {
           const uploadForm = new FormData();
           uploadForm.append("file", opts.file);
           uploadForm.append("accountId", selectedChat.accountId);
 
-          const upRes = await fetch(`/api/whatsapp/media`, { method: "POST", body: uploadForm });
+          const uploadUrl = selectedChat.channel === "TELEGRAM" ? "/api/telegram/media" : "/api/whatsapp/media";
+          const upRes = await fetch(uploadUrl, { method: "POST", body: uploadForm });
           const upData = await upRes.json();
           if (!upRes.ok) throw new Error(upData.error ?? "Error al subir el medio");
 
@@ -510,18 +531,19 @@ export function ChatWorkspace({
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!newMessage.trim() && !attachment) return;
+    if (!newMessage.trim() && !attachment && interactiveButtons.length === 0) return;
     if (!selectedChatId || !selectedChat) return;
 
     const tempId = `temp-${crypto.randomUUID()}`;
     const text = newMessage;
     const file = attachment;
     const filePreviewUrl = file ? attachmentPreview : null;
+    const buttons = interactiveButtons;
 
     const optimisticMessage: Message = {
       id: tempId,
       direction: "OUTBOUND",
-      messageType: file ? detectMessageType(file) : "text",
+      messageType: buttons.length > 0 ? "interactive" : file ? detectMessageType(file) : "text",
       body: file ? null : text.trim(),
       caption: file && text.trim() ? text.trim() : null,
       mediaId: null,
@@ -530,20 +552,26 @@ export function ChatWorkspace({
       mimeType: file?.type ?? null,
       filename: file?.name ?? null,
       bytesSize: file?.size ?? null,
+      interactivePayload:
+        buttons.length > 0
+          ? { buttons: buttons.map((title, i) => ({ id: `btn_${i + 1}`, title })) }
+          : undefined,
       status: "sending",
       timestamp: new Date().toISOString(),
     };
 
-    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl });
+    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl, buttons });
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
     // Reset del composer sin revocar el object URL todavía — la burbuja
     // optimista lo sigue usando hasta que el envío se confirme o falle.
     setAttachment(null);
     setAttachmentPreview(null);
+    setInteractiveButtons([]);
+    setButtonsPanelOpen(false);
 
     setSending(true);
-    await performSend(tempId, { text, file, filePreviewUrl });
+    await performSend(tempId, { text, file, filePreviewUrl, buttons });
     setSending(false);
   }
 
@@ -698,7 +726,12 @@ export function ChatWorkspace({
               cannedIndex={cannedIndex}
               onCannedIndexChange={setCannedIndex}
               onInsertCanned={insertCannedResponse}
-              attachmentsDisabled={selectedChat.channel === "TELEGRAM"}
+              attachmentsDisabled={interactiveButtons.length > 0}
+              interactiveButtons={interactiveButtons}
+              onButtonsChange={setInteractiveButtons}
+              buttonsPanelOpen={buttonsPanelOpen}
+              onToggleButtonsPanel={() => setButtonsPanelOpen((v) => !v)}
+              interactiveDisabled={selectedChat.channel === "TELEGRAM" || !!attachment}
             />
           </>
         ) : (

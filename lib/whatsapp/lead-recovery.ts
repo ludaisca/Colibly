@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
-import { getAIProvider } from "@/lib/ai/factory";
 import { getUserApiKey } from "@/lib/ai/settings";
 import { estimateCost } from "@/lib/ai/pricing";
-import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
-import type { AIProvider, AIMessage } from "@/lib/ai/types";
+import { generateRecoveryReply } from "@/lib/ai/recovery";
+import type { AIProvider } from "@/lib/ai/types";
 import type { WABot, WAAccount } from "@prisma/client";
 
 const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -33,19 +32,6 @@ export function isWithinBusinessHours(
   const hour = localHourInTz(now, timezone);
   return hour >= startHour && hour < endHour;
 }
-
-// Framed as a "user" turn (not "system") on purpose: the history above ends
-// on an "assistant" turn (our own last real message), and a chat-tuned model
-// expects to keep alternating — closing on another system aside with no
-// fresh user turn left the model without a clear "your turn to speak now"
-// signal, and it drifted into writing the NEXT customer line instead of its
-// own reply (confirmed live: it literally wrote in the lead's voice). This is
-// explicitly labeled as an internal instruction, not something the customer
-// said, so the model doesn't mistake it for real customer input either.
-const ATTEMPT_INSTRUCTION: Record<1 | 2, string> = {
-  1: "(Instrucción interna del sistema, no es un mensaje del cliente) El cliente dejó de responder hace un rato. Escribe TÚ, como el agente, un mensaje breve, natural y cordial para retomar la conversación justo donde se quedó — refiérete a algo concreto de lo que ya se habló, sin sonar a plantilla de marketing ni repetir literalmente tu último mensaje. Responde solo con el texto del mensaje a enviar, nada más.",
-  2: "(Instrucción interna del sistema, no es un mensaje del cliente) El cliente sigue sin responder después de un primer mensaje de seguimiento. Escribe TÚ, como el agente, un segundo mensaje breve, un poco más directo pero siempre cordial — dale una razón concreta o una pregunta fácil de contestar para retomar el contacto. No repitas el mensaje anterior ni suenes insistente. Responde solo con el texto del mensaje a enviar, nada más.",
-};
 
 interface RecoveryChat {
   id: string;
@@ -82,32 +68,22 @@ export async function sendRecoveryMessage(
     throw new Error(`Bot "${bot.name}" sin API key configurada — no se puede generar el mensaje de reactivación`);
   }
 
-  const history = await prisma.wAMessage.findMany({
+  const rawHistory = await prisma.wAMessage.findMany({
     where: { chatId: chat.id },
     orderBy: { timestamp: "desc" },
     take: HISTORY_LIMIT,
     select: { direction: true, body: true, caption: true, messageType: true },
   });
 
-  const messages: AIMessage[] = [
-    { role: "system", content: wrapUserPrompt(bot.systemPrompt) },
-    { role: "system", content: SCOPE_GUARDRAIL },
-  ];
-
-  for (const msg of history.reverse()) {
-    const text = msg.caption ?? msg.body;
-    if (!text) continue;
-    messages.push({ role: msg.direction === "INBOUND" ? "user" : "assistant", content: text });
-  }
-
-  messages.push({ role: "user", content: ATTEMPT_INSTRUCTION[attemptNumber] });
-
-  const client = getAIProvider(provider, apiKey);
-  const result = await client.complete({
+  const result = await generateRecoveryReply({
+    systemPrompt: bot.systemPrompt,
+    provider,
+    apiKey,
     model: bot.model,
-    messages,
     temperature: bot.temperature,
     maxTokens: bot.maxTokens,
+    history: rawHistory.reverse().map((msg) => ({ direction: msg.direction, text: msg.caption ?? msg.body })),
+    attemptNumber,
   });
 
   const sendResult = await sendWhatsAppMessage(waAccount, {

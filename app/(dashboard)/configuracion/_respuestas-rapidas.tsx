@@ -15,13 +15,14 @@ import { CannedResponseFormModal } from "./_respuestas-rapidas-form";
 // /configuracion/respuestas-rapidas, degradada a sección porque el CRUD es
 // chico y no ameritaba un nivel más de navegación.
 
-interface Account { id: string; name: string; }
+interface Account { id: string; name: string; channel: "WHATSAPP" | "TELEGRAM"; }
 
 interface CannedResponse {
   id: string;
   shortcut: string;
   content: string;
-  waAccountId: string;
+  waAccountId: string | null;
+  channelAccountId: string | null;
 }
 
 export function RespuestasRapidasSection() {
@@ -37,26 +38,33 @@ export function RespuestasRapidasSection() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/whatsapp/accounts")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) {
-          setAccounts(d);
-          if (d.length === 1) setSelectedAccountId(d[0].id);
-        }
+    Promise.all([
+      fetch("/api/whatsapp/accounts").then((r) => r.json()),
+      fetch("/api/telegram/accounts").then((r) => r.json()),
+    ])
+      .then(([wa, tg]) => {
+        const merged: Account[] = [
+          ...(Array.isArray(wa) ? wa.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "WHATSAPP" as const })) : []),
+          ...(Array.isArray(tg) ? tg.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "TELEGRAM" as const })) : []),
+        ];
+        setAccounts(merged);
+        if (merged.length === 1) setSelectedAccountId(merged[0].id);
       })
       .catch(() => toastError("Error al cargar cuentas"));
   }, [toastError]);
 
+  const selectedAccount = accounts.find((a) => a.id === selectedAccountId) ?? null;
+
   const fetchItems = useCallback(async () => {
-    if (!selectedAccountId) {
+    if (!selectedAccount) {
       setItems([]);
       return;
     }
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`/api/whatsapp/canned-responses?waAccountId=${selectedAccountId}`);
+      const param = selectedAccount.channel === "TELEGRAM" ? "channelAccountId" : "waAccountId";
+      const res = await fetch(`/api/whatsapp/canned-responses?${param}=${selectedAccount.id}`);
       const data = await res.json();
       if (Array.isArray(data)) setItems(data);
       else throw new Error(data.error ?? "Error al cargar respuestas rápidas");
@@ -65,7 +73,7 @@ export function RespuestasRapidasSection() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccountId]);
+  }, [selectedAccount]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/account-change; fetchItems also used for manual refresh
@@ -118,7 +126,9 @@ export function RespuestasRapidasSection() {
               placeholder="Seleccionar cuenta"
             >
               {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
+                <option key={a.id} value={a.id}>
+                  {a.name} · {a.channel === "TELEGRAM" ? "Telegram" : "WhatsApp"}
+                </option>
               ))}
             </Select>
           </div>
@@ -136,7 +146,7 @@ export function RespuestasRapidasSection() {
       {!selectedAccountId ? (
         <p className="py-2 text-sm text-muted">
           {accounts.length === 0
-            ? "Conecta una cuenta WhatsApp para crear respuestas rápidas."
+            ? "Conecta una cuenta de WhatsApp o Telegram para crear respuestas rápidas."
             : "Selecciona una cuenta para ver sus respuestas rápidas."}
         </p>
       ) : (
@@ -166,7 +176,8 @@ export function RespuestasRapidasSection() {
       <CannedResponseFormModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        waAccountId={selectedAccountId}
+        accountId={selectedAccountId}
+        channel={selectedAccount?.channel ?? "WHATSAPP"}
         initialData={editing}
         onSaved={fetchItems}
       />

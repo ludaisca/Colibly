@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
-import { cannedResponseSchema } from "@/lib/validations";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { cannedResponseUpdateSchema } from "@/lib/validations";
 
 async function getOwnedCannedResponse(userId: string, id: string) {
-  const accountIds = await getUserAccountIds(userId);
+  const [accountIds, channelAccountIds] = await Promise.all([
+    getUserAccountIds(userId),
+    getUserChannelAccountIds(userId),
+  ]);
   return prisma.cannedResponse.findFirst({
-    where: { id, waAccountId: { in: accountIds } },
+    where: {
+      id,
+      OR: [
+        { waAccountId: { in: accountIds } },
+        { channelAccountId: { in: channelAccountIds } },
+      ],
+    },
   });
 }
 
@@ -28,7 +37,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const parsed = cannedResponseSchema.partial().safeParse(body);
+    const parsed = cannedResponseUpdateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0].message },

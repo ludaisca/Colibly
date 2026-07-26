@@ -21,6 +21,10 @@ export interface NormalizedInboundMessage {
   filename?: string | null;
   caption?: string | null;
   bytesSize?: number | null;
+  // id de botón/fila elegido en una respuesta a un mensaje interactivo
+  // (interactive.button_reply.id / list_reply.id) — el título ya viaja en
+  // `body`, esto es solo para correlacionar qué opción se tocó.
+  interactiveReplyId?: string | null;
 }
 
 export interface IngestResult {
@@ -100,6 +104,7 @@ export async function ingestInboundMessage(
         mimeType: msg.mimeType ?? null,
         filename: msg.filename ?? null,
         bytesSize: msg.bytesSize ?? null,
+        interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
         timestamp: msg.timestamp,
       },
     });

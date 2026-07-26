@@ -59,7 +59,7 @@ export const waAccountUpdateSchema = z.object({
 });
 
 export const sendMessageSchema = z.object({
-  type: z.enum(["text", "image", "audio", "video", "document"]),
+  type: z.enum(["text", "image", "audio", "video", "document", "interactive"]),
   // 4096 es el límite de WhatsApp para texto libre — mejor un 400 claro aquí
   // que un error opaco de la Graph API.
   body: z.string().max(4096, "El mensaje supera el límite de 4096 caracteres de WhatsApp").optional(),
@@ -69,16 +69,37 @@ export const sendMessageSchema = z.object({
   filename: z.string().optional(),
   localMediaPath: z.string().nullable().optional(),
   bytesSize: z.number().optional(),
+  // Solo el título viaja desde el cliente — el id del botón (btn_1, btn_2...)
+  // se genera en la ruta de envío, nunca se confía en lo que mande el cliente.
+  buttons: z
+    .array(z.object({ title: z.string().min(1).max(20, "Máximo 20 caracteres por botón") }))
+    .min(1)
+    .max(3, "Máximo 3 botones")
+    .optional(),
 }).refine(
-  (d) => d.type === "text" ? !!d.body : !!d.mediaId || !!d.localMediaPath,
-  { message: "Se requiere body para texto, o mediaId/localMediaPath para medios", path: ["body"] }
+  (d) => {
+    if (d.type === "text") return !!d.body;
+    if (d.type === "interactive") return !!d.body && !!d.buttons && d.buttons.length > 0;
+    return !!d.mediaId || !!d.localMediaPath;
+  },
+  { message: "Se requiere body para texto, body+buttons para interactivo, o mediaId/localMediaPath para medios", path: ["body"] }
 );
 
-// Solo texto — el envío de media saliente por Telegram queda fuera de esta
-// primera pasada (ver "Fuera de alcance" en el plan de canales adicionales).
+// Misma forma que sendMessageSchema (WhatsApp), sin "interactive"/buttons —
+// los botones de respuesta rápida siguen siendo exclusivos de WhatsApp.
 export const telegramSendMessageSchema = z.object({
-  body: z.string().min(1, "El mensaje no puede estar vacío").max(4096, "El mensaje supera el límite de 4096 caracteres de Telegram"),
-});
+  type: z.enum(["text", "image", "audio", "video", "document"]),
+  body: z.string().max(4096, "El mensaje supera el límite de 4096 caracteres de Telegram").optional(),
+  mediaId: z.string().nullable().optional(),
+  caption: z.string().optional(),
+  mimeType: z.string().optional(),
+  filename: z.string().optional(),
+  localMediaPath: z.string().nullable().optional(),
+  bytesSize: z.number().optional(),
+}).refine(
+  (d) => d.type === "text" ? !!d.body : !!d.localMediaPath,
+  { message: "Se requiere body para texto o localMediaPath para medios", path: ["body"] }
+);
 
 export type TelegramSendMessageInput = z.infer<typeof telegramSendMessageSchema>;
 
@@ -142,6 +163,9 @@ export const leadScorerBotSchema = z.object({
     .optional(),
   // Empty/omitted = every account the user owns or has shared with them.
   scheduleAccountIds: z.array(z.string()).optional(),
+  // Igual que scheduleAccountIds pero para cuentas de Telegram — campo
+  // separado, no mezclado en el mismo arreglo (ver WALeadScorerBot.schema).
+  scheduleChannelAccountIds: z.array(z.string()).optional(),
 }).refine(
   (data) => !data.scheduleEnabled || data.scheduleIntervalMinutes != null,
   { message: "Selecciona cada cuánto debe ejecutarse el calificador", path: ["scheduleIntervalMinutes"] }
@@ -159,6 +183,7 @@ export const leadScorerBotUpdateSchema = z.object({
     .nullable()
     .optional(),
   scheduleAccountIds: z.array(z.string()).optional(),
+  scheduleChannelAccountIds: z.array(z.string()).optional(),
 });
 
 export const campaignSchema = z.object({
@@ -251,7 +276,8 @@ export const tagSchema = z.object({
 });
 
 export const cannedResponseSchema = z.object({
-  waAccountId: z.string().min(1, "La cuenta es requerida"),
+  waAccountId: z.string().min(1).optional().nullable(),
+  channelAccountId: z.string().min(1).optional().nullable(),
   shortcut: z
     .string()
     .min(1, "El atajo es requerido")
@@ -259,6 +285,23 @@ export const cannedResponseSchema = z.object({
     .regex(/^\S+$/, "El atajo no puede contener espacios")
     .transform((v) => v.toLowerCase().replace(/^\/+/, "")),
   content: z.string().min(1, "El contenido es requerido").max(2000),
+}).refine(
+  (d) => !!d.waAccountId !== !!d.channelAccountId,
+  { message: "Selecciona una cuenta de WhatsApp o de Telegram", path: ["channelAccountId"] }
+);
+
+// PATCH solo edita shortcut/content — separado de cannedResponseSchema porque
+// .partial() no funciona sobre un schema con .refine() (deja de ser un
+// ZodObject), mismo motivo que ya separa botSchema/botUpdateSchema.
+export const cannedResponseUpdateSchema = z.object({
+  shortcut: z
+    .string()
+    .min(1, "El atajo es requerido")
+    .max(40)
+    .regex(/^\S+$/, "El atajo no puede contener espacios")
+    .transform((v) => v.toLowerCase().replace(/^\/+/, ""))
+    .optional(),
+  content: z.string().min(1, "El contenido es requerido").max(2000).optional(),
 });
 
 export type ContactUpdateInput = z.infer<typeof contactUpdateSchema>;
