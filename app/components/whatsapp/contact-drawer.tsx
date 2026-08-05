@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { Plus, CalendarClock } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Banner } from "@/app/components/ui/banner";
 import { Select } from "@/app/components/ui/select";
@@ -11,6 +12,7 @@ import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
 
 interface ContactDetail {
   id: string;
@@ -32,6 +34,15 @@ interface TagOption {
   id: string;
   name: string;
   color: string;
+}
+
+interface CustomFieldDefinition {
+  id: string;
+  key: string;
+  label: string;
+  type: "TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "SELECT";
+  options: string[];
+  required: boolean;
 }
 
 const LEAD_STATUS_OPTIONS = [
@@ -60,23 +71,41 @@ export function ContactDrawer({
   const [savingNote, setSavingNote] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [nextAppointment, setNextAppointment] = useState<AppointmentDetail | null>(null);
+  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  const [savingFields, setSavingFields] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const [contactRes, notesRes, tagsRes] = await Promise.all([
+      const [contactRes, notesRes, tagsRes, appointmentsRes, customFieldsRes] = await Promise.all([
         fetch(`/api/whatsapp/contacts/${contactId}`),
         fetch(`/api/whatsapp/contacts/${contactId}/notes`),
         fetch(`/api/whatsapp/tags`),
+        fetch(`/api/whatsapp/appointments?contactId=${contactId}&upcoming=true&limit=1`),
+        fetch(`/api/whatsapp/contacts/${contactId}/custom-fields`),
       ]);
       const contactData = await contactRes.json();
       if (!contactRes.ok) throw new Error(contactData.error ?? "Error al cargar el contacto");
       const notesData = await notesRes.json();
       const tagsData = await tagsRes.json();
+      const appointmentsData = await appointmentsRes.json();
+      const customFieldsData = await customFieldsRes.json();
       setContact(contactData);
       if (Array.isArray(notesData)) setNotes(notesData);
       if (Array.isArray(tagsData)) setAllTags(tagsData);
+      setNextAppointment(Array.isArray(appointmentsData) ? (appointmentsData[0] ?? null) : null);
+      if (Array.isArray(customFieldsData?.definitions)) {
+        setCustomFieldDefs(customFieldsData.definitions);
+        setCustomFieldValues(
+          Object.fromEntries(
+            Object.entries(customFieldsData.values ?? {}).map(([k, v]) => [k, (v as string | null) ?? ""])
+          )
+        );
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al cargar el contacto";
       setLoadError(message);
@@ -169,6 +198,23 @@ export function ContactDrawer({
     }
   }
 
+  async function handleSaveCustomFields() {
+    setSavingFields(true);
+    try {
+      const res = await fetch(`/api/whatsapp/contacts/${contactId}/custom-fields`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ values: customFieldValues }),
+      });
+      if (!res.ok) throw new Error();
+      onUpdated();
+    } catch {
+      toastError("Error al guardar los campos personalizados");
+    } finally {
+      setSavingFields(false);
+    }
+  }
+
   async function handleAddNote() {
     if (!newNote.trim()) return;
     setSavingNote(true);
@@ -235,6 +281,90 @@ export function ContactDrawer({
             </div>
           </div>
 
+          {customFieldDefs.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-muted-darker mb-1.5">Campos personalizados</label>
+              <div className="space-y-3">
+                {customFieldDefs.map((def) => {
+                  const value = customFieldValues[def.id] ?? "";
+                  return (
+                    <div key={def.id}>
+                      <label className="block text-xs text-muted-darker mb-1">
+                        {def.label}
+                        {def.required && <span className="ml-1 text-danger" aria-hidden="true">*</span>}
+                      </label>
+                      {def.type === "SELECT" ? (
+                        <Select
+                          value={value}
+                          onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
+                          placeholder="Sin seleccionar"
+                        >
+                          {def.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                        </Select>
+                      ) : def.type === "BOOLEAN" ? (
+                        <Select
+                          value={value}
+                          onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
+                        >
+                          <option value="">Sin especificar</option>
+                          <option value="true">Sí</option>
+                          <option value="false">No</option>
+                        </Select>
+                      ) : (
+                        <Input
+                          type={def.type === "NUMBER" ? "number" : def.type === "DATE" ? "date" : "text"}
+                          value={value}
+                          onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+                <Button size="sm" variant="secondary" onClick={handleSaveCustomFields} disabled={savingFields}>
+                  {savingFields ? "Guardando..." : "Guardar campos"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-muted-darker mb-1.5">Próxima cita</label>
+            {nextAppointment ? (
+              <div className="rounded-lg border border-border bg-surface-light p-3">
+                <div className="flex items-start gap-2.5">
+                  <CalendarClock size={16} className="text-muted-darker shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{nextAppointment.title}</p>
+                    <p className="text-xs text-muted-darker mt-0.5">
+                      {new Date(nextAppointment.scheduledAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                  </div>
+                </div>
+                <Link href={`/whatsapp/citas?contactId=${contactId}`} className="mt-2 inline-block text-xs text-accent hover:underline">
+                  Ver todas las citas
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-lg border border-dashed border-border p-3">
+                <p className="text-xs text-muted-darker">Sin citas próximas</p>
+                <Button size="sm" variant="secondary" icon={CalendarClock} onClick={() => setAppointmentModalOpen(true)}>
+                  Agendar cita
+                </Button>
+              </div>
+            )}
+            {nextAppointment && (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={CalendarClock}
+                className="mt-2"
+                onClick={() => setAppointmentModalOpen(true)}
+              >
+                Agendar otra cita
+              </Button>
+            )}
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-muted-darker mb-1.5">Notas internas</label>
             <div className="space-y-2 mb-3">
@@ -264,6 +394,16 @@ export function ContactDrawer({
             </div>
           </div>
         </div>
+      )}
+
+      {contact && (
+        <AppointmentFormModal
+          open={appointmentModalOpen}
+          onClose={() => setAppointmentModalOpen(false)}
+          onSaved={fetchAll}
+          contactId={contact.id}
+          contactLabel={contact.name ?? contact.remoteJid}
+        />
       )}
     </Modal>
   );

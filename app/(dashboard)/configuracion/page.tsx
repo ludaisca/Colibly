@@ -17,6 +17,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { useToast } from "@/app/components/ui/toast";
 import { RespuestasRapidasSection } from "./_respuestas-rapidas";
+import { CamposPersonalizadosSection } from "./_campos-personalizados";
 
 interface GoogleSheetsStatus {
   connected: boolean;
@@ -286,6 +287,8 @@ export default function SettingsPage() {
       )}
 
       <RespuestasRapidasSection />
+
+      <CamposPersonalizadosSection />
 
       {isAdmin && (
         <section className="space-y-4">

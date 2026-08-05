@@ -17,6 +17,7 @@ import {
   KanbanSquare,
   MessageCircle,
   Camera,
+  CalendarClock,
 } from "lucide-react";
 // Meta (feedback loop de calificación de leads) usa el mismo ícono que
 // Difusión WhatsApp para no introducir un cuarto ícono de "anuncios" — la
@@ -43,6 +44,7 @@ export function DashboardShell({
           items: [
             { href: "/whatsapp/chat",      label: "Chats",           icon: MessageSquare },
             { href: "/whatsapp/contactos", label: "Contactos",       icon: Contact },
+            { href: "/whatsapp/citas",     label: "Citas",           icon: CalendarClock },
           ],
         },
         {
@@ -64,6 +66,7 @@ export function DashboardShell({
             ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
             { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
             { href: "/ventas",                  label: "Pipeline",         icon: KanbanSquare, exact: true },
+            { href: "/whatsapp/citas",          label: "Citas",            icon: CalendarClock },
           ],
         },
         {

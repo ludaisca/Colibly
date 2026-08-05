@@ -34,6 +34,8 @@ model User {
   sentChannelMessages   ChannelMessage[]
   sharedChannelAccounts ChannelAccountShare[]
   metaAdsAccounts       MetaAdsAccount[]
+  appointmentsAssigned  WAAppointment[]       @relation("WAAppointmentAssignee")
+  appointmentsCreated   WAAppointment[]       @relation("WAAppointmentCreatedBy")
 
   @@map("users")
 }
@@ -140,6 +142,7 @@ model WAAccount {
   // Cuentas de Meta Ads (Instant Forms) que entregan sus leads bajo este
   // número — ver MetaAdsAccount.waAccountId.
   metaAdsAccounts  MetaAdsAccount[]
+  customFieldDefinitions ContactCustomFieldDefinition[]
 
   @@unique([phoneNumberId])
   @@unique([userId, name])
@@ -163,6 +166,67 @@ model CannedResponse {
   @@unique([waAccountId, shortcut])
   @@unique([channelAccountId, shortcut])
   @@map("canned_responses")
+}
+
+enum ContactCustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+}
+
+// Definición de un campo configurable por cuenta — greenfield: Contact tiene
+// columnas fijas y ningún precedente de campo dinámico (a diferencia de
+// WALeadScore.details, que es un Json deliberadamente no normalizado para
+// datos generados por IA). Se modela normalizado, mismo patrón dual
+// waAccountId/channelAccountId que CannedResponse, porque definiciones sí
+// necesitan listarse/ordenarse/editarse — un blob Json por contacto perdería
+// integridad referencial si una definición se borra o renombra su key.
+model ContactCustomFieldDefinition {
+  id               String                 @id @default(cuid())
+  waAccountId      String?
+  waAccount        WAAccount?             @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId String?
+  channelAccount   ChannelAccount?        @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  // Identificador estable (slug) — no cambia si se edita `label`, así que un
+  // valor guardado sigue apuntando al campo correcto aunque se le cambie el
+  // nombre visible. Solo se fija al crear (ver contactCustomFieldDefinitionUpdateSchema).
+  key              String
+  label            String
+  type             ContactCustomFieldType @default(TEXT)
+  // Solo aplica cuando type = SELECT — lista de opciones válidas.
+  options          String[]               @default([])
+  required         Boolean                @default(false)
+  order            Int                    @default(0)
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+
+  values ContactCustomFieldValue[]
+
+  @@unique([waAccountId, key])
+  @@unique([channelAccountId, key])
+  @@map("contact_custom_field_definitions")
+}
+
+// Valor de un campo para un Contact puntual — @@unique([contactId,
+// definitionId]) hace de esto un upsert natural (mismo criterio que
+// MetaConversionEvent.@@unique([contactId, leadStatus])), no un log de
+// historial. `value` es siempre String — el tipo declarado en la definición
+// decide cómo se castea/valida en la UI y en cualquier consumidor futuro
+// (export CSV, filtros), no la columna misma.
+model ContactCustomFieldValue {
+  id           String                       @id @default(cuid())
+  contactId    String
+  contact      Contact                      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  definitionId String
+  definition   ContactCustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  value        String?                      @db.Text
+  updatedAt    DateTime                     @updatedAt @map("updated_at")
+
+  @@unique([contactId, definitionId])
+  @@index([definitionId])
+  @@map("contact_custom_field_values")
 }
 
 enum WAChannel {
@@ -241,6 +305,7 @@ model ChannelAccount {
   bots            WABot[]
   cannedResponses CannedResponse[]
   sharedWith      ChannelAccountShare[]
+  customFieldDefinitions ContactCustomFieldDefinition[]
 
   @@unique([userId, name])
   // findUnique determinístico en el webhook compartido de Messenger/
@@ -830,7 +895,9 @@ model Contact {
   conversation         Conversation?
   tags                 ContactTag[]
   notes                WANote[]
+  appointments         WAAppointment[]
   metaConversionEvents MetaConversionEvent[]
+  customFieldValues    ContactCustomFieldValue[]
 
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
@@ -992,6 +1059,66 @@ model WANote {
   @@map("wa_notes")
 }
 
+enum WAAppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// Distingue una cita creada a mano por un agente de una propuesta generada
+// por el bot de IA durante una conversación (fase 2, no incluida en el MVP)
+// — mismo criterio que Contact.leadOrigin: marca "cómo nació este registro".
+enum WAAppointmentSource {
+  MANUAL
+  AI_BOT
+}
+
+// Cita/agenda ligada a un Contact — no a un WAChat/Conversation directamente:
+// esa relación ya existe 1:1 vía Contact.chat/Contact.conversation, así que
+// repetirla aquí sería redundante (a diferencia de ChatTag, que sí necesita
+// su propia referencia porque una etiqueta no está anclada a un contacto).
+model WAAppointment {
+  id        String  @id @default(cuid())
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  title           String
+  notes           String?             @db.Text
+  scheduledAt     DateTime            @map("scheduled_at")
+  durationMinutes Int                 @default(30) @map("duration_minutes")
+  status          WAAppointmentStatus @default(SCHEDULED)
+  source          WAAppointmentSource @default(MANUAL)
+
+  assignedToId String?
+  assignedTo   User?   @relation("WAAppointmentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdById  String
+  createdBy    User    @relation("WAAppointmentCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Referencia blanda al WAMessage/ChannelMessage del que se originó la cita
+  // (relevante sobre todo para citas de source=AI_BOT, fase 2) — sin
+  // @relation, mismo patrón de tolerancia que ChatTag.conversationId: nada
+  // cascadea ni se bloquea si el mensaje de origen se pierde.
+  originMessageId String?
+
+  reminderMinutesBefore Int       @default(60) @map("reminder_minutes_before")
+  // Marca que ya se le mandó el recordatorio — una sola pasada, no una
+  // secuencia de intentos como WALeadRecoveryAttempt, así que basta un
+  // timestamp en vez de una tabla de intentos aparte.
+  remindedAt            DateTime? @map("reminded_at")
+  cancelReason          String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([contactId, scheduledAt])
+  @@index([assignedToId, scheduledAt])
+  // Consultado por el tick de recordatorios cada 5 min sobre TODAS las citas
+  // pendientes — este índice compuesto es el que importa para esa query.
+  @@index([status, scheduledAt, remindedAt])
+  @@map("wa_appointments")
+}
+
 enum NotificationType {
   CHAT_MESSAGE
   CAMPAIGN_COMPLETED
@@ -1001,6 +1128,7 @@ enum NotificationType {
   // Meta reportó un cambio relevante en la cuenta vía webhook: restricción/baneo
   // (account_update) o baja de calidad/límite de envío (phone_number_quality_update).
   ACCOUNT_STATUS
+  APPOINTMENT_REMINDER
 }
 
 model Notification {

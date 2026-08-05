@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone } from "lucide-react";
+import { Bell, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, CalendarClock } from "lucide-react";
 import { Dropdown } from "./dropdown";
 import { cn } from "./cn";
 
 interface NotificationItem {
   id: string;
-  type: "CHAT_MESSAGE" | "CAMPAIGN_COMPLETED" | "CAMPAIGN_FAILED" | "BOT_ERROR" | "BUDGET_EXCEEDED" | "ACCOUNT_STATUS";
+  type: "CHAT_MESSAGE" | "CAMPAIGN_COMPLETED" | "CAMPAIGN_FAILED" | "BOT_ERROR" | "BUDGET_EXCEEDED" | "ACCOUNT_STATUS" | "APPOINTMENT_REMINDER";
   title: string;
   body: string | null;
   link: string | null;
@@ -23,6 +23,7 @@ const TYPE_ICON: Record<NotificationItem["type"], React.ElementType> = {
   BOT_ERROR: BotIcon,
   BUDGET_EXCEEDED: DollarSign,
   ACCOUNT_STATUS: Phone,
+  APPOINTMENT_REMINDER: CalendarClock,
 };
 
 function formatRelative(iso: string): string {

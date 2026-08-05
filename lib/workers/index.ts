@@ -12,7 +12,8 @@ import { processLeadRecoveryTick } from "./lead-recovery-worker";
 import { processSheetsSyncTick } from "./sheets-sync-worker";
 import { processLeadSheetImportTick } from "./lead-sheet-worker";
 import { processMetaConversionsJob } from "./meta-conversions-worker";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, sheetsSyncQueue, leadSheetImportQueue } from "@/lib/queue";
+import { processAppointmentReminderTick } from "./appointment-reminder-worker";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -93,7 +94,11 @@ export function startWorkers() {
     await processMetaConversionsJob(job.data);
   }, { connection, concurrency: 5 });
 
-  workers.push(botWorker, campaignWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker);
+  const appointmentReminderWorker = new Worker("appointment-reminders", async () => {
+    await processAppointmentReminderTick();
+  }, { connection, concurrency: 1 });
+
+  workers.push(botWorker, campaignWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker);
 
   mediaCleanupQueue
     .add(
@@ -154,6 +159,18 @@ export function startWorkers() {
       { jobId: "lead-sheet-import-tick", repeat: { pattern: "*/5 * * * *" } }
     )
     .catch((err) => console.error("[workers] No se pudo programar lead-sheet-import:", err));
+
+  // reminderMinutesBefore por defecto es 60 (mínimo configurable en horas
+  // enteras equivalente sería demasiado grueso) — un tick cada 5 minutos deja
+  // margen de sobra (±5 min) sin sondear Redis de más, mismo cron que
+  // lead-scoring/lead-sheet-import.
+  appointmentReminderQueue
+    .add(
+      "tick",
+      {},
+      { jobId: "appointment-reminder-tick", repeat: { pattern: "*/5 * * * *" } }
+    )
+    .catch((err) => console.error("[workers] No se pudo programar appointment-reminders:", err));
 
   console.log("[workers] BullMQ workers started");
 }

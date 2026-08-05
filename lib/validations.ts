@@ -373,7 +373,76 @@ export const cannedResponseUpdateSchema = z.object({
   content: z.string().min(1, "El contenido es requerido").max(2000).optional(),
 });
 
+export const appointmentSchema = z.object({
+  contactId: z.string().min(1, "El contacto es requerido"),
+  title: z.string().min(1, "El título es requerido").max(200),
+  notes: z.string().max(2000).optional().nullable(),
+  scheduledAt: z.string().datetime(),
+  durationMinutes: z.number().int().min(5).max(480).optional(),
+  assignedToId: z.string().min(1).optional().nullable(),
+  reminderMinutesBefore: z.number().int().min(0).max(10080).optional(),
+  originMessageId: z.string().min(1).optional().nullable(),
+});
+
+// PATCH: todo opcional (reagendar, reasignar, cambiar de estado) — separado
+// de appointmentSchema en vez de .partial() porque agrega status/cancelReason,
+// que no aplican al create (una cita siempre nace SCHEDULED).
+export const appointmentUpdateSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+  scheduledAt: z.string().datetime().optional(),
+  durationMinutes: z.number().int().min(5).max(480).optional(),
+  assignedToId: z.string().min(1).optional().nullable(),
+  reminderMinutesBefore: z.number().int().min(0).max(10080).optional(),
+  status: z.enum(["SCHEDULED", "COMPLETED", "CANCELLED", "NO_SHOW"]).optional(),
+  cancelReason: z.string().max(500).optional().nullable(),
+});
+
+export const CONTACT_CUSTOM_FIELD_TYPES = ["TEXT", "NUMBER", "DATE", "BOOLEAN", "SELECT"] as const;
+
+export const contactCustomFieldDefinitionSchema = z.object({
+  waAccountId: z.string().min(1).optional().nullable(),
+  channelAccountId: z.string().min(1).optional().nullable(),
+  // Slug estable — minúsculas/números/guion bajo, sin espacios, para que sea
+  // un identificador seguro de usar como key en cualquier export/consumidor
+  // futuro (CSV, filtros) sin necesitar escapado.
+  key: z
+    .string()
+    .min(1, "La clave es requerida")
+    .max(60)
+    .regex(/^[a-z0-9_]+$/, "Solo minúsculas, números y guion bajo, sin espacios"),
+  label: z.string().min(1, "El nombre es requerido").max(100),
+  type: z.enum(CONTACT_CUSTOM_FIELD_TYPES).default("TEXT"),
+  options: z.array(z.string().min(1).max(100)).max(50).optional(),
+  required: z.boolean().optional(),
+}).refine(
+  (d) => !!d.waAccountId !== !!d.channelAccountId,
+  { message: "Selecciona una cuenta de WhatsApp o de Telegram", path: ["channelAccountId"] }
+);
+
+// PATCH no permite cambiar `key` — es el identificador estable que ya puede
+// tener valores guardados apuntándole; renombrar solo toca `label`. Separado
+// de contactCustomFieldDefinitionSchema en vez de .partial() por el mismo
+// motivo que cannedResponseUpdateSchema: .partial() no sobrevive a .refine().
+export const contactCustomFieldDefinitionUpdateSchema = z.object({
+  label: z.string().min(1).max(100).optional(),
+  type: z.enum(CONTACT_CUSTOM_FIELD_TYPES).optional(),
+  options: z.array(z.string().min(1).max(100)).max(50).optional(),
+  required: z.boolean().optional(),
+  order: z.number().int().optional(),
+});
+
+// Upsert en bloque de los valores de un contacto — { [definitionId]: value }.
+// value null/"" borra el valor guardado en vez de guardar un string vacío.
+export const contactCustomFieldValuesSchema = z.object({
+  values: z.record(z.string(), z.string().max(2000).nullable()),
+});
+
 export type ContactUpdateInput = z.infer<typeof contactUpdateSchema>;
 export type NoteInput = z.infer<typeof noteSchema>;
 export type TagInput = z.infer<typeof tagSchema>;
 export type CannedResponseInput = z.infer<typeof cannedResponseSchema>;
+export type AppointmentInput = z.infer<typeof appointmentSchema>;
+export type ContactCustomFieldDefinitionInput = z.infer<typeof contactCustomFieldDefinitionSchema>;
+export type ContactCustomFieldDefinitionUpdateInput = z.infer<typeof contactCustomFieldDefinitionUpdateSchema>;
+export type AppointmentUpdateInput = z.infer<typeof appointmentUpdateSchema>;
