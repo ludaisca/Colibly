@@ -15,7 +15,6 @@ import { MessagesTrendChart, HorizontalBarChart, DeliveryComparisonChart, Qualif
 
 const BOT_STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
   ACTIVE: { label: "Activo", tone: "success" },
-  PAUSED: { label: "Pausado", tone: "warning" },
   ERROR: { label: "Error", tone: "danger" },
 };
 

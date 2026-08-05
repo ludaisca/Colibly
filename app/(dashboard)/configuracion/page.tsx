@@ -43,8 +43,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   const [savingName, setSavingName] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [twoFactor, setTwoFactor] = useState(false);
   const [allowRegistration, setAllowRegistration] = useState(true);
   const [systemLoading, setSystemLoading] = useState(false);
 
@@ -390,25 +388,6 @@ export default function SettingsPage() {
         tone="danger"
         loading={disconnecting}
       />
-
-      <section className="space-y-4">
-        <SectionHeader title="Preferencias" />
-        <div className="flex items-center justify-between py-1">
-          <div>
-            <p className="text-sm font-medium text-foreground">Notificaciones por email</p>
-            <p className="text-xs text-muted-darker">Recibir actualizaciones y alertas por correo</p>
-          </div>
-          <Switch checked={notifications} onCheckedChange={setNotifications} />
-        </div>
-
-        <div className="flex items-center justify-between py-1">
-          <div>
-            <p className="text-sm font-medium text-foreground">Autenticación en dos pasos</p>
-            <p className="text-xs text-muted-darker">Agrega una capa extra de seguridad</p>
-          </div>
-          <Switch checked={twoFactor} onCheckedChange={setTwoFactor} />
-        </div>
-      </section>
     </div>
   );
 }

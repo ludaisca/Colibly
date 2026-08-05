@@ -5,8 +5,8 @@
 - **NextAuth v5** beta (Credentials + JWT only, no adapter)
 - **Prisma 5** (PostgreSQL + pgvector)
 - **Redis 7** + **BullMQ** (job queues for async processing)
-- React 19, lucide-react, zod, bcryptjs, next-themes, openai, @google/generative-ai, ioredis
-- WhatsApp **multimodal** (image/audio/video/document/sticker) inbound + outbound on Meta Cloud API — see "Media handling" below
+- React 19, lucide-react, zod, bcryptjs, next-themes, openai, @google/generative-ai, ioredis, recharts, @dnd-kit/core
+- WhatsApp **multimodal** (image/audio/video/document/sticker) inbound + outbound on Meta Cloud API — see "Media handling" below. Canales adicionales: Telegram (bot API) y Messenger/Instagram (Graph API page-linked) — see "Canal genérico" below. Feedback loop de Ads vía Meta Conversions API — see "Meta Ads" below.
 
 ## Development
 
@@ -32,9 +32,9 @@ Three roles with different UIs and access:
 
 | Role | Sidebar | Routes blocked (`proxy.ts`) |
 |---|---|---|
-| `admin` | everything: Panel, Estadísticas, Chats, Contactos, Bots IA, Calificadores, Cuentas, Plantillas, Campañas, Usuarios, Config | none |
-| `user` | like admin **minus** Contactos, Bots IA, Usuarios | `USER_BLOCKED`: `/whatsapp/contactos`, `/whatsapp/bots`, `/configuracion/ia` |
-| `ejecutivo` | Chats, Contactos, Config | `EXECUTIVE_BLOCKED`: `/dashboard`, `/estadisticas`, `/usuarios`, `/whatsapp/{bots,campanas,plantillas,cuentas}`, `/configuracion/ia`, `/ventas` |
+| `admin` | everything: Panel, Estadísticas, Pipeline, Chats, Contactos, Bots IA, Calificadores, Cuentas (WhatsApp/Messenger/Instagram/Telegram), Plantillas, Campañas, Meta Ads, Usuarios, Config | none |
+| `user` | like admin **minus** Contactos, Bots IA, Meta Ads, Usuarios | `USER_BLOCKED`: `/whatsapp/contactos`, `/whatsapp/bots`, `/configuracion/ia`, `/meta-ads` |
+| `ejecutivo` | Chats, Contactos, Config | `EXECUTIVE_BLOCKED`: `/dashboard`, `/estadisticas`, `/usuarios`, `/whatsapp/{bots,campanas,plantillas,cuentas}`, `/telegram/cuentas`, `/messenger/cuentas`, `/instagram/cuentas`, `/configuracion/ia`, `/ventas`, `/meta-ads` |
 
 Two pages were removed in the 2026-07 nav flattening: the `/whatsapp` hub (its KPIs duplicated Panel, its account list duplicated `/whatsapp/cuentas`; the route survives only as a `redirect("/whatsapp/cuentas")` and the nav item "Cuentas WhatsApp" points straight at `/whatsapp/cuentas`) and `/whatsapp/conocimiento` (fully redundant with the knowledge tab inside `whatsapp/bots/[id]`, which remains the only knowledge UI — its role-gating rides on `/whatsapp/bots`).
 
@@ -109,6 +109,7 @@ Uses `prisma.$transaction()` for atomic `count() + create()` — prevents race c
 | `lead-recovery` | 1 | 60s | Self-scheduled repeatable tick (`*/15 * * * *`) — re-engages silent leads, see "Lead recovery" |
 | `sheets-sync` | 1 | 60s | Self-scheduled repeatable tick (`*/15 * * * *`) — syncs `GoogleAccount` spreadsheet exports |
 | `lead-sheet-import` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — imports leads from `LeadSheetSource` sheets |
+| `meta-conversions` | 1 | 60s | `PATCH /api/whatsapp/contacts/[id]` enqueues when the contact's `leadStatus` changes on an ads-originated lead — sends the status change to Meta's Conversions API, see "Meta Ads" |
 
 - `media-cleanup-worker.ts:processMediaCleanupJob()` deletes `WAMessage.mediaUrl` files older than `MEDIA_RETENTION_DAYS` (env var, default 90) and clears the column, keeping the `media_data` volume bounded. No-ops if `MEDIA_RETENTION_DAYS <= 0`.
 - **Bot reply humanization** (`WABot.humanizeEnabled`, opt-in, default `false`): when on, `bot-worker.ts` splits the reply on blank lines (`lib/whatsapp/humanize.ts:splitReply()`) and enqueues each chunk on `bot-message-send` with a cumulative simulated-typing delay (`computeTypingDelay()`, ~40ms/char, capped 0.8–8s) instead of calling `sendWhatsAppMessage()` synchronously — keeps the main `bot-messages` job from holding its concurrency slot for the whole send sequence. `bot-send-worker.ts:processBotSendJob()` re-fetches the `WAAccount` and does the actual send + `WAMessage`/`WAChat` bookkeeping per chunk. Tone/pacing only — never use this to imply the chat isn't automated (WhatsApp's Business Messaging Policy expects disclosure where applicable).
@@ -193,6 +194,28 @@ Every `WAAccount` is fully self-contained — `phoneNumberId`, `wabaId`, `access
 - All accounts share the same webhook URL (`/api/whatsapp/webhook`) — the system disambiguates inbound payloads by `phone_number_id` and the GET verification handshake by `verify_token` (both looked up per-account, see "Webhook" above), so multiple Meta Apps can point their WhatsApp product webhook config at the same URL without conflict.
 - Manual steps on Meta's side that this system does **not** automate: in the new Meta App, set the WhatsApp product webhook to our URL + that account's generated verify token, and confirm the WABA is subscribed to that App's webhook (`POST /{waba-id}/subscribed_apps` — usually already done when the number was configured in Meta Business Manager, but worth checking first if inbound messages aren't arriving).
 
+## Canal genérico (Telegram, Messenger, Instagram)
+
+Parallel stack to the WhatsApp one, added as an adapter layer rather than a schema migration (the `WA*` tables hold production data and were deliberately left untouched). Tables: `ChannelAccount` (`channel` enum — **Telegram/Messenger/Instagram**), `Conversation` (the `WAChat` analogue), `ChannelMessage` (the `WAMessage` analogue), `ChannelAccountShare` (the `WAAccountShare` analogue).
+
+- **Per-channel plumbing**: `lib/telegram.ts` (Telegram API client), `lib/meta-messaging.ts` (shared Messenger+Instagram client — both use the same Page Access Token and `graph.facebook.com` under the page-linked model, not standalone Instagram Login), `lib/meta-messaging/{send,bot-worker,account-crud}.ts`, `lib/channel-media.ts`, `lib/channel-chats.ts`.
+- **Scoping**: `lib/shared-accounts.ts` exports `getUserChannelAccountIds(userId)` (own + `ChannelAccountShare`) — the channel counterpart of `getUserAccountIds()`. Use it in any new channel-scoped route. `lib/chat-resolver.ts:resolveChatChannel()` lets the WhatsApp chat routes (`/api/whatsapp/chats/[chatId]/...`) serve both channels: a `chatId` may be a `WAChat.id` *or* a `Conversation.id` — new per-chat routes should follow this shape instead of being duplicated under `/api/telegram/`.
+- **Webhooks**: `/api/telegram/webhook/[accountId]` (URL identifies the account; `X-Telegram-Bot-Api-Secret-Token` header authenticates, rate-limited) and `/api/meta/webhook/messaging` (Messenger/Instagram — validates `X-Hub-Signature-256` against the account's `appSecret`, same mechanism as the WhatsApp webhook).
+- **Bots**: `WABot.waAccountId` XOR `WABot.channelAccountId` (mutually exclusive at the application level — a bot serves exactly one account). The `bot-messages` queue carries both kinds of jobs; `lib/workers/index.ts` routes on payload shape (`conversationId` present ⇒ channel) rather than a flag. Telegram's bot worker (`lib/telegram/bot-worker.ts`) mirrors the WhatsApp one but deliberately lacks: multimodal input, campaign context, and RAG media (textual RAG yes). Messenger/Instagram get AI replies through `lib/meta-messaging/bot-worker.ts`.
+- **Media**: `ChannelMessage.mediaUrl` uses the same local-disk scheme under `MEDIA_ROOT`; proxied via `/api/telegram/messages/[messageId]/media` and `/api/instagram/...`-style endpoints with the same auth checks. Messenger/Instagram outbound media is a two-step (upload → `attachment_id` reference, `uploadMetaAttachment()` in `lib/meta-messaging.ts`) — Meta's URL-alternative doesn't apply since our media isn't publicly fetchable.
+- **Lead recovery**: `lib/telegram/lead-recovery.ts` — Telegram re-engages silent leads with the account's active bot (no 24h window restriction like WhatsApp's; Telegram allows free-form outbound anytime).
+- **Telegram deliberately lacks** (guarded in the UI, not merely absent): campaigns/templates (Meta-specific concepts), lead scoring, chat tags, outbound media, multimodal AI input. Messenger/Instagram share the same limitations plus no campaigns/lead scoring/tags.
+
+## Meta Ads (feedback loop de calificación de leads)
+
+Closes the loop between CRM lead scoring and ad optimization: when an ads-originated lead changes `leadStatus`, the system reports the change to Meta's **Conversions API** so the algorithm can optimize for quality.
+
+- **`MetaAdsAccount`** (`/meta-ads`, admin-only — credentials are sensitive business config with no `ChannelAccountShare`/`WAAccountShare` equivalent): a Facebook Page + Business config, deliberately separate from `WAAccount` (a Lead Ads page isn't a WhatsApp number — it can feed leads to an existing number via `waAccountId` without being one). Fields: `pageId`, `pageAccessToken`, `appSecret`, `verifyTokenHash`, `datasetId` (Pixel/Dataset id), `capiAccessToken`, `status` (`WaAccountStatus`), `mode` (`TEST`/`LIVE`), `testEventCode`. **Safety**: `lib/meta/conversions.ts` rejects sending an event unless `testEventCode` (TEST mode) or `mode: LIVE` is explicitly confirmed — a bug can't emit events "into the air" that would pollute the ad account.
+- **`Contact.leadOrigin`** (`ORGANIC`/`INSTANT_FORM`/`CTWA`, default `ORGANIC`) + `metaLeadId` (Instant Forms) + `ctwaClid`/`adId` (click-to-WhatsApp referral captured in `lib/whatsapp/ingest-message.ts`). `LeadOrigin` decides which payload builder runs (`buildInstantFormPayload` with `action_source: "system_generated"` + `lead_id` vs `buildCtwaPayload` with `action_source: "business_messaging"` + `ctwa_clid`).
+- **Webhooks**: `/api/meta/webhook/leadgen` (Instant Forms — creates the `Contact` on the `waAccountId` configured on the `MetaAdsAccount`, first-touch attribution) and `/api/meta/webhook/messaging` (Messenger/Instagram messages). Both validate `X-Hub-Signature-256` via `lib/meta/webhook-signature.ts`.
+- **Trigger**: `PATCH /api/whatsapp/contacts/[id]` (the pipeline Kanban drop + contact edit) enqueues `meta-conversions` when `leadStatus` changes on a non-`ORGANIC` contact. `lib/meta/send-conversion.ts:sendLeadConversionEvent(contactId, leadStatus)` is the single business entry point (shared by the automatic trigger and any future manual resend — same pattern as `scoreChatWithScorer()`); `lib/meta/lead-status-mapping.ts:mapLeadStatusToMetaEvent()` decides which statuses get reported and with what `event_name`/`value` — **currently returns `null` for every status (deliberate business placeholder, see the TODO in that file)**; wire up the real mapping before expecting any events to flow.
+- **`MetaConversionEvent`** logs every send attempt (`@@unique([contactId, leadStatus])`, upsert so a contact passing through the same status twice re-sends; `status`: PENDING/SENT/FAILED + `errorMessage` + `metaEventId` for Meta-side dedup). Queue: `meta-conversions` (concurrency 1).
+
 ## CRM & team collaboration
 
 - `Contact` (tags via `Tag`/`ContactTag`, `leadStatus`, notes via `WANote`) is auto-upserted per remote JID inside `ingestInboundMessage()` — one per `(accountId, remoteJid)`, 1:1 with `WAChat` via `WAChat.contactId`. Surfaced through `ContactDrawer` (`app/components/whatsapp/contact-drawer.tsx`) from both chat views and `/whatsapp/contactos`. **Name never regresses**: `ingest-message.ts:isFallbackName()` treats a name equal to the remote JID/phone number as "no real name" — `Contact.name`/`WAChat.name` only get overwritten with a new value if it's a real name or the existing one was itself a fallback, so a previously-learned name can't be clobbered by a later payload where Meta omits `profile.name`. `/whatsapp/contactos` also shows a Teléfono column (always) and a Cuenta column (only when the user has 2+ accounts).
@@ -221,10 +244,10 @@ Beyond `{score, label, summary, reasons[]}`, the JSON contract asks for a struct
 Autonomous re-engagement of leads that went silent ("en visto"). Config lives **per user** on `AppSettings` (`leadRecoveryEnabled` — default `false`, `leadRecoveryFirstMessageHours`/`leadRecoverySecondMessageHours` (`null` = only 1 attempt), business-hours window `leadRecoveryBusinessHourStart/End` + `leadRecoveryTimezone`), edited from the admin-only `/configuracion/ia` page. The `lead-recovery` queue ticks every 15 min (`lib/workers/lead-recovery-worker.ts:processLeadRecoveryTick()`):
 
 - Per enabled user: skips the whole tick if `isMonthlyBudgetExceeded()` or outside business hours (checked in the user's configured timezone).
-- Candidates: `OPEN`/`PENDING` chats across `getUserAccountIds()` whose **last message is OUTBOUND** and that have at least one INBOUND message ever (a campaign recipient who never replied is not an "abandoned" lead). Bounded per tick: `CANDIDATE_POOL = 200`, `BATCH_SIZE = 20` sends max.
+- Candidates (WhatsApp): `OPEN`/`PENDING` chats across `getUserAccountIds()` whose **last message is OUTBOUND** and that have at least one INBOUND message ever (a campaign recipient who never replied is not an "abandoned" lead). Bounded per tick: `CANDIDATE_POOL = 200`, `BATCH_SIZE = 20` sends max, **shared across channels** (Telegram candidates consume the same `sentCount` budget).
 - Attempt logic: hours of silence measured from the lead's last inbound; `WALeadRecoveryAttempt` rows created *after* that inbound count as attempts (so a lead who replies resets the sequence). Max 2 attempts.
-- The message is **generated by the account's active `WABot`** (`lib/whatsapp/lead-recovery.ts:sendRecoveryMessage()` — coherent with the conversation, wrapped prompt + `SCOPE_GUARDRAIL`); accounts without an active bot are skipped.
-- **Meta 24h window**: only free-text messages inside Meta's 24h customer-service window (from the lead's last inbound) are sent — past 24h it sends nothing (no reactivation template configured yet).
+- The message is **generated by the account's active `WABot`** (`lib/whatsapp/lead-recovery.ts:sendRecoveryMessage()` for WhatsApp / `lib/telegram/lead-recovery.ts:sendTelegramRecoveryMessage()` for channel accounts — coherent with the conversation, wrapped prompt + `SCOPE_GUARDRAIL`); accounts without an active bot are skipped.
+- **Meta 24h window**: for WhatsApp, only free-text messages inside Meta's 24h customer-service window (from the lead's last inbound) are sent — past 24h it sends nothing (no reactivation template configured yet). Telegram has no such window and sends freely.
 
 This runs unattended and messages real leads — treat `leadRecoveryEnabled` and the hour thresholds as production-sensitive settings; never flip them in the DB while testing without telling the user.
 

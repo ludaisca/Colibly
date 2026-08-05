@@ -43,27 +43,25 @@ docker compose exec -u root app sh -c "rm -rf .next" && docker compose restart a
 
 ## Architecture: two parallel channel stacks
 
-> **AGENTS.md predates this and describes a WhatsApp-only app.** Where the two disagree, this section is current; everything AGENTS.md says about WhatsApp itself still holds.
+The app began WhatsApp-only and gained generic channels (Telegram, then Messenger/Instagram) through an **adapter layer rather than a migration** — the `WA*` tables hold production data and were deliberately left untouched.
 
-The app began WhatsApp-only and gained a second channel (Telegram) through an **adapter layer rather than a migration** — the `WA*` tables hold production data and were deliberately left untouched.
-
-| | WhatsApp | Other channels (Telegram today) |
+| | WhatsApp | Other channels (Telegram/Messenger/Instagram) |
 |---|---|---|
 | Account | `WAAccount` (Meta credentials as flat columns) | `ChannelAccount` (`channel` enum + one encrypted JSON `credentials` blob) |
 | Thread | `WAChat` (`remoteJid`) | `Conversation` (`externalId`) |
 | Message | `WAMessage` (`wamid`) | `ChannelMessage` (`externalMessageId`) |
-| Client | `lib/whatsapp.ts` | `lib/telegram.ts` |
-| Ingest | `lib/whatsapp/ingest-message.ts` | `lib/telegram/ingest-message.ts` |
-| Webhook | `/api/whatsapp/webhook` (one URL, disambiguated by `phone_number_id`) | `/api/telegram/webhook/[accountId]` (URL identifies the account; the `X-Telegram-Bot-Api-Secret-Token` header authenticates) |
+| Client | `lib/whatsapp.ts` | `lib/telegram.ts` / `lib/meta-messaging.ts` |
+| Ingest | `lib/whatsapp/ingest-message.ts` | `lib/telegram/ingest-message.ts` / `lib/meta-messaging/account-crud.ts` |
+| Webhook | `/api/whatsapp/webhook` (one URL, disambiguated by `phone_number_id`) | `/api/telegram/webhook/[accountId]` (URL identifies the account; the `X-Telegram-Bot-Api-Secret-Token` header authenticates) and `/api/meta/webhook/messaging` (Messenger/Instagram, `X-Hub-Signature-256`) |
 
 What the two worlds share:
 
 - **`Contact`.** `accountId` and `channelAccountId` are both nullable and mutually exclusive at the application level. Any query scoping contacts must cover both, and the compound uniques (`[accountId, remoteJid]`, `[channelAccountId, remoteJid]`) rely on Postgres treating NULLs as non-colliding.
-- **`WABot`**, the same way (`waAccountId` XOR `channelAccountId`). The `bot-messages` queue carries both kinds of job; `lib/workers/index.ts` routes on payload shape (`conversationId` present ⇒ Telegram) rather than a flag. Same pattern in `media-download` and `bot-message-send`, which use an explicit `channel` field.
+- **`WABot`**, the same way (`waAccountId` XOR `channelAccountId`). The `bot-messages` queue carries both kinds of job; `lib/workers/index.ts` routes on payload shape (`conversationId` present ⇒ channel) rather than a flag. Same pattern in `media-download` and `bot-message-send`, which use an explicit `channel` field.
 - **`lib/chat-resolver.ts:resolveChatChannel()`** — why `/api/whatsapp/chats/[chatId]/{messages,status,send,assign,assignees,usage}` serve both channels: a `chatId` may be a `WAChat.id` *or* a `Conversation.id`, and the handler branches internally. It returns the caller's `accountIds` alongside the channel so handlers don't re-run `getUserAccountIds()`. New per-chat routes should follow this shape instead of being duplicated under `/api/telegram/`.
-- **The inbox UI.** `chat-workspace.tsx` fetches `/api/whatsapp/chats` and `/api/telegram/chats` (identical response shapes plus a `channel` discriminator) and merges them. Each source paginates over its own total, so "load more" derives a page **per channel** from how many of that channel's chats are already loaded, then dedupes by id on append.
+- **The inbox UI.** `chat-workspace.tsx` fetches `/api/whatsapp/chats` and `/api/telegram/chats` (identical response shapes plus a `channel` discriminator) and merges them. Each source paginates over its own total, so "load more" derives a page **per channel** from how many of that channel's chats are already loaded, then dedupes by id on append. `ChannelAccountShare` gives channel accounts the same sharing `WAAccountShare` gives WhatsApp accounts — resolve via `getUserChannelAccountIds()`.
 
-**Telegram deliberately lacks** (guarded in the UI, not merely absent): campaigns/templates (Meta-specific concepts), lead scoring, chat tags, outbound media, and multimodal AI input. `ChannelAccount` also has no `WAAccountShare` equivalent, so its membership resolves through `channelAccount.userId` directly.
+**Generic channels deliberately lack** (guarded in the UI, not merely absent): campaigns/templates (Meta-specific concepts), lead scoring, chat tags, and — for Messenger/Instagram — outbound media is two-step (upload → `attachment_id`) and AI input is text-only.
 
 ### Cross-channel traps that have already caused bugs
 

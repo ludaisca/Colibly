@@ -32,7 +32,7 @@ export async function processRagJob(job: RagJob) {
 
   const apiKey = await getUserApiKey(userId, provider);
   if (!apiKey) {
-    await notifyIndexFailure(userId, title, "No hay API key configurada para el proveedor de este bot.");
+    await notifyIndexFailure(userId, botIds[0], title, "No hay API key configurada para el proveedor de este bot.");
     return;
   }
 
@@ -74,18 +74,18 @@ export async function processRagJob(job: RagJob) {
   // Every chunk failed (e.g. embedding model unavailable) — the document never got
   // indexed but nothing else in the pipeline surfaces that to the user, so notify.
   if (chunks.length > 0 && failedChunks === chunks.length) {
-    await notifyIndexFailure(userId, title, lastError);
+    await notifyIndexFailure(userId, botIds[0], title, lastError);
   }
 }
 
-async function notifyIndexFailure(userId: string, title: string, reason: string) {
+async function notifyIndexFailure(userId: string, botId: string | undefined, title: string, reason: string) {
   await prisma.notification.create({
     data: {
       userId,
       type: "BOT_ERROR",
       title: `Error al indexar "${title}"`,
       body: reason.slice(0, 500),
-      link: "/whatsapp/conocimiento",
+      link: botId ? `/whatsapp/bots/${botId}` : "/whatsapp/bots",
     },
   });
 }

@@ -702,7 +702,6 @@ enum BotMemoryType {
 
 enum BotStatus {
   ACTIVE
-  PAUSED
   ERROR
 }
 
