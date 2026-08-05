@@ -1,23 +1,23 @@
-# Fork de SundayCRM a un CRM multi-tenant y multi-canal
+# De un CRM de WhatsApp a un CRM multi-tenant y multi-canal
 
 ## Contexto
 
-SundayCRM nació como un CRM de WhatsApp Business para un modelo de negocio concreto: una sola empresa/usuario dueño de sus cuentas de WhatsApp, con roles fijos (`admin`/`user`/`ejecutivo`) y presupuesto de IA por persona. El objetivo ahora es tomar esa base (Next.js 16 + Prisma 5 + PostgreSQL/pgvector + Redis/BullMQ, ~29 modelos, workers de IA/campañas/scoring de leads ya maduros) y evolucionarla a un **CRM mucho más robusto**: multi-empresa (varias organizaciones clientas aisladas entre sí, un mismo usuario puede pertenecer a varias) y **multi-canal desde el diseño** (hoy solo WhatsApp, pero la arquitectura debe dejar espacio para email/SMS/Instagram sin reescribir el núcleo otra vez).
+El proyecto original nació como un CRM de WhatsApp Business para un modelo de negocio concreto: una sola empresa/usuario dueño de sus cuentas de WhatsApp, con roles fijos (`admin`/`user`/`ejecutivo`) y presupuesto de IA por persona. El objetivo ahora es tomar esa base (Next.js 16 + Prisma 5 + PostgreSQL/pgvector + Redis/BullMQ, ~32 modelos, workers de IA/campañas/scoring de leads ya maduros) y evolucionarla a un **CRM mucho más robusto**: multi-empresa (varias organizaciones clientas aisladas entre sí, un mismo usuario puede pertenecer a varias) y **multi-canal desde el diseño** (hoy WhatsApp y Telegram, pero la arquitectura debe dejar espacio para email/SMS/Instagram sin reescribir el núcleo otra vez).
 
-Esto se hace como un **fork a un repositorio Git nuevo e independiente** (no branch, no monorepo), preservando toda la historia de commits de SundayCRM — es útil precisamente para la tarea de auditar qué reglas de negocio heredadas siguen aplicando y por qué existen.
+Esto se hace como un **fork a un repositorio Git nuevo e independiente** (no branch, no monorepo), preservando toda la historia de commits del proyecto original — es útil precisamente para la tarea de auditar qué reglas de negocio heredadas siguen aplicando y por qué existen.
 
 No se ejecuta código en esta ronda: este documento es la hoja de ruta de las 3 fases. Se implementa fase por fase, cada una verificada end-to-end antes de pasar a la siguiente.
 
 ## Fase 0 — Fork mecánico
 
-Objetivo: un repo nuevo, idéntico en comportamiento a SundayCRM, sin ningún cambio de lógica.
+Objetivo: un repo nuevo, idéntico en comportamiento al proyecto original, sin ningún cambio de lógica.
 
 1. En el repo actual: `git tag fork-point-2026-07-18` sobre `main` — marcador de punto de divergencia (útil si algún fix de seguridad futuro necesita aplicarse en ambos lados vía cherry-pick).
 2. Crear el repo nuevo vacío (nombre de producto aún por definir — usar un placeholder, ej. `sunday-crm`, hasta decidirlo).
 3. `git clone` del repo actual al nuevo destino → `git remote remove origin` → `git remote add origin <url-nueva>` → push. Se preserva toda la historia.
 4. Primer commit del repo nuevo: **solo** renombrado cosmético, sin tocar lógica:
-   - `package.json`: `"name": "sunday-crm"` → nombre del nuevo producto.
-   - `docker-compose.yml`/`docker-compose.override.yml`: `POSTGRES_DB: sunday_crm_db` → nuevo nombre. Los nombres de servicio (`db`, `redis`, `app`, `db-init`) ya son genéricos, no cambian.
+   - `package.json`: `"name": "sunday-crm"` → nombre del nuevo producto (`sunday-crm`).
+   - `docker-compose.yml`/`docker-compose.override.yml`: `POSTGRES_DB: sunday_crm_db` → nuevo nombre (`sunday_crm_db`). Los nombres de servicio (`db`, `redis`, `app`, `db-init`) ya son genéricos, no cambian.
    - `README.md`, `<title>`/metadata de `app/layout.tsx`, y cualquier string literal `"SundayCRM"` en `app/**/*.tsx` que sea branding de producto (no tocar donde el texto describe correctamente "WhatsApp" como canal).
 5. **Criterio de salida de la fase**: `docker compose up --build` arranca igual, login funciona, un mensaje de WhatsApp entra y sale sin cambio de comportamiento.
 
@@ -168,7 +168,7 @@ En `Message`: lo universal (`id`, `organizationId`, `conversationId`, `contactId
 
 ## Verificación
 
-- **Fase 0**: `docker compose up --build` arranca igual; login + un mensaje de WhatsApp entra/sale sin cambio de comportamiento respecto al SundayCRM original.
+- **Fase 0**: `docker compose up --build` arranca igual; login + un mensaje de WhatsApp entra/sale sin cambio de comportamiento respecto al proyecto original.
 - **Fase 1**: crear una segunda `Organization` de prueba (vía el backfill + registro de un nuevo usuario) y verificar aislamiento total de datos entre ambas (chats, contactos, bots, presupuesto de IA) navegando la UI con dos sesiones distintas; verificar que un `ejecutivo` solo ve las cuentas de `WAAccountShare` dentro de su organización.
 - **Fase 2**: verificar que el flujo de WhatsApp (webhook, envío, campañas, bots, scoring) sigue funcionando end-to-end tras el renombrado vía `@@map`, sin downtime de datos (mismas tablas físicas).
 - En cada fase: `docker compose exec app npx tsc --noEmit` + `npm run lint` + `npm run build` (con `NODE_ENV=production`, ver gotcha de build en `AGENTS.md`) antes de considerar la fase cerrada.

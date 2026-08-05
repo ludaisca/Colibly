@@ -17,7 +17,7 @@ interface LogoProps {
   className?: string;
 }
 
-function LogoMark({ size = "md", brand = "W" }: { size?: LogoSize; brand?: string }) {
+function LogoMark({ size = "md", brand = "S" }: { size?: LogoSize; brand?: string }) {
   return (
     <span className={cn("flex items-center gap-2")}>
       <span

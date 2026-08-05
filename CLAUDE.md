@@ -19,9 +19,9 @@ docker compose restart app                      # required after db push — see
 
 There is no test suite (no `test` script in `package.json`). Verification is `tsc --noEmit` + `npm run lint` + a production build, plus manual click-through for UI changes. For a single file use `npx eslint <path>`; `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
 
-### The dev server is on port 3002, not 3001
+### The dev server is on port 3002
 
-`docker-compose.override.yml` maps `3002:5000`. Port **3001 belongs to `sunday-crm-app-1`** — a sibling container running [SundayCRM](https://github.com/ludaisca/SundayCRM), the upstream project this repo was forked from. Both apps serve `/whatsapp/*` and look nearly identical, so hitting 3001 by mistake yields plausible-but-wrong results (stale UI, "no session", 404s on routes added here) rather than an obvious error. The page `<title>` distinguishes them: this app renders "SundayCRM", SundayCRM renders "SundayCRM". Confirm with `docker ps --format "table {{.Names}}\t{{.Ports}}"`.
+`docker-compose.override.yml` maps `3002:5000`. If the app doesn't load, confirm the stack is up with `docker ps --format "table {{.Names}}\t{{.Ports}}"` — only the `app` service of this project should be listening.
 
 ### Production build check
 

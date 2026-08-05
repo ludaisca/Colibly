@@ -26,11 +26,11 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "SundayCRM — Dashboard",
-  description: "Dashboard starter kit built with Next.js and Tailwind CSS.",
+  description: "SundayCRM — CRM multi-canal de WhatsApp y Telegram: bandeja de chats, bots de IA, calificación de leads, campañas y sincronización con Google Sheets.",
   icons: {
     icon: [
       {
-        url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="%23E0518F"/><text x="16" y="22" font-family="Georgia,serif" font-size="19" font-weight="700" text-anchor="middle" fill="%23ffffff">C</text></svg>',
+        url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="%23E0518F"/><text x="16" y="22" font-family="Georgia,serif" font-size="19" font-weight="700" text-anchor="middle" fill="%23ffffff">S</text></svg>',
         type: "image/svg+xml",
       },
     ],
