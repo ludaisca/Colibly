@@ -50,7 +50,7 @@ export async function GET(
       }
     }
 
-    if (resolved.channel === "TELEGRAM") {
+    if (resolved.channel !== "WHATSAPP") {
       const messages = await prisma.channelMessage.findMany({
         where: { conversationId: chatId, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
         select: MESSAGE_SELECT,

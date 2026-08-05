@@ -5,6 +5,7 @@ import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/templat
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { saveMediaFromMeta, isImageMime, isVideoMime } from "@/lib/whatsapp/media-store";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { normalizePhone } from "@/lib/phone";
 import type { LeadSheetSource, WAAccount, WATemplate } from "@prisma/client";
 
 // Tope por corrida del tick automático — evita que una ráfaga de filas nuevas (o una
@@ -37,10 +38,6 @@ function mediaMessageTypeFromMime(mimeType: string): string {
   if (isImageMime(mimeType)) return "image";
   if (isVideoMime(mimeType)) return "video";
   return "document";
-}
-
-function normalizePhone(raw: string): string {
-  return raw.replace(/\D/g, "");
 }
 
 function findColumnIndex(header: string[], columnName: string): number {

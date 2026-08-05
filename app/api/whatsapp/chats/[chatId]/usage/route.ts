@@ -41,7 +41,7 @@ export async function GET(
     // respuesta del bot aplica para ese canal.
     const [botUsage, scorerUsage] = await Promise.all([
       prisma.wABotUsage.findMany({
-        where: resolved.channel === "TELEGRAM" ? { conversationId: chatId } : { waChatId: chatId },
+        where: resolved.channel !== "WHATSAPP" ? { conversationId: chatId } : { waChatId: chatId },
         orderBy: { createdAt: "desc" },
         select: {
           model: true,
@@ -53,7 +53,7 @@ export async function GET(
           bot: { select: { name: true } },
         },
       }),
-      resolved.channel === "TELEGRAM"
+      resolved.channel !== "WHATSAPP"
         ? Promise.resolve([])
         : prisma.wALeadScorerUsage.findMany({
             where: { waChatId: chatId },

@@ -20,9 +20,10 @@ export async function GET(
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
-    if (resolved.channel === "TELEGRAM") {
+    if (resolved.channel !== "WHATSAPP") {
       // Sin WAAccountShare equivalente todavía — el único elegible es el
-      // dueño de la cuenta de Telegram.
+      // dueño de la cuenta (Telegram/Messenger/Instagram, todos sobre
+      // ChannelAccount).
       const conversation = await prisma.conversation.findUnique({
         where: { id: chatId },
         select: { channelAccount: { select: { user: { select: { id: true, name: true, email: true } } } } },

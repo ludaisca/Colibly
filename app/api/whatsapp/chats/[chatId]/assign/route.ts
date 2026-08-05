@@ -29,9 +29,10 @@ export async function PATCH(
     const body = await req.json();
     const assignedToId: string | null = body?.assignedToId ?? null;
 
-    if (resolved.channel === "TELEGRAM") {
+    if (resolved.channel !== "WHATSAPP") {
       // Sin WAAccountShare equivalente todavía — el único elegible es el
-      // dueño de la cuenta de Telegram (ver lib/telegram/auto-assign.ts).
+      // dueño de la cuenta (ver lib/telegram/auto-assign.ts, reusado por
+      // Messenger/Instagram).
       if (assignedToId !== null) {
         const conversation = await prisma.conversation.findUnique({
           where: { id: chatId },

@@ -1,0 +1,172 @@
+import { NextResponse } from "next/server";
+import { createHash } from "crypto";
+import type { Channel } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
+import { compareMetaSignature } from "@/lib/meta/webhook-signature";
+import { fetchUserProfile } from "@/lib/meta-messaging";
+import { getMetaChannelCredentials } from "@/lib/meta-messaging/send";
+import { ingestChannelMessage } from "@/lib/telegram/ingest-message";
+
+// Webhook COMPARTIDO para Messenger e Instagram — mismo shape de payload
+// (entry[].messaging[]) bajo el modelo Página-vinculada, solo cambia
+// `object` ("page" vs "instagram") y por tanto qué ChannelAccount buscar.
+// A diferencia de Telegram (URL por cuenta, [accountId] en el path), Meta
+// entrega TODOS sus webhooks de mensajería a una sola URL de callback por
+// App — la cuenta se resuelve por entry[].id (Page ID o IG Business ID)
+// contra ChannelAccount.externalAccountId, igual que app/api/meta/webhook/
+// leadgen/route.ts resuelve por pageId.
+
+interface MessagingAttachment {
+  type: string; // "image" | "video" | "audio" | "file" | ...
+  payload?: { url?: string };
+}
+
+interface MessagingEvent {
+  sender: { id: string };
+  recipient: { id: string };
+  timestamp: number;
+  message?: {
+    mid: string;
+    text?: string;
+    attachments?: MessagingAttachment[];
+    // Eco de un mensaje que NOSOTROS mandamos — ya se crea el ChannelMessage
+    // OUTBOUND de forma síncrona al enviar (ver lib/meta-messaging/send.ts),
+    // ingerir el eco también duplicaría el mensaje como si fuera INBOUND.
+    is_echo?: boolean;
+  };
+}
+
+interface MessagingEntry {
+  id: string;
+  time: number;
+  messaging?: MessagingEvent[];
+}
+
+interface MessagingWebhookBody {
+  object: string; // "page" (Messenger) | "instagram"
+  entry?: MessagingEntry[];
+}
+
+interface ExtractedMessageInfo {
+  type: string;
+  body: string;
+  // Para Messenger/Instagram esto es la URL directa y ya fetcheable del
+  // adjunto (CDN firmada de Meta) — a diferencia del file_id de Telegram,
+  // no hace falta un getFileUrl() separado; media-worker.ts hace fetch(url)
+  // directo usando este mismo valor como mediaId.
+  mediaId: string | null;
+  mimeType: string | null;
+  caption: string | null;
+}
+
+function extractMessageInfo(message: NonNullable<MessagingEvent["message"]>): ExtractedMessageInfo {
+  const attachment = message.attachments?.[0];
+  if (attachment?.payload?.url) {
+    const type =
+      attachment.type === "image" ? "image" : attachment.type === "video" ? "video" : attachment.type === "audio" ? "audio" : "document";
+    const mimeType =
+      type === "image" ? "image/jpeg" : type === "video" ? "video/mp4" : type === "audio" ? "audio/mpeg" : "application/octet-stream";
+    return { type, body: message.text ?? `[${type}]`, mediaId: attachment.payload.url, mimeType, caption: message.text ?? null };
+  }
+  return { type: "text", body: message.text ?? "", mediaId: null, mimeType: null, caption: null };
+}
+
+function channelFromObject(object: string): Channel | null {
+  if (object === "page") return "MESSENGER";
+  if (object === "instagram") return "INSTAGRAM";
+  return null;
+}
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const mode = searchParams.get("hub.mode");
+  const token = searchParams.get("hub.verify_token");
+  const challenge = searchParams.get("hub.challenge");
+
+  if (mode !== "subscribe" || !token || !challenge) {
+    return new NextResponse("Bad Request", { status: 400 });
+  }
+
+  const hash = createHash("sha256").update(token).digest("hex");
+
+  // El handshake GET no trae entry[].id — no hay forma de saber de antemano
+  // si es para una cuenta de Messenger o de Instagram, así que se busca en
+  // ambos canales por el hash del verify_token.
+  const account = await prisma.channelAccount.findFirst({
+    where: { channel: { in: ["MESSENGER", "INSTAGRAM"] }, verifyTokenHash: hash, status: { not: "DISCONNECTED" } },
+  });
+
+  if (!account) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  return new NextResponse(challenge, { headers: { "Content-Type": "text/plain" } });
+}
+
+export async function POST(req: Request) {
+  try {
+    const forwarded = req.headers.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
+    const { allowed } = await rateLimit(`meta-messaging-webhook:${ip}`, 300, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
+    const rawBody = await req.text();
+    const body = JSON.parse(rawBody) as MessagingWebhookBody;
+    const signature = req.headers.get("x-hub-signature-256");
+
+    const channel = channelFromObject(body.object);
+    if (!channel) {
+      return NextResponse.json({ success: true });
+    }
+
+    for (const entry of body.entry ?? []) {
+      const account = await prisma.channelAccount.findUnique({
+        where: { channel_externalAccountId: { channel, externalAccountId: entry.id } },
+      });
+      if (!account) continue;
+
+      const credentials = getMetaChannelCredentials(account);
+      const sigValid = compareMetaSignature(rawBody, signature, credentials.appSecret);
+      if (!sigValid) continue;
+
+      await prisma.channelAccount.update({ where: { id: account.id }, data: { lastActivity: new Date() } });
+
+      for (const event of entry.messaging ?? []) {
+        if (!event.message || event.message.is_echo) continue;
+
+        const info = extractMessageInfo(event.message);
+        const senderId = event.sender.id;
+
+        await ingestChannelMessage(account.id, channel, {
+          externalId: senderId,
+          externalMessageId: event.message.mid,
+          timestamp: new Date(event.timestamp),
+          type: info.type,
+          body: info.body,
+          // Messenger/Instagram no mandan el nombre en el webhook — se pide
+          // vía Graph API, y solo si el contacto es realmente nuevo (ver
+          // lib/telegram/ingest-message.ts).
+          contactName: async () => {
+            const profile = await fetchUserProfile(credentials.pageAccessToken, senderId);
+            return profile.name ?? senderId;
+          },
+          isGroup: false,
+          mediaId: info.mediaId,
+          mimeType: info.mimeType,
+          caption: info.caption,
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[meta messaging webhook] Error:", error);
+    // Igual que los demás webhooks de Meta: siempre 200, para no darle a un
+    // atacante una señal de qué payload es inválido ni causar reintentos
+    // infinitos.
+    return NextResponse.json({ success: true });
+  }
+}

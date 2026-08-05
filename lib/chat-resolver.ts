@@ -12,7 +12,7 @@ import { getUserAccountIds } from "@/lib/shared-accounts";
 // canal casi siempre vuelven a necesitarlos, y sin esto cada request ejecutaba
 // getUserAccountIds() dos veces (una aquí y otra en la ruta).
 export interface ResolvedChat {
-  channel: "WHATSAPP" | "TELEGRAM";
+  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM";
   accountIds: string[];
 }
 
@@ -26,9 +26,12 @@ export async function resolveChatChannel(chatId: string, userId: string): Promis
 
   const conversation = await prisma.conversation.findFirst({
     where: { id: chatId, channelAccount: { OR: [{ userId }, { sharedWith: { some: { userId } } }] } },
-    select: { id: true },
+    select: { channelAccount: { select: { channel: true } } },
   });
-  if (conversation) return { channel: "TELEGRAM", accountIds };
+  // El canal real de la ChannelAccount, no un literal fijo — con 3 canales
+  // no-WhatsApp posibles (Telegram/Messenger/Instagram) asumir "TELEGRAM"
+  // aquí era un bug (arreglado antes de sumar el tercer canal).
+  if (conversation) return { channel: conversation.channelAccount.channel, accountIds };
 
   return null;
 }

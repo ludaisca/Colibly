@@ -7,12 +7,19 @@ interface MediaDownloadJob {
   messageId: string;
   accountId: string;
   mediaId: string;
-  channel?: "TELEGRAM";
+  // Messenger/Instagram se conectan a este switch cuando exista su
+  // implementación (ver plan de canales Meta) — a diferencia de Telegram,
+  // ahí `mediaId` ya ES la URL directa del adjunto, sin paso getFile().
+  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM";
 }
 
 export async function processMediaDownloadJob(job: MediaDownloadJob) {
   if (job.channel === "TELEGRAM") {
     await processTelegramMediaDownload(job);
+    return;
+  }
+  if (job.channel === "MESSENGER" || job.channel === "INSTAGRAM") {
+    await processMetaChannelMediaDownload(job);
     return;
   }
 
@@ -64,6 +71,35 @@ async function processTelegramMediaDownload(job: MediaDownloadJob) {
 
   const res = await fetch(fileUrl);
   if (!res.ok) throw new Error(`Descarga de medio Telegram fallida (HTTP ${res.status})`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+
+  const stored = await saveMediaFromBuffer(job.accountId, buffer, message.mimeType);
+
+  await prisma.channelMessage.update({
+    where: { id: job.messageId },
+    data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize },
+  });
+}
+
+// Messenger/Instagram no requieren un paso equivalente a getFileUrl(): el
+// webhook ya entrega la URL directa y fetcheable del adjunto (CDN firmada
+// de Meta) como `job.mediaId` — ver app/api/meta/webhook/messaging/route.ts.
+async function processMetaChannelMediaDownload(job: MediaDownloadJob) {
+  const message = await prisma.channelMessage.findUnique({
+    where: { id: job.messageId },
+    select: { id: true, mediaUrl: true, mimeType: true },
+  });
+  if (!message) return;
+  if (message.mediaUrl) return; // ya descargado
+
+  const account = await prisma.channelAccount.findUnique({
+    where: { id: job.accountId },
+    select: { id: true, channel: true },
+  });
+  if (!account || (account.channel !== "MESSENGER" && account.channel !== "INSTAGRAM")) return;
+
+  const res = await fetch(job.mediaId);
+  if (!res.ok) throw new Error(`Descarga de medio ${account.channel} fallida (HTTP ${res.status})`);
   const buffer = Buffer.from(await res.arrayBuffer());
 
   const stored = await saveMediaFromBuffer(job.accountId, buffer, message.mimeType);

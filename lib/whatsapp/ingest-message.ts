@@ -4,6 +4,23 @@ import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 
+// Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
+// anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
+// Conversions API (lib/meta/conversions.ts); el resto se guarda para
+// auditoría/debug en WAMessage.referral.
+export interface InboundReferral {
+  source_url?: string;
+  source_id?: string;
+  source_type?: string;
+  headline?: string;
+  body?: string;
+  media_type?: string;
+  image_url?: string;
+  video_url?: string;
+  thumbnail_url?: string;
+  ctwa_clid?: string;
+}
+
 export interface NormalizedInboundMessage {
   remoteJid: string;
   wamid: string | null;
@@ -25,6 +42,11 @@ export interface NormalizedInboundMessage {
   // (interactive.button_reply.id / list_reply.id) — el título ya viaja en
   // `body`, esto es solo para correlacionar qué opción se tocó.
   interactiveReplyId?: string | null;
+  // Presente solo en el primer mensaje de un chat que vino de un anuncio
+  // click-to-WhatsApp. Meta lo manda en cada mensaje de ese chat, pero solo
+  // importa para atribución en el create del Contact (first-touch) — ver
+  // más abajo.
+  referral?: InboundReferral | null;
 }
 
 export interface IngestResult {
@@ -63,7 +85,22 @@ export async function ingestInboundMessage(
 
   const contactRecord = await prisma.contact.upsert({
     where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
-    create: { accountId, remoteJid: msg.remoteJid, name: msg.contactName },
+    create: {
+      accountId,
+      remoteJid: msg.remoteJid,
+      name: msg.contactName,
+      // First-touch attribution: solo se setea al crear el Contact, nunca en
+      // el `update` de abajo — un segundo mensaje (con o sin referral propio)
+      // no debe pisar el origen real del primer contacto. Mismo principio que
+      // realName en este mismo modelo.
+      ...(msg.referral?.ctwa_clid
+        ? {
+            leadOrigin: "CTWA" as const,
+            ctwaClid: msg.referral.ctwa_clid,
+            adId: msg.referral.source_id ?? null,
+          }
+        : {}),
+    },
     update: contactNameShouldUpdate ? { name: msg.contactName } : {},
   });
 
@@ -105,6 +142,7 @@ export async function ingestInboundMessage(
         filename: msg.filename ?? null,
         bytesSize: msg.bytesSize ?? null,
         interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
+        referral: msg.referral ? (msg.referral as Prisma.InputJsonValue) : undefined,
         timestamp: msg.timestamp,
       },
     });

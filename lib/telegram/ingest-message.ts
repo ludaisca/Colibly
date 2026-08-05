@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
@@ -14,7 +14,12 @@ export interface NormalizedChannelMessage {
   timestamp: Date;
   type: string;
   body: string;
-  contactName: string;
+  // Telegram trae el nombre inline en cada mensaje (string). Messenger/
+  // Instagram no lo mandan en el webhook — el llamador pasa un callback que
+  // solo se invoca (GET /{psid}?fields=name) cuando el contacto es
+  // realmente nuevo, para no pegarle a la Graph API en cada mensaje de una
+  // conversación ya conocida.
+  contactName: string | (() => Promise<string>);
   isGroup: boolean;
   mediaId?: string | null;
   mimeType?: string | null;
@@ -30,6 +35,7 @@ export interface IngestChannelResult {
 
 export async function ingestChannelMessage(
   channelAccountId: string,
+  channel: Channel,
   msg: NormalizedChannelMessage
 ): Promise<IngestChannelResult | null> {
   const [existingContact, existingConversation] = await Promise.all([
@@ -59,13 +65,30 @@ export async function ingestChannelMessage(
     if (existing) return null;
   }
 
-  const contactNameShouldUpdate = shouldUpdateName(msg.contactName, existingContact?.name, msg.externalId);
-  const conversationNameShouldUpdate = shouldUpdateName(msg.contactName, existingConversation?.name, msg.externalId);
+  // Solo se resuelve el callback (llamada real a la Graph API) en el primer
+  // touch — ni Contact ni Conversation existen todavía. En mensajes
+  // siguientes de un contacto ya conocido no vale la pena pedir el nombre
+  // de nuevo; se deja el nombre existente tal cual (sin candidato = sin
+  // actualización).
+  const isFirstTouch = !existingContact && !existingConversation;
+  const nameCandidate: string | null =
+    typeof msg.contactName === "string"
+      ? msg.contactName
+      : isFirstTouch
+        ? await msg.contactName()
+        : null;
+  // Nombre a mostrar en la notificación de abajo — a diferencia del
+  // candidato de arriba, aquí sí hay fallback al nombre ya conocido (no
+  // amerita una llamada a la Graph API solo para un título de notificación).
+  const displayName = nameCandidate ?? existingContact?.name ?? existingConversation?.name ?? msg.externalId;
+
+  const contactNameShouldUpdate = nameCandidate ? shouldUpdateName(nameCandidate, existingContact?.name, msg.externalId) : false;
+  const conversationNameShouldUpdate = nameCandidate ? shouldUpdateName(nameCandidate, existingConversation?.name, msg.externalId) : false;
 
   const contactRecord = await prisma.contact.upsert({
     where: { channelAccountId_remoteJid: { channelAccountId, remoteJid: msg.externalId } },
-    create: { channelAccountId, remoteJid: msg.externalId, name: msg.contactName },
-    update: contactNameShouldUpdate ? { name: msg.contactName } : {},
+    create: { channelAccountId, remoteJid: msg.externalId, name: nameCandidate ?? msg.externalId },
+    update: contactNameShouldUpdate ? { name: nameCandidate! } : {},
   });
 
   const conversation = await prisma.conversation.upsert({
@@ -73,7 +96,7 @@ export async function ingestChannelMessage(
     create: {
       channelAccountId,
       externalId: msg.externalId,
-      name: msg.contactName,
+      name: nameCandidate ?? msg.externalId,
       isGroup: msg.isGroup,
       lastMessage: msg.body.slice(0, 500),
       lastMessageAt: msg.timestamp,
@@ -81,7 +104,7 @@ export async function ingestChannelMessage(
       contactId: contactRecord.id,
     },
     update: {
-      ...(conversationNameShouldUpdate ? { name: msg.contactName } : {}),
+      ...(conversationNameShouldUpdate ? { name: nameCandidate! } : {}),
       isGroup: msg.isGroup,
       lastMessage: msg.body.slice(0, 500),
       lastMessageAt: msg.timestamp,
@@ -119,13 +142,13 @@ export async function ingestChannelMessage(
   if (msg.mediaId && msg.type !== "text") {
     await mediaDownloadQueue
       .add("download-media", {
-        channel: "TELEGRAM",
+        channel,
         messageId: createdMessage.id,
         accountId: channelAccountId,
         mediaId: msg.mediaId,
       })
       .catch((err) => {
-        console.error("[telegram ingest] media-download enqueue failed:", err);
+        console.error(`[${channel.toLowerCase()} ingest] media-download enqueue failed:`, err);
       });
   }
 
@@ -139,7 +162,7 @@ export async function ingestChannelMessage(
       data: {
         userId: assignedToId,
         type: "CHAT_MESSAGE",
-        title: msg.contactName,
+        title: displayName,
         body: msg.body.slice(0, 200),
         // La misma ruta de deep-link sirve para ambos canales — no valida
         // que accountId sea un WAAccount, solo preselecciona el chat.
@@ -161,6 +184,7 @@ export async function ingestChannelMessage(
   for (const bot of activeBots) {
     await botQueue.add("process-message", {
       botId: bot.id,
+      channel,
       conversationId: conversation.id,
       incomingMessage: msg.body,
       messageId: createdMessage.id,

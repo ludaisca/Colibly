@@ -58,6 +58,36 @@ export const waAccountUpdateSchema = z.object({
   appId: z.string().optional(),
 });
 
+export const metaAdsAccountSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido").max(100),
+  pageId: z.string().min(1, "El Page ID es requerido").regex(/^\d+$/, "Debe ser un ID numérico"),
+  pageAccessToken: z.string().min(1, "El token de la página es requerido"),
+  // Opcional a nivel de schema (mismo criterio que WAAccount.appSecret) pero
+  // sin él ningún leadgen se ingiere — validateMetaWebhookSignature rechaza
+  // el payload si no hay secreto configurado. Ver hint en el form.
+  appSecret: z.string().optional().or(z.literal("")),
+  verifyToken: z.string().min(6, "El verify token debe tener al menos 6 caracteres").optional().or(z.literal("")),
+  datasetId: z.string().optional().or(z.literal("")),
+  capiAccessToken: z.string().optional().or(z.literal("")),
+  waAccountId: z.string().min(1).optional().nullable(),
+  testEventCode: z.string().optional().or(z.literal("")),
+});
+
+export const metaAdsAccountUpdateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  pageAccessToken: z.string().min(1).optional(),
+  appSecret: z.string().optional(),
+  verifyToken: z.string().min(6).optional(),
+  datasetId: z.string().optional(),
+  capiAccessToken: z.string().optional(),
+  waAccountId: z.string().min(1).optional().nullable(),
+  mode: z.enum(["TEST", "LIVE"]).optional(),
+  testEventCode: z.string().optional(),
+});
+
+export type MetaAdsAccountInput = z.infer<typeof metaAdsAccountSchema>;
+export type MetaAdsAccountUpdateInput = z.infer<typeof metaAdsAccountUpdateSchema>;
+
 export const sendMessageSchema = z.object({
   type: z.enum(["text", "image", "audio", "video", "document", "interactive"]),
   // 4096 es el límite de WhatsApp para texto libre — mejor un 400 claro aquí
@@ -102,6 +132,45 @@ export const telegramSendMessageSchema = z.object({
 );
 
 export type TelegramSendMessageInput = z.infer<typeof telegramSendMessageSchema>;
+
+// A diferencia de WAAccount.appSecret (opcional por diseño — ver AGENTS.md),
+// aquí appSecret es requerido: la resolución de cuenta del webhook
+// compartido de Messenger/Instagram no tiene un fallback de confianza
+// análogo al phone_number_id de WhatsApp — sin secreto, la firma nunca
+// valida y la cuenta jamás recibiría un mensaje.
+export const messengerAccountSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido").max(100),
+  pageId: z.string().min(1, "El Page ID es requerido").regex(/^\d+$/, "Debe ser un ID numérico"),
+  pageAccessToken: z.string().min(1, "El token de la página es requerido"),
+  appSecret: z.string().min(1, "El App Secret es requerido"),
+});
+
+export type MessengerAccountInput = z.infer<typeof messengerAccountSchema>;
+
+// Instagram (modelo Página-vinculada) comparte pageId+pageAccessToken con
+// Messenger, pero necesita además instagramBusinessId: entry[].id en el
+// webhook de IG reporta el ID de Instagram, no el de la Página.
+export const instagramAccountSchema = messengerAccountSchema.extend({
+  instagramBusinessId: z.string().min(1, "El Instagram Business ID es requerido").regex(/^\d+$/, "Debe ser un ID numérico"),
+});
+
+export type InstagramAccountInput = z.infer<typeof instagramAccountSchema>;
+
+export const metaChannelSendMessageSchema = z.object({
+  type: z.enum(["text", "image", "audio", "video", "document"]),
+  body: z.string().max(2000, "El mensaje supera el límite de 2000 caracteres").optional(),
+  mediaId: z.string().nullable().optional(),
+  caption: z.string().optional(),
+  mimeType: z.string().optional(),
+  filename: z.string().optional(),
+  localMediaPath: z.string().nullable().optional(),
+  bytesSize: z.number().optional(),
+}).refine(
+  (d) => d.type === "text" ? !!d.body : !!d.localMediaPath,
+  { message: "Se requiere body para texto o localMediaPath para medios", path: ["body"] }
+);
+
+export type MetaChannelSendMessageInput = z.infer<typeof metaChannelSendMessageSchema>;
 
 export type WaAccountInput = z.infer<typeof waAccountSchema>;
 export type WaAccountUpdateInput = z.infer<typeof waAccountUpdateSchema>;

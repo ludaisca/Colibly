@@ -20,7 +20,7 @@ export async function GET(
     }
 
     const chatTags = await prisma.chatTag.findMany({
-      where: resolved.channel === "TELEGRAM" ? { conversationId: chatId } : { chatId },
+      where: resolved.channel !== "WHATSAPP" ? { conversationId: chatId } : { chatId },
       select: { tag: { select: { id: true, name: true, color: true } } },
     });
 
@@ -59,7 +59,7 @@ export async function POST(
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 
-    if (resolved.channel === "TELEGRAM") {
+    if (resolved.channel !== "WHATSAPP") {
       await prisma.chatTag.upsert({
         where: { conversationId_tagId: { conversationId: chatId, tagId } },
         create: { conversationId: chatId, tagId },
@@ -104,7 +104,7 @@ export async function DELETE(
     }
 
     await prisma.chatTag.deleteMany({
-      where: resolved.channel === "TELEGRAM" ? { conversationId: chatId, tagId } : { chatId, tagId },
+      where: resolved.channel !== "WHATSAPP" ? { conversationId: chatId, tagId } : { chatId, tagId },
     });
 
     return NextResponse.json({ success: true });

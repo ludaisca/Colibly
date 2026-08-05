@@ -143,7 +143,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
     const info = extractMessageInfo(msg);
     const contactName = msg.from?.first_name || msg.from?.username || String(msg.chat.id);
 
-    await ingestChannelMessage(accountId, {
+    await ingestChannelMessage(accountId, "TELEGRAM", {
       externalId: String(msg.chat.id),
       externalMessageId: String(msg.message_id),
       timestamp: new Date(msg.date * 1000),

@@ -28,7 +28,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Estado no válido" }, { status: 400 });
     }
 
-    if (resolved.channel === "TELEGRAM") {
+    if (resolved.channel !== "WHATSAPP") {
       const current = await prisma.conversation.findUniqueOrThrow({ where: { id: chatId }, select: { status: true } });
       const wasResolved = current.status === "RESOLVED";
       const willBeResolved = status === "RESOLVED";

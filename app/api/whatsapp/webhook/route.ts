@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { createHmac, createHash } from "crypto";
+import { createHash } from "crypto";
 import type { RecipientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
 import { rateLimit } from "@/lib/rate-limit";
+import { validateMetaWebhookSignature } from "@/lib/meta/webhook-signature";
 
 interface WebhookMessage {
   from: string;
@@ -22,6 +23,20 @@ interface WebhookMessage {
     list_reply?: { id: string; title: string; description?: string };
   };
   button?: { payload: string; text: string };
+  // Presente cuando el chat se originó en un anuncio click-to-WhatsApp — ver
+  // lib/whatsapp/ingest-message.ts:InboundReferral para el detalle de campos.
+  referral?: {
+    source_url?: string;
+    source_id?: string;
+    source_type?: string;
+    headline?: string;
+    body?: string;
+    media_type?: string;
+    image_url?: string;
+    video_url?: string;
+    thumbnail_url?: string;
+    ctwa_clid?: string;
+  };
 }
 
 interface WebhookStatus {
@@ -121,24 +136,6 @@ function getMediaInfo(msg: WebhookMessage): {
     caption: msg.document.caption ?? null,
   };
   return { mediaId: null, mimeType: null, filename: null, caption: null };
-}
-
-async function validateSignature(
-  body: string,
-  signature: string | null,
-  appSecret: string | null
-): Promise<boolean> {
-  if (!signature || !appSecret) return false;
-
-  try {
-    const { decrypt } = await import("@/lib/crypto");
-    const secret = decrypt(appSecret);
-    const expected = createHmac("sha256", secret).update(body).digest("hex");
-    const received = signature.replace("sha256=", "");
-    return expected === received;
-  } catch {
-    return false;
-  }
 }
 
 // sent < delivered < read — Meta no garantiza el orden de entrega de los
@@ -427,7 +424,7 @@ export async function POST(req: Request) {
           const value = change.value as QualityUpdateValue;
           const account = await resolveAccountByWabaAndPhone(wabaId, value.display_phone_number);
           if (account) {
-            const sigValid = await validateSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
             if (sigValid) {
               await applyPhoneNumberQualityUpdate(wabaId, value);
             }
@@ -439,7 +436,7 @@ export async function POST(req: Request) {
           const value = change.value as AccountUpdateValue;
           const account = await resolveAccountByWabaAndPhone(wabaId, value.phone_number);
           if (account) {
-            const sigValid = await validateSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
             if (sigValid) {
               await applyAccountUpdate(wabaId, value);
             }
@@ -454,7 +451,7 @@ export async function POST(req: Request) {
             ? await prisma.wAAccount.findFirst({ where: { phoneNumberId } })
             : null;
           if (account) {
-            const sigValid = await validateSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
             if (sigValid) {
               await applyUserPreferences(value);
             }
@@ -473,7 +470,7 @@ export async function POST(req: Request) {
 
         if (!account) continue;
 
-        const sigValid = await validateSignature(rawBody, signature, account.appSecret);
+        const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
         if (!sigValid) continue;
 
         await prisma.wAAccount.update({
@@ -515,6 +512,7 @@ export async function POST(req: Request) {
                   filename,
                   caption,
                   interactiveReplyId: msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? null,
+                  referral: msg.referral ?? null,
                 });
               }
             })

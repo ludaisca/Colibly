@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendMessageSchema, telegramSendMessageSchema } from "@/lib/validations";
+import { sendMessageSchema, telegramSendMessageSchema, metaChannelSendMessageSchema } from "@/lib/validations";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
 import { sendTelegramMessage, sendTelegramMedia } from "@/lib/telegram/send";
+import { sendMetaChannelText, sendMetaChannelMedia } from "@/lib/meta-messaging/send";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { rateLimit } from "@/lib/rate-limit";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
@@ -33,6 +34,9 @@ export async function POST(
 
     if (resolved.channel === "TELEGRAM") {
       return sendTelegramReply(req, chatId, session.user.id);
+    }
+    if (resolved.channel === "MESSENGER" || resolved.channel === "INSTAGRAM") {
+      return sendMetaChannelReply(resolved.channel, req, chatId, session.user.id);
     }
 
     const chat = await prisma.wAChat.findFirst({
@@ -182,6 +186,90 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
       body: type === "text" ? textBody : null,
       caption: type === "text" ? null : (caption ?? null),
       mediaId,
+      mediaUrl: type === "text" ? null : (localMediaPath ?? null),
+      mimeType: type === "text" ? null : (mimeType ?? null),
+      filename: type === "text" ? null : (filename ?? null),
+      bytesSize: type === "text" ? null : (bytesSize ?? null),
+      status: "sent",
+      senderId: userId,
+      timestamp: now,
+    },
+  });
+
+  await prisma.conversation.update({
+    where: { id: conversation.id },
+    data: {
+      lastMessage: lastMessagePreview.slice(0, 500),
+      lastMessageAt: now,
+      ...(isFirstResponse ? { firstResponseAt: now } : {}),
+    },
+  });
+
+  await prisma.channelAccount.update({
+    where: { id: conversation.channelAccount.id },
+    data: { lastActivity: now },
+  });
+
+  return NextResponse.json(newMessage);
+}
+
+// Mismo shape que sendTelegramReply — la única diferencia real con Telegram
+// es el two-step de subida de adjuntos (sendMetaChannelMedia ya lo resuelve
+// internamente) y que el `where` de la Conversation filtra también por
+// `channel`, porque Messenger e Instagram son dos ChannelAccount.channel
+// distintos que de otro modo colisionarían con el mismo userId.
+async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Request, chatId: string, userId: string) {
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: chatId, channelAccount: { userId, channel } },
+    include: { channelAccount: true },
+  });
+  if (!conversation) {
+    return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
+  }
+
+  const isFirstResponse = conversation.firstResponseAt === null;
+
+  const body = await req.json();
+  const parsed = metaChannelSendMessageSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+
+  let externalMessageId: string | null;
+  let attachmentId: string | null = null;
+
+  if (type === "text") {
+    const result = await sendMetaChannelText(conversation.channelAccount, {
+      to: conversation.externalId,
+      body: textBody!,
+    });
+    externalMessageId = result.externalMessageId;
+  } else {
+    const buffer = await fs.readFile(resolveAbsolutePath(localMediaPath!));
+    const result = await sendMetaChannelMedia(conversation.channelAccount, {
+      to: conversation.externalId,
+      buffer,
+      filename: filename ?? `media-${Date.now()}`,
+      mimeType: mimeType ?? "application/octet-stream",
+    });
+    externalMessageId = result.externalMessageId;
+    attachmentId = result.attachmentId;
+  }
+
+  const now = new Date();
+  const lastMessagePreview = textBody ?? caption ?? `[${type}]`;
+
+  const newMessage = await prisma.channelMessage.create({
+    data: {
+      externalMessageId,
+      conversationId: conversation.id,
+      direction: "OUTBOUND",
+      messageType: type,
+      body: type === "text" ? textBody : null,
+      caption: type === "text" ? null : (caption ?? null),
+      mediaId: attachmentId,
       mediaUrl: type === "text" ? null : (localMediaPath ?? null),
       mimeType: type === "text" ? null : (mimeType ?? null),
       filename: type === "text" ? null : (filename ?? null),

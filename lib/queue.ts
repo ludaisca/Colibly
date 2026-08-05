@@ -33,3 +33,17 @@ export const leadScoringQueue = new Queue("lead-scoring", { connection, defaultJ
 export const leadRecoveryQueue = new Queue("lead-recovery", { connection, defaultJobOptions });
 export const sheetsSyncQueue = new Queue("sheets-sync", { connection, defaultJobOptions });
 export const leadSheetImportQueue = new Queue("lead-sheet-import", { connection, defaultJobOptions });
+// Llamada HTTP externa a Meta que puede fallar transitoriamente (rate limit,
+// timeout de red) — más reintentos que el default, mismo criterio que
+// mediaDownloadJobOptions.
+const metaConversionsJobOptions = {
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 },
+  attempts: 5,
+  backoff: { type: "exponential" as const, delay: 2000 },
+  timeout: 30_000,
+};
+export const metaConversionsQueue = new Queue("meta-conversions", {
+  connection,
+  defaultJobOptions: metaConversionsJobOptions,
+});

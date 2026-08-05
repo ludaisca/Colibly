@@ -13,7 +13,7 @@ export const STATUS_BADGE: Record<ChatStatus, { label: string; tone: "info" | "w
   RESOLVED: { label: "Resuelto", tone: "success" },
 };
 
-export type Channel = "WHATSAPP" | "TELEGRAM";
+export type Channel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM";
 
 export interface AccountOption {
   id: string;

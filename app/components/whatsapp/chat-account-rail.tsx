@@ -1,9 +1,9 @@
 "use client";
 
-import { Inbox, Send } from "lucide-react";
+import { Inbox, Send, MessageCircle, Camera } from "lucide-react";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { cn } from "@/app/components/ui/cn";
-import type { AccountOption } from "./chat-shared";
+import type { AccountOption, Channel } from "./chat-shared";
 
 // Rail vertical de cuentas WhatsApp — estilo "workspaces" de Slack: un ícono
 // por cuenta accesible (propia o compartida vía WAAccountShare), color por
@@ -77,7 +77,7 @@ function RailButton({
   label: string;
   unread: number;
   onClick: () => void;
-  channel?: "WHATSAPP" | "TELEGRAM";
+  channel?: Channel;
   children: React.ReactNode;
 }) {
   return (
@@ -101,11 +101,21 @@ function RailButton({
           {unread > 99 ? "99+" : unread}
         </span>
       )}
-      {/* Solo Telegram lleva marca de canal — WhatsApp es el caso por
-          defecto/mayoritario y no necesita distinguirse a sí mismo. */}
+      {/* WhatsApp es el canal por defecto/mayoritario y no necesita
+          distinguirse a sí mismo — los otros 3 llevan marca de canal. */}
       {channel === "TELEGRAM" && (
         <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-on-accent ring-2 ring-background">
           <Send size={9} />
+        </span>
+      )}
+      {channel === "MESSENGER" && (
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent-2 text-on-accent ring-2 ring-background">
+          <MessageCircle size={9} />
+        </span>
+      )}
+      {channel === "INSTAGRAM" && (
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-on-accent ring-2 ring-background">
+          <Camera size={9} />
         </span>
       )}
     </button>

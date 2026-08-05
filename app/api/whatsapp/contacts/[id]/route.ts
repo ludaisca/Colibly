@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { contactUpdateSchema } from "@/lib/validations";
+import { metaConversionsQueue } from "@/lib/queue";
 
 export async function GET(
   _req: Request,
@@ -87,6 +88,27 @@ export async function PATCH(
         updatedAt: true,
       },
     });
+
+    // Feedback loop de calificación hacia Meta Ads: solo si leadStatus
+    // realmente cambió y el contacto viene de un anuncio (no ORGANIC). La
+    // resolución de la MetaAdsAccount (incluyendo el chequeo de status
+    // CONNECTED) vive enteramente en sendLeadConversionEvent — para CTWA se
+    // resuelve dinámicamente por waAccountId, no hay un campo aquí que
+    // consultar de antemano. jobId determinístico como segunda capa de
+    // dedupe junto al @@unique([contactId, leadStatus]) de MetaConversionEvent.
+    if (
+      parsed.data.leadStatus &&
+      parsed.data.leadStatus !== existing.leadStatus &&
+      existing.leadOrigin !== "ORGANIC"
+    ) {
+      await metaConversionsQueue
+        .add(
+          "send-event",
+          { contactId: id, leadStatus: parsed.data.leadStatus },
+          { jobId: `meta-conversion-${id}-${parsed.data.leadStatus}` }
+        )
+        .catch((err) => console.error("[contacts] meta-conversions enqueue failed:", err));
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

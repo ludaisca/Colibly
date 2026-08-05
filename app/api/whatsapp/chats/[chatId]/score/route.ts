@@ -36,6 +36,13 @@ export async function GET(
     if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
+    // Lead scoring sigue sin extenderse a Messenger/Instagram (fuera de
+    // alcance de esta fase, igual que campañas/plantillas ya lo están para
+    // Telegram) — narrow explícito, evita que TS infiera "WHATSAPP"|"TELEGRAM"
+    // incorrectamente en getChatOwnerUserId/scoreChatWithScorer más abajo.
+    if (resolved.channel === "MESSENGER" || resolved.channel === "INSTAGRAM") {
+      return NextResponse.json({ error: "Calificación de leads no disponible para este canal" }, { status: 400 });
+    }
 
     const scores = await prisma.wALeadScore.findMany({
       where: resolved.channel === "TELEGRAM" ? { conversationId: chatId } : { chatId },
@@ -64,6 +71,9 @@ export async function POST(
     const resolved = await resolveChatChannel(chatId, session.user.id);
     if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
+    }
+    if (resolved.channel === "MESSENGER" || resolved.channel === "INSTAGRAM") {
+      return NextResponse.json({ error: "Calificación de leads no disponible para este canal" }, { status: 400 });
     }
 
     const body = await req.json().catch(() => ({}));
