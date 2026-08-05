@@ -16,25 +16,26 @@ export interface LeadStatusMapping {
   currency?: string;
 }
 
-// TODO(usuario): define aquí qué estados de LeadStatus se reportan a Meta y
-// con qué event_name/value — es una decisión de negocio, no técnica, y
-// cambia el resultado real de la optimización de tus campañas:
-//
-//   - ¿Se reporta NEW? Probablemente no — Meta ya sabe que el lead se creó
-//     desde el momento del clic/formulario, este estado no aporta señal
-//     nueva sobre CALIDAD.
-//   - ¿Se reporta CONTACTED? Señal débil de progreso — opcional.
-//   - ¿Se reporta LOST como señal NEGATIVA explícita? Es lo que le enseña al
-//     algoritmo a NO mostrarle el anuncio a perfiles parecidos — pero
-//     "LOST" a veces solo significa "no le dimos seguimiento a tiempo", no
-//     que el lead en sí era malo. Mandar esa señal cuando no es cierta
-//     ensucia el aprendizaje del lado de Meta.
-//   - ¿QUALIFIED y CUSTOMER llevan distinto peso/valor? (p.ej. CUSTOMER con
-//     un `value` real de la venta, QUALIFIED sin value).
-//
-// Devolver `null`/`report:false` es la opción segura mientras decides —
-// equivale a "no reportar nada todavía", nunca a un error.
+// Decisión de negocio (2026-08-05): se reportan CONTACTED, QUALIFIED,
+// CUSTOMER y LOST. NEW se omite — Meta ya sabe que el lead se creó desde el
+// clic/formulario, ese estado no aporta señal nueva sobre calidad. Nombres de
+// evento estándar (sin config previa en Events Manager); si más adelante se
+// define un mapeo de embudo distinto ahí, ajustar los strings de abajo para
+// que coincidan. Sin `value`/`currency` por ahora — solo se reporta
+// ocurrencia, no se optimiza por valor todavía.
+const MAPPING: Record<LeadStatus, LeadStatusMapping | null> = {
+  NEW: null,
+  CONTACTED: { report: true, eventName: "Contact" },
+  QUALIFIED: { report: true, eventName: "Lead" },
+  CUSTOMER: { report: true, eventName: "Purchase" },
+  // Señal negativa explícita — le enseña al algoritmo a no priorizar
+  // perfiles parecidos. Ojo: "LOST" a veces solo significa "no le dimos
+  // seguimiento a tiempo", no que el lead en sí era malo; si eso empieza a
+  // ensuciar el aprendizaje de Meta, la corrección es dejar de mover leads a
+  // LOST por descuido operativo, no quitar este mapeo.
+  LOST: { report: true, eventName: "LeadLost" },
+};
+
 export function mapLeadStatusToMetaEvent(status: LeadStatus): LeadStatusMapping | null {
-  void status; // placeholder hasta que se complete el mapeo real de negocio
-  return null;
+  return MAPPING[status];
 }
