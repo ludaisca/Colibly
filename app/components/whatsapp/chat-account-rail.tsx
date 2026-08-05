@@ -1,9 +1,9 @@
 "use client";
 
-import { Inbox, Send } from "lucide-react";
+import { Inbox, Send, MessageCircle, Camera } from "lucide-react";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { cn } from "@/app/components/ui/cn";
-import type { AccountOption } from "./chat-shared";
+import type { AccountOption, Channel } from "./chat-shared";
 
 // Rail vertical de cuentas WhatsApp — estilo "workspaces" de Slack: un ícono
 // por cuenta accesible (propia o compartida vía WAAccountShare), color por
@@ -29,7 +29,7 @@ export function ChatAccountRail({ accounts, selectedAccountId, onSelect, unreadB
     <div className="hidden w-16 min-h-0 shrink-0 flex-col items-center gap-2 border-r border-border bg-surface/40 py-3 lg:flex">
       <div className="shrink-0">
         <RailButton active={selectedAccountId === ""} label="Todas las cuentas" unread={totalUnread} onClick={() => onSelect("")}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-bubble bg-surface-light text-muted-darker">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light text-muted-darker">
             <Inbox size={18} />
           </span>
         </RailButton>
@@ -77,7 +77,7 @@ function RailButton({
   label: string;
   unread: number;
   onClick: () => void;
-  channel?: "WHATSAPP" | "TELEGRAM";
+  channel?: Channel;
   children: React.ReactNode;
 }) {
   return (
@@ -87,11 +87,9 @@ function RailButton({
       title={label}
       aria-pressed={active}
       className={cn(
-        "relative flex rounded-bubble transition-opacity duration-fast ease-brand",
-        // ring-offset (no padding en el botón) para que el aro no pegue
-        // directo al borde del avatar — a este tamaño, un ring pegado sin
-        // separación choca con la esquina asimétrica de rounded-bubble y se
-        // ve como si el ícono estuviera "cortado" en esa esquina.
+        "relative flex rounded-lg transition-opacity duration-fast ease-brand",
+        // ring-offset (no padding en el botón) para que el aro de selección
+        // no pegue directo al borde del avatar y se note como un halo propio.
         active
           ? "ring-2 ring-accent ring-offset-2 ring-offset-background"
           : "opacity-80 hover:opacity-100"
@@ -103,11 +101,21 @@ function RailButton({
           {unread > 99 ? "99+" : unread}
         </span>
       )}
-      {/* Solo Telegram lleva marca de canal — WhatsApp es el caso por
-          defecto/mayoritario y no necesita distinguirse a sí mismo. */}
+      {/* WhatsApp es el canal por defecto/mayoritario y no necesita
+          distinguirse a sí mismo — los otros 3 llevan marca de canal. */}
       {channel === "TELEGRAM" && (
         <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-on-accent ring-2 ring-background">
           <Send size={9} />
+        </span>
+      )}
+      {channel === "MESSENGER" && (
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent-2 text-on-accent ring-2 ring-background">
+          <MessageCircle size={9} />
+        </span>
+      )}
+      {channel === "INSTAGRAM" && (
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-on-accent ring-2 ring-background">
+          <Camera size={9} />
         </span>
       )}
     </button>

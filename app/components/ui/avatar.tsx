@@ -3,8 +3,7 @@ import { hueClassFor } from "./hue";
 
 // Avatar de iniciales con hue determinista por entidad — server-safe (sin
 // "use client", sin iconos como props), usable directo desde los RSC de
-// overview y desde componentes client. La esquina de burbuja (rounded-bubble)
-// es parte de la firma visual del rediseño.
+// overview y desde componentes client.
 
 const SIZE: Record<"sm" | "md" | "lg", string> = {
   sm: "h-8 w-8 text-[11px]",
@@ -32,7 +31,7 @@ export function EntityAvatar({ id, name, size = "md", className }: EntityAvatarP
     <span
       aria-hidden="true"
       className={cn(
-        "inline-flex shrink-0 select-none items-center justify-center rounded-bubble bg-entity-bg font-semibold text-entity",
+        "inline-flex shrink-0 select-none items-center justify-center rounded-lg bg-entity-bg font-semibold text-entity",
         "transition-transform duration-fast ease-brand hover:scale-105",
         SIZE[size],
         hueClassFor(id),

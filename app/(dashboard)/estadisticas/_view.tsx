@@ -11,19 +11,12 @@ import { Workbench, WorkbenchMain, WorkbenchAside } from "@/app/components/ui/wo
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
 import { CAMPAIGN_ORIGIN_LABEL, LABEL_TEXT } from "@/lib/whatsapp/export-columns";
+import { MessagesTrendChart, HorizontalBarChart, DeliveryComparisonChart, QualifiedLabelDonut } from "./_charts";
 
 const BOT_STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
   ACTIVE: { label: "Activo", tone: "success" },
   PAUSED: { label: "Pausado", tone: "warning" },
   ERROR: { label: "Error", tone: "danger" },
-};
-
-const QUALIFIED_LABEL_BADGE: Record<string, "danger" | "success" | "info" | "neutral"> = {
-  prioridad_alta: "danger",
-  oportunidad: "success",
-  interesado: "info",
-  frio: "neutral",
-  descartado: "neutral",
 };
 
 const CAMPAIGN_ORIGIN_BADGE: Record<string, "accent" | "info"> = {
@@ -134,10 +127,6 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
     },
   ], []);
 
-  const maxCount = Math.max(...stats.dailyMessages.map((d) => d.count), 1);
-  const maxAccountChats = Math.max(...stats.accountBreakdown.map((a) => a.chats), 1);
-  const maxQualifiedByCampaign = Math.max(...stats.qualifiedChatsByCampaign.map((c) => c.count), 1);
-
   const kpis: KpiItem[] = [
     { label: "Cuentas", value: String(stats.accounts), href: "/whatsapp/cuentas" },
     { label: "Chats activos", value: String(stats.chats), href: "/whatsapp/chat" },
@@ -170,29 +159,9 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
         <WorkbenchMain>
           <section className="animate-fade-in-up animation-delay-200">
             <SectionHeader eyebrow="Actividad" title="Mensajes diarios" />
-            {stats.dailyMessages.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted">Sin datos aún</p>
-            ) : (
-              <div className="mt-4 space-y-2">
-                {stats.dailyMessages.map((d) => (
-                  <div key={d.date} className="flex items-center gap-3">
-                    <span className="w-20 shrink-0 font-mono text-xs text-muted-darker">
-                      {new Date(d.date + "T00:00:00").toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}
-                    </span>
-                    <div className="h-5 flex-1 overflow-hidden rounded-full bg-surface">
-                      <div
-                        className="flex h-full items-center justify-end rounded-full bg-accent pr-2 transition-all"
-                        style={{ width: `${(d.count / maxCount) * 100}%`, minWidth: d.count > 0 ? "2rem" : 0 }}
-                      >
-                        {d.count > 0 && (
-                          <span className="font-mono text-[10px] font-medium text-on-accent">{d.count}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="mt-4">
+              <MessagesTrendChart data={stats.dailyMessages} />
+            </div>
           </section>
 
           <section className="animate-fade-in-up animation-delay-300">
@@ -322,49 +291,21 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
 
           <section className="animate-fade-in-up animation-delay-300">
             <SectionHeader eyebrow="Leads" title="Chats calificados" />
-            <div className="mt-3 space-y-3">
-              <div>
-                <p className="font-mono text-hero font-semibold tracking-tight">{stats.qualifiedChats.total}</p>
-                {/* Deduplicado por chat (mejor score) — por eso puede no coincidir
-                    con la pestaña "Leads calificados", que lista cada evaluación. */}
-                <p className="text-xs text-muted" title="Chats únicos con al menos una calificación — no evaluaciones individuales">
-                  chats únicos, no evaluaciones
-                </p>
-              </div>
-              {stats.qualifiedChats.byLabel.length === 0 ? (
-                <p className="text-xs text-muted-darker">Sin calificaciones todavía</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {stats.qualifiedChats.byLabel.map((l) => (
-                    <Badge key={l.label} tone={QUALIFIED_LABEL_BADGE[l.label] ?? "neutral"} size="sm">
-                      {LABEL_TEXT[l.label] ?? l.label}: {l.count}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+            <div className="mt-3 space-y-4">
+              <QualifiedLabelDonut data={stats.qualifiedChats.byLabel} labelText={LABEL_TEXT} total={stats.qualifiedChats.total} />
+              {/* Deduplicado por chat (mejor score) — por eso puede no coincidir
+                  con la pestaña "Leads calificados", que lista cada evaluación. */}
+              <p className="text-xs text-muted" title="Chats únicos con al menos una calificación — no evaluaciones individuales">
+                {stats.qualifiedChats.total} chats únicos, no evaluaciones
+              </p>
 
               {stats.qualifiedChatsByCampaign.length > 0 && (
-                <div className="space-y-2.5 pt-2">
+                <div className="space-y-2 pt-2">
                   <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">Por campaña</p>
-                  {stats.qualifiedChatsByCampaign.map((c) => (
-                    <div key={c.id ?? "__none__"} className="flex items-center gap-3">
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <p className="truncate text-sm">{c.name}</p>
-                        {c.origin && (
-                          <Badge tone={CAMPAIGN_ORIGIN_BADGE[c.origin]} size="sm" className="shrink-0">
-                            {CAMPAIGN_ORIGIN_LABEL[c.origin]}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="h-2 w-20 shrink-0 overflow-hidden rounded-full bg-surface">
-                        <div
-                          className="h-full rounded-full bg-accent transition-all"
-                          style={{ width: `${(c.count / maxQualifiedByCampaign) * 100}%` }}
-                        />
-                      </div>
-                      <span className="w-6 shrink-0 text-right font-mono text-xs text-muted-darker">{c.count}</span>
-                    </div>
-                  ))}
+                  <HorizontalBarChart
+                    data={stats.qualifiedChatsByCampaign.map((c) => ({ id: c.id ?? "__none__", label: c.name, value: c.count }))}
+                    color="var(--accent)"
+                  />
                 </div>
               )}
             </div>
@@ -372,58 +313,34 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
 
           <section className="animate-fade-in-up animation-delay-300">
             <SectionHeader eyebrow="Difusión" title="Entregas por origen" />
-            {stats.campaignMessagesByOrigin.every((o) => o.total === 0) ? (
-              <p className="py-4 text-center text-sm text-muted">Sin envíos todavía</p>
-            ) : (
-              <div className="mt-3 divide-y divide-border">
+            <div className="mt-3 space-y-3">
+              <DeliveryComparisonChart data={stats.campaignMessagesByOrigin} />
+              <div className="space-y-1.5">
                 {stats.campaignMessagesByOrigin.map((o) => (
-                  <div key={o.origin} className="space-y-2 py-3 first:pt-0">
-                    <p className="text-sm font-medium">{CAMPAIGN_ORIGIN_LABEL[o.origin]}</p>
-                    {o.total === 0 ? (
-                      <p className="text-xs text-muted-darker">Sin envíos todavía</p>
-                    ) : (
-                      <>
-                        <div className="flex flex-wrap gap-1.5">
-                          <Badge tone="neutral" size="sm">Enviados: {o.sent}</Badge>
-                          <Badge tone="success" size="sm">Entregados: {o.delivered}</Badge>
-                          <Badge tone="info" size="sm">Leídos: {o.read}</Badge>
-                          {o.failed > 0 && <Badge tone="danger" size="sm">Fallidos: {o.failed}</Badge>}
-                        </div>
-                        <div className="flex items-center justify-between font-mono text-xs text-muted-darker">
-                          <span>Entrega: {o.deliveryRate != null ? `${o.deliveryRate}%` : "—"}</span>
-                          <span>Lectura: {o.readRate != null ? `${o.readRate}%` : "—"}</span>
-                        </div>
-                      </>
-                    )}
+                  <div key={o.origin} className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-muted-darker">{CAMPAIGN_ORIGIN_LABEL[o.origin]}</span>
+                    <span className="tabular-nums text-muted">
+                      {o.total === 0 ? (
+                        "Sin envíos todavía"
+                      ) : (
+                        <>Entrega: {o.deliveryRate != null ? `${o.deliveryRate}%` : "—"} · Lectura: {o.readRate != null ? `${o.readRate}%` : "—"}</>
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>
-            )}
+            </div>
           </section>
 
           <section className="animate-fade-in-up animation-delay-400">
             <SectionHeader eyebrow="Canales" title="Chats por número" />
-            {stats.accountBreakdown.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted">Sin cuentas todavía</p>
-            ) : (
-              <div className="mt-3 space-y-3">
-                {stats.accountBreakdown.map((a) => (
-                  <div key={a.id} className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{a.name}</p>
-                      {a.phoneNumber && <p className="truncate font-mono text-xs text-muted-darker">{a.phoneNumber}</p>}
-                    </div>
-                    <div className="h-2 w-20 shrink-0 overflow-hidden rounded-full bg-surface">
-                      <div
-                        className="h-full rounded-full bg-accent transition-all"
-                        style={{ width: `${(a.chats / maxAccountChats) * 100}%` }}
-                      />
-                    </div>
-                    <span className="w-6 shrink-0 text-right font-mono text-xs text-muted-darker">{a.chats}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="mt-3">
+              <HorizontalBarChart
+                data={stats.accountBreakdown.map((a) => ({ id: a.id, label: a.name, value: a.chats, sublabel: a.phoneNumber ?? undefined }))}
+                color="var(--accent-2)"
+                emptyLabel="Sin cuentas todavía"
+              />
+            </div>
           </section>
         </WorkbenchAside>
       </Workbench>

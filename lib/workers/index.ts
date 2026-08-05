@@ -1,6 +1,7 @@
 import { Worker } from "bullmq";
 import { processBotMessageJob } from "./bot-worker";
 import { processTelegramBotMessageJob } from "@/lib/telegram/bot-worker";
+import { processMetaChannelBotMessageJob } from "@/lib/meta-messaging/bot-worker";
 import { processCampaignJob, processScheduledCampaignsTick } from "./campaign-worker";
 import { processRagJob } from "./rag-worker";
 import { processMediaDownloadJob } from "./media-worker";
@@ -10,6 +11,7 @@ import { processLeadScoringTick } from "./lead-scoring-worker";
 import { processLeadRecoveryTick } from "./lead-recovery-worker";
 import { processSheetsSyncTick } from "./sheets-sync-worker";
 import { processLeadSheetImportTick } from "./lead-sheet-worker";
+import { processMetaConversionsJob } from "./meta-conversions-worker";
 import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, sheetsSyncQueue, leadSheetImportQueue } from "@/lib/queue";
 
 const connection = {
@@ -25,13 +27,19 @@ export function startWorkers() {
 
   const botWorker = new Worker("bot-messages", async (job) => {
     const attemptInfo = { attemptsMade: job.attemptsMade, maxAttempts: job.opts.attempts ?? 1 };
-    // El productor decide la forma del payload: ingest-message.ts (WhatsApp)
-    // encola waChatId, lib/telegram/ingest-message.ts encola conversationId —
-    // mutuamente excluyentes, igual que WABot.waAccountId/channelAccountId.
-    if (job.data.conversationId) {
-      await processTelegramBotMessageJob(job.data, attemptInfo);
-    } else {
-      await processBotMessageJob(job.data, attemptInfo);
+    // El productor decide la forma del payload: lib/whatsapp/ingest-message.ts
+    // (WhatsApp) no manda `channel`, lib/telegram/ingest-message.ts (Telegram/
+    // Messenger/Instagram, ver ChannelAccount) sí lo manda explícito.
+    switch (job.data.channel) {
+      case "TELEGRAM":
+        await processTelegramBotMessageJob(job.data, attemptInfo);
+        break;
+      case "MESSENGER":
+      case "INSTAGRAM":
+        await processMetaChannelBotMessageJob(job.data, attemptInfo);
+        break;
+      default:
+        await processBotMessageJob(job.data, attemptInfo);
     }
   }, { connection, concurrency: 3 });
 
@@ -78,7 +86,14 @@ export function startWorkers() {
     await processLeadSheetImportTick();
   }, { connection, concurrency: 1 });
 
-  workers.push(botWorker, campaignWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker);
+  // Cola de trabajo por job (no tick) — el productor es el PATCH de
+  // /api/whatsapp/contacts/[id], un job por cambio de leadStatus. Mismo
+  // shape que bot-message-send.
+  const metaConversionsWorker = new Worker("meta-conversions", async (job) => {
+    await processMetaConversionsJob(job.data);
+  }, { connection, concurrency: 5 });
+
+  workers.push(botWorker, campaignWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker);
 
   mediaCleanupQueue
     .add(

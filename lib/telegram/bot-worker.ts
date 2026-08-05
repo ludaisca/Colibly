@@ -1,3 +1,4 @@
+import { promises as fs } from "fs";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 import { getAIProvider } from "@/lib/ai/factory";
@@ -6,22 +7,26 @@ import { getUserApiKey } from "@/lib/ai/settings";
 import { estimateCost } from "@/lib/ai/pricing";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
+import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
 import { botSendQueue } from "@/lib/queue";
-import type { AIProvider, AIMessage } from "@/lib/ai/types";
+import type { AIProvider, AIMessage, ContentPart } from "@/lib/ai/types";
 
 // Hermano de lib/workers/bot-worker.ts, no una bifurcación dentro de él: ese
 // archivo toca ~10 puntos acoplados a WAAccount/WAChat/WAMessage (historial,
 // envío, persistencia, notificaciones) entrelazados a lo largo de toda la
 // función — llenarlo de "if (channel === telegram)" dispersos arriesgaba el
 // pipeline de WhatsApp en producción para poco beneficio real de compartir
-// código. El algoritmo (prompt, guardrail, RAG, presupuesto, llamada a IA)
-// es el mismo a propósito; el acceso a datos y el envío son los que difieren.
+// código. El algoritmo (prompt, guardrail, RAG, presupuesto, llamada a IA,
+// y ahora también la lectura de media multimodal vía buildUserContent) es
+// el mismo a propósito; el acceso a datos y el envío son los que difieren.
 //
 // Fuera de alcance por ahora: contexto de "última campaña" (Telegram no tiene
-// campañas todavía), media multimodal de entrada hacia el modelo y envío de
-// media de salida. humanizeEnabled sí funciona: reusa botSendQueue igual que
-// WhatsApp, con el discriminador `channel` en el payload del job.
+// campañas todavía) y envío de media de salida (el bot sigue respondiendo
+// solo texto, en ambos canales). humanizeEnabled sí funciona: reusa
+// botSendQueue igual que WhatsApp, con el discriminador `channel` en el
+// payload del job.
 
 interface TelegramBotMessageJob {
   botId: string;
@@ -30,6 +35,7 @@ interface TelegramBotMessageJob {
   messageId?: string;
   messageType?: string;
   mediaId?: string | null;
+  localMediaPath?: string | null;
   mimeType?: string | null;
   caption?: string | null;
   filename?: string | null;
@@ -183,13 +189,8 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
     });
   }
 
-  // A diferencia de bot-worker.ts, no hay lectura de bytes de media local
-  // (buildUserContent) — el bot de Telegram responde solo a partir del texto
-  // recibido; la imagen/documento entrante ya se persistió y se puede ver en
-  // el inbox, pero el modelo de IA aún no la recibe como input multimodal en
-  // este canal (fuera de alcance, ver plan).
-  const bodyText = job.caption ?? incomingMessage ?? "";
-  messages.push({ role: "user", content: bodyText || `[${job.messageType ?? "text"}]` });
+  const userContent = await buildUserContent(job, provider);
+  messages.push({ role: "user", content: userContent });
 
   const client = getAIProvider(provider, apiKey);
   const result = await client.complete({
@@ -286,6 +287,72 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
       await checkBudgetAlert(bot.userId, now);
     })(),
   ]);
+}
+
+// Port de lib/workers/bot-worker.ts:buildUserContent(), leyendo ChannelMessage
+// en vez de WAMessage — los bytes de media ya están en disco (media-worker.ts
+// reusa saveMediaFromBuffer para Telegram igual que para WhatsApp), así que
+// esto es solo la mitad de "conectar al modelo", no un pipeline nuevo.
+async function buildUserContent(job: TelegramBotMessageJob, provider: AIProvider): Promise<string | ContentPart[]> {
+  const isImage = job.messageType === "image" || job.messageType === "sticker";
+  // Igual que en WhatsApp: entendimiento de audio solo vía inlineData nativo
+  // de Gemini — OpenRouter no tiene una forma genérica de audio.
+  const isAudio = job.messageType === "audio" && provider === "google";
+  const isDocument = job.messageType === "document";
+  const bodyText = job.caption ?? job.incomingMessage ?? "";
+  const fallbackLabel = `[${job.messageType === "audio" ? "audio" : job.messageType} recibido]`;
+
+  if (!isImage && !isAudio && !isDocument) {
+    return bodyText || `[${job.messageType ?? "text"}]`;
+  }
+
+  let localPath = job.localMediaPath ?? null;
+  let mimeType = job.mimeType ?? null;
+
+  // El worker de descarga de Telegram puede no haber terminado aún — re-chequear.
+  if (!localPath && job.messageId) {
+    const latest = await prisma.channelMessage.findUnique({
+      where: { id: job.messageId },
+      select: { mediaUrl: true, mimeType: true },
+    }).catch(() => null);
+    if (latest?.mediaUrl) localPath = latest.mediaUrl;
+    if (latest?.mimeType) mimeType = latest.mimeType;
+  }
+
+  if (!localPath) {
+    return bodyText && bodyText !== `[${job.messageType}]` ? `${fallbackLabel} ${bodyText}` : fallbackLabel;
+  }
+  const absolute = resolveAbsolutePath(localPath);
+
+  if (isDocument) {
+    const extracted = await extractDocumentText(absolute, mimeType);
+    if (!extracted) {
+      return bodyText && bodyText !== `[document]` ? `${fallbackLabel} ${bodyText}` : fallbackLabel;
+    }
+    const label = job.filename ? `Documento "${job.filename}"` : "Documento recibido";
+    const caption = bodyText && bodyText !== `[document]` ? `\nMensaje del prospecto: ${bodyText}` : "";
+    return `${label}, contenido extraído:\n\n${extracted}${caption}`;
+  }
+
+  try {
+    const buffer = await fs.readFile(absolute);
+    const base64 = buffer.toString("base64");
+    const mime = mimeType ?? (isImage ? "image/jpeg" : "audio/ogg");
+
+    const parts: ContentPart[] = [];
+    if (bodyText && bodyText !== `[${job.messageType}]`) {
+      parts.push({ type: "text", text: bodyText });
+    }
+    parts.push(
+      isImage
+        ? { type: "image_url", image_url: { url: `data:${mime};base64,${base64}` } }
+        : { type: "audio_url", audio_url: { url: `data:${mime};base64,${base64}` } }
+    );
+    return parts;
+  } catch (err) {
+    console.error(`[telegram bot-worker] No se pudo leer el ${isImage ? "imagen" : "audio"} local:`, err);
+    return bodyText || fallbackLabel;
+  }
 }
 
 function summarizeText(newMessage: string, existingSummary: string | null): string {

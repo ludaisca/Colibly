@@ -36,13 +36,16 @@ export interface LeadScoreRow {
   updatedAt: string;
   scorer: { id: string; name: string };
   // De qué campaña masiva o automatización de leads salió el chat, si alguna
-  // — ver lib/whatsapp/chat-attribution.ts. Null si el chat nunca recibió un
-  // mensaje saliente atribuido a ninguna de las dos.
+  // — ver lib/whatsapp/chat-attribution.ts. Siempre null para Telegram (no
+  // tiene el concepto de campañas/automatizaciones, exclusivo de Meta).
   campaign: { id: string; name: string; origin: "manual" | "automatizacion" } | null;
+  channel: "WHATSAPP" | "TELEGRAM";
   chat: {
     id: string;
     name: string | null;
-    remoteJid: string;
+    // remoteJid (WhatsApp) o externalId (Telegram) — nombre genérico porque
+    // ambos canales alimentan la misma fila.
+    identifier: string;
     status: string;
     accountId: string;
     account: { id: string; name: string };
@@ -79,9 +82,10 @@ function formatDate(value: string): string {
 }
 
 export const EXPORT_COLUMNS: ExportColumnDef<LeadScoreRow>[] = [
-  { key: "lead", label: "Lead", get: (r) => r.chat.name || r.chat.remoteJid.split("@")[0] },
+  { key: "channel", label: "Canal", get: (r) => (r.channel === "TELEGRAM" ? "Telegram" : "WhatsApp") },
+  { key: "lead", label: "Lead", get: (r) => r.chat.name || r.chat.identifier.split("@")[0] },
   { key: "realName", label: "Nombre real", get: (r) => r.chat.contact?.realName ?? "" },
-  { key: "phone", label: "Teléfono", get: (r) => r.chat.remoteJid.split("@")[0] },
+  { key: "phone", label: "Teléfono", get: (r) => r.chat.identifier.split("@")[0] },
   { key: "account", label: "Cuenta", get: (r) => r.chat.account.name },
   { key: "campaign", label: "Campaña", get: (r) => r.campaign?.name ?? "" },
   { key: "origin", label: "Origen", get: (r) => (r.campaign ? CAMPAIGN_ORIGIN_LABEL[r.campaign.origin] : "") },

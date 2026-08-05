@@ -55,14 +55,49 @@ interface TelegramMessage {
   chat: { id: number };
 }
 
-// Solo texto por ahora — el bot de IA nunca genera media de salida (ver
-// AGENTS.md, "Bot reply stays text-only"), y el envío manual de adjuntos
-// desde el composer requeriría subir el archivo a Telegram vía multipart
-// (una URL pública no sirve: nuestro proxy de media exige la cookie de
-// sesión, que Telegram como servidor externo no tiene). Queda fuera de esta
-// primera pasada — ver "Fuera de alcance" en el plan.
+// El bot de IA sigue generando solo texto (ver AGENTS.md, "Bot reply stays
+// text-only") — sendMediaMessage más abajo es solo para el envío manual desde
+// el composer.
 export async function sendTextMessage(botToken: string, chatId: string, text: string): Promise<TelegramMessage> {
   return callTelegramApi<TelegramMessage>(botToken, "sendMessage", { chat_id: chatId, text });
+}
+
+export type TelegramMediaKind = "photo" | "document" | "audio" | "video";
+
+interface TelegramSentMedia extends TelegramMessage {
+  photo?: { file_id: string }[];
+  document?: { file_id: string };
+  audio?: { file_id: string };
+  video?: { file_id: string };
+}
+
+// A diferencia de callTelegramApi() (JSON), sendPhoto/sendDocument/etc.
+// requieren multipart — Telegram sube los bytes directo en el mismo call que
+// envía el mensaje, sin el paso separado "subir → obtener id" de la Graph API
+// de Meta.
+export async function sendMediaMessage(
+  botToken: string,
+  chatId: string,
+  kind: TelegramMediaKind,
+  buffer: Buffer,
+  filename: string,
+  mimeType: string,
+  caption?: string
+): Promise<TelegramSentMedia> {
+  const method = `send${kind[0].toUpperCase()}${kind.slice(1)}`;
+  const url = `${BASE_URL}/bot${botToken}/${method}`;
+
+  const formData = new FormData();
+  formData.append("chat_id", chatId);
+  formData.append(kind, new Blob([new Uint8Array(buffer)], { type: mimeType }), filename);
+  if (caption) formData.append("caption", caption);
+
+  const res = await fetch(url, { method: "POST", body: formData });
+  const data = (await res.json()) as TelegramApiResponse<TelegramSentMedia>;
+  if (!data.ok || !data.result) {
+    throw new Error(data.description ?? `Telegram send${kind} failed (HTTP ${res.status})`);
+  }
+  return data.result;
 }
 
 interface TelegramFile {

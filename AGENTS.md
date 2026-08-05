@@ -13,7 +13,7 @@
 Everything runs in Docker. Never install dependencies or databases on the host.
 
 ```bash
-docker compose up --build   # dev server + postgres + redis, hot reload, port 3001
+docker compose up --build   # dev server + postgres + redis, hot reload, port 15100
 docker compose down -v      # full teardown including volumes
 npx tsc --noEmit            # type check
 npm run build               # production build check
@@ -34,7 +34,7 @@ Three roles with different UIs and access:
 |---|---|---|
 | `admin` | everything: Panel, Estadísticas, Chats, Contactos, Bots IA, Calificadores, Cuentas, Plantillas, Campañas, Usuarios, Config | none |
 | `user` | like admin **minus** Contactos, Bots IA, Usuarios | `USER_BLOCKED`: `/whatsapp/contactos`, `/whatsapp/bots`, `/configuracion/ia` |
-| `ejecutivo` | Chats, Contactos, Config | `EXECUTIVE_BLOCKED`: `/dashboard`, `/estadisticas`, `/usuarios`, `/whatsapp/{bots,campanas,plantillas,cuentas}`, `/configuracion/ia` |
+| `ejecutivo` | Chats, Contactos, Config | `EXECUTIVE_BLOCKED`: `/dashboard`, `/estadisticas`, `/usuarios`, `/whatsapp/{bots,campanas,plantillas,cuentas}`, `/configuracion/ia`, `/ventas` |
 
 Two pages were removed in the 2026-07 nav flattening: the `/whatsapp` hub (its KPIs duplicated Panel, its account list duplicated `/whatsapp/cuentas`; the route survives only as a `redirect("/whatsapp/cuentas")` and the nav item "Cuentas WhatsApp" points straight at `/whatsapp/cuentas`) and `/whatsapp/conocimiento` (fully redundant with the knowledge tab inside `whatsapp/bots/[id]`, which remains the only knowledge UI — its role-gating rides on `/whatsapp/bots`).
 
@@ -73,7 +73,7 @@ RSC pages should have a sibling `loading.tsx` with skeleton placeholders — Nex
 ## Database
 
 ### Schema
-`prisma/schema.prisma` — 32 models. Key relationships: `User → WAAccount[]`, `User → AppSettings (1:1)`, `WABot ↔ WABotKnowledge (M:N via WABotKnowledgeBot)`, `WAAccount → WAAccountShare[] → User`, `WAChat → Contact (1:1)`, `Contact ↔ Tag (M:N via ContactTag)`, `User → WALeadScorerBot[]`, `WAChat → WALeadScore[] ← WALeadScorerBot` (one score per `(chatId, scorerId)` pair, see "Lead scoring" below), `WAChat → WALeadRecoveryAttempt[]` (see "Lead recovery" below). `WAMessage` carries all media metadata: `messageType` (`text`/`image`/`audio`/`video`/`document`/`sticker`), `caption`, `mediaId` (Meta id), `mediaUrl` (relative path under `MEDIA_ROOT`), `mimeType`, `filename`, `bytesSize` (`width`/`height`/`duration` were dropped 2026-07 — Meta's webhook never populated them). `body` is reused for both text and caption-derived text; `caption` is the dedicated caption field.
+`prisma/schema.prisma` — 35 models. Key relationships: `User → WAAccount[]`, `User → AppSettings (1:1)`, `WABot ↔ WABotKnowledge (M:N via WABotKnowledgeBot)`, `WAAccount → WAAccountShare[] → User`, `WAChat → Contact (1:1)`, `Contact ↔ Tag (M:N via ContactTag)`, `User → WALeadScorerBot[]`, `WAChat → WALeadScore[] ← WALeadScorerBot` (one score per `(chatId, scorerId)` pair, see "Lead scoring" below), `WAChat → WALeadRecoveryAttempt[]` (see "Lead recovery" below). Generic channel tables parallel the WhatsApp ones: `ChannelAccount` (+ `ChannelAccountShare[]` → User, multi-canal equivalently scoped via `getUserAccountIds()`), `Conversation`, `ChannelMessage` (see "Canal genérico" below). Meta Ads tables: `MetaAdsAccount`, `MetaConversionEvent` (see "Meta Ads" below). `WAMessage` carries all media metadata: `messageType` (`text`/`image`/`audio`/`video`/`document`/`sticker`), `caption`, `mediaId` (Meta id), `mediaUrl` (relative path under `MEDIA_ROOT`), `mimeType`, `filename`, `bytesSize` (`width`/`height`/`duration` were dropped 2026-07 — Meta's webhook never populated them). `body` is reused for both text and caption-derived text; `caption` is the dedicated caption field.
 
 ### Commands
 ```bash
@@ -95,7 +95,7 @@ Uses `prisma.$transaction()` for atomic `count() + create()` — prevents race c
 
 ## Redis + BullMQ
 
-8 queues, auto-started via `instrumentation.ts`:
+10 queues, auto-started via `instrumentation.ts`:
 
 | Queue | Concurrency | Timeout | Trigger |
 |---|---|---|---|
@@ -107,6 +107,8 @@ Uses `prisma.$transaction()` for atomic `count() + create()` — prevents race c
 | `bot-message-send` | 5 | 60s | `bot-worker.ts` when `WABot.humanizeEnabled` is on — delivers each split chunk of a "humanized" reply as its own delayed job |
 | `lead-scoring` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — scheduled scorer runs, see "Lead scoring" |
 | `lead-recovery` | 1 | 60s | Self-scheduled repeatable tick (`*/15 * * * *`) — re-engages silent leads, see "Lead recovery" |
+| `sheets-sync` | 1 | 60s | Self-scheduled repeatable tick (`*/15 * * * *`) — syncs `GoogleAccount` spreadsheet exports |
+| `lead-sheet-import` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — imports leads from `LeadSheetSource` sheets |
 
 - `media-cleanup-worker.ts:processMediaCleanupJob()` deletes `WAMessage.mediaUrl` files older than `MEDIA_RETENTION_DAYS` (env var, default 90) and clears the column, keeping the `media_data` volume bounded. No-ops if `MEDIA_RETENTION_DAYS <= 0`.
 - **Bot reply humanization** (`WABot.humanizeEnabled`, opt-in, default `false`): when on, `bot-worker.ts` splits the reply on blank lines (`lib/whatsapp/humanize.ts:splitReply()`) and enqueues each chunk on `bot-message-send` with a cumulative simulated-typing delay (`computeTypingDelay()`, ~40ms/char, capped 0.8–8s) instead of calling `sendWhatsAppMessage()` synchronously — keeps the main `bot-messages` job from holding its concurrency slot for the whole send sequence. `bot-send-worker.ts:processBotSendJob()` re-fetches the `WAAccount` and does the actual send + `WAMessage`/`WAChat` bookkeeping per chunk. Tone/pacing only — never use this to imply the chat isn't automated (WhatsApp's Business Messaging Policy expects disclosure where applicable).
@@ -226,6 +228,17 @@ Autonomous re-engagement of leads that went silent ("en visto"). Config lives **
 
 This runs unattended and messages real leads — treat `leadRecoveryEnabled` and the hour thresholds as production-sensitive settings; never flip them in the DB while testing without telling the user.
 
+### Pipeline (Kanban de ventas)
+
+`/ventas` — visual pipeline Kanban for leads. Uses `Contact.leadStatus` (enum: `NEW`/`CONTACTED`/`QUALIFIED`/`CUSTOMER`/`LOST`).
+
+- **Server Component pattern**: `ventas/page.tsx` (RSC, loads contacts grouped by `leadStatus` via `getUserAccountIds()`) → `ventas/_board.tsx` (`"use client"`, receives serialized `BoardData`).
+- **Drag & drop**: `@dnd-kit/core` (`useDraggable`/`useDroppable`/`DndContext`). On drop across columns, optimistic update in local state + `PATCH /api/whatsapp/contacts/[id]` with `{ leadStatus }` (already accepted by `contactUpdateSchema`).
+- **Cards**: `app/components/pipeline/lead-card.tsx` — show `EntityAvatar`, phone, tags (max 3 + overflow), last activity time, lead score bar with color-coded label (frio/tibio/caliente).
+- **Stage constants**: `lib/pipeline/stages.ts` — `PIPELINE_STAGES`, `STAGE_LABEL`, `STAGE_COLOR_BORDER`, `STAGE_COLOR_BG`, `STAGE_DOT_COLOR`.
+- **Roles**: accessible to admin + user, blocked for ejecutivo. Added to `PROTECTED` + `EXECUTIVE_BLOCKED` in `proxy.ts`.
+- **Nav**: "Pipeline" item with `KanbanSquare` icon in `dashboard-shell.tsx` "Principal" group.
+
 ### Conversation-level features (distinct from Contact-level)
 
 These mirror equivalent Contact-level concepts but are **separate models** scoped to the `WAChat` itself, not the underlying lead/contact — don't conflate them:
@@ -240,12 +253,10 @@ These mirror equivalent Contact-level concepts but are **separate models** scope
 
 ## Design system
 
-All tokens in `app/globals.css` as CSS custom properties. Accent: berry (`#E0518F` dark, `#B02D68` light — 2026-07 rebrand away from the original WhatsApp-green accent, deliberately distinct from the brand association). **Neutrals are warm (2026-07 "Conversación primero" redesign)**: dark surfaces are warm charcoal (`#14120f` family, earthy hue — the berry lives only in `--accent`), light surfaces warm cream/gray (`#faf9f5`/`#f3f0e9`). `success` stays teal (`#2dd4bf` dark / `#0d9488` light) so it reads distinct from `accent` — don't let them drift back to the same hue.
-
-**Redesign identity elements** (apply with restraint, they're the signature — not defaults):
-- **Bubble corner**: `rounded-bubble` (small corner bottom-left) / `rounded-bubble-br` (bottom-right), defined as `@utility` in `globals.css`. Whitelist: `EntityAvatar`, primary `Button` variant, active sidebar item, own chat bubbles. Don't spread it to arbitrary surfaces.
-- **Per-entity hue**: 8 `.hue-0`…`.hue-7` classes set `--entity`/`--entity-bg` (oklch, light/dark aware, hues avoid success-teal ~180° and accent-berry ~300-25°), consumed via `bg-entity`/`text-entity`/`bg-entity-bg` utilities. **Only** assign via `HUE_CLASS[hueIndex(id)]`/`hueClassFor(id)` from `app/components/ui/hue.ts` (hash keyed by `accountId` so one WhatsApp number = one color everywhere) — never interpolate `hue-${n}`.
-- **Type scale**: `text-hero` (2.75rem, hero numbers), `text-page-title` (h1, rendered in Fraunces via `PageHeader`), `text-eyebrow` (section eyebrows). Every figure/phone/date/metric renders in `font-mono` (IBM Plex); Fraunces (`font-display`) is for page titles and section headings only.
+All tokens in `app/globals.css` as CSS custom properties. **2026-07 "fresco y cercano" redesign (in progress, step 3)** replaced the previous "Conversación primero" identity: accent is now teal (`#00B88D`), with a violet `--accent-2` (`#6C5CE7`) for secondary accents/icon tones — not a CTA color, don't use it where `--accent` belongs. `success` was moved off teal to green (`#2f8f45`) specifically to stop colliding with the new accent (it used to collide with the old berry-era warning about drifting hues — same rule, new colors). Surfaces are a light, near-white palette (`#fafbfa`/`#ffffff`/`#f2f7f5`). **Single theme for now**: `.light` intentionally duplicates `:root` 1:1 — a dark variant hasn't been designed yet for this palette, so the theme toggle is a no-op until that lands; don't "fix" this into two divergent palettes without checking first.
+- **Bubble corner retiring**: `rounded-bubble`/`rounded-bubble-br` (defined as `@utility` in `globals.css`) was the previous redesign's signature corner, whitelisted to `EntityAvatar`, primary `Button`, the active sidebar item, and own chat bubbles. All four have migrated to generous standard corners + soft shadow instead (`EntityAvatar`/`Button` → `rounded-lg`/`rounded-xl`, sidebar active item → `rounded-full` solid pill, chat bubbles → `rounded-2xl` with one corner squared via `rounded-tr-sm`/`rounded-tl-sm`). The utilities stay defined for now — **don't add new usages**; if you find one outside those four call sites it's leftover drift, migrate it the same way.
+- **Per-entity hue**: 8 `.hue-0`…`.hue-7` classes set `--entity`/`--entity-bg` (oklch, light/dark aware, hues avoid success-green ~140° and accent-teal ~165-180°), consumed via `bg-entity`/`text-entity`/`bg-entity-bg` utilities. `--entity-bg` mixes against `var(--surface)` (not `transparent`) so the tint stays visible on the new near-white surface. **Only** assign via `HUE_CLASS[hueIndex(id)]`/`hueClassFor(id)` from `app/components/ui/hue.ts` (hash keyed by `accountId` so one WhatsApp number = one color everywhere) — never interpolate `hue-${n}`.
+- **Type scale**: `text-hero` (2.75rem, hero numbers), `text-page-title` (h1, rendered via `PageHeader`), `text-eyebrow` (section eyebrows). Display/body fonts are Bricolage Grotesque (`--font-display`) / Hanken Grotesk (`--font-body`) — IBM Plex Mono was dropped, there's no separate `--font-data` anymore. `font-mono` is a **temporary bridge** aliased straight to the body font while remaining shared components migrate off it; the actual pattern for figures/phones/dates going forward is the `tabular-nums` utility (for alignment) plus a weight class, not `font-mono` — already done in `KpiStrip`, `dashboard/page.tsx`, `chat-composer.tsx`, `estadisticas/_view.tsx`/`_charts.tsx`, `contactos/page.tsx`. Components not yet touched may still carry `font-mono` classes; that's expected mid-migration, not a bug.
 
 **Never** write inline button/card/input classes. **Never** use Tailwind color literals. Use semantic tokens: `text-accent`, `bg-surface`, `text-muted`, `text-success`, etc.
 
@@ -259,10 +270,10 @@ Three select flavors in `app/components/ui/` — pick by need, don't build a fou
 
 The 2026-07 redesign replaced the old BentoGrid/TileGrid tile system (deleted: `bento-grid.tsx`, `tile-grid.tsx`, `stat-card.tsx`, `SkeletonCard`) with an editorial "workbench" layout. Primitives, all in `app/components/ui/`:
 
-- **`kpi-strip.tsx`** (`KpiStrip`, `KpiItem`) — single dense row of KPIs with vertical dividers, no boxes/icons. Values are pre-formatted strings in `font-mono`; `delta?`/`deltaTone?` for secondary figures, `href?` wraps the cell in a `Link`, `size="hero"|"compact"`. **Deliberately server-safe and icon-free**: no icon props means RSCs (`dashboard/page.tsx`) use it directly without hitting the "functions cannot be passed to Client Components" error.
+- **`kpi-strip.tsx`** (`KpiStrip`, `KpiItem`) — grid of bordered, shadowed cards (2 cols mobile, 4 on `lg:+`; was a flat divided row pre-"fresco y cercano"). Values are pre-formatted strings in `font-display` + `tabular-nums`; `delta?`/`deltaTone?` for secondary figures, `href?` wraps the cell in a `Link`, `size="hero"|"compact"`. **Deliberately server-safe and icon-free**: no icon props means RSCs (`dashboard/page.tsx`) use it directly without hitting the "functions cannot be passed to Client Components" error.
 - **`section-header.tsx`** (`SectionHeader`) — eyebrow (uppercase `text-eyebrow`) + Fraunces title + optional `action` ReactNode. Sections separate by typography, not bordered cards. Server-safe.
 - **`workbench.tsx`** (`Workbench`/`WorkbenchMain`/`WorkbenchAside`) — the `lg:grid-cols-3` editorial split (main 2/3 + aside 1/3, collapses to 1 col below `lg`). Server-safe.
-- **`avatar.tsx`** (`EntityAvatar`) — initials avatar, `rounded-bubble`, hue keyed by `id` (pass `accountId` for anything WhatsApp-scoped so one number = one color across inbox/lists/overviews). Server-safe.
+- **`avatar.tsx`** (`EntityAvatar`) — initials avatar, `rounded-lg`, hue keyed by `id` (pass `accountId` for anything WhatsApp-scoped so one number = one color across inbox/lists/overviews). Server-safe.
 - **`entity-list.tsx`** (`EntityList` + `EntityRow`, `"use client"`) — dense database-style rows replacing TileGrid on entity list pages (Contactos, Plantillas, Bots, Campañas ×2 tabs, Usuarios). **Same contract TileGrid had** (`rows`/`rowKey`/`loading`/`error`/`onRetry`/`emptyIcon`/`emptyTitle`/`emptyDescription`/`emptyAction`/`onRowClick`/`rowActions`, reusing `ListErrorState`/`EmptyState`/`SkeletonRow`), with `renderTile`→`renderRow` and no `columns`. `rowActions` renders inside the same `Dropdown`+`stopPropagation()` pattern, revealed on hover/focus on `md:+` and always visible on touch. For inline (non-dropdown) per-row actions, return a fragment from `renderRow`: `<><EntityRow …/><span onClick={stopPropagation}>…buttons…</span></>` (see Bots/Usuarios/Campañas). `EntityRow` gives the standard anatomy: `leading` (usually `EntityAvatar`), `title`, `subtitle`, `badges`, `meta` (right-aligned, hidden below `sm`, figures in `font-mono`). No sort headers — pages needing ordering keep a toolbar `<Select>`.
 
 Overview page shape (see `dashboard/page.tsx`, `estadisticas/_view.tsx`): `PageHeader` → `KpiStrip` → `Workbench` with `SectionHeader`-separated sections; entry stagger via `animate-fade-in-up` + `animation-delay-100..400`. `loading.tsx` files mirror the same skeleton shape — update them in the same change as their page.
@@ -273,7 +284,7 @@ Overview page shape (see `dashboard/page.tsx`, `estadisticas/_view.tsx`): `PageH
 
 `app/components/ui/page-header.tsx` (`title`/`description`/`actions`) renders the h1 in `font-display text-page-title` (Fraunces). Use it on every top-level list/dashboard page; detail pages with a back-link (`bots/[id]`, `campanas/[id]`, `cuentas/[id]`) keep their own back-link + heading instead.
 
-**Chat rail**: `chat-workspace.tsx`'s conversation rail keeps its own dense inbox structure (not workbench/EntityList) — the 2026-07 redesign only skinned it: `EntityAvatar` per row, hue-colored group headers with an `animate-pulse-live` dot, own bubbles in `rounded-bubble-br`. Structure/polling/composer untouched — still confirm with the user before restructuring it.
+**Chat rail**: `chat-workspace.tsx`'s conversation rail keeps its own dense inbox structure (not workbench/EntityList) — the redesign only skinned it: `EntityAvatar` per row, hue-colored group headers with an `animate-pulse-live` dot, own bubbles in `rounded-2xl rounded-tr-sm`. Structure/polling/composer untouched — still confirm with the user before restructuring it.
 
 ### Create/edit modal pattern
 
@@ -294,6 +305,7 @@ Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the stan
 
 ## Gotchas summary
 
+- **`node_modules` belongs to Docker** — `npm install` on the host will fail with `EACCES`. Always install packages inside the container: `docker compose exec app npm install <pkg>`.
 - **`npm run build` inside the dev compose fails with `TypeError: Cannot read properties of null (reading 'useContext')` while prerendering** — `docker-compose.override.yml` sets `NODE_ENV=development`, which poisons the production build (dev React mixed into SSR chunks). It is NOT a code bug: run the build check as `docker compose run --rm -e NODE_ENV=production app sh -c "rm -rf .next && npm run build"`, then `docker compose run --rm -u root app sh -c "rm -rf .next"` + `docker compose up -d app` so the dev server doesn't boot on the production `.next`.
 - **Campaign visibility is per account, not per creator** — `GET /api/whatsapp/campaigns`, the `[id]` detail/DELETE and `send` all filter by `waAccountId ∈ getUserAccountIds()`; a `WAAccountShare` grantee can create/see/send campaigns on the shared account and the owner sees them too. Don't regress these back to `userId: session.user.id`.
 - **Role guards live in the APIs too, not just `proxy.ts`** — all `/api/whatsapp/bots/**` handlers 403 for any non-admin, and `GET /api/whatsapp/contacts` (the list) 403s for role `user` (the `contacts/[id]` detail stays open — the chat's ContactDrawer needs it). `PATCH /api/usuarios` refuses to demote the first-created admin or the last remaining admin.

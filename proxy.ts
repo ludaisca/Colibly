@@ -1,13 +1,13 @@
 import { auth } from "@/lib/auth";
 import { type NextRequest, NextResponse } from "next/server";
 
-const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/usuarios", "/estadisticas"];
+const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/usuarios", "/estadisticas", "/ventas", "/meta-ads"];
 // Ojo: las tres comprobaciones de rol viven DENTRO del bloque PROTECTED — una
 // ruta ausente de esa lista no solo pierde el redirect a /login con
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.
 // Cualquier sección nueva (un canal adicional, p. ej.) debe entrar en PROTECTED
 // aunque el layout ya redirija a los no autenticados.
-const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/configuracion/ia"];
+const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/configuracion/ia", "/ventas", "/meta-ads"];
 // Regular "user" role keeps Panel/Estadísticas/Chats/Cuentas/Plantillas/Campañas/Config,
 // but loses Contactos and Bots IA entirely (la antigua página /whatsapp/conocimiento se
 // eliminó — el flujo de conocimiento vive en la pestaña del bot, ya bloqueada vía
@@ -16,7 +16,9 @@ const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/wh
 // CRUD tab isn't a separate route to block.
 // /configuracion/ia (API keys, default provider/model, budget, lead recovery) is admin-only —
 // only the account owner administers AI provider config, not shared/delegated roles.
-const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia"];
+// /meta-ads es admin-only (credenciales de negocio sensibles, sin
+// WAAccountShare equivalente) — mismo criterio que /configuracion/ia.
+const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia", "/meta-ads"];
 const AUTH = ["/login", "/register"];
 const EXCLUDE = ["/_next", "/api", "/favicon.ico"];
 

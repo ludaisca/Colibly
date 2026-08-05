@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "./cn";
 
 type Size = "sm" | "md" | "lg" | "xl";
-type Tone = "accent" | "success" | "warning" | "danger" | "info" | "neutral";
+type Tone = "accent" | "accent-2" | "success" | "warning" | "danger" | "info" | "neutral";
 
 const SIZE: Record<Size, { box: string; icon: number }> = {
   sm: { box: "h-9  w-9  rounded-lg",  icon: 16 },
@@ -12,7 +12,8 @@ const SIZE: Record<Size, { box: string; icon: number }> = {
 };
 
 const TONE: Record<Tone, string> = {
-  accent:  "bg-accent/10 text-accent",
+  accent:    "bg-accent/10 text-accent",
+  "accent-2": "bg-accent-2-bg text-accent-2",
   success: "bg-success-bg text-success",
   warning: "bg-warning-bg text-warning",
   danger:  "bg-danger-bg text-danger",

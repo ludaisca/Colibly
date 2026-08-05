@@ -7,11 +7,11 @@ export default function EstadisticasLoading() {
       <PageHeader title="Estadísticas" description="Métricas globales de uso de la plataforma." />
 
       {/* Franja KPI */}
-      <div className="flex flex-wrap gap-x-12 gap-y-4">
+      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-9 w-24" />
+          <div key={i} className="space-y-2 rounded-xl border border-border bg-surface p-5 shadow-sm">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-7 w-20" />
           </div>
         ))}
       </div>
@@ -21,12 +21,8 @@ export default function EstadisticasLoading() {
           {/* Mensajes diarios */}
           <div className="space-y-3">
             <Skeleton className="h-6 w-44" />
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-5 flex-1 rounded-full" />
-              </div>
-            ))}
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-64 w-full rounded-lg" />
           </div>
 
           {/* Tablas */}
@@ -43,12 +39,32 @@ export default function EstadisticasLoading() {
         </div>
 
         <div className="space-y-10">
-          {Array.from({ length: 3 }).map((_, s) => (
+          {/* Inversión en IA */}
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-36" />
+            <Skeleton className="h-9 w-28" />
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-2 w-full rounded-full" />
+          </div>
+
+          {/* Chats calificados (dona) */}
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-36" />
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-28 w-28 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-3 w-full" />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Entregas por origen / Chats por número */}
+          {Array.from({ length: 2 }).map((_, s) => (
             <div key={s} className="space-y-3">
               <Skeleton className="h-6 w-36" />
-              <Skeleton className="h-10 w-28" />
-              <Skeleton className="h-3 w-40" />
-              <Skeleton className="h-2 w-full rounded-full" />
+              <Skeleton className="h-40 w-full rounded-lg" />
             </div>
           ))}
         </div>

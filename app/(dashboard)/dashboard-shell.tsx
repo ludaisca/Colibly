@@ -14,7 +14,13 @@ import {
   Phone,
   Send,
   Target,
+  KanbanSquare,
+  MessageCircle,
+  Camera,
 } from "lucide-react";
+// Meta (feedback loop de calificación de leads) usa el mismo ícono que
+// Difusión WhatsApp para no introducir un cuarto ícono de "anuncios" — la
+// etiqueta ya distingue el propósito.
 import { AppShell, type NavItem, type NavGroup } from "@/app/components/ui/app-shell";
 import { NotificationBell } from "@/app/components/ui/notification-bell";
 
@@ -57,6 +63,7 @@ export function DashboardShell({
             { href: "/whatsapp/chat",           label: "Bandeja de Chats", icon: MessageSquare },
             ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
             { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
+            { href: "/ventas",                  label: "Pipeline",         icon: KanbanSquare, exact: true },
           ],
         },
         {
@@ -79,7 +86,13 @@ export function DashboardShell({
           title: "Canales",
           items: [
             { href: "/whatsapp/cuentas",        label: "Cuentas WhatsApp", icon: Phone },
+            { href: "/messenger/cuentas",       label: "Cuentas Messenger", icon: MessageCircle },
+            { href: "/instagram/cuentas",       label: "Cuentas Instagram", icon: Camera },
             { href: "/telegram/cuentas",        label: "Cuentas Telegram", icon: Send },
+            // Admin-only: credenciales de negocio sensibles (mandan datos
+            // reales al ad account en producción), sin equivalente de
+            // WAAccountShare — mismo criterio que Bots IA/Usuarios.
+            ...(isAdmin ? [{ href: "/meta-ads" as const, label: "Meta Ads", icon: Megaphone as React.ElementType }] : []),
           ],
         },
         {

@@ -20,6 +20,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { IconBox } from "@/app/components/ui/icon-box";
 import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { cn } from "@/app/components/ui/cn";
 
 function formatTime(ts: Date | null): string {
   if (!ts) return "—";
@@ -118,56 +119,90 @@ export default async function DashboardPage() {
     },
   ];
 
+  const needsAttention = unreadCount > 0;
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <div className="animate-fade-in-up">
-        <PageHeader title="Panel" description="Resumen de tu actividad en WhatsApp" />
+        <PageHeader title="Panel" description="Resumen de tu actividad en WhatsApp y Telegram" />
       </div>
 
-      <div className="animate-fade-in-up animation-delay-100">
+      {/* Estado del sistema — la única métrica que responde "¿todo bien?"
+          antes que la fila de KPIs, así el usuario no tiene que sumar cifras
+          para saber si necesita actuar. */}
+      <div
+        className={cn(
+          "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-4 rounded-xl px-6 py-5 shadow-sm",
+          needsAttention ? "bg-warning-bg" : "bg-success-bg"
+        )}
+      >
+        <div className="flex items-center gap-3.5">
+          <span
+            className={cn(
+              "h-2.5 w-2.5 shrink-0 rounded-full animate-pulse-live",
+              needsAttention ? "bg-warning" : "bg-success"
+            )}
+          />
+          <div>
+            <p className={cn("font-display text-lg font-bold", needsAttention ? "text-warning" : "text-success")}>
+              {needsAttention ? "Necesita tu atención" : "Todo en orden"}
+            </p>
+            <p className="mt-0.5 text-sm text-muted">
+              {needsAttention
+                ? `${unreadCount} mensaje${unreadCount === 1 ? "" : "s"} sin leer en tu bandeja.`
+                : "Sin mensajes sin leer en este momento."}
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-medium text-muted-darker">Actualizado ahora</span>
+      </div>
+
+      <div className="animate-fade-in-up animation-delay-200">
         <KpiStrip items={kpis} />
       </div>
 
       <Workbench>
         <WorkbenchMain>
-          <section className="animate-fade-in-up animation-delay-200">
-            <SectionHeader
-              eyebrow="Actividad"
-              title="Chats recientes"
-              action={
-                chatsTotal > 0 ? (
-                  <Link
-                    href="/whatsapp/chat"
-                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline underline-offset-2"
-                  >
-                    Ver bandeja <ArrowRight size={12} />
-                  </Link>
-                ) : undefined
-              }
-            />
+          <section className="animate-fade-in-up animation-delay-300 rounded-xl border border-border bg-surface shadow-sm">
+            <div className="flex items-baseline justify-between gap-3 px-5 py-4">
+              <SectionHeader
+                eyebrow="Actividad"
+                title="Chats recientes"
+                action={
+                  chatsTotal > 0 ? (
+                    <Link
+                      href="/whatsapp/chat"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent-hover"
+                    >
+                      Ver bandeja <ArrowRight size={12} />
+                    </Link>
+                  ) : undefined
+                }
+              />
+            </div>
 
             {chats.length === 0 ? (
-              <div className="py-10 text-center">
+              <div className="px-5 py-10 text-center">
                 <p className="text-sm text-muted-darker">No hay conversaciones aún.</p>
                 <p className="text-xs text-muted mt-1">
                   Conecta un número de WhatsApp para empezar a recibir mensajes.
                 </p>
               </div>
             ) : (
-              <div className="mt-3 divide-y divide-border">
+              <div className="divide-y divide-border">
                 {chats.map((chat) => (
                   <Link
                     key={chat.id}
                     href={`/whatsapp/chat/${chat.accountId}/${chat.id}`}
-                    className="flex items-center gap-3 py-3 transition-colors hover:bg-surface/60"
+                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-light"
                   >
                     <EntityAvatar id={chat.accountId} name={chat.name} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{chat.name}</p>
+                      <p className="truncate text-sm font-semibold">{chat.name}</p>
                       <p className="truncate text-xs text-muted-darker">{chat.lastMessage ?? "—"}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="font-mono text-[11px] text-muted-darker">
+                      <span className="text-[11px] font-medium tabular-nums text-muted-darker">
                         {formatTime(chat.lastMessageAt)}
                       </span>
                       {showAccountBadge && (
@@ -182,39 +217,41 @@ export default async function DashboardPage() {
         </WorkbenchMain>
 
         <WorkbenchAside>
-          <section className="animate-fade-in-up animation-delay-300">
-            <SectionHeader eyebrow="Atajos" title="Acceso rápido" />
+          <section className="animate-fade-in-up animation-delay-400 rounded-xl border border-border bg-surface shadow-sm">
+            <div className="px-5 py-4">
+              <SectionHeader eyebrow="Atajos" title="Acceso rápido" />
+            </div>
 
-            <div className="mt-3 divide-y divide-border">
+            <div className="divide-y divide-border">
               <Link
                 href="/whatsapp/cuentas?nueva=1"
-                className="flex items-center gap-3 py-3.5 transition-colors hover:bg-surface/60"
+                className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-light"
               >
-                <IconBox icon={Plus} size="sm" tone="accent" />
+                <IconBox icon={Plus} size="sm" tone="accent-2" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">Agregar número</p>
+                  <p className="text-sm font-semibold">Agregar número</p>
                   <p className="truncate text-xs text-muted-darker">Conectar cuenta WhatsApp Business</p>
                 </div>
               </Link>
 
               <Link
                 href="/whatsapp/chat"
-                className="flex items-center gap-3 py-3.5 transition-colors hover:bg-surface/60"
+                className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-light"
               >
-                <IconBox icon={MessageCircle} size="sm" tone="info" />
+                <IconBox icon={MessageCircle} size="sm" tone="accent-2" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">Bandeja de chats</p>
+                  <p className="text-sm font-semibold">Bandeja de chats</p>
                   <p className="truncate text-xs text-muted-darker">Ver y responder conversaciones</p>
                 </div>
               </Link>
 
               <Link
                 href="/configuracion"
-                className="flex items-center gap-3 py-3.5 transition-colors hover:bg-surface/60"
+                className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-light"
               >
-                <IconBox icon={Settings} size="sm" tone="accent" />
+                <IconBox icon={Settings} size="sm" tone="accent-2" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">Configuración</p>
+                  <p className="text-sm font-semibold">Configuración</p>
                   <p className="truncate text-xs text-muted-darker">Administrar perfil y ajustes IA</p>
                 </div>
               </Link>

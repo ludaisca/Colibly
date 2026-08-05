@@ -14,6 +14,7 @@ import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import {
   CHATS_PAGE_SIZE,
+  type Channel,
   type ChatItem,
   type ChatStatus,
   type Message,
@@ -28,6 +29,16 @@ import {
 // los que se dividió (rail de cuentas, lista, hilo, composer) — la vista de
 // 3 columnas viene de montar rail + lista + hilo lado a lado. Ver
 // chat-shared.ts para los tipos/constantes compartidos.
+
+// Endpoint de subida de media saliente por canal — estático, no depende de
+// props/estado, así que vive a nivel de módulo en vez de recrearse en cada
+// render.
+const MEDIA_UPLOAD_ENDPOINT: Record<Channel, string> = {
+  WHATSAPP: "/api/whatsapp/media",
+  TELEGRAM: "/api/telegram/media",
+  MESSENGER: "/api/messenger/media",
+  INSTAGRAM: "/api/instagram/media",
+};
 
 interface ChatWorkspaceProps {
   initialAccountId?: string;
@@ -78,6 +89,10 @@ export function ChatWorkspace({
   // Media attachments state
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  // Botones de respuesta rápida en construcción para el próximo envío (solo
+  // WhatsApp Meta — ver "Mensajes interactivos" en AGENTS.md).
+  const [interactiveButtons, setInteractiveButtons] = useState<string[]>([]);
+  const [buttonsPanelOpen, setButtonsPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -86,73 +101,84 @@ export function ChatWorkspace({
   const prependHeightRef = useRef<number | null>(null);
   // Payload original de cada mensaje optimista, por tempId — permite
   // reintentar un envío fallido sin pedirle al usuario que lo reescriba.
-  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null }>>(new Map());
+  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }>>(new Map());
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(t);
   }, [search]);
 
-  const buildChatsParams = useCallback((page: number, pageSize: number): URLSearchParams => {
+  // Una fuente por canal — recorrida con .map() en vez de variables nombradas
+  // por canal (el patrón viejo, waPage/tgPage, no escalaba a 4 canales). Solo
+  // WhatsApp soporta el filtro de campaña (campaignId), por eso el builder de
+  // params lo agrega condicionalmente en vez de vivir en una lista aparte.
+  const CHANNEL_SOURCES = useMemo(() => [
+    { channel: "WHATSAPP" as const, endpoint: "/api/whatsapp/chats" },
+    { channel: "TELEGRAM" as const, endpoint: "/api/telegram/chats" },
+    { channel: "MESSENGER" as const, endpoint: "/api/messenger/chats" },
+    { channel: "INSTAGRAM" as const, endpoint: "/api/instagram/chats" },
+  ], []);
+
+  const buildChannelParams = useCallback((channel: (typeof CHANNEL_SOURCES)[number]["channel"], page: number, pageSize: number): URLSearchParams => {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-    if (campaignFilter) params.set("campaignId", campaignFilter);
+    if (channel === "WHATSAPP" && campaignFilter) params.set("campaignId", campaignFilter);
     if (hasRepliedFilter) params.set("hasReplied", hasRepliedFilter);
     if (accountFilter) params.set("accountId", accountFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
   }, [campaignFilter, hasRepliedFilter, accountFilter, debouncedSearch]);
 
-  // Mezcla /api/whatsapp/chats + /api/telegram/chats en una sola página
-  // ordenada por lastMessageAt. No es paginación combinada real a nivel de
-  // DB (cada fuente pagina por su cuenta y se fusiona en el cliente) — con
-  // el volumen de chats esperado por cuenta esto es suficiente y evita una
-  // vista SQL que uniera ambas tablas. Cuando el filtro de cuenta activo
-  // apunta a un solo canal, la otra fuente se omite (evita un 404 de "cuenta
-  // no encontrada" al pasarle un id que no le pertenece, y ahorra el fetch).
-  // waPage/tgPage van por separado a propósito: cada fuente pagina sobre su
-  // propio total, así que derivar una sola página del total mezclado saltaba
+  // Mezcla las 4 fuentes en una sola página ordenada por lastMessageAt. No es
+  // paginación combinada real a nivel de DB (cada fuente pagina por su cuenta
+  // y se fusiona en el cliente) — con el volumen de chats esperado por cuenta
+  // esto es suficiente y evita una vista SQL que uniera todas las tablas.
+  // Cuando el filtro de cuenta activo apunta a un solo canal, las demás
+  // fuentes se omiten (evita un 404 de "cuenta no encontrada" al pasarle un
+  // id que no les pertenece, y ahorra los fetches). El filtro de campaña
+  // también omite todo lo que no sea WhatsApp — las campañas son un concepto
+  // exclusivo de Meta Cloud API, ningún otro canal las tiene.
+  // `pages` va por canal a propósito: cada fuente pagina sobre su propio
+  // total, así que derivar una sola página del total mezclado saltaba
   // registros (con 40 chats en cada canal, la primera página traía 30+30=60 y
   // la siguiente pedía la página 3 de ambos — vacía en las dos, dejando 20
   // chats inalcanzables y el botón "Cargar más" visible para siempre).
-  const fetchChatsPage = useCallback(async (waPage: number, tgPage: number, pageSize: number): Promise<{ items: ChatItem[]; total: number }> => {
+  const fetchChatsPage = useCallback(async (pages: Record<(typeof CHANNEL_SOURCES)[number]["channel"], number>, pageSize: number): Promise<{ items: ChatItem[]; total: number }> => {
     const selectedAccountChannel = accountFilter ? accounts.find((a) => a.id === accountFilter)?.channel : undefined;
-    const skipWhatsapp = selectedAccountChannel === "TELEGRAM";
-    const skipTelegram = !!campaignFilter || selectedAccountChannel === "WHATSAPP";
 
-    const tgParams = new URLSearchParams({ page: String(tgPage), pageSize: String(pageSize) });
-    if (hasRepliedFilter) tgParams.set("hasReplied", hasRepliedFilter);
-    if (accountFilter) tgParams.set("accountId", accountFilter);
-    if (debouncedSearch) tgParams.set("search", debouncedSearch);
+    const results = await Promise.all(
+      CHANNEL_SOURCES.map(async (source) => {
+        const skip = (!!selectedAccountChannel && selectedAccountChannel !== source.channel) || (!!campaignFilter && source.channel !== "WHATSAPP");
+        if (skip) return { items: [] as ChatItem[], total: 0 };
+        const params = buildChannelParams(source.channel, pages[source.channel], pageSize);
+        const data = await fetch(`${source.endpoint}?${params}`).then((r) => r.json());
+        return { items: Array.isArray(data.items) ? (data.items as ChatItem[]) : [], total: data.total ?? 0 };
+      })
+    );
 
-    const [waData, tgData] = await Promise.all([
-      skipWhatsapp
-        ? Promise.resolve({ items: [] as ChatItem[], total: 0 })
-        : fetch(`/api/whatsapp/chats?${buildChatsParams(waPage, pageSize)}`).then((r) => r.json()),
-      skipTelegram
-        ? Promise.resolve({ items: [] as ChatItem[], total: 0 })
-        : fetch(`/api/telegram/chats?${tgParams}`).then((r) => r.json()),
-    ]);
-
-    const items = [...(Array.isArray(waData.items) ? waData.items : []), ...(Array.isArray(tgData.items) ? tgData.items : [])]
-      .sort((a, b) => {
-        const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-        const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-        return bt - at;
-      });
-    const total = (waData.total ?? 0) + (tgData.total ?? 0);
+    const items = results.flatMap((r) => r.items).sort((a, b) => {
+      const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bt - at;
+    });
+    const total = results.reduce((sum, r) => sum + r.total, 0);
     return { items, total };
-  }, [accountFilter, accounts, campaignFilter, hasRepliedFilter, debouncedSearch, buildChatsParams]);
+  }, [CHANNEL_SOURCES, accountFilter, accounts, campaignFilter, buildChannelParams]);
+
+  const firstPagePerChannel = useMemo(
+    () => Object.fromEntries(CHANNEL_SOURCES.map((s) => [s.channel, 1])) as Record<(typeof CHANNEL_SOURCES)[number]["channel"], number>,
+    [CHANNEL_SOURCES]
+  );
 
   const refreshChats = useCallback(async () => {
     try {
       const pageSize = Math.min(Math.max(chats.length, CHATS_PAGE_SIZE), 100);
-      const { items, total } = await fetchChatsPage(1, 1, pageSize);
+      const { items, total } = await fetchChatsPage(firstPagePerChannel, pageSize);
       setChats(items);
       setChatsTotal(total);
     } catch {
       toastError("Error al cargar chats");
     }
-  }, [chats.length, fetchChatsPage, toastError]);
+  }, [chats.length, fetchChatsPage, firstPagePerChannel, toastError]);
 
   const loadMoreChats = useCallback(async () => {
     setLoadingMoreChats(true);
@@ -161,13 +187,13 @@ export function ChatWorkspace({
       // memoria. Cuando ese conteo no es múltiplo del tamaño de página, la
       // petición vuelve a traer algunos ya cargados — de ahí el dedupe por id
       // al anexar, que además cubre los que el polling haya insertado ya.
-      const waLoaded = chats.filter((c) => c.channel === "WHATSAPP").length;
-      const tgLoaded = chats.filter((c) => c.channel === "TELEGRAM").length;
-      const { items, total } = await fetchChatsPage(
-        Math.floor(waLoaded / CHATS_PAGE_SIZE) + 1,
-        Math.floor(tgLoaded / CHATS_PAGE_SIZE) + 1,
-        CHATS_PAGE_SIZE
-      );
+      const pages = Object.fromEntries(
+        CHANNEL_SOURCES.map((s) => {
+          const loaded = chats.filter((c) => c.channel === s.channel).length;
+          return [s.channel, Math.floor(loaded / CHATS_PAGE_SIZE) + 1];
+        })
+      ) as Record<(typeof CHANNEL_SOURCES)[number]["channel"], number>;
+      const { items, total } = await fetchChatsPage(pages, CHATS_PAGE_SIZE);
       setChats((prev) => {
         const known = new Set(prev.map((c) => c.id));
         return [...prev, ...items.filter((c) => !known.has(c.id))];
@@ -178,7 +204,7 @@ export function ChatWorkspace({
     } finally {
       setLoadingMoreChats(false);
     }
-  }, [chats, fetchChatsPage, toastError]);
+  }, [CHANNEL_SOURCES, chats, fetchChatsPage, toastError]);
 
   // Handle URL changes to update state — tracked via a "previous prop" render-time
   // comparison (same idiom as Modal/Drawer's open/prevOpen) instead of an effect,
@@ -243,26 +269,33 @@ export function ChatWorkspace({
 
   // Cuentas para el selector — de la API, no derivadas de los chats cargados:
   // con el filtro de cuenta server-side, los chats en memoria pueden ser de
-  // una sola cuenta y el selector perdería las demás opciones. Se mezclan
-  // cuentas de WhatsApp y Telegram en una sola lista — el rail/selector no
-  // distingue el canal, solo pinta id+nombre+color.
+  // una sola cuenta y el selector perdería las demás opciones. Se mezclan las
+  // cuentas de los 4 canales en una sola lista — el rail/selector no
+  // distingue el canal, solo pinta id+nombre+color. Solo WhatsApp trae
+  // phoneNumber; los demás canales lo dejan null.
   useEffect(() => {
     Promise.all([
       fetch("/api/whatsapp/accounts").then((r) => r.json()),
       fetch("/api/telegram/accounts").then((r) => r.json()),
+      fetch("/api/messenger/accounts").then((r) => r.json()),
+      fetch("/api/instagram/accounts").then((r) => r.json()),
     ])
-      .then(([wa, tg]) => {
+      .then(([wa, tg, ms, ig]) => {
         const waOptions: AccountOption[] = Array.isArray(wa)
           ? wa.map((a: { id: string; name: string; phoneNumber: string | null }) => ({
               id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null, channel: "WHATSAPP",
             }))
           : [];
-        const tgOptions: AccountOption[] = Array.isArray(tg)
-          ? tg.map((a: { id: string; name: string }) => ({
-              id: a.id, name: a.name, phoneNumber: null, channel: "TELEGRAM",
-            }))
-          : [];
-        setAccounts([...waOptions, ...tgOptions]);
+        const toChannelOptions = (list: unknown, channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM"): AccountOption[] =>
+          Array.isArray(list)
+            ? list.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, phoneNumber: null, channel }))
+            : [];
+        setAccounts([
+          ...waOptions,
+          ...toChannelOptions(tg, "TELEGRAM"),
+          ...toChannelOptions(ms, "MESSENGER"),
+          ...toChannelOptions(ig, "INSTAGRAM"),
+        ]);
       })
       .catch(() => {});
   }, []);
@@ -272,7 +305,7 @@ export function ChatWorkspace({
     async function reset() {
       setLoadingChats(true);
       try {
-        const { items, total } = await fetchChatsPage(1, 1, CHATS_PAGE_SIZE);
+        const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
         setChats(items);
         setChatsTotal(total);
       } catch {
@@ -282,7 +315,7 @@ export function ChatWorkspace({
       }
     }
     reset();
-  }, [fetchChatsPage, toastError]);
+  }, [fetchChatsPage, firstPagePerChannel, toastError]);
 
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
@@ -291,7 +324,11 @@ export function ChatWorkspace({
   // Fetch canned responses
   useEffect(() => {
     if (!selectedChat) return;
-    fetch(`/api/whatsapp/canned-responses?waAccountId=${selectedChat.accountId}`)
+    fetch(
+      selectedChat.channel !== "WHATSAPP"
+        ? `/api/whatsapp/canned-responses?channelAccountId=${selectedChat.accountId}`
+        : `/api/whatsapp/canned-responses?waAccountId=${selectedChat.accountId}`
+    )
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d)) setCannedResponses(d);
@@ -455,16 +492,29 @@ export function ChatWorkspace({
   // reintentar. Compartido por el submit del composer y por el botón
   // "Reintentar" de una burbuja fallida.
   const performSend = useCallback(
-    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null }) => {
+    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }) => {
       if (!selectedChatId || !selectedChat) return;
       try {
         let data;
-        if (opts.file) {
+        if (opts.buttons.length > 0) {
+          const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "interactive",
+              body: opts.text.trim(),
+              buttons: opts.buttons.map((title) => ({ title })),
+            }),
+          });
+          data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "Error al enviar");
+        } else if (opts.file) {
           const uploadForm = new FormData();
           uploadForm.append("file", opts.file);
           uploadForm.append("accountId", selectedChat.accountId);
 
-          const upRes = await fetch(`/api/whatsapp/media`, { method: "POST", body: uploadForm });
+          const uploadUrl = MEDIA_UPLOAD_ENDPOINT[selectedChat.channel];
+          const upRes = await fetch(uploadUrl, { method: "POST", body: uploadForm });
           const upData = await upRes.json();
           if (!upRes.ok) throw new Error(upData.error ?? "Error al subir el medio");
 
@@ -510,18 +560,19 @@ export function ChatWorkspace({
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!newMessage.trim() && !attachment) return;
+    if (!newMessage.trim() && !attachment && interactiveButtons.length === 0) return;
     if (!selectedChatId || !selectedChat) return;
 
     const tempId = `temp-${crypto.randomUUID()}`;
     const text = newMessage;
     const file = attachment;
     const filePreviewUrl = file ? attachmentPreview : null;
+    const buttons = interactiveButtons;
 
     const optimisticMessage: Message = {
       id: tempId,
       direction: "OUTBOUND",
-      messageType: file ? detectMessageType(file) : "text",
+      messageType: buttons.length > 0 ? "interactive" : file ? detectMessageType(file) : "text",
       body: file ? null : text.trim(),
       caption: file && text.trim() ? text.trim() : null,
       mediaId: null,
@@ -530,20 +581,26 @@ export function ChatWorkspace({
       mimeType: file?.type ?? null,
       filename: file?.name ?? null,
       bytesSize: file?.size ?? null,
+      interactivePayload:
+        buttons.length > 0
+          ? { buttons: buttons.map((title, i) => ({ id: `btn_${i + 1}`, title })) }
+          : undefined,
       status: "sending",
       timestamp: new Date().toISOString(),
     };
 
-    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl });
+    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl, buttons });
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
     // Reset del composer sin revocar el object URL todavía — la burbuja
     // optimista lo sigue usando hasta que el envío se confirme o falle.
     setAttachment(null);
     setAttachmentPreview(null);
+    setInteractiveButtons([]);
+    setButtonsPanelOpen(false);
 
     setSending(true);
-    await performSend(tempId, { text, file, filePreviewUrl });
+    await performSend(tempId, { text, file, filePreviewUrl, buttons });
     setSending(false);
   }
 
@@ -698,7 +755,12 @@ export function ChatWorkspace({
               cannedIndex={cannedIndex}
               onCannedIndexChange={setCannedIndex}
               onInsertCanned={insertCannedResponse}
-              attachmentsDisabled={selectedChat.channel === "TELEGRAM"}
+              attachmentsDisabled={interactiveButtons.length > 0}
+              interactiveButtons={interactiveButtons}
+              onButtonsChange={setInteractiveButtons}
+              buttonsPanelOpen={buttonsPanelOpen}
+              onToggleButtonsPanel={() => setButtonsPanelOpen((v) => !v)}
+              interactiveDisabled={selectedChat.channel !== "WHATSAPP" || !!attachment}
             />
           </>
         ) : (

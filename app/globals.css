@@ -1,47 +1,59 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
-   BASE TOKENS — dark (default)
+   BASE TOKENS
+   Redisño 2026-07 "fresco y cercano": paleta corporativa-amigable pensada
+   para un equipo de marketing (visual, no técnico) — reemplaza el acento
+   berry y el registro editorial-serif del rediseño anterior.
+   Tema único por ahora (sin variante oscura definida todavía — pendiente
+   de una siguiente iteración): .light usa los mismos valores que :root
+   intencionalmente, así el toggle de tema no produce un dark mode a medio
+   diseñar mientras migramos el resto de módulos.
    ───────────────────────────────────────────────── */
 :root {
-  /* Surfaces — warm charcoal (hue tierra, no berry: el berry vive solo en
-     --accent; los neutros cálidos hacen el fondo "de madera", no "de terminal") */
-  --background:    #14120f;
-  --foreground:    #f2efe9;
-  --surface:       #1c1915;
-  --surface-light: #26221b;
-  --border:        #342e24;
+  --background:    #fafbfa;
+  --foreground:    #1a2421;
+  --surface:       #ffffff;
+  --surface-light: #f2f7f5;
+  --border:        #e3e8e5;
 
   /* Text */
-  --muted:         #a69f92;
-  --muted-darker:  #7c7568;
+  --muted:         #5b6b64;
+  --muted-darker:  #8fa098;
 
-  /* Brand — berry, deliberadamente alejado del verde WhatsApp (2026-07 rebrand) */
-  --accent:        #E0518F;
-  --accent-hover:  #C23D77;
+  /* Brand — teal fresco como acento principal; violeta suave como acento de
+     apoyo (usado en detalles secundarios, no en estados/CTAs primarios). */
+  --accent:        #00B88D;
+  --accent-hover:  #009973;
   --on-accent:     #ffffff;
 
-  /* Semantic */
-  --success:       #2dd4bf;
-  --success-bg:    rgba(45, 212, 191, 0.12);
-  --success-border:rgba(45, 212, 191, 0.25);
+  --accent-2:       #6C5CE7;
+  --accent-2-hover: #5847C9;
+  --accent-2-bg:    rgba(108, 92, 231, 0.10);
 
-  --warning:       #fbbf24;
-  --warning-bg:    rgba(251, 191, 36, 0.10);
-  --warning-border:rgba(251, 191, 36, 0.25);
+  /* Semantic — deliberadamente separados en hue del accent teal (antes el
+     success también era teal y colisionaba visualmente con el acento). */
+  --success:       #2f8f45;
+  --success-bg:    rgba(63, 166, 83, 0.13);
+  --success-border:rgba(63, 166, 83, 0.32);
 
-  --danger:        #f87171;
-  --danger-bg:     rgba(248, 113, 113, 0.10);
-  --danger-border: rgba(248, 113, 113, 0.25);
+  --warning:       #b5790f;
+  --warning-bg:    rgba(216, 154, 31, 0.14);
+  --warning-border:rgba(216, 154, 31, 0.32);
 
-  --info:          #60a5fa;
-  --info-bg:       rgba(96, 165, 250, 0.10);
-  --info-border:   rgba(96, 165, 250, 0.25);
+  --danger:        #d1483c;
+  --danger-bg:     rgba(228, 87, 74, 0.12);
+  --danger-border: rgba(228, 87, 74, 0.3);
 
-  /* Elevation */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.35);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.55), 0 4px 8px rgba(0,0,0,0.4);
+  --info:          #3b7ddb;
+  --info-bg:       rgba(59, 125, 219, 0.12);
+  --info-border:   rgba(59, 125, 219, 0.3);
+
+  /* Elevation — sombras suaves multicapa, apropiadas para tarjetas sobre
+     fondo claro (antes calibradas para superficies oscuras). */
+  --shadow-sm: 0 1px 2px rgba(20, 30, 25, 0.05);
+  --shadow-md: 0 10px 28px rgba(20, 30, 25, 0.08), 0 2px 6px rgba(20, 30, 25, 0.05);
+  --shadow-lg: 0 20px 48px rgba(20, 30, 25, 0.12), 0 4px 10px rgba(20, 30, 25, 0.06);
 
   /* Focus */
   --ring:      var(--accent);
@@ -53,10 +65,10 @@
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
 
-  /* Hue por entidad (cuentas WhatsApp) — lightness/chroma fijos por tema, solo
-     varía el hue. La paleta esquiva ~180° (success teal) y todo el rango
-     ~300-25° (accent berry, 2026-07 rebrand) para que el color de cuenta nunca
-     se confunda con estados semánticos ni con la marca.
+  /* Hue por entidad (cuentas WhatsApp/Telegram) — lightness/chroma fijos por
+     tema, solo varía el hue. El set original ya esquivaba ~180° (donde vivía
+     el viejo success teal) y ~300-25° (donde vivía el viejo accent berry);
+     esa franja ~180° ahora protege al nuevo accent teal casi sin cambios.
      Solo asignar vía HUE_CLASS de lib/…/hue.ts — nunca interpolar "hue-N". */
   --entity: oklch(0.78 0.11 60); /* fallback si falta la clase hue-N */
 
@@ -68,42 +80,46 @@
 }
 
 /* ─────────────────────────────────────────────────
-   LIGHT TOKENS
+   LIGHT TOKENS — mismos valores que :root, ver nota arriba.
    ───────────────────────────────────────────────── */
 .light {
   color-scheme: light;
 
-  --background:    #faf9f5;
-  --foreground:    #1b1813;
-  --surface:       #f3f0e9;
-  --surface-light: #ebe6db;
-  --border:        #ded7c8;
-  --muted:         #5d574b;
-  --muted-darker:  #8f8878;
+  --background:    #fafbfa;
+  --foreground:    #1a2421;
+  --surface:       #ffffff;
+  --surface-light: #f2f7f5;
+  --border:        #e3e8e5;
+  --muted:         #5b6b64;
+  --muted-darker:  #8fa098;
 
-  --accent:        #B02D68;
-  --accent-hover:  #93214F;
+  --accent:        #00B88D;
+  --accent-hover:  #009973;
   --on-accent:     #ffffff;
 
-  --success:        #0d9488;
-  --success-bg:     #ccfbf1;
-  --success-border: #5eead4;
+  --accent-2:       #6C5CE7;
+  --accent-2-hover: #5847C9;
+  --accent-2-bg:    rgba(108, 92, 231, 0.10);
 
-  --warning:        #b45309;
-  --warning-bg:     #fef3c7;
-  --warning-border: #fcd34d;
+  --success:        #2f8f45;
+  --success-bg:     rgba(63, 166, 83, 0.13);
+  --success-border: rgba(63, 166, 83, 0.32);
 
-  --danger:         #dc2626;
-  --danger-bg:      #fee2e2;
-  --danger-border:  #fca5a5;
+  --warning:        #b5790f;
+  --warning-bg:     rgba(216, 154, 31, 0.14);
+  --warning-border: rgba(216, 154, 31, 0.32);
 
-  --info:           #2563eb;
-  --info-bg:        #dbeafe;
-  --info-border:    #93c5fd;
+  --danger:         #d1483c;
+  --danger-bg:      rgba(228, 87, 74, 0.12);
+  --danger-border:  rgba(228, 87, 74, 0.3);
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.08);
+  --info:           #3b7ddb;
+  --info-bg:        rgba(59, 125, 219, 0.12);
+  --info-border:    rgba(59, 125, 219, 0.3);
+
+  --shadow-sm: 0 1px 2px rgba(20, 30, 25, 0.05);
+  --shadow-md: 0 10px 28px rgba(20, 30, 25, 0.08), 0 2px 6px rgba(20, 30, 25, 0.05);
+  --shadow-lg: 0 20px 48px rgba(20, 30, 25, 0.12), 0 4px 10px rgba(20, 30, 25, 0.06);
 
   --ring:       var(--accent);
   --ring-offset: var(--background);
@@ -130,8 +146,14 @@
 .light .hue-6 { --entity: oklch(0.48 0.11 275); }
 .light .hue-7 { --entity: oklch(0.49 0.11 300); }
 
+/* Mezclado contra --surface (opaco), no "transparent": a 14% sobre
+   transparent el relleno quedaba casi invisible en algunos hues sobre el
+   --surface blanco puro del rediseño "fresco y cercano" (antes se probaba
+   sobre todo en el tema oscuro, donde el mismo 14% sí se notaba). Mezclar
+   contra un color sólido conocido da un tinte parejo y predecible en
+   cualquier hue, calibrado para el fondo real que va a tener detrás. */
 .hue-0, .hue-1, .hue-2, .hue-3, .hue-4, .hue-5, .hue-6, .hue-7 {
-  --entity-bg: color-mix(in oklab, var(--entity) 14%, transparent);
+  --entity-bg: color-mix(in oklab, var(--entity) 20%, var(--surface));
 }
 
 /* ─────────────────────────────────────────────────
@@ -149,6 +171,10 @@
   --color-accent:       var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-on-accent:    var(--on-accent);
+
+  --color-accent-2:       var(--accent-2);
+  --color-accent-2-hover: var(--accent-2-hover);
+  --color-accent-2-bg:    var(--accent-2-bg);
 
   --color-success:        var(--success);
   --color-success-bg:     var(--success-bg);
@@ -171,12 +197,16 @@
   --shadow-lg: var(--shadow-lg);
 
   --font-sans:    var(--font-body), system-ui, sans-serif;
-  --font-display: var(--font-display), Georgia, serif;
-  --font-mono:    var(--font-data), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-display), system-ui, sans-serif;
+  /* Puente temporal: el rediseño 2026-07 "fresco y cercano" retira la
+     tipografía monoespaciada (antes IBM Plex Mono) — font-mono cae en la
+     misma sans de cuerpo mientras el paso 3 termina de quitar los usos de
+     font-mono en los componentes compartidos (KpiStrip, EntityAvatar, etc). */
+  --font-mono:    var(--font-body), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Escala tipográfica del rediseño — text-hero (números protagonistas en
-     Fraunces/Plex), text-page-title (h1 de página), text-eyebrow (etiquetas
-     uppercase de sección). */
+  /* Escala tipográfica del rediseño — text-hero (números protagonistas),
+     text-page-title (h1 de página), text-eyebrow (etiquetas uppercase de
+     sección). */
   --text-hero: 2.75rem;
   --text-hero--line-height: 1.05;
   --text-page-title: 1.875rem;
@@ -186,9 +216,11 @@
 }
 
 /* ─────────────────────────────────────────────────
-   ESQUINA DE BURBUJA — firma visual del rediseño.
-   Solo en elementos de identidad (avatares, botón primario, item activo del
-   sidebar, burbujas propias, popovers) — no propagar a cualquier superficie.
+   ESQUINA DE BURBUJA — firma visual del rediseño "Conversación primero"
+   (2026-07). El rediseño "fresco y cercano" (paso 3 en curso) la retira en
+   favor de esquinas generosas + sombra suave; se deja definida aquí mientras
+   los componentes que todavía la usan (Button, EntityAvatar, nav activo del
+   sidebar) migran uno a uno — no agregar usos nuevos.
    ───────────────────────────────────────────────── */
 @utility rounded-bubble {
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);

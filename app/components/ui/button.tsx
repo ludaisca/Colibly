@@ -8,15 +8,12 @@ import { cn } from "./cn";
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "link";
 type Size = "sm" | "md" | "lg";
 
-// El radio va por variante (no en la base) porque primary usa la esquina de
-// burbuja del rediseño y mezclar rounded-lg + rounded-bubble-br en el mismo
-// elemento dejaría el resultado a merced del orden del CSS generado.
 const VARIANT: Record<Variant, string> = {
-  primary:   "rounded-bubble-br bg-accent text-on-accent font-semibold hover:bg-accent-hover hover:shadow-md disabled:opacity-60 disabled:shadow-none",
-  secondary: "rounded-lg border border-border text-foreground bg-transparent hover:bg-surface-light disabled:opacity-60",
-  ghost:     "rounded-lg text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-60",
-  danger:    "rounded-lg bg-danger-bg text-danger border border-danger-border hover:bg-danger/20 disabled:opacity-60",
-  link:      "rounded-lg text-accent hover:underline underline-offset-4 p-0 h-auto disabled:opacity-60",
+  primary:   "bg-accent text-on-accent font-semibold shadow-sm hover:bg-accent-hover hover:shadow-md disabled:opacity-60 disabled:shadow-none",
+  secondary: "border border-border text-foreground bg-surface hover:bg-surface-light disabled:opacity-60",
+  ghost:     "text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-60",
+  danger:    "bg-danger-bg text-danger border border-danger-border hover:bg-danger/20 disabled:opacity-60",
+  link:      "text-accent hover:underline underline-offset-4 p-0 h-auto disabled:opacity-60",
 };
 
 const SIZE: Record<Size, string> = {
@@ -58,7 +55,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       "inline-flex items-center justify-center cursor-pointer select-none",
       "transition-[background-color,color,border-color,box-shadow,transform] duration-fast ease-brand",
       "focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
-      variant !== "link" && "hover:-translate-y-px active:translate-y-0 active:scale-[0.98]",
+      variant !== "link" && "hover:-translate-y-px active:translate-y-0 active:scale-[0.98] rounded-xl",
       variant !== "link" && SIZE[size],
       VARIANT[variant],
       fullWidth && "w-full",

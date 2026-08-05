@@ -18,6 +18,10 @@ const MESSAGE_SELECT = {
   timestamp: true,
 } as const;
 
+// ChannelMessage (Telegram) no tiene interactivePayload — columna exclusiva
+// de WAMessage, ver "Mensajes interactivos" en AGENTS.md.
+const WA_MESSAGE_SELECT = { ...MESSAGE_SELECT, interactivePayload: true } as const;
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ chatId: string }> }
@@ -46,7 +50,7 @@ export async function GET(
       }
     }
 
-    if (resolved.channel === "TELEGRAM") {
+    if (resolved.channel !== "WHATSAPP") {
       const messages = await prisma.channelMessage.findMany({
         where: { conversationId: chatId, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
         select: MESSAGE_SELECT,
@@ -59,7 +63,7 @@ export async function GET(
 
     const messages = await prisma.wAMessage.findMany({
       where: { chatId, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
-      select: MESSAGE_SELECT,
+      select: WA_MESSAGE_SELECT,
       orderBy: { timestamp: "desc" },
       take: limit,
     });

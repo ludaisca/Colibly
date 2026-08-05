@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { cannedResponseSchema } from "@/lib/validations";
 
 export async function GET(req: Request) {
@@ -13,14 +13,44 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const waAccountId = searchParams.get("waAccountId");
-    const accountIds = await getUserAccountIds(session.user.id);
+    const channelAccountId = searchParams.get("channelAccountId");
 
-    if (waAccountId && !accountIds.includes(waAccountId)) {
-      return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+    if (waAccountId) {
+      const accountIds = await getUserAccountIds(session.user.id);
+      if (!accountIds.includes(waAccountId)) {
+        return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+      }
+      const cannedResponses = await prisma.cannedResponse.findMany({
+        where: { waAccountId },
+        orderBy: { shortcut: "asc" },
+      });
+      return NextResponse.json(cannedResponses);
     }
 
+    if (channelAccountId) {
+      const channelAccountIds = await getUserChannelAccountIds(session.user.id);
+      if (!channelAccountIds.includes(channelAccountId)) {
+        return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+      }
+      const cannedResponses = await prisma.cannedResponse.findMany({
+        where: { channelAccountId },
+        orderBy: { shortcut: "asc" },
+      });
+      return NextResponse.json(cannedResponses);
+    }
+
+    const [accountIds, channelAccountIds] = await Promise.all([
+      getUserAccountIds(session.user.id),
+      getUserChannelAccountIds(session.user.id),
+    ]);
+
     const cannedResponses = await prisma.cannedResponse.findMany({
-      where: { waAccountId: waAccountId ? waAccountId : { in: accountIds } },
+      where: {
+        OR: [
+          { waAccountId: { in: accountIds } },
+          { channelAccountId: { in: channelAccountIds } },
+        ],
+      },
       orderBy: { shortcut: "asc" },
     });
 
@@ -48,9 +78,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const accountIds = await getUserAccountIds(session.user.id);
-    if (!accountIds.includes(parsed.data.waAccountId)) {
-      return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+    if (parsed.data.waAccountId) {
+      const accountIds = await getUserAccountIds(session.user.id);
+      if (!accountIds.includes(parsed.data.waAccountId)) {
+        return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+      }
+    } else {
+      const channelAccountIds = await getUserChannelAccountIds(session.user.id);
+      if (!channelAccountIds.includes(parsed.data.channelAccountId!)) {
+        return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+      }
     }
 
     const cannedResponse = await prisma.cannedResponse.create({

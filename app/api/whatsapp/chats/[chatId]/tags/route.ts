@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
-
-async function getOwnedChat(userId: string, chatId: string) {
-  const accountIds = await getUserAccountIds(userId);
-  return prisma.wAChat.findFirst({
-    where: { id: chatId, accountId: { in: accountIds } },
-  });
-}
+import { resolveChatChannel } from "@/lib/chat-resolver";
 
 export async function GET(
   _req: Request,
@@ -21,13 +14,13 @@ export async function GET(
     }
 
     const { chatId } = await params;
-    const chat = await getOwnedChat(session.user.id, chatId);
-    if (!chat) {
+    const resolved = await resolveChatChannel(chatId, session.user.id);
+    if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
     const chatTags = await prisma.chatTag.findMany({
-      where: { chatId },
+      where: resolved.channel !== "WHATSAPP" ? { conversationId: chatId } : { chatId },
       select: { tag: { select: { id: true, name: true, color: true } } },
     });
 
@@ -50,8 +43,8 @@ export async function POST(
     }
 
     const { chatId } = await params;
-    const chat = await getOwnedChat(session.user.id, chatId);
-    if (!chat) {
+    const resolved = await resolveChatChannel(chatId, session.user.id);
+    if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
@@ -66,11 +59,19 @@ export async function POST(
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 
-    await prisma.chatTag.upsert({
-      where: { chatId_tagId: { chatId, tagId } },
-      create: { chatId, tagId },
-      update: {},
-    });
+    if (resolved.channel !== "WHATSAPP") {
+      await prisma.chatTag.upsert({
+        where: { conversationId_tagId: { conversationId: chatId, tagId } },
+        create: { conversationId: chatId, tagId },
+        update: {},
+      });
+    } else {
+      await prisma.chatTag.upsert({
+        where: { chatId_tagId: { chatId, tagId } },
+        create: { chatId, tagId },
+        update: {},
+      });
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
@@ -91,8 +92,8 @@ export async function DELETE(
     }
 
     const { chatId } = await params;
-    const chat = await getOwnedChat(session.user.id, chatId);
-    if (!chat) {
+    const resolved = await resolveChatChannel(chatId, session.user.id);
+    if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
@@ -102,7 +103,9 @@ export async function DELETE(
       return NextResponse.json({ error: "tagId es requerido" }, { status: 400 });
     }
 
-    await prisma.chatTag.deleteMany({ where: { chatId, tagId } });
+    await prisma.chatTag.deleteMany({
+      where: resolved.channel !== "WHATSAPP" ? { conversationId: chatId, tagId } : { chatId, tagId },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

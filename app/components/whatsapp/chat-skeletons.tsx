@@ -13,7 +13,7 @@ export function ChatListSkeleton() {
       <div className="flex-1 divide-y divide-border overflow-hidden">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-3 py-3">
-            <Skeleton className="h-10 w-10 rounded-bubble shrink-0" />
+            <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
             <div className="flex-1 space-y-1.5 min-w-0">
               <Skeleton className="h-3.5 w-2/3" />
               <Skeleton className="h-3 w-1/2" />
@@ -48,7 +48,7 @@ export function ChatBubblesSkeleton({ className }: { className?: string }) {
             className={cn(
               "h-10",
               b.w,
-              b.mine ? "rounded-bubble-br" : "rounded-bubble"
+              b.mine ? "rounded-2xl rounded-tr-sm" : "rounded-2xl rounded-tl-sm"
             )}
           />
         </div>

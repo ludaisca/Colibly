@@ -1,18 +1,18 @@
 "use client";
 
-import { Search, MessageSquare } from "lucide-react";
+import { Search, MessageSquare, Inbox } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
-import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { hueClassFor } from "@/app/components/ui/hue";
+import { cn } from "@/app/components/ui/cn";
+import { ChatFiltersPanel } from "./chat-filters-panel";
 import {
   formatTime,
   campaignTone,
-  HAS_REPLIED_OPTIONS,
   type AccountOption,
   type ChatItem,
   type CampaignOption,
@@ -21,7 +21,12 @@ import {
 // Lista de conversaciones — buscador, filtros de campaña/respuesta, y las
 // filas agrupadas por cuenta. El selector de cuenta solo se muestra debajo de
 // `lg` (arriba de esa resolución, ChatAccountRail cumple ese rol como rail de
-// íconos aparte). Extraído de chat-workspace.tsx sin tocar su lógica.
+// íconos aparte) — pero como fila de chips desplazable, no como <select>
+// nativo, para que se sienta como una extensión del rail y no como un form.
+// Los filtros de campaña/respuesta viven en ChatFiltersPanel (botón "Filtros"
+// + constructor de condiciones aplicar/limpiar) en vez de mostrarse siempre
+// como controles sueltos. Extraído de chat-workspace.tsx sin tocar su lógica
+// de datos/handlers.
 
 interface ChatListPanelProps {
   selectedChatId: string | null;
@@ -74,41 +79,56 @@ export function ChatListPanel({
 
   return (
     <div className={`${selectedChatId ? "hidden md:flex" : "flex"} md:flex flex-col w-full md:w-80 lg:w-96 border-r border-border shrink-0`}>
-      <div className="p-4 border-b border-border space-y-2">
-        <h1 className="text-lg font-bold tracking-tight mb-1">Chats</h1>
+      <div className="p-4 border-b border-border space-y-3">
+        <h1 className="text-lg font-bold tracking-tight">Chats</h1>
+
         {accountOptions.length > 1 && (
-          <Select value={accountFilter} onChange={(e) => onAccountFilterChange(e.target.value)} className="lg:hidden">
-            <option value="">Todos los números</option>
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 lg:hidden scrollbar-thin">
+            <button
+              type="button"
+              onClick={() => onAccountFilterChange("")}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                accountFilter === ""
+                  ? "border-accent bg-accent text-on-accent"
+                  : "border-border bg-surface text-muted hover:bg-surface-light"
+              )}
+            >
+              <Inbox size={13} /> Todos
+            </button>
             {accountOptions.map((acc) => (
-              <option key={acc.id} value={acc.id}>
-                {acc.name}{acc.phoneNumber ? ` · ${acc.phoneNumber}` : ""}
-              </option>
+              <button
+                key={acc.id}
+                type="button"
+                onClick={() => onAccountFilterChange(acc.id)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
+                  accountFilter === acc.id
+                    ? "border-accent bg-accent text-on-accent"
+                    : "border-border bg-surface text-muted hover:bg-surface-light"
+                )}
+              >
+                <EntityAvatar id={acc.id} name={acc.name} size="sm" />
+                {acc.name}
+              </button>
             ))}
-          </Select>
+          </div>
         )}
+
         <Input
           icon={Search}
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Buscar chat..."
         />
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <Select value={campaignFilter} onChange={(e) => onCampaignFilterChange(e.target.value)} className="text-xs">
-            <option value="">Todas las campañas</option>
-            {campaigns.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
-          <Select
-            value={hasRepliedFilter}
-            onChange={(e) => onHasRepliedFilterChange(e.target.value as "" | "yes" | "no")}
-            className="text-xs"
-          >
-            {HAS_REPLIED_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </Select>
-        </div>
+
+        <ChatFiltersPanel
+          campaigns={campaigns}
+          campaignFilter={campaignFilter}
+          onCampaignFilterChange={onCampaignFilterChange}
+          hasRepliedFilter={hasRepliedFilter}
+          onHasRepliedFilterChange={onHasRepliedFilterChange}
+        />
       </div>
       <div className="scrollbar-thin flex-1 overflow-y-auto">
         {loadingChats ? (
