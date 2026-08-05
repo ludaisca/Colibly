@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendRecoveryMessage, isWithinBusinessHours } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramRecoveryMessage } from "@/lib/telegram/lead-recovery";
+import { sendMetaChannelRecoveryMessage } from "@/lib/meta-messaging/lead-recovery";
 import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import type { AppSettings, WABot, WAAccount, ChannelAccount } from "@prisma/client";
@@ -116,12 +117,18 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
     }
   }
 
-  // Telegram — mismo criterio de candidatos que arriba, pero sin la ventana
-  // de 24h de Meta (Telegram no la impone), y comparte el mismo presupuesto
-  // sentCount/BATCH_SIZE del tick.
+  // Canales genéricos (Telegram/Messenger/Instagram) — mismo criterio de
+  // candidatos que arriba, pero sin la ventana de 24h de Meta (ninguno de
+  // los tres la impone), y comparte el mismo presupuesto sentCount/BATCH_SIZE
+  // del tick. El envío se despacha según el channel real de cada cuenta
+  // (channelBot.channelAccount.channel) — antes de este fix siempre se
+  // llamaba sendTelegramRecoveryMessage() sin importar el canal, así que una
+  // ChannelAccount de Messenger/Instagram (credentials sin `botToken`) hacía
+  // fallar el envío en silencio y la recuperación nunca ocurría para esos dos
+  // canales (ver lib/meta-messaging/lead-recovery.ts).
   const channelAccountIds = await getUserChannelAccountIds(settings.userId);
   if (channelAccountIds.length > 0) {
-    const tgCandidates = await prisma.conversation.findMany({
+    const channelCandidates = await prisma.conversation.findMany({
       where: {
         channelAccountId: { in: channelAccountIds },
         status: { in: ["OPEN", "PENDING"] },
@@ -137,8 +144,8 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       take: CANDIDATE_POOL,
     });
 
-    const silentConversations = tgCandidates.filter((c) => c.messages[0]?.direction === "OUTBOUND");
-    const tgBotCache = new Map<string, (WABot & { channelAccount: ChannelAccount | null }) | null>();
+    const silentConversations = channelCandidates.filter((c) => c.messages[0]?.direction === "OUTBOUND");
+    const channelBotCache = new Map<string, (WABot & { channelAccount: ChannelAccount | null }) | null>();
 
     for (const conv of silentConversations) {
       if (sentCount >= BATCH_SIZE) break;
@@ -156,30 +163,34 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
         where: { conversationId: conv.id, createdAt: { gt: lastInbound.timestamp } },
       });
 
-      let tgAttemptNumber: 1 | 2 | null = null;
+      let attemptNumber: 1 | 2 | null = null;
       if (attemptsSoFar === 0 && hoursSilent >= settings.leadRecoveryFirstMessageHours) {
-        tgAttemptNumber = 1;
+        attemptNumber = 1;
       } else if (
         attemptsSoFar === 1 &&
         settings.leadRecoverySecondMessageHours !== null &&
         hoursSilent >= settings.leadRecoverySecondMessageHours
       ) {
-        tgAttemptNumber = 2;
+        attemptNumber = 2;
       }
-      if (tgAttemptNumber === null) continue;
+      if (attemptNumber === null) continue;
 
-      if (!tgBotCache.has(conv.channelAccountId)) {
+      if (!channelBotCache.has(conv.channelAccountId)) {
         const bot = await prisma.wABot.findFirst({
           where: { channelAccountId: conv.channelAccountId, isActive: true, status: "ACTIVE" },
           include: { channelAccount: true },
         });
-        tgBotCache.set(conv.channelAccountId, bot);
+        channelBotCache.set(conv.channelAccountId, bot);
       }
-      const tgBot = tgBotCache.get(conv.channelAccountId);
-      if (!tgBot) continue;
+      const channelBot = channelBotCache.get(conv.channelAccountId);
+      if (!channelBot?.channelAccount) continue;
 
       try {
-        await sendTelegramRecoveryMessage(conv, tgBot, tgAttemptNumber, now);
+        if (channelBot.channelAccount.channel === "TELEGRAM") {
+          await sendTelegramRecoveryMessage(conv, channelBot, attemptNumber, now);
+        } else {
+          await sendMetaChannelRecoveryMessage(conv, channelBot, attemptNumber, now);
+        }
         sentAny = true;
         sentCount++;
       } catch (err) {

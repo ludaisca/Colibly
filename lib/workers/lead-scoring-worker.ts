@@ -94,15 +94,31 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
   // su propio alcance de cuentas (scheduleChannelAccountIds). Conversation no
   // tiene back-relation a WALeadScore (referencia blanda, sin @relation), así
   // que el filtro de "ya calificado, no obsoleto" va en una query separada.
+  //
+  // Solo Telegram: la calificación de leads es una decisión deliberada de NO
+  // extenderse a Messenger/Instagram todavía (mismo límite que
+  // `POST .../score` ya impone con un 400 — ver app/api/whatsapp/chats/[chatId]/score/route.ts).
+  // getUserChannelAccountIds() devuelve cuentas de los tres canales sin
+  // distinguir; sin este filtro, este tick calificaba conversaciones de
+  // Messenger/Instagram igual —inconsistencia real con lo que la API permite
+  // ver/pedir manualmente— así que se acota explícitamente a channel: "TELEGRAM".
   const eligibleChannelAccountIds = await getUserChannelAccountIds(scorer.userId);
   const scopedChannelAccountIds = scorer.scheduleChannelAccountIds.length > 0
     ? eligibleChannelAccountIds.filter((id) => scorer.scheduleChannelAccountIds.includes(id))
     : eligibleChannelAccountIds;
+  const telegramAccountIds = scopedChannelAccountIds.length > 0
+    ? (
+        await prisma.channelAccount.findMany({
+          where: { id: { in: scopedChannelAccountIds }, channel: "TELEGRAM" },
+          select: { id: true },
+        })
+      ).map((a) => a.id)
+    : [];
 
-  if (scopedChannelAccountIds.length > 0) {
+  if (telegramAccountIds.length > 0) {
     const tgCandidates = await prisma.conversation.findMany({
       where: {
-        channelAccountId: { in: scopedChannelAccountIds },
+        channelAccountId: { in: telegramAccountIds },
         status: { in: ["OPEN", "PENDING"] },
         lastMessageAt: { not: null },
         messages: { some: { direction: "INBOUND" } },
