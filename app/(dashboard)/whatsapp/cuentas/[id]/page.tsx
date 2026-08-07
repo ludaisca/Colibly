@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X, ArrowLeft } from "lucide-react";
+import { Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X, ArrowLeft, Plus } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -69,6 +69,36 @@ const ROLE_LABEL: Record<string, string> = {
   ejecutivo: "Ejecutivo",
 };
 
+// Roadmap P3-d — reglas de enrutamiento de auto-asignación.
+interface RoutingRule {
+  id: string;
+  order: number;
+  conditionType: "TAG" | "LEAD_ORIGIN" | "SCORE_LABEL";
+  conditionValue: string;
+  conditionLabel: string;
+  assignedTo: { id: string; name: string | null; email: string };
+}
+interface TagOption { id: string; name: string }
+interface EligibleUser { id: string; name: string | null; email: string }
+
+const LEAD_ORIGIN_OPTIONS = [
+  { value: "ORGANIC", label: "Orgánico" },
+  { value: "INSTANT_FORM", label: "Formulario de Meta Ads" },
+  { value: "CTWA", label: "Click-to-WhatsApp (anuncio)" },
+];
+const SCORE_LABEL_OPTIONS = [
+  { value: "descartado", label: "Descartado" },
+  { value: "frio", label: "Frío" },
+  { value: "interesado", label: "Interesado" },
+  { value: "oportunidad", label: "Oportunidad" },
+  { value: "prioridad_alta", label: "Prioridad alta" },
+];
+const CONDITION_TYPE_LABEL: Record<RoutingRule["conditionType"], string> = {
+  TAG: "Etiqueta",
+  LEAD_ORIGIN: "Origen del lead",
+  SCORE_LABEL: "Calificación de IA",
+};
+
 export default function CuentaDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -90,6 +120,14 @@ export default function CuentaDetailPage() {
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
   const [shareUserId, setShareUserId] = useState("");
   const [sharing, setSharing] = useState(false);
+
+  const [routingRules, setRoutingRules] = useState<RoutingRule[]>([]);
+  const [routingAssignees, setRoutingAssignees] = useState<EligibleUser[]>([]);
+  const [tags, setTags] = useState<TagOption[]>([]);
+  const [ruleConditionType, setRuleConditionType] = useState<RoutingRule["conditionType"]>("TAG");
+  const [ruleConditionValue, setRuleConditionValue] = useState("");
+  const [ruleAssignedToId, setRuleAssignedToId] = useState("");
+  const [addingRule, setAddingRule] = useState(false);
 
   const fetchAccount = useCallback(async () => {
     setLoading(true);
@@ -130,6 +168,62 @@ export default function CuentaDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, gated by role
     fetchSharing();
   }, [isAdmin, fetchSharing]);
+
+  const fetchRoutingRules = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}/routing-rules`);
+      const data = await res.json();
+      if (Array.isArray(data.rules)) setRoutingRules(data.rules);
+      if (Array.isArray(data.eligibleAssignees)) setRoutingAssignees(data.eligibleAssignees);
+    } catch {
+      // silencioso — igual que fetchSharing, es secundario a la info principal de la cuenta
+    }
+  }, [id]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, no depende de rol (a diferencia de compartir)
+    fetchRoutingRules();
+    fetch("/api/whatsapp/tags").then(r => r.json()).then(d => { if (Array.isArray(d)) setTags(d); }).catch(() => {});
+  }, [fetchRoutingRules]);
+
+  async function handleAddRule() {
+    if (!ruleConditionValue || !ruleAssignedToId) {
+      toastError("Completa la condición y el usuario destino");
+      return;
+    }
+    setAddingRule(true);
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}/routing-rules`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conditionType: ruleConditionType, conditionValue: ruleConditionValue, assignedToId: ruleAssignedToId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al crear la regla");
+      // No se agrega `data` directo al estado — la respuesta del POST no trae
+      // conditionLabel (ese cruce con el catálogo de Tag solo lo hace el GET);
+      // re-fetch asegura que la fila nueva se vea igual que las demás.
+      await fetchRoutingRules();
+      setRuleConditionValue("");
+      setRuleAssignedToId("");
+      success("Regla de enrutamiento agregada");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al crear la regla");
+    } finally {
+      setAddingRule(false);
+    }
+  }
+
+  async function handleDeleteRule(ruleId: string) {
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}/routing-rules/${ruleId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setRoutingRules(prev => prev.filter(r => r.id !== ruleId));
+      success("Regla eliminada");
+    } catch {
+      toastError("Error al eliminar la regla");
+    }
+  }
 
   async function handleShare() {
     if (!shareUserId) return;
@@ -368,6 +462,67 @@ export default function CuentaDetailPage() {
             </div>
             <Switch checked={account.autoAssignEnabled} onCheckedChange={handleToggleAutoAssign} />
           </div>
+
+          {account.autoAssignEnabled && (
+            <div className="space-y-3 border-t border-border pt-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Reglas de enrutamiento</p>
+                <p className="text-xs text-muted-darker">
+                  Antes de repartir por carga, se revisan estas reglas en orden — la primera que aplique manda el chat directo a ese agente (si aún tiene cupo).
+                </p>
+              </div>
+
+              {routingRules.length > 0 && (
+                <ol className="space-y-1.5">
+                  {routingRules.map((r, i) => (
+                    <li key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-light px-3 py-2 text-sm">
+                      <span>
+                        <span className="text-muted-darker">{i + 1}.</span>{" "}
+                        Si <strong>{CONDITION_TYPE_LABEL[r.conditionType]}</strong> = &quot;{r.conditionLabel}&quot; → {r.assignedTo.name ?? r.assignedTo.email}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteRule(r.id)}
+                        className="text-muted-darker transition-colors hover:text-danger"
+                        aria-label="Eliminar regla"
+                      >
+                        <X size={14} />
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              <div className="flex flex-wrap items-end gap-2">
+                <Select
+                  value={ruleConditionType}
+                  onChange={(e) => { setRuleConditionType(e.target.value as RoutingRule["conditionType"]); setRuleConditionValue(""); }}
+                  className="w-40"
+                >
+                  <option value="TAG">Etiqueta</option>
+                  <option value="LEAD_ORIGIN">Origen del lead</option>
+                  <option value="SCORE_LABEL">Calificación de IA</option>
+                </Select>
+
+                <Select value={ruleConditionValue} onChange={(e) => setRuleConditionValue(e.target.value)} className="flex-1 min-w-[140px]">
+                  <option value="">Seleccionar valor</option>
+                  {ruleConditionType === "TAG" && tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {ruleConditionType === "LEAD_ORIGIN" && LEAD_ORIGIN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {ruleConditionType === "SCORE_LABEL" && SCORE_LABEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+
+                <span className="text-xs text-muted-darker">→</span>
+
+                <Select value={ruleAssignedToId} onChange={(e) => setRuleAssignedToId(e.target.value)} className="flex-1 min-w-[160px]">
+                  <option value="">Asignar a...</option>
+                  {routingAssignees.map(u => <option key={u.id} value={u.id}>{u.name ?? u.email}</option>)}
+                </Select>
+
+                <Button size="sm" icon={addingRule ? undefined : Plus} onClick={handleAddRule} disabled={addingRule}>
+                  {addingRule ? <Spinner /> : "Agregar"}
+                </Button>
+              </div>
+            </div>
+          )}
         </section>
 
         {isAdmin && (
