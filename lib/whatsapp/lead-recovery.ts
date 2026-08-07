@@ -15,7 +15,11 @@ const HISTORY_LIMIT = 12;
 // should never actually trip, but if the config is ever loosened past 24h,
 // this is what stops a free-text send from violating Meta's policy instead
 // of silently failing at Meta's end.
-function isWithinServiceWindow(lastInboundAt: Date, now: Date): boolean {
+// Exportado: lib/sequences.ts (roadmap P3-a) reutiliza esta misma regla antes
+// de mandar el paso de una secuencia por WhatsApp — el límite de Meta no es
+// específico de la recuperación de leads, aplica a cualquier envío de texto
+// libre iniciado por el sistema.
+export function isWithinServiceWindow(lastInboundAt: Date, now: Date): boolean {
   return now.getTime() - lastInboundAt.getTime() < SERVICE_WINDOW_MS;
 }
 

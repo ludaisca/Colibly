@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getContactScopeIds, canAssignToContact } from "@/lib/appointments";
 import { appointmentUpdateSchema } from "@/lib/validations";
+import { enrollContactInTrigger } from "@/lib/sequences";
 
 const CONTACT_SELECT = {
   id: true,
@@ -121,6 +122,15 @@ export async function PATCH(
       data,
       select: APPOINTMENT_SELECT,
     });
+
+    // Trigger de secuencias (roadmap P3-a) — solo en la transición REAL hacia
+    // COMPLETED, no en cada PATCH que la deje en ese estado (evita
+    // reinscribir si se editan notas/duración de una cita ya completada).
+    if (parsed.data.status === "COMPLETED" && existing.status !== "COMPLETED") {
+      await enrollContactInTrigger("APPOINTMENT_COMPLETED", null, existing.contactId).catch((err) =>
+        console.error("[appointments] enrollContactInTrigger falló:", err)
+      );
+    }
 
     return NextResponse.json(appointment);
   } catch (error) {
