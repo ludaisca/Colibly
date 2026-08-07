@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, X, Plus, Upload, FileX } from "lucide-react";
+import { ArrowLeft, Save, X, Plus, Upload, FileX, Tag as TagIcon } from "lucide-react";
 import { Card, CardBody, CardFooter } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -17,11 +17,14 @@ import { Table, type TableColumn } from "@/app/components/ui/table";
 import { useToast } from "@/app/components/ui/toast";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import { parseCsv, type ParsedCsvRow } from "@/lib/whatsapp/parse-csv";
+import { phoneFromJid } from "@/lib/whatsapp/contact-name";
 import { TemplatePreview } from "@/app/components/whatsapp/template-preview";
 
 interface Account { id: string; name: string; channel: string; }
 interface Template { id: string; name: string; language: string; category: string; status: string; components: unknown; }
 interface RecipientRow { phoneNumber: string; contactName: string; params: string[] }
+interface TagOption { id: string; name: string; color: string }
+interface ContactListItem { id: string; remoteJid: string; name: string | null }
 
 const TEMPLATE_STATUS_LABEL: Record<string, string> = {
   PENDING: "En revisión",
@@ -62,6 +65,13 @@ export default function NewCampaignPage() {
   const [csvFileName, setCsvFileName] = useState<string | null>(null);
   const [csvPage, setCsvPage] = useState(0);
 
+  // Carga masiva por etiqueta (P3-b del roadmap) — comparte el mismo estado
+  // csvRows/csvFileName/csvPage que la importación CSV: son dos formas de
+  // llenar la misma lista de destinatarios en bulk, no dos listas separadas.
+  const [tags, setTags] = useState<TagOption[]>([]);
+  const [selectedTagId, setSelectedTagId] = useState("");
+  const [loadingTagContacts, setLoadingTagContacts] = useState(false);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -77,8 +87,19 @@ export default function NewCampaignPage() {
 
   useEffect(() => {
     fetch("/api/whatsapp/accounts").then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setAccounts(d.filter((a: Account) => a.channel === "META_CLOUD"));
+      // GET /api/whatsapp/accounts sobreescribe channel a "WHATSAPP" (discriminador de
+      // UI para mezclarse con /api/telegram/accounts) — nunca devuelve "META_CLOUD"
+      // literal, aunque esa sea la cuenta interna. Filtrar por "META_CLOUD" aquí dejaba
+      // el combo de cuentas siempre vacío — bug preexistente desde la integración de
+      // Telegram (commit 4ee4e31), encontrado al probar P3-b.
+      if (Array.isArray(d)) setAccounts(d.filter((a: Account) => a.channel === "WHATSAPP"));
     }).catch(() => toastError("Error al cargar cuentas"));
+  }, [toastError]);
+
+  useEffect(() => {
+    fetch("/api/whatsapp/tags").then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setTags(d);
+    }).catch(() => toastError("Error al cargar etiquetas"));
   }, [toastError]);
 
   useEffect(() => {
@@ -188,6 +209,46 @@ export default function NewCampaignPage() {
     setCsvRows([]);
     setCsvFileName(null);
     setCsvPage(0);
+  }
+
+  // Recorre /api/whatsapp/contacts por página (100 es el tope que acepta esa
+  // ruta) hasta agotar la etiqueta — una etiqueta puede tener más contactos
+  // de los que caben en una sola página. Escribe en el mismo csvRows/
+  // csvFileName que usa la importación CSV: es la misma lista de destinatarios
+  // en bulk, solo con otra fuente.
+  async function loadRecipientsByTag() {
+    if (!waAccountId || !selectedTagId) return;
+    setLoadingTagContacts(true);
+    try {
+      const rows: ParsedCsvRow[] = [];
+      let page = 1;
+      let total = Infinity;
+      while (rows.length < total) {
+        const res = await fetch(`/api/whatsapp/contacts?accountId=${waAccountId}&tagId=${selectedTagId}&page=${page}&pageSize=100`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Error al cargar contactos de la etiqueta");
+        total = data.total ?? 0;
+        const items: ContactListItem[] = Array.isArray(data.items) ? data.items : [];
+        for (const c of items) {
+          rows.push({ id: `tag-${c.id}`, phoneNumber: phoneFromJid(c.remoteJid), contactName: c.name ?? "", params: [] });
+        }
+        if (items.length === 0) break;
+        page += 1;
+      }
+
+      if (rows.length === 0) {
+        toastError("Esa etiqueta no tiene contactos en esta cuenta");
+        return;
+      }
+      setCsvRows(rows);
+      setCsvFileName(`Etiqueta: ${tags.find(t => t.id === selectedTagId)?.name ?? ""}`);
+      setCsvPage(0);
+      success(`${rows.length} destinatario(s) cargados desde la etiqueta`);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al cargar contactos");
+    } finally {
+      setLoadingTagContacts(false);
+    }
   }
 
   const csvTotalPages = Math.max(1, Math.ceil(csvRows.length / CSV_PAGE_SIZE));
@@ -508,7 +569,7 @@ export default function NewCampaignPage() {
 
                   <div className="border border-border rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Importar desde CSV</span>
+                      <span className="text-sm font-medium">Carga masiva de destinatarios</span>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -517,12 +578,46 @@ export default function NewCampaignPage() {
                         className="hidden"
                       />
                       <Button type="button" variant="secondary" size="sm" icon={Upload} onClick={() => fileInputRef.current?.click()}>
-                        Subir archivo
+                        Subir CSV
                       </Button>
                     </div>
                     <p className="text-xs text-muted-darker">
                       Primera fila con encabezados: <code className="bg-surface px-1 rounded">telefono</code>, <code className="bg-surface px-1 rounded">nombre</code>{bodyParamCount > 0 ? `, y ${bodyParamCount} columna(s) más para las variables del cuerpo` : ""}.
                     </p>
+
+                    <div className="border-t border-border pt-3 space-y-2">
+                      <span className="text-sm font-medium">O por etiqueta</span>
+                      {bodyParamCount > 0 ? (
+                        <p className="text-xs text-muted-darker">
+                          No disponible — esta plantilla requiere {bodyParamCount} variable(s) en el cuerpo y los contactos de una etiqueta no traen esos valores por destinatario. Usa números manuales o CSV para esta plantilla.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <Select
+                            value={selectedTagId}
+                            onChange={e => setSelectedTagId(e.target.value)}
+                            disabled={!waAccountId}
+                            className="flex-1 min-w-[160px]"
+                          >
+                            <option value="">Seleccionar etiqueta</option>
+                            {tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            icon={TagIcon}
+                            onClick={loadRecipientsByTag}
+                            disabled={!waAccountId || !selectedTagId || loadingTagContacts}
+                          >
+                            {loadingTagContacts ? "Cargando..." : "Cargar contactos"}
+                          </Button>
+                        </div>
+                      )}
+                      {!waAccountId && (
+                        <p className="text-xs text-muted-darker">Selecciona primero una cuenta de WhatsApp</p>
+                      )}
+                    </div>
 
                     {csvFileName && (
                       <div className="space-y-3">
