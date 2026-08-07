@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import { prisma } from "@/lib/prisma";
-import { sendTelegramMessage } from "@/lib/telegram/send";
+import { sendChannelReplyText } from "@/lib/channel-send";
 import { getAIProvider } from "@/lib/ai/factory";
 import { searchKnowledge } from "@/lib/ai/rag";
 import { getUserApiKey } from "@/lib/ai/settings";
@@ -90,7 +90,7 @@ async function sendFallbackReply(botId: string, conversationId: string) {
     if (!bot?.channelAccount || !conversation) return;
 
     const now = new Date();
-    await sendTelegramMessage(bot.channelAccount, { to: conversation.externalId, body: FALLBACK_REPLY });
+    await sendChannelReplyText(bot.channelAccount, conversation.externalId, FALLBACK_REPLY);
 
     await Promise.all([
       prisma.channelMessage.create({
@@ -219,7 +219,7 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
       await botSendQueue.add(
         "send-chunk",
         {
-          channel: "TELEGRAM",
+          channel: bot.channelAccount.channel,
           accountId: bot.channelAccount.id,
           waChatId: conversationId,
           remoteJid: conversation.externalId,
@@ -229,7 +229,7 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
       );
     }
   } else {
-    await sendTelegramMessage(bot.channelAccount, { to: conversation.externalId, body: result.content });
+    await sendChannelReplyText(bot.channelAccount, conversation.externalId, result.content);
 
     await Promise.all([
       prisma.channelMessage.create({

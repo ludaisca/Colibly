@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { contactUpdateSchema } from "@/lib/validations";
 import { metaConversionsQueue } from "@/lib/queue";
+import { enrollContactInTrigger } from "@/lib/sequences";
 
 export async function GET(
   _req: Request,
@@ -108,6 +109,15 @@ export async function PATCH(
           { jobId: `meta-conversion-${id}-${parsed.data.leadStatus}` }
         )
         .catch((err) => console.error("[contacts] meta-conversions enqueue failed:", err));
+    }
+
+    // Trigger de secuencias (roadmap P3-a) — independiente del feedback loop
+    // de Meta Ads de arriba, corre para cualquier leadStatus nuevo sin
+    // importar leadOrigin.
+    if (parsed.data.leadStatus && parsed.data.leadStatus !== existing.leadStatus) {
+      await enrollContactInTrigger("LEAD_STATUS_CHANGED", parsed.data.leadStatus, id).catch((err) =>
+        console.error("[contacts] enrollContactInTrigger falló:", err)
+      );
     }
 
     return NextResponse.json(updated);

@@ -38,6 +38,10 @@ const MEDIA_UPLOAD_ENDPOINT: Record<Channel, string> = {
   TELEGRAM: "/api/telegram/media",
   MESSENGER: "/api/messenger/media",
   INSTAGRAM: "/api/instagram/media",
+  // Nunca se invoca en la práctica — el botón de adjuntar está deshabilitado
+  // para WEBCHAT (attachmentsDisabled más abajo, roadmap P3-f es MVP solo
+  // texto). Entrada presente solo para satisfacer Record<Channel, string>.
+  WEBCHAT: "/api/webchat/media-not-supported",
 };
 
 interface ChatWorkspaceProps {
@@ -117,6 +121,7 @@ export function ChatWorkspace({
     { channel: "TELEGRAM" as const, endpoint: "/api/telegram/chats" },
     { channel: "MESSENGER" as const, endpoint: "/api/messenger/chats" },
     { channel: "INSTAGRAM" as const, endpoint: "/api/instagram/chats" },
+    { channel: "WEBCHAT" as const, endpoint: "/api/webchat/chats" },
   ], []);
 
   const buildChannelParams = useCallback((channel: (typeof CHANNEL_SOURCES)[number]["channel"], page: number, pageSize: number): URLSearchParams => {
@@ -279,14 +284,15 @@ export function ChatWorkspace({
       fetch("/api/telegram/accounts").then((r) => r.json()),
       fetch("/api/messenger/accounts").then((r) => r.json()),
       fetch("/api/instagram/accounts").then((r) => r.json()),
+      fetch("/api/webchat/accounts").then((r) => r.json()),
     ])
-      .then(([wa, tg, ms, ig]) => {
+      .then(([wa, tg, ms, ig, wc]) => {
         const waOptions: AccountOption[] = Array.isArray(wa)
           ? wa.map((a: { id: string; name: string; phoneNumber: string | null }) => ({
               id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null, channel: "WHATSAPP",
             }))
           : [];
-        const toChannelOptions = (list: unknown, channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM"): AccountOption[] =>
+        const toChannelOptions = (list: unknown, channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT"): AccountOption[] =>
           Array.isArray(list)
             ? list.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, phoneNumber: null, channel }))
             : [];
@@ -295,6 +301,7 @@ export function ChatWorkspace({
           ...toChannelOptions(tg, "TELEGRAM"),
           ...toChannelOptions(ms, "MESSENGER"),
           ...toChannelOptions(ig, "INSTAGRAM"),
+          ...toChannelOptions(wc, "WEBCHAT"),
         ]);
       })
       .catch(() => {});
@@ -741,6 +748,7 @@ export function ChatWorkspace({
               messagesEndRef={messagesEndRef}
             />
             <ChatComposer
+              chatId={selectedChat.id}
               newMessage={newMessage}
               onMessageChange={setNewMessage}
               sending={sending}
@@ -755,7 +763,10 @@ export function ChatWorkspace({
               cannedIndex={cannedIndex}
               onCannedIndexChange={setCannedIndex}
               onInsertCanned={insertCannedResponse}
-              attachmentsDisabled={interactiveButtons.length > 0}
+              // Webchat es MVP solo texto (roadmap P3-f) — sin medios, mismo
+              // criterio que interactiveDisabled ya aplica para "no
+              // WhatsApp" en botones interactivos.
+              attachmentsDisabled={interactiveButtons.length > 0 || selectedChat.channel === "WEBCHAT"}
               interactiveButtons={interactiveButtons}
               onButtonsChange={setInteractiveButtons}
               buttonsPanelOpen={buttonsPanelOpen}

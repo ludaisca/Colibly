@@ -37,6 +37,7 @@ export async function POST(req: Request) {
       memoryLimit,
       ragEnabled,
       humanizeEnabled,
+      appointmentSchedulingEnabled,
     } = parsed.data;
 
     if (waAccountId) {
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
         memoryLimit: memoryLimit ?? 20,
         ragEnabled: ragEnabled ?? false,
         humanizeEnabled: humanizeEnabled ?? false,
+        appointmentSchedulingEnabled: appointmentSchedulingEnabled ?? false,
       },
       select: {
         id: true,
@@ -95,6 +97,7 @@ export async function POST(req: Request) {
         memoryLimit: true,
         ragEnabled: true,
         humanizeEnabled: true,
+        appointmentSchedulingEnabled: true,
         isActive: true,
         status: true,
         waAccountId: true,
@@ -140,6 +143,7 @@ export async function GET(req: Request) {
         memoryLimit: true,
         ragEnabled: true,
         humanizeEnabled: true,
+        appointmentSchedulingEnabled: true,
         isActive: true,
         status: true,
         waAccountId: true,

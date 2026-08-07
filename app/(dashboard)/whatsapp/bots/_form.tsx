@@ -52,6 +52,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
   const [memoryLimit, setMemoryLimit] = useState("20");
   const [ragEnabled, setRagEnabled] = useState(false);
   const [humanizeEnabled, setHumanizeEnabled] = useState(false);
+  const [appointmentSchedulingEnabled, setAppointmentSchedulingEnabled] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -73,6 +74,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
     setMemoryLimit("20");
     setRagEnabled(false);
     setHumanizeEnabled(false);
+    setAppointmentSchedulingEnabled(false);
     setErrors({});
     setError("");
   }, []);
@@ -146,6 +148,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
           setMemoryLimit(String(d.memoryLimit ?? 20));
           setRagEnabled(d.ragEnabled);
           setHumanizeEnabled(d.humanizeEnabled ?? false);
+          setAppointmentSchedulingEnabled(d.appointmentSchedulingEnabled ?? false);
         }
       })
       .catch(() => toastError("Error al cargar bot"))
@@ -183,6 +186,10 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
         memoryLimit: Number(memoryLimit),
         ragEnabled,
         humanizeEnabled,
+        // Solo tiene efecto en el pipeline de WhatsApp (lib/workers/bot-worker.ts)
+        // — se fuerza a false para cualquier otro canal para no dejar un flag
+        // encendido que no hace nada y podría confundir después.
+        appointmentSchedulingEnabled: selectedAccount?.channel === "WHATSAPP" ? appointmentSchedulingEnabled : false,
       };
 
       const url = isEditing ? `/api/whatsapp/bots/${editId}` : "/api/whatsapp/bots";
@@ -327,6 +334,16 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
               </div>
               <Switch checked={humanizeEnabled} onCheckedChange={setHumanizeEnabled} />
             </div>
+
+            {accounts.find((a) => a.id === accountId)?.channel === "WHATSAPP" && (
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="text-sm font-medium">Agendar citas automáticamente</p>
+                  <p className="text-xs text-muted-darker">Cuando el lead confirma fecha y hora en la conversación, el bot crea la cita solo — se avisa al agente asignado, sin pasos manuales. Solo disponible para cuentas de WhatsApp.</p>
+                </div>
+                <Switch checked={appointmentSchedulingEnabled} onCheckedChange={setAppointmentSchedulingEnabled} />
+              </div>
+            )}
           </div>
         </div>
       )}

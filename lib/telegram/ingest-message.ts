@@ -26,6 +26,16 @@ export interface NormalizedChannelMessage {
   filename?: string | null;
   caption?: string | null;
   bytesSize?: number | null;
+  // Roadmap P3-c — true si este INBOUND viene de un comentario de Facebook
+  // Page (webhook `feed`), no de un DM. Se persiste en ChannelMessage y
+  // suprime el enqueue de bots más abajo: el pipeline de respuesta
+  // automática (bot-worker) manda por el Send API normal, que Meta rechaza
+  // para un contacto que solo comentó y nunca abrió un DM — la primera
+  // respuesta necesita el mecanismo de private reply, que solo dispara un
+  // agente humano desde la UI (ver sendMetaChannelReply en
+  // chats/[chatId]/send). Queda para una iteración futura enseñarle esto al
+  // bot-worker si se decide automatizar.
+  isFromComment?: boolean;
 }
 
 export interface IngestChannelResult {
@@ -127,6 +137,7 @@ export async function ingestChannelMessage(
         mimeType: msg.mimeType ?? null,
         filename: msg.filename ?? null,
         bytesSize: msg.bytesSize ?? null,
+        isFromComment: msg.isFromComment ?? false,
         timestamp: msg.timestamp,
       },
     });
@@ -176,10 +187,14 @@ export async function ingestChannelMessage(
     data: { lastActivity: new Date() },
   });
 
-  const activeBots = await prisma.wABot.findMany({
-    where: { channelAccountId, isActive: true, status: "ACTIVE" },
-    select: { id: true },
-  });
+  // Ver comentario de isFromComment arriba — un bot autónomo respondería por
+  // el Send API normal, que Meta rechaza sin un hilo ya abierto.
+  const activeBots = msg.isFromComment
+    ? []
+    : await prisma.wABot.findMany({
+        where: { channelAccountId, isActive: true, status: "ACTIVE" },
+        select: { id: true },
+      });
 
   for (const bot of activeBots) {
     await botQueue.add("process-message", {

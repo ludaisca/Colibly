@@ -172,6 +172,23 @@ export const metaChannelSendMessageSchema = z.object({
 
 export type MetaChannelSendMessageInput = z.infer<typeof metaChannelSendMessageSchema>;
 
+// Roadmap P3-f — MVP solo texto (sin medios), tanto para el agente humano
+// (chats/[chatId]/send) como para el visitante anónimo del widget
+// (api/webchat/[accountId]/messages).
+export const webchatAgentSendSchema = z.object({
+  body: z.string().min(1, "El mensaje no puede estar vacío").max(2000, "El mensaje supera el límite de 2000 caracteres"),
+});
+
+export const webchatAccountSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido").max(100),
+  // El header Origin real del navegador nunca lleva slash ni path final
+  // (solo protocolo+host+puerto) — se recorta aquí para que un valor pegado
+  // como "https://miempresa.com/" no falle el match por un detalle invisible.
+  allowedOrigins: z
+    .array(z.string().url("Cada dominio debe ser una URL válida (ej. https://miempresa.com)").transform((v) => v.replace(/\/+$/, "")))
+    .min(1, "Agrega al menos un dominio permitido"),
+});
+
 export type WaAccountInput = z.infer<typeof waAccountSchema>;
 export type WaAccountUpdateInput = z.infer<typeof waAccountUpdateSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
@@ -192,6 +209,10 @@ export const botSchema = z.object({
   memoryLimit: z.number().min(1).max(100).optional(),
   ragEnabled: z.boolean().optional(),
   humanizeEnabled: z.boolean().optional(),
+  // Citas Fase 2 — solo tiene efecto hoy en el pipeline de WhatsApp
+  // (lib/workers/bot-worker.ts); se admite en el schema para cualquier bot,
+  // pero el _form.tsx solo lo muestra cuando el bot atiende una WAAccount.
+  appointmentSchedulingEnabled: z.boolean().optional(),
 }).refine(
   (d) => !(d.waAccountId && d.channelAccountId),
   { message: "Un bot no puede atender una cuenta de WhatsApp y una de Telegram a la vez", path: ["channelAccountId"] }
@@ -212,6 +233,7 @@ export const botUpdateSchema = z.object({
   memoryLimit: z.number().min(1).max(100).optional(),
   ragEnabled: z.boolean().optional(),
   humanizeEnabled: z.boolean().optional(),
+  appointmentSchedulingEnabled: z.boolean().optional(),
 }).refine(
   (d) => !(d.waAccountId && d.channelAccountId),
   { message: "Un bot no puede atender una cuenta de WhatsApp y una de Telegram a la vez", path: ["channelAccountId"] }
@@ -337,6 +359,40 @@ export const contactUpdateSchema = z.object({
 
 export const noteSchema = z.object({
   body: z.string().min(1, "La nota no puede estar vacía").max(2000, "Máximo 2000 caracteres"),
+});
+
+export const routingRuleSchema = z.object({
+  conditionType: z.enum(["TAG", "LEAD_ORIGIN", "SCORE_LABEL"]),
+  conditionValue: z.string().min(1, "Selecciona un valor"),
+  assignedToId: z.string().min(1, "Selecciona un usuario"),
+});
+
+// Roadmap P3-a — secuencia lineal (sin ramas). waAccountId/channelAccountId
+// mutuamente excluyentes se resuelven en la ruta (mismo criterio que
+// cannedResponseSchema), no aquí.
+export const sequenceStepSchema = z.object({
+  delayMinutes: z.number().int().min(0).max(43_200, "Máximo 30 días de espera"), // 30 días
+  message: z.string().min(1, "El mensaje es requerido").max(2000),
+});
+
+export const sequenceSchema = z.object({
+  waAccountId: z.string().min(1).optional().nullable(),
+  channelAccountId: z.string().min(1).optional().nullable(),
+  name: z.string().min(1, "El nombre es requerido").max(100),
+  active: z.boolean().optional(),
+  triggerType: z.enum(["TAG_ADDED", "LEAD_STATUS_CHANGED", "APPOINTMENT_COMPLETED"]),
+  triggerValue: z.string().min(1).optional().nullable(),
+  exitOnReply: z.boolean().optional(),
+  steps: z.array(sequenceStepSchema).min(1, "Agrega al menos un paso"),
+});
+
+export const sequenceUpdateSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido").max(100).optional(),
+  active: z.boolean().optional(),
+  triggerType: z.enum(["TAG_ADDED", "LEAD_STATUS_CHANGED", "APPOINTMENT_COMPLETED"]).optional(),
+  triggerValue: z.string().min(1).optional().nullable(),
+  exitOnReply: z.boolean().optional(),
+  steps: z.array(sequenceStepSchema).min(1, "Agrega al menos un paso").optional(),
 });
 
 export const tagSchema = z.object({

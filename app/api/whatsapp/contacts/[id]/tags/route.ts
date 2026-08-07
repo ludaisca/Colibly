@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { enrollContactInTrigger } from "@/lib/sequences";
 
 async function getOwnedContact(userId: string, contactId: string) {
   const accountIds = await getUserAccountIds(userId);
@@ -42,6 +43,12 @@ export async function POST(
       create: { contactId: id, tagId },
       update: {},
     });
+
+    // Trigger de secuencias (roadmap P3-a) — no bloquea la respuesta si falla,
+    // el tag ya quedó agregado independientemente de esto.
+    await enrollContactInTrigger("TAG_ADDED", tagId, id).catch((err) =>
+      console.error("[contacts/tags] enrollContactInTrigger falló:", err)
+    );
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

@@ -6,6 +6,8 @@ import { searchKnowledge } from "@/lib/ai/rag";
 import { getUserApiKey } from "@/lib/ai/settings";
 import { estimateCost } from "@/lib/ai/pricing";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
+import { buildAppointmentMarkerContract, parseAppointmentMarker } from "@/lib/ai/appointment-marker";
+import type { AppointmentProposal } from "@/lib/ai/appointment-marker";
 import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
 import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
@@ -154,9 +156,24 @@ async function handleBotMessage(job: BotMessageJob) {
     });
   }
 
+  // Reutiliza AppSettings.leadRecoveryTimezone como "en qué zona horaria opera
+  // este negocio" — es la única noción de timezone que ya existe en el schema,
+  // no se agrega un campo nuevo solo para Citas Fase 2.
+  let appointmentTimeZone: string | null = null;
+  if (bot.appointmentSchedulingEnabled) {
+    const settings = await prisma.appSettings.findUnique({
+      where: { userId: bot.userId },
+      select: { leadRecoveryTimezone: true },
+    });
+    appointmentTimeZone = settings?.leadRecoveryTimezone ?? "America/Mexico_City";
+  }
+
   const messages: AIMessage[] = [];
   messages.push({ role: "system", content: wrapUserPrompt(bot.systemPrompt) });
   messages.push({ role: "system", content: SCOPE_GUARDRAIL });
+  if (appointmentTimeZone) {
+    messages.push({ role: "system", content: buildAppointmentMarkerContract(new Date(), appointmentTimeZone) });
+  }
 
   if (bot.ragEnabled) {
     const ragQuery =
@@ -252,18 +269,25 @@ async function handleBotMessage(job: BotMessageJob) {
 
   const chat = await prisma.wAChat.findUnique({
     where: { id: waChatId },
-    select: { remoteJid: true },
+    select: { remoteJid: true, contactId: true, assignedToId: true },
   });
 
   if (!chat) return;
 
   const now = new Date();
 
+  // El bloque ```appointment (si lo hay) nunca debe llegar al cliente — replyText
+  // es siempre lo que se envía/persiste como el mensaje; proposal es la cita a
+  // crear después de enviar, o null si no se detectó ninguna.
+  const { cleanText: replyText, proposal } = appointmentTimeZone
+    ? parseAppointmentMarker(result.content, appointmentTimeZone)
+    : { cleanText: result.content, proposal: null };
+
   if (bot.humanizeEnabled) {
     // Split the reply across several messages with a simulated typing delay between
     // each, queued as separate delayed jobs so this job returns immediately instead
     // of holding a bot-messages concurrency slot for the whole send sequence.
-    const chunks = splitReply(result.content);
+    const chunks = splitReply(replyText);
     let cumulativeDelay = 0;
     for (const chunk of chunks) {
       cumulativeDelay += computeTypingDelay(chunk);
@@ -277,7 +301,7 @@ async function handleBotMessage(job: BotMessageJob) {
     const sendResult = await sendWhatsAppMessage(bot.waAccount, {
       to: chat.remoteJid,
       type: "text",
-      body: result.content,
+      body: replyText,
     });
 
     await Promise.all([
@@ -287,7 +311,7 @@ async function handleBotMessage(job: BotMessageJob) {
           chatId: waChatId,
           direction: "OUTBOUND",
           messageType: "text",
-          body: result.content,
+          body: replyText,
           status: "sent",
           timestamp: now,
         },
@@ -295,11 +319,21 @@ async function handleBotMessage(job: BotMessageJob) {
       prisma.wAChat.update({
         where: { id: waChatId },
         data: {
-          lastMessage: result.content.slice(0, 500),
+          lastMessage: replyText.slice(0, 500),
           lastMessageAt: now,
         },
       }),
     ]);
+  }
+
+  if (proposal && chat.contactId) {
+    await createAiProposedAppointment({
+      contactId: chat.contactId,
+      assignedToId: chat.assignedToId,
+      botOwnerId: bot.userId,
+      proposal,
+      originMessageId: job.messageId ?? null,
+    });
   }
 
   await Promise.all([
@@ -311,7 +345,7 @@ async function handleBotMessage(job: BotMessageJob) {
             // respuestas del bot, la "memoria" olvidaba todo lo que el
             // cliente dijo.
             summary: summarizeText(
-              `Cliente: ${job.caption ?? incomingMessage}\nAsistente: ${result.content}`,
+              `Cliente: ${job.caption ?? incomingMessage}\nAsistente: ${replyText}`,
               conversation.summary
             ),
           },
@@ -407,6 +441,69 @@ async function buildUserContent(job: BotMessageJob, provider: AIProvider): Promi
   }
 }
 
+
+// Autonomía total (decisión del usuario, 2026-08-06): se crea la WAAppointment
+// como SCHEDULED de inmediato, sin paso de aprobación — la UI de /whatsapp/citas
+// ya distingue source: AI_BOT con el badge "Propuesta por IA" (app/(dashboard)/
+// whatsapp/citas/_view.tsx), y aquí solo se avisa al agente en vez de bloquear
+// nada. createdById es obligatorio en el schema y no hay noción de "usuario IA":
+// se usa el dueño del bot, igual que WABotUsage/Notification ya lo hacen.
+async function createAiProposedAppointment(params: {
+  contactId: string;
+  assignedToId: string | null;
+  botOwnerId: string;
+  proposal: AppointmentProposal;
+  originMessageId: string | null;
+}) {
+  const { contactId, assignedToId, botOwnerId, proposal, originMessageId } = params;
+  try {
+    // Idempotencia ante reintentos: si este mismo job falla DESPUÉS de que la IA
+    // ya respondió (ej. un error de red al enviar el mensaje) pero antes de
+    // terminar, BullMQ reintenta handleBotMessage() completo desde cero — vuelve
+    // a llamar a la IA con el mismo contexto, que muy probablemente repite la
+    // misma propuesta. Sin este chequeo, cada reintento crearía una cita
+    // duplicada en el calendario del agente. originMessageId identifica de forma
+    // única "el mensaje del lead que disparó esta propuesta", así que basta con
+    // preguntar si ya existe una cita de IA con ese origen antes de crear otra.
+    if (originMessageId) {
+      const existing = await prisma.wAAppointment.findFirst({
+        where: { originMessageId, source: "AI_BOT" },
+        select: { id: true },
+      });
+      if (existing) return;
+    }
+
+    const notifyUserId = assignedToId ?? botOwnerId;
+    const appointment = await prisma.wAAppointment.create({
+      data: {
+        contactId,
+        title: proposal.title,
+        notes: proposal.notes,
+        scheduledAt: proposal.scheduledAt,
+        durationMinutes: proposal.durationMinutes,
+        source: "AI_BOT",
+        assignedToId,
+        createdById: botOwnerId,
+        originMessageId,
+      },
+    });
+
+    await prisma.notification.create({
+      data: {
+        userId: notifyUserId,
+        type: "APPOINTMENT_PROPOSED",
+        title: "El bot agendó una cita",
+        body: `${proposal.title} — ${proposal.scheduledAt.toLocaleString("es-MX")}`,
+        link: `/whatsapp/citas?id=${appointment.id}`,
+      },
+    });
+  } catch (err) {
+    // Best-effort — un fallo al agendar no debe tirar todo el turno del bot
+    // (el mensaje al cliente ya se envió). Queda sin registro en el CRM y sin
+    // notificación; sería recuperable manualmente si el lead insiste.
+    console.error("[bot-worker] No se pudo crear la cita propuesta por IA:", err instanceof Error ? err.message : err);
+  }
+}
 
 function summarizeText(newMessage: string, existingSummary: string | null): string {
   const combined = existingSummary

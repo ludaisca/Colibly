@@ -33,6 +33,7 @@ export async function GET(
         memoryLimit: true,
         ragEnabled: true,
         humanizeEnabled: true,
+        appointmentSchedulingEnabled: true,
         isActive: true,
         status: true,
         waAccountId: true,
@@ -130,6 +131,7 @@ export async function PATCH(
     if (fields.memoryLimit !== undefined) data.memoryLimit = fields.memoryLimit;
     if (fields.ragEnabled !== undefined) data.ragEnabled = fields.ragEnabled;
     if (fields.humanizeEnabled !== undefined) data.humanizeEnabled = fields.humanizeEnabled;
+    if (fields.appointmentSchedulingEnabled !== undefined) data.appointmentSchedulingEnabled = fields.appointmentSchedulingEnabled;
 
     const updated = await prisma.wABot.update({
       where: { id },
@@ -146,6 +148,7 @@ export async function PATCH(
         memoryLimit: true,
         ragEnabled: true,
         humanizeEnabled: true,
+        appointmentSchedulingEnabled: true,
         isActive: true,
         status: true,
         waAccountId: true,

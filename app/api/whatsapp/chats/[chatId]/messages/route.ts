@@ -18,9 +18,12 @@ const MESSAGE_SELECT = {
   timestamp: true,
 } as const;
 
-// ChannelMessage (Telegram) no tiene interactivePayload — columna exclusiva
-// de WAMessage, ver "Mensajes interactivos" en AGENTS.md.
+// ChannelMessage (Telegram/Messenger/Instagram) no tiene interactivePayload
+// — columna exclusiva de WAMessage, ver "Mensajes interactivos" en AGENTS.md.
 const WA_MESSAGE_SELECT = { ...MESSAGE_SELECT, interactivePayload: true } as const;
+// isFromComment (roadmap P3-c) es exclusivo de ChannelMessage — WAMessage no
+// tiene esta columna, por eso vive en su propio select en vez del base.
+const CHANNEL_MESSAGE_SELECT = { ...MESSAGE_SELECT, isFromComment: true } as const;
 
 export async function GET(
   req: Request,
@@ -53,7 +56,7 @@ export async function GET(
     if (resolved.channel !== "WHATSAPP") {
       const messages = await prisma.channelMessage.findMany({
         where: { conversationId: chatId, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
-        select: MESSAGE_SELECT,
+        select: CHANNEL_MESSAGE_SELECT,
         orderBy: { timestamp: "desc" },
         take: limit,
       });

@@ -48,6 +48,34 @@ export async function sendMetaChannelMessage(
   return { recipientId: data.recipient_id, messageId: data.message_id };
 }
 
+// Roadmap P3-c — Private Reply: la ÚNICA forma de mandarle un mensaje
+// privado a alguien que solo comentó una publicación (nunca abrió un DM) es
+// este endpoint dedicado con el comment_id como destinatario, no el Send
+// API normal con un PSID (Meta lo rechaza sin un hilo de Messenger ya
+// abierto). Válido solo para la PRIMERA respuesta — una vez que Meta abre
+// el hilo, las respuestas siguientes usan sendMetaChannelMessage() normal
+// con el mismo PSID (ver isFirstResponse en chats/[chatId]/send).
+export async function sendPrivateReplyToComment(
+  pageAccessToken: string,
+  commentId: string,
+  text: string
+): Promise<SendMessageResult> {
+  const url = `${GRAPH_API}/${commentId}/private_replies`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${pageAccessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text }),
+  });
+
+  if (!res.ok) await parseGraphError(res, "Private reply failed");
+
+  const data = await res.json();
+  // Meta no documenta recipient_id en la respuesta de este endpoint (a
+  // diferencia de /messages) — se deja vacío, ningún llamador lo usa hoy.
+  return { recipientId: "", messageId: data.message_id ?? data.id ?? "" };
+}
+
 function attachmentTypeFromMime(mimeType: string): "image" | "video" | "audio" | "file" {
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType.startsWith("video/")) return "video";
@@ -115,9 +143,14 @@ export async function fetchUserProfile(pageAccessToken: string, psid: string): P
 
 // Equivalente a Telegram setWebhook()/deleteWebhook(): agregar la cuenta a
 // nuestra base no hace que Meta empiece a mandar webhooks — hay que
-// suscribir la Página al App explícitamente.
-export async function subscribePageToApp(pageAccessToken: string, pageId: string): Promise<void> {
-  const url = `${GRAPH_API}/${pageId}/subscribed_apps?subscribed_fields=messages`;
+// suscribir la Página al App explícitamente. `extraFields` (roadmap P3-c:
+// `["feed"]` para Facebook Page, activa el webhook de comentarios además de
+// mensajería) se agrega solo cuando el llamador lo pide — Instagram no
+// reutiliza este campo (sus comentarios son un field distinto, fuera de
+// alcance de esta primera versión).
+export async function subscribePageToApp(pageAccessToken: string, pageId: string, extraFields: string[] = []): Promise<void> {
+  const fields = ["messages", ...extraFields].join(",");
+  const url = `${GRAPH_API}/${pageId}/subscribed_apps?subscribed_fields=${fields}`;
   const res = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${pageAccessToken}` } });
   if (!res.ok) await parseGraphError(res, "Page subscription failed");
 }

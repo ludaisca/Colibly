@@ -1,6 +1,6 @@
 import type { ChannelAccount } from "@prisma/client";
 import { decrypt } from "@/lib/crypto";
-import { sendMetaChannelMessage, uploadMetaAttachment } from "@/lib/meta-messaging";
+import { sendMetaChannelMessage, uploadMetaAttachment, sendPrivateReplyToComment } from "@/lib/meta-messaging";
 
 // Shape de ChannelAccount.credentials para MESSENGER/INSTAGRAM — ambos
 // comparten pageId+pageAccessToken (modelo Página-vinculada); IG además
@@ -30,6 +30,19 @@ export async function sendMetaChannelText(
   const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
   const result = await sendMetaChannelMessage(pageAccessToken, pageId, params.to, { text: params.body });
   return { externalMessageId: result.messageId };
+}
+
+// Roadmap P3-c — envío de la primera respuesta a una conversación que
+// arrancó de un comentario (ver isFromComment/isFirstResponse en
+// chats/[chatId]/send). Paralelo a sendMetaChannelText pero apuntando al
+// endpoint dedicado de Meta con el comment_id, no el `to` (PSID) normal.
+export async function sendMetaChannelPrivateReply(
+  account: ChannelAccount,
+  params: { commentId: string; body: string }
+): Promise<{ externalMessageId: string | null }> {
+  const { pageAccessToken } = getMetaChannelCredentials(account);
+  const result = await sendPrivateReplyToComment(pageAccessToken, params.commentId, params.body);
+  return { externalMessageId: result.messageId || null };
 }
 
 interface SendMediaParams {

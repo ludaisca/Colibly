@@ -15,8 +15,8 @@ model User {
   role         String  @default("user")
   maxOpenChats Int?
 
-  createdAt             DateTime          @default(now()) @map("created_at")
-  updatedAt             DateTime          @updatedAt @map("updated_at")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
   waAccounts            WAAccount[]
   waCampaigns           WACampaign[]
   waBots                WABot[]
@@ -25,7 +25,7 @@ model User {
   googleAccount         GoogleAccount?
   sharedAccounts        WAAccountShare[]
   notes                 WANote[]
-  assignedChats         WAChat[]          @relation("ChatAssignments")
+  assignedChats         WAChat[]               @relation("ChatAssignments")
   notifications         Notification[]
   sentMessages          WAMessage[]
   leadSheetSources      LeadSheetSource[]
@@ -34,8 +34,10 @@ model User {
   sentChannelMessages   ChannelMessage[]
   sharedChannelAccounts ChannelAccountShare[]
   metaAdsAccounts       MetaAdsAccount[]
-  appointmentsAssigned  WAAppointment[]       @relation("WAAppointmentAssignee")
-  appointmentsCreated   WAAppointment[]       @relation("WAAppointmentCreatedBy")
+  appointmentsAssigned  WAAppointment[]        @relation("WAAppointmentAssignee")
+  appointmentsCreated   WAAppointment[]        @relation("WAAppointmentCreatedBy")
+  routingRuleTargets    WAAccountRoutingRule[]
+  sequences             WASequence[]
 
   @@map("users")
 }
@@ -137,12 +139,14 @@ model WAAccount {
   sharedWith WAAccountShare[]
   contacts   Contact[]
 
-  cannedResponses  CannedResponse[]
-  leadSheetSources LeadSheetSource[]
+  cannedResponses        CannedResponse[]
+  leadSheetSources       LeadSheetSource[]
   // Cuentas de Meta Ads (Instant Forms) que entregan sus leads bajo este
   // número — ver MetaAdsAccount.waAccountId.
-  metaAdsAccounts  MetaAdsAccount[]
+  metaAdsAccounts        MetaAdsAccount[]
   customFieldDefinitions ContactCustomFieldDefinition[]
+  routingRules           WAAccountRoutingRule[]
+  sequences              WASequence[]
 
   @@unique([phoneNumberId])
   @@unique([userId, name])
@@ -268,6 +272,12 @@ enum Channel {
   TELEGRAM
   MESSENGER
   INSTAGRAM
+  // Roadmap P3-f — widget de chat en vivo embebible en el sitio web del
+  // cliente. A diferencia de los otros 3, no hay proveedor externo que
+  // autentique webhooks: el "proveedor" somos nosotros mismos, y el
+  // visitante anónimo se identifica por un token de sesión propio (ver
+  // lib/webchat/session-token.ts), no por credenciales de una plataforma.
+  WEBCHAT
 }
 
 model ChannelAccount {
@@ -300,12 +310,13 @@ model ChannelAccount {
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
-  conversations   Conversation[]
-  contacts        Contact[]
-  bots            WABot[]
-  cannedResponses CannedResponse[]
-  sharedWith      ChannelAccountShare[]
+  conversations          Conversation[]
+  contacts               Contact[]
+  bots                   WABot[]
+  cannedResponses        CannedResponse[]
+  sharedWith             ChannelAccountShare[]
   customFieldDefinitions ContactCustomFieldDefinition[]
+  sequences              WASequence[]
 
   @@unique([userId, name])
   // findUnique determinístico en el webhook compartido de Messenger/
@@ -373,6 +384,13 @@ model ChannelMessage {
   status            String?
   senderId          String?
   sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  // Roadmap P3-c — true si este INBOUND vino de un comentario de Facebook
+  // Page (webhook `feed`), no de un mensaje directo. `externalMessageId` ya
+  // guarda el comment_id de Meta en ese caso (mismo campo, sin columna
+  // aparte) — este flag es lo que permite distinguir cuál de los dos
+  // significados tiene. Necesario para decidir el mecanismo de envío de la
+  // primera respuesta: ver sendMetaChannelReply() en chats/[chatId]/send.
+  isFromComment     Boolean          @default(false) @map("is_from_comment")
   timestamp         DateTime
   createdAt         DateTime         @default(now()) @map("created_at")
 
@@ -415,25 +433,25 @@ model WAChat {
 }
 
 model WALeadScorerBot {
-  id                      String    @id @default(cuid())
-  userId                  String
-  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name                    String
-  provider                String
-  model                   String
-  systemPrompt            String    @db.Text
-  isActive                Boolean   @default(true)
-  scheduleEnabled         Boolean   @default(false)
-  scheduleIntervalMinutes Int?
-  scheduleAccountIds      String[]  @default([])
+  id                        String    @id @default(cuid())
+  userId                    String
+  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                      String
+  provider                  String
+  model                     String
+  systemPrompt              String    @db.Text
+  isActive                  Boolean   @default(true)
+  scheduleEnabled           Boolean   @default(false)
+  scheduleIntervalMinutes   Int?
+  scheduleAccountIds        String[]  @default([])
   // Alcance separado para cuentas de Telegram — WAAccount.id y
   // ChannelAccount.id son cuids de tablas distintas sin garantía de
   // unicidad cruzada; mezclarlos en scheduleAccountIds arriesgaría
   // colisiones silenciosas de id entre canales.
   scheduleChannelAccountIds String[]  @default([])
-  lastRunAt               DateTime?
-  createdAt               DateTime  @default(now()) @map("created_at")
-  updatedAt               DateTime  @updatedAt @map("updated_at")
+  lastRunAt                 DateTime?
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
 
   scores WALeadScore[]
   usage  WALeadScorerUsage[]
@@ -462,27 +480,27 @@ model WALeadScorerUsage {
 }
 
 model WALeadScore {
-  id        String          @id @default(cuid())
-  chatId    String?
-  chat      WAChat?         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  id             String          @id @default(cuid())
+  chatId         String?
+  chat           WAChat?         @relation(fields: [chatId], references: [id], onDelete: Cascade)
   // Referencia blanda a Conversation (Telegram) — mismo patrón que
   // ChatTag.conversationId / WABotUsage.conversationId.
   conversationId String?
-  scorerId  String
-  scorer    WALeadScorerBot @relation(fields: [scorerId], references: [id], onDelete: Cascade)
-  score     Int
-  label     String
-  summary   String
-  reasons   String
+  scorerId       String
+  scorer         WALeadScorerBot @relation(fields: [scorerId], references: [id], onDelete: Cascade)
+  score          Int
+  label          String
+  summary        String
+  reasons        String
   // Structured extraction beyond score/label (señales de compra, objeciones,
   // próximos pasos, producto de interés, etc.) — kept as a single flexible
   // JSON blob instead of a dozen typed columns since its shape is dictated by
   // the prompt contract in lib/whatsapp/lead-scoring.ts, not by relational
   // needs elsewhere in the schema. Null for scores generated before this field.
-  details   Json?
-  model     String
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
+  details        Json?
+  model          String
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
   @@unique([chatId, scorerId])
   @@unique([conversationId, scorerId])
@@ -490,19 +508,19 @@ model WALeadScore {
 }
 
 model WAMessage {
-  id                String           @id @default(cuid())
-  wamid             String?
-  chatId            String
-  chat              WAChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  direction         MessageDirection
-  messageType       String
-  body              String?
-  caption           String?
-  mediaId           String?
-  mediaUrl          String?
-  mimeType          String?
-  filename          String?
-  bytesSize         Int?
+  id                 String           @id @default(cuid())
+  wamid              String?
+  chatId             String
+  chat               WAChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  direction          MessageDirection
+  messageType        String
+  body               String?
+  caption            String?
+  mediaId            String?
+  mediaUrl           String?
+  mimeType           String?
+  filename           String?
+  bytesSize          Int?
   // Botones de respuesta rápida enviados (outbound) o el id de la respuesta
   // recibida (inbound) para un mensaje interactivo de Meta — ver
   // lib/whatsapp/send-interactive.ts. No existe en ChannelMessage (Telegram),
@@ -513,20 +531,20 @@ model WAMessage {
   // click-to-WhatsApp — guardado para auditoría; la atribución "first-touch"
   // usable (Contact.ctwaClid/adId/leadOrigin) se deriva de este mismo objeto
   // en lib/whatsapp/ingest-message.ts pero solo en el create del Contact.
-  referral          Json?
-  status            String?
-  senderId          String?
-  sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
-  campaignId        String?
-  campaign          WACampaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  referral           Json?
+  status             String?
+  senderId           String?
+  sender             User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  campaignId         String?
+  campaign           WACampaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   // Igual que campaignId pero para envíos disparados por una fuente de leads
   // externa (LeadSheetSource) — nunca ambos a la vez, cada WAMessage viene de
   // como mucho un origen. Ver lib/whatsapp/chat-attribution.ts para cómo se
   // unifican ambos campos en una sola "atribución" del chat.
-  leadSheetSourceId String?
-  leadSheetSource   LeadSheetSource? @relation(fields: [leadSheetSourceId], references: [id], onDelete: SetNull)
-  timestamp         DateTime
-  createdAt         DateTime         @default(now()) @map("created_at")
+  leadSheetSourceId  String?
+  leadSheetSource    LeadSheetSource? @relation(fields: [leadSheetSourceId], references: [id], onDelete: SetNull)
+  timestamp          DateTime
+  createdAt          DateTime         @default(now()) @map("created_at")
 
   recoveryAttempt WALeadRecoveryAttempt?
 
@@ -727,29 +745,35 @@ enum RecipientStatus {
 }
 
 model WABot {
-  id               String          @id @default(cuid())
-  userId           String
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  waAccountId      String?
-  waAccount        WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
+  id                           String          @id @default(cuid())
+  userId                       String
+  user                         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  waAccountId                  String?
+  waAccount                    WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
   // Mutuamente excluyente con waAccountId a nivel de aplicación — un bot sirve
   // a una cuenta de WhatsApp o a una cuenta de canal (Telegram), nunca ambas.
-  channelAccountId String?
-  channelAccount   ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: SetNull)
-  name             String
-  provider         String
-  model            String
-  systemPrompt     String          @db.Text
-  temperature      Float           @default(0.7)
-  maxTokens        Int             @default(1024)
-  memoryType       BotMemoryType   @default(RECENT)
-  memoryLimit      Int             @default(20)
-  ragEnabled       Boolean         @default(false)
-  humanizeEnabled  Boolean         @default(false)
-  isActive         Boolean         @default(false)
-  status           BotStatus       @default(ACTIVE)
-  createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime        @updatedAt @map("updated_at")
+  channelAccountId             String?
+  channelAccount               ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: SetNull)
+  name                         String
+  provider                     String
+  model                        String
+  systemPrompt                 String          @db.Text
+  temperature                  Float           @default(0.7)
+  maxTokens                    Int             @default(1024)
+  memoryType                   BotMemoryType   @default(RECENT)
+  memoryLimit                  Int             @default(20)
+  ragEnabled                   Boolean         @default(false)
+  humanizeEnabled              Boolean         @default(false)
+  // Opt-in — Fase 2 de Citas (roadmap P1). Cuando está activo, bot-worker.ts
+  // agrega el contrato de marcador estructurado (lib/ai/appointment-marker.ts)
+  // para que el bot pueda proponer/agendar una WAAppointment (source: AI_BOT)
+  // cuando el lead confirma fecha/hora en la conversación. Default false para
+  // no cambiar el comportamiento de bots existentes ni el costo en tokens.
+  appointmentSchedulingEnabled Boolean         @default(false)
+  isActive                     Boolean         @default(false)
+  status                       BotStatus       @default(ACTIVE)
+  createdAt                    DateTime        @default(now()) @map("created_at")
+  updatedAt                    DateTime        @updatedAt @map("updated_at")
 
   conversations WABotConversation[]
   knowledgeBots WABotKnowledgeBot[]
@@ -898,6 +922,7 @@ model Contact {
   appointments         WAAppointment[]
   metaConversionEvents MetaConversionEvent[]
   customFieldValues    ContactCustomFieldValue[]
+  sequenceEnrollments  WASequenceEnrollment[]
 
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
@@ -939,37 +964,37 @@ enum MetaAdsAccountMode {
 // WAAccount: una Página de Lead Ads no es un número de WhatsApp — puede
 // alimentar leads a un número existente (waAccountId) sin ser uno.
 model MetaAdsAccount {
-  id                String              @id @default(cuid())
-  userId            String
-  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name              String
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
   // Id de la Página de Facebook que recibe leadgen — clave para resolver a
   // qué MetaAdsAccount pertenece cada notificación del webhook `leadgen`.
-  pageId            String              @unique
+  pageId          String             @unique
   // Token de la Página, usado para el GET a /{leadgen_id}?fields=field_data.
-  pageAccessToken   String?
+  pageAccessToken String?
   // Secreto de la app de Business, para validar x-hub-signature-256 del
   // webhook leadgen — mismo mecanismo que WAAccount.appSecret.
-  appSecret         String?
-  verifyTokenHash   String?
+  appSecret       String?
+  verifyTokenHash String?
   // Dataset ID (a veces llamado Pixel ID) de destino de la Conversions API.
-  datasetId         String?
+  datasetId       String?
   // Access token con permiso sobre ese dataset para /{datasetId}/events.
-  capiAccessToken   String?
+  capiAccessToken String?
   // Bajo qué número de WhatsApp se crean los Contact de Instant Forms de esta
   // página, antes de que exista cualquier conversación real — ver
   // app/api/meta/webhook/leadgen/route.ts. Null = la ingesta de Instant Forms
   // descarta el evento (no hay dónde crear el Contact).
-  waAccountId       String?
-  waAccount         WAAccount?          @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
-  status            WaAccountStatus     @default(PENDING)
-  errorMessage      String?
-  mode              MetaAdsAccountMode  @default(TEST)
+  waAccountId     String?
+  waAccount       WAAccount?         @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
+  status          WaAccountStatus    @default(PENDING)
+  errorMessage    String?
+  mode            MetaAdsAccountMode @default(TEST)
   // Requerido mientras mode=TEST — lib/meta/conversions.ts rechaza mandar un
   // evento si no hay testEventCode NI mode=LIVE confirmado.
-  testEventCode     String?
-  createdAt         DateTime            @default(now()) @map("created_at")
-  updatedAt         DateTime            @updatedAt @map("updated_at")
+  testEventCode   String?
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
 
   contacts         Contact[]
   conversionEvents MetaConversionEvent[]
@@ -985,20 +1010,20 @@ model MetaAdsAccount {
 // (QUALIFIED -> LOST -> QUALIFIED), el segundo evento sí se reenvía,
 // reseteando status a PENDING en vez de quedar bloqueado por el constraint.
 model MetaConversionEvent {
-  id               String           @id @default(cuid())
+  id               String          @id @default(cuid())
   contactId        String
-  contact          Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact          Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
   metaAdsAccountId String
-  metaAdsAccount   MetaAdsAccount   @relation(fields: [metaAdsAccountId], references: [id], onDelete: Cascade)
+  metaAdsAccount   MetaAdsAccount  @relation(fields: [metaAdsAccountId], references: [id], onDelete: Cascade)
   leadStatus       LeadStatus
   eventName        String
   // event_id enviado a Meta para que su lado pueda deduplicar si se reintenta.
-  metaEventId      String           @default(cuid())
-  status           MetaEventStatus  @default(PENDING)
+  metaEventId      String          @default(cuid())
+  status           MetaEventStatus @default(PENDING)
   errorMessage     String?
   sentAt           DateTime?
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
 
   @@unique([contactId, leadStatus])
   @@index([status])
@@ -1029,16 +1054,16 @@ model ContactTag {
 }
 
 model ChatTag {
-  id     String  @id @default(cuid())
-  chatId String?
-  chat   WAChat? @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  chatId         String?
+  chat           WAChat?  @relation(fields: [chatId], references: [id], onDelete: Cascade)
   // Referencia blanda a Conversation (Telegram) — igual patrón que
   // WABotUsage.conversationId, sin @relation. Mutuamente excluyente con
   // chatId a nivel de aplicación.
   conversationId String?
-  tagId  String
-  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now()) @map("created_at")
+  tagId          String
+  tag            Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@unique([chatId, tagId])
   @@unique([conversationId, tagId])
@@ -1119,6 +1144,154 @@ model WAAppointment {
   @@map("wa_appointments")
 }
 
+// Roadmap P3-d (docs/ROADMAP_PANCAKE.md) — enrutamiento inteligente por
+// atributo/score en vez de solo por carga. Reglas simples ordenadas
+// ("if-this-then-assign-that"), no un builder visual: `autoAssignChat()`
+// evalúa esta lista en orden y, en el primer match, asigna directo al
+// usuario de la regla en vez de correr el balanceo por carga — igual que
+// respond.io/HubSpot enrutan por VIP/atributo antes de repartir por round-robin.
+model WAAccountRoutingRule {
+  id          String    @id @default(cuid())
+  waAccountId String
+  waAccount   WAAccount @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  // Orden de evaluación — el primer match gana, así que una regla más
+  // específica (ej. una etiqueta "VIP") normalmente debe ir antes que una
+  // más genérica (ej. leadOrigin CTWA). Se asigna al crear como
+  // "al final de la lista actual"; no hay endpoint de reorden en esta
+  // primera versión (borrar y volver a crear cubre el caso de uso).
+  order       Int       @default(0)
+
+  conditionType  RoutingConditionType
+  // Valor a comparar contra la señal en vivo del chat/contacto en el momento
+  // de la auto-asignación: un Tag.id (TAG), un valor de LeadOrigin como
+  // string (LEAD_ORIGIN), o un label de WALeadScore como string
+  // (SCORE_LABEL) — se guarda como texto en vez de 3 FKs opcionales
+  // distintas porque solo una aplica según conditionType.
+  conditionValue String
+
+  assignedToId String
+  assignedTo   User   @relation(fields: [assignedToId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([waAccountId, order])
+  @@map("wa_account_routing_rules")
+}
+
+enum RoutingConditionType {
+  TAG
+  LEAD_ORIGIN
+  SCORE_LABEL
+}
+
+// Roadmap P3-a — secuencias de automatización lineales (sin ramas
+// condicionales, decisión de producto 2026-08-06): un trigger dispara la
+// inscripción de un Contact, y un tick de BullMQ (lib/workers/sequence-worker.ts)
+// va enviando cada WASequenceStep en orden respetando su delay. A propósito
+// NO hay condicionales por paso ni bifurcaciones — la única "salida
+// temprana" es exitOnReply (ver WASequence.exitOnReply), igual de simple que
+// el builder visual completo que ofrecen Botcake/respond.io/HubSpot (ver
+// docs/ROADMAP_PANCAKE.md → "P3-a"), que queda deliberadamente fuera de esta
+// primera versión.
+enum SequenceTriggerType {
+  // triggerValue = Tag.id — dispara al agregar esa etiqueta a un Contact.
+  TAG_ADDED
+  // triggerValue = valor de LeadStatus (como string) — dispara cuando
+  // Contact.leadStatus cambia A ese valor.
+  LEAD_STATUS_CHANGED
+  // triggerValue = null (ignorado) — dispara cuando una WAAppointment del
+  // contacto pasa a status COMPLETED.
+  APPOINTMENT_COMPLETED
+}
+
+enum SequenceEnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  // El contacto respondió (mensaje INBOUND) mientras la secuencia corría y
+  // exitOnReply estaba activo — se detuvo antes de mandar el siguiente paso.
+  EXITED_REPLY
+  CANCELLED
+}
+
+model WASequence {
+  id               String          @id @default(cuid())
+  // Mutuamente excluyente a nivel de aplicación — mismo patrón dual que
+  // CannedResponse/WABot. Alcance WhatsApp + Telegram únicamente (igual que
+  // lead scoring/copiloto de IA): Messenger/Instagram quedan fuera por ahora.
+  waAccountId      String?
+  waAccount        WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId String?
+  channelAccount   ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+
+  name         String
+  active       Boolean             @default(true)
+  triggerType  SequenceTriggerType
+  // Ver comentario por valor en SequenceTriggerType — null solo para
+  // APPOINTMENT_COMPLETED.
+  triggerValue String?
+  // Decisión de producto 2026-08-06: encendido por defecto — evita seguir
+  // mandando pasos guionados a un contacto que ya está en conversación
+  // activa. Configurable por secuencia porque no todas las secuencias tienen
+  // el mismo riesgo de sonar robotizadas si se completan de corrido.
+  exitOnReply  Boolean             @default(true)
+
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  steps       WASequenceStep[]
+  enrollments WASequenceEnrollment[]
+
+  @@index([waAccountId, triggerType, active])
+  @@index([channelAccountId, triggerType, active])
+  @@map("wa_sequences")
+}
+
+model WASequenceStep {
+  id           String     @id @default(cuid())
+  sequenceId   String
+  sequence     WASequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  // 0-based, define tanto el orden de envío como a qué paso apunta
+  // WASequenceEnrollment.currentStep.
+  order        Int
+  delayMinutes Int        @default(0) @map("delay_minutes")
+  message      String     @db.Text
+
+  @@unique([sequenceId, order])
+  @@map("wa_sequence_steps")
+}
+
+model WASequenceEnrollment {
+  id         String     @id @default(cuid())
+  sequenceId String
+  sequence   WASequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contactId  String
+  contact    Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  status         SequenceEnrollmentStatus @default(ACTIVE)
+  // Índice (0-based) del próximo WASequenceStep.order a enviar — no "el
+  // último enviado", para que 0 sea válido antes de que se mande el primero.
+  currentStep    Int                      @default(0) @map("current_step")
+  // Cuándo debe correr el próximo paso — null solo si status ya no es ACTIVE.
+  nextRunAt      DateTime?                @map("next_run_at")
+  // Marca de tiempo del último paso mandado — la ventana que
+  // exitOnReply usa para buscar un INBOUND posterior; null antes de mandar
+  // el primer paso (en ese caso se compara contra enrolledAt).
+  lastStepSentAt DateTime?                @map("last_step_sent_at")
+  enrolledAt     DateTime                 @default(now()) @map("enrolled_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  // Un contacto se inscribe como máximo una vez por secuencia — si el
+  // trigger vuelve a cumplirse (p. ej. se quita y se vuelve a agregar el
+  // mismo tag) no se genera una segunda inscripción ni se reinicia esta.
+  // Simplificación deliberada de esta primera versión (ver comentario de
+  // SequenceTriggerType) para no arriesgar espamear al mismo contacto.
+  @@unique([sequenceId, contactId])
+  @@index([status, nextRunAt])
+  @@map("wa_sequence_enrollments")
+}
+
 enum NotificationType {
   CHAT_MESSAGE
   CAMPAIGN_COMPLETED
@@ -1129,6 +1302,11 @@ enum NotificationType {
   // (account_update) o baja de calidad/límite de envío (phone_number_quality_update).
   ACCOUNT_STATUS
   APPOINTMENT_REMINDER
+  // El bot de IA creó una WAAppointment (source: AI_BOT) de forma autónoma
+  // tras detectar confirmación de fecha/hora en la conversación — distinta de
+  // APPOINTMENT_REMINDER (que avisa de una cita YA agendada, sin importar
+  // quién la creó, cerca de su hora).
+  APPOINTMENT_PROPOSED
 }
 
 model Notification {
