@@ -37,10 +37,30 @@ interface MessagingEvent {
   };
 }
 
+// Roadmap P3-c — evento de comentario en una publicación de Facebook Page
+// (webhook field "feed", suscrito junto con "messages" en
+// subscribePageToApp). Payload distinto al de mensajería: no hay
+// sender/recipient, sino post_id/comment_id + from{id,name} + message.
+interface FeedCommentValue {
+  item: string; // "comment" | "post" | "reaction" | ... — solo "comment" interesa aquí
+  verb: string; // "add" | "edited" | "remove" — solo "add" interesa aquí (mensajes nuevos)
+  comment_id: string;
+  post_id: string;
+  created_time: number; // epoch en SEGUNDOS, no ms (a diferencia de MessagingEvent.timestamp)
+  message?: string;
+  from?: { id: string; name?: string };
+}
+
+interface FeedChangeEvent {
+  field: string;
+  value: FeedCommentValue;
+}
+
 interface MessagingEntry {
   id: string;
   time: number;
   messaging?: MessagingEvent[];
+  changes?: FeedChangeEvent[];
 }
 
 interface MessagingWebhookBody {
@@ -158,6 +178,34 @@ export async function POST(req: Request) {
           mimeType: info.mimeType,
           caption: info.caption,
         });
+      }
+
+      // Roadmap P3-c — solo Facebook Page (channel === "MESSENGER") por
+      // ahora; Instagram usa un field de comentarios distinto, fuera de
+      // alcance de esta primera versión (ver docs/ROADMAP_PANCAKE.md → "P3-c").
+      if (channel === "MESSENGER") {
+        for (const change of entry.changes ?? []) {
+          if (change.field !== "feed") continue;
+          const { value } = change;
+          // "edited"/"remove" y cualquier item que no sea "comment" (post,
+          // reaction, ...) se ignoran — solo comentarios nuevos abren
+          // conversación.
+          if (value.item !== "comment" || value.verb !== "add" || !value.from) continue;
+
+          await ingestChannelMessage(account.id, channel, {
+            externalId: value.from.id,
+            externalMessageId: value.comment_id,
+            timestamp: new Date(value.created_time * 1000),
+            type: "text",
+            body: value.message ?? "",
+            // A diferencia de mensajería, Meta SÍ manda el nombre inline en
+            // el evento de comentario — sin necesidad de golpear la Graph
+            // API para pedirlo (ver contactName en ingest-message.ts).
+            contactName: value.from.name ?? value.from.id,
+            isGroup: false,
+            isFromComment: true,
+          });
+        }
       }
     }
 

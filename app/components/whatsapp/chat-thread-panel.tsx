@@ -171,6 +171,12 @@ function MessageBubble({
             : "rounded-2xl rounded-tr-sm bg-accent text-on-accent"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
+        {msg.isFromComment && (
+          <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${isInbound ? "text-muted-darker" : "text-on-accent/70"}`}>
+            <MessageSquare size={10} />
+            <span>Desde un comentario</span>
+          </div>
+        )}
         {hasMedia && (
           <div className="mb-1 space-y-1">
             <MediaContent msg={msg} onPreview={onPreview} />

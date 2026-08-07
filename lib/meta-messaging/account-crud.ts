@@ -58,7 +58,10 @@ export async function createMetaChannelAccount(
   // Equivalente a Telegram setWebhook(): sin esto, Meta nunca manda
   // webhooks a la cuenta recién creada aunque todo lo demás esté bien.
   try {
-    await subscribePageToApp(input.pageAccessToken, input.pageId);
+    // "feed" (roadmap P3-c, comentarios de publicación → conversación) solo
+    // aplica a Facebook Page — Instagram usa su propio field de comentarios,
+    // fuera de alcance de esta primera versión.
+    await subscribePageToApp(input.pageAccessToken, input.pageId, input.channel === "MESSENGER" ? ["feed"] : []);
     const connected = await prisma.channelAccount.update({
       where: { id: account.id },
       data: { status: "CONNECTED", lastActivity: new Date() },
