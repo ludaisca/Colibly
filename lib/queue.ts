@@ -48,3 +48,4 @@ export const metaConversionsQueue = new Queue("meta-conversions", {
   defaultJobOptions: metaConversionsJobOptions,
 });
 export const appointmentReminderQueue = new Queue("appointment-reminders", { connection, defaultJobOptions });
+export const sequenceQueue = new Queue("sequence-tick", { connection, defaultJobOptions });

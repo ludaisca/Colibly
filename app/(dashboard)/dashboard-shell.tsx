@@ -18,6 +18,8 @@ import {
   MessageCircle,
   Camera,
   CalendarClock,
+  Workflow,
+  Globe,
 } from "lucide-react";
 // Meta (feedback loop de calificación de leads) usa el mismo ícono que
 // Difusión WhatsApp para no introducir un cuarto ícono de "anuncios" — la
@@ -74,6 +76,7 @@ export function DashboardShell({
           items: [
             ...(isAdmin ? [{ href: "/whatsapp/bots" as const, label: "Bots IA", icon: Bot as React.ElementType }] : []),
             { href: "/whatsapp/calificadores",  label: "Calificadores de Leads", icon: Target },
+            { href: "/whatsapp/secuencias",     label: "Secuencias",            icon: Workflow },
           ],
         },
         // El alcance va en el título del grupo: plantillas y campañas son
@@ -92,6 +95,7 @@ export function DashboardShell({
             { href: "/messenger/cuentas",       label: "Cuentas Messenger", icon: MessageCircle },
             { href: "/instagram/cuentas",       label: "Cuentas Instagram", icon: Camera },
             { href: "/telegram/cuentas",        label: "Cuentas Telegram", icon: Send },
+            { href: "/webchat/cuentas",         label: "Cuentas Web",     icon: Globe },
             // Admin-only: credenciales de negocio sensibles (mandan datos
             // reales al ad account en producción), sin equivalente de
             // WAAccountShare — mismo criterio que Bots IA/Usuarios.

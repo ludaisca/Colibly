@@ -13,7 +13,8 @@ import { processSheetsSyncTick } from "./sheets-sync-worker";
 import { processLeadSheetImportTick } from "./lead-sheet-worker";
 import { processMetaConversionsJob } from "./meta-conversions-worker";
 import { processAppointmentReminderTick } from "./appointment-reminder-worker";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue } from "@/lib/queue";
+import { processSequenceTickJob } from "./sequence-worker";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -33,6 +34,11 @@ export function startWorkers() {
     // Messenger/Instagram, ver ChannelAccount) sí lo manda explícito.
     switch (job.data.channel) {
       case "TELEGRAM":
+      // Roadmap P3-f — el widget de chat en vivo reutiliza el bot-worker de
+      // Telegram tal cual (mismo perfil simple: texto plano, sin ventana de
+      // servicio); la única bifurcación real de envío vive en
+      // lib/channel-send.ts, no aquí.
+      case "WEBCHAT":
         await processTelegramBotMessageJob(job.data, attemptInfo);
         break;
       case "MESSENGER":
@@ -98,7 +104,11 @@ export function startWorkers() {
     await processAppointmentReminderTick();
   }, { connection, concurrency: 1 });
 
-  workers.push(botWorker, campaignWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker);
+  const sequenceWorker = new Worker("sequence-tick", async () => {
+    await processSequenceTickJob();
+  }, { connection, concurrency: 1 });
+
+  workers.push(botWorker, campaignWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker);
 
   mediaCleanupQueue
     .add(
@@ -171,6 +181,16 @@ export function startWorkers() {
       { jobId: "appointment-reminder-tick", repeat: { pattern: "*/5 * * * *" } }
     )
     .catch((err) => console.error("[workers] No se pudo programar appointment-reminders:", err));
+
+  // delayMinutes de un paso es granularidad de minuto — mismo cron de 5 min
+  // que appointment-reminders/lead-scoring da margen de sobra.
+  sequenceQueue
+    .add(
+      "tick",
+      {},
+      { jobId: "sequence-tick", repeat: { pattern: "*/5 * * * *" } }
+    )
+    .catch((err) => console.error("[workers] No se pudo programar sequence-tick:", err));
 
   console.log("[workers] BullMQ workers started");
 }

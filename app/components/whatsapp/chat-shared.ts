@@ -13,7 +13,7 @@ export const STATUS_BADGE: Record<ChatStatus, { label: string; tone: "info" | "w
   RESOLVED: { label: "Resuelto", tone: "success" },
 };
 
-export type Channel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM";
+export type Channel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
 
 export interface AccountOption {
   id: string;
@@ -76,6 +76,9 @@ export interface Message {
   /** Botones enviados (outbound, messageType "interactive") o id de la
    *  respuesta recibida (inbound) — ver lib/whatsapp/send-interactive.ts. */
   interactivePayload?: { buttons?: { id: string; title: string }[]; replyId?: string } | null;
+  /** Roadmap P3-c — true si este INBOUND vino de un comentario de Facebook
+   *  Page, no de un mensaje directo. Solo aplica a Messenger. */
+  isFromComment?: boolean;
 }
 
 export interface PreviewMedia {
