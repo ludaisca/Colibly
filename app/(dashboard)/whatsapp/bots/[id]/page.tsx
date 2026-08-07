@@ -28,6 +28,7 @@ interface BotDetail {
   memoryType: string;
   memoryLimit: number;
   ragEnabled: boolean;
+  appointmentSchedulingEnabled: boolean;
   isActive: boolean;
   status: string;
   waAccountId: string | null;
@@ -275,6 +276,7 @@ export default function BotDetailPage() {
             <DetailRow label="Max tokens" value={String(bot.maxTokens)} />
             <DetailRow label="Memoria" value={bot.memoryType === "RECENT" ? `Reciente (${bot.memoryLimit} msgs)` : bot.memoryType === "SUMMARY" ? "Resumen acumulativo" : "Ninguna"} />
             <DetailRow label="RAG" value={bot.ragEnabled ? "Activado" : "Desactivado"} />
+            <DetailRow label="Citas automáticas" value={bot.appointmentSchedulingEnabled ? "Activado" : "Desactivado"} />
             <DetailRow label="Creado" value={new Date(bot.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })} />
           </dl>
         </section>
