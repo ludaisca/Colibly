@@ -4,6 +4,7 @@ import { Send, Paperclip, X, FileAudio, Video, FileText, ListChecks, Plus } from
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
+import { ReplySuggestionButton } from "./reply-suggestion-button";
 import type { CannedResponseItem } from "./chat-shared";
 
 // Input + adjuntos + respuestas rápidas — extraído de chat-workspace.tsx sin
@@ -11,6 +12,7 @@ import type { CannedResponseItem } from "./chat-shared";
 // `newMessage`/`attachment`/`performSend`; este panel solo dispara callbacks).
 
 interface ChatComposerProps {
+  chatId: string;
   newMessage: string;
   onMessageChange: (value: string) => void;
   sending: boolean;
@@ -45,6 +47,7 @@ const MAX_BUTTONS = 3;
 const MAX_BUTTON_LENGTH = 20;
 
 export function ChatComposer({
+  chatId,
   newMessage,
   onMessageChange,
   sending,
@@ -202,6 +205,7 @@ export function ChatComposer({
         >
           <ListChecks size={20} />
         </button>
+        <ReplySuggestionButton chatId={chatId} onInsert={onMessageChange} />
         <input
           value={newMessage}
           onChange={(e) => { onMessageChange(e.target.value); onCannedIndexChange(0); }}
