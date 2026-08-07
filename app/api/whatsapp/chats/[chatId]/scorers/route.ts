@@ -35,7 +35,7 @@ export async function GET(
     if (!resolved) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
-    if (resolved.channel === "MESSENGER" || resolved.channel === "INSTAGRAM") {
+    if (resolved.channel === "MESSENGER" || resolved.channel === "INSTAGRAM" || resolved.channel === "WEBCHAT") {
       return NextResponse.json({ error: "Calificación de leads no disponible para este canal" }, { status: 400 });
     }
 

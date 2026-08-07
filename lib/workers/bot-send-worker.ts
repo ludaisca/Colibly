@@ -11,14 +11,14 @@ interface BotSendJob {
   chunk: string;
   // Presente solo en trabajos de canales no-WhatsApp — el payload de
   // WhatsApp lo omite, igual que el discriminador de la cola media-download.
-  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM";
+  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
 }
 
 // Delivers one chunk of a "humanized" (split) bot reply — kept in its own queue/worker
 // so the delayed sends don't hold a concurrency slot on the bot-messages queue, which
 // would otherwise let a single humanized conversation block the other two bot jobs.
 export async function processBotSendJob(job: BotSendJob) {
-  if (job.channel === "TELEGRAM" || job.channel === "MESSENGER" || job.channel === "INSTAGRAM") {
+  if (job.channel === "TELEGRAM" || job.channel === "MESSENGER" || job.channel === "INSTAGRAM" || job.channel === "WEBCHAT") {
     await processChannelBotSendJob(job);
     return;
   }
@@ -91,5 +91,9 @@ async function processChannelBotSendJob(job: BotSendJob) {
 
 function sendChannelChunk(account: ChannelAccount, to: string, body: string): Promise<{ externalMessageId: string | null }> {
   if (account.channel === "TELEGRAM") return sendTelegramMessage(account, { to, body });
+  // WEBCHAT (roadmap P3-f): no hay ninguna API externa a la que llamar — el
+  // ChannelMessage OUTBOUND creado justo abajo YA es la entrega, el widget
+  // lo recoge por polling.
+  if (account.channel === "WEBCHAT") return Promise.resolve({ externalMessageId: null });
   return sendMetaChannelText(account, { to, body });
 }
