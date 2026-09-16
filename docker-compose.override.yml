@@ -5,7 +5,7 @@ services:
     ports:
       - "15100:5000"
     volumes:
-      - .:/app
+      - .:/app:z
       - /app/node_modules
       - media_data:/app/media
     env_file: .env
