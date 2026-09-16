@@ -424,14 +424,14 @@ function LeadsTab() {
           className="font-medium hover:text-accent transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
-          {r.chat.name || r.chat.remoteJid.split("@")[0]}
+          {r.chat.name || r.chat.identifier.split("@")[0]}
         </Link>
       ),
     },
     {
       key: "phone",
       header: "Teléfono",
-      render: (r) => <span className="text-xs text-muted-darker">{r.chat.remoteJid.split("@")[0]}</span>,
+      render: (r) => <span className="text-xs text-muted-darker">{r.chat.identifier.split("@")[0]}</span>,
     },
     {
       key: "account",
@@ -544,11 +544,11 @@ function LeadsTab() {
               </div>
               <div className="space-y-1 min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-sm truncate">{r.chat.name || r.chat.remoteJid.split("@")[0]}</span>
+                  <span className="font-medium text-sm truncate">{r.chat.name || r.chat.identifier.split("@")[0]}</span>
                   {label.render(r)}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-darker">
-                  <span>{r.chat.remoteJid.split("@")[0]}</span>
+                  <span>{r.chat.identifier.split("@")[0]}</span>
                   <span>·</span>
                   <span className="truncate">{r.chat.account.name}</span>
                   <span>·</span>
@@ -572,7 +572,7 @@ function LeadsTab() {
       <Modal
         open={!!detailRow}
         onClose={() => setDetailId(null)}
-        title={detailRow ? (detailRow.chat.name || detailRow.chat.remoteJid.split("@")[0]) : undefined}
+        title={detailRow ? (detailRow.chat.name || detailRow.chat.identifier.split("@")[0]) : undefined}
         size="lg"
       >
         {detailRow && (
@@ -590,7 +590,7 @@ function LeadsTab() {
               </div>
               <div>
                 <dt className="text-xs text-muted-darker">Teléfono</dt>
-                <dd>{detailRow.chat.remoteJid.split("@")[0]}</dd>
+                <dd>{detailRow.chat.identifier.split("@")[0]}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-darker">Calificador</dt>

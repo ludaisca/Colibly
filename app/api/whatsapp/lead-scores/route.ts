@@ -87,11 +87,18 @@ export async function GET() {
         })
       : [];
 
-    const tgRows: LeadScoreRow[] = tgScores.flatMap(({ conversationId, ...score }) => {
-      const conversation = conversationId ? tgConversationById.get(conversationId) : undefined;
+    const tgRows: LeadScoreRow[] = tgScores.flatMap((s) => {
+      const conversation = s.conversationId ? tgConversationById.get(s.conversationId) : undefined;
       if (!conversation) return [];
       return [{
-        ...score,
+        id: s.id,
+        score: s.score,
+        label: s.label,
+        summary: s.summary,
+        reasons: s.reasons,
+        details: s.details as LeadScoreRow["details"],
+        updatedAt: s.updatedAt.toISOString(),
+        scorer: s.scorer,
         campaign: null,
         channel: "TELEGRAM" as const,
         chat: {
