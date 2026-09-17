@@ -20,6 +20,14 @@ const nextConfig: NextConfig = {
             : []),
         ],
       },
+      // Media subida por usuarios o recibida de leads: `sandbox` impide que un
+      // archivo abierto directamente (p. ej. un SVG con <script>) ejecute
+      // código con la sesión del usuario en el origen de la app. Va después de
+      // la regla global porque, para la misma clave, gana la última.
+      {
+        source: "/api/:channel(whatsapp|telegram|messenger|instagram)/messages/:messageId/media",
+        headers: [{ key: "Content-Security-Policy", value: "sandbox" }],
+      },
     ];
   },
 };

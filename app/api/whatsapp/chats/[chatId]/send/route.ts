@@ -8,7 +8,7 @@ import { sendTelegramMessage, sendTelegramMedia } from "@/lib/telegram/send";
 import { sendMetaChannelText, sendMetaChannelMedia, sendMetaChannelPrivateReply } from "@/lib/meta-messaging/send";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { rateLimit } from "@/lib/rate-limit";
-import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
+import { resolveAbsolutePath, isAccountMediaPath } from "@/lib/whatsapp/media-store";
 import fs from "fs/promises";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
@@ -66,6 +66,9 @@ export async function POST(
     }
 
     const { type, body: textBody, mediaId, caption, mimeType, filename, localMediaPath, bytesSize, buttons } = parsed.data;
+    if (localMediaPath && !isAccountMediaPath(localMediaPath, chat.accountId)) {
+      return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
+    }
 
     let result: { wamid: string | null };
     let interactivePayload: { buttons: { id: string; title: string }[] } | undefined;
@@ -154,6 +157,9 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
   }
 
   const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+  if (localMediaPath && !isAccountMediaPath(localMediaPath, conversation.channelAccountId)) {
+    return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
+  }
 
   let externalMessageId: string | null;
   let mediaId: string | null = null;
@@ -292,6 +298,9 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
   }
 
   const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+  if (localMediaPath && !isAccountMediaPath(localMediaPath, conversation.channelAccountId)) {
+    return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
+  }
 
   let externalMessageId: string | null;
   let attachmentId: string | null = null;

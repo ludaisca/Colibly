@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
-import { saveMediaFromBuffer, resolveAbsolutePath, mediaReadStream } from "@/lib/whatsapp/media-store";
+import { saveMediaFromBuffer, resolveAbsolutePath, mediaReadStream, isInlineSafeMime } from "@/lib/whatsapp/media-store";
 
 // Lógica genérica de media para cualquier canal sobre ChannelAccount/
 // ChannelMessage — extraída de lo que ya era app/api/telegram/media y
@@ -66,7 +66,11 @@ export async function resolveChannelMedia(userId: string, messageId: string): Pr
   headers.set("Content-Length", String(stat.size));
   headers.set("Cache-Control", "private, max-age=3600");
 
-  const isInline = message.messageType === "image" || message.messageType === "audio" || message.messageType === "video";
+  // Inline solo imagen/audio/video de tipos seguros (nunca SVG/HTML); la CSP
+  // `sandbox` de estas rutas vive en next.config.ts (la CSP global la pisaría).
+  const isInline =
+    (message.messageType === "image" || message.messageType === "audio" || message.messageType === "video") &&
+    isInlineSafeMime(message.mimeType);
   if (!isInline && message.filename) {
     headers.set("Content-Disposition", `attachment; filename="${encodeURIComponent(message.filename)}"`);
   } else if (!isInline) {

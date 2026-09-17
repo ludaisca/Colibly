@@ -19,6 +19,7 @@ export {
   isVideoMime,
   isDocumentMime,
   mediaEndpointFor,
+  isInlineSafeMime,
 } from "@/lib/whatsapp/media-shared";
 
 async function ensureAccountDir(accountId: string): Promise<string> {
@@ -101,4 +102,12 @@ export function resolveAbsolutePath(relativePath: string): string {
 export function mediaReadStream(relativePath: string) {
   const abs = resolveAbsolutePath(relativePath);
   return createReadStream(abs);
+}
+
+// `localMediaPath` llega del cliente (lo devolvió la subida previa). Debe estar
+// dentro de la carpeta de la cuenta del chat: resolveAbsolutePath() ya impide
+// salir de MEDIA_ROOT, pero no apuntar a un archivo de OTRA cuenta.
+export function isAccountMediaPath(relativePath: string, accountId: string): boolean {
+  const normalized = path.posix.normalize(relativePath);
+  return !path.posix.isAbsolute(normalized) && !normalized.split("/").includes("..") && normalized.startsWith(`${accountId}/`);
 }

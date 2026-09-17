@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
-import { resolveAbsolutePath, mediaReadStream } from "@/lib/whatsapp/media-store";
+import { resolveAbsolutePath, mediaReadStream, isInlineSafeMime } from "@/lib/whatsapp/media-store";
 
 export async function GET(
   _req: Request,
@@ -51,10 +51,11 @@ export async function GET(
     headers.set("Content-Length", String(stat.size));
     headers.set("Cache-Control", "private, max-age=3600");
 
+    // Inline solo imagen/audio/video de tipos seguros (nunca SVG/HTML); la CSP
+    // `sandbox` de estas rutas vive en next.config.ts (la CSP global la pisaría).
     const isInline =
-      message.messageType === "image" ||
-      message.messageType === "audio" ||
-      message.messageType === "video";
+      (message.messageType === "image" || message.messageType === "audio" || message.messageType === "video") &&
+      isInlineSafeMime(message.mimeType);
 
     if (!isInline && message.filename) {
       headers.set(
