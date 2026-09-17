@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { decrypt } from "@/lib/crypto";
 
 // Núcleo: compara la firma contra un secreto YA EN CLARO. Separado de
@@ -14,9 +14,11 @@ export function compareMetaSignature(
 ): boolean {
   if (!signatureHeader || !plainSecret) return false;
   try {
-    const expected = createHmac("sha256", plainSecret).update(rawBody).digest("hex");
-    const received = signatureHeader.replace("sha256=", "");
-    return expected === received;
+    const expected = Buffer.from(createHmac("sha256", plainSecret).update(rawBody).digest("hex"));
+    const received = Buffer.from(signatureHeader.replace("sha256=", ""));
+    // Comparación en tiempo constante — `===` corta en el primer carácter
+    // distinto y filtra por timing cuánto de la firma es correcto.
+    return expected.length === received.length && timingSafeEqual(expected, received);
   } catch {
     return false;
   }
