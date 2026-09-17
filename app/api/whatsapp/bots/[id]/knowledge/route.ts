@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getKnowledgeForBot } from "@/lib/ai/rag";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   _req: Request,
@@ -38,7 +39,7 @@ export async function GET(
 
     return NextResponse.json(documents);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

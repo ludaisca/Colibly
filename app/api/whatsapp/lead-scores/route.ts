@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { CHAT_ATTRIBUTION_MESSAGE_QUERY, resolveChatAttribution } from "@/lib/whatsapp/chat-attribution";
 import type { LeadScoreRow } from "@/lib/whatsapp/export-columns";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 const TAKE = 500;
 
@@ -119,7 +120,7 @@ export async function GET() {
 
     return NextResponse.json(rows);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

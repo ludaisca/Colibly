@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { leadScorerBotSchema } from "@/lib/validations";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST(req: Request) {
   try {
@@ -73,7 +74,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Ya tienes un calificador con ese nombre" }, { status: 409 });
     }
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -93,7 +94,7 @@ export async function GET() {
     return NextResponse.json(scorers);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

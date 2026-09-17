@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { aiSettingsUpdateSchema } from "@/lib/validations";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET() {
   try {
@@ -39,7 +40,7 @@ export async function GET() {
       leadRecoveryTimezone: settings.leadRecoveryTimezone,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -103,7 +104,7 @@ export async function PATCH(req: Request) {
       leadRecoveryTimezone: settings.leadRecoveryTimezone,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

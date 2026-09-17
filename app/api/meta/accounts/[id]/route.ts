@@ -5,6 +5,7 @@ import { metaAdsAccountUpdateSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   _req: Request,
@@ -47,7 +48,7 @@ export async function GET(
     const { appSecret, ...rest } = account;
     return NextResponse.json({ ...rest, hasAppSecret: !!appSecret });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -148,7 +149,7 @@ export async function PATCH(
 
     return NextResponse.json(updated);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     const status = message.includes("Token validation failed") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -182,7 +183,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

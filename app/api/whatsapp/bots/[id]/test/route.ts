@@ -8,6 +8,7 @@ import type { AIProvider } from "@/lib/ai/types";
 import { rateLimit } from "@/lib/rate-limit";
 import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
 import { recordBotUsage } from "@/lib/bots/usage";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST(
   req: Request,
@@ -85,7 +86,7 @@ export async function POST(
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

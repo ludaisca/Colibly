@@ -11,6 +11,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { resolveAbsolutePath, isAccountMediaPath } from "@/lib/whatsapp/media-store";
 import fs from "fs/promises";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST(
   req: Request,
@@ -134,7 +135,7 @@ export async function POST(
     return NextResponse.json(newMessage);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

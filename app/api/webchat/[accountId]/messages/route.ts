@@ -4,6 +4,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getWebchatCredentials, isOriginAllowed, corsHeaders, readWebchatToken } from "@/lib/webchat/account";
 import { verifyWebchatToken } from "@/lib/webchat/session-token";
 import { ingestChannelMessage } from "@/lib/telegram/ingest-message";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Roadmap P3-f — rutas PÚBLICAS de mensajería del widget (ver session/route.ts
 // para el modelo de autenticación). GET hace polling (mismo patrón de todo
@@ -90,7 +91,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
 
     return NextResponse.json({ success: true, messageId: result?.messageId ?? null }, { headers: corsHeaders(origin!) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -137,7 +138,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ accountI
 
     return NextResponse.json({ messages }, { headers: corsHeaders(origin!) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

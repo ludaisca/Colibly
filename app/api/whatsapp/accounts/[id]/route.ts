@@ -6,6 +6,7 @@ import { encrypt, hashToken } from "@/lib/crypto";
 import { validateToken } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
 import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   req: Request,
@@ -63,7 +64,7 @@ export async function GET(
     return NextResponse.json({ ...rest, hasAppSecret: !!appSecret });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -161,7 +162,7 @@ export async function PATCH(
     return NextResponse.json({ ...updatedRest, hasAppSecret: !!storedSecret });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     const status = message.includes("Token validation failed") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -203,7 +204,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

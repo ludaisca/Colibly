@@ -5,6 +5,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { contactUpdateSchema } from "@/lib/validations";
 import { metaConversionsQueue } from "@/lib/queue";
 import { enrollContactInTrigger } from "@/lib/sequences";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   _req: Request,
@@ -46,7 +47,7 @@ export async function GET(
     return NextResponse.json(contact);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -129,7 +130,7 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

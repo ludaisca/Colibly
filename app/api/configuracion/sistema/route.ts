@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET() {
   try {
@@ -19,7 +20,7 @@ export async function GET() {
       allowRegistration: config.allowRegistration,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -50,7 +51,7 @@ export async function PATCH(req: Request) {
       allowRegistration: config.allowRegistration,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

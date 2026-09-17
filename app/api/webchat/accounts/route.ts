@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { webchatAccountSchema } from "@/lib/validations";
 import { encrypt } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Mismo criterio de rol que Telegram/Messenger/Instagram — "ejecutivo" tiene
 // /webchat/cuentas bloqueado en proxy.ts, este 403 cierra el acceso directo
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(account, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -87,7 +88,7 @@ export async function GET() {
 
     return NextResponse.json(accounts);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

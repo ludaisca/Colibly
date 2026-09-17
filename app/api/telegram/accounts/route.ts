@@ -6,6 +6,7 @@ import { telegramAccountSchema } from "@/lib/validations";
 import { encrypt } from "@/lib/crypto";
 import { getMe, setWebhook } from "@/lib/telegram";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // El rol "ejecutivo" tiene /telegram/cuentas bloqueado en proxy.ts — este 403
 // cierra el acceso directo a la API (defensa en profundidad, mismo patrón que
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Bot validado pero falló la conexión del webhook: ${message}` }, { status: 502 });
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -107,7 +108,7 @@ export async function GET() {
 
     return NextResponse.json(accounts);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -6,6 +6,7 @@ import { uploadMedia } from "@/lib/whatsapp";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { rateLimit } from "@/lib/rate-limit";
 import { saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST(req: Request) {
   try {
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
       localMediaPath,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

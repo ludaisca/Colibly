@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { instagramAccountSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { createMetaChannelAccount } from "@/lib/meta-messaging/account-crud";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 function isForbiddenRole(role: string | undefined): boolean {
   return role === "ejecutivo";
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ...account, verifyToken }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -70,7 +71,7 @@ export async function GET() {
 
     return NextResponse.json(accounts);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

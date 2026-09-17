@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ragQueue } from "@/lib/queue";
 import { getUserApiKey } from "@/lib/ai/settings";
 import type { AIProvider } from "@/lib/ai/types";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -104,7 +105,7 @@ export async function POST(
       message: "Documento encolado para indexación",
     }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

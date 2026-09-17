@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // One row here is one AI call — the closest thing to a "per message" cost
 // this schema can express: a bot reply is normally one call → one outbound
@@ -104,7 +105,7 @@ export async function GET(
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -6,6 +6,7 @@ import { metaAdsAccountSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // CRUD admin-only: MetaAdsAccount es config de negocio sensible (credenciales
 // que mandan datos reales a un ad account en producción), no una cuenta
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
     // donde el llamador ve el valor en claro, para copiarlo al webhook de Meta.
     return NextResponse.json({ ...account, verifyToken: resolvedVerifyToken }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     const status = message.includes("Token validation failed") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -135,7 +136,7 @@ export async function GET() {
 
     return NextResponse.json(withDrift);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

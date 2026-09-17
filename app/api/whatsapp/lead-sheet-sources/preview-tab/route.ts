@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getGoogleSheetsClientForUser } from "@/lib/google/sheets-client";
 import { readSheetValues } from "@/lib/google/sheets-read";
 import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST(req: Request) {
   try {
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ header: rows[0], sampleRow: rows[1] ?? null, rowCount: Math.max(rows.length - 1, 0) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "No se pudo leer la pestaña";
+    const message = publicErrorMessage(error, "No se pudo leer la pestaña");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

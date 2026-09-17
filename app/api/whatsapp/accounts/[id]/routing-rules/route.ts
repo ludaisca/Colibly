@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { routingRuleSchema } from "@/lib/validations";
 import { getEligibleAssignees } from "@/lib/chat-assignees";
 import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Roadmap P3-d — reglas de enrutamiento de auto-asignación
 // (WAAccountRoutingRule). Mismo alcance que el toggle autoAssignEnabled del
@@ -62,7 +63,7 @@ export async function GET(
       eligibleAssignees,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -141,7 +142,7 @@ export async function POST(
 
     return NextResponse.json(rule, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
 import { emailField } from "@/lib/validations";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
@@ -36,7 +37,7 @@ export async function GET() {
 
     return NextResponse.json(users);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -121,7 +122,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json(user);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -161,7 +162,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(user, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

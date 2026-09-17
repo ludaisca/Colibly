@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { getTemplateAnalytics } from "@/lib/whatsapp/template-analytics";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   req: Request,
@@ -70,7 +71,7 @@ export async function GET(
 
     return NextResponse.json({ points: result.points, totals });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

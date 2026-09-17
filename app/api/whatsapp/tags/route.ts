@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { tagSchema } from "@/lib/validations";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { resolveTagScope } from "@/lib/tags";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 const TAG_SELECT = { id: true, name: true, color: true, waAccountId: true, channelAccountId: true } as const;
 
@@ -46,7 +47,7 @@ export async function GET(req: Request) {
     return NextResponse.json(tags);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Ya existe una etiqueta con ese nombre en esta cuenta" }, { status: 409 });
     }
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

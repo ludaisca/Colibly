@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getUserApiKey } from "@/lib/ai/settings";
 import { listOpenRouterModels, listGoogleModels } from "@/lib/ai/models";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(req: Request) {
   try {
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
     return NextResponse.json(models);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

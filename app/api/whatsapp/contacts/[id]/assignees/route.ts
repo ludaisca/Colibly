@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { getEligibleAssigneesForContact } from "@/lib/chat-assignees";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Usado por el picker "Asignar a" del formulario de Citas — mismo criterio
 // de elegibilidad que ya existe para asignar chats (dueño de la cuenta +
@@ -35,7 +36,7 @@ export async function GET(
     const assignees = await getEligibleAssigneesForContact(contact);
     return NextResponse.json(assignees);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

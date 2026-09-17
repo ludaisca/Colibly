@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { getWebchatCredentials, isOriginAllowed, corsHeaders } from "@/lib/webchat/account";
 import { createWebchatToken, generateVisitorId, verifyWebchatToken, WEBCHAT_RENEW_WINDOW_SECONDS } from "@/lib/webchat/session-token";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Roadmap P3-f — ruta PÚBLICA (sin sesión de NextAuth): el widget la llama
 // desde el navegador del visitante para obtener un token de sesión antes de
@@ -71,7 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
     const token = createWebchatToken(visitorId, accountId);
     return NextResponse.json({ token, visitorId }, { headers: corsHeaders(origin!) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

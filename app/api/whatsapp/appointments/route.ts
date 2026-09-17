@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getContactScopeIds, canAssignToContact } from "@/lib/appointments";
 import { appointmentSchema } from "@/lib/validations";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 const TAKE = 500;
 
@@ -75,7 +76,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(appointments);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -143,7 +144,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(appointment, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

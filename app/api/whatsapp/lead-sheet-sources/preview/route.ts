@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getGoogleSheetsClientForUser } from "@/lib/google/sheets-client";
 import { listSheetTabs, extractSpreadsheetId } from "@/lib/google/sheets-read";
 import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Usado por el formulario de alta de una fuente: recibe la URL (o el ID crudo) de
 // una hoja de Google Sheets pegada por el usuario y devuelve sus pestañas, para
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ spreadsheetId, tabs });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "No se pudo leer la hoja — revisa el enlace y que tengas acceso a ella";
+    const message = publicErrorMessage(error, "No se pudo leer la hoja — revisa el enlace y que tengas acceso a ella");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

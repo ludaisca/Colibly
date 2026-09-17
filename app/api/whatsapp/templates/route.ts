@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 async function syncTemplatesFromMeta(wabaId: string, accessToken: string) {
   const url = `https://graph.facebook.com/v21.0/${wabaId}/message_templates`;
@@ -61,7 +62,7 @@ export async function GET(req: Request) {
     return NextResponse.json(templates);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -149,7 +150,7 @@ export async function POST(req: Request) {
     return NextResponse.json(templates);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

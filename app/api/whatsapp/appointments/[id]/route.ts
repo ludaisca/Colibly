@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getContactScopeIds, canAssignToContact } from "@/lib/appointments";
 import { appointmentUpdateSchema } from "@/lib/validations";
 import { enrollContactInTrigger } from "@/lib/sequences";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 const CONTACT_SELECT = {
   id: true,
@@ -63,7 +64,7 @@ export async function GET(
 
     return NextResponse.json(appointment);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -134,7 +135,7 @@ export async function PATCH(
 
     return NextResponse.json(appointment);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -161,7 +162,7 @@ export async function DELETE(
     await prisma.wAAppointment.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

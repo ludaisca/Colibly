@@ -5,6 +5,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { sequenceSchema } from "@/lib/validations";
 import { forbidRoles } from "@/lib/roles";
 import { tagBelongsTo } from "@/lib/tags";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Roadmap P3-a — secuencias de automatización lineales. Recurso plano (no
 // nested bajo /accounts/[id], a diferencia de routing-rules) porque, igual
@@ -79,7 +80,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(sequences.map((s) => ({ ...s, stoppedEnrollments: problemsBySequence.get(s.id) ?? 0 })));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -151,7 +152,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(sequence, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { decrypt } from "@/lib/crypto";
 import { deleteWebhook } from "@/lib/telegram";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function DELETE(
   _req: Request,
@@ -49,7 +50,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

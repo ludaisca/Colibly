@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { suggestReply, ReplySuggestionError } from "@/lib/whatsapp/reply-suggestion";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Copiloto de IA (roadmap P3-e) — mismo alcance de canal que /score y
 // /scorers hoy: WhatsApp + Telegram, no Messenger/Instagram todavía.
@@ -54,7 +55,7 @@ export async function GET(
 
     return NextResponse.json(bots);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -112,7 +113,7 @@ export async function POST(
       throw err;
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
