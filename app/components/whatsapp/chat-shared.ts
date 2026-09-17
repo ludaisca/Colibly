@@ -4,6 +4,10 @@
 // cualquiera de los paneles pueda importarlo sin acoplarse a los demás.
 
 export const CHATS_PAGE_SIZE = 30;
+// Cada cuánto se refresca la lista de conversaciones (nuevos chats de otros
+// leads). Más espaciado que el poll de mensajes del chat abierto (5s): cada
+// tick consulta hasta 5 fuentes, una por canal.
+export const CHATS_LIST_POLL_MS = 15_000;
 
 export type ChatStatus = "OPEN" | "PENDING" | "RESOLVED";
 

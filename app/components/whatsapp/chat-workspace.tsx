@@ -14,6 +14,7 @@ import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import {
   CHATS_PAGE_SIZE,
+  CHATS_LIST_POLL_MS,
   type Channel,
   type ChatItem,
   type ChatStatus,
@@ -106,6 +107,9 @@ export function ChatWorkspace({
   // Payload original de cada mensaje optimista, por tempId — permite
   // reintentar un envío fallido sin pedirle al usuario que lo reescriba.
   const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }>>(new Map());
+  // Se incrementa cada vez que la lista se recarga desde cero (cambio de
+  // filtros): un refresco periódico que salió antes descarta su resultado.
+  const chatsGenerationRef = useRef(0);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -309,20 +313,50 @@ export function ChatWorkspace({
 
   // Load initial chats list
   useEffect(() => {
+    const generation = ++chatsGenerationRef.current;
     async function reset() {
       setLoadingChats(true);
       try {
         const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
+        if (generation !== chatsGenerationRef.current) return; // filtros cambiaron mientras tanto
         setChats(items);
         setChatsTotal(total);
       } catch {
-        toastError("Error al cargar chats");
+        if (generation === chatsGenerationRef.current) toastError("Error al cargar chats");
       } finally {
-        setLoadingChats(false);
+        if (generation === chatsGenerationRef.current) setLoadingChats(false);
       }
     }
     reset();
   }, [fetchChatsPage, firstPagePerChannel, toastError]);
+
+  // Refresco periódico de la LISTA — antes solo se refrescaba cuando cambiaba
+  // el chat abierto, así que las conversaciones nuevas de otros leads no
+  // aparecían hasta recargar la página. Fusiona la primera página (nuevos y
+  // actualizados arriba) con lo ya cargado en vez de reemplazarlo, para no
+  // perder lo traído con "Cargar más". Se salta con la pestaña oculta.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (document.visibilityState === "hidden") return;
+      const generation = chatsGenerationRef.current;
+      try {
+        const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
+        if (generation !== chatsGenerationRef.current) return;
+        setChats((prev) => {
+          const freshIds = new Set(items.map((c) => c.id));
+          return [...items, ...prev.filter((c) => !freshIds.has(c.id))].sort((a, b) => {
+            const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return bt - at;
+          });
+        });
+        setChatsTotal(total);
+      } catch (err) {
+        console.warn("Falló el refresco de la lista de chats, se reintenta en el próximo tick", err);
+      }
+    }, CHATS_LIST_POLL_MS);
+    return () => clearInterval(interval);
+  }, [fetchChatsPage, firstPagePerChannel]);
 
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
@@ -350,21 +384,24 @@ export function ChatWorkspace({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-chat-change
     setLoadingMessages(true);
 
+    const controller = new AbortController();
     async function load() {
       try {
-        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`);
+        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`, { signal: controller.signal });
         const data = await res.json();
+        if (controller.signal.aborted) return;
         if (Array.isArray(data)) {
           setMessages(data);
           setHasOlderMessages(data.length >= 50);
         }
       } catch {
-        toastError("Error al cargar mensajes");
+        if (!controller.signal.aborted) toastError("Error al cargar mensajes");
       } finally {
-        setLoadingMessages(false);
+        if (!controller.signal.aborted) setLoadingMessages(false);
       }
     }
     load();
+    return () => controller.abort();
   }, [selectedChatId, toastError]);
 
   const loadOlderMessages = useCallback(async () => {
@@ -410,10 +447,13 @@ export function ChatWorkspace({
   // Message polling
   useEffect(() => {
     if (!selectedChatId) return;
+    const controller = new AbortController();
     const interval = setInterval(async () => {
+      if (document.visibilityState === "hidden") return;
       try {
-        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`);
+        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`, { signal: controller.signal });
         const data = (await res.json()) as Message[];
+        if (controller.signal.aborted) return; // efecto ya limpiado
         if (Array.isArray(data) && data.length > 0) {
           let anyChange = false;
           setMessages((prev) => {
@@ -439,12 +479,16 @@ export function ChatWorkspace({
           if (anyChange) refreshChats();
         }
       } catch (err) {
+        if (controller.signal.aborted) return;
         // Poll de 5s: un toast por cada blip de red sería spam — el siguiente
         // tick reintenta solo. Se registra para no perder el diagnóstico.
         console.warn("Fallo el poll de mensajes, se reintenta en 5s", err);
       }
     }, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      controller.abort();
+    };
   }, [selectedChatId, refreshChats]);
 
   // Route updates on selection
