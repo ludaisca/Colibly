@@ -80,9 +80,20 @@ export function NotificationBell() {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  // Con la pestaña oculta no se consulta (cada pestaña abierta de cada agente
+  // sumaba carga sin beneficio); al volver a ella se refresca de inmediato.
   useEffect(() => {
-    const interval = setInterval(fetchNotifications, 25000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "hidden") fetchNotifications();
+    }, 25000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [fetchNotifications]);
 
   async function handleItemClick(item: NotificationItem) {

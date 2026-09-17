@@ -97,7 +97,10 @@ export default function CampaignDetailPage() {
   // page refresh. Stops as soon as the campaign leaves SENDING.
   useEffect(() => {
     if (campaign?.status !== "SENDING") return;
-    const interval = setInterval(() => fetchCampaign(page, { silent: true }), 2000);
+    const interval = setInterval(() => {
+      // Sin consultas cada 2s con la pestaña oculta.
+      if (document.visibilityState !== "hidden") fetchCampaign(page, { silent: true });
+    }, 2000);
     return () => clearInterval(interval);
   }, [campaign?.status, fetchCampaign, page]);
 
