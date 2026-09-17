@@ -69,17 +69,31 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
     Promise.all([
       fetch("/api/whatsapp/accounts").then((r) => r.json()),
       fetch("/api/telegram/accounts").then((r) => r.json()),
-      fetch("/api/whatsapp/tags").then((r) => r.json()),
     ])
-      .then(([wa, tg, tagList]) => {
+      .then(([wa, tg]) => {
         setAccounts([
           ...(Array.isArray(wa) ? wa.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "WHATSAPP" as const })) : []),
           ...(Array.isArray(tg) ? tg.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "TELEGRAM" as const })) : []),
         ]);
-        if (Array.isArray(tagList)) setTags(tagList);
       })
-      .catch(() => toastError("Error al cargar cuentas/etiquetas"));
+      .catch(() => toastError("Error al cargar cuentas"));
   }, [open, toastError]);
+
+  // Las etiquetas son por cuenta — el selector del disparador solo ofrece las
+  // de la cuenta elegida.
+  useEffect(() => {
+    const account = accounts.find((a) => a.id === accountId);
+    if (!open || !account) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sin cuenta no hay catálogo
+      setTags([]);
+      return;
+    }
+    const param = account.channel === "TELEGRAM" ? "channelAccountId" : "waAccountId";
+    fetch(`/api/whatsapp/tags?${param}=${account.id}`)
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setTags(d); })
+      .catch(() => toastError("Error al cargar etiquetas"));
+  }, [open, accountId, accounts, toastError]);
 
   useEffect(() => {
     if (!open || !editId) return;

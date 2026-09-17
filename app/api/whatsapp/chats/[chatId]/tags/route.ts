@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
+import { resolveTagScope, tagBelongsTo } from "@/lib/tags";
 
 export async function GET(
   _req: Request,
@@ -55,7 +56,9 @@ export async function POST(
     }
 
     const tag = await prisma.tag.findUnique({ where: { id: tagId } });
-    if (!tag) {
+    // La etiqueta debe ser de la misma cuenta que el chat.
+    const chatScope = await resolveTagScope(session.user.id, { chatId });
+    if (!tag || !chatScope || !tagBelongsTo(tag, chatScope)) {
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 

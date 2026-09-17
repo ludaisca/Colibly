@@ -404,8 +404,14 @@ export const sequenceUpdateSchema = z.object({
 });
 
 export const tagSchema = z.object({
-  name: z.string().min(1, "El nombre es requerido").max(50),
+  name: z.string().trim().min(1, "El nombre es requerido").max(50),
   color: z.string().max(30).optional(),
+  // Alcance de la etiqueta: una cuenta explícita, o el contacto/chat desde el
+  // que se crea (la cuenta se resuelve en el servidor) — ver lib/tags.ts.
+  waAccountId: z.string().min(1).optional(),
+  channelAccountId: z.string().min(1).optional(),
+  contactId: z.string().min(1).optional(),
+  chatId: z.string().min(1).optional(),
 });
 
 export const cannedResponseSchema = z.object({

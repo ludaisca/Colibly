@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { sequenceUpdateSchema } from "@/lib/validations";
 import { forbidRoles } from "@/lib/roles";
+import { tagBelongsTo } from "@/lib/tags";
 
 async function getOwnedSequence(userId: string, sequenceId: string) {
   const [accountIds, channelAccountIds] = await Promise.all([
@@ -73,7 +74,7 @@ export async function PATCH(
 
     if (data.triggerType === "TAG_ADDED" && data.triggerValue) {
       const tag = await prisma.tag.findUnique({ where: { id: data.triggerValue } });
-      if (!tag) {
+      if (!tag || !tagBelongsTo(tag, existing)) {
         return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
       }
     }

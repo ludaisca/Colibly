@@ -25,7 +25,7 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
   const fetchAll = useCallback(async () => {
     try {
       const [allRes, chatRes] = await Promise.all([
-        fetch("/api/whatsapp/tags"),
+        fetch(`/api/whatsapp/tags?chatId=${chatId}`),
         fetch(`/api/whatsapp/chats/${chatId}/tags`),
       ]);
       const allData = await allRes.json();
@@ -80,7 +80,7 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
       const res = await fetch("/api/whatsapp/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newTagName.trim() }),
+        body: JSON.stringify({ name: newTagName.trim(), chatId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al crear etiqueta");

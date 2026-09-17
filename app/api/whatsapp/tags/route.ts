@@ -2,19 +2,47 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { tagSchema } from "@/lib/validations";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { resolveTagScope } from "@/lib/tags";
 
-export async function GET() {
+const TAG_SELECT = { id: true, name: true, color: true, waAccountId: true, channelAccountId: true } as const;
+
+// Etiquetas por cuenta. Con ?waAccountId= / ?channelAccountId= / ?contactId= /
+// ?chatId= devuelve el catálogo de ESA cuenta (lo que usan los selectores); sin
+// parámetros, las de todas las cuentas a las que el usuario tiene acceso.
+export async function GET(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const tags = await prisma.tag.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, color: true },
-    });
+    const { searchParams } = new URL(req.url);
+    const scopeInput = {
+      waAccountId: searchParams.get("waAccountId"),
+      channelAccountId: searchParams.get("channelAccountId"),
+      contactId: searchParams.get("contactId"),
+      chatId: searchParams.get("chatId"),
+    };
 
+    if (Object.values(scopeInput).some(Boolean)) {
+      const scope = await resolveTagScope(session.user.id, scopeInput);
+      if (!scope) {
+        return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+      }
+      const tags = await prisma.tag.findMany({ where: scope, orderBy: { name: "asc" }, select: TAG_SELECT });
+      return NextResponse.json(tags);
+    }
+
+    const [accountIds, channelAccountIds] = await Promise.all([
+      getUserAccountIds(session.user.id),
+      getUserChannelAccountIds(session.user.id),
+    ]);
+    const tags = await prisma.tag.findMany({
+      where: { OR: [{ waAccountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+      orderBy: { name: "asc" },
+      select: TAG_SELECT,
+    });
     return NextResponse.json(tags);
   } catch (error) {
     const message =
@@ -39,12 +67,19 @@ export async function POST(req: Request) {
       );
     }
 
+    const { name, color, ...scopeInput } = parsed.data;
+    const scope = await resolveTagScope(session.user.id, scopeInput);
+    if (!scope) {
+      return NextResponse.json({ error: "Indica una cuenta, contacto o chat válido para la etiqueta" }, { status: 400 });
+    }
+
     const tag = await prisma.tag.create({
       data: {
-        name: parsed.data.name,
-        ...(parsed.data.color ? { color: parsed.data.color } : {}),
+        ...scope,
+        name,
+        ...(color ? { color } : {}),
       },
-      select: { id: true, name: true, color: true },
+      select: TAG_SELECT,
     });
 
     return NextResponse.json(tag, { status: 201 });
@@ -55,7 +90,7 @@ export async function POST(req: Request) {
       "code" in error &&
       (error as { code?: string }).code === "P2002"
     ) {
-      return NextResponse.json({ error: "Ya existe una etiqueta con ese nombre" }, { status: 409 });
+      return NextResponse.json({ error: "Ya existe una etiqueta con ese nombre en esta cuenta" }, { status: 409 });
     }
     const message =
       error instanceof Error ? error.message : "Error interno del servidor";

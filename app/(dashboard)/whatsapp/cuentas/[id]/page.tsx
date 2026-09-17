@@ -187,8 +187,8 @@ export default function CuentaDetailPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, no depende de rol (a diferencia de compartir)
     fetchRoutingRules();
-    fetch("/api/whatsapp/tags").then(r => r.json()).then(d => { if (Array.isArray(d)) setTags(d); }).catch(() => {});
-  }, [fetchRoutingRules]);
+    fetch(`/api/whatsapp/tags?waAccountId=${id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setTags(d); }).catch(() => {});
+  }, [fetchRoutingRules, id]);
 
   async function handleAddRule() {
     if (!ruleConditionValue || !ruleAssignedToId) {

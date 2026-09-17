@@ -69,9 +69,12 @@ export async function processCampaignJob(job: CampaignJob) {
 
   // Attribution tag applied to every Contact/WAChat this campaign actually
   // reaches, so agents can tell which campaign brought a lead in.
+  // Etiqueta de la cuenta de la campaña — antes el catálogo era global y el
+  // nombre de la campaña quedaba visible para todos los clientes.
+  const campaignTagName = `Campaña: ${campaign.name}`;
   const campaignTag = await prisma.tag.upsert({
-    where: { name: `Campaña: ${campaign.name}` },
-    create: { name: `Campaña: ${campaign.name}` },
+    where: { waAccountId_name: { waAccountId: campaign.waAccountId, name: campaignTagName } },
+    create: { waAccountId: campaign.waAccountId, name: campaignTagName },
     update: {},
   });
 

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { enrollContactInTrigger } from "@/lib/sequences";
+import { tagBelongsTo } from "@/lib/tags";
 
 async function getOwnedContact(userId: string, contactId: string) {
   const accountIds = await getUserAccountIds(userId);
@@ -34,7 +35,8 @@ export async function POST(
     }
 
     const tag = await prisma.tag.findUnique({ where: { id: tagId } });
-    if (!tag) {
+    // La etiqueta debe ser de la misma cuenta que el contacto.
+    if (!tag || !tagBelongsTo(tag, { waAccountId: contact.accountId, channelAccountId: contact.channelAccountId })) {
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 

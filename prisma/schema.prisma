@@ -140,6 +140,7 @@ model WAAccount {
   contacts   Contact[]
 
   cannedResponses        CannedResponse[]
+  tags                   Tag[]
   leadSheetSources       LeadSheetSource[]
   // Cuentas de Meta Ads (Instant Forms) que entregan sus leads bajo este
   // número — ver MetaAdsAccount.waAccountId.
@@ -314,6 +315,7 @@ model ChannelAccount {
   contacts               Contact[]
   bots                   WABot[]
   cannedResponses        CannedResponse[]
+  tags                   Tag[]
   sharedWith             ChannelAccountShare[]
   customFieldDefinitions ContactCustomFieldDefinition[]
   sequences              WASequence[]
@@ -1031,14 +1033,25 @@ model MetaConversionEvent {
 }
 
 model Tag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  color     String   @default("accent")
-  createdAt DateTime @default(now()) @map("created_at")
+  id               String          @id @default(cuid())
+  // Alcance por cuenta — exactamente uno de los dos (a nivel de aplicación),
+  // mismo patrón que CannedResponse. Hasta 2026-09-16 el catálogo era global
+  // con `name @unique`: cualquier usuario veía las etiquetas (y los nombres de
+  // campañas, vía "Campaña: X") de todos los demás clientes, y un nombre usado
+  // por una empresa quedaba bloqueado para las demás.
+  waAccountId      String?
+  waAccount        WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId String?
+  channelAccount   ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  name             String
+  color            String          @default("accent")
+  createdAt        DateTime        @default(now()) @map("created_at")
 
   contacts ContactTag[]
   chats    ChatTag[]
 
+  @@unique([waAccountId, name])
+  @@unique([channelAccountId, name])
   @@map("tags")
 }
 

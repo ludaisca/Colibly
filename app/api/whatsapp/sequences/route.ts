@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { sequenceSchema } from "@/lib/validations";
 import { forbidRoles } from "@/lib/roles";
+import { tagBelongsTo } from "@/lib/tags";
 
 // Roadmap P3-a — secuencias de automatización lineales. Recurso plano (no
 // nested bajo /accounts/[id], a diferencia de routing-rules) porque, igual
@@ -127,7 +128,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Selecciona una etiqueta" }, { status: 400 });
       }
       const tag = await prisma.tag.findUnique({ where: { id: data.triggerValue } });
-      if (!tag) {
+      if (!tag || !tagBelongsTo(tag, { waAccountId, channelAccountId })) {
         return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
       }
     } else if (data.triggerType === "LEAD_STATUS_CHANGED") {

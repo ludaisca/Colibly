@@ -84,7 +84,7 @@ export function ContactDrawer({
       const [contactRes, notesRes, tagsRes, appointmentsRes, customFieldsRes] = await Promise.all([
         fetch(`/api/whatsapp/contacts/${contactId}`),
         fetch(`/api/whatsapp/contacts/${contactId}/notes`),
-        fetch(`/api/whatsapp/tags`),
+        fetch(`/api/whatsapp/tags?contactId=${contactId}`),
         fetch(`/api/whatsapp/appointments?contactId=${contactId}&upcoming=true&limit=1`),
         fetch(`/api/whatsapp/contacts/${contactId}/custom-fields`),
       ]);
@@ -173,7 +173,7 @@ export function ContactDrawer({
       const res = await fetch("/api/whatsapp/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newTagName.trim() }),
+        body: JSON.stringify({ name: newTagName.trim(), contactId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al crear etiqueta");

@@ -142,9 +142,10 @@ export async function importNewLeadsForSource(
     }
   }
 
+  const leadAdsTagName = `Lead Ads: ${source.name}`;
   const leadAdsTag = await prisma.tag.upsert({
-    where: { name: `Lead Ads: ${source.name}` },
-    create: { name: `Lead Ads: ${source.name}` },
+    where: { waAccountId_name: { waAccountId: source.waAccountId, name: leadAdsTagName } },
+    create: { waAccountId: source.waAccountId, name: leadAdsTagName },
     update: {},
   });
 

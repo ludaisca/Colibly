@@ -103,7 +103,7 @@ export async function POST(
 
     if (conditionType === "TAG") {
       const tag = await prisma.tag.findUnique({ where: { id: conditionValue } });
-      if (!tag) {
+      if (!tag || tag.waAccountId !== id) {
         return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
       }
     } else if (conditionType === "LEAD_ORIGIN") {

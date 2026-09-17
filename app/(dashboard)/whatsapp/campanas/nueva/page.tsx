@@ -96,11 +96,19 @@ export default function NewCampaignPage() {
     }).catch(() => toastError("Error al cargar cuentas"));
   }, [toastError]);
 
+  // Las etiquetas son por cuenta: se recargan al cambiar de número y se
+  // descarta la selección anterior (pertenecía a otra cuenta).
   useEffect(() => {
-    fetch("/api/whatsapp/tags").then(r => r.json()).then(d => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset al cambiar de cuenta
+    setSelectedTagId("");
+    if (!waAccountId) {
+      setTags([]);
+      return;
+    }
+    fetch(`/api/whatsapp/tags?waAccountId=${waAccountId}`).then(r => r.json()).then(d => {
       if (Array.isArray(d)) setTags(d);
     }).catch(() => toastError("Error al cargar etiquetas"));
-  }, [toastError]);
+  }, [waAccountId, toastError]);
 
   useEffect(() => {
     if (!waAccountId) return;

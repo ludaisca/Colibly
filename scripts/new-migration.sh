@@ -1,6 +1,9 @@
 #!/bin/sh
 # Crea y aplica una migración a partir de los cambios en prisma/schema.prisma.
-# Uso (dentro del contenedor app):  sh scripts/new-migration.sh nombre_del_cambio
+# Uso (dentro del contenedor app):  sh scripts/new-migration.sh nombre_del_cambio [--create-only]
+#   --create-only  genera el SQL sin aplicarlo — para agregar SQL de datos a mano
+#                  (p. ej. repartir filas existentes) y luego aplicar con
+#                  `npx prisma migrate deploy && npx prisma generate`.
 #
 # Por qué no `prisma migrate dev`: el índice IVFFlat de wa_bot_knowledge vive
 # fuera de Prisma (prisma/sql/ensure-vector-index.sql), así que migrate dev
@@ -11,8 +14,9 @@
 set -e
 
 NAME="$1"
+CREATE_ONLY="$2"
 if [ -z "$NAME" ]; then
-  echo "Uso: sh scripts/new-migration.sh <nombre_del_cambio>"
+  echo "Uso: sh scripts/new-migration.sh <nombre_del_cambio> [--create-only]"
   exit 1
 fi
 
@@ -55,6 +59,10 @@ if ! grep -qvE '^\s*(--.*)?$' "$DIR/migration.sql"; then
 fi
 
 echo "[new-migration] Creada $DIR/migration.sql — revísala (y agrega SQL de datos si hace falta) antes de hacer commit."
+if [ "$CREATE_ONLY" = "--create-only" ]; then
+  echo "[new-migration] --create-only: no se aplicó. Cuando esté lista: npx prisma migrate deploy && npx prisma generate"
+  exit 0
+fi
 npx prisma migrate deploy
 npx prisma generate
 echo "[new-migration] Aplicada. Reinicia el contenedor app para que el proceso de Next y los workers usen el cliente nuevo."
