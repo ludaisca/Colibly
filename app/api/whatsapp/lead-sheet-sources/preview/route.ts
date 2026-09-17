@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getGoogleSheetsClientForUser } from "@/lib/google/sheets-client";
 import { listSheetTabs, extractSpreadsheetId } from "@/lib/google/sheets-read";
+import { forbidRoles } from "@/lib/roles";
 
 // Usado por el formulario de alta de una fuente: recibe la URL (o el ID crudo) de
 // una hoja de Google Sheets pegada por el usuario y devuelve sus pestañas, para
@@ -12,6 +13,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { spreadsheetIdOrUrl } = await req.json();
     if (!spreadsheetIdOrUrl || typeof spreadsheetIdOrUrl !== "string") {

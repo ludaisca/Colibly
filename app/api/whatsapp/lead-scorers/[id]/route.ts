@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { leadScorerBotUpdateSchema } from "@/lib/validations";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
 
 export async function GET(
   _req: Request,
@@ -41,6 +42,8 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["user"]);
+    if (denied) return denied;
 
     const { id } = await params;
 
@@ -123,6 +126,8 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["user"]);
+    if (denied) return denied;
 
     const { id } = await params;
 

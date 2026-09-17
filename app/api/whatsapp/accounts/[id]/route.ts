@@ -5,6 +5,7 @@ import { waAccountUpdateSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validateToken } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
+import { forbidRoles } from "@/lib/roles";
 
 export async function GET(
   req: Request,
@@ -76,6 +77,8 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { allowed } = await rateLimit(`account-mutate:${session.user.id}`, 20, 60);
     if (!allowed) {
@@ -173,6 +176,8 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { allowed } = await rateLimit(`account-mutate:${session.user.id}`, 20, 60);
     if (!allowed) {

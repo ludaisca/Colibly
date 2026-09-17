@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { routingRuleSchema } from "@/lib/validations";
 import { getEligibleAssignees } from "@/lib/chat-assignees";
+import { forbidRoles } from "@/lib/roles";
 
 // Roadmap P3-d — reglas de enrutamiento de auto-asignación
 // (WAAccountRoutingRule). Mismo alcance que el toggle autoAssignEnabled del
@@ -75,6 +76,8 @@ export async function POST(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { id } = await params;
     const account = await prisma.wAAccount.findFirst({ where: { id, userId: session.user.id } });

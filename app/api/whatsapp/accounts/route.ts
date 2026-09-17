@@ -6,6 +6,7 @@ import { waAccountSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validateToken } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
+import { forbidRoles } from "@/lib/roles";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +14,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { allowed } = await rateLimit(`account-create:${session.user.id}`, 10, 60);
     if (!allowed) {

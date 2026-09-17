@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { sequenceUpdateSchema } from "@/lib/validations";
+import { forbidRoles } from "@/lib/roles";
 
 async function getOwnedSequence(userId: string, sequenceId: string) {
   const [accountIds, channelAccountIds] = await Promise.all([
@@ -54,6 +55,8 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { id } = await params;
     const existing = await getOwnedSequence(session.user.id, id);
@@ -115,6 +118,8 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { id } = await params;
     const existing = await getOwnedSequence(session.user.id, id);

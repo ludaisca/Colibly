@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
 
 async function syncTemplatesFromMeta(wabaId: string, accessToken: string) {
   const url = `https://graph.facebook.com/v21.0/${wabaId}/message_templates`;
@@ -71,6 +72,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { waAccountId } = (await req.json()) as { waAccountId: string };
 

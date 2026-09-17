@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { importNewLeadsForSource, LEAD_SHEET_MAX_BACKFILL } from "@/lib/google/lead-sheet-import";
+import { forbidRoles } from "@/lib/roles";
 
 // Acción manual explícita — reprocesa filas marcadas "seeded" (vistas al conectar
 // la fuente, sin enviarles nada) para el caso en que sí se quiera avisar al
@@ -13,6 +14,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
     const { id } = await params;
 
     const accountIds = await getUserAccountIds(session.user.id);

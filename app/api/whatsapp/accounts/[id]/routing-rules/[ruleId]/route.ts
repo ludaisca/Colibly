@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { forbidRoles } from "@/lib/roles";
 
 export async function DELETE(
   _req: Request,
@@ -11,6 +12,8 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { id, ruleId } = await params;
     // El filtro por waAccount.userId (no solo por ruleId) evita que alguien

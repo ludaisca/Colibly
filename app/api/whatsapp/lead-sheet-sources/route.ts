@@ -7,6 +7,7 @@ import { getGoogleSheetsClientForUser } from "@/lib/google/sheets-client";
 import { readSheetValues } from "@/lib/google/sheets-read";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import { importNewLeadsForSource } from "@/lib/google/lead-sheet-import";
+import { forbidRoles } from "@/lib/roles";
 
 export async function GET() {
   try {
@@ -39,6 +40,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const body = await req.json();
     const parsed = leadSheetSourceSchema.safeParse(body);
