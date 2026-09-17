@@ -470,8 +470,17 @@ export async function POST(req: Request) {
 
         if (!account) continue;
 
+        if (!account.appSecret) {
+          // Sin secreto la firma nunca valida — antes esto descartaba el
+          // payload sin dejar rastro. La UI de la cuenta muestra el mismo aviso.
+          console.warn(`[webhook] Cuenta "${account.name}" (${account.id}) sin App Secret — payload descartado. Configúralo en Cuentas WhatsApp.`);
+          continue;
+        }
         const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
-        if (!sigValid) continue;
+        if (!sigValid) {
+          console.warn(`[webhook] Firma inválida para la cuenta "${account.name}" (${account.id}) — payload descartado`);
+          continue;
+        }
 
         await prisma.wAAccount.update({
           where: { id: account.id },

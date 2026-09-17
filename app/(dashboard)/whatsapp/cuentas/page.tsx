@@ -26,6 +26,7 @@ interface WaAccount {
   status: string;
   errorMessage: string | null;
   lastActivity: string | null;
+  hasAppSecret: boolean;
   createdAt: string;
   updatedAt: string;
   _count: { chats: number };
@@ -179,7 +180,12 @@ function CuentasView() {
                     {a.name}
                   </Link>
                 }
-                badges={<Badge tone={badge.tone} size="sm">{badge.label}</Badge>}
+                badges={
+                  <>
+                    <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
+                    {!a.hasAppSecret && <Badge tone="danger" size="sm">Sin App Secret</Badge>}
+                  </>
+                }
                 subtitle={
                   <>
                     <span className="font-mono">{a.phoneNumber ?? "—"}</span>

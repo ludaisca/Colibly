@@ -52,14 +52,17 @@ export const waAccountSchema = z.object({
   wabaId: z.string().regex(/^\d+$/, "Debe ser un ID numérico").optional().or(z.literal("")),
   appId: z.string().regex(/^\d+$/, "Debe ser un ID numérico").optional().or(z.literal("")),
   verifyToken: z.string().min(6, "El verify token debe tener al menos 6 caracteres").optional().or(z.literal("")),
-  appSecret: z.string().optional().or(z.literal("")),
+  // Obligatorio: el webhook descarta todo payload cuya firma no valida, y sin
+  // secreto la firma nunca valida — una cuenta sin él no recibe ni un mensaje.
+  appSecret: z.string({ error: "El App Secret es requerido" }).trim().min(1, "El App Secret es requerido"),
 });
 
 export const waAccountUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   accessToken: z.string().min(1).optional(),
   verifyToken: z.string().min(6).optional(),
-  appSecret: z.string().optional(),
+  // Se puede reemplazar, nunca vaciar (ver waAccountSchema).
+  appSecret: z.string().trim().min(1, "El App Secret no puede quedar vacío").optional(),
   wabaId: z.string().optional(),
   appId: z.string().optional(),
 });
@@ -68,10 +71,9 @@ export const metaAdsAccountSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
   pageId: z.string().min(1, "El Page ID es requerido").regex(/^\d+$/, "Debe ser un ID numérico"),
   pageAccessToken: z.string().min(1, "El token de la página es requerido"),
-  // Opcional a nivel de schema (mismo criterio que WAAccount.appSecret) pero
-  // sin él ningún leadgen se ingiere — validateMetaWebhookSignature rechaza
-  // el payload si no hay secreto configurado. Ver hint en el form.
-  appSecret: z.string().optional().or(z.literal("")),
+  // Obligatorio por la misma razón que WAAccount.appSecret: sin él
+  // validateMetaWebhookSignature rechaza todo leadgen.
+  appSecret: z.string({ error: "El App Secret es requerido" }).trim().min(1, "El App Secret es requerido"),
   verifyToken: z.string().min(6, "El verify token debe tener al menos 6 caracteres").optional().or(z.literal("")),
   datasetId: z.string().optional().or(z.literal("")),
   capiAccessToken: z.string().optional().or(z.literal("")),
@@ -82,7 +84,7 @@ export const metaAdsAccountSchema = z.object({
 export const metaAdsAccountUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   pageAccessToken: z.string().min(1).optional(),
-  appSecret: z.string().optional(),
+  appSecret: z.string().trim().min(1, "El App Secret no puede quedar vacío").optional(),
   verifyToken: z.string().min(6).optional(),
   datasetId: z.string().optional(),
   capiAccessToken: z.string().optional(),

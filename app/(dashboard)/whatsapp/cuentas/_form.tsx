@@ -65,6 +65,7 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
     if (!accessToken.trim()) newErrors.accessToken = "El token de acceso es requerido";
     if (wabaId.trim() && !/^\d+$/.test(wabaId.trim())) newErrors.wabaId = "Debe ser un ID numérico";
     if (appId.trim() && !/^\d+$/.test(appId.trim())) newErrors.appId = "Debe ser un ID numérico";
+    if (!appSecret.trim()) newErrors.appSecret = "El App Secret es requerido";
 
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
@@ -80,7 +81,7 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
           accessToken: accessToken.trim(),
           wabaId: wabaId.trim() || undefined,
           appId: appId.trim() || undefined,
-          appSecret: appSecret.trim() || undefined,
+          appSecret: appSecret.trim(),
         }),
       });
 
@@ -210,9 +211,14 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
           )}
         </FormField>
 
-        <FormField label="App Secret (opcional)" hint="Secreto de la App de Meta para validar firmas de webhook entrantes">
+        <FormField
+          label="App Secret"
+          required
+          error={errors.appSecret}
+          hint="En Meta for Developers → tu App → Configuración → Básica. Sin él, el webhook rechaza todos los mensajes entrantes (no se puede validar su firma)."
+        >
           {(id) => (
-            <Input id={id} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123..." />
+            <Input id={id} type="password" autoComplete="off" value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123..." error={errors.appSecret} />
           )}
         </FormField>
 

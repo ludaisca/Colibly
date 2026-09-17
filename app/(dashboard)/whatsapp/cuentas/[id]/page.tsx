@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X, ArrowLeft, Plus } from "lucide-react";
+import { Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X, ArrowLeft, Plus, KeyRound } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -31,6 +31,7 @@ interface AccountDetail {
   qualityRating: string | null;
   messagingTier: string | null;
   qualityUpdatedAt: string | null;
+  hasAppSecret: boolean;
   createdAt: string;
   updatedAt: string;
   _count: { chats: number; templates: number };
@@ -115,6 +116,9 @@ export default function CuentaDetailPage() {
   const [editingAppId, setEditingAppId] = useState(false);
   const [appIdDraft, setAppIdDraft] = useState("");
   const [savingAppId, setSavingAppId] = useState(false);
+  const [editingAppSecret, setEditingAppSecret] = useState(false);
+  const [appSecretDraft, setAppSecretDraft] = useState("");
+  const [savingAppSecret, setSavingAppSecret] = useState(false);
 
   const [sharedUsers, setSharedUsers] = useState<UserOption[]>([]);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
@@ -313,6 +317,31 @@ export default function CuentaDetailPage() {
     }
   }
 
+  async function handleSaveAppSecret() {
+    if (!appSecretDraft.trim()) {
+      toastError("El App Secret no puede quedar vacío");
+      return;
+    }
+    setSavingAppSecret(true);
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appSecret: appSecretDraft.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al guardar");
+      setAccount((prev) => prev && { ...prev, hasAppSecret: data.hasAppSecret });
+      setEditingAppSecret(false);
+      setAppSecretDraft("");
+      success("App Secret actualizado");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al guardar el App Secret");
+    } finally {
+      setSavingAppSecret(false);
+    }
+  }
+
   async function handleToggleAutoAssign(enabled: boolean) {
     if (!account) return;
     setAccount({ ...account, autoAssignEnabled: enabled });
@@ -363,6 +392,13 @@ export default function CuentaDetailPage() {
         </Banner>
       )}
 
+      {!account.hasAppSecret && (
+        <Banner tone="danger" title="Esta cuenta no está recibiendo mensajes">
+          Falta el App Secret. Sin él no se puede validar la firma de los webhooks de Meta y se descartan todos los
+          mensajes entrantes y los estados de entrega. Agrégalo abajo, en &quot;App Secret&quot;.
+        </Banner>
+      )}
+
       <div className="space-y-8">
         <section className="space-y-4">
           <SectionHeader title="Información de la cuenta" />
@@ -392,6 +428,43 @@ export default function CuentaDetailPage() {
                   {account.appId ?? "—"}
                   <button onClick={startEditAppId} className="text-muted-darker transition-colors hover:text-foreground" aria-label="Editar App ID">
                     <Pencil size={13} />
+                  </button>
+                </dd>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+              <dt className="shrink-0 text-sm text-muted-darker">App Secret</dt>
+              {editingAppSecret ? (
+                <div className="flex flex-1 items-center justify-end gap-2">
+                  <Input
+                    type="password"
+                    autoComplete="off"
+                    value={appSecretDraft}
+                    onChange={(e) => setAppSecretDraft(e.target.value)}
+                    placeholder="abc123..."
+                    aria-label="Nuevo App Secret"
+                    className="max-w-[200px] font-mono text-sm"
+                  />
+                  <Button size="sm" onClick={handleSaveAppSecret} disabled={savingAppSecret}>
+                    {savingAppSecret ? <Spinner /> : "Guardar"}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => { setEditingAppSecret(false); setAppSecretDraft(""); }}>
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <dd className="flex items-center gap-2 text-sm">
+                  {account.hasAppSecret ? (
+                    <Badge tone="success" size="sm">Configurado</Badge>
+                  ) : (
+                    <Badge tone="danger" size="sm">Falta</Badge>
+                  )}
+                  <button
+                    onClick={() => setEditingAppSecret(true)}
+                    className="text-muted-darker transition-colors hover:text-foreground"
+                    aria-label={account.hasAppSecret ? "Reemplazar App Secret" : "Agregar App Secret"}
+                  >
+                    {account.hasAppSecret ? <Pencil size={13} /> : <KeyRound size={13} />}
                   </button>
                 </dd>
               )}

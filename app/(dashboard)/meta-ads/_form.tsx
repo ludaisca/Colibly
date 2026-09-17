@@ -98,6 +98,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
       if (!pageId.trim()) newErrors.pageId = "El Page ID es requerido";
       else if (!/^\d+$/.test(pageId.trim())) newErrors.pageId = "Debe ser un ID numérico";
       if (!pageAccessToken.trim()) newErrors.pageAccessToken = "El token de la página es requerido";
+      if (!appSecret.trim()) newErrors.appSecret = "El App Secret es requerido";
     }
     if (mode === "LIVE" && !datasetId.trim() && !initialData?.datasetId) {
       newErrors.datasetId = "Configura el Dataset ID antes de pasar a modo LIVE";
@@ -248,8 +249,15 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
           </FormField>
         )}
 
-        <FormField label="App Secret" hint="Secreto de la app de Business — sin esto, ningún leadgen se puede ingerir (la firma nunca valida)">
-          {(id) => <Input id={id} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123..." />}
+        <FormField
+          label="App Secret"
+          required={!isEdit}
+          error={errors.appSecret}
+          hint={isEdit
+            ? "Déjalo vacío para no cambiarlo. Sin App Secret ningún leadgen se puede ingerir (la firma nunca valida)."
+            : "Secreto de la app de Business — sin esto, ningún leadgen se puede ingerir (la firma nunca valida)"}
+        >
+          {(id) => <Input id={id} type="password" autoComplete="off" value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123..." error={errors.appSecret} />}
         </FormField>
 
         <FormField label="Número de WhatsApp de seguimiento" hint="Bajo qué WAAccount se crean los contactos de Instant Forms de esta página, antes de que exista conversación">

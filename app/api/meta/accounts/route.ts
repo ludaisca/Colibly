@@ -52,7 +52,7 @@ export async function POST(req: Request) {
         name,
         pageId,
         pageAccessToken: encrypt(pageAccessToken),
-        appSecret: appSecret ? encrypt(appSecret) : null,
+        appSecret: encrypt(appSecret),
         verifyTokenHash: verifyHash,
         datasetId: datasetId || null,
         capiAccessToken: capiAccessToken ? encrypt(capiAccessToken) : null,
@@ -109,6 +109,7 @@ export async function GET() {
         datasetId: true,
         waAccountId: true,
         waAccount: { select: { id: true, name: true } },
+        appSecret: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { contacts: true } },
@@ -118,7 +119,7 @@ export async function GET() {
 
     const driftCutoff = new Date(Date.now() - DRIFT_DAYS * 24 * 60 * 60 * 1000);
     const withDrift = await Promise.all(
-      accounts.map(async (account) => {
+      accounts.map(async ({ appSecret, ...account }) => {
         const driftCount = await prisma.contact.count({
           where: {
             metaAdsAccountId: account.id,
@@ -127,7 +128,8 @@ export async function GET() {
             createdAt: { lt: driftCutoff },
           },
         });
-        return { ...account, driftCount };
+        // Solo el booleano — el secreto nunca sale de la API.
+        return { ...account, hasAppSecret: !!appSecret, driftCount };
       })
     );
 

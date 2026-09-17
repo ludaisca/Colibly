@@ -33,6 +33,7 @@ export async function GET(
         datasetId: true,
         waAccountId: true,
         waAccount: { select: { id: true, name: true } },
+        appSecret: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { contacts: true, conversionEvents: true } },
@@ -43,7 +44,8 @@ export async function GET(
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
 
-    return NextResponse.json(account);
+    const { appSecret, ...rest } = account;
+    return NextResponse.json({ ...rest, hasAppSecret: !!appSecret });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error interno del servidor";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -103,8 +105,8 @@ export async function PATCH(
       data.pageAccessToken = encrypt(pageAccessToken);
     }
 
-    if (appSecret !== undefined) {
-      data.appSecret = appSecret ? encrypt(appSecret) : null;
+    if (appSecret) {
+      data.appSecret = encrypt(appSecret);
     }
 
     if (verifyToken) {

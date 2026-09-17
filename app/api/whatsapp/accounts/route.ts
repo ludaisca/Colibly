@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         phoneNumber: validateResult.displayPhoneNumber,
         wabaId: wabaId || validateResult.id,
         appId: appId || null,
-        appSecret: appSecret ? encrypt(appSecret) : null,
+        appSecret: encrypt(appSecret),
         status: "CONNECTED",
         lastActivity: new Date(),
       },
@@ -113,6 +113,7 @@ export async function GET(req: Request) {
         status: true,
         errorMessage: true,
         lastActivity: true,
+        appSecret: true,
         createdAt: true,
         updatedAt: true,
         user: { select: { id: true, name: true, email: true } },
@@ -125,7 +126,10 @@ export async function GET(req: Request) {
     // sobreescribe con el discriminador de UI "WHATSAPP" para que
     // chat-workspace.tsx pueda mezclar esta lista con /api/telegram/accounts
     // sin importar qué proveedor de Meta sea internamente.
-    return NextResponse.json(accounts.map((a) => ({ ...a, channel: "WHATSAPP" as const })));
+    // appSecret se reduce a un booleano: nunca sale el valor (ni cifrado).
+    return NextResponse.json(
+      accounts.map(({ appSecret, ...a }) => ({ ...a, hasAppSecret: !!appSecret, channel: "WHATSAPP" as const }))
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error interno del servidor";

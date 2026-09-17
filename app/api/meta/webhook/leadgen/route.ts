@@ -107,8 +107,15 @@ export async function POST(req: Request) {
         const account = await prisma.metaAdsAccount.findFirst({ where: { pageId } });
         if (!account) continue;
 
+        if (!account.appSecret) {
+          console.warn(`[meta-leadgen] MetaAdsAccount ${account.id} sin App Secret — se descarta leadgen_id ${value.leadgen_id}`);
+          continue;
+        }
         const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
-        if (!sigValid) continue;
+        if (!sigValid) {
+          console.warn(`[meta-leadgen] Firma inválida para MetaAdsAccount ${account.id} — se descarta leadgen_id ${value.leadgen_id}`);
+          continue;
+        }
 
         if (!account.waAccountId) {
           console.warn(

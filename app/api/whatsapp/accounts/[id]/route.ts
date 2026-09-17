@@ -42,6 +42,7 @@ export async function GET(
         qualityRating: true,
         messagingTier: true,
         qualityUpdatedAt: true,
+        appSecret: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { chats: true, templates: true } },
@@ -55,7 +56,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(account);
+    // Nunca se devuelve el secreto (ni cifrado) — solo si está configurado,
+    // para que la UI avise que sin él el webhook descarta todo.
+    const { appSecret, ...rest } = account;
+    return NextResponse.json({ ...rest, hasAppSecret: !!appSecret });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error interno del servidor";
@@ -125,12 +129,8 @@ export async function PATCH(
       data.verifyTokenHash = hashToken(verifyToken);
     }
 
-    if (appSecret !== undefined) {
-      if (appSecret) {
-        data.appSecret = encrypt(appSecret);
-      } else {
-        data.appSecret = null;
-      }
+    if (appSecret) {
+      data.appSecret = encrypt(appSecret);
     }
 
     const updated = await prisma.wAAccount.update({
@@ -148,12 +148,14 @@ export async function PATCH(
         errorMessage: true,
         lastActivity: true,
         autoAssignEnabled: true,
+        appSecret: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    return NextResponse.json(updated);
+    const { appSecret: storedSecret, ...updatedRest } = updated;
+    return NextResponse.json({ ...updatedRest, hasAppSecret: !!storedSecret });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error interno del servidor";
