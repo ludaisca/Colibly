@@ -11,6 +11,7 @@ import { SectionHeader } from "@/app/components/ui/section-header";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { Switch } from "@/app/components/ui/switch";
 import { useToast } from "@/app/components/ui/toast";
+import { Banner } from "@/app/components/ui/banner";
 
 interface ModelOption { id: string; name: string; }
 
@@ -303,6 +304,7 @@ export default function IASettingsPage() {
                     id={id}
                     type="number"
                     min="1"
+                    max="168"
                     value={recoveryFirstHours}
                     onChange={(e) => setRecoveryFirstHours(Number(e.target.value))}
                   />
@@ -314,6 +316,7 @@ export default function IASettingsPage() {
                     id={id}
                     type="number"
                     min="1"
+                    max="168"
                     value={recoverySecondHours}
                     onChange={(e) => setRecoverySecondHours(e.target.value)}
                     placeholder="Deshabilitado"
@@ -321,6 +324,13 @@ export default function IASettingsPage() {
                 )}
               </FormField>
             </div>
+            {(recoveryFirstHours >= 24 || Number(recoverySecondHours) >= 24) && (
+              <Banner tone="warning">
+                En WhatsApp solo se puede escribir texto libre dentro de las 24 h posteriores al último mensaje del lead:
+                los mensajes configurados a 24 h o más no se enviarán a chats de WhatsApp (sí a Telegram, Messenger e
+                Instagram, que no tienen esa restricción).
+              </Banner>
+            )}
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField label="Horario de negocio — desde">
                 {(id) => (

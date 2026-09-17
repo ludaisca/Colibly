@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
+import { aiSettingsUpdateSchema } from "@/lib/validations";
 
 export async function GET() {
   try {
@@ -53,63 +54,32 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const body = (await req.json()) as {
-      openrouterApiKey?: string;
-      googleApiKey?: string;
-      defaultProvider?: string;
-      defaultModel?: string;
-      monthlyBudgetUsd?: number | null;
-      leadRecoveryEnabled?: boolean;
-      leadRecoveryFirstMessageHours?: number;
-      leadRecoverySecondMessageHours?: number | null;
-      leadRecoveryBusinessHourStart?: number;
-      leadRecoveryBusinessHourEnd?: number;
-      leadRecoveryTimezone?: string;
-    };
+    const parsed = aiSettingsUpdateSchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+    const body = parsed.data;
 
     const data: Record<string, unknown> = {};
 
     if (body.openrouterApiKey !== undefined) {
-      if (body.openrouterApiKey) {
-        data.openrouterApiKey = encrypt(body.openrouterApiKey);
-      } else {
-        data.openrouterApiKey = null;
-      }
+      data.openrouterApiKey = body.openrouterApiKey ? encrypt(body.openrouterApiKey) : null;
     }
-
     if (body.googleApiKey !== undefined) {
-      if (body.googleApiKey) {
-        data.googleApiKey = encrypt(body.googleApiKey);
-      } else {
-        data.googleApiKey = null;
-      }
+      data.googleApiKey = body.googleApiKey ? encrypt(body.googleApiKey) : null;
     }
-
     if (body.defaultProvider) data.defaultProvider = body.defaultProvider;
     if (body.defaultModel) data.defaultModel = body.defaultModel;
     if (body.monthlyBudgetUsd !== undefined) {
-      data.monthlyBudgetUsd = body.monthlyBudgetUsd === null || Number.isNaN(body.monthlyBudgetUsd)
-        ? null
-        : Math.max(0, body.monthlyBudgetUsd);
+      data.monthlyBudgetUsd = body.monthlyBudgetUsd;
       data.budgetAlertMonth = null;
     }
 
     if (body.leadRecoveryEnabled !== undefined) data.leadRecoveryEnabled = body.leadRecoveryEnabled;
-    if (body.leadRecoveryFirstMessageHours !== undefined) {
-      data.leadRecoveryFirstMessageHours = Math.max(1, Math.round(body.leadRecoveryFirstMessageHours));
-    }
-    if (body.leadRecoverySecondMessageHours !== undefined) {
-      data.leadRecoverySecondMessageHours =
-        body.leadRecoverySecondMessageHours === null || Number.isNaN(body.leadRecoverySecondMessageHours)
-          ? null
-          : Math.max(1, Math.round(body.leadRecoverySecondMessageHours));
-    }
-    if (body.leadRecoveryBusinessHourStart !== undefined) {
-      data.leadRecoveryBusinessHourStart = Math.min(23, Math.max(0, Math.round(body.leadRecoveryBusinessHourStart)));
-    }
-    if (body.leadRecoveryBusinessHourEnd !== undefined) {
-      data.leadRecoveryBusinessHourEnd = Math.min(24, Math.max(1, Math.round(body.leadRecoveryBusinessHourEnd)));
-    }
+    if (body.leadRecoveryFirstMessageHours !== undefined) data.leadRecoveryFirstMessageHours = body.leadRecoveryFirstMessageHours;
+    if (body.leadRecoverySecondMessageHours !== undefined) data.leadRecoverySecondMessageHours = body.leadRecoverySecondMessageHours;
+    if (body.leadRecoveryBusinessHourStart !== undefined) data.leadRecoveryBusinessHourStart = body.leadRecoveryBusinessHourStart;
+    if (body.leadRecoveryBusinessHourEnd !== undefined) data.leadRecoveryBusinessHourEnd = body.leadRecoveryBusinessHourEnd;
     if (body.leadRecoveryTimezone) data.leadRecoveryTimezone = body.leadRecoveryTimezone;
 
     const settings = await prisma.appSettings.upsert({

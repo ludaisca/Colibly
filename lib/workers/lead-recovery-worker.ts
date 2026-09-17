@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendRecoveryMessage, isWithinBusinessHours } from "@/lib/whatsapp/lead-recovery";
+import { sendRecoveryMessage, isWithinBusinessHours, isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramRecoveryMessage } from "@/lib/telegram/lead-recovery";
 import { sendMetaChannelRecoveryMessage } from "@/lib/meta-messaging/lead-recovery";
 import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
@@ -10,6 +10,16 @@ import type { AppSettings, WABot, WAAccount, ChannelAccount } from "@prisma/clie
 // same reasoning as lead-scoring-worker.ts's CANDIDATE_POOL/BATCH_SIZE.
 const CANDIDATE_POOL = 200;
 const BATCH_SIZE = 20;
+const HOUR_MS = 3_600_000;
+
+// Rango de `lastMessageAt` que vale la pena revisar. Antes el pool eran los
+// 200 chats más RECIENTES: en una cuenta con más de 200 chats activos, los
+// silencios viejos — justo los que hay que recuperar — nunca entraban. Ahora
+// se excluye la actividad de la última hora (unidad mínima configurable) y lo
+// demasiado viejo, y se recorre del silencio más antiguo al más nuevo.
+function candidateWindow(now: Date, maxAgeHours: number) {
+  return { lte: new Date(now.getTime() - HOUR_MS), gte: new Date(now.getTime() - maxAgeHours * HOUR_MS) };
+}
 
 export async function processLeadRecoveryTick() {
   const now = new Date();
@@ -53,6 +63,10 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       // Debe haber habido conversación real — un chat que solo recibió una
       // campaña y nunca contestó no es un lead "abandonado", nunca se enganchó.
       messages: { some: { direction: "INBOUND" } },
+      // WhatsApp: pasadas 24h del último mensaje ya no se puede escribir texto
+      // libre (lastMessageAt ≥ último INBOUND, así que esto no deja fuera a nadie
+      // que todavía esté dentro de la ventana).
+      lastMessageAt: candidateWindow(now, 24),
     },
     select: {
       id: true,
@@ -60,7 +74,7 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       remoteJid: true,
       messages: { orderBy: { timestamp: "desc" }, take: 1, select: { direction: true } },
     },
-    orderBy: { lastMessageAt: "desc" },
+    orderBy: { lastMessageAt: "asc" },
     take: CANDIDATE_POOL,
   });
 
@@ -79,6 +93,10 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       select: { timestamp: true },
     });
     if (!lastInbound) continue;
+    // Fuera de la ventana de 24h de Meta no se puede enviar texto libre — antes
+    // se intentaba igual y sendRecoveryMessage() lanzaba, dejando un error en
+    // el log cada 15 min por cada chat así.
+    if (!isWithinServiceWindow(lastInbound.timestamp, now)) continue;
 
     const hoursSilent = (now.getTime() - lastInbound.timestamp.getTime()) / 3_600_000;
 
@@ -133,6 +151,12 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
         channelAccountId: { in: channelAccountIds },
         status: { in: ["OPEN", "PENDING"] },
         messages: { some: { direction: "INBOUND" } },
+        // Sin ventana de 24h en estos canales, pero tampoco tiene sentido
+        // "recuperar" silencios de semanas: hasta 48h después del último intento.
+        lastMessageAt: candidateWindow(
+          now,
+          (settings.leadRecoverySecondMessageHours ?? settings.leadRecoveryFirstMessageHours) + 48
+        ),
       },
       select: {
         id: true,
@@ -140,7 +164,7 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
         externalId: true,
         messages: { orderBy: { timestamp: "desc" }, take: 1, select: { direction: true } },
       },
-      orderBy: { lastMessageAt: "desc" },
+      orderBy: { lastMessageAt: "asc" },
       take: CANDIDATE_POOL,
     });
 

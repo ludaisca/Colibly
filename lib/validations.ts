@@ -516,3 +516,37 @@ export type AppointmentInput = z.infer<typeof appointmentSchema>;
 export type ContactCustomFieldDefinitionInput = z.infer<typeof contactCustomFieldDefinitionSchema>;
 export type ContactCustomFieldDefinitionUpdateInput = z.infer<typeof contactCustomFieldDefinitionUpdateSchema>;
 export type AppointmentUpdateInput = z.infer<typeof appointmentUpdateSchema>;
+
+const isValidTimeZone = (tz: string) => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// PATCH /api/configuracion/ia — antes el body se validaba a mano con
+// Math.round/Math.max y un valor no numérico producía NaN → 500 de Prisma.
+export const aiSettingsUpdateSchema = z
+  .object({
+    openrouterApiKey: z.string().max(500).optional(),
+    googleApiKey: z.string().max(500).optional(),
+    defaultProvider: z.enum(["openrouter", "google"]).optional(),
+    defaultModel: z.string().min(1).max(200).optional(),
+    monthlyBudgetUsd: z.number().min(0, "El presupuesto no puede ser negativo").nullable().optional(),
+    leadRecoveryEnabled: z.boolean().optional(),
+    leadRecoveryFirstMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").optional(),
+    leadRecoverySecondMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").nullable().optional(),
+    leadRecoveryBusinessHourStart: z.number().int().min(0).max(23).optional(),
+    leadRecoveryBusinessHourEnd: z.number().int().min(1).max(24).optional(),
+    leadRecoveryTimezone: z.string().refine(isValidTimeZone, "Zona horaria inválida").optional(),
+  })
+  .refine(
+    (d) =>
+      d.leadRecoveryFirstMessageHours === undefined ||
+      d.leadRecoverySecondMessageHours === undefined ||
+      d.leadRecoverySecondMessageHours === null ||
+      d.leadRecoverySecondMessageHours > d.leadRecoveryFirstMessageHours,
+    { message: "El mensaje 2 debe esperar más horas que el mensaje 1", path: ["leadRecoverySecondMessageHours"] }
+  );
