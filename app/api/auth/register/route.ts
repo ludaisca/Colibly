@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
@@ -54,22 +55,35 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    await prisma.$transaction(async (tx) => {
-      const userCount = await tx.user.count();
-      const role = userCount === 0 ? "admin" : "user";
+    // Serializable: con el aislamiento por defecto (READ COMMITTED) dos
+    // registros simultáneos en una base vacía leían ambos count() = 0 y los dos
+    // quedaban como admin. Postgres aborta uno con P2034 (conflicto de
+    // serialización) y se le pide reintentar.
+    await prisma.$transaction(
+      async (tx) => {
+        const userCount = await tx.user.count();
+        const role = userCount === 0 ? "admin" : "user";
 
-      return tx.user.create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-          role,
-        },
-      });
-    });
+        return tx.user.create({
+          data: {
+            name,
+            email,
+            password: hashedPassword,
+            role,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
 
     return NextResponse.json({ success: true }, { status: 201 });
-  } catch {
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      return NextResponse.json({ error: "Hubo un conflicto al registrar, intenta de nuevo." }, { status: 409 });
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "Este email ya está registrado." }, { status: 409 });
+    }
     return NextResponse.json(
       { error: "Error interno del servidor." },
       { status: 500 }

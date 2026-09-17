@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { onboardingSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
@@ -33,26 +34,34 @@ export async function POST(req: Request) {
     const { name, email, password, businessName } = parsed.data;
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    await prisma.$transaction(async (tx) => {
-      const userCount = await tx.user.count();
-      if (userCount > 0) {
-        throw new Error("ALREADY_ONBOARDED");
-      }
+    // Serializable — ver app/api/auth/register/route.ts: sin esto dos
+    // onboardings simultáneos podían crear dos admins "principales".
+    await prisma.$transaction(
+      async (tx) => {
+        const userCount = await tx.user.count();
+        if (userCount > 0) {
+          throw new Error("ALREADY_ONBOARDED");
+        }
 
-      await tx.user.create({
-        data: { name, email, password: hashedPassword, role: "admin" },
-      });
+        await tx.user.create({
+          data: { name, email, password: hashedPassword, role: "admin" },
+        });
 
-      await tx.systemConfig.upsert({
-        where: { id: "default" },
-        create: { id: "default", businessName },
-        update: { businessName },
-      });
-    });
+        await tx.systemConfig.upsert({
+          where: { id: "default" },
+          create: { id: "default", businessName },
+          update: { businessName },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
-    if (error instanceof Error && error.message === "ALREADY_ONBOARDED") {
+    if (
+      (error instanceof Error && error.message === "ALREADY_ONBOARDED") ||
+      (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034")
+    ) {
       return NextResponse.json(
         { error: "El sistema ya fue configurado. Inicia sesión normalmente." },
         { status: 409 }
