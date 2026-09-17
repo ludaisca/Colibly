@@ -6,6 +6,7 @@ import { getMediaUrl } from "@/lib/whatsapp";
 import { decrypt } from "@/lib/crypto";
 
 import { mimeTypeToExtension } from "@/lib/whatsapp/media-shared";
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
 
 const MEDIA_ROOT = process.env.MEDIA_ROOT || "/app/media";
 
@@ -70,7 +71,7 @@ export async function saveMediaFromMeta(
   // Meta's lookaside.fbsbx.com download URL isn't a public pre-signed link — it still
   // requires the same Bearer token used to resolve it, or the byte download 401s even
   // though the metadata lookup above (same token) succeeded.
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS), });
   if (!res.ok) {
     throw new Error(`Descarga de medio Meta fallida (HTTP ${res.status})`);
   }

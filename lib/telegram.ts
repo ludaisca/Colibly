@@ -1,3 +1,5 @@
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+
 const BASE_URL = "https://api.telegram.org";
 
 interface TelegramApiResponse<T> {
@@ -17,6 +19,7 @@ async function callTelegramApi<T>(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload ? JSON.stringify(payload) : undefined,
+    signal: httpTimeout(),
   });
 
   const data = (await res.json()) as TelegramApiResponse<T>;
@@ -92,7 +95,7 @@ export async function sendMediaMessage(
   formData.append(kind, new Blob([new Uint8Array(buffer)], { type: mimeType }), filename);
   if (caption) formData.append("caption", caption);
 
-  const res = await fetch(url, { method: "POST", body: formData });
+  const res = await fetch(url, { method: "POST", body: formData, signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS), });
   const data = (await res.json()) as TelegramApiResponse<TelegramSentMedia>;
   if (!data.ok || !data.result) {
     throw new Error(data.description ?? `Telegram send${kind} failed (HTTP ${res.status})`);

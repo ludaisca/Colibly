@@ -98,23 +98,23 @@ Uses `prisma.$transaction()` for atomic `count() + create()` — prevents race c
 
 ## Redis + BullMQ
 
-10 queues, auto-started via `instrumentation.ts`:
+13 queues, auto-started via `instrumentation.ts`. **There are no per-job timeouts** — BullMQ 5 has no `timeout` job option (it used to be set and was silently ignored); the real time limit lives on every outbound HTTP call (`lib/http-timeouts.ts`: 20s JSON, 120s file transfer, 90s AI completions). The "Attempts" column is BullMQ retries.
 
-| Queue | Concurrency | Timeout | Trigger |
+| Queue | Concurrency | Attempts | Trigger |
 |---|---|---|---|
-| `bot-messages` | 3 | 60s | `ingestInboundMessage()` detects active bot → enqueues |
-| `campaign-send` | 1 | 60s | "Enviar" on campaign, **plus** a repeatable `scheduled-tick` job (`* * * * *`, every minute) that claims due `SCHEDULED` campaigns (`processScheduledCampaignsTick()`, atomic `updateMany` on status so overlapping ticks can't double-enqueue) — the worker branches on `job.name` |
-| `rag-index` | 2 | 60s | User uploads knowledge document |
-| `media-download` | 5 | 90s, 5 attempts | `ingestInboundMessage()` with Meta `mediaId` → downloads binary bytes async |
-| `media-cleanup` | 1 | 60s | Self-scheduled: `startWorkers()` registers a repeatable job (`repeat: {pattern: "0 3 * * *"}`, daily at 3am) on boot — not triggered by user action |
-| `bot-message-send` | 5 | 60s | `bot-worker.ts` when `WABot.humanizeEnabled` is on — delivers each split chunk of a "humanized" reply as its own delayed job |
-| `lead-scoring` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — scheduled scorer runs, see "Lead scoring" |
-| `lead-recovery` | 1 | 60s | Self-scheduled repeatable tick (`*/15 * * * *`) — re-engages silent leads, see "Lead recovery" |
-| `sheets-sync` | 1 | 60s | Self-scheduled repeatable tick (`*/15 * * * *`) — syncs `GoogleAccount` spreadsheet exports |
-| `lead-sheet-import` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — imports leads from `LeadSheetSource` sheets |
-| `meta-conversions` | 1 | 60s | `PATCH /api/whatsapp/contacts/[id]` enqueues when the contact's `leadStatus` changes on an ads-originated lead — sends the status change to Meta's Conversions API, see "Meta Ads" |
-| `appointment-reminders` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — notifies the assigned user shortly before a `WAAppointment` is due, see "Appointments/Citas" |
-| `sequence-tick` | 1 | 60s | Self-scheduled repeatable tick (`*/5 * * * *`) — advances `WASequenceEnrollment` rows whose `nextRunAt` is due, see "Sequences (automatización lineal)" |
+| `bot-messages` | 3 | 3 | `ingestInboundMessage()` detects active bot → enqueues |
+| `campaign-send` | 1 | 3 | "Enviar" on campaign, **plus** a repeatable `scheduled-tick` job (`* * * * *`, every minute) that claims due `SCHEDULED` campaigns (`processScheduledCampaignsTick()`, atomic `updateMany` on status so overlapping ticks can't double-enqueue) — the worker branches on `job.name` |
+| `rag-index` | 2 | 3 | User uploads knowledge document |
+| `media-download` | 5 | 5 | `ingestInboundMessage()` with Meta `mediaId` → downloads binary bytes async |
+| `media-cleanup` | 1 | 3 | Self-scheduled: `startWorkers()` registers a repeatable job (`repeat: {pattern: "0 3 * * *"}`, daily at 3am) on boot — not triggered by user action |
+| `bot-message-send` | 5 | 3 | `bot-worker.ts` when `WABot.humanizeEnabled` is on — delivers each split chunk of a "humanized" reply as its own delayed job |
+| `lead-scoring` | 1 | 3 | Self-scheduled repeatable tick (`*/5 * * * *`) — scheduled scorer runs, see "Lead scoring" |
+| `lead-recovery` | 1 | 3 | Self-scheduled repeatable tick (`*/15 * * * *`) — re-engages silent leads, see "Lead recovery" |
+| `sheets-sync` | 1 | 3 | Self-scheduled repeatable tick (`*/15 * * * *`) — syncs `GoogleAccount` spreadsheet exports |
+| `lead-sheet-import` | 1 | 3 | Self-scheduled repeatable tick (`*/5 * * * *`) — imports leads from `LeadSheetSource` sheets |
+| `meta-conversions` | 5 | 5 | `PATCH /api/whatsapp/contacts/[id]` enqueues when the contact's `leadStatus` changes on an ads-originated lead — sends the status change to Meta's Conversions API, see "Meta Ads" |
+| `appointment-reminders` | 1 | 3 | Self-scheduled repeatable tick (`*/5 * * * *`) — notifies the assigned user shortly before a `WAAppointment` is due, see "Appointments/Citas" |
+| `sequence-tick` | 1 | 3 | Self-scheduled repeatable tick (`*/5 * * * *`) — advances `WASequenceEnrollment` rows whose `nextRunAt` is due, see "Sequences (automatización lineal)" |
 
 - `media-cleanup-worker.ts:processMediaCleanupJob()` deletes `WAMessage.mediaUrl` files older than `MEDIA_RETENTION_DAYS` (env var, default 90) and clears the column, keeping the `media_data` volume bounded. No-ops if `MEDIA_RETENTION_DAYS <= 0`.
 - **Bot reply humanization** (`WABot.humanizeEnabled`, opt-in, default `false`): when on, `bot-worker.ts` splits the reply on blank lines (`lib/whatsapp/humanize.ts:splitReply()`) and enqueues each chunk on `bot-message-send` with a cumulative simulated-typing delay (`computeTypingDelay()`, ~40ms/char, capped 0.8–8s) instead of calling `sendWhatsAppMessage()` synchronously — keeps the main `bot-messages` job from holding its concurrency slot for the whole send sequence. `bot-send-worker.ts:processBotSendJob()` re-fetches the `WAAccount` and does the actual send + `WAMessage`/`WAChat` bookkeeping per chunk. Tone/pacing only — never use this to imply the chat isn't automated (WhatsApp's Business Messaging Policy expects disclosure where applicable).

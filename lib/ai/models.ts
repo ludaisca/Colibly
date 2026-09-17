@@ -1,3 +1,5 @@
+import { httpTimeout } from "@/lib/http-timeouts";
+
 export interface ModelPricing {
   input: number;
   output: number;
@@ -16,6 +18,7 @@ let openRouterPricingCache: Map<string, ModelPricing> | null = null;
 export async function listOpenRouterModels(apiKey?: string): Promise<ModelOption[]> {
   const res = await fetch("https://openrouter.ai/api/v1/models", {
     headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+    signal: httpTimeout(),
   });
 
   if (!res.ok) {
@@ -52,7 +55,8 @@ export async function getOpenRouterModelPricing(modelId: string): Promise<ModelP
 
 export async function listGoogleModels(apiKey: string): Promise<ModelOption[]> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+    { signal: httpTimeout(), }
   );
 
   if (!res.ok) {

@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { EmbedContentRequest } from "@google/generative-ai";
+import { AI_REQUEST_TIMEOUT_MS } from "@/lib/http-timeouts";
 import type {
   AICompletionParams,
   AICompletionResponse,
@@ -60,10 +61,13 @@ export function createGoogleClient(apiKey: string) {
     // runs its string->Content formatting on this value; if passed to
     // startChat() instead it silently overrides the formatted value with the
     // raw, unformatted one and the REST API rejects it.
-    const model = genAI.getGenerativeModel({
-      model: params.model,
-      systemInstruction: systemText,
-    });
+    const model = genAI.getGenerativeModel(
+      {
+        model: params.model,
+        systemInstruction: systemText,
+      },
+      { timeout: AI_REQUEST_TIMEOUT_MS }
+    );
 
     const nonSystem = params.messages.filter((m) => m.role !== "system");
 
@@ -115,7 +119,7 @@ export function createGoogleClient(apiKey: string) {
 
   async function generateEmbeddings(params: AIEmbeddingParams): Promise<AIEmbeddingResponse> {
     const inputs = Array.isArray(params.input) ? params.input : [params.input];
-    const model = genAI.getGenerativeModel({ model: params.model });
+    const model = genAI.getGenerativeModel({ model: params.model }, { timeout: AI_REQUEST_TIMEOUT_MS });
 
     const embeddings: number[][] = [];
 

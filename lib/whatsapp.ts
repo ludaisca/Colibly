@@ -1,3 +1,5 @@
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+
 const API_VERSION = "v21.0";
 const BASE_URL = "https://graph.facebook.com";
 
@@ -36,6 +38,7 @@ export async function validateToken(
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
+    signal: httpTimeout(),
   });
 
   if (!res.ok) {
@@ -80,6 +83,7 @@ export async function sendMessage(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal: httpTimeout(),
   });
 
   if (!res.ok) {
@@ -98,6 +102,7 @@ export async function getMediaUrl(
 ): Promise<{ url: string; mimeType: string }> {
   const res = await fetch(`${BASE_URL}/${API_VERSION}/${mediaId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
+    signal: httpTimeout(),
   });
 
   if (!res.ok) {
@@ -136,6 +141,7 @@ export async function uploadMedia(
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
     body: formData,
+    signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS),
   });
 
   if (!res.ok) {

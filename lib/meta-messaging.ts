@@ -1,3 +1,5 @@
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+
 // Cliente núcleo para Messenger e Instagram — ambos comparten el mismo
 // Page Access Token y el mismo graph.facebook.com bajo el modelo
 // Página-vinculada (confirmado con el usuario, no el Instagram Login
@@ -40,6 +42,7 @@ export async function sendMetaChannelMessage(
     method: "POST",
     headers: { Authorization: `Bearer ${pageAccessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: httpTimeout(),
   });
 
   if (!res.ok) await parseGraphError(res, "Send message failed");
@@ -66,6 +69,7 @@ export async function sendPrivateReplyToComment(
     method: "POST",
     headers: { Authorization: `Bearer ${pageAccessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ message: text }),
+    signal: httpTimeout(),
   });
 
   if (!res.ok) await parseGraphError(res, "Private reply failed");
@@ -113,6 +117,7 @@ export async function uploadMetaAttachment(
     method: "POST",
     headers: { Authorization: `Bearer ${pageAccessToken}` },
     body: formData,
+    signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS),
   });
 
   if (!res.ok) await parseGraphError(res, "Upload attachment failed");
@@ -131,7 +136,7 @@ export interface MetaUserProfile {
 export async function fetchUserProfile(pageAccessToken: string, psid: string): Promise<MetaUserProfile> {
   const url = `${GRAPH_API}/${psid}?fields=name`;
 
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${pageAccessToken}` } });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${pageAccessToken}` }, signal: httpTimeout(), });
   if (!res.ok) {
     // No fatal: sin nombre, ingest-message.ts cae al remoteJid como fallback
     // (mismo criterio que un Contact sin profile.name en WhatsApp).
@@ -151,12 +156,12 @@ export async function fetchUserProfile(pageAccessToken: string, psid: string): P
 export async function subscribePageToApp(pageAccessToken: string, pageId: string, extraFields: string[] = []): Promise<void> {
   const fields = ["messages", ...extraFields].join(",");
   const url = `${GRAPH_API}/${pageId}/subscribed_apps?subscribed_fields=${fields}`;
-  const res = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${pageAccessToken}` } });
+  const res = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${pageAccessToken}` }, signal: httpTimeout(), });
   if (!res.ok) await parseGraphError(res, "Page subscription failed");
 }
 
 export async function unsubscribePageFromApp(pageAccessToken: string, pageId: string): Promise<void> {
   const url = `${GRAPH_API}/${pageId}/subscribed_apps`;
-  const res = await fetch(url, { method: "DELETE", headers: { Authorization: `Bearer ${pageAccessToken}` } });
+  const res = await fetch(url, { method: "DELETE", headers: { Authorization: `Bearer ${pageAccessToken}` }, signal: httpTimeout(), });
   if (!res.ok) await parseGraphError(res, "Page unsubscription failed");
 }

@@ -1,3 +1,5 @@
+import { httpTimeout } from "@/lib/http-timeouts";
+
 // Mismo espíritu que lib/whatsapp.ts:validateToken() — una llamada liviana a
 // la Graph API al crear/actualizar la cuenta, para atrapar un pageId o token
 // mal copiado de inmediato en vez de descubrirlo cuando llegue el primer
@@ -14,6 +16,7 @@ export async function validatePageToken(pageId: string, pageAccessToken: string)
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${pageAccessToken}` },
+    signal: httpTimeout(),
   });
 
   if (!res.ok) {

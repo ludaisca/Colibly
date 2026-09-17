@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { AI_REQUEST_TIMEOUT_MS } from "@/lib/http-timeouts";
 import type {
   AICompletionParams,
   AICompletionResponse,
@@ -9,7 +10,7 @@ import type {
 const BASE_URL = "https://openrouter.ai/api/v1";
 
 export function createOpenRouterClient(apiKey: string) {
-  const client = new OpenAI({ baseURL: BASE_URL, apiKey });
+  const client = new OpenAI({ baseURL: BASE_URL, apiKey, timeout: AI_REQUEST_TIMEOUT_MS, maxRetries: 1 });
 
   async function complete(params: AICompletionParams): Promise<AICompletionResponse> {
     const res = await client.chat.completions.create({

@@ -4,12 +4,13 @@ const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
 };
 
+// Sin `timeout`: BullMQ 5 no tiene esa opción (se ignoraba en silencio). El
+// límite de tiempo real vive en cada llamada HTTP — ver lib/http-timeouts.ts.
 const defaultJobOptions = {
   removeOnComplete: { count: 100 },
   removeOnFail: { count: 50 },
   attempts: 3,
   backoff: { type: "exponential" as const, delay: 1000 },
-  timeout: 60_000,
 };
 
 const mediaDownloadJobOptions = {
@@ -17,7 +18,6 @@ const mediaDownloadJobOptions = {
   removeOnFail: { count: 50 },
   attempts: 5,
   backoff: { type: "exponential" as const, delay: 2000 },
-  timeout: 90_000,
 };
 
 export const botQueue = new Queue("bot-messages", { connection, defaultJobOptions });
@@ -41,7 +41,6 @@ const metaConversionsJobOptions = {
   removeOnFail: { count: 50 },
   attempts: 5,
   backoff: { type: "exponential" as const, delay: 2000 },
-  timeout: 30_000,
 };
 export const metaConversionsQueue = new Queue("meta-conversions", {
   connection,
