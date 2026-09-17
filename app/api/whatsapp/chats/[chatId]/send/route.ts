@@ -10,6 +10,7 @@ import { resolveChatChannel } from "@/lib/chat-resolver";
 import { rateLimit } from "@/lib/rate-limit";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
 import fs from "fs/promises";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 export async function POST(
   req: Request,
@@ -137,7 +138,7 @@ export async function POST(
 
 async function sendTelegramReply(req: Request, chatId: string, userId: string) {
   const conversation = await prisma.conversation.findFirst({
-    where: { id: chatId, channelAccount: { userId } },
+    where: { id: chatId, channelAccountId: { in: await getUserChannelAccountIds(userId) } },
     include: { channelAccount: true },
   });
   if (!conversation) {
@@ -222,7 +223,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
 // persistir el ChannelMessage OUTBOUND. MVP solo texto (sin medios).
 async function sendWebchatReply(req: Request, chatId: string, userId: string) {
   const conversation = await prisma.conversation.findFirst({
-    where: { id: chatId, channelAccount: { userId } },
+    where: { id: chatId, channelAccountId: { in: await getUserChannelAccountIds(userId) } },
     include: { channelAccount: true },
   });
   if (!conversation) {
@@ -275,7 +276,7 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
 // distintos que de otro modo colisionarían con el mismo userId.
 async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Request, chatId: string, userId: string) {
   const conversation = await prisma.conversation.findFirst({
-    where: { id: chatId, channelAccount: { userId, channel } },
+    where: { id: chatId, channelAccountId: { in: await getUserChannelAccountIds(userId) }, channelAccount: { channel } },
     include: { channelAccount: true },
   });
   if (!conversation) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 export async function GET(req: Request) {
   try {
@@ -21,11 +22,7 @@ export async function GET(req: Request) {
     // Los contactos de canales adicionales (Telegram) cuelgan de
     // channelAccountId en vez de accountId — sin esto, un lead que escribe por
     // Telegram genera su Contact pero queda invisible en el CRM.
-    const channelAccounts = await prisma.channelAccount.findMany({
-      where: { userId: session.user.id },
-      select: { id: true },
-    });
-    const channelAccountIds = channelAccounts.map((a) => a.id);
+    const channelAccountIds = await getUserChannelAccountIds(session.user.id);
 
     const { searchParams } = new URL(req.url);
     const accountId = searchParams.get("accountId");

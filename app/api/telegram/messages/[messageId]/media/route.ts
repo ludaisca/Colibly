@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveAbsolutePath, mediaReadStream } from "@/lib/whatsapp/media-store";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 export async function GET(
   _req: Request,
@@ -16,7 +17,7 @@ export async function GET(
     const { messageId } = await params;
 
     const message = await prisma.channelMessage.findFirst({
-      where: { id: messageId, conversation: { channelAccount: { userId: session.user.id } } },
+      where: { id: messageId, conversation: { channelAccountId: { in: await getUserChannelAccountIds(session.user.id) } } },
       select: {
         id: true,
         mediaUrl: true,

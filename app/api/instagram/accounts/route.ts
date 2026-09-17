@@ -51,9 +51,11 @@ export async function GET() {
     }
 
     const accounts = await prisma.channelAccount.findMany({
-      where: { userId: session.user.id, channel: "INSTAGRAM" },
+      // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
+      where: { channel: "INSTAGRAM", OR: [{ userId: session.user.id }, { sharedWith: { some: { userId: session.user.id } } }] },
       select: {
         id: true,
+        userId: true,
         name: true,
         channel: true,
         status: true,

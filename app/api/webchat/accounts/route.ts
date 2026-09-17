@@ -14,6 +14,7 @@ function isForbiddenRole(role: string | undefined): boolean {
 
 const ACCOUNT_SELECT = {
   id: true,
+  userId: true,
   name: true,
   channel: true,
   status: true,
@@ -78,7 +79,8 @@ export async function GET() {
     }
 
     const accounts = await prisma.channelAccount.findMany({
-      where: { userId: session.user.id, channel: "WEBCHAT" },
+      // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
+      where: { channel: "WEBCHAT", OR: [{ userId: session.user.id }, { sharedWith: { some: { userId: session.user.id } } }] },
       select: ACCOUNT_SELECT,
       orderBy: { updatedAt: "desc" },
     });

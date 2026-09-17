@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getEligibleAssignees } from "@/lib/chat-assignees";
+import { getEligibleAssignees, getEligibleChannelAssignees } from "@/lib/chat-assignees";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 
 const ASSIGNEE_SELECT = {
@@ -30,15 +30,14 @@ export async function PATCH(
     const assignedToId: string | null = body?.assignedToId ?? null;
 
     if (resolved.channel !== "WHATSAPP") {
-      // Sin WAAccountShare equivalente todavía — el único elegible es el
-      // dueño de la cuenta (ver lib/telegram/auto-assign.ts, reusado por
-      // Messenger/Instagram).
+      // Dueño de la cuenta + usuarios con ChannelAccountShare (activos).
       if (assignedToId !== null) {
         const conversation = await prisma.conversation.findUnique({
           where: { id: chatId },
-          select: { channelAccount: { select: { userId: true } } },
+          select: { channelAccountId: true },
         });
-        if (conversation?.channelAccount.userId !== assignedToId) {
+        const eligible = conversation ? await getEligibleChannelAssignees(conversation.channelAccountId) : [];
+        if (!eligible.some((u) => u.id === assignedToId)) {
           return NextResponse.json({ error: "Usuario no válido para esta cuenta" }, { status: 400 });
         }
       }

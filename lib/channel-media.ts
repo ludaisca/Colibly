@@ -45,7 +45,7 @@ export type ServeChannelMediaResult =
 
 export async function resolveChannelMedia(userId: string, messageId: string): Promise<ServeChannelMediaResult> {
   const message = await prisma.channelMessage.findFirst({
-    where: { id: messageId, conversation: { channelAccount: { userId } } },
+    where: { id: messageId, conversation: { channelAccountId: { in: await getUserChannelAccountIds(userId) } } },
     select: { id: true, mediaUrl: true, mimeType: true, filename: true, messageType: true },
   });
 

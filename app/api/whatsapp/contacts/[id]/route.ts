@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { contactUpdateSchema } from "@/lib/validations";
 import { metaConversionsQueue } from "@/lib/queue";
 import { enrollContactInTrigger } from "@/lib/sequences";
@@ -17,10 +17,13 @@ export async function GET(
     }
 
     const { id } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
+    const [accountIds, channelAccountIds] = await Promise.all([
+      getUserAccountIds(session.user.id),
+      getUserChannelAccountIds(session.user.id),
+    ]);
 
     const contact = await prisma.contact.findFirst({
-      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId: session.user.id } }] },
+      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
       select: {
         id: true,
         accountId: true,
@@ -59,10 +62,13 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
+    const [accountIds, channelAccountIds] = await Promise.all([
+      getUserAccountIds(session.user.id),
+      getUserChannelAccountIds(session.user.id),
+    ]);
 
     const existing = await prisma.contact.findFirst({
-      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId: session.user.id } }] },
+      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
     });
     if (!existing) {
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });

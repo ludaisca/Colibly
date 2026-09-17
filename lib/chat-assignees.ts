@@ -45,17 +45,24 @@ export async function getEligibleAssigneesForContact(contact: {
 }): Promise<Assignee[]> {
   if (contact.accountId) return getEligibleAssignees(contact.accountId);
 
-  if (contact.channelAccountId) {
-    const account = await prisma.channelAccount.findUnique({
-      where: { id: contact.channelAccountId },
-      select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
-    });
-    const shares = await prisma.channelAccountShare.findMany({
-      where: { channelAccountId: contact.channelAccountId },
-      select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
-    });
-    return toActiveAssignees([account?.user, ...shares.map((s) => s.user)]);
-  }
+  if (contact.channelAccountId) return getEligibleChannelAssignees(contact.channelAccountId);
 
   return [];
+}
+
+// Equivalente de getEligibleAssignees() para ChannelAccount (Telegram,
+// Messenger, Instagram, Web): dueño + usuarios con ChannelAccountShare, sin
+// desactivados.
+export async function getEligibleChannelAssignees(channelAccountId: string): Promise<Assignee[]> {
+  const [account, shares] = await Promise.all([
+    prisma.channelAccount.findUnique({
+      where: { id: channelAccountId },
+      select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
+    }),
+    prisma.channelAccountShare.findMany({
+      where: { channelAccountId },
+      select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
+    }),
+  ]);
+  return toActiveAssignees([account?.user, ...shares.map((s) => s.user)]);
 }

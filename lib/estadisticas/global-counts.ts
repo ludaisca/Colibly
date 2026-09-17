@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 // Contadores globales compartidos por /dashboard, /whatsapp (hub) y
 // /estadisticas (get-stats.ts). Antes cada pantalla reimplementaba estas
@@ -7,19 +8,18 @@ import { prisma } from "@/lib/prisma";
 // Todo lo scoping por cuenta se expresa vía `accountIds` (el resultado de
 // getUserAccountIds, propias + compartidas); lo scoping por dueño vía `userId`.
 
-// Los canales adicionales (Telegram) viven en tablas propias
-// (ChannelAccount/Conversation/ChannelMessage) y se scopean por `userId`, no
-// por accountIds — ChannelAccount no tiene equivalente de WAAccountShare
-// todavía. Cada contador suma ambos mundos para que el Panel y Estadísticas no
-// reporten de menos en cuanto hay una cuenta de Telegram conectada.
+// Los canales adicionales viven en tablas propias
+// (ChannelAccount/Conversation/ChannelMessage) y se scopean con
+// getUserChannelAccountIds(userId) — propias + compartidas, el equivalente de
+// accountIds. Cada contador suma ambos mundos.
 export async function countTotalAccounts(accountIds: string[], userId: string) {
-  return accountIds.length + (await prisma.channelAccount.count({ where: { userId } }));
+  return accountIds.length + (await getUserChannelAccountIds(userId)).length;
 }
 
 export async function countConnectedAccounts(accountIds: string[], userId: string) {
   const [wa, channel] = await Promise.all([
     prisma.wAAccount.count({ where: { id: { in: accountIds }, status: "CONNECTED" } }),
-    prisma.channelAccount.count({ where: { userId, status: "CONNECTED" } }),
+    prisma.channelAccount.count({ where: { id: { in: await getUserChannelAccountIds(userId) }, status: "CONNECTED" } }),
   ]);
   return wa + channel;
 }
@@ -27,7 +27,7 @@ export async function countConnectedAccounts(accountIds: string[], userId: strin
 export async function countChats(accountIds: string[], userId: string) {
   const [wa, channel] = await Promise.all([
     prisma.wAChat.count({ where: { accountId: { in: accountIds } } }),
-    prisma.conversation.count({ where: { channelAccount: { userId } } }),
+    prisma.conversation.count({ where: { channelAccountId: { in: await getUserChannelAccountIds(userId) } } }),
   ]);
   return wa + channel;
 }
@@ -35,7 +35,7 @@ export async function countChats(accountIds: string[], userId: string) {
 export async function countMessages(accountIds: string[], userId: string) {
   const [wa, channel] = await Promise.all([
     prisma.wAMessage.count({ where: { chat: { accountId: { in: accountIds } } } }),
-    prisma.channelMessage.count({ where: { conversation: { channelAccount: { userId } } } }),
+    prisma.channelMessage.count({ where: { conversation: { channelAccountId: { in: await getUserChannelAccountIds(userId) } } } }),
   ]);
   return wa + channel;
 }
