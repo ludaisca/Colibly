@@ -114,6 +114,11 @@ export async function processCampaignJob(job: CampaignJob) {
       });
       continue;
     }
+    // En cuanto Meta acepta el envío el destinatario ya recibió el mensaje: un
+    // error DESPUÉS (upsert de contacto/chat/etiqueta) no debe marcarlo FAILED
+    // — antes pasaba, las métricas lo contaban como fallido y el webhook ya no
+    // podía corregirlo (no avanza desde FAILED).
+    let delivered: { wamid: string | null; sentAt: Date } | null = null;
     try {
       const bodyParams = recipient.parameters
         ? Object.values(recipient.parameters as Record<string, string>)
@@ -131,6 +136,7 @@ export async function processCampaignJob(job: CampaignJob) {
       });
 
       const sentAt = new Date();
+      delivered = { wamid: wamid ?? null, sentAt };
 
       await prisma.wACampaignRecipient.update({
         where: { id: recipient.id },
@@ -211,13 +217,23 @@ export async function processCampaignJob(job: CampaignJob) {
         update: {},
       });
     } catch (err) {
-      await prisma.wACampaignRecipient.update({
-        where: { id: recipient.id },
-        data: {
-          status: "FAILED",
-          errorMessage: err instanceof Error ? err.message : "Error desconocido",
-        },
-      });
+      if (delivered) {
+        console.error(
+          `[campaign-worker] Destinatario ${recipient.id} enviado; falló el registro en el CRM:`,
+          err instanceof Error ? err.message : err
+        );
+        await prisma.wACampaignRecipient
+          .update({ where: { id: recipient.id }, data: { status: "SENT", sentAt: delivered.sentAt, wamid: delivered.wamid } })
+          .catch((updateErr) => console.error(`[campaign-worker] No se pudo marcar SENT a ${recipient.id}:`, updateErr));
+      } else {
+        await prisma.wACampaignRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            status: "FAILED",
+            errorMessage: err instanceof Error ? err.message : "Error desconocido",
+          },
+        });
+      }
     }
 
     await new Promise((r) => setTimeout(r, 100));

@@ -14,7 +14,7 @@ import { processLeadSheetImportTick } from "./lead-sheet-worker";
 import { processMetaConversionsJob } from "./meta-conversions-worker";
 import { processAppointmentReminderTick } from "./appointment-reminder-worker";
 import { processSequenceTickJob } from "./sequence-worker";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue } from "@/lib/queue";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -51,14 +51,19 @@ export function startWorkers() {
   }, { connection, concurrency: 3 });
 
   const campaignWorker = new Worker("campaign-send", async (job) => {
-    // La misma cola lleva los envíos ("send") y el tick repetible que reclama
-    // campañas SCHEDULED vencidas ("scheduled-tick") — concurrency 1 garantiza
-    // que el tick nunca corre en paralelo con un envío en curso.
+    // Un "scheduled-tick" viejo que haya quedado en esta cola (antes el tick
+    // vivía aquí) se procesa igual: el reclamo de campañas es atómico
+    // (updateMany condicionado a SCHEDULED), así que correr en ambas colas no
+    // duplica envíos.
     if (job.name === "scheduled-tick") {
       await processScheduledCampaignsTick();
       return;
     }
     await processCampaignJob(job.data);
+  }, { connection, concurrency: 1 });
+
+  const campaignScheduleWorker = new Worker("campaign-schedule-tick", async () => {
+    await processScheduledCampaignsTick();
   }, { connection, concurrency: 1 });
 
   const ragWorker = new Worker("rag-index", async (job) => {
@@ -108,7 +113,7 @@ export function startWorkers() {
     await processSequenceTickJob();
   }, { connection, concurrency: 1 });
 
-  workers.push(botWorker, campaignWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker);
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker);
 
   mediaCleanupQueue
     .add(
@@ -131,13 +136,17 @@ export function startWorkers() {
 
   // Las campañas programadas se agendan a minuto exacto en la UI — un tick
   // por minuto es la resolución mínima para honrar esa promesa.
-  campaignQueue
+  campaignScheduleQueue
     .add(
       "scheduled-tick",
       {},
       { jobId: "campaign-scheduled-tick", repeat: { pattern: "* * * * *" } }
     )
     .catch((err) => console.error("[workers] No se pudo programar campaign-scheduled-tick:", err));
+  // Quita el repetible que vivía en campaign-send antes de separar las colas.
+  campaignQueue
+    .removeRepeatable("scheduled-tick", { pattern: "* * * * *" }, "campaign-scheduled-tick")
+    .catch((err) => console.error("[workers] No se pudo quitar el tick viejo de campaign-send:", err));
 
   // Umbrales en horas (mínimo configurable: horas enteras) — un tick cada 15
   // minutos da resolución de sobra sin sondear Redis de más.

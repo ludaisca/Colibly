@@ -98,12 +98,13 @@ Uses `prisma.$transaction()` for atomic `count() + create()` — prevents race c
 
 ## Redis + BullMQ
 
-13 queues, auto-started via `instrumentation.ts`. **There are no per-job timeouts** — BullMQ 5 has no `timeout` job option (it used to be set and was silently ignored); the real time limit lives on every outbound HTTP call (`lib/http-timeouts.ts`: 20s JSON, 120s file transfer, 90s AI completions). The "Attempts" column is BullMQ retries.
+14 queues, auto-started via `instrumentation.ts`. **There are no per-job timeouts** — BullMQ 5 has no `timeout` job option (it used to be set and was silently ignored); the real time limit lives on every outbound HTTP call (`lib/http-timeouts.ts`: 20s JSON, 120s file transfer, 90s AI completions). The "Attempts" column is BullMQ retries.
 
 | Queue | Concurrency | Attempts | Trigger |
 |---|---|---|---|
 | `bot-messages` | 3 | 3 | `ingestInboundMessage()` detects active bot → enqueues |
-| `campaign-send` | 1 | 3 | "Enviar" on campaign, **plus** a repeatable `scheduled-tick` job (`* * * * *`, every minute) that claims due `SCHEDULED` campaigns (`processScheduledCampaignsTick()`, atomic `updateMany` on status so overlapping ticks can't double-enqueue) — the worker branches on `job.name` |
+| `campaign-send` | 1 | 3 | "Enviar" on campaign — one job sends the whole campaign sequentially. Once Meta accepts a recipient's send, a later CRM bookkeeping error (contact/chat/tag upsert) no longer marks it `FAILED` |
+| `campaign-schedule-tick` | 1 | 3 | Repeatable `scheduled-tick` (`* * * * *`) that claims due `SCHEDULED` campaigns (`processScheduledCampaignsTick()`, atomic `updateMany` on status so overlapping ticks can't double-enqueue) and enqueues them on `campaign-send`. Split into its own queue 2026-09-16: on `campaign-send` (concurrency 1) scheduled campaigns waited behind any campaign being sent. The `campaign-send` worker still handles a leftover `scheduled-tick` job and startup removes the old repeatable there |
 | `rag-index` | 2 | 3 | User uploads knowledge document |
 | `media-download` | 5 | 5 | `ingestInboundMessage()` with Meta `mediaId` → downloads binary bytes async |
 | `media-cleanup` | 1 | 3 | Self-scheduled: `startWorkers()` registers a repeatable job (`repeat: {pattern: "0 3 * * *"}`, daily at 3am) on boot — not triggered by user action |
