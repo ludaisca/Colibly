@@ -6,25 +6,31 @@ export interface Assignee {
   email: string;
 }
 
+// Sin duplicados y sin usuarios desactivados — un agente dado de baja no debe
+// recibir chats, citas ni reglas de enrutamiento.
+function toActiveAssignees(
+  users: Array<{ id: string; name: string | null; email: string; disabledAt: Date | null } | null | undefined>
+): Assignee[] {
+  const assignees: Assignee[] = [];
+  for (const u of users) {
+    if (!u || u.disabledAt || assignees.some((a) => a.id === u.id)) continue;
+    assignees.push({ id: u.id, name: u.name, email: u.email });
+  }
+  return assignees;
+}
+
 export async function getEligibleAssignees(accountId: string): Promise<Assignee[]> {
   const account = await prisma.wAAccount.findUnique({
     where: { id: accountId },
-    select: { user: { select: { id: true, name: true, email: true } } },
+    select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
   });
 
   const shares = await prisma.wAAccountShare.findMany({
     where: { waAccountId: accountId },
-    select: { user: { select: { id: true, name: true, email: true } } },
+    select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
   });
 
-  const assignees: Assignee[] = [];
-  if (account?.user) assignees.push(account.user);
-  for (const share of shares) {
-    if (!assignees.some((a) => a.id === share.user.id)) {
-      assignees.push(share.user);
-    }
-  }
-  return assignees;
+  return toActiveAssignees([account?.user, ...shares.map((s) => s.user)]);
 }
 
 // Generalización de getEligibleAssignees() para Contact, que puede colgar de
@@ -42,20 +48,13 @@ export async function getEligibleAssigneesForContact(contact: {
   if (contact.channelAccountId) {
     const account = await prisma.channelAccount.findUnique({
       where: { id: contact.channelAccountId },
-      select: { user: { select: { id: true, name: true, email: true } } },
+      select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
     });
     const shares = await prisma.channelAccountShare.findMany({
       where: { channelAccountId: contact.channelAccountId },
-      select: { user: { select: { id: true, name: true, email: true } } },
+      select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
     });
-    const assignees: Assignee[] = [];
-    if (account?.user) assignees.push(account.user);
-    for (const share of shares) {
-      if (!assignees.some((a) => a.id === share.user.id)) {
-        assignees.push(share.user);
-      }
-    }
-    return assignees;
+    return toActiveAssignees([account?.user, ...shares.map((s) => s.user)]);
   }
 
   return [];

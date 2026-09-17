@@ -382,7 +382,8 @@ Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the stan
 - `lib/auth.ts` — NextAuth v5 (Credentials + bcrypt, JWT strategy only, **no adapter**)
 - Server: `import { auth } from "@/lib/auth"` → `const session = await auth()`
 - Client: `useSession()` from `next-auth/react`
-- `SystemConfig` (singleton) controls `allowRegistration` toggle for `/register`
+- `SystemConfig` (singleton) controls `allowRegistration` toggle for `/register` — **closed by default** since 2026-09-16 (the first admin comes from `/onboarding`, which `app/(auth)/layout.tsx` redirects to when there are no users; everyone else is created by an admin in `/usuarios`). Open registration lets anyone on the internet create a `user`.
+- **Session revalidation** (`lib/auth.ts`): the JWT stores `role` + `sessionVersion` at sign-in; every 60s the `jwt` callback re-reads the user (in-memory cache, 60s) — a role change applies to open sessions within a minute, and a user who was deleted, disabled (`User.disabledAt`) or had `sessionVersion` bumped gets `null` → session invalidated. Disabled users can't sign in and are excluded from assignment candidates (`lib/chat-assignees.ts`, Telegram auto-assign). Admins disable/reactivate from `/usuarios` (`PATCH /api/usuarios {userId, disabled}` bumps `sessionVersion` on disable); the first admin can't be disabled or demoted and there must always be at least one **active** admin. Tokens issued before `sessionVersion` existed count as version 0.
 - `AUTH_SECRET` = base64 (generated via `openssl rand -base64 32`)
 
 ## Gotchas summary

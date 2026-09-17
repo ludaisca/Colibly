@@ -13,9 +13,9 @@ export async function autoAssignConversation(channelAccountId: string, conversat
 
   const user = await prisma.user.findUnique({
     where: { id: account.userId },
-    select: { maxOpenChats: true },
+    select: { maxOpenChats: true, disabledAt: true },
   });
-  if (!user) return null;
+  if (!user || user.disabledAt) return null;
 
   if (user.maxOpenChats !== null) {
     const openCount = await prisma.conversation.count({

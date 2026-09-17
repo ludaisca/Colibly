@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Shield, ShieldOff, UserPlus, Users } from "lucide-react";
+import { Shield, ShieldOff, UserPlus, Users, UserX, UserCheck } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -9,6 +9,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { UserFormModal } from "./_form";
 
 interface UserData {
@@ -16,6 +17,7 @@ interface UserData {
   name: string | null;
   email: string;
   role: string;
+  disabledAt: string | null;
   createdAt: string;
   waAccounts: Array<{ id: string; name: string }>;
 }
@@ -27,6 +29,7 @@ export default function UsersPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [confirmDisable, setConfirmDisable] = useState<UserData | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -70,6 +73,28 @@ export default function UsersPage() {
     }
   }, [success, toastError]);
 
+  // Desactivar corta el acceso de inmediato (login rechazado y sesiones
+  // vigentes invalidadas en ≤ 60 s) sin borrar sus datos ni su historial.
+  const setDisabled = useCallback(async (user: UserData, disabled: boolean) => {
+    setTogglingId(user.id);
+    try {
+      const res = await fetch("/api/usuarios", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, disabled }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      success(disabled ? "Usuario desactivado" : "Usuario reactivado");
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, disabledAt: data.disabledAt } : u)));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setTogglingId(null);
+      setConfirmDisable(null);
+    }
+  }, [success, toastError]);
+
   function nextRoleLabel(role: string): string {
     const labels: Record<string, string> = { user: "Ejecutivo", ejecutivo: "Admin", admin: "Usuario" };
     return labels[role] ?? "Usuario";
@@ -108,9 +133,12 @@ export default function UsersPage() {
               leading={<EntityAvatar id={u.id} name={u.name ?? u.email} size="sm" />}
               title={u.name ?? "—"}
               badges={
-                <Badge tone={u.role === "admin" ? "warning" : u.role === "ejecutivo" ? "info" : "neutral"} size="sm">
-                  {u.role === "admin" ? "Admin" : u.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}
-                </Badge>
+                <>
+                  <Badge tone={u.role === "admin" ? "warning" : u.role === "ejecutivo" ? "info" : "neutral"} size="sm">
+                    {u.role === "admin" ? "Admin" : u.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}
+                  </Badge>
+                  {u.disabledAt && <Badge tone="danger" size="sm">Desactivado</Badge>}
+                </>
               }
               subtitle={
                 <>
@@ -123,20 +151,54 @@ export default function UsersPage() {
                 </span>
               }
             />
-            <span className="shrink-0">
+            <span className="flex shrink-0 items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"
                 icon={nextRoleIcon(u.role)}
                 onClick={() => toggleRole(u.id, u.role)}
-                disabled={togglingId === u.id}
+                disabled={togglingId === u.id || !!u.disabledAt}
                 className={u.role === "admin" ? "text-warning" : "text-muted-darker"}
               >
                 {togglingId === u.id ? <Spinner /> : `Hacer ${nextRoleLabel(u.role)}`}
               </Button>
+              {u.disabledAt ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={UserCheck}
+                  onClick={() => setDisabled(u, false)}
+                  disabled={togglingId === u.id}
+                  className="text-success"
+                >
+                  Reactivar
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={UserX}
+                  onClick={() => setConfirmDisable(u)}
+                  disabled={togglingId === u.id}
+                  className="text-danger"
+                >
+                  Desactivar
+                </Button>
+              )}
             </span>
           </>
         )}
+      />
+
+      <ConfirmDialog
+        open={!!confirmDisable}
+        onClose={() => setConfirmDisable(null)}
+        onConfirm={() => confirmDisable && setDisabled(confirmDisable, true)}
+        title={`Desactivar a ${confirmDisable?.name ?? confirmDisable?.email ?? ""}`}
+        description="No podrá iniciar sesión, sus sesiones abiertas se cerrarán en menos de un minuto y dejará de recibir chats asignados. Sus datos y su historial se conservan; puedes reactivarlo cuando quieras."
+        confirmLabel="Desactivar"
+        tone="danger"
+        loading={!!confirmDisable && togglingId === confirmDisable.id}
       />
 
       <UserFormModal

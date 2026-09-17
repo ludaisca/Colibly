@@ -39,7 +39,7 @@ export async function PATCH(req: Request) {
       where: { id: "default" },
       create: {
         id: "default",
-        allowRegistration: allowRegistration ?? true,
+        allowRegistration: allowRegistration ?? false,
       },
       update: {
         ...(allowRegistration !== undefined ? { allowRegistration } : {}),

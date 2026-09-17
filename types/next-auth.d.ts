@@ -15,5 +15,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
+    // Ver lib/auth.ts — revalidación periódica del usuario.
+    sessionVersion?: number;
+    checkedAt?: number;
   }
 }

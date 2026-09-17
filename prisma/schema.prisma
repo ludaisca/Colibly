@@ -8,12 +8,19 @@ datasource db {
 }
 
 model User {
-  id           String  @id @default(cuid())
-  name         String?
-  email        String  @unique
-  password     String?
-  role         String  @default("user")
-  maxOpenChats Int?
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  password       String?
+  role           String    @default("user")
+  maxOpenChats   Int?
+  // Usuario desactivado por un admin: no puede iniciar sesión, su sesión
+  // vigente se invalida en la siguiente revalidación (lib/auth.ts) y deja de
+  // recibir chats por auto-asignación.
+  disabledAt     DateTime? @map("disabled_at")
+  // Se incrementa para invalidar todas las sesiones JWT ya emitidas del
+  // usuario (al desactivarlo) — el token guarda la versión con la que se firmó.
+  sessionVersion Int       @default(0) @map("session_version")
 
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
@@ -44,7 +51,10 @@ model User {
 
 model SystemConfig {
   id                String   @id @default("default")
-  allowRegistration Boolean  @default(true)
+  // Cerrado por defecto: el primer admin se crea en /onboarding y el resto de
+  // usuarios los da de alta un admin desde /usuarios. Abrirlo permite que
+  // cualquiera en internet se registre con rol "user".
+  allowRegistration Boolean  @default(false)
   businessName      String?
   updatedAt         DateTime @updatedAt @map("updated_at")
 

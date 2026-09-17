@@ -4,6 +4,43 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { rateLimit } from "./rate-limit";
 
+// El JWT guarda rol y versión de sesión al iniciar sesión. Sin revalidar, un
+// cambio de rol o la desactivación de un usuario no surtían efecto hasta que el
+// token vencía (30 días). Cada SESSION_REVALIDATE_MS se vuelve a leer el
+// usuario; el caché en memoria evita una consulta por request cuando la cookie
+// no se puede reescribir (p. ej. dentro de un Server Component).
+const SESSION_REVALIDATE_MS = 60_000;
+
+interface UserSessionState {
+  role: string;
+  disabled: boolean;
+  sessionVersion: number;
+  loadedAt: number;
+}
+const userStateCache = new Map<string, UserSessionState>();
+
+async function loadUserSessionState(userId: string): Promise<UserSessionState | null> {
+  const cached = userStateCache.get(userId);
+  if (cached && Date.now() - cached.loadedAt < SESSION_REVALIDATE_MS) return cached;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, disabledAt: true, sessionVersion: true },
+  });
+  if (!user) {
+    userStateCache.delete(userId);
+    return null;
+  }
+  const state = { role: user.role, disabled: !!user.disabledAt, sessionVersion: user.sessionVersion, loadedAt: Date.now() };
+  userStateCache.set(userId, state);
+  return state;
+}
+
+// Para que un cambio hecho por un admin (rol, desactivación) aplique de
+// inmediato en este proceso en vez de esperar a que expire el caché.
+export function invalidateUserSessionCache(userId: string) {
+  userStateCache.delete(userId);
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
@@ -26,7 +63,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = credentials.password as string;
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.password) return null;
+        if (!user || !user.password || user.disabledAt) return null;
 
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
@@ -37,6 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           role: user.role,
           createdAt: user.createdAt.toISOString(),
+          sessionVersion: user.sessionVersion,
         };
       },
     }),
@@ -47,7 +85,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.role = (user as { role?: string }).role ?? "user";
         token.createdAt = (user as { createdAt?: string }).createdAt;
+        token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion ?? 0;
+        token.checkedAt = Date.now();
+        return token;
       }
+
+      if (typeof token.checkedAt === "number" && Date.now() - token.checkedAt < SESSION_REVALIDATE_MS) {
+        return token;
+      }
+
+      const state = await loadUserSessionState(token.id as string);
+      // Usuario borrado, desactivado o con las sesiones revocadas → null
+      // invalida la sesión. Tokens emitidos antes de existir sessionVersion
+      // cuentan como versión 0 (el default), así que siguen siendo válidos.
+      if (!state || state.disabled || state.sessionVersion !== (token.sessionVersion ?? 0)) {
+        return null;
+      }
+      token.role = state.role;
+      token.checkedAt = Date.now();
       return token;
     },
     async session({ session, token }) {
