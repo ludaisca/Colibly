@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Everything runs in Docker — never install dependencies or run Node/Postgres/Redis on the host.
+Everything runs in containers — never install dependencies or run Node/Postgres/Redis on the host. `docker compose` and `podman compose` are interchangeable here (same compose CLI); on the shared server development uses **Podman rootless**, which is why every bind mount in the compose files carries `:z` (SELinux) — keep it on new mounts, Docker ignores it.
 
 ```bash
 docker compose up --build                       # dev stack (app + postgres + redis), hot reload on :15100
@@ -18,27 +18,19 @@ docker compose restart app                      # required after a migration —
 
 There is no test suite (no `test` script in `package.json`). Verification is `tsc --noEmit` + `npm run lint` + a production build, plus manual click-through for UI changes. For a single file use `npx eslint <path>`; `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
 
-### The dev server is on port 15100, not 3001
+### The dev server is on port 15100 — open it as `localhost`
 
-`docker-compose.override.yml` maps `15100:5000`. Port **3001 belongs to `sunday-crm-app-1`** — a sibling container running [SundayCRM](https://github.com/ludaisca/SundayCRM), the upstream project this repo was forked from. Both apps serve `/whatsapp/*` and look nearly identical, so hitting 3001 by mistake yields plausible-but-wrong results (stale UI, "no session", 404s on routes added here) rather than an obvious error. The page `<title>` distinguishes them: this app renders "SundayCRM", SundayCRM renders "SundayCRM". Confirm with `docker ps --format "table {{.Names}}\t{{.Ports}}"`.
+`docker-compose.override.yml` maps `15100:5000`. Use `http://localhost:15100`, **not** `127.0.0.1`: Next's dev server blocks `/_next/*` for origins outside `allowedDevOrigins`, so on `127.0.0.1` the page loads but never hydrates — forms submit as plain GETs (`/login?`) and nothing interactive works, with only a "Blocked cross-origin request" line in the server log. `curl` against API routes works on either host.
 
 ### Production build check
 
-`docker compose exec app npm run build` fails while prerendering — the dev container sets `NODE_ENV=development`, which poisons the production build. Use a throwaway container instead, but note it mounts its **own anonymous `node_modules` volume** (`- /app/node_modules` in the override), so that volume starts with no installed packages and no generated Prisma client:
+Build the Dockerfile's `builder` stage in an isolated image — exactly what Coolify runs (`npm ci`, `prisma generate`, `next build` with `NODE_OPTIONS` set), without touching the dev container, `node_modules`, `.next` or `package.json`:
 
 ```bash
-docker compose run --rm -e NODE_ENV=production -e NODE_OPTIONS="--max-old-space-size=6144" \
-  app sh -c "npm install && npx prisma generate && rm -rf .next && npm run build"
+podman build --target builder -t localhost/sundaycrm-buildcheck:tmp . && podman rmi localhost/sundaycrm-buildcheck:tmp
 ```
 
-All four steps must be in the *same* invocation. Without `npm install` it fails on the first dependency missing from the image (`motion/react`); without `prisma generate`, on any model added since the image was built; without `NODE_OPTIONS` it dies with "JavaScript heap out of memory" (V8 caps itself near 2 GB in-container regardless of host RAM).
-
-Afterwards restore the dev state — the build leaves two side effects:
-
-```bash
-git checkout -- package.json package-lock.json   # npm install rewrites devDeps from ^ranges to exact pins
-docker compose exec -u root app sh -c "rm -rf .next" && docker compose restart app
-```
+`npm run build` inside the dev container fails while prerendering (`NODE_ENV=development` poisons the production build) — don't use it. To check the production *startup* (migrations + healthcheck), build `--target runner` and run it against a throwaway database on the compose network.
 
 ## Architecture: two parallel channel stacks
 

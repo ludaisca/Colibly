@@ -1,7 +1,7 @@
 # Roadmap competitivo — CRM conversacional (originado vs Pancake, ampliado a otros CRM)
 
 **Fecha de creación:** 2026-08-06
-**Estado:** En progreso — P0/P1/P2 cerrados. Dos pasadas de investigación regeneradas el 2026-08-06 (contra Pancake, y luego ampliada contra otros 6 CRM de paga/código abierto) produjeron 6 candidatos P3, pendientes de priorización con el usuario — nada de P3 está construido todavía.
+**Estado:** P0/P1/P2 y los 6 candidatos P3 (a–f) **implementados** (P3 el 2026-08-06, más Citas Fase 2 — ver `docs/PLAN_ROADMAP.md`). Pendiente: sitio web de marketing/ventas del producto. Revisión integral posterior con correcciones: `docs/AUDIT_2026-09-16.md`.
 **Cómo se generó:** empezó como investigación competitiva contra Pancake (CRM de social commerce) en una sesión anterior de Claude Code. **Ese análisis original no se persistió como documento** — solo sobrevivió fragmentado en 3 mensajes de commit y en un par de notas dentro de `AGENTS.md`. La sección "Cerrado" reconstruye lo que se pudo recuperar de esas fuentes. Como ese análisis original no era recuperable en su totalidad, se optó por **regenerar la investigación desde cero** (ver "Investigación regenerada") y luego, a pedido explícito del usuario, **ampliarla más allá de Pancake** contra un panorama más amplio de CRM de paga y código abierto (ver "Panorama ampliado") — para no basar el roadmap en un solo competidor.
 
 ## Alcance decidido
@@ -33,8 +33,8 @@ Mismo commit `4c66ce8`. Ver `AGENTS.md` → sección "Custom fields".
 
 ## Qué falta (conocido)
 
-1. **Citas — Fase 2**: bot de IA propone citas en la conversación (`WAAppointment.source: AI_BOT`). Requiere diseñar el marcador estructurado en la respuesta del modelo (no tool-calling nativo) y el parseo/confirmación en `bot-worker.ts`.
-2. **6 candidatos P3** (P3-a a P3-f, ver sección siguiente) — 3 de la investigación original contra Pancake, 3 nuevos de la investigación ampliada contra otros 6 CRM. Priorizar/aprobar con el usuario antes de construir cualquiera; ninguno está construido todavía.
+1. **Sitio web de marketing/ventas** del producto (landing + pricing) — ver `docs/PLAN_ROADMAP.md`; decidir si vive en este repo o en uno aparte.
+2. Límites deliberados de lo ya construido: comentarios de Instagram (P3-c solo cubre Facebook Page), citas por IA solo en WhatsApp, widget web solo texto, secuencias sin ramas condicionales y sin plantillas fuera de la ventana de 24 h.
 
 ## Investigación regenerada (2026-08-06)
 
@@ -74,12 +74,14 @@ SundayCRM hoy es un híbrido entre el arquetipo 2 (pipeline + lead scoring + bot
 ### P3-a — Automatización multi-paso disparada por evento/tag (secuencias tipo drip)
 - **Gap identificado**: patrón confirmado en **5 de 7** plataformas investigadas — Botcake/Pancake, Kommo, respond.io, Take Blip y HubSpot todas ofrecen un builder visual sin código de flujos multi-paso (trigger → espera → condicional → envío). No es una idiosincrasia de un solo competidor. Fuentes: [Botcake – Chat Automation](https://botcake.io/features/chat-automation), [respond.io – Chat Routing Workflows](https://respond.io/blog/chat-routing-contact-routing-workflows-module-respondio), [HubSpot Workflows](https://www.hubspot.com/products/workflow-automation).
 - **Estado actual en SundayCRM**: no existe un builder de automatización genérico. Lo más cercano es `lib/whatsapp/lead-recovery.ts` (cadencia fija de máx. 2 intentos, horas fijas por config global, un solo propósito: reactivar leads silenciosos) y el bot reactivo de IA (responde, no inicia secuencias por evento/tag). El grupo de nav "Automatización" (`dashboard-shell.tsx`) hoy solo contiene Bots IA + Calificadores — no hay ítem de flujos.
-- **Pendiente**: diseñar un builder de secuencias (trigger: tag agregado / `leadStatus` cambia / cita completada / etc. → pasos con espera + envío + condición). Alcance de diseño no trivial — antes de construir, decidir si conviene una versión mínima (secuencia lineal, sin ramas condicionales) en vez de replicar el builder visual completo de Botcake/respond.io.
+- **Implementado (2026-08-06)** — ver `docs/PLAN_ROADMAP.md` (checklist) y AGENTS.md. Texto original del pendiente, como contexto:
+  diseñar un builder de secuencias (trigger: tag agregado / `leadStatus` cambia / cita completada / etc. → pasos con espera + envío + condición). Alcance de diseño no trivial — antes de construir, decidir si conviene una versión mínima (secuencia lineal, sin ramas condicionales) en vez de replicar el builder visual completo de Botcake/respond.io.
 
 ### P3-b — Segmentación de campañas por tag/segmento
 - **Gap identificado**: Pancake CRM permite dirigir broadcasts a segmentos de clientes generados por tags de comportamiento ("Interesado en zapatos", "Cliente VIP"). Fuente: [Botcake – Chat Automation](https://botcake.io/features/chat-automation).
 - **Estado actual en SundayCRM**: `WACampaign` construye la lista de destinatarios manualmente o vía import CSV (`lib/whatsapp/parse-csv.ts`) — no hay selección de audiencia por `Tag`/`ChatTag` existente, aunque el catálogo de tags ya existe y se usa en Contactos/Pipeline/Chats.
-- **Pendiente**: agregar un modo de selección de audiencia "por tag" en `campanas/nueva`, reutilizando el catálogo de `Tag` ya existente — probablemente el candidato P3 de menor esfuerzo relativo, ya que la pieza que falta es solo el paso de selección de audiencia, no el motor de envío.
+- **Implementado (2026-08-06)** — ver `docs/PLAN_ROADMAP.md` (checklist) y AGENTS.md. Texto original del pendiente, como contexto:
+  agregar un modo de selección de audiencia "por tag" en `campanas/nueva`, reutilizando el catálogo de `Tag` ya existente — probablemente el candidato P3 de menor esfuerzo relativo, ya que la pieza que falta es solo el paso de selección de audiencia, no el motor de envío.
 
 ### P3-c — Captura de comentarios de publicación/livestream → conversación
 - **Gap identificado**: la propuesta de valor central de Pancake es convertir comentarios de posts/livestreams de Facebook/Instagram en conversaciones de inbox gestionables ("comment-to-inbox"). Fuente: [Pancake Docs – Comment Inbox Management](https://docs.pancake.biz/v/english/comment-inbox-management), [pancake.vn](https://pancake.vn/).
@@ -91,12 +93,14 @@ SundayCRM hoy es un híbrido entre el arquetipo 2 (pipeline + lead scoring + bot
 ### P3-d — Enrutamiento inteligente por atributo/score, no solo por carga
 - **Gap identificado**: respond.io enruta automáticamente por VIP/score/atributo (país, fuente del lead, plan) antes o en vez de pasar por el bot, saltando directo a un ejecutivo senior en casos de alto valor. HubSpot hace lo mismo por territorio/tamaño de empresa. Fuente: [respond.io – Chat Routing Workflows](https://respond.io/blog/chat-routing-contact-routing-workflows-module-respondio), [HubSpot Workflows](https://www.hubspot.com/products/workflow-automation).
 - **Estado actual en SundayCRM**: `lib/whatsapp/auto-assign.ts:autoAssignChat()` solo balancea por **carga** (candidato elegible con menos chats `OPEN`/`PENDING`, respetando `maxOpenChats`) — no considera `WALeadScore`, `Contact.leadOrigin`/tags, ni ninguna regla de "si es VIP, asignar a X". Ya tenemos las piezas de datos (`WALeadScore`, tags, `leadOrigin`) pero no la lógica de enrutamiento condicional sobre ellas.
-- **Pendiente**: depende del diseño de P3-a si se resuelve como una regla más dentro del mismo builder de automatización, o como una extensión puntual de `autoAssignChat()` con una lista de reglas simples (if-this-then-assign-that) sin necesidad de un builder visual completo. Priorizar esta segunda opción si P3-a se posterga — es de mucho menor alcance.
+- **Implementado (2026-08-06)** — ver `docs/PLAN_ROADMAP.md` (checklist) y AGENTS.md. Texto original del pendiente, como contexto:
+  depende del diseño de P3-a si se resuelve como una regla más dentro del mismo builder de automatización, o como una extensión puntual de `autoAssignChat()` con una lista de reglas simples (if-this-then-assign-that) sin necesidad de un builder visual completo. Priorizar esta segunda opción si P3-a se posterga — es de mucho menor alcance.
 
 ### P3-e — Modo copiloto de IA para agentes humanos (sugerencia, no autonomía)
 - **Gap identificado**: Chatwoot Copilot sugiere una respuesta redactada por IA que el agente humano revisa/edita/envía — distinto del bot 100% autónomo. Fuente: página principal de [Chatwoot](https://www.chatwoot.com/).
 - **Estado actual en SundayCRM**: el único modo de IA en un chat es el `WABot` autónomo (responde solo, sin pasar por un humano) — no hay un modo intermedio donde la IA redacte un borrador y un agente humano decida si lo envía tal cual, lo edita o lo descarta desde la UI del chat.
-- **Pendiente**: útil sobre todo para cuentas sin bot activo pero con volumen alto — daría valor de IA sin el riesgo de reputación de un bot 100% autónomo. Diseño: un botón "Sugerir respuesta" en el compositor del chat que llame al mismo pipeline de `bot-worker.ts` pero inserte el resultado como texto editable en el input en vez de enviarlo.
+- **Implementado (2026-08-06)** — ver `docs/PLAN_ROADMAP.md` (checklist) y AGENTS.md. Texto original del pendiente, como contexto:
+  útil sobre todo para cuentas sin bot activo pero con volumen alto — daría valor de IA sin el riesgo de reputación de un bot 100% autónomo. Diseño: un botón "Sugerir respuesta" en el compositor del chat que llame al mismo pipeline de `bot-worker.ts` pero inserte el resultado como texto editable en el input en vez de enviarlo.
 
 ### P3-f — Widget de chat en vivo para sitio web (nuevo canal)
 - **Gap identificado**: Chatwoot y Erxes ofrecen un widget de chat embebible en cualquier sitio web como canal de entrada adicional (con formularios/pop-ups de captura de leads en el caso de Erxes). Fuente: [Chatwoot](https://www.chatwoot.com/), búsqueda sobre Erxes.
@@ -118,6 +122,6 @@ SundayCRM hoy es un híbrido entre el arquetipo 2 (pipeline + lead scoring + bot
 ## Cómo continuar desde otro equipo
 
 1. Leer este documento + las secciones referenciadas en `AGENTS.md` ("Appointments/Citas", "Custom fields").
-2. Si se retoma Citas Fase 2: empezar por el diseño del marcador estructurado, no por el código — es una decisión de contrato entre el prompt del bot y el parser, y afecta a los dos providers de IA por igual.
-3. Si se retoman los candidatos P3, orden sugerido por esfuerzo/riesgo creciente: **P3-b** (segmentación de campañas por tag, reutiliza el catálogo `Tag` existente) → **P3-d** (reglas simples de enrutamiento por atributo/score, extensión acotada de `autoAssignChat()`) → **P3-e** (copiloto de IA, reutiliza el pipeline de `bot-worker.ts` en modo sugerencia) → **P3-a** (builder de automatización completo, el de mayor diseño previo) → **P3-c** y **P3-f** (ambos requieren primero resolver una zona gris de alcance con el usuario antes de diseñar nada). No empezar a construir ninguno sin confirmación explícita.
+2. Citas Fase 2 y los 6 candidatos P3 ya están construidos (ver "Estado" arriba); lo siguiente del roadmap es el sitio de marketing (`docs/PLAN_ROADMAP.md`). Antes de ampliar cualquier feature, revisar `docs/AUDIT_2026-09-16.md` — corrigió fallos en varias de ellas (secuencias, bots, etiquetas por cuenta, widget web).
+3. Nota: el catálogo `Tag` ya no es global — es por cuenta desde 2026-09-16 (afecta a P3-a/P3-b/P3-d).
 4. Si aparecen más gaps en el futuro: seguir el mismo formato "gap identificado → estado actual → fuente" y clasificar explícitamente cualquier hallazgo de zona gris en vez de omitirlo o colarlo silenciosamente como si ya estuviera aprobado. Preferir seguir ampliando **este mismo archivo** en vez de fragmentar en documentos nuevos — la fragmentación entre commits y `AGENTS.md` fue justamente lo que obligó a regenerar la investigación dos veces.

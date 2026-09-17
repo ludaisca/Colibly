@@ -10,7 +10,7 @@
 
 ## Development
 
-Everything runs in Docker. Never install dependencies or databases on the host.
+Everything runs in containers (`docker compose` or `podman compose` — same CLI; the shared dev server uses Podman rootless, hence `:z` on bind mounts). Never install dependencies or databases on the host.
 
 ```bash
 docker compose up --build   # dev server + postgres + redis, hot reload, port 15100
