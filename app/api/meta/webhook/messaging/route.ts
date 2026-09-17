@@ -191,6 +191,11 @@ export async function POST(req: Request) {
           // reaction, ...) se ignoran — solo comentarios nuevos abren
           // conversación.
           if (value.item !== "comment" || value.verb !== "add" || !value.from) continue;
+          // Comentarios publicados por la PROPIA Página (respuestas del
+          // community manager desde Facebook) llegan por el mismo webhook —
+          // sin este filtro se creaba un contacto/conversación con la Página
+          // como si fuera un lead.
+          if (value.from.id === entry.id || value.from.id === account.externalAccountId) continue;
 
           await ingestChannelMessage(account.id, channel, {
             externalId: value.from.id,
