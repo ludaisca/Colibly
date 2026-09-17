@@ -4,11 +4,12 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { getAIProvider } from "@/lib/ai/factory";
 import { searchKnowledge } from "@/lib/ai/rag";
 import { getUserApiKey } from "@/lib/ai/settings";
-import { estimateCost } from "@/lib/ai/pricing";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { buildAppointmentMarkerContract, parseAppointmentMarker } from "@/lib/ai/appointment-marker";
 import type { AppointmentProposal } from "@/lib/ai/appointment-marker";
-import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { getBotSkipReason } from "@/lib/bots/guards";
+import { recordBotUsage } from "@/lib/bots/usage";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
 import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
@@ -78,6 +79,10 @@ async function failBotAndNotify(botId: string, waChatId: string, errorMessage: s
   await sendFallbackReply(botId, waChatId);
 }
 
+// Confirmación cuando el modelo agendó una cita pero no escribió texto visible
+// (solo el bloque ```appointment) — ver handleBotMessage.
+const APPOINTMENT_ONLY_REPLY = "¡Listo! Tu cita quedó agendada. Si necesitas cambiarla, escríbenos por aquí.";
+
 const FALLBACK_REPLY =
   "Gracias por tu mensaje. Estamos teniendo un inconveniente técnico en este momento — un miembro de nuestro equipo te contactará en breve para continuar la conversación.";
 
@@ -128,6 +133,12 @@ async function handleBotMessage(job: BotMessageJob) {
   });
 
   if (!bot || !bot.isActive || bot.status !== "ACTIVE" || !bot.waAccount) return;
+
+  const skipReason = await getBotSkipReason({ waChatId }, job.messageId);
+  if (skipReason) {
+    console.log(`[bot-worker] El bot "${bot.name}" no responde: ${skipReason}`);
+    return;
+  }
 
   // Mismo gate que lead-scoring y lead-recovery: con el presupuesto mensual ya
   // agotado, el bot deja de responder (sin marcar ERROR — no es una falla del
@@ -267,6 +278,12 @@ async function handleBotMessage(job: BotMessageJob) {
     maxTokens: bot.maxTokens,
   });
 
+  // El gasto de IA se registra en cuanto ocurre: si el envío de abajo falla y
+  // BullMQ reintenta, esa llamada ya se hizo y debe contar en el presupuesto.
+  await recordBotUsage({ botId, userId: bot.userId, model: bot.model, provider, usage: result.usage, waChatId }).catch((err) =>
+    console.error("[bot-worker] No se pudo registrar el uso de IA:", err instanceof Error ? err.message : err)
+  );
+
   const chat = await prisma.wAChat.findUnique({
     where: { id: waChatId },
     select: { remoteJid: true, contactId: true, assignedToId: true },
@@ -279,104 +296,107 @@ async function handleBotMessage(job: BotMessageJob) {
   // El bloque ```appointment (si lo hay) nunca debe llegar al cliente — replyText
   // es siempre lo que se envía/persiste como el mensaje; proposal es la cita a
   // crear después de enviar, o null si no se detectó ninguna.
-  const { cleanText: replyText, proposal } = appointmentTimeZone
+  const parsed = appointmentTimeZone
     ? parseAppointmentMarker(result.content, appointmentTimeZone)
-    : { cleanText: result.content, proposal: null };
+    : { cleanText: result.content.trim(), proposal: null };
+  const proposal = parsed.proposal;
+  // Si el modelo respondió SOLO con el bloque de cita, cleanText queda vacío —
+  // mandar un texto vacío falla en Meta, BullMQ reintenta (con costo de IA) y
+  // el bot termina en ERROR. Con cita válida se confirma con un texto fijo;
+  // sin ella no hay nada que enviar.
+  const replyText = parsed.cleanText || (proposal ? APPOINTMENT_ONLY_REPLY : "");
+  if (!replyText) {
+    console.warn(`[bot-worker] El modelo devolvió una respuesta vacía — no se envía nada (chat ${waChatId})`);
+    return;
+  }
 
-  if (bot.humanizeEnabled) {
-    // Split the reply across several messages with a simulated typing delay between
-    // each, queued as separate delayed jobs so this job returns immediately instead
-    // of holding a bot-messages concurrency slot for the whole send sequence.
-    const chunks = splitReply(replyText);
-    let cumulativeDelay = 0;
-    for (const chunk of chunks) {
-      cumulativeDelay += computeTypingDelay(chunk);
-      await botSendQueue.add(
-        "send-chunk",
-        { accountId: bot.waAccount.id, waChatId, remoteJid: chat.remoteJid, chunk },
-        { delay: cumulativeDelay }
-      );
+  // En cuanto la respuesta sale (primer fragmento encolado o envío directo),
+  // un error posterior ya NO se relanza: BullMQ reintentaría el job completo
+  // y el cliente recibiría la misma respuesta dos veces.
+  let delivered = false;
+  try {
+    if (bot.humanizeEnabled) {
+      // Split the reply across several messages with a simulated typing delay between
+      // each, queued as separate delayed jobs so this job returns immediately instead
+      // of holding a bot-messages concurrency slot for the whole send sequence.
+      const chunks = splitReply(replyText);
+      let cumulativeDelay = 0;
+      for (const chunk of chunks) {
+        cumulativeDelay += computeTypingDelay(chunk);
+        await botSendQueue.add(
+          "send-chunk",
+          { accountId: bot.waAccount.id, waChatId, remoteJid: chat.remoteJid, chunk },
+          { delay: cumulativeDelay }
+        );
+        delivered = true;
+      }
+    } else {
+      const sendResult = await sendWhatsAppMessage(bot.waAccount, {
+        to: chat.remoteJid,
+        type: "text",
+        body: replyText,
+      });
+      delivered = true;
+
+      await Promise.all([
+        prisma.wAMessage.create({
+          data: {
+            wamid: sendResult.wamid ?? undefined,
+            chatId: waChatId,
+            direction: "OUTBOUND",
+            messageType: "text",
+            body: replyText,
+            status: "sent",
+            timestamp: now,
+          },
+        }),
+        prisma.wAChat.update({
+          where: { id: waChatId },
+          data: {
+            lastMessage: replyText.slice(0, 500),
+            lastMessageAt: now,
+          },
+        }),
+      ]);
     }
-  } else {
-    const sendResult = await sendWhatsAppMessage(bot.waAccount, {
-      to: chat.remoteJid,
-      type: "text",
-      body: replyText,
-    });
+
+    if (proposal && chat.contactId) {
+      await createAiProposedAppointment({
+        contactId: chat.contactId,
+        assignedToId: chat.assignedToId,
+        botOwnerId: bot.userId,
+        proposal,
+        originMessageId: job.messageId ?? null,
+      });
+    }
 
     await Promise.all([
-      prisma.wAMessage.create({
-        data: {
-          wamid: sendResult.wamid ?? undefined,
-          chatId: waChatId,
-          direction: "OUTBOUND",
-          messageType: "text",
-          body: replyText,
-          status: "sent",
-          timestamp: now,
-        },
-      }),
-      prisma.wAChat.update({
-        where: { id: waChatId },
-        data: {
-          lastMessage: replyText.slice(0, 500),
-          lastMessageAt: now,
-        },
+      bot.memoryType === "SUMMARY"
+        ? prisma.wABotConversation.update({
+            where: { id: conversation.id },
+            data: {
+              // El resumen debe acumular AMBOS lados del turno — solo con las
+              // respuestas del bot, la "memoria" olvidaba todo lo que el
+              // cliente dijo.
+              summary: summarizeText(
+                `Cliente: ${job.caption ?? incomingMessage}\nAsistente: ${replyText}`,
+                conversation.summary
+              ),
+            },
+          })
+        : Promise.resolve(),
+      prisma.wAAccount.update({
+        where: { id: bot.waAccount.id },
+        data: { lastActivity: now },
       }),
     ]);
+  } catch (err) {
+    if (!delivered) throw err;
+    console.error(
+      "[bot-worker] La respuesta ya se entregó; falló un paso posterior (no se reintenta para no duplicarla):",
+      err instanceof Error ? err.message : err
+    );
   }
-
-  if (proposal && chat.contactId) {
-    await createAiProposedAppointment({
-      contactId: chat.contactId,
-      assignedToId: chat.assignedToId,
-      botOwnerId: bot.userId,
-      proposal,
-      originMessageId: job.messageId ?? null,
-    });
-  }
-
-  await Promise.all([
-    bot.memoryType === "SUMMARY"
-      ? prisma.wABotConversation.update({
-          where: { id: conversation.id },
-          data: {
-            // El resumen debe acumular AMBOS lados del turno — solo con las
-            // respuestas del bot, la "memoria" olvidaba todo lo que el
-            // cliente dijo.
-            summary: summarizeText(
-              `Cliente: ${job.caption ?? incomingMessage}\nAsistente: ${replyText}`,
-              conversation.summary
-            ),
-          },
-        })
-      : Promise.resolve(),
-    prisma.wAAccount.update({
-      where: { id: bot.waAccount.id },
-      data: { lastActivity: now },
-    }),
-    (async () => {
-      if (!result.usage) return;
-      const promptTokens = result.usage.promptTokens;
-      const completionTokens = result.usage.completionTokens;
-      const totalTokens = promptTokens + completionTokens;
-      const cost = await estimateCost(bot.model, promptTokens, completionTokens, provider);
-
-      await prisma.wABotUsage.create({
-        data: {
-          botId,
-          waChatId,
-          model: bot.model,
-          promptTokens,
-          completionTokens,
-          totalTokens,
-          estimatedCost: cost,
-        },
-      });
-
-      await checkBudgetAlert(bot.userId, now);
-    })(),
-  ]);
 }
 
 async function buildUserContent(job: BotMessageJob, provider: AIProvider): Promise<string | ContentPart[]> {

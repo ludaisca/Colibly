@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -191,14 +192,19 @@ export async function ingestInboundMessage(
     data: { lastActivity: new Date() },
   });
 
-  const activeBots = await prisma.wABot.findMany({
+  // Un solo bot responde por cuenta (la API ya no permite activar un segundo;
+  // el orderBy cubre cuentas que quedaron con varios activos de antes). El
+  // retraso agrupa ráfagas: si llega otro mensaje en esos segundos, este job
+  // se descarta y responde el del mensaje más reciente (ver lib/bots/guards.ts).
+  const activeBot = await prisma.wABot.findFirst({
     where: { waAccountId: accountId, isActive: true, status: "ACTIVE" },
+    orderBy: { updatedAt: "desc" },
     select: { id: true },
   });
 
-  for (const bot of activeBots) {
+  if (activeBot) {
     await botQueue.add("process-message", {
-      botId: bot.id,
+      botId: activeBot.id,
       waChatId: chat.id,
       incomingMessage: msg.body,
       messageId: createdMessage.id,
@@ -208,7 +214,7 @@ export async function ingestInboundMessage(
       mimeType: msg.mimeType ?? null,
       caption: msg.caption ?? null,
       filename: msg.filename ?? null,
-    });
+    }, { delay: BOT_REPLY_DEBOUNCE_MS });
   }
 
   return { messageId: createdMessage.id, chatId: chat.id };

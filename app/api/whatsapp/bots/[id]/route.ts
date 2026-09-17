@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { botUpdateSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { findOtherActiveBot } from "@/lib/bots/guards";
 
 export async function GET(
   _req: Request,
@@ -121,6 +122,20 @@ export async function PATCH(
       }
       data.channelAccountId = fields.channelAccountId || null;
       if (fields.channelAccountId) data.waAccountId = null;
+    }
+    // Mover un bot ACTIVO a una cuenta que ya tiene otro bot activo dejaría dos
+    // respondiendo al mismo mensaje — mismo criterio que el toggle.
+    if (existing.isActive && (fields.waAccountId || fields.channelAccountId)) {
+      const other = await findOtherActiveBot(existing.id, {
+        waAccountId: fields.waAccountId || null,
+        channelAccountId: fields.waAccountId ? null : fields.channelAccountId || null,
+      });
+      if (other) {
+        return NextResponse.json(
+          { error: `Esa cuenta ya tiene un bot activo ("${other.name}"). Desactiva uno de los dos primero.` },
+          { status: 409 }
+        );
+      }
     }
     if (fields.provider) data.provider = fields.provider;
     if (fields.model) data.model = fields.model;

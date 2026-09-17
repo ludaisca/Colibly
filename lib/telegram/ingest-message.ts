@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { autoAssignConversation } from "./auto-assign";
+import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 
 // Equivalente a lib/whatsapp/ingest-message.ts pero sobre las tablas
 // genéricas ChannelAccount/Conversation/ChannelMessage — mismos pasos
@@ -189,16 +190,19 @@ export async function ingestChannelMessage(
 
   // Ver comentario de isFromComment arriba — un bot autónomo respondería por
   // el Send API normal, que Meta rechaza sin un hilo ya abierto.
-  const activeBots = msg.isFromComment
-    ? []
-    : await prisma.wABot.findMany({
+  // Un solo bot por cuenta + retraso para agrupar ráfagas — mismo criterio que
+  // lib/whatsapp/ingest-message.ts (ver lib/bots/guards.ts).
+  const activeBot = msg.isFromComment
+    ? null
+    : await prisma.wABot.findFirst({
         where: { channelAccountId, isActive: true, status: "ACTIVE" },
+        orderBy: { updatedAt: "desc" },
         select: { id: true },
       });
 
-  for (const bot of activeBots) {
+  if (activeBot) {
     await botQueue.add("process-message", {
-      botId: bot.id,
+      botId: activeBot.id,
       channel,
       conversationId: conversation.id,
       incomingMessage: msg.body,
@@ -208,7 +212,7 @@ export async function ingestChannelMessage(
       mimeType: msg.mimeType ?? null,
       caption: msg.caption ?? null,
       filename: msg.filename ?? null,
-    });
+    }, { delay: BOT_REPLY_DEBOUNCE_MS });
   }
 
   return { messageId: createdMessage.id, conversationId: conversation.id };

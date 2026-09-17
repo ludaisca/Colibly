@@ -4,9 +4,10 @@ import { sendChannelReplyText } from "@/lib/channel-send";
 import { getAIProvider } from "@/lib/ai/factory";
 import { searchKnowledge } from "@/lib/ai/rag";
 import { getUserApiKey } from "@/lib/ai/settings";
-import { estimateCost } from "@/lib/ai/pricing";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
-import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { getBotSkipReason } from "@/lib/bots/guards";
+import { recordBotUsage } from "@/lib/bots/usage";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
 import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
@@ -123,6 +124,12 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
 
   if (!bot || !bot.isActive || bot.status !== "ACTIVE" || !bot.channelAccount) return;
 
+  const skipReason = await getBotSkipReason({ conversationId }, job.messageId);
+  if (skipReason) {
+    console.log(`[telegram bot-worker] El bot "${bot.name}" no responde: ${skipReason}`);
+    return;
+  }
+
   if (await isMonthlyBudgetExceeded(bot.userId, new Date())) {
     console.log(`[telegram bot-worker] Presupuesto mensual de IA superado — el bot "${bot.name}" no responde este mensaje`);
     return;
@@ -200,93 +207,98 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
     maxTokens: bot.maxTokens,
   });
 
+  // El gasto de IA se registra en cuanto ocurre: si el envío de abajo falla y
+  // BullMQ reintenta, esa llamada ya se hizo y debe contar en el presupuesto.
+  await recordBotUsage({ botId, userId: bot.userId, model: bot.model, provider, usage: result.usage, conversationId }).catch((err) =>
+    console.error("[telegram bot-worker] No se pudo registrar el uso de IA:", err instanceof Error ? err.message : err)
+  );
+
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     select: { externalId: true },
   });
   if (!conversation) return;
 
-  const now = new Date();
-
-  if (bot.humanizeEnabled) {
-    // Mismo mecanismo que bot-worker.ts de WhatsApp: cada fragmento se encola
-    // con un retraso acumulado en bot-message-send en vez de enviarse aquí,
-    // para no retener el slot de concurrencia durante toda la secuencia.
-    const chunks = splitReply(result.content);
-    let cumulativeDelay = 0;
-    for (const chunk of chunks) {
-      cumulativeDelay += computeTypingDelay(chunk);
-      await botSendQueue.add(
-        "send-chunk",
-        {
-          channel: bot.channelAccount.channel,
-          accountId: bot.channelAccount.id,
-          waChatId: conversationId,
-          remoteJid: conversation.externalId,
-          chunk,
-        },
-        { delay: cumulativeDelay }
-      );
-    }
-  } else {
-    await sendChannelReplyText(bot.channelAccount, conversation.externalId, result.content);
-
-    await Promise.all([
-      prisma.channelMessage.create({
-        data: {
-          conversationId,
-          direction: "OUTBOUND",
-          messageType: "text",
-          body: result.content,
-          status: "sent",
-          timestamp: now,
-        },
-      }),
-      prisma.conversation.update({
-        where: { id: conversationId },
-        data: { lastMessage: result.content.slice(0, 500), lastMessageAt: now },
-      }),
-    ]);
+  const replyText = result.content.trim();
+  if (!replyText) {
+    console.warn(`[telegram bot-worker] El modelo devolvió una respuesta vacía — no se envía nada (conversación ${conversationId})`);
+    return;
   }
 
-  await Promise.all([
-    bot.memoryType === "SUMMARY"
-      ? prisma.wABotConversation.update({
-          where: { id: botConversation.id },
-          data: {
-            summary: summarizeText(
-              `Cliente: ${job.caption ?? incomingMessage}\nAsistente: ${result.content}`,
-              botConversation.summary
-            ),
+  const now = new Date();
+
+  // En cuanto la respuesta sale (primer fragmento encolado o envío directo),
+  // un error posterior ya NO se relanza: BullMQ reintentaría el job completo
+  // y el cliente recibiría la misma respuesta dos veces.
+  let delivered = false;
+  try {
+    if (bot.humanizeEnabled) {
+      // Mismo mecanismo que bot-worker.ts de WhatsApp: cada fragmento se encola
+      // con un retraso acumulado en bot-message-send en vez de enviarse aquí,
+      // para no retener el slot de concurrencia durante toda la secuencia.
+      const chunks = splitReply(replyText);
+      let cumulativeDelay = 0;
+      for (const chunk of chunks) {
+        cumulativeDelay += computeTypingDelay(chunk);
+        await botSendQueue.add(
+          "send-chunk",
+          {
+            channel: bot.channelAccount.channel,
+            accountId: bot.channelAccount.id,
+            waChatId: conversationId,
+            remoteJid: conversation.externalId,
+            chunk,
           },
-        })
-      : Promise.resolve(),
-    prisma.channelAccount.update({
-      where: { id: bot.channelAccount.id },
-      data: { lastActivity: now },
-    }),
-    (async () => {
-      if (!result.usage) return;
-      const promptTokens = result.usage.promptTokens;
-      const completionTokens = result.usage.completionTokens;
-      const totalTokens = promptTokens + completionTokens;
-      const cost = await estimateCost(bot.model, promptTokens, completionTokens, provider);
+          { delay: cumulativeDelay }
+        );
+        delivered = true;
+      }
+    } else {
+      await sendChannelReplyText(bot.channelAccount, conversation.externalId, replyText);
+      delivered = true;
 
-      await prisma.wABotUsage.create({
-        data: {
-          botId,
-          conversationId,
-          model: bot.model,
-          promptTokens,
-          completionTokens,
-          totalTokens,
-          estimatedCost: cost,
-        },
-      });
+      await Promise.all([
+        prisma.channelMessage.create({
+          data: {
+            conversationId,
+            direction: "OUTBOUND",
+            messageType: "text",
+            body: replyText,
+            status: "sent",
+            timestamp: now,
+          },
+        }),
+        prisma.conversation.update({
+          where: { id: conversationId },
+          data: { lastMessage: replyText.slice(0, 500), lastMessageAt: now },
+        }),
+      ]);
+    }
 
-      await checkBudgetAlert(bot.userId, now);
-    })(),
-  ]);
+    await Promise.all([
+      bot.memoryType === "SUMMARY"
+        ? prisma.wABotConversation.update({
+            where: { id: botConversation.id },
+            data: {
+              summary: summarizeText(
+                `Cliente: ${job.caption ?? incomingMessage}\nAsistente: ${replyText}`,
+                botConversation.summary
+              ),
+            },
+          })
+        : Promise.resolve(),
+      prisma.channelAccount.update({
+        where: { id: bot.channelAccount.id },
+        data: { lastActivity: now },
+      }),
+    ]);
+  } catch (err) {
+    if (!delivered) throw err;
+    console.error(
+      "[telegram bot-worker] La respuesta ya se entregó; falló un paso posterior (no se reintenta para no duplicarla):",
+      err instanceof Error ? err.message : err
+    );
+  }
 }
 
 // Port de lib/workers/bot-worker.ts:buildUserContent(), leyendo ChannelMessage

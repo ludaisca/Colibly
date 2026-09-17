@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { findOtherActiveBot } from "@/lib/bots/guards";
 
 export async function POST(
   _req: Request,
@@ -26,6 +27,18 @@ export async function POST(
     }
 
     const nextActive = !bot.isActive;
+
+    // Un bot activo por cuenta: con dos, cada uno encolaba su propia respuesta
+    // al mismo mensaje y el cliente recibía varias.
+    if (nextActive) {
+      const other = await findOtherActiveBot(bot.id, bot);
+      if (other) {
+        return NextResponse.json(
+          { error: `Ya hay un bot activo en esta cuenta ("${other.name}"). Desactívalo antes de activar este.` },
+          { status: 409 }
+        );
+      }
+    }
 
     const updated = await prisma.wABot.update({
       where: { id },
