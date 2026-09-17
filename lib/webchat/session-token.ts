@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 
 // Roadmap P3-f — token de sesión del widget de chat en vivo. A diferencia de
 // Telegram/Messenger (el visitante ES la plataforma, autenticada por Meta/
@@ -20,6 +20,17 @@ interface WebchatTokenPayload {
 }
 
 const SESSION_DURATION_SECONDS = 24 * 60 * 60; // 24h — el widget renueva pidiendo una sesión nueva cuando expira
+// Un token vencido sigue sirviendo para RENOVAR la sesión del mismo visitante
+// durante este plazo (el widget lo guarda en localStorage). Pasado ese tiempo
+// el visitante empieza una conversación nueva.
+export const WEBCHAT_RENEW_WINDOW_SECONDS = 30 * 24 * 60 * 60;
+
+// El visitorId lo genera el SERVIDOR (aleatorio criptográfico) — antes lo
+// elegía el widget y /session firmaba cualquier id que le mandaran: quien
+// conociera el visitorId de otra persona podía leer su conversación.
+export function generateVisitorId(): string {
+  return "v_" + randomBytes(18).toString("base64url");
+}
 
 function getSecret(): string {
   const key = process.env.ENCRYPTION_KEY;
@@ -41,7 +52,11 @@ export function createWebchatToken(visitorId: string, channelAccountId: string):
 // Verifica firma + expiración + que el token corresponde EXACTAMENTE a la
 // cuenta de la URL (`[accountId]`) — un token válido de la cuenta A nunca
 // debe servir en la cuenta B, aunque ambas tengan el mismo secreto de firma.
-export function verifyWebchatToken(token: string, channelAccountId: string): { visitorId: string } | null {
+export function verifyWebchatToken(
+  token: string,
+  channelAccountId: string,
+  opts: { allowExpiredForSeconds?: number } = {}
+): { visitorId: string } | null {
   const [encoded, signature] = token.split(".");
   if (!encoded || !signature) return null;
 
@@ -57,7 +72,8 @@ export function verifyWebchatToken(token: string, channelAccountId: string): { v
     return null;
   }
 
-  if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.exp < now - (opts.allowExpiredForSeconds ?? 0)) return null;
   if (payload.channelAccountId !== channelAccountId) return null;
   return { visitorId: payload.visitorId };
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
-import { getWebchatCredentials, isOriginAllowed, corsHeaders } from "@/lib/webchat/account";
+import { getWebchatCredentials, isOriginAllowed, corsHeaders, readWebchatToken } from "@/lib/webchat/account";
 import { verifyWebchatToken } from "@/lib/webchat/session-token";
 import { ingestChannelMessage } from "@/lib/telegram/ingest-message";
 
@@ -38,7 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
     const origin = req.headers.get("origin");
     const { accountId } = await params;
     const body = await req.json().catch(() => ({}));
-    const token = typeof body?.token === "string" ? body.token : null;
+    const token = readWebchatToken(req, typeof body?.token === "string" ? body.token : null);
 
     const resolved = await resolveAccountAndVisitor(accountId, origin, token);
     if (!resolved) {
@@ -46,8 +46,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
     }
     const { account, visitorId } = resolved;
 
-    const { allowed } = await rateLimit(`webchat-send:${visitorId}`, 20, 60);
-    if (!allowed) {
+    const forwarded = req.headers.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
+    const [perVisitor, perIp] = await Promise.all([
+      rateLimit(`webchat-send:${visitorId}`, 20, 60),
+      rateLimit(`webchat-send-ip:${ip}`, 60, 60),
+    ]);
+    if (!perVisitor.allowed || !perIp.allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: corsHeaders(origin!) });
     }
 
@@ -59,6 +64,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
     // del propio cliente (fetch falló pero el server sí procesó) no duplique
     // el mensaje, vía @@unique([conversationId, externalMessageId]).
     const clientMessageId = typeof body?.clientMessageId === "string" ? body.clientMessageId : null;
+
+    // Tope de conversaciones NUEVAS por cuenta: cada una puede disparar
+    // respuestas del bot de IA (con costo) — sin esto, un script abría cientos.
+    const existingConversation = await prisma.conversation.findUnique({
+      where: { channelAccountId_externalId: { channelAccountId: account.id, externalId: visitorId } },
+      select: { id: true },
+    });
+    if (!existingConversation) {
+      const newConversations = await rateLimit(`webchat-new-conversation:${account.id}`, 200, 3600);
+      if (!newConversations.allowed) {
+        return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: corsHeaders(origin!) });
+      }
+    }
 
     const result = await ingestChannelMessage(account.id, "WEBCHAT", {
       externalId: visitorId,
@@ -82,7 +100,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ accountI
     const origin = req.headers.get("origin");
     const { accountId } = await params;
     const { searchParams } = new URL(req.url);
-    const token = searchParams.get("token");
+    const token = readWebchatToken(req, searchParams.get("token"));
 
     const resolved = await resolveAccountAndVisitor(accountId, origin, token);
     if (!resolved) {

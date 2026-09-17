@@ -37,35 +37,49 @@ function buildWidgetScript(accountId: string): string {
   return `(function () {
   var ACCOUNT_ID = ${JSON.stringify(accountId)};
   var API_BASE = ${JSON.stringify(new URL(`/api/webchat/${accountId}`, getPublicBaseUrl()).toString())};
-  var STORAGE_KEY = "sundaycrm_webchat_visitor_" + ACCOUNT_ID;
+  // Solo se guarda el TOKEN firmado: el visitorId lo asigna el servidor y
+  // viaja dentro del token (antes el widget inventaba el id y cualquiera que lo
+  // conociera podía abrir la conversación de otra persona).
+  var TOKEN_KEY = "sundaycrm_webchat_token_" + ACCOUNT_ID;
   var POLL_MS = 4000;
 
-  function getVisitorId() {
-    var id = localStorage.getItem(STORAGE_KEY);
-    if (!id) {
-      id = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
-      localStorage.setItem(STORAGE_KEY, id);
-    }
-    return id;
+  function readStoredToken() {
+    try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+  }
+  function storeToken(value) {
+    try { if (value) localStorage.setItem(TOKEN_KEY, value); } catch (e) {}
   }
 
-  var visitorId = getVisitorId();
   var token = null;
+  var tokenRequest = null;
   var lastTimestamp = null;
   var pollTimer = null;
 
-  function getToken() {
-    if (token) return Promise.resolve(token);
-    return fetch(API_BASE + "/session", {
+  // Pide (o renueva con el token guardado) la sesión. Un token vencido sigue
+  // sirviendo para renovar, así el visitante conserva su conversación.
+  function getToken(forceRenew) {
+    if (token && !forceRenew) return Promise.resolve(token);
+    if (tokenRequest) return tokenRequest;
+    var stored = forceRenew ? (token || readStoredToken()) : readStoredToken();
+    tokenRequest = fetch(API_BASE + "/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visitorId: visitorId }),
+      body: JSON.stringify(stored ? { renewToken: stored } : {}),
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         token = data.token || null;
+        storeToken(token);
         return token;
-      });
+      })
+      .finally(function () { tokenRequest = null; });
+    return tokenRequest;
+  }
+
+  function authHeaders(extra) {
+    var headers = extra || {};
+    if (token) headers.Authorization = "Bearer " + token;
+    return headers;
   }
 
   function renderMessage(container, msg) {
@@ -95,9 +109,15 @@ function buildWidgetScript(accountId: string): string {
 
   function poll(messagesEl) {
     if (!token) return;
-    var url = API_BASE + "/messages?token=" + encodeURIComponent(token) + (lastTimestamp ? "&since=" + encodeURIComponent(lastTimestamp) : "");
-    fetch(url)
-      .then(function (r) { return r.json(); })
+    var url = API_BASE + "/messages" + (lastTimestamp ? "?since=" + encodeURIComponent(lastTimestamp) : "");
+    fetch(url, { headers: authHeaders() })
+      .then(function (r) {
+        // Sesión vencida (pestaña abierta más de 24h): renovar y seguir.
+        if (r.status === 401 || r.status === 403) {
+          return getToken(true).then(function () { return { messages: [] }; });
+        }
+        return r.json();
+      })
       .then(function (data) {
         var msgs = data.messages || [];
         if (msgs.length === 0) return;
@@ -114,15 +134,17 @@ function buildWidgetScript(accountId: string): string {
   function sendMessage(text, messagesEl) {
     getToken().then(function (tok) {
       if (!tok) return;
-      var clientMessageId = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      var clientMessageId = window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID()
+        : "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
       // Sin render optimista a propósito: el próximo poll (disparado de
       // inmediato abajo, no se espera el intervalo de 4s) va a traer este
       // mismo mensaje ya confirmado por el servidor — mostrarlo dos veces
       // (una optimista, otra al llegar por poll) duplicaba la burbuja.
       fetch(API_BASE + "/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: tok, text: text, clientMessageId: clientMessageId }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ text: text, clientMessageId: clientMessageId }),
       })
         .then(function () { poll(messagesEl); })
         .catch(function () {});

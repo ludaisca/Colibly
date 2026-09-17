@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { getWebchatCredentials, isOriginAllowed, corsHeaders } from "@/lib/webchat/account";
-import { createWebchatToken } from "@/lib/webchat/session-token";
+import { createWebchatToken, generateVisitorId, verifyWebchatToken, WEBCHAT_RENEW_WINDOW_SECONDS } from "@/lib/webchat/session-token";
 
 // Roadmap P3-f — ruta PÚBLICA (sin sesión de NextAuth): el widget la llama
 // desde el navegador del visitante para obtener un token de sesión antes de
 // poder mandar/leer mensajes. El único portón real es el header Origin
 // contra los dominios configurados en la cuenta — el accountId de la URL es
 // público por diseño (va embebido en el script del sitio del cliente).
-
-const VISITOR_ID_RE = /^[a-zA-Z0-9-]{10,64}$/;
 
 async function resolveAccount(accountId: string, origin: string | null) {
   const account = await prisma.channelAccount.findUnique({
@@ -48,14 +46,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
       return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: corsHeaders(origin!) });
     }
 
+    // Visitante que vuelve: presenta su token anterior (aunque haya vencido,
+    // dentro de la ventana de renovación) y conserva su visitorId. Un visitorId
+    // mandado por el cliente ya no se acepta — ver generateVisitorId().
     const body = await req.json().catch(() => ({}));
-    const visitorId = typeof body?.visitorId === "string" ? body.visitorId : null;
-    if (!visitorId || !VISITOR_ID_RE.test(visitorId)) {
-      return NextResponse.json({ error: "visitorId inválido" }, { status: 400, headers: corsHeaders(origin!) });
+    const renewToken = typeof body?.renewToken === "string" ? body.renewToken : null;
+    const renewed = renewToken
+      ? verifyWebchatToken(renewToken, accountId, { allowExpiredForSeconds: WEBCHAT_RENEW_WINDOW_SECONDS })
+      : null;
+
+    let visitorId: string;
+    if (renewed) {
+      visitorId = renewed.visitorId;
+    } else {
+      // Límite de visitantes NUEVOS por IP: rotar identidades desde una misma
+      // IP era la forma de multiplicar mensajes (y respuestas de IA con costo).
+      const newVisitor = await rateLimit(`webchat-new-visitor:${ip}`, 20, 3600);
+      if (!newVisitor.allowed) {
+        return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: corsHeaders(origin!) });
+      }
+      visitorId = generateVisitorId();
     }
 
     const token = createWebchatToken(visitorId, accountId);
-    return NextResponse.json({ token }, { headers: corsHeaders(origin!) });
+    return NextResponse.json({ token, visitorId }, { headers: corsHeaders(origin!) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error interno del servidor";
     return NextResponse.json({ error: message }, { status: 500 });
