@@ -127,6 +127,14 @@ export async function ingestInboundMessage(
     },
   });
 
+  // Un cliente que vuelve a escribir en un chat RESUELTO lo reabre — antes
+  // quedaba RESOLVED y fuera de la calificación programada, la recuperación de
+  // leads (ambas filtran OPEN/PENDING) y las métricas de resolución. PENDING no
+  // se toca: puede significar otra cosa para el equipo.
+  if (chat.status === "RESOLVED") {
+    await prisma.wAChat.update({ where: { id: chat.id }, data: { status: "OPEN", resolvedAt: null } });
+  }
+
   let createdMessage;
   try {
     createdMessage = await prisma.wAMessage.create({
