@@ -39,6 +39,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./
 COPY --chown=nextjs:nodejs scripts/startup.sh ./startup.sh
+COPY --chown=nextjs:nodejs scripts/db-migrate.sh ./scripts/db-migrate.sh
 RUN mkdir -p /app/media && chown nextjs:nodejs /app/media && chmod +x startup.sh
 USER nextjs
 EXPOSE 5000

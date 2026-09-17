@@ -12,9 +12,8 @@ Everything runs in Docker — never install dependencies or run Node/Postgres/Re
 docker compose up --build                       # dev stack (app + postgres + redis), hot reload on :15100
 docker compose exec app npx tsc --noEmit        # type check
 docker compose exec app npm run lint            # eslint (flat config, eslint-config-next)
-docker compose exec app npx prisma db push      # apply schema.prisma changes to the dev DB
-docker compose exec app npx prisma generate     # regenerate Prisma client after schema changes
-docker compose restart app                      # required after db push — see AGENTS.md "Dev container needs a restart"
+docker compose exec app sh scripts/new-migration.sh <nombre>   # schema.prisma changed → create + apply a migration (NOT `migrate dev`, NOT `db push`)
+docker compose restart app                      # required after a migration — see AGENTS.md "Dev container needs a restart"
 ```
 
 There is no test suite (no `test` script in `package.json`). Verification is `tsc --noEmit` + `npm run lint` + a production build, plus manual click-through for UI changes. For a single file use `npx eslint <path>`; `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
