@@ -396,13 +396,23 @@ export async function POST(req: Request) {
   try {
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
-    const { allowed } = await rateLimit(`webhook:${ip}`, 300, 60);
+    // Límite alto a propósito: todo el tráfico legítimo de Meta llega desde
+    // pocas IPs y compartido por todas las cuentas (una campaña de 1,000
+    // mensajes genera ~3,000 callbacks de estado). La autenticación real es la
+    // firma HMAC de cada payload.
+    const { allowed } = await rateLimit(`webhook:${ip}`, 3000, 60);
     if (!allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     const rawBody = await req.text();
-    const body = JSON.parse(rawBody);
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      // Malformado: reintentar no lo arregla.
+      return NextResponse.json({ success: true });
+    }
     const signature = req.headers.get("x-hub-signature-256");
 
     if (body.object !== "whatsapp_business_account") {
@@ -538,9 +548,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal error" },
-      { status: 500 }
-    );
+    console.error("[webhook] Error procesando payload de WhatsApp:", error);
+    // 500 para que Meta reintente (el dedup por wamid hace seguro el reintento).
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

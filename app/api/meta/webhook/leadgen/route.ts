@@ -78,13 +78,23 @@ export async function POST(req: Request) {
   try {
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
-    const { allowed } = await rateLimit(`meta-leadgen-webhook:${ip}`, 300, 60);
+    // Límite alto a propósito: todo el tráfico legítimo de Meta llega desde
+    // pocas IPs y compartido por todas las cuentas (una campaña de 1,000
+    // mensajes genera ~3,000 callbacks de estado). La autenticación real es la
+    // firma HMAC de cada payload.
+    const { allowed } = await rateLimit(`meta-leadgen-webhook:${ip}`, 3000, 60);
     if (!allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     const rawBody = await req.text();
-    const body = JSON.parse(rawBody);
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      // Malformado: reintentar no lo arregla.
+      return NextResponse.json({ success: true });
+    }
     const signature = req.headers.get("x-hub-signature-256");
 
     if (body.object !== "page") {
@@ -169,9 +179,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[meta-leadgen webhook] Error:", error);
-    // Igual que el webhook de WhatsApp: siempre 200, para no darle a un
-    // atacante una señal de qué payload es inválido ni causar reintentos
-    // infinitos de Meta.
-    return NextResponse.json({ success: true });
+    // 500 para que Meta reintente — antes siempre 200 y el lead se perdía si
+    // fallaba la DB o la consulta a la Graph API. El upsert del Contact hace
+    // seguro el reintento.
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
