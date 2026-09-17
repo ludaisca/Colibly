@@ -30,6 +30,8 @@ interface Sequence {
   channelAccount: { id: string; name: string } | null;
   steps: Array<{ id: string; order: number; delayMinutes: number; message: string }>;
   _count: { enrollments: number };
+  // Inscripciones FAILED (envío fallido) o EXPIRED (fuera de la ventana de 24h).
+  stoppedEnrollments: number;
 }
 
 export default function SequencesPage() {
@@ -120,6 +122,11 @@ export default function SequencesPage() {
                   <Badge tone={seq.active ? "success" : "neutral"} size="sm">
                     {seq.active ? "Activa" : "Pausada"}
                   </Badge>
+                  {seq.stoppedEnrollments > 0 && (
+                    <Badge tone="warning" size="sm">
+                      {seq.stoppedEnrollments} sin completar
+                    </Badge>
+                  )}
                 </span>
               }
               subtitle={

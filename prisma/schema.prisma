@@ -1211,6 +1211,14 @@ enum SequenceEnrollmentStatus {
   // exitOnReply estaba activo — se detuvo antes de mandar el siguiente paso.
   EXITED_REPLY
   CANCELLED
+  // El envío del paso actual falló SEQUENCE_MAX_SEND_ATTEMPTS veces seguidas
+  // (token inválido, número bloqueado, bot de Telegram removido...) — antes se
+  // reintentaba cada 5 minutos para siempre.
+  FAILED
+  // WhatsApp: el paso no se pudo enviar por la ventana de 24h de Meta y ya no
+  // puede reabrirse (exitOnReply: la única forma de reabrirla es que el lead
+  // responda, lo que detiene la secuencia) o se agotó el plazo de espera.
+  EXPIRED
 }
 
 model WASequence {
@@ -1279,6 +1287,10 @@ model WASequenceEnrollment {
   // exitOnReply usa para buscar un INBOUND posterior; null antes de mandar
   // el primer paso (en ese caso se compara contra enrolledAt).
   lastStepSentAt DateTime?                @map("last_step_sent_at")
+  // Intentos fallidos consecutivos de envío del paso actual — vuelve a 0 al
+  // enviar un paso. Al llegar al máximo la inscripción pasa a FAILED.
+  sendAttempts   Int                      @default(0) @map("send_attempts")
+  lastError      String?                  @map("last_error") @db.Text
   enrolledAt     DateTime                 @default(now()) @map("enrolled_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
 

@@ -23,6 +23,9 @@ interface Props {
 
 interface StepDraft { delayMinutes: string; message: string }
 
+// Ventana de servicio de Meta para mensajes libres (ver lib/sequences.ts).
+const WHATSAPP_WINDOW_MINUTES = 24 * 60;
+
 const TRIGGER_LABEL: Record<string, string> = {
   TAG_ADDED: "Se agrega una etiqueta",
   LEAD_STATUS_CHANGED: "El estado del lead cambia a",
@@ -271,6 +274,16 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
               </Button>
             </div>
             {errors.steps && <p className="text-xs text-danger">{errors.steps}</p>}
+            {accounts.find((a) => a.id === accountId)?.channel === "WHATSAPP" &&
+              steps.reduce((total, s) => total + (Number(s.delayMinutes) || 0), 0) > WHATSAPP_WINDOW_MINUTES && (
+                <Banner tone="warning">
+                  WhatsApp solo permite mensajes libres dentro de las 24 h posteriores al último mensaje del cliente. Los
+                  pasos que caigan fuera de esa ventana no se envían:{" "}
+                  {exitOnReply
+                    ? "con “Detener si el contacto responde” activo, la inscripción se marca como expirada."
+                    : "la inscripción espera hasta 7 días a que el cliente vuelva a escribir y luego expira."}
+                </Banner>
+              )}
             <div className="space-y-3">
               {steps.map((step, i) => (
                 <div key={i} className="rounded-lg border border-border p-3 space-y-2">

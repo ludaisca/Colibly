@@ -64,7 +64,19 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(sequences);
+    // Inscripciones que se detuvieron sin completarse (envío fallido o fuera de
+    // la ventana de 24h de WhatsApp) — la lista las señala para que no pasen
+    // desapercibidas.
+    const problems = sequences.length > 0
+      ? await prisma.wASequenceEnrollment.groupBy({
+          by: ["sequenceId"],
+          where: { sequenceId: { in: sequences.map((s) => s.id) }, status: { in: ["FAILED", "EXPIRED"] } },
+          _count: { _all: true },
+        })
+      : [];
+    const problemsBySequence = new Map(problems.map((p) => [p.sequenceId, p._count._all]));
+
+    return NextResponse.json(sequences.map((s) => ({ ...s, stoppedEnrollments: problemsBySequence.get(s.id) ?? 0 })));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error interno del servidor";
     return NextResponse.json({ error: message }, { status: 500 });
