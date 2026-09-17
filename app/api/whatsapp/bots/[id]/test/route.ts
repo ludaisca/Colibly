@@ -5,6 +5,9 @@ import { getAIProvider } from "@/lib/ai/factory";
 import { getUserApiKey } from "@/lib/ai/settings";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import type { AIProvider } from "@/lib/ai/types";
+import { rateLimit } from "@/lib/rate-limit";
+import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { recordBotUsage } from "@/lib/bots/usage";
 
 export async function POST(
   req: Request,
@@ -17,6 +20,12 @@ export async function POST(
     }
     if (session.user.role !== "admin") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+    // Cada llamada gasta IA: límite por usuario además del tope mensual de
+    // presupuesto (que al agotarse también apaga los bots legítimos).
+    const { allowed } = await rateLimit(`ai-bot-test:${session.user.id}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes de IA, espera un momento" }, { status: 429 });
     }
 
     const { id } = await params;
@@ -33,6 +42,10 @@ export async function POST(
 
     if (!message?.trim()) {
       return NextResponse.json({ error: "El mensaje es requerido" }, { status: 400 });
+    }
+
+    if (await isMonthlyBudgetExceeded(bot.userId, new Date())) {
+      return NextResponse.json({ error: "El presupuesto mensual de IA está agotado." }, { status: 400 });
     }
 
     const provider = bot.provider as AIProvider;
@@ -59,6 +72,12 @@ export async function POST(
       temperature: bot.temperature,
       maxTokens: bot.maxTokens,
     });
+
+    // Las pruebas también gastan: antes no se registraban y el presupuesto
+    // mensual quedaba por debajo del gasto real.
+    await recordBotUsage({ botId: bot.id, userId: bot.userId, model: bot.model, provider, usage: result.usage }).catch((err) =>
+      console.error("[bots/test] No se pudo registrar el uso de IA:", err instanceof Error ? err.message : err)
+    );
 
     return NextResponse.json({
       response: result.content,

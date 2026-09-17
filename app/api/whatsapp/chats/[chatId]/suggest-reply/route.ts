@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { suggestReply, ReplySuggestionError } from "@/lib/whatsapp/reply-suggestion";
+import { rateLimit } from "@/lib/rate-limit";
 
 // Copiloto de IA (roadmap P3-e) — mismo alcance de canal que /score y
 // /scorers hoy: WhatsApp + Telegram, no Messenger/Instagram todavía.
@@ -66,6 +67,12 @@ export async function POST(
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    // Cada llamada gasta IA: límite por usuario además del tope mensual de
+    // presupuesto (que al agotarse también apaga los bots legítimos).
+    const { allowed } = await rateLimit(`ai-suggest-reply:${session.user.id}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes de IA, espera un momento" }, { status: 429 });
     }
 
     const { chatId } = await params;
