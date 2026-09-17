@@ -76,6 +76,8 @@ export function UserDropdown() {
                 // redirección del servidor usa el origen interno del contenedor.
                 onClick={async () => {
                   await signOut({ redirect: false });
+                  // Recarga completa a propósito — ver app-shell.tsx.
+                  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                   window.location.href = "/login";
                 }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-surface-light hover:text-foreground transition-colors"

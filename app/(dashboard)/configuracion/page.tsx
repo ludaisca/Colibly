@@ -338,6 +338,9 @@ export default function SettingsPage() {
           <Button
             size="sm"
             icon={FileSpreadsheet}
+            // Ruta API que responde 302 hacia el consentimiento OAuth de Google —
+            // necesita navegación completa, router.push no sigue redirects externos.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             onClick={() => { window.location.href = "/api/integrations/google-sheets/connect"; }}
           >
             Conectar con Google

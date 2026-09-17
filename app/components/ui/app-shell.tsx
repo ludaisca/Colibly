@@ -144,6 +144,9 @@ function SidebarContent({
           // mandaba al usuario fuera de la app tras cerrar sesión.
           onClick={async () => {
             await signOut({ redirect: false });
+            // Recarga completa a propósito: router.push conservaría en memoria
+            // el árbol de React y la caché del cliente de la sesión cerrada.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.href = "/login";
           }}
           title={collapsed ? "Cerrar sesión" : undefined}
