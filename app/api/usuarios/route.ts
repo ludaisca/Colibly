@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
+import { emailField } from "@/lib/validations";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
-  email: z.string().email("Email inválido"),
+  email: emailField,
   password: z.string().min(8, "Mínimo 8 caracteres"),
   role: z.enum(["admin", "user", "ejecutivo"]).default("user"),
   maxOpenChats: z.number().int().positive().nullable().optional(),

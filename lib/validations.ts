@@ -1,19 +1,25 @@
 import { z } from "zod";
 
+// Email normalizado (trim + minúsculas) ANTES de validar el formato — lib/auth.ts
+// busca al usuario con el email en minúsculas, así que cualquier alta que lo
+// guarde tal cual lo tecleó ("Luis@Empresa.com") deja a esa persona sin poder
+// iniciar sesión nunca. Usar este campo en todo schema que cree o busque usuarios.
+export const emailField = z.string().trim().toLowerCase().email("Email inválido");
+
 export const loginSchema = z.object({
-  email: z.string().email("Email inválido"),
+  email: emailField,
   password: z.string().min(1, "La contraseña es requerida"),
 });
 
 export const registerSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: z.string().email("Email inválido"),
+  email: emailField,
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
 });
 
 export const onboardingSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: z.string().email("Email inválido"),
+  email: emailField,
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
   businessName: z.string().min(2, "El nombre del negocio debe tener al menos 2 caracteres"),
 });
