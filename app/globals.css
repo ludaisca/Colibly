@@ -14,7 +14,8 @@
      accent-ink    texto e iconos en color de marca (≥ 4.5:1)
      accent-subtle / accent-muted  fondos suaves y bordes decorativos
    lib/design/__tests__/contrast.test.ts verifica los pares texto/fondo.
-   Temas: :root es el claro; .dark (abajo) remapea solo los semánticos.
+   Temas: `:root, .theme-light` es el claro; .dark (abajo) remapea solo los
+   semánticos.
    ───────────────────────────────────────────────── */
 :root {
   /* ── Primitivos ── */
@@ -43,8 +44,12 @@
   --orange-700:#9A4307;  --orange-50: #FDEFE3;  --orange-200:#F6CBA8;
   --red-700:   #B42D25;  --red-50:    #FBE6E3;  --red-200:   #F1B9B3;
   --blue-700:  #2A62B5;  --blue-50:   #E6EEFA;  --blue-200:  #B8CDEE;
+}
 
-  /* ── Semánticos ── */
+/* ── Semánticos (tema claro) ──
+   También en .theme-light: un contenedor con esa clase vuelve a la paleta
+   clara aunque <html> tenga .dark (la landing es siempre clara). */
+:root, .theme-light {
   --background:    var(--sand-25);
   --foreground:    var(--sand-950);
   --surface:       var(--sand-0);
@@ -108,7 +113,8 @@
   --ease:     cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.light {
+.light,
+.theme-light {
   color-scheme: light;
 }
 
@@ -322,7 +328,8 @@ html {
   color-scheme: dark;
 }
 
-.light {
+.light,
+.theme-light {
   color-scheme: light;
 }
 

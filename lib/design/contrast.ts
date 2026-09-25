@@ -29,13 +29,17 @@ function readBlock(css: string, selector: string): Record<string, string> {
 }
 
 /**
- * Lee las custom properties de `:root` (y, si se pide un tema, las del bloque
- * de ese selector encima, p. ej. ".dark") y resuelve las referencias
- * `var(--x)` hasta llegar a un hex. Los valores que no terminan en hex
- * (sombras, radios, oklch) se dejan tal cual.
+ * Lee los primitivos (`:root`), los semánticos claros (`:root, .theme-light`)
+ * y, si se pide un tema, los del bloque de ese selector encima (p. ej.
+ * ".dark"); resuelve las referencias `var(--x)` hasta llegar a un hex. Los
+ * valores que no terminan en hex (sombras, radios, oklch) se dejan tal cual.
  */
 export function readThemeTokens(css: string, themeSelector?: string): Record<string, string> {
-  const raw = { ...readBlock(css, ":root"), ...(themeSelector ? readBlock(css, themeSelector) : {}) };
+  const raw = {
+    ...readBlock(css, ":root"),
+    ...readBlock(css, ":root, .theme-light"),
+    ...(themeSelector ? readBlock(css, themeSelector) : {}),
+  };
 
   const resolve = (name: string, seen: Set<string>): string => {
     const value = raw[name];

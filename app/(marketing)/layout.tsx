@@ -4,9 +4,11 @@ import { Button } from "@/app/components/ui/button";
 import { BRAND_NAME } from "@/lib/brand";
 
 // Sitio público: landing, términos y privacidad. Sin sesión ni shell del panel.
+// Siempre en tema claro: .theme-light restablece los tokens claros aunque el
+// visitante haya elegido el oscuro en el panel (next-themes pone .dark en <html>).
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="theme-light min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 md:px-6">
           <Logo href="/" />
