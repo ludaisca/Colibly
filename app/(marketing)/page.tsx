@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import {
   Bot,
   CalendarCheck,
@@ -15,17 +14,29 @@ import {
   Workflow,
   X,
 } from "lucide-react";
-import { auth } from "@/lib/auth";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
 import { PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
 import { planFeatures } from "@/lib/billing/plan-features";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { appUrl } from "@/lib/app-url";
 
+const TITLE = `${BRAND_NAME} — ${BRAND_TAGLINE}`;
+const DESCRIPTION = `WhatsApp, Instagram, Messenger, Telegram y el chat de tu web en una sola bandeja, con bots de IA, automatizaciones y seguimiento de leads. Desde 5 USD al mes, ${TRIAL_DAYS} días gratis.`;
+const MIN_PRICE = Math.min(...PLAN_LIST.map((p) => p.priceUsd));
+// Un solo texto para la acción principal en toda la página (el header usa la versión corta).
+const CTA = `Prueba ${TRIAL_DAYS} días gratis`;
+
+// La redirección de quien ya tiene sesión vive en proxy.ts, así esta página no
+// consulta la sesión. canonical y og:url son relativos: el layout de
+// (marketing) fija metadataBase con APP_URL.
 export const metadata: Metadata = {
-  title: { absolute: `${BRAND_NAME} — ${BRAND_TAGLINE}` },
-  description: `WhatsApp, Instagram, Messenger, Telegram y el chat de tu web en una sola bandeja, con bots de IA, automatizaciones y seguimiento de leads. Desde 5 USD al mes, ${TRIAL_DAYS} días gratis.`,
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: { type: "website", locale: "es_MX", siteName: BRAND_NAME, url: "/", title: TITLE, description: DESCRIPTION },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 const CHANNELS = [
@@ -36,6 +47,8 @@ const CHANNELS = [
   { label: "Chat de tu web", icon: Globe },
 ];
 
+// Las tres primeras son para atender y las tres siguientes para vender; el tono
+// del ícono marca el grupo (en lg quedan como dos filas).
 const FEATURES = [
   {
     icon: Inbox,
@@ -106,11 +119,11 @@ function InboxPreview() {
           <p className="text-sm font-medium">María Rodríguez</p>
           <p className="text-xs text-muted">WhatsApp · Lead de anuncio</p>
         </div>
-        <Badge tone="success" size="sm">Caliente</Badge>
+        <Badge tone="danger" size="sm">Prioridad alta</Badge>
       </div>
       <div className="space-y-2.5 py-4 text-sm">
         <p className="max-w-[80%] rounded-2xl rounded-tl-sm bg-surface-light px-3 py-2">Hola, ¿cuánto cuesta el facial hidratante?</p>
-        <p className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-accent-subtle px-3 py-2">
+        <p className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-accent-muted px-3 py-2">
           ¡Hola María! El facial hidratante cuesta $850 y dura 60 min. ¿Te gustaría agendar?
         </p>
         <div className="ml-auto flex max-w-[80%] flex-wrap justify-end gap-1.5">
@@ -122,31 +135,56 @@ function InboxPreview() {
       </div>
       <div className="flex items-center gap-2 rounded-xl bg-accent-2-bg px-3 py-2 text-xs text-foreground">
         <Sparkles size={14} className="shrink-0 text-accent-2" aria-hidden />
-        Respondido por tu bot de IA en 3 segundos
+        Respondido por tu bot de IA en segundos
       </div>
     </div>
   );
 }
 
-export default async function LandingPage() {
-  const session = await auth();
-  if (session?.user) redirect(session.user.role === "ejecutivo" ? "/whatsapp/chat" : "/dashboard");
+// Datos estructurados para Google: el software con sus planes y las preguntas.
+function jsonLd() {
+  const data = [
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: BRAND_NAME,
+      url: appUrl("/"),
+      description: DESCRIPTION,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      inLanguage: "es-MX",
+      offers: PLAN_LIST.map((p) => ({ "@type": "Offer", name: p.name, price: String(p.priceUsd), priceCurrency: "USD" })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: FAQ.map(({ q, a }) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+    },
+  ];
+  // "<" escapado para que ningún texto pueda cerrar el <script>.
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
 
+export default function LandingPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd() }} />
       <section className="relative isolate overflow-hidden">
         {/* Brillo cálido detrás del hero: el girasol como luz, no como bloque de color. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10"
+          className="pointer-events-none absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,black_65%,transparent)]"
           style={{
             background:
               "radial-gradient(55% 60% at 80% 20%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 70%), radial-gradient(40% 45% at 5% 90%, color-mix(in oklab, var(--accent-2) 8%, transparent), transparent 70%)",
           }}
         />
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 md:grid-cols-2 md:px-6 md:pt-20">
-          <div className="animate-fade-in-up">
-            <p className="text-eyebrow font-medium uppercase tracking-wider text-accent-ink">{BRAND_NAME}</p>
+        {/* Dos columnas desde lg: en tablet el título se partía en 5 renglones. */}
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-10 md:px-6 md:pt-16 lg:grid-cols-2 lg:pt-20">
+          {/* El texto del hero no se anima: es el elemento más grande de la primera
+              pantalla y animarlo desde opacidad 0 retrasaba el LCP en móvil. */}
+          <div>
+            <p className="text-eyebrow font-medium uppercase tracking-wider text-accent-ink">CRM de WhatsApp con IA</p>
             <h1 className="mt-3 font-display text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
               Vende por WhatsApp sin dejar a ningún cliente{" "}
               <mark className="whitespace-nowrap rounded-md bg-accent-muted px-1.5 text-foreground [box-decoration-break:clone]">en visto</mark>
@@ -155,11 +193,15 @@ export default async function LandingPage() {
               Todos tus chats en una bandeja, un bot de IA que responde al instante y automatizaciones que dan seguimiento
               por ti. Para negocios que venden por mensaje.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button href="/register" size="lg">Empieza gratis {TRIAL_DAYS} días</Button>
+            <p className="mt-6 inline-flex flex-wrap items-baseline gap-x-2 rounded-xl border border-accent-muted bg-accent-subtle px-4 py-2">
+              <span className="font-display text-xl font-semibold tabular-nums">Desde ${MIN_PRICE} USD al mes</span>
+              <span className="text-sm text-muted">con la IA incluida</span>
+            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Button href="/register" size="lg">{CTA}</Button>
               <Button href="#precios" variant="secondary" size="lg">Ver precios</Button>
             </div>
-            <p className="mt-3 text-sm text-muted">Sin tarjeta · Desde 5 USD al mes · Cancela cuando quieras</p>
+            <p className="mt-3 text-sm text-muted">Sin tarjeta · Cancela cuando quieras</p>
           </div>
           <div className="animate-fade-in-up animation-delay-200">
             <InboxPreview />
@@ -185,9 +227,14 @@ export default async function LandingPage() {
           Todo lo que tu equipo necesita para atender y vender por chat
         </h2>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map(({ icon: Icon, title, text }) => (
+          {FEATURES.map(({ icon: Icon, title, text }, i) => (
             <div key={title} className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent-ink">
+              <span
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl",
+                  i < 3 ? "bg-accent-subtle text-accent-ink" : "bg-accent-2-bg text-accent-2"
+                )}
+              >
                 <Icon size={20} aria-hidden />
               </span>
               <h3 className="mt-4 font-display text-lg font-semibold">{title}</h3>
@@ -220,7 +267,7 @@ export default async function LandingPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="font-display text-xl font-semibold">{plan.name}</h3>
-                    {featured && <Badge tone="accent" size="sm">Más elegido</Badge>}
+                    {featured && <Badge tone="accent" size="sm">Recomendado</Badge>}
                   </div>
                   <p className="mt-1 text-sm text-muted">{plan.tagline}</p>
                   <p className="mt-5">
@@ -229,18 +276,19 @@ export default async function LandingPage() {
                   </p>
                   <ul className="mt-5 flex-1 space-y-2.5 text-sm">
                     {planFeatures(plan).map((f) => (
-                      <li key={f.text} className={cn("flex items-start gap-2", !f.included && "text-muted-darker")}>
+                      <li key={f.text} className={cn("flex items-start gap-2", !f.included && "text-muted")}>
                         {f.included ? (
                           <Check size={16} className="mt-0.5 shrink-0 text-accent-ink" aria-hidden />
                         ) : (
                           <X size={16} className="mt-0.5 shrink-0" aria-hidden />
                         )}
-                        <span className={cn(!f.included && "line-through")}>{f.text}</span>
+                        {/* Sin tachado: con el gris claro no llegaba al contraste mínimo. */}
+                        <span>{!f.included && <span className="sr-only">No incluye: </span>}{f.text}</span>
                       </li>
                     ))}
                   </ul>
-                  <Button href="/register" variant={featured ? "primary" : "secondary"} fullWidth className="mt-6">
-                    Empezar prueba gratis
+                  <Button href="/register" variant={featured ? "primary" : "secondary"} size="lg" fullWidth className="mt-6">
+                    {CTA}
                   </Button>
                 </div>
               );
@@ -253,12 +301,13 @@ export default async function LandingPage() {
         <h2 className="text-center font-display text-3xl font-semibold tracking-tight">Preguntas frecuentes</h2>
         <div className="mt-10 divide-y divide-border rounded-2xl border border-border bg-surface">
           {FAQ.map(({ q, a }) => (
-            <details key={q} className="group px-5 py-4">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
+            <details key={q} className="group">
+              {/* El relleno va en el summary para que toda la fila sea tocable. */}
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-2xl px-5 py-3 font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-strong">
                 {q}
                 <span className="text-muted transition-transform group-open:rotate-45" aria-hidden>+</span>
               </summary>
-              <p className="mt-3 text-sm text-muted">{a}</p>
+              <p className="px-5 pb-4 text-sm text-muted">{a}</p>
             </details>
           ))}
         </div>
@@ -269,7 +318,7 @@ export default async function LandingPage() {
           <h2 className="font-display text-3xl font-semibold tracking-tight">Tu próximo cliente ya te está escribiendo</h2>
           <p className="mx-auto mt-3 max-w-xl opacity-90">Crea tu cuenta en un minuto y conecta tu primer canal hoy.</p>
           <Button href="/register" variant="secondary" size="lg" className="mt-8">
-            Empieza gratis {TRIAL_DAYS} días
+            {CTA}
           </Button>
         </div>
       </section>

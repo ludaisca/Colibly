@@ -56,6 +56,12 @@ export default async function proxy(req: NextRequest) {
   const isEjecutivo = role === "ejecutivo";
   const isRestrictedUser = role === "user";
 
+  // La landing no consulta la sesión (así no depende de ella para renderizar);
+  // quien ya entró va directo a su panel desde aquí.
+  if (path === "/" && isLoggedIn) {
+    return NextResponse.redirect(new URL(isEjecutivo ? "/whatsapp/chat" : "/dashboard", req.url));
+  }
+
   if (AUTH.some((r) => path.startsWith(r))) {
     if (isLoggedIn) {
       const target = isEjecutivo ? "/whatsapp/chat" : "/dashboard";

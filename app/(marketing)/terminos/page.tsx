@@ -3,7 +3,7 @@ import { BRAND_NAME } from "@/lib/brand";
 import { GRACE_DAYS, PLAN_LIST, RETENTION_DAYS_AFTER_CANCEL, TRIAL_DAYS } from "@/lib/billing/plans";
 import { Blank, LEGAL, LegalPage } from "../_legal";
 
-export const metadata: Metadata = { title: "Términos y condiciones" };
+export const metadata: Metadata = { title: "Términos y condiciones", alternates: { canonical: "/terminos" } };
 
 export default function TermsPage() {
   const prices = PLAN_LIST.map((p) => `${p.name} (${p.priceUsd} USD al mes)`).join(" y ");

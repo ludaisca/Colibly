@@ -3,7 +3,7 @@ import { BRAND_NAME } from "@/lib/brand";
 import { RETENTION_DAYS_AFTER_CANCEL } from "@/lib/billing/plans";
 import { Blank, LEGAL, LegalPage } from "../_legal";
 
-export const metadata: Metadata = { title: "Aviso de privacidad" };
+export const metadata: Metadata = { title: "Aviso de privacidad", alternates: { canonical: "/privacidad" } };
 
 export default function PrivacyPage() {
   return (

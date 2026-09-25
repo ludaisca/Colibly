@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { appUrl } from "@/lib/app-url";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
@@ -17,18 +19,18 @@ const hankenGrotesk = Hanken_Grotesk({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: { default: BRAND_NAME, template: `%s · ${BRAND_NAME}` },
-  description: `${BRAND_NAME} — ${BRAND_TAGLINE}: WhatsApp, Instagram, Messenger, Telegram y tu web en una sola bandeja, con bots de IA y automatizaciones.`,
-  icons: {
-    icon: [
-      {
-        url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><g fill="%23F5B700"><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(0 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(30 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(60 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(90 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(120 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(150 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(180 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(210 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(240 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(270 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(300 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(330 16 16)"/></g><circle cx="16" cy="16" r="6.6" fill="%238F5F00"/></svg>',
-        type: "image/svg+xml",
-      },
-    ],
-  },
-};
+// El dominio público solo se conoce en tiempo de ejecución (APP_URL), así que
+// los metadatos se resuelven por petición. metadataBase va aquí, en la raíz:
+// Next resuelve con él las URLs relativas de canonical y Open Graph, y también
+// las de las imágenes generadas por archivo (opengraph-image, twitter-image).
+export async function generateMetadata(): Promise<Metadata> {
+  await connection();
+  return {
+    metadataBase: new URL(appUrl("/")),
+    title: { default: BRAND_NAME, template: `%s · ${BRAND_NAME}` },
+    description: `${BRAND_NAME} — ${BRAND_TAGLINE}: WhatsApp, Instagram, Messenger, Telegram y tu web en una sola bandeja, con bots de IA y automatizaciones.`,
+  };
+}
 
 export default function RootLayout({
   children,
