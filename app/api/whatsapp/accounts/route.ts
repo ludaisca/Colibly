@@ -9,6 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
 
 export async function POST(req: Request) {
   try {
@@ -18,6 +19,9 @@ export async function POST(req: Request) {
     }
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
+
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
 
     const { allowed } = await rateLimit(`account-create:${session.user.id}`, 10, 60);
     if (!allowed) {

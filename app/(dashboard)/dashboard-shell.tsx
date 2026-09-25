@@ -31,9 +31,11 @@ import { NotificationBell } from "@/app/components/ui/notification-bell";
 export function DashboardShell({
   children,
   businessName,
+  topBanner,
 }: {
   children: React.ReactNode;
   businessName?: string | null;
+  topBanner?: React.ReactNode;
 }) {
   const { data: session } = useSession();
   const role = session?.user?.role;
@@ -116,7 +118,7 @@ export function DashboardShell({
       ];
 
   return (
-    <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />}>
+    <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner}>
       {children}
     </AppShell>
   );

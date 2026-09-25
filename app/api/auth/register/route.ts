@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { createOrganizationWithOwner } from "@/lib/organizations";
+import { sendVerificationEmail } from "@/lib/auth-emails";
 
 // Registro público (SaaS): cada registro crea un cliente nuevo — su
 // organización en prueba gratis y su usuario dueño. Los demás miembros de un
@@ -34,10 +35,11 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
     // Serializable: dos registros simultáneos con el mismo email no deben
     // dejar una organización huérfana (el unique de email aborta uno).
-    await prisma.$transaction(
+    const { owner } = await prisma.$transaction(
       (tx) => createOrganizationWithOwner(tx, { businessName, name, email, hashedPassword }),
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
+    after(() => sendVerificationEmail(owner));
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

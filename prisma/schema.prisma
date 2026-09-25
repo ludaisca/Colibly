@@ -26,6 +26,12 @@ model User {
   organizationId String       @map("organization_id")
   organization   Organization @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: Cascade)
   ownedOrganization Organization? @relation("OrganizationOwner")
+  // Correo confirmado (enlace de verificación, restablecer contraseña o
+  // aceptar una invitación lo prueban). Sin verificar se puede entrar, pero no
+  // conectar canales ni pagar.
+  emailVerifiedAt   DateTime?     @map("email_verified_at")
+  authTokens        AuthToken[]   @relation("AuthTokenUser")
+  sentInvitations   AuthToken[]   @relation("AuthTokenInviter")
 
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
@@ -1695,7 +1701,39 @@ model Organization {
   sequences        WASequence[]
   campaigns        WACampaign[]
   leadSheetSources LeadSheetSource[]
+  authTokens       AuthToken[]
 
   @@index([status])
   @@map("organizations")
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  INVITE
+}
+
+// Enlaces de un solo uso enviados por correo. Solo se guarda el hash del token
+// (sha256): una fuga de la base no permite usar enlaces vigentes.
+// INVITE no tiene userId (el invitado aún no existe): lleva organizationId,
+// email y el rol con el que entrará.
+model AuthToken {
+  id             String        @id @default(cuid())
+  type           AuthTokenType
+  tokenHash      String        @unique @map("token_hash")
+  email          String
+  userId         String?       @map("user_id")
+  user           User?         @relation("AuthTokenUser", fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?       @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String?
+  invitedById    String?       @map("invited_by_id")
+  invitedBy      User?         @relation("AuthTokenInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  expiresAt      DateTime      @map("expires_at")
+  usedAt         DateTime?     @map("used_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([userId, type])
+  @@index([organizationId, type])
+  @@map("auth_tokens")
 }

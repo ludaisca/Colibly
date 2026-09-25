@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
 
 // Mismo criterio de rol que Telegram/Messenger/Instagram — "ejecutivo" tiene
 // /webchat/cuentas bloqueado en proxy.ts, este 403 cierra el acceso directo
@@ -37,6 +38,9 @@ export async function POST(req: Request) {
     if (isForbiddenRole(session.user.role)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
+
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {

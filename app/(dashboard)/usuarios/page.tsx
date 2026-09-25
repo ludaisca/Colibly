@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Shield, ShieldOff, UserPlus, Users, UserX, UserCheck } from "lucide-react";
+import { Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -10,7 +10,9 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { SectionHeader } from "@/app/components/ui/section-header";
 import { UserFormModal } from "./_form";
+import { InviteFormModal } from "./_invite";
 
 interface UserData {
   id: string;
@@ -22,6 +24,17 @@ interface UserData {
   waAccounts: Array<{ id: string; name: string }>;
 }
 
+interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  expiresAt: string;
+  invitedBy: { name: string | null; email: string } | null;
+}
+
+const ROLE_LABEL: Record<string, string> = { admin: "Admin", user: "Usuario", ejecutivo: "Ejecutivo" };
+
 export default function UsersPage() {
   const { success, error: toastError } = useToast();
   const [users, setUsers] = useState<UserData[]>([]);
@@ -30,6 +43,56 @@ export default function UsersPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState<UserData | null>(null);
+  const [showInvite, setShowInvite] = useState(false);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [invitationBusy, setInvitationBusy] = useState<string | null>(null);
+
+  const fetchInvitations = useCallback(async () => {
+    try {
+      const res = await fetch("/api/usuarios/invitaciones");
+      const data = await res.json();
+      if (Array.isArray(data)) setInvitations(data);
+    } catch {
+      // La lista de pendientes es secundaria: si falla, la página sigue útil.
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
+  useEffect(() => { fetchInvitations(); }, [fetchInvitations]);
+
+  const resendInvitation = useCallback(async (inv: Invitation) => {
+    setInvitationBusy(inv.id);
+    try {
+      const res = await fetch("/api/usuarios/invitaciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inv.email, role: inv.role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      success(`Invitación reenviada a ${inv.email}`);
+      await fetchInvitations();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo reenviar");
+    } finally {
+      setInvitationBusy(null);
+    }
+  }, [success, toastError, fetchInvitations]);
+
+  const revokeInvitation = useCallback(async (inv: Invitation) => {
+    setInvitationBusy(inv.id);
+    try {
+      const res = await fetch(`/api/usuarios/invitaciones/${inv.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      success("Invitación revocada");
+      setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo revocar");
+    } finally {
+      setInvitationBusy(null);
+    }
+  }, [success, toastError]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -108,15 +171,50 @@ export default function UsersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Usuarios"
-        description="Gestión de usuarios y roles del sistema."
+        description="Tu equipo y sus roles en este espacio."
         actions={
-          <Button icon={UserPlus} size="sm" onClick={() => setShowCreate(true)}>
-            Nuevo usuario
-          </Button>
+          <>
+            <Button icon={UserPlus} size="sm" variant="secondary" onClick={() => setShowCreate(true)}>
+              Crear con contraseña
+            </Button>
+            <Button icon={Mail} size="sm" onClick={() => setShowInvite(true)}>
+              Invitar
+            </Button>
+          </>
         }
       />
 
-      <p className="text-sm text-muted-darker">Todos los usuarios ({users.length})</p>
+      {invitations.length > 0 && (
+        <section className="space-y-3">
+          <SectionHeader eyebrow="Pendientes" title="Invitaciones enviadas" />
+          <EntityList
+            rows={invitations}
+            rowKey={(i) => i.id}
+            emptyIcon={Mail}
+            emptyTitle="Sin invitaciones"
+            renderRow={(inv) => (
+              <>
+                <EntityRow
+                  leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" />}
+                  title={<span className="font-mono">{inv.email}</span>}
+                  badges={<Badge tone="neutral" size="sm">{ROLE_LABEL[inv.role] ?? inv.role}</Badge>}
+                  subtitle={`Vence el ${new Date(inv.expiresAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}${inv.invitedBy ? ` · la envió ${inv.invitedBy.name ?? inv.invitedBy.email}` : ""}`}
+                />
+                <span className="flex shrink-0 items-center gap-1">
+                  <Button variant="ghost" size="sm" icon={RotateCw} disabled={invitationBusy === inv.id} onClick={() => resendInvitation(inv)}>
+                    Reenviar
+                  </Button>
+                  <Button variant="ghost" size="sm" icon={X} disabled={invitationBusy === inv.id} onClick={() => revokeInvitation(inv)} className="text-danger">
+                    Revocar
+                  </Button>
+                </span>
+              </>
+            )}
+          />
+        </section>
+      )}
+
+      <p className="text-sm text-muted-darker">Miembros del equipo ({users.length})</p>
 
       <EntityList
         rows={users}
@@ -126,7 +224,7 @@ export default function UsersPage() {
         onRetry={fetchUsers}
         emptyIcon={Users}
         emptyTitle="Sin usuarios"
-        emptyDescription="No hay usuarios registrados en el sistema."
+        emptyDescription="Invita a tu equipo para que atienda conversaciones contigo."
         renderRow={(u) => (
           <>
             <EntityRow
@@ -200,6 +298,8 @@ export default function UsersPage() {
         tone="danger"
         loading={!!confirmDisable && togglingId === confirmDisable.id}
       />
+
+      <InviteFormModal open={showInvite} onClose={() => setShowInvite(false)} onInvited={fetchInvitations} />
 
       <UserFormModal
         open={showCreate}

@@ -30,6 +30,26 @@ export const changePasswordSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+const newPasswordField = z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(200);
+
+export const forgotPasswordSchema = z.object({ email: emailField });
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Enlace inválido").max(200),
+  password: newPasswordField,
+});
+
+export const invitationSchema = z.object({
+  email: emailField,
+  role: z.enum(["admin", "user", "ejecutivo"], { message: "Rol inválido" }),
+});
+
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1, "Enlace inválido").max(200),
+  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+  password: newPasswordField,
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 

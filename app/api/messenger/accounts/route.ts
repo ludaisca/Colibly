@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { createMetaChannelAccount } from "@/lib/meta-messaging/account-crud";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
 
 // Mismo criterio de rol que /api/telegram/accounts: "ejecutivo" tiene
 // /messenger/cuentas bloqueado en proxy.ts, este 403 cierra la API directa.
@@ -22,6 +23,9 @@ export async function POST(req: Request) {
     if (isForbiddenRole(session.user.role)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
+
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {

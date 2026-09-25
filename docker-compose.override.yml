@@ -11,8 +11,19 @@ services:
     env_file: .env
     environment:
       NODE_ENV: development
+      # Correo de desarrollo: todo lo que la app envía cae en Mailpit
+      # (http://localhost:18025), nunca en bandejas reales.
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      EMAIL_FROM: "SundayCRM <no-reply@sundaycrm.test>"
     command: >
       sh -c "npx prisma generate && sh scripts/db-migrate.sh && mkdir -p /app/media && npm run dev"
+
+  mailpit:
+    image: docker.io/axllent/mailpit:v1.27
+    ports:
+      - "18025:8025"
+    restart: unless-stopped
 
 volumes:
   media_data:

@@ -32,6 +32,10 @@ export interface AppShellProps {
   headerRight?: React.ReactNode;
   hideUserDropdown?: boolean;
   collapsible?: boolean;
+  // Aviso de cuenta a todo lo ancho entre el header y el contenido (correo
+  // sin verificar, estado del plan). Fuera de <main> para no alterar el
+  // layout full-bleed del inbox.
+  topBanner?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -172,6 +176,7 @@ export function AppShell({
   headerRight,
   hideUserDropdown = false,
   collapsible = false,
+  topBanner,
   children,
 }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -276,6 +281,8 @@ export function AppShell({
             {!hideUserDropdown && <UserDropdown />}
           </div>
         </header>
+
+        {topBanner}
 
         <main
           className={cn(

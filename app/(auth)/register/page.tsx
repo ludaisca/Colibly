@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { UserPlus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardBody, CardFooter } from "@/app/components/ui/card";
@@ -52,7 +53,15 @@ export default function RegisterPage() {
         throw new Error(data.error || "Error al registrar");
       }
 
-      router.push("/login?registered=1");
+      // Entra directo a su espacio de prueba; el correo de verificación ya va
+      // en camino y el aviso superior del panel lo recuerda.
+      const login = await signIn("credentials", { email: parsed.data.email, password, redirect: false });
+      if (login?.error) {
+        router.push("/login");
+        return;
+      }
+      router.push("/dashboard");
+      router.refresh();
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Error al registrar");
     } finally {

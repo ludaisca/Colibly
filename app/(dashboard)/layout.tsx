@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "./dashboard-shell";
+import { VerifyEmailBanner } from "@/app/components/ui/verify-email-banner";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -11,8 +12,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // SystemConfig global, de cuando cada instalación era una sola empresa).
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { organization: { select: { name: true } } },
+    select: { email: true, emailVerifiedAt: true, organization: { select: { name: true } } },
   });
 
-  return <DashboardShell businessName={user?.organization.name}>{children}</DashboardShell>;
+  const topBanner = user && !user.emailVerifiedAt ? <VerifyEmailBanner email={user.email} /> : null;
+  return (
+    <DashboardShell businessName={user?.organization.name} topBanner={topBanner}>
+      {children}
+    </DashboardShell>
+  );
 }

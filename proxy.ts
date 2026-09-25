@@ -19,7 +19,8 @@ const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/wh
 // /meta-ads es admin-only (credenciales de negocio sensibles, sin
 // WAAccountShare equivalente) — mismo criterio que /configuracion/ia.
 const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia", "/configuracion/api", "/meta-ads"];
-const AUTH = ["/login", "/register"];
+// /verificar-correo e /invitacion no van aquí: funcionan con o sin sesión.
+const AUTH = ["/login", "/register", "/recuperar", "/restablecer"];
 const EXCLUDE = ["/_next", "/api", "/favicon.ico"];
 
 export default async function proxy(req: NextRequest) {

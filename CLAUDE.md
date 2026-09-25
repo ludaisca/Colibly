@@ -18,6 +18,8 @@ docker compose restart app                      # required after a migration —
 
 Tests exist only for pure logic with delicate rules (`lib/**/__tests__/*.test.ts`, vitest): `docker compose exec app npm test`. Everything else is verified with `tsc --noEmit` + `npm run lint` + a production build, plus manual click-through for UI changes. For a single file use `npx eslint <path>`; `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
 
+Outgoing email in dev (verification, password reset, invitations) never leaves the machine: the override points SMTP at Mailpit, inbox at `http://localhost:18025` (API `/api/v1/messages`).
+
 ### The dev server is on port 15100 — open it as `localhost` or `ludaisca`
 
 `docker-compose.override.yml` maps `15100:5000`. Use `http://localhost:15100` or, from another machine over Tailscale, `http://ludaisca:15100` — **not** `127.0.0.1` or any other name: Next's dev server blocks `/_next/*` for origins outside `allowedDevOrigins` (`next.config.ts`), so the page loads but never hydrates — forms submit as plain GETs (`/login?`) and nothing interactive works, with only a "Blocked cross-origin request" line in the server log. A new hostname goes into that list (same names as WAB/Factzi). `curl` against API routes works on any host.

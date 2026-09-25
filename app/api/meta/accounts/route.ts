@@ -8,6 +8,7 @@ import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
 
 // CRUD admin-only: MetaAdsAccount es config de negocio sensible (credenciales
 // que mandan datos reales a un ad account en producción), no una cuenta
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
     if (session.user.role !== "admin") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
+
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
 
     const { allowed } = await rateLimit(`meta-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {
