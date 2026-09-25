@@ -27,7 +27,7 @@ export function parseGraph(raw: unknown): Graph | null {
 
 export async function validateForPublish(
   graph: Graph,
-  scope: { waAccountId: string | null; channelAccountId: string | null; ownerId: string },
+  scope: { waAccountId: string | null; channelAccountId: string | null; organizationId: string },
   channel: AutomationChannel
 ): Promise<ValidationIssue[]> {
   const issues = validateGraph(graph, channel);
@@ -80,7 +80,7 @@ export async function validateForPublish(
           : null;
     if (key && !fieldKeys.has(key)) err(s.id, `El campo personalizado “${key}” no existe en esta cuenta`);
     if (s.type === "score_lead") {
-      const scorer = await prisma.wALeadScorerBot.findFirst({ where: { id: s.config.scorerId, userId: scope.ownerId }, select: { id: true } });
+      const scorer = await prisma.wALeadScorerBot.findFirst({ where: { id: s.config.scorerId, organizationId: scope.organizationId }, select: { id: true } });
       if (!scorer) err(s.id, "El calificador no existe o no es del dueño de la cuenta");
     }
     if (s.type === "webhook") {

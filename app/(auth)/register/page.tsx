@@ -17,6 +17,7 @@ import { registerSchema } from "@/lib/validations";
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -28,7 +29,7 @@ export default function RegisterPage() {
     setServerError("");
     setErrors({});
 
-    const parsed = registerSchema.safeParse({ name, email, password });
+    const parsed = registerSchema.safeParse({ name, email, password, businessName });
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {};
       parsed.error.issues.forEach((i) => {
@@ -43,7 +44,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, businessName }),
       });
 
       if (!res.ok) {
@@ -76,6 +77,19 @@ export default function RegisterPage() {
             </Banner>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
+            <FormField label="Nombre de tu negocio" required error={errors.businessName}>
+              {(id) => (
+                <Input
+                  id={id}
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="Spa Serenidad"
+                  autoComplete="organization"
+                  error={errors.businessName}
+                />
+              )}
+            </FormField>
+
             <FormField label="Nombre completo" required error={errors.name}>
               {(id) => (
                 <Input

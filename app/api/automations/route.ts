@@ -7,6 +7,7 @@ import { automationScopeWhere, requireAutomationSession, resolveAccountForUser }
 import { AUTOMATION_TEMPLATES } from "@/lib/automations/templates";
 import { defaultSettings } from "@/lib/automations/settings";
 import type { Graph } from "@/lib/automations/types";
+import { requireOrgId } from "@/lib/tenancy";
 
 // Lista de automatizaciones de todas las cuentas del usuario (propias +
 // compartidas), con conteo de ejecuciones por estado.
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
     const automation = await prisma.automation.create({
       data: {
         ...account,
+        organizationId: await requireOrgId(session.user.id),
         name: parsed.data.name,
         description: template.id === "blank" ? null : template.description,
         draftGraph: graph as unknown as Prisma.InputJsonValue,

@@ -19,9 +19,9 @@ export async function GET(req: Request) {
     const isWa = "waAccountId" in account;
     const scope = isWa ? { waAccountId: account.waAccountId } : { channelAccountId: account.channelAccountId };
 
-    const ownerId = isWa
-      ? (await prisma.wAAccount.findUniqueOrThrow({ where: { id: account.waAccountId }, select: { userId: true } })).userId
-      : (await prisma.channelAccount.findUniqueOrThrow({ where: { id: account.channelAccountId }, select: { userId: true } })).userId;
+    const { organizationId } = isWa
+      ? await prisma.wAAccount.findUniqueOrThrow({ where: { id: account.waAccountId }, select: { organizationId: true } })
+      : await prisma.channelAccount.findUniqueOrThrow({ where: { id: account.channelAccountId }, select: { organizationId: true } });
 
     const [tags, fields, templates, scorers, users, scoreLabels] = await Promise.all([
       prisma.tag.findMany({ where: scope, select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
             orderBy: { name: "asc" },
           })
         : [],
-      prisma.wALeadScorerBot.findMany({ where: { userId: ownerId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+      prisma.wALeadScorerBot.findMany({ where: { organizationId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       isWa ? getEligibleAssignees(account.waAccountId) : getEligibleChannelAssignees(account.channelAccountId),
       prisma.wALeadScore.findMany({ distinct: ["label"], select: { label: true }, take: 20 }),
     ]);

@@ -9,6 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 export async function POST(
   req: Request,
@@ -32,7 +33,7 @@ export async function POST(
     const { id } = await params;
 
     const bot = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!bot) {

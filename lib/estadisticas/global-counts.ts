@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { orgWhere } from "@/lib/tenancy";
 
 // Contadores globales compartidos por /dashboard, /whatsapp (hub) y
 // /estadisticas (get-stats.ts). Antes cada pantalla reimplementaba estas
 // queries con cláusulas `where` ligeramente distintas para el mismo concepto —
 // si cambiaba el modelo de cuentas compartidas, podían divergir en silencio.
 // Todo lo scoping por cuenta se expresa vía `accountIds` (el resultado de
-// getUserAccountIds, propias + compartidas); lo scoping por dueño vía `userId`.
+// getUserAccountIds, propias + compartidas); bots y campañas son de la organización del
+// usuario (`orgWhere(userId)`).
 
 // Los canales adicionales viven en tablas propias
 // (ChannelAccount/Conversation/ChannelMessage) y se scopean con
@@ -40,18 +42,18 @@ export async function countMessages(accountIds: string[], userId: string) {
   return wa + channel;
 }
 
-export function countBots(userId: string) {
-  return prisma.wABot.count({ where: { userId } });
+export async function countBots(userId: string) {
+  return prisma.wABot.count({ where: { ...(await orgWhere(userId)) } });
 }
 
-export function countActiveBots(userId: string) {
-  return prisma.wABot.count({ where: { userId, isActive: true } });
+export async function countActiveBots(userId: string) {
+  return prisma.wABot.count({ where: { ...(await orgWhere(userId)), isActive: true } });
 }
 
-export function countCampaigns(userId: string) {
-  return prisma.wACampaign.count({ where: { userId } });
+export async function countCampaigns(userId: string) {
+  return prisma.wACampaign.count({ where: { ...(await orgWhere(userId)) } });
 }
 
-export function countCompletedCampaigns(userId: string) {
-  return prisma.wACampaign.count({ where: { userId, status: "COMPLETED" } });
+export async function countCompletedCampaigns(userId: string) {
+  return prisma.wACampaign.count({ where: { ...(await orgWhere(userId)), status: "COMPLETED" } });
 }

@@ -6,6 +6,7 @@ import { generateApiKey, serializeApiKey } from "@/lib/api/keys";
 import { isApiScope } from "@/lib/api/scopes";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(80),
@@ -20,7 +21,7 @@ export async function GET() {
   try {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
-    const keys = await prisma.apiKey.findMany({ where: { userId: admin.userId }, orderBy: { createdAt: "desc" } });
+    const keys = await prisma.apiKey.findMany({ where: { ...(await orgWhere(admin.userId)) }, orderBy: { createdAt: "desc" } });
     return NextResponse.json(keys.map(serializeApiKey));
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno del servidor") }, { status: 500 });
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
     const key = await prisma.apiKey.create({
       data: {
         userId: admin.userId,
+        organizationId: await requireOrgId(admin.userId),
         name: input.name,
         prefix,
         keyHash,

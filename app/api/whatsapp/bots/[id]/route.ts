@@ -5,6 +5,7 @@ import { botUpdateSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { findOtherActiveBot } from "@/lib/bots/guards";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 export async function GET(
   _req: Request,
@@ -22,7 +23,7 @@ export async function GET(
     const { id } = await params;
 
     const bot = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
       select: {
         id: true,
         name: true,
@@ -77,7 +78,7 @@ export async function PATCH(
     const { id } = await params;
 
     const existing = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!existing) {
@@ -114,7 +115,7 @@ export async function PATCH(
     if (fields.channelAccountId !== undefined) {
       if (fields.channelAccountId) {
         const channelAccount = await prisma.channelAccount.findFirst({
-          where: { id: fields.channelAccountId, userId: session.user.id },
+          where: { id: fields.channelAccountId, ...(await orgWhere(session.user.id)) },
           select: { id: true },
         });
         if (!channelAccount) {
@@ -198,7 +199,7 @@ export async function DELETE(
     const { id } = await params;
 
     const existing = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!existing) {

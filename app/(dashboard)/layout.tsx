@@ -7,7 +7,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const config = await prisma.systemConfig.findUnique({ where: { id: "default" } });
+  // El nombre del negocio es el de la organización del usuario (antes era un
+  // SystemConfig global, de cuando cada instalación era una sola empresa).
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { organization: { select: { name: true } } },
+  });
 
-  return <DashboardShell businessName={config?.businessName}>{children}</DashboardShell>;
+  return <DashboardShell businessName={user?.organization.name}>{children}</DashboardShell>;
 }

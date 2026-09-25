@@ -32,6 +32,14 @@ podman build --target builder -t localhost/sundaycrm-buildcheck:tmp . && podman 
 
 `npm run build` inside the dev container fails while prerendering (`NODE_ENV=development` poisons the production build) — don't use it. To check the production *startup* (migrations + healthcheck), build `--target runner` and run it against a throwaway database on the compose network.
 
+## Multi-tenant: every query is scoped to the organization
+
+SundayCRM is a hosted multi-tenant SaaS (see AGENTS.md → "Architecture: tenancy"). The rules that prevent cross-tenant leaks:
+
+- A new top-level model gets `organizationId`, and its create sets it via `requireOrgId(session.user.id)`.
+- Admin resources are filtered with `orgWhere(userId)`, accounts through `getUserAccountIds()`/`getUserChannelAccountIds()`, account edits/shares with `accountManageWhere(userId)` — **never** `userId: session.user.id` for something the organization shares.
+- `tsc` can't catch a missing scope — check a new route with a second organization (signup creates one) before calling it done.
+
 ## Architecture: two parallel channel stacks
 
 The app began WhatsApp-only and gained generic channels (Telegram, then Messenger/Instagram) through an **adapter layer rather than a migration** — the `WA*` tables hold production data and were deliberately left untouched.

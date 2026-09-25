@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 // Un chatId que llega a /api/whatsapp/chats/[chatId]/* puede ser un WAChat.id
 // o un Conversation.id (Telegram) — mismo cuid(), tablas distintas, sin
@@ -25,7 +25,7 @@ export async function resolveChatChannel(chatId: string, userId: string): Promis
   if (waChat) return { channel: "WHATSAPP", accountIds };
 
   const conversation = await prisma.conversation.findFirst({
-    where: { id: chatId, channelAccount: { OR: [{ userId }, { sharedWith: { some: { userId } } }] } },
+    where: { id: chatId, channelAccountId: { in: await getUserChannelAccountIds(userId) } },
     select: { channelAccount: { select: { channel: true } } },
   });
   // El canal real de la ChannelAccount, no un literal fijo — con 3 canales

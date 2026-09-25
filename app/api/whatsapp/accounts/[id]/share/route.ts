@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
 
 export async function POST(
   req: Request,
@@ -26,10 +27,10 @@ export async function POST(
       return NextResponse.json({ error: "userId requerido" }, { status: 400 });
     }
 
-    // Solo el dueño comparte su propia cuenta — sin este filtro, cualquier
-    // admin podía concederse visibilidad sobre cuentas de otro admin.
+    // Comparte un admin de la organización dueña de la cuenta, y solo con
+    // miembros de esa misma organización.
     const account = await prisma.wAAccount.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await accountManageWhere(session.user.id)) },
     });
     if (!account) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
@@ -39,7 +40,7 @@ export async function POST(
       return NextResponse.json({ error: "El dueño ya tiene acceso a la cuenta" }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findFirst({ where: { id: userId, organizationId: account.organizationId } });
     if (!user) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
@@ -81,7 +82,7 @@ export async function DELETE(
     }
 
     await prisma.wAAccountShare.deleteMany({
-      where: { waAccountId: id, userId, waAccount: { userId: session.user.id } },
+      where: { waAccountId: id, userId, waAccount: await accountManageWhere(session.user.id) },
     });
 
     return NextResponse.json({ success: true });
@@ -102,9 +103,16 @@ export async function GET(
     }
 
     const { id } = await params;
+    const account = await prisma.wAAccount.findFirst({
+      where: { id, ...(await accountManageWhere(session.user.id)) },
+      select: { id: true },
+    });
+    if (!account) {
+      return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+    }
 
     const shares = await prisma.wAAccountShare.findMany({
-      where: { waAccountId: id, waAccount: { userId: session.user.id } },
+      where: { waAccountId: id },
       select: {
         userId: true,
         // role incluido: la tarjeta "Compartir cuenta" lo muestra junto al nombre.

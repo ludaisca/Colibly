@@ -5,6 +5,7 @@ import { leadScorerBotSchema } from "@/lib/validations";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
 
 export async function POST(req: Request) {
   try {
@@ -56,6 +57,7 @@ export async function POST(req: Request) {
     const scorer = await prisma.wALeadScorerBot.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         name,
         provider,
         model,
@@ -87,7 +89,7 @@ export async function GET() {
     }
 
     const scorers = await prisma.wALeadScorerBot.findMany({
-      where: { userId: session.user.id },
+      where: { ...(await orgWhere(session.user.id)) },
       orderBy: { updatedAt: "desc" },
     });
 

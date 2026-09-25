@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
 
 export async function DELETE(
   _req: Request,
@@ -20,7 +21,7 @@ export async function DELETE(
     // El filtro por waAccount.userId (no solo por ruleId) evita que alguien
     // borre una regla de una cuenta que no es suya adivinando el id.
     const result = await prisma.wAAccountRoutingRule.deleteMany({
-      where: { id: ruleId, waAccountId: id, waAccount: { userId: session.user.id } },
+      where: { id: ruleId, waAccountId: id, waAccount: await accountManageWhere(session.user.id) },
     });
     if (result.count === 0) {
       return NextResponse.json({ error: "Regla no encontrada" }, { status: 404 });

@@ -6,6 +6,7 @@ import { encrypt } from "@/lib/crypto";
 import { getWebchatCredentials } from "@/lib/webchat/account";
 import { webchatAccountSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
 
 export async function GET(
   _req: Request,
@@ -19,7 +20,7 @@ export async function GET(
 
     const { id } = await params;
     const account = await prisma.channelAccount.findFirst({
-      where: { id, userId: session.user.id, channel: "WEBCHAT" },
+      where: { id, ...(await accountManageWhere(session.user.id)), channel: "WEBCHAT" },
       select: { id: true, name: true, status: true, credentials: true, createdAt: true, _count: { select: { conversations: true } } },
     });
     if (!account) {
@@ -60,7 +61,7 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const existing = await prisma.channelAccount.findFirst({ where: { id, userId: session.user.id, channel: "WEBCHAT" } });
+    const existing = await prisma.channelAccount.findFirst({ where: { id, ...(await accountManageWhere(session.user.id)), channel: "WEBCHAT" } });
     if (!existing) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
@@ -106,7 +107,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await prisma.channelAccount.findFirst({ where: { id, userId: session.user.id, channel: "WEBCHAT" } });
+    const existing = await prisma.channelAccount.findFirst({ where: { id, ...(await accountManageWhere(session.user.id)), channel: "WEBCHAT" } });
     if (!existing) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }

@@ -6,6 +6,7 @@ import { DOMAIN_EVENT_TYPES } from "@/lib/events/types";
 import { parseSafeUrl, SafeFetchError } from "@/lib/net/safe-fetch";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { generateWebhookSecret } from "./signature";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
 
 // Alta/edición de webhooks — compartido por /api/configuracion/webhooks (UI,
 // sesión de admin) y /api/v1/webhooks (API key con webhooks:manage).
@@ -53,13 +54,13 @@ export async function createWebhook(ownerId: string, input: z.infer<typeof webho
   await validateTargets(ownerId, input);
   const secret = generateWebhookSecret();
   const endpoint = await prisma.webhookEndpoint.create({
-    data: { ...input, userId: ownerId, secret: encrypt(secret) },
+    data: { ...input, userId: ownerId, organizationId: await requireOrgId(ownerId), secret: encrypt(secret) },
   });
   return { endpoint, secret };
 }
 
 export async function updateWebhook(ownerId: string, id: string, input: z.infer<typeof webhookUpdateSchema>) {
-  const existing = await prisma.webhookEndpoint.findFirst({ where: { id, userId: ownerId } });
+  const existing = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(ownerId)) } });
   if (!existing) return null;
   await validateTargets(ownerId, input);
   const reactivating = input.active === true && !existing.active;
@@ -75,7 +76,7 @@ export async function updateWebhook(ownerId: string, id: string, input: z.infer<
 }
 
 export async function rotateWebhookSecret(ownerId: string, id: string) {
-  const existing = await prisma.webhookEndpoint.findFirst({ where: { id, userId: ownerId }, select: { id: true } });
+  const existing = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(ownerId)) }, select: { id: true } });
   if (!existing) return null;
   const secret = generateWebhookSecret();
   await prisma.webhookEndpoint.update({ where: { id }, data: { secret: encrypt(secret) } });

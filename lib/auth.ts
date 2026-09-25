@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { rateLimit } from "./rate-limit";
+import { invalidateTenantCache } from "./tenancy";
 
 // El JWT guarda rol y versión de sesión al iniciar sesión. Sin revalidar, un
 // cambio de rol o la desactivación de un usuario no surtían efecto hasta que el
@@ -13,6 +14,7 @@ const SESSION_REVALIDATE_MS = 60_000;
 
 interface UserSessionState {
   role: string;
+  organizationId: string;
   disabled: boolean;
   sessionVersion: number;
   loadedAt: number;
@@ -24,13 +26,21 @@ async function loadUserSessionState(userId: string): Promise<UserSessionState | 
   if (cached && Date.now() - cached.loadedAt < SESSION_REVALIDATE_MS) return cached;
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, disabledAt: true, sessionVersion: true },
+    select: { role: true, disabledAt: true, sessionVersion: true, organizationId: true, organization: { select: { status: true } } },
   });
   if (!user) {
     userStateCache.delete(userId);
     return null;
   }
-  const state = { role: user.role, disabled: !!user.disabledAt, sessionVersion: user.sessionVersion, loadedAt: Date.now() };
+  // Una organización suspendida por la plataforma no puede entrar (solo lectura
+  // o cancelada sí: ven sus datos, los candados de facturación bloquean lo demás).
+  const state = {
+    role: user.role,
+    organizationId: user.organizationId,
+    disabled: !!user.disabledAt || user.organization.status === "SUSPENDED",
+    sessionVersion: user.sessionVersion,
+    loadedAt: Date.now(),
+  };
   userStateCache.set(userId, state);
   return state;
 }
@@ -39,6 +49,7 @@ async function loadUserSessionState(userId: string): Promise<UserSessionState | 
 // inmediato en este proceso en vez de esperar a que expire el caché.
 export function invalidateUserSessionCache(userId: string) {
   userStateCache.delete(userId);
+  invalidateTenantCache(userId);
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -62,8 +73,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = (credentials.email as string).toLowerCase().trim();
         const password = credentials.password as string;
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.password || user.disabledAt) return null;
+        const user = await prisma.user.findUnique({ where: { email }, include: { organization: { select: { status: true } } } });
+        if (!user || !user.password || user.disabledAt || user.organization.status === "SUSPENDED") return null;
 
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
@@ -73,6 +84,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          organizationId: user.organizationId,
           createdAt: user.createdAt.toISOString(),
           sessionVersion: user.sessionVersion,
         };
@@ -84,6 +96,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role ?? "user";
+        token.organizationId = (user as { organizationId?: string }).organizationId;
         token.createdAt = (user as { createdAt?: string }).createdAt;
         token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion ?? 0;
         token.checkedAt = Date.now();
@@ -102,6 +115,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return null;
       }
       token.role = state.role;
+      token.organizationId = state.organizationId;
       token.checkedAt = Date.now();
       return token;
     },
@@ -109,6 +123,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.organizationId = token.organizationId as string;
         (session.user as { createdAt?: string }).createdAt = token.createdAt as string;
       }
       return session;

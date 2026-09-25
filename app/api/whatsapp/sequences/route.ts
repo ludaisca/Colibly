@@ -6,6 +6,7 @@ import { sequenceSchema } from "@/lib/validations";
 import { forbidRoles } from "@/lib/roles";
 import { tagBelongsTo } from "@/lib/tags";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
 
 // Roadmap P3-a — secuencias de automatización lineales. Recurso plano (no
 // nested bajo /accounts/[id], a diferencia de routing-rules) porque, igual
@@ -141,6 +142,7 @@ export async function POST(req: Request) {
     const sequence = await prisma.wASequence.create({
       data: {
         ...data,
+        organizationId: await requireOrgId(session.user.id),
         waAccountId: waAccountId ?? null,
         channelAccountId: channelAccountId ?? null,
         triggerValue: data.triggerType === "APPOINTMENT_COMPLETED" ? null : data.triggerValue,

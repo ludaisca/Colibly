@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/integrations/admin-session";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -11,7 +12,7 @@ export async function GET(_req: Request, { params }: Params) {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
     const { id } = await params;
-    const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, userId: admin.userId }, select: { id: true } });
+    const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(admin.userId)) }, select: { id: true } });
     if (!endpoint) return NextResponse.json({ error: "Webhook no encontrado" }, { status: 404 });
 
     const deliveries = await prisma.webhookDelivery.findMany({

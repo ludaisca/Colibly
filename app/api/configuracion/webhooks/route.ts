@@ -3,13 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/integrations/admin-session";
 import { createWebhook, serializeWebhook, webhookCreateSchema, WebhookInputError } from "@/lib/webhooks/crud";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 export async function GET() {
   try {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
     const endpoints = await prisma.webhookEndpoint.findMany({
-      where: { userId: admin.userId },
+      where: { ...(await orgWhere(admin.userId)) },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(endpoints.map(serializeWebhook));

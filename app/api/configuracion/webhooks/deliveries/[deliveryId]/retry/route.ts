@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { webhookDeliveryQueue } from "@/lib/queue";
 import { requireAdmin } from "@/lib/integrations/admin-session";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 type Params = { params: Promise<{ deliveryId: string }> };
 
@@ -15,7 +16,7 @@ export async function POST(_req: Request, { params }: Params) {
     if (admin instanceof NextResponse) return admin;
     const { deliveryId } = await params;
     const delivery = await prisma.webhookDelivery.findFirst({
-      where: { id: deliveryId, endpoint: { userId: admin.userId } },
+      where: { id: deliveryId, endpoint: await orgWhere(admin.userId) },
       select: { id: true, status: true, endpoint: { select: { active: true } } },
     });
     if (!delivery) return NextResponse.json({ error: "Entrega no encontrada" }, { status: 404 });

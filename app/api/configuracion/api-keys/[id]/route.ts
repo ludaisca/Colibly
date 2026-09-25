@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/integrations/admin-session";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { serializeApiKey } from "@/lib/api/keys";
+import { orgWhere } from "@/lib/tenancy";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -21,7 +22,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const parsed = patchSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-    const existing = await prisma.apiKey.findFirst({ where: { id, userId: admin.userId } });
+    const existing = await prisma.apiKey.findFirst({ where: { id, ...(await orgWhere(admin.userId)) } });
     if (!existing) return NextResponse.json({ error: "API key no encontrada" }, { status: 404 });
 
     const updated = await prisma.apiKey.update({
@@ -42,7 +43,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
     const { id } = await params;
-    const { count } = await prisma.apiKey.deleteMany({ where: { id, userId: admin.userId } });
+    const { count } = await prisma.apiKey.deleteMany({ where: { id, ...(await orgWhere(admin.userId)) } });
     if (count === 0) return NextResponse.json({ error: "API key no encontrada" }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {

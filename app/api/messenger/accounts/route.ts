@@ -5,6 +5,7 @@ import { messengerAccountSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { createMetaChannelAccount } from "@/lib/meta-messaging/account-crud";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 // Mismo criterio de rol que /api/telegram/accounts: "ejecutivo" tiene
 // /messenger/cuentas bloqueado en proxy.ts, este 403 cierra la API directa.
@@ -59,7 +60,7 @@ export async function GET() {
 
     const accounts = await prisma.channelAccount.findMany({
       // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
-      where: { channel: "MESSENGER", OR: [{ userId: session.user.id }, { sharedWith: { some: { userId: session.user.id } } }] },
+      where: { channel: "MESSENGER", id: { in: await getUserChannelAccountIds(session.user.id) } },
       select: {
         id: true,
         userId: true,

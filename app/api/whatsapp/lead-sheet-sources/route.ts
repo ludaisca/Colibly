@@ -9,6 +9,7 @@ import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import { importNewLeadsForSource } from "@/lib/google/lead-sheet-import";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
 
 export async function GET() {
   try {
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
     const created = await prisma.leadSheetSource.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         waAccountId,
         waTemplateId,
         name,

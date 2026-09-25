@@ -7,6 +7,7 @@ import { encrypt, hashToken } from "@/lib/crypto";
 import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
 
 // CRUD admin-only: MetaAdsAccount es config de negocio sensible (credenciales
 // que mandan datos reales a un ad account en producción), no una cuenta
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     await validatePageToken(pageId, pageAccessToken);
 
     if (waAccountId) {
-      const waAccount = await prisma.wAAccount.findFirst({ where: { id: waAccountId, userId: session.user.id } });
+      const waAccount = await prisma.wAAccount.findFirst({ where: { id: waAccountId, ...(await orgWhere(session.user.id)) } });
       if (!waAccount) {
         return NextResponse.json({ error: "Cuenta de WhatsApp no encontrada" }, { status: 400 });
       }
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
     const account = await prisma.metaAdsAccount.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         name,
         pageId,
         pageAccessToken: encrypt(pageAccessToken),
@@ -99,7 +101,7 @@ export async function GET() {
     }
 
     const accounts = await prisma.metaAdsAccount.findMany({
-      where: { userId: session.user.id },
+      where: { ...(await orgWhere(session.user.id)) },
       select: {
         id: true,
         name: true,

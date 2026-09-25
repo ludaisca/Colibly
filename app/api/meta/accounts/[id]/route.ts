@@ -6,6 +6,7 @@ import { encrypt, hashToken } from "@/lib/crypto";
 import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 export async function GET(
   _req: Request,
@@ -22,7 +23,7 @@ export async function GET(
 
     const { id } = await params;
     const account = await prisma.metaAdsAccount.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
       select: {
         id: true,
         name: true,
@@ -72,7 +73,7 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const existing = await prisma.metaAdsAccount.findFirst({ where: { id, userId: session.user.id } });
+    const existing = await prisma.metaAdsAccount.findFirst({ where: { id, ...(await orgWhere(session.user.id)) } });
     if (!existing) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
@@ -93,7 +94,7 @@ export async function PATCH(
 
     if (waAccountId !== undefined) {
       if (waAccountId) {
-        const waAccount = await prisma.wAAccount.findFirst({ where: { id: waAccountId, userId: session.user.id } });
+        const waAccount = await prisma.wAAccount.findFirst({ where: { id: waAccountId, ...(await orgWhere(session.user.id)) } });
         if (!waAccount) {
           return NextResponse.json({ error: "Cuenta de WhatsApp no encontrada" }, { status: 400 });
         }
@@ -174,7 +175,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await prisma.metaAdsAccount.findFirst({ where: { id, userId: session.user.id } });
+    const existing = await prisma.metaAdsAccount.findFirst({ where: { id, ...(await orgWhere(session.user.id)) } });
     if (!existing) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }

@@ -8,6 +8,7 @@ import { validateToken } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
     const account = await prisma.wAAccount.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         name,
         phoneNumberId,
         accessToken: encryptedToken,

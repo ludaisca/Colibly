@@ -21,6 +21,11 @@ model User {
   // Se incrementa para invalidar todas las sesiones JWT ya emitidas del
   // usuario (al desactivarlo) — el token guarda la versión con la que se firmó.
   sessionVersion Int       @default(0) @map("session_version")
+  // Espacio de trabajo al que pertenece (un usuario = una organización). role
+  // es el rol DENTRO de esta organización.
+  organizationId String       @map("organization_id")
+  organization   Organization @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: Cascade)
+  ownedOrganization Organization? @relation("OrganizationOwner")
 
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
@@ -50,19 +55,8 @@ model User {
   automations           Automation[]
   automationVersions    AutomationVersion[]
 
+  @@index([organizationId])
   @@map("users")
-}
-
-model SystemConfig {
-  id                String   @id @default("default")
-  // Cerrado por defecto: el primer admin se crea en /onboarding y el resto de
-  // usuarios los da de alta un admin desde /usuarios. Abrirlo permite que
-  // cualquiera en internet se registre con rol "user".
-  allowRegistration Boolean  @default(false)
-  businessName      String?
-  updatedAt         DateTime @updatedAt @map("updated_at")
-
-  @@map("system_config")
 }
 
 model AppSettings {
@@ -118,6 +112,8 @@ model WAAccount {
   id                String          @id @default(cuid())
   userId            String
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId    String          @map("organization_id")
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name              String
   channel           WAChannel       @default(META_CLOUD)
   phoneNumber       String?
@@ -167,6 +163,7 @@ model WAAccount {
   @@unique([phoneNumberId])
   @@unique([userId, name])
   @@index([phoneNumberId])
+  @@index([organizationId])
   @@map("wa_accounts")
 }
 
@@ -300,6 +297,8 @@ model ChannelAccount {
   id                String          @id @default(cuid())
   userId            String
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId    String          @map("organization_id")
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   channel           Channel
   name              String
   status            WaAccountStatus @default(PENDING)
@@ -341,6 +340,7 @@ model ChannelAccount {
   // Instagram: si dos ChannelAccount terminaran apuntando a la misma
   // Página, esto lo rechaza en vez de ocultar la colisión con un findFirst.
   @@unique([channel, externalAccountId])
+  @@index([organizationId])
   @@map("channel_accounts")
 }
 
@@ -459,6 +459,8 @@ model WALeadScorerBot {
   id                        String    @id @default(cuid())
   userId                    String
   user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name                      String
   provider                  String
   model                     String
@@ -480,6 +482,7 @@ model WALeadScorerBot {
   usage  WALeadScorerUsage[]
 
   @@unique([userId, name])
+  @@index([organizationId])
   @@map("wa_lead_scorer_bots")
 }
 
@@ -644,6 +647,8 @@ model LeadSheetSource {
   id                String     @id @default(cuid())
   userId            String
   user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId       String
   waAccount         WAAccount  @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
   waTemplateId      String
@@ -671,6 +676,7 @@ model LeadSheetSource {
 
   @@index([userId])
   @@index([waAccountId])
+  @@index([organizationId])
   @@map("lead_sheet_sources")
 }
 
@@ -702,6 +708,8 @@ model WACampaign {
   id             String         @id @default(cuid())
   userId         String
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId    String
   waAccount      WAAccount      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
   waTemplateId   String
@@ -729,6 +737,7 @@ model WACampaign {
 
   @@index([userId])
   @@index([waAccountId])
+  @@index([organizationId])
   @@map("wa_campaigns")
 }
 
@@ -771,6 +780,8 @@ model WABot {
   id                           String          @id @default(cuid())
   userId                       String
   user                         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId                  String?
   waAccount                    WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
   // Mutuamente excluyente con waAccountId a nivel de aplicación — un bot sirve
@@ -803,6 +814,7 @@ model WABot {
   usage         WABotUsage[]
 
   @@unique([userId, name])
+  @@index([organizationId])
   @@map("wa_bots")
 }
 
@@ -991,6 +1003,8 @@ model MetaAdsAccount {
   id              String             @id @default(cuid())
   userId          String
   user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name            String
   // Id de la Página de Facebook que recibe leadgen — clave para resolver a
   // qué MetaAdsAccount pertenece cada notificación del webhook `leadgen`.
@@ -1024,6 +1038,7 @@ model MetaAdsAccount {
   conversionEvents MetaConversionEvent[]
 
   @@unique([userId, name])
+  @@index([organizationId])
   @@map("meta_ads_accounts")
 }
 
@@ -1280,6 +1295,8 @@ model WASequence {
 
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -1288,6 +1305,7 @@ model WASequence {
 
   @@index([waAccountId, triggerType, active])
   @@index([channelAccountId, triggerType, active])
+  @@index([organizationId])
   @@map("wa_sequences")
 }
 
@@ -1383,6 +1401,8 @@ model ApiKey {
   id                String    @id @default(cuid())
   userId            String
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name              String
   // Primeros caracteres visibles ("sk_live_ab12") para reconocerla en la lista.
   prefix            String
@@ -1397,6 +1417,7 @@ model ApiKey {
   createdAt         DateTime  @default(now()) @map("created_at")
 
   @@index([userId])
+  @@index([organizationId])
   @@map("api_keys")
 }
 
@@ -1407,6 +1428,8 @@ model WebhookEndpoint {
   id                  String    @id @default(cuid())
   userId              String
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name                String
   url                 String
   // Secreto de firma, cifrado con lib/crypto.ts (se muestra al crearlo y se
@@ -1426,6 +1449,7 @@ model WebhookEndpoint {
   deliveries WebhookDelivery[]
 
   @@index([userId, active])
+  @@index([organizationId])
   @@map("webhook_endpoints")
 }
 
@@ -1488,6 +1512,8 @@ model Automation {
   settings           Json             @default("{}")
   createdById        String           @map("created_by_id")
   createdBy          User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")
 
@@ -1497,6 +1523,7 @@ model Automation {
 
   @@index([waAccountId, status, triggerType])
   @@index([channelAccountId, status, triggerType])
+  @@index([organizationId])
   @@map("automations")
 }
 
@@ -1613,4 +1640,62 @@ model AutomationAiUsage {
   @@index([waChatId])
   @@index([conversationId])
   @@map("automation_ai_usage")
+}
+
+// ─── SaaS: espacios de trabajo ──────────────────────────────────────────────
+// Un cliente = una Organization. Todo recurso de negocio cuelga de una (las
+// entidades de primer nivel llevan organizationId; chats, contactos, mensajes y
+// etiquetas la heredan de su cuenta). Plan, estado de suscripción y créditos de
+// IA viven aquí — ver lib/billing y lib/tenancy.ts.
+enum PlanId {
+  BASIC
+  PRO
+}
+
+enum OrganizationStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE // pago fallido: funciona con aviso durante la gracia
+  READ_ONLY // prueba vencida o gracia agotada: ve todo, no envía
+  CANCELED
+  SUSPENDED // suspendida por la plataforma: no puede entrar
+}
+
+model Organization {
+  id                   String             @id @default(cuid())
+  name                 String
+  // Dueño: admin que no se puede degradar ni desactivar (antes, "el primer
+  // usuario registrado").
+  ownerId              String?            @unique @map("owner_id")
+  owner                User?              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  plan                 PlanId             @default(PRO)
+  status               OrganizationStatus @default(TRIALING)
+  // Organizaciones de la casa (la instalación original, demos): sin cobro ni
+  // candados de facturación.
+  isInternal           Boolean            @default(false) @map("is_internal")
+  trialEndsAt          DateTime?          @map("trial_ends_at")
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  graceEndsAt          DateTime?          @map("grace_ends_at")
+  stripeCustomerId     String?            @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  aiCreditsUsed        Int                @default(0) @map("ai_credits_used")
+  aiCreditsPeriodStart DateTime           @default(now()) @map("ai_credits_period_start")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  members          User[]            @relation("OrganizationMembers")
+  waAccounts       WAAccount[]
+  channelAccounts  ChannelAccount[]
+  bots             WABot[]
+  leadScorers      WALeadScorerBot[]
+  metaAdsAccounts  MetaAdsAccount[]
+  apiKeys          ApiKey[]
+  webhookEndpoints WebhookEndpoint[]
+  automations      Automation[]
+  sequences        WASequence[]
+  campaigns        WACampaign[]
+  leadSheetSources LeadSheetSource[]
+
+  @@index([status])
+  @@map("organizations")
 }

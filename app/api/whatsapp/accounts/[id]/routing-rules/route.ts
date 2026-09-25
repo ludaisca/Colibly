@@ -5,6 +5,7 @@ import { routingRuleSchema } from "@/lib/validations";
 import { getEligibleAssignees } from "@/lib/chat-assignees";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
 
 // Roadmap P3-d — reglas de enrutamiento de auto-asignación
 // (WAAccountRoutingRule). Mismo alcance que el toggle autoAssignEnabled del
@@ -24,7 +25,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const account = await prisma.wAAccount.findFirst({ where: { id, userId: session.user.id } });
+    const account = await prisma.wAAccount.findFirst({ where: { id, ...(await accountManageWhere(session.user.id)) } });
     if (!account) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
@@ -81,7 +82,7 @@ export async function POST(
     if (denied) return denied;
 
     const { id } = await params;
-    const account = await prisma.wAAccount.findFirst({ where: { id, userId: session.user.id } });
+    const account = await prisma.wAAccount.findFirst({ where: { id, ...(await accountManageWhere(session.user.id)) } });
     if (!account) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }

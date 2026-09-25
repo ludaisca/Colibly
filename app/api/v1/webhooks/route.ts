@@ -7,7 +7,7 @@ import { createWebhook, serializeWebhook, webhookCreateSchema, WebhookInputError
 // rota su key sigue viendo y administrando los mismos endpoints.
 export const GET = withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "webhooks:manage");
-  const endpoints = await prisma.webhookEndpoint.findMany({ where: { userId: ctx.userId }, orderBy: { createdAt: "desc" } });
+  const endpoints = await prisma.webhookEndpoint.findMany({ where: { organizationId: ctx.organizationId }, orderBy: { createdAt: "desc" } });
   return apiOk({ data: endpoints.map(serializeWebhook) });
 });
 

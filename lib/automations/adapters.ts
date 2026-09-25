@@ -26,6 +26,7 @@ export interface RunContext {
   runId: string | null; // null en "Probar" no aplica: la simulación usa adaptadores falsos
   automationId: string;
   ownerId: string; // dueño de la cuenta: paga la IA, recibe avisos por defecto
+  organizationId: string;
   account: AccountRef;
   contactId: string;
   chat: ChatRef;
@@ -213,7 +214,7 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
 
     async scoreLead(scorerId) {
       if (channel !== "WHATSAPP" && channel !== "TELEGRAM") throw new Error("La calificación solo está disponible en WhatsApp y Telegram");
-      const scorer = await prisma.wALeadScorerBot.findFirst({ where: { id: scorerId, userId: ctx.ownerId, isActive: true } });
+      const scorer = await prisma.wALeadScorerBot.findFirst({ where: { id: scorerId, organizationId: ctx.organizationId, isActive: true } });
       if (!scorer) throw new Error("El calificador ya no existe o está inactivo");
       await scoreChatWithScorer(ctx.chat.id, scorer, channel === "WHATSAPP" ? "WHATSAPP" : "TELEGRAM");
     },

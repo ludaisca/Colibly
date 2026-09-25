@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt, hashToken } from "@/lib/crypto";
 import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { subscribePageToApp, unsubscribePageFromApp } from "@/lib/meta-messaging";
+import { requireOrgId } from "@/lib/tenancy";
 
 // Lógica compartida por app/api/messenger/accounts y app/api/instagram/
 // accounts — mismo espíritu que lib/meta/conversions.ts (un núcleo, wrappers
@@ -45,6 +46,7 @@ export async function createMetaChannelAccount(
   const account = await prisma.channelAccount.create({
     data: {
       userId: input.userId,
+      organizationId: await requireOrgId(input.userId),
       channel: input.channel,
       name: input.name,
       credentials,

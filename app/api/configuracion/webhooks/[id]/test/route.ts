@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/integrations/admin-session";
 import { createDelivery } from "@/lib/webhooks/fanout";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,7 +21,7 @@ export async function POST(_req: Request, { params }: Params) {
     if (!allowed) return NextResponse.json({ error: "Demasiadas pruebas, espera un momento" }, { status: 429 });
 
     const { id } = await params;
-    const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, userId: admin.userId }, select: { id: true, active: true } });
+    const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(admin.userId)) }, select: { id: true, active: true } });
     if (!endpoint) return NextResponse.json({ error: "Webhook no encontrado" }, { status: 404 });
     if (!endpoint.active) return NextResponse.json({ error: "Activa el webhook antes de probarlo" }, { status: 400 });
 

@@ -7,6 +7,8 @@ import { encrypt } from "@/lib/crypto";
 import { getMe, setWebhook } from "@/lib/telegram";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 // El rol "ejecutivo" tiene /telegram/cuentas bloqueado en proxy.ts — este 403
 // cierra el acceso directo a la API (defensa en profundidad, mismo patrón que
@@ -46,6 +48,7 @@ export async function POST(req: Request) {
     const account = await prisma.channelAccount.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         channel: "TELEGRAM",
         name,
         credentials,
@@ -90,7 +93,7 @@ export async function GET() {
 
     const accounts = await prisma.channelAccount.findMany({
       // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
-      where: { channel: "TELEGRAM", OR: [{ userId: session.user.id }, { sharedWith: { some: { userId: session.user.id } } }] },
+      where: { channel: "TELEGRAM", id: { in: await getUserChannelAccountIds(session.user.id) } },
       select: {
         id: true,
         userId: true,

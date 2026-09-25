@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getMonthlyAiCost } from "@/lib/ai/budget";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { orgWhere } from "@/lib/tenancy";
 import {
   countActiveBots,
   countBots,
@@ -147,6 +148,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
   const monthStart = utcInstantForLocalMidnight(todayYear, todayMonth, 1);
 
   const accountWhere = { id: { in: accountIds } };
+  const org = await orgWhere(userId);
 
   const [
     accounts,
@@ -179,15 +181,15 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     countBots(userId),
     countCampaigns(userId),
     prisma.wABotUsage.aggregate({
-      where: { bot: { userId } },
+      where: { bot: org },
       _sum: { totalTokens: true, estimatedCost: true },
     }),
     prisma.wALeadScorerUsage.aggregate({
-      where: { scorer: { userId } },
+      where: { scorer: org },
       _sum: { totalTokens: true, estimatedCost: true },
     }),
     prisma.wALeadRecoveryAttempt.aggregate({
-      where: { chat: { account: { userId } } },
+      where: { chat: { account: org } },
       _sum: { totalTokens: true, estimatedCost: true },
     }),
     prisma.wAMessage.findMany({
@@ -202,19 +204,19 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     countActiveBots(userId),
     countCompletedCampaigns(userId),
     prisma.wABot.findMany({
-      where: { userId },
+      where: org,
       select: { id: true, name: true, status: true },
     }),
     prisma.wABotUsage.groupBy({
       by: ["botId"],
-      where: { bot: { userId } },
+      where: { bot: org },
       _sum: { totalTokens: true, estimatedCost: true },
       _count: { _all: true },
     }),
     // Las cuentas de Telegram se agregan a la misma lista (phoneNumber null)
     // para que el desglose por cuenta no las omita — ver accountBreakdown.
     prisma.channelAccount.findMany({
-      where: { userId },
+      where: { id: { in: await getUserChannelAccountIds(userId) } },
       select: { id: true, name: true, _count: { select: { conversations: true } } },
     }),
     prisma.wAAccount.findMany({

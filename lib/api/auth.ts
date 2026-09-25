@@ -9,6 +9,7 @@ import type { ApiScope } from "./scopes";
 export interface ApiContext extends ResolvedScope {
   keyId: string;
   userId: string;
+  organizationId: string;
   scopes: string[];
 }
 
@@ -59,7 +60,7 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
   }
 
   const resolved = await resolveIntegrationScope(key.userId, key);
-  return { keyId: key.id, userId: key.userId, scopes: key.scopes, ...resolved };
+  return { keyId: key.id, userId: key.userId, organizationId: key.organizationId, scopes: key.scopes, ...resolved };
 }
 
 // Frena la enumeración de keys desde una misma IP.

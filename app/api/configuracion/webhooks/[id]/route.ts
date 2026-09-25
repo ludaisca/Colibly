@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/integrations/admin-session";
 import { serializeWebhook, updateWebhook, webhookUpdateSchema, WebhookInputError } from "@/lib/webhooks/crud";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -27,7 +28,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
     const { id } = await params;
-    const { count } = await prisma.webhookEndpoint.deleteMany({ where: { id, userId: admin.userId } });
+    const { count } = await prisma.webhookEndpoint.deleteMany({ where: { id, ...(await orgWhere(admin.userId)) } });
     if (count === 0) return NextResponse.json({ error: "Webhook no encontrado" }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { botSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
 
 export async function POST(req: Request) {
   try {
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
 
     if (channelAccountId) {
       const channelAccount = await prisma.channelAccount.findFirst({
-        where: { id: channelAccountId, userId: session.user.id },
+        where: { id: channelAccountId, ...(await orgWhere(session.user.id)) },
         select: { id: true },
       });
       if (!channelAccount) {
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
     const bot = await prisma.wABot.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         waAccountId: waAccountId ?? null,
         channelAccountId: channelAccountId ?? null,
         name,
@@ -127,7 +129,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const waAccountId = searchParams.get("waAccountId");
 
-    const where: Record<string, unknown> = { userId: session.user.id };
+    const where: Record<string, unknown> = { ...(await orgWhere(session.user.id)) };
     if (waAccountId) where.waAccountId = waAccountId;
 
     const bots = await prisma.wABot.findMany({

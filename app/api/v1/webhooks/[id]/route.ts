@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 export const GET = withApiErrors(async (req: Request, { params }: Params) => {
   const ctx = await authenticateApiKey(req, "webhooks:manage");
   const { id } = await params;
-  const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, userId: ctx.userId } });
+  const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, organizationId: ctx.organizationId } });
   if (!endpoint) throw new ApiError(404, "not_found", "Webhook no encontrado");
   return apiOk(serializeWebhook(endpoint));
 });
@@ -31,7 +31,7 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
 export const DELETE = withApiErrors(async (req: Request, { params }: Params) => {
   const ctx = await authenticateApiKey(req, "webhooks:manage");
   const { id } = await params;
-  const { count } = await prisma.webhookEndpoint.deleteMany({ where: { id, userId: ctx.userId } });
+  const { count } = await prisma.webhookEndpoint.deleteMany({ where: { id, organizationId: ctx.organizationId } });
   if (count === 0) throw new ApiError(404, "not_found", "Webhook no encontrado");
   return apiOk({ deleted: true });
 });

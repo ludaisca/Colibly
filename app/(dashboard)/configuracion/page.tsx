@@ -10,7 +10,6 @@ import { PasswordStrength } from "@/app/components/ui/password-strength";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Badge } from "@/app/components/ui/badge";
-import { Switch } from "@/app/components/ui/switch";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { EntityAvatar } from "@/app/components/ui/avatar";
@@ -44,22 +43,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   const [savingName, setSavingName] = useState(false);
-  const [allowRegistration, setAllowRegistration] = useState(true);
-  const [systemLoading, setSystemLoading] = useState(false);
 
   const isAdmin = session?.user?.role === "admin";
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    fetch("/api/configuracion/sistema")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.allowRegistration !== undefined) {
-          setAllowRegistration(d.allowRegistration);
-        }
-      })
-      .catch(() => toastError("Error al cargar configuración"));
-  }, [isAdmin, toastError]);
 
   const [googleStatus, setGoogleStatus] = useState<GoogleSheetsStatus>({ connected: false });
   const [loadingGoogleStatus, setLoadingGoogleStatus] = useState(true);
@@ -301,44 +286,6 @@ export default function SettingsPage() {
       <RespuestasRapidasSection />
 
       <CamposPersonalizadosSection />
-
-      {isAdmin && (
-        <section className="space-y-4">
-          <SectionHeader title="Sistema" />
-          <div className="flex items-center justify-between py-1">
-            <div>
-              <p className="text-sm font-medium text-foreground">Registro libre</p>
-              <p className="text-xs text-muted-darker">Permitir que cualquier persona se registre desde /register</p>
-            </div>
-            <Switch
-              checked={allowRegistration}
-              disabled={systemLoading}
-              onCheckedChange={async (v) => {
-                setAllowRegistration(v);
-                setSystemLoading(true);
-                try {
-                  const res = await fetch("/api/configuracion/sistema", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ allowRegistration: v }),
-                  });
-                  if (!res.ok) {
-                    setAllowRegistration(!v);
-                    toastError("Error al actualizar");
-                  } else {
-                    success(v ? "Registro libre activado" : "Registro libre desactivado");
-                  }
-                } catch {
-                  setAllowRegistration(!v);
-                  toastError("Error al actualizar");
-                } finally {
-                  setSystemLoading(false);
-                }
-              }}
-            />
-          </div>
-        </section>
-      )}
 
       <section className="space-y-4">
         <SectionHeader title="Google Sheets" />

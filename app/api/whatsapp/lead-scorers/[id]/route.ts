@@ -5,6 +5,7 @@ import { leadScorerBotUpdateSchema } from "@/lib/validations";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 export async function GET(
   _req: Request,
@@ -19,7 +20,7 @@ export async function GET(
     const { id } = await params;
 
     const scorer = await prisma.wALeadScorerBot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!scorer) {
@@ -49,7 +50,7 @@ export async function PATCH(
     const { id } = await params;
 
     const existing = await prisma.wALeadScorerBot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!existing) {
@@ -133,7 +134,7 @@ export async function DELETE(
     const { id } = await params;
 
     const existing = await prisma.wALeadScorerBot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!existing) {

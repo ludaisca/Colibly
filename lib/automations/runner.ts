@@ -157,6 +157,7 @@ export async function advanceRun(runId: string): Promise<void> {
       automation: {
         select: {
           id: true,
+          organizationId: true,
           waAccount: { select: { id: true, userId: true } },
           channelAccount: { select: { id: true, userId: true, channel: true } },
         },
@@ -186,7 +187,7 @@ export async function advanceRun(runId: string): Promise<void> {
   const input: RunInput = (run.pendingInput as RunInput | null) ?? { kind: "resume" };
   const seqAtStart = run.inputSeq;
 
-  const adapters = createRunAdapters({ runId: run.id, automationId: run.automationId, ownerId, account, contactId: run.contactId, chat });
+  const adapters = createRunAdapters({ runId: run.id, automationId: run.automationId, ownerId, organizationId: run.automation.organizationId, account, contactId: run.contactId, chat });
 
   let result;
   try {

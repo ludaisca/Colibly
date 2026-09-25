@@ -5,6 +5,8 @@ import { webchatAccountSchema } from "@/lib/validations";
 import { encrypt } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 // Mismo criterio de rol que Telegram/Messenger/Instagram — "ejecutivo" tiene
 // /webchat/cuentas bloqueado en proxy.ts, este 403 cierra el acceso directo
@@ -54,6 +56,7 @@ export async function POST(req: Request) {
     const account = await prisma.channelAccount.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         channel: "WEBCHAT",
         name,
         credentials: encrypt(JSON.stringify({ allowedOrigins })),
@@ -81,7 +84,7 @@ export async function GET() {
 
     const accounts = await prisma.channelAccount.findMany({
       // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
-      where: { channel: "WEBCHAT", OR: [{ userId: session.user.id }, { sharedWith: { some: { userId: session.user.id } } }] },
+      where: { channel: "WEBCHAT", id: { in: await getUserChannelAccountIds(session.user.id) } },
       select: ACCOUNT_SELECT,
       orderBy: { updatedAt: "desc" },
     });

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
 import { emailField } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
@@ -22,7 +23,9 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    // Solo los miembros de SU organización (antes: todos los usuarios del sistema).
     const users = await prisma.user.findMany({
+      where: { organizationId: await requireOrgId(session.user.id) },
       select: {
         id: true,
         name: true,
@@ -71,33 +74,30 @@ export async function PATCH(req: Request) {
 
     const { userId, role, disabled } = validated.data;
 
-    const target = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, role: true, disabledAt: true },
+    const orgId = await requireOrgId(session.user.id);
+    const target = await prisma.user.findFirst({
+      where: { id: userId, organizationId: orgId },
+      select: { id: true, role: true, disabledAt: true, ownedOrganization: { select: { id: true } } },
     });
     if (!target) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
 
-    // Invariante del sistema: el primer usuario registrado es el admin y nunca
-    // debe perder acceso total, y el sistema jamás puede quedarse sin un admin
-    // ACTIVO (uno desactivado no puede administrar nada).
+    // Invariante de cada organización: su dueño nunca pierde acceso total, y
+    // nunca se queda sin un admin ACTIVO (uno desactivado no administra nada).
     const losesAdmin =
       target.role === "admin" && !target.disabledAt && ((role !== undefined && role !== "admin") || disabled === true);
     if (losesAdmin) {
-      const [firstUser, activeAdminCount] = await Promise.all([
-        prisma.user.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } }),
-        prisma.user.count({ where: { role: "admin", disabledAt: null } }),
-      ]);
-      if (firstUser?.id === target.id) {
+      if (target.ownedOrganization) {
         return NextResponse.json(
-          { error: "El administrador principal no puede perder su rol ni ser desactivado" },
+          { error: "El dueño de la cuenta no puede perder su rol ni ser desactivado" },
           { status: 400 }
         );
       }
+      const activeAdminCount = await prisma.user.count({ where: { organizationId: orgId, role: "admin", disabledAt: null } });
       if (activeAdminCount <= 1) {
         return NextResponse.json(
-          { error: "No puedes dejar el sistema sin ningún administrador activo" },
+          { error: "No puedes dejar la cuenta sin ningún administrador activo" },
           { status: 400 }
         );
       }
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null },
+      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId: await requireOrgId(session.user.id) },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });
 

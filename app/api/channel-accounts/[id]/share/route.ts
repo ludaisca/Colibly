@@ -3,15 +3,20 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
 
 // Compartir una ChannelAccount (Telegram, Messenger, Instagram, Web) con otro
 // usuario — mismo contrato que /api/whatsapp/accounts/[id]/share: solo un
-// admin, y solo sobre cuentas propias. El usuario con acceso ve y atiende los
+// admin de la organización (o el dueño de la cuenta), y solo con miembros de
+// la misma organización. El usuario con acceso ve y atiende los
 // chats/contactos de la cuenta dentro de lo que su rol ya permite; no puede
 // editarla ni eliminarla.
 
 async function getOwnedAccount(accountId: string, userId: string) {
-  return prisma.channelAccount.findFirst({ where: { id: accountId, userId }, select: { id: true, userId: true } });
+  return prisma.channelAccount.findFirst({
+    where: { id: accountId, ...(await accountManageWhere(userId)) },
+    select: { id: true, userId: true, organizationId: true },
+  });
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -60,7 +65,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (userId === account.userId) {
       return NextResponse.json({ error: "El dueño ya tiene acceso a la cuenta" }, { status: 400 });
     }
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, disabledAt: true } });
+    // Solo miembros de la misma organización: un id de otro espacio se trata
+    // como inexistente, sin revelar que existe.
+    const user = await prisma.user.findFirst({
+      where: { id: userId, organizationId: account.organizationId },
+      select: { id: true, disabledAt: true },
+    });
     if (!user || user.disabledAt) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
@@ -94,7 +104,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ error: "userId requerido" }, { status: 400 });
     }
     await prisma.channelAccountShare.deleteMany({
-      where: { channelAccountId: id, userId, channelAccount: { userId: session.user.id } },
+      where: { channelAccountId: id, userId, channelAccount: await accountManageWhere(session.user.id) },
     });
     return NextResponse.json({ success: true });
   } catch (error) {

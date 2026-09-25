@@ -20,8 +20,7 @@ export async function POST(_req: Request, { params }: Params) {
     const graph = parseGraph(a.draftGraph);
     if (!graph) return NextResponse.json({ error: "El grafo no tiene un formato válido" }, { status: 400 });
 
-    const ownerId = a.waAccount?.userId ?? a.channelAccount!.userId;
-    const issues = await validateForPublish(graph, { waAccountId: a.waAccountId, channelAccountId: a.channelAccountId, ownerId }, automationChannel(a));
+    const issues = await validateForPublish(graph, { waAccountId: a.waAccountId, channelAccountId: a.channelAccountId, organizationId: a.organizationId }, automationChannel(a));
     if (hasErrors(issues)) {
       return NextResponse.json({ error: "La automatización tiene errores", issues }, { status: 422 });
     }

@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { decrypt } from "@/lib/crypto";
 import { deleteWebhook } from "@/lib/telegram";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
 
 export async function DELETE(
   _req: Request,
@@ -29,7 +30,7 @@ export async function DELETE(
     const { id } = await params;
 
     const existing = await prisma.channelAccount.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await accountManageWhere(session.user.id)) },
     });
     if (!existing) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });

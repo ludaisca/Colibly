@@ -19,18 +19,26 @@ function toActiveAssignees(
   return assignees;
 }
 
+const USER_SELECT = { select: { id: true, name: true, email: true, disabledAt: true } } as const;
+
+// Los admins de la organización ven todas sus cuentas (lib/shared-accounts.ts),
+// así que también pueden recibir chats de cualquiera de ellas.
+function orgAdmins(organizationId: string | undefined) {
+  if (!organizationId) return Promise.resolve([]);
+  return prisma.user.findMany({
+    where: { organizationId, role: "admin" },
+    select: USER_SELECT.select,
+    orderBy: { createdAt: "asc" },
+  });
+}
+
 export async function getEligibleAssignees(accountId: string): Promise<Assignee[]> {
-  const account = await prisma.wAAccount.findUnique({
-    where: { id: accountId },
-    select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
-  });
-
-  const shares = await prisma.wAAccountShare.findMany({
-    where: { waAccountId: accountId },
-    select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
-  });
-
-  return toActiveAssignees([account?.user, ...shares.map((s) => s.user)]);
+  const [account, shares] = await Promise.all([
+    prisma.wAAccount.findUnique({ where: { id: accountId }, select: { organizationId: true, user: USER_SELECT } }),
+    prisma.wAAccountShare.findMany({ where: { waAccountId: accountId }, select: { user: USER_SELECT } }),
+  ]);
+  const admins = await orgAdmins(account?.organizationId);
+  return toActiveAssignees([account?.user, ...shares.map((s) => s.user), ...admins]);
 }
 
 // Generalización de getEligibleAssignees() para Contact, que puede colgar de
@@ -51,18 +59,13 @@ export async function getEligibleAssigneesForContact(contact: {
 }
 
 // Equivalente de getEligibleAssignees() para ChannelAccount (Telegram,
-// Messenger, Instagram, Web): dueño + usuarios con ChannelAccountShare, sin
-// desactivados.
+// Messenger, Instagram, Web): dueño + usuarios con ChannelAccountShare +
+// admins de la organización, sin desactivados.
 export async function getEligibleChannelAssignees(channelAccountId: string): Promise<Assignee[]> {
   const [account, shares] = await Promise.all([
-    prisma.channelAccount.findUnique({
-      where: { id: channelAccountId },
-      select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
-    }),
-    prisma.channelAccountShare.findMany({
-      where: { channelAccountId },
-      select: { user: { select: { id: true, name: true, email: true, disabledAt: true } } },
-    }),
+    prisma.channelAccount.findUnique({ where: { id: channelAccountId }, select: { organizationId: true, user: USER_SELECT } }),
+    prisma.channelAccountShare.findMany({ where: { channelAccountId }, select: { user: USER_SELECT } }),
   ]);
-  return toActiveAssignees([account?.user, ...shares.map((s) => s.user)]);
+  const admins = await orgAdmins(account?.organizationId);
+  return toActiveAssignees([account?.user, ...shares.map((s) => s.user), ...admins]);
 }

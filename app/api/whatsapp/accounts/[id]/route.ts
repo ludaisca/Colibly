@@ -7,6 +7,8 @@ import { validateToken } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
+import { getUserAccountIds } from "@/lib/shared-accounts";
 
 export async function GET(
   req: Request,
@@ -20,13 +22,12 @@ export async function GET(
 
     const { id } = await params;
 
+    if (!(await getUserAccountIds(session.user.id)).includes(id)) {
+      return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+    }
     const account = await prisma.wAAccount.findFirst({
       where: {
         id,
-        OR: [
-          { userId: session.user.id },
-          { sharedWith: { some: { userId: session.user.id } } },
-        ],
       },
       select: {
         id: true,
@@ -89,7 +90,7 @@ export async function PATCH(
     const { id } = await params;
 
     const existing = await prisma.wAAccount.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await accountManageWhere(session.user.id)) },
     });
 
     if (!existing) {
@@ -188,7 +189,7 @@ export async function DELETE(
     const { id } = await params;
 
     const existing = await prisma.wAAccount.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await accountManageWhere(session.user.id)) },
     });
 
     if (!existing) {

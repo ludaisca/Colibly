@@ -11,17 +11,13 @@ export const loginSchema = z.object({
   password: z.string().min(1, "La contraseña es requerida"),
 });
 
+// Alta de un cliente nuevo: crea su organización (prueba gratis) y su usuario
+// dueño — ver lib/organizations.ts.
 export const registerSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
   email: emailField,
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-});
-
-export const onboardingSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: emailField,
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-  businessName: z.string().min(2, "El nombre del negocio debe tener al menos 2 caracteres"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(200),
+  businessName: z.string().trim().min(2, "El nombre del negocio debe tener al menos 2 caracteres").max(100),
 });
 
 export const changePasswordSchema = z.object({
@@ -35,7 +31,6 @@ export const changePasswordSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
-export type OnboardingInput = z.infer<typeof onboardingSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 export const telegramAccountSchema = z.object({

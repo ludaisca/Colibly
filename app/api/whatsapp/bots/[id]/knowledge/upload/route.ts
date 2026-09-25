@@ -5,6 +5,7 @@ import { ragQueue } from "@/lib/queue";
 import { getUserApiKey } from "@/lib/ai/settings";
 import type { AIProvider } from "@/lib/ai/types";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -29,7 +30,7 @@ export async function POST(
     const { id } = await params;
 
     const bot = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!bot) {
@@ -81,7 +82,7 @@ export async function POST(
     const resolvedBotIds = await Promise.all(
       botIds.map(async (bid) => {
         const b = await prisma.wABot.findFirst({
-          where: { id: bid, userId: session.user.id },
+          where: { id: bid, ...(await orgWhere(session.user.id)) },
         });
         return b ? b.id : null;
       })

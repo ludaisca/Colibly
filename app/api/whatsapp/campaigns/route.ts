@@ -5,6 +5,7 @@ import { campaignSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
 
 export async function POST(req: Request) {
   try {
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
       const created = await tx.wACampaign.create({
         data: {
           userId: session.user.id,
+          organizationId: await requireOrgId(session.user.id),
           waAccountId,
           waTemplateId,
           name,
