@@ -19,7 +19,7 @@ export const STAGE_LABEL: Record<LeadStatus, string> = {
 export const STAGE_COLOR_BORDER: Record<LeadStatus, string> = {
   NEW: "border-info-border",
   CONTACTED: "border-warning-border",
-  QUALIFIED: "border-accent/30",
+  QUALIFIED: "border-accent-muted",
   CUSTOMER: "border-success-border",
   LOST: "border-muted/30",
 };
@@ -27,7 +27,7 @@ export const STAGE_COLOR_BORDER: Record<LeadStatus, string> = {
 export const STAGE_COLOR_BG: Record<LeadStatus, string> = {
   NEW: "bg-info-bg/40",
   CONTACTED: "bg-warning-bg/40",
-  QUALIFIED: "bg-accent/5",
+  QUALIFIED: "bg-accent-subtle",
   CUSTOMER: "bg-success-bg/40",
   LOST: "bg-surface-light",
 };

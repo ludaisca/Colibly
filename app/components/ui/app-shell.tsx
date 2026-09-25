@@ -11,6 +11,7 @@ import { UserDropdown } from "./user-dropdown";
 import { RouteProgressBar } from "./route-progress-bar";
 import { cn } from "./cn";
 import { BRAND_NAME } from "@/lib/brand";
+import { SunflowerMark } from "./logo";
 
 export interface NavItem {
   href: string;
@@ -95,9 +96,7 @@ function SidebarContent({
       <div className={cn("shrink-0 transition-all", collapsed ? "px-0 py-5" : "px-4 py-5")}>
         {logoArea ?? (
           <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-on-accent font-bold text-sm shrink-0">
-              {brand.charAt(0).toUpperCase()}
-            </div>
+            <SunflowerMark className="h-8 w-8" />
             {!collapsed && (
               <span className="text-base font-semibold tracking-tight whitespace-nowrap truncate">
                 {brand}
@@ -264,9 +263,7 @@ export function AppShell({
 
           <div className="md:hidden flex-1 flex items-center">
             <Link href="/dashboard" className="flex items-center gap-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-on-accent font-bold text-xs">
-                S
-              </div>
+              <SunflowerMark className="h-7 w-7" />
               <span className="text-sm font-semibold tracking-tight">
                 {BRAND_NAME}
               </span>

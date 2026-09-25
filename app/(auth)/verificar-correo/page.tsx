@@ -51,7 +51,7 @@ function VerifyEmail() {
           {state.status === "error" && <Banner tone="danger">{state.message}</Banner>}
           {state.status !== "loading" && (
             <p className="text-sm">
-              <Link href="/dashboard" className="text-accent hover:underline">
+              <Link href="/dashboard" className="text-accent-ink hover:underline">
                 Ir a SunflowCRM
               </Link>
             </p>

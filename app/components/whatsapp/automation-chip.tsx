@@ -89,7 +89,7 @@ export function AutomationChip({ chatId }: { chatId: string }) {
           size="sm"
           icon={Zap}
           label={main ? `${main.automation.name} · ${STATUS_TEXT[main.status] ?? main.status}` : "Automatizar"}
-          className={main && main.status !== "PAUSED_BY_AGENT" ? "border-accent/40 text-accent" : undefined}
+          className={main && main.status !== "PAUSED_BY_AGENT" ? "border-accent-muted text-accent-ink" : undefined}
         />
       }
     >

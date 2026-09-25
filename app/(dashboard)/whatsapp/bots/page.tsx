@@ -122,7 +122,7 @@ export default function BotsPage() {
                 <Link
                   href={`/whatsapp/bots/${bot.id}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-accent transition-colors"
+                  className="hover:text-accent-ink transition-colors"
                 >
                   {bot.name}
                 </Link>

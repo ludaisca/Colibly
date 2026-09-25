@@ -70,7 +70,7 @@ export default function CampaignsPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-foreground"
+              tab === t ? "border-accent-strong text-accent-ink" : "border-transparent text-muted hover:text-foreground"
             }`}
           >
             {/* "Desde Google Sheets" y no "Automatización": ese nombre ya lo
@@ -153,7 +153,7 @@ function CampaignsTab() {
                   <Link
                     href={`/whatsapp/campanas/${c.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="hover:text-accent transition-colors"
+                    className="hover:text-accent-ink transition-colors"
                   >
                     {c.name}
                   </Link>
@@ -304,7 +304,7 @@ function AutomationTab() {
                 <Link
                   href={`/whatsapp/campanas/automatizacion/${s.id}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-accent transition-colors"
+                  className="hover:text-accent-ink transition-colors"
                 >
                   {s.name}
                 </Link>
@@ -323,7 +323,7 @@ function AutomationTab() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 hover:text-accent"
+                    className="inline-flex items-center gap-1 hover:text-accent-ink"
                   >
                     {s.sheetName} <ExternalLink size={11} />
                   </a>

@@ -50,8 +50,8 @@ export function RadioGroup({
                 disabled={disabled}
                 className={cn(
                   "peer h-4 w-4 shrink-0 rounded-full border border-border bg-surface-light",
-                  "checked:border-accent checked:bg-surface-light",
-                  "focus:outline-none focus:ring-2 focus:ring-accent/30 focus:ring-offset-1 focus:ring-offset-background",
+                  "checked:border-accent-strong checked:bg-surface-light",
+                  "focus:outline-none focus:ring-2 focus:ring-accent-muted focus:ring-offset-1 focus:ring-offset-background",
                   "appearance-none cursor-pointer transition-colors"
                 )}
               />

@@ -189,7 +189,7 @@ function TemplatesContent() {
                     <span className="font-mono">
                       {new Date(t.syncedAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </span>
-                    <span className="text-accent">Ver métricas →</span>
+                    <span className="text-accent-ink">Ver métricas →</span>
                   </>
                 }
               />

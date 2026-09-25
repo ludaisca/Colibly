@@ -145,7 +145,7 @@ export function NotificationBell() {
           {unreadCount > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); handleMarkAllRead(); }}
-              className="text-xs text-accent hover:underline"
+              className="text-xs text-accent-ink hover:underline"
             >
               Marcar todo como leído
             </button>
@@ -163,7 +163,7 @@ export function NotificationBell() {
                   onClick={() => handleItemClick(item)}
                   className={cn(
                     "w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-surface-light",
-                    !item.read && "bg-accent/5"
+                    !item.read && "bg-accent-subtle"
                   )}
                 >
                   <Icon size={16} className="text-muted-darker shrink-0 mt-0.5" />

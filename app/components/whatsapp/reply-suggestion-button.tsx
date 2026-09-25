@@ -85,7 +85,7 @@ export function ReplySuggestionButton({ chatId, onInsert }: { chatId: string; on
         // Mismo motivo por el que DropdownButton (usado por LeadScoreBadge/
         // ChatCostBadge/ChatTagPicker) renderiza un div en vez de un button.
         <div
-          className="text-accent hover:text-accent/80 transition-colors p-2.5 rounded-lg border border-accent/30 bg-accent/10 hover:bg-accent/15 shrink-0"
+          className="text-accent-ink hover:text-foreground transition-colors p-2.5 rounded-lg border border-accent-muted bg-accent-subtle hover:bg-accent-muted shrink-0"
           title="Sugerir respuesta con IA"
           aria-label="Sugerir respuesta con IA"
         >

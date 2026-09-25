@@ -10,7 +10,7 @@ const TONE: Record<Tone, string> = {
   warning: "bg-warning-bg text-warning border border-warning-border",
   danger:  "bg-danger-bg  text-danger  border border-danger-border",
   info:    "bg-info-bg    text-info    border border-info-border",
-  accent:  "bg-accent/10  text-accent  border border-accent/30",
+  accent:  "bg-accent-subtle  text-accent-ink  border border-accent-muted",
 };
 
 const SIZE: Record<Size, string> = {

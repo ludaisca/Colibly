@@ -96,7 +96,7 @@ export default function CalificadoresPage() {
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-foreground"
+                tab === t ? "border-accent-strong text-accent-ink" : "border-transparent text-muted hover:text-foreground"
               }`}
             >
               {t === "calificadores" ? "Calificadores" : "Leads calificados"}
@@ -421,7 +421,7 @@ function LeadsTab() {
       render: (r) => (
         <Link
           href={`/whatsapp/chat/${r.chat.accountId}/${r.chat.id}`}
-          className="font-medium hover:text-accent transition-colors"
+          className="font-medium hover:text-accent-ink transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           {r.chat.name || r.chat.identifier.split("@")[0]}
@@ -663,7 +663,7 @@ function LeadsTab() {
             )}
             {detailRow.details && detailRow.details.proximos_pasos.length > 0 && (
               <div>
-                <p className="text-xs text-accent mb-1">Próximos pasos sugeridos</p>
+                <p className="text-xs text-accent-ink mb-1">Próximos pasos sugeridos</p>
                 <ul className="text-sm text-foreground list-disc pl-4 space-y-1">
                   {detailRow.details.proximos_pasos.map((s, i) => (
                     <li key={i}>{s}</li>
@@ -673,7 +673,7 @@ function LeadsTab() {
             )}
             <Link
               href={`/whatsapp/chat/${detailRow.chat.accountId}/${detailRow.chat.id}`}
-              className="inline-flex text-sm text-accent hover:underline"
+              className="inline-flex text-sm text-accent-ink hover:underline"
             >
               Ir al chat →
             </Link>
@@ -728,7 +728,7 @@ function LeadsTab() {
                     ? new Set()
                     : new Set(EXPORT_COLUMNS.map((c) => c.key))
                 )}
-                className="text-xs text-accent hover:underline"
+                className="text-xs text-accent-ink hover:underline"
               >
                 {exportColumns.size === EXPORT_COLUMNS.length ? "Ninguna" : "Todas"}
               </button>

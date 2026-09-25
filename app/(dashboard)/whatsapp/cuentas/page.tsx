@@ -175,7 +175,7 @@ function CuentasView() {
                   <Link
                     href={`/whatsapp/cuentas/${a.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="hover:text-accent transition-colors"
+                    className="hover:text-accent-ink transition-colors"
                   >
                     {a.name}
                   </Link>

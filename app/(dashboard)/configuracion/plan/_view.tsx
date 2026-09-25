@@ -159,7 +159,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
               return (
                 <div
                   key={plan.id}
-                  className={cn("flex flex-col rounded-2xl border bg-surface p-5 shadow-sm", current ? "border-accent" : "border-border")}
+                  className={cn("flex flex-col rounded-2xl border bg-surface p-5 shadow-sm", current ? "border-accent-strong" : "border-border")}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-display text-lg font-semibold">{plan.name}</p>
@@ -173,7 +173,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                   <ul className="mt-4 flex-1 space-y-2 text-sm">
                     {planFeatures(plan).map((f) => (
                       <li key={f.text} className={cn("flex items-start gap-2", !f.included && "text-muted-darker line-through")}>
-                        {f.included ? <Check size={16} className="mt-0.5 shrink-0 text-accent" /> : <X size={16} className="mt-0.5 shrink-0" />}
+                        {f.included ? <Check size={16} className="mt-0.5 shrink-0 text-accent-ink" /> : <X size={16} className="mt-0.5 shrink-0" />}
                         {f.text}
                       </li>
                     ))}

@@ -66,7 +66,7 @@ export function LeadCard({ data }: { data: LeadCardData }) {
       style={style}
       className={cn(
         "group rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow cursor-grab active:cursor-grabbing",
-        isDragging && "shadow-lg opacity-80 z-50 ring-2 ring-accent/30"
+        isDragging && "shadow-lg opacity-80 z-50 ring-2 ring-accent-muted"
       )}
       {...attributes}
       {...listeners}

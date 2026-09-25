@@ -121,7 +121,7 @@ export function SearchableSelect({
         }}
         className={cn(
           "w-full flex items-center gap-2 rounded-lg border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 sm:py-2.5 text-sm text-left transition-colors cursor-pointer relative",
-          "focus:outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/30",
+          "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
           error ? "border-danger-border" : "border-border",
           disabled && "opacity-50 cursor-not-allowed"
         )}
@@ -198,7 +198,7 @@ export function SearchableSelect({
                       opt.disabled
                         ? "text-muted-darker cursor-not-allowed"
                         : isSelected
-                          ? "bg-accent/5 text-accent"
+                          ? "bg-accent-subtle text-accent-ink"
                           : isHighlighted
                             ? "bg-surface-light text-foreground"
                             : "text-foreground hover:bg-surface-light"

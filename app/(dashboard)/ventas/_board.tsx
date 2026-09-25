@@ -55,7 +55,7 @@ function Column({
           "flex flex-1 flex-col gap-3 rounded-xl border p-3 transition-colors min-h-[200px]",
           STAGE_COLOR_BORDER[stage],
           STAGE_COLOR_BG[stage],
-          isOver && "ring-2 ring-accent/30 border-accent/50"
+          isOver && "ring-2 ring-accent-muted border-accent-muted"
         )}
       >
         {contacts.length === 0 && (

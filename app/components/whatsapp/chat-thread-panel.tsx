@@ -169,7 +169,7 @@ function MessageBubble({
         className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
           isInbound
             ? "rounded-2xl rounded-tl-sm bg-surface text-foreground"
-            : "rounded-2xl rounded-tr-sm bg-accent text-on-accent"
+            : "rounded-2xl rounded-tr-sm bg-accent-muted text-on-accent"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
@@ -188,7 +188,7 @@ function MessageBubble({
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
         {buttons && buttons.length > 0 && (
           // Un mensaje interactivo siempre es OUTBOUND (lo arma el agente), y
-          // esta burbuja ya es bg-accent/text-on-accent (ver arriba) — por
+          // esta burbuja ya es bg-accent-muted/text-on-accent (ver arriba) — por
           // eso el divisor/texto usan tonos on-accent, no los tokens neutros
           // que usaría una burbuja inbound.
           <div className="mt-2 pt-2 border-t border-on-accent/25 space-y-1">
@@ -350,7 +350,7 @@ export function ChatThreadPanel({
           <select
             value={selectedChat.status}
             onChange={(e) => onStatusChange(e.target.value as ChatStatus)}
-            className="text-xs font-medium rounded-md border border-border bg-surface-light px-2 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="text-xs font-medium rounded-md border border-border bg-surface-light px-2 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-accent-muted"
             title="Estado de la conversación"
           >
             {(Object.keys(STATUS_BADGE) as ChatStatus[]).map((s) => (

@@ -12,7 +12,7 @@ const SIZE: Record<Size, { box: string; icon: number }> = {
 };
 
 const TONE: Record<Tone, string> = {
-  accent:    "bg-accent/10 text-accent",
+  accent:    "bg-accent-subtle text-accent-ink",
   "accent-2": "bg-accent-2-bg text-accent-2",
   success: "bg-success-bg text-success",
   warning: "bg-warning-bg text-warning",

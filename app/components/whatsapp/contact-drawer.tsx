@@ -340,7 +340,7 @@ export function ContactDrawer({
                     </p>
                   </div>
                 </div>
-                <Link href={`/whatsapp/citas?contactId=${contactId}`} className="mt-2 inline-block text-xs text-accent hover:underline">
+                <Link href={`/whatsapp/citas?contactId=${contactId}`} className="mt-2 inline-block text-xs text-accent-ink hover:underline">
                   Ver todas las citas
                 </Link>
               </div>

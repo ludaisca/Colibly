@@ -101,7 +101,7 @@ function InboxPreview() {
   return (
     <div className="relative mx-auto w-full max-w-md rounded-2xl border border-border bg-surface p-4 shadow-lg">
       <div className="flex items-center gap-3 border-b border-border pb-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-sm font-semibold text-accent">MR</span>
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-subtle text-sm font-semibold text-accent-ink">MR</span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">María Rodríguez</p>
           <p className="text-xs text-muted">WhatsApp · Lead de anuncio</p>
@@ -110,12 +110,12 @@ function InboxPreview() {
       </div>
       <div className="space-y-2.5 py-4 text-sm">
         <p className="max-w-[80%] rounded-2xl rounded-tl-sm bg-surface-light px-3 py-2">Hola, ¿cuánto cuesta el facial hidratante?</p>
-        <p className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-accent/10 px-3 py-2">
+        <p className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-accent-subtle px-3 py-2">
           ¡Hola María! El facial hidratante cuesta $850 y dura 60 min. ¿Te gustaría agendar?
         </p>
         <div className="ml-auto flex max-w-[80%] flex-wrap justify-end gap-1.5">
           {["Agendar cita", "Ver otros servicios", "Hablar con alguien"].map((b) => (
-            <span key={b} className="rounded-full border border-accent/40 px-3 py-1 text-xs text-accent">{b}</span>
+            <span key={b} className="rounded-full border border-accent-muted px-3 py-1 text-xs text-accent-ink">{b}</span>
           ))}
         </div>
         <p className="max-w-[80%] rounded-2xl rounded-tl-sm bg-surface-light px-3 py-2">Agendar cita 🙌</p>
@@ -134,33 +134,45 @@ export default async function LandingPage() {
 
   return (
     <>
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 md:grid-cols-2 md:px-6 md:pt-20">
-        <div className="animate-fade-in-up">
-          <p className="text-eyebrow font-medium uppercase tracking-wider text-accent">{BRAND_NAME}</p>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
-            Vende por WhatsApp sin dejar a ningún cliente en visto
-          </h1>
-          <p className="mt-5 max-w-xl text-lg text-muted">
-            Todos tus chats en una bandeja, un bot de IA que responde al instante y automatizaciones que dan seguimiento
-            por ti. Para negocios que venden por mensaje.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button href="/register" size="lg">Empieza gratis {TRIAL_DAYS} días</Button>
-            <Button href="#precios" variant="secondary" size="lg">Ver precios</Button>
+      <section className="relative isolate overflow-hidden">
+        {/* Brillo cálido detrás del hero: el girasol como luz, no como bloque de color. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            background:
+              "radial-gradient(55% 60% at 80% 20%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 70%), radial-gradient(40% 45% at 5% 90%, color-mix(in oklab, var(--accent-2) 8%, transparent), transparent 70%)",
+          }}
+        />
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 md:grid-cols-2 md:px-6 md:pt-20">
+          <div className="animate-fade-in-up">
+            <p className="text-eyebrow font-medium uppercase tracking-wider text-accent-ink">{BRAND_NAME}</p>
+            <h1 className="mt-3 font-display text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
+              Vende por WhatsApp sin dejar a ningún cliente{" "}
+              <mark className="whitespace-nowrap rounded-md bg-accent-muted px-1.5 text-foreground [box-decoration-break:clone]">en visto</mark>
+            </h1>
+            <p className="mt-5 max-w-xl text-lg text-muted">
+              Todos tus chats en una bandeja, un bot de IA que responde al instante y automatizaciones que dan seguimiento
+              por ti. Para negocios que venden por mensaje.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button href="/register" size="lg">Empieza gratis {TRIAL_DAYS} días</Button>
+              <Button href="#precios" variant="secondary" size="lg">Ver precios</Button>
+            </div>
+            <p className="mt-3 text-sm text-muted">Sin tarjeta · Desde 5 USD al mes · Cancela cuando quieras</p>
           </div>
-          <p className="mt-3 text-sm text-muted-darker">Sin tarjeta · Desde 5 USD al mes · Cancela cuando quieras</p>
-        </div>
-        <div className="animate-fade-in-up animation-delay-200">
-          <InboxPreview />
+          <div className="animate-fade-in-up animation-delay-200">
+            <InboxPreview />
+          </div>
         </div>
       </section>
 
       <section className="border-y border-border/60 bg-surface">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 py-6 text-sm text-muted md:px-6">
-          <span className="text-muted-darker">Conecta:</span>
+          <span className="text-muted">Conecta:</span>
           {CHANNELS.map(({ label, icon: Icon }) => (
             <span key={label} className="inline-flex items-center gap-2 font-medium text-foreground">
-              <Icon size={16} className="text-accent" aria-hidden />
+              <Icon size={16} className="text-accent-ink" aria-hidden />
               {label}
             </span>
           ))}
@@ -168,14 +180,14 @@ export default async function LandingPage() {
       </section>
 
       <section id="funciones" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 md:px-6">
-        <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">Funciones</p>
+        <p className="text-eyebrow font-medium uppercase tracking-wider text-muted">Funciones</p>
         <h2 className="mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
           Todo lo que tu equipo necesita para atender y vender por chat
         </h2>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, text }) => (
             <div key={title} className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle text-accent-ink">
                 <Icon size={20} aria-hidden />
               </span>
               <h3 className="mt-4 font-display text-lg font-semibold">{title}</h3>
@@ -190,7 +202,7 @@ export default async function LandingPage() {
 
       <section id="precios" className="scroll-mt-20 border-y border-border/60 bg-surface">
         <div className="mx-auto max-w-4xl px-4 py-20 md:px-6">
-          <p className="text-center text-eyebrow font-medium uppercase tracking-wider text-muted-darker">Precios</p>
+          <p className="text-center text-eyebrow font-medium uppercase tracking-wider text-muted">Precios</p>
           <h2 className="mt-2 text-center font-display text-3xl font-semibold tracking-tight">Precios simples, en dólares</h2>
           <p className="mt-3 text-center text-muted">
             La IA ya viene incluida. Empieza con {TRIAL_DAYS} días gratis del plan Pro, sin tarjeta.
@@ -202,8 +214,8 @@ export default async function LandingPage() {
                 <div
                   key={plan.id}
                   className={cn(
-                    "flex flex-col rounded-2xl border bg-background p-6 shadow-sm",
-                    featured ? "border-accent ring-1 ring-accent" : "border-border"
+                    "flex flex-col rounded-2xl border p-6 shadow-sm",
+                    featured ? "border-accent-strong bg-accent-subtle ring-1 ring-accent-strong shadow-md" : "border-border bg-background"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -219,7 +231,7 @@ export default async function LandingPage() {
                     {planFeatures(plan).map((f) => (
                       <li key={f.text} className={cn("flex items-start gap-2", !f.included && "text-muted-darker")}>
                         {f.included ? (
-                          <Check size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+                          <Check size={16} className="mt-0.5 shrink-0 text-accent-ink" aria-hidden />
                         ) : (
                           <X size={16} className="mt-0.5 shrink-0" aria-hidden />
                         )}

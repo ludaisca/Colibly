@@ -150,7 +150,7 @@ export default function IASettingsPage() {
             <p className="mt-2 text-xs text-muted-darker">
               1 crédito = 1 respuesta de bot, sugerencia, calificación, mensaje de recuperación o paso de IA. Al agotarse,
               los bots dejan de responder hasta el siguiente periodo.{" "}
-              <a href="/configuracion/plan" className="text-accent hover:underline">Ver mi plan</a>
+              <a href="/configuracion/plan" className="text-accent-ink hover:underline">Ver mi plan</a>
             </p>
           </div>
         )}
@@ -162,7 +162,7 @@ export default function IASettingsPage() {
             <ul className="space-y-1.5">
               {settings?.models.map((m) => (
                 <li key={m.id} className="flex items-start gap-2 text-sm">
-                  <Sparkles size={14} className="mt-0.5 shrink-0 text-accent" />
+                  <Sparkles size={14} className="mt-0.5 shrink-0 text-accent-ink" />
                   <span>
                     <span className="font-medium">{m.label}</span> <span className="text-muted">— {m.description}</span>
                   </span>

@@ -24,7 +24,7 @@ export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
               <span
                 className={cn(
                   "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs",
-                  step.done ? "border-accent bg-accent text-on-accent" : "border-border text-muted"
+                  step.done ? "border-accent-strong bg-accent text-on-accent" : "border-border text-muted"
                 )}
                 aria-hidden
               >
@@ -34,7 +34,7 @@ export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
                 <span className={cn("block text-sm font-medium", step.done && "text-muted line-through")}>{step.title}</span>
                 {!step.done && <span className="block text-xs text-muted-darker">{step.description}</span>}
               </span>
-              {!step.done && step.href && <ArrowRight size={16} className="mt-1 shrink-0 text-accent" aria-hidden />}
+              {!step.done && step.href && <ArrowRight size={16} className="mt-1 shrink-0 text-accent-ink" aria-hidden />}
             </>
           );
           return (

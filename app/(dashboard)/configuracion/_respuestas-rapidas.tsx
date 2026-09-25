@@ -101,7 +101,7 @@ export function RespuestasRapidasSection() {
     {
       key: "shortcut",
       header: "Atajo",
-      render: (r) => <span className="font-mono text-sm text-accent">/{r.shortcut}</span>,
+      render: (r) => <span className="font-mono text-sm text-accent-ink">/{r.shortcut}</span>,
     },
     {
       key: "content",

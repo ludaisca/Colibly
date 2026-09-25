@@ -47,7 +47,7 @@ export const STEP_ICON: Record<StepType, React.ElementType> = {
 
 export const TriggerIcon = Zap;
 
-// Tono del icono por grupo — la IA en violeta (--accent-2), el resto en el
+// Tono del icono por grupo — la IA en azul (info), las esperas en naranja, el resto en el
 // acento; da lectura rápida del árbol sin llenarlo de colores.
 export function stepTone(type: StepType): "accent" | "info" | "warning" | "neutral" | "success" {
   if (type.startsWith("ai_") || type === "score_lead") return "info";

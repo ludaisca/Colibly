@@ -529,7 +529,7 @@ export default function NewCampaignPage() {
                     <p className="text-sm font-medium">Enviar ahora</p>
                     <p className="text-xs text-muted-darker">La campaña comenzará a enviarse inmediatamente</p>
                   </div>
-                  <input type="checkbox" checked={sendNow} onChange={e => setSendNow(e.target.checked)} className="h-5 w-5 rounded border-border text-accent focus:ring-accent" />
+                  <input type="checkbox" checked={sendNow} onChange={e => setSendNow(e.target.checked)} className="h-5 w-5 rounded border-border text-accent-ink focus:ring-accent-strong" />
                 </div>
 
                 {!sendNow && (

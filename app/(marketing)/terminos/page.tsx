@@ -65,7 +65,7 @@ export default function TermsPage() {
       <h2>7. Datos del Cliente</h2>
       <p>
         Las conversaciones, contactos y demás información que el Cliente carga o recibe en el Servicio le pertenecen. Los
-        tratamos solo para prestar el Servicio, como se describe en el <a href="/privacidad" className="text-accent hover:underline">Aviso de privacidad</a>.
+        tratamos solo para prestar el Servicio, como se describe en el <a href="/privacidad" className="text-accent-ink hover:underline">Aviso de privacidad</a>.
         El Cliente es responsable de haber obtenido los permisos necesarios de sus propios clientes para tratar sus datos.
       </p>
 

@@ -101,7 +101,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
         className={cn(
           "relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
           appliedCount > 0
-            ? "border-accent bg-accent/10 text-accent"
+            ? "border-accent-strong bg-accent-subtle text-accent-ink"
             : "border-border bg-surface text-muted hover:bg-surface-light"
         )}
       >
@@ -159,7 +159,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
               onChange={(e) => {
                 if (e.target.value) addField(e.target.value);
               }}
-              className="mb-3 cursor-pointer border-none bg-transparent text-xs font-semibold text-accent focus:outline-none"
+              className="mb-3 cursor-pointer border-none bg-transparent text-xs font-semibold text-accent-ink focus:outline-none"
             >
               <option value="" disabled>+ Añadir condición</option>
               {addableFields.map((f) => (

@@ -252,7 +252,7 @@ export function CitasView() {
                       onClick={() => { setEditing(a); setModalOpen(true); }}
                       className={cn(
                         "group relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-surface-light/60",
-                        a.id === highlightId && "bg-accent/5"
+                        a.id === highlightId && "bg-accent-subtle"
                       )}
                     >
                       <EntityRow

@@ -209,7 +209,7 @@ export default function LeadSheetSourceDetailPage() {
                   href={`https://docs.google.com/spreadsheets/d/${source.spreadsheetId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-accent hover:underline inline-flex items-center gap-1"
+                  className="text-accent-ink hover:underline inline-flex items-center gap-1"
                 >
                   {source.sheetName} <ExternalLink size={12} />
                 </a>

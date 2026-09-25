@@ -229,7 +229,7 @@ export default function ContactosPage() {
                       <Link
                         href={`/whatsapp/chat/${contact.accountId}/${contact.chat.id}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="text-accent hover:underline"
+                        className="text-accent-ink hover:underline"
                       >
                         Ver chat
                       </Link>

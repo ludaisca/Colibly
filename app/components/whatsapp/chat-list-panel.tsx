@@ -90,7 +90,7 @@ export function ChatListPanel({
               className={cn(
                 "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
                 accountFilter === ""
-                  ? "border-accent bg-accent text-on-accent"
+                  ? "border-accent-strong bg-accent text-on-accent"
                   : "border-border bg-surface text-muted hover:bg-surface-light"
               )}
             >
@@ -104,7 +104,7 @@ export function ChatListPanel({
                 className={cn(
                   "flex shrink-0 items-center gap-1.5 rounded-full border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
                   accountFilter === acc.id
-                    ? "border-accent bg-accent text-on-accent"
+                    ? "border-accent-strong bg-accent text-on-accent"
                     : "border-border bg-surface text-muted hover:bg-surface-light"
                 )}
               >

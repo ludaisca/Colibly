@@ -144,7 +144,7 @@ export function DatePicker({
           className={cn(
             "w-full h-10 rounded-lg border bg-surface-light px-4 pl-10 pr-8 text-sm text-foreground",
             "placeholder:text-muted-darker outline-none transition-colors",
-            "focus:border-accent focus:ring-1 focus:ring-accent/30",
+            "focus:border-accent-strong focus:ring-1 focus:ring-accent-muted",
             error ? "border-danger-border" : "border-border",
             disabled && "opacity-50 cursor-not-allowed"
           )}
@@ -220,7 +220,7 @@ export function DatePicker({
                     "h-8 w-full rounded-md text-xs font-medium transition-colors",
                     "hover:bg-surface-light",
                     isSelected && "bg-accent text-on-accent hover:bg-accent-hover",
-                    isToday && !isSelected && "border border-accent text-accent",
+                    isToday && !isSelected && "border border-accent-strong text-accent-ink",
                     !isSelected && !isToday && "text-foreground"
                   )}
                 >
@@ -235,7 +235,7 @@ export function DatePicker({
             onClick={() => {
               applyDate(today.getFullYear(), today.getMonth(), today.getDate());
             }}
-            className="mt-3 w-full text-xs text-accent hover:text-accent-hover transition-colors py-1.5 rounded-md hover:bg-surface-light"
+            className="mt-3 w-full text-xs text-accent-ink hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-surface-light"
           >
             Hoy
           </button>

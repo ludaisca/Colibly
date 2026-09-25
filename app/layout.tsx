@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%2300B88D"/><text x="16" y="22" font-family="Georgia,serif" font-size="19" font-weight="700" text-anchor="middle" fill="%23ffffff">S</text></svg>',
+        url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><g fill="%23F5B700"><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(0 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(30 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(60 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(90 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(120 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(150 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(180 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(210 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(240 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(270 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(300 16 16)"/><ellipse cx="16" cy="6.2" rx="3.1" ry="5.4" transform="rotate(330 16 16)"/></g><circle cx="16" cy="16" r="6.6" fill="%238F5F00"/></svg>',
         type: "image/svg+xml",
       },
     ],

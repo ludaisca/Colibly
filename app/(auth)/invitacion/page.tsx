@@ -131,7 +131,7 @@ function AcceptInvitation() {
         <CardFooter>
           <p className="text-sm text-muted-darker">
             ¿Ya tienes cuenta?{" "}
-            <Link href="/login" className="text-accent hover:underline">
+            <Link href="/login" className="text-accent-ink hover:underline">
               Inicia sesión
             </Link>
           </p>

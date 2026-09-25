@@ -83,7 +83,7 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
             <div key={i} className="flex items-start justify-between gap-2 text-xs">
               <div className="flex items-start gap-1.5 min-w-0">
                 {entry.source === "bot" ? (
-                  <Bot size={12} className="text-accent shrink-0 mt-0.5" />
+                  <Bot size={12} className="text-accent-ink shrink-0 mt-0.5" />
                 ) : entry.source === "automation" ? (
                   <Zap size={12} className="text-info shrink-0 mt-0.5" />
                 ) : (

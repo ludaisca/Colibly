@@ -41,7 +41,7 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
       key: "name",
       header: "Bot",
       render: (b) => (
-        <Link href={`/whatsapp/bots/${b.id}`} className="font-medium hover:text-accent transition-colors">
+        <Link href={`/whatsapp/bots/${b.id}`} className="font-medium hover:text-accent-ink transition-colors">
           {b.name}
         </Link>
       ),
@@ -203,7 +203,7 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                   return (
                     <div className="w-full min-w-0 space-y-1">
                       <div className="flex items-center justify-between gap-2">
-                        <Link href={`/whatsapp/bots/${b.id}`} className="truncate text-sm font-medium hover:text-accent transition-colors">
+                        <Link href={`/whatsapp/bots/${b.id}`} className="truncate text-sm font-medium hover:text-accent-ink transition-colors">
                           {b.name}
                         </Link>
                         {status.render(b)}

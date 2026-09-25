@@ -52,7 +52,7 @@ export function Builder(props: BuilderProps) {
           onClick={() => props.onSelect("trigger")}
           className={cn(
             "flex w-[280px] items-center gap-3 rounded-xl border bg-surface p-3 text-left shadow-sm transition-shadow hover:shadow-md",
-            props.selectedId === "trigger" ? "border-accent ring-2 ring-accent/30" : "border-border"
+            props.selectedId === "trigger" ? "border-accent-strong ring-2 ring-accent-muted" : "border-border"
           )}
         >
           <IconBox icon={TriggerIcon} size="sm" tone="warning" />
@@ -112,7 +112,7 @@ function Branches(props: BuilderProps & { step: Step; branches: Branch[] }) {
               "max-w-[260px] truncate rounded-full border px-3 py-1 text-xs font-medium",
               b.key === "timeout" || b.key === "other" || b.key === "no"
                 ? "border-border bg-surface text-muted"
-                : "border-accent/30 bg-accent/10 text-accent"
+                : "border-accent-muted bg-accent-subtle text-accent-ink"
             )}
             title={b.label}
           >
@@ -140,7 +140,7 @@ function AddButton(props: BuilderProps & { listId: string; index: number; allowT
       type="button"
       onClick={() => props.onRequestAdd({ listId: props.listId, index: props.index, allowTerminal: props.allowTerminal })}
       className={cn(
-        "flex items-center justify-center rounded-full border bg-surface text-muted shadow-sm transition-colors hover:border-accent hover:text-accent",
+        "flex items-center justify-center rounded-full border bg-surface text-muted shadow-sm transition-colors hover:border-accent-strong hover:text-accent-ink",
         props.prominent ? "h-9 gap-1.5 px-3 text-xs font-medium" : "h-6 w-6"
       )}
       aria-label="Agregar paso"
@@ -188,7 +188,7 @@ export function StepPicker({
                       type="button"
                       disabled={byPosition || byChannel}
                       onClick={() => onPick(type)}
-                      className="flex items-start gap-3 rounded-xl border border-border p-3 text-left transition-colors hover:border-accent hover:bg-accent/5 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-border disabled:hover:bg-transparent"
+                      className="flex items-start gap-3 rounded-xl border border-border p-3 text-left transition-colors hover:border-accent-strong hover:bg-accent-subtle disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-border disabled:hover:bg-transparent"
                     >
                       <IconBox icon={STEP_ICON[type]} size="sm" tone={stepTone(type)} />
                       <span className="min-w-0">
@@ -233,7 +233,7 @@ function StepCard({
         onClick={onSelect}
         className={cn(
           "flex w-[280px] items-start gap-3 rounded-xl border bg-surface p-3 text-left shadow-sm transition-shadow hover:shadow-md",
-          selected ? "border-accent ring-2 ring-accent/30" : issues.some((i) => i.level === "error") ? "border-danger-border" : "border-border"
+          selected ? "border-accent-strong ring-2 ring-accent-muted" : issues.some((i) => i.level === "error") ? "border-danger-border" : "border-border"
         )}
       >
         <IconBox icon={STEP_ICON[step.type]} size="sm" tone={stepTone(step.type)} />

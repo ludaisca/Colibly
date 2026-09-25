@@ -148,15 +148,15 @@ export default function RegisterPage() {
             </Button>
             <p className="text-center text-xs text-muted-darker">
               Al crear tu cuenta aceptas los{" "}
-              <Link href="/terminos" className="text-accent hover:underline">Términos y condiciones</Link> y el{" "}
-              <Link href="/privacidad" className="text-accent hover:underline">Aviso de privacidad</Link>.
+              <Link href="/terminos" className="text-accent-ink hover:underline">Términos y condiciones</Link> y el{" "}
+              <Link href="/privacidad" className="text-accent-ink hover:underline">Aviso de privacidad</Link>.
             </p>
           </form>
         </CardBody>
         <CardFooter>
           <p className="text-sm text-muted-darker">
             ¿Ya tienes cuenta?{" "}
-            <Link href="/login" className="text-accent hover:underline">
+            <Link href="/login" className="text-accent-ink hover:underline">
               Inicia sesión
             </Link>
           </p>

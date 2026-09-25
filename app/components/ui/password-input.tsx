@@ -28,7 +28,7 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
           className={cn(
             "w-full rounded-lg border bg-surface-light py-2.5 text-sm text-foreground",
             "transition-colors placeholder:text-muted-darker",
-            "focus:outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/30",
+            "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
             showIcon ? "pl-9 pr-10" : "px-4 pr-10",
             error ? "border-danger-border" : "border-border"
           )}

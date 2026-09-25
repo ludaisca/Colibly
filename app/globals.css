@@ -1,62 +1,94 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
-   BASE TOKENS
-   Redisño 2026-07 "fresco y cercano": paleta corporativa-amigable pensada
-   para un equipo de marketing (visual, no técnico) — reemplaza el acento
-   berry y el registro editorial-serif del rediseño anterior.
-   Tema único por ahora (sin variante oscura definida todavía — pendiente
-   de una siguiente iteración): .light usa los mismos valores que :root
-   intencionalmente, así el toggle de tema no produce un dark mode a medio
-   diseñar mientras migramos el resto de módulos.
+   TOKENS — marca "Girasol" (2026-09, con el cambio a SunflowCRM).
+   Dos capas:
+   1. Primitivos (--sunflower-*, --sand-*, --leaf-*, estados): solo se usan
+      aquí dentro, nunca desde componentes.
+   2. Semánticos (--accent, --surface, --muted…): lo único que consumen los
+      componentes vía las utilidades de Tailwind (@theme inline, abajo).
+   El amarillo girasol no sirve como color de texto sobre fondo claro
+   (contraste 1.8), por eso el acento tiene cuatro usos separados:
+     accent        relleno (botón principal, switch, barras) con texto --on-accent
+     accent-strong bordes, anillos de foco y trazos de gráficas (≥ 3:1)
+     accent-ink    texto e iconos en color de marca (≥ 4.5:1)
+     accent-subtle / accent-muted  fondos suaves y bordes decorativos
+   lib/design/__tests__/contrast.test.ts verifica los pares texto/fondo.
+   Tema único: .light no redefine nada (el toggle sigue sin efecto hasta
+   diseñar la variante oscura remapeando solo la capa semántica).
    ───────────────────────────────────────────────── */
 :root {
-  --background:    #fafbfa;
-  --foreground:    #1a2421;
-  --surface:       #ffffff;
-  --surface-light: #f2f7f5;
-  --border:        #e3e8e5;
+  /* ── Primitivos ── */
+  --sunflower-50:  #FFF8E1;
+  --sunflower-100: #FEF0C3;
+  --sunflower-200: #FDE68A;
+  --sunflower-300: #FCD34D;
+  --sunflower-500: #F5B700;
+  --sunflower-550: #E5A500;
+  --sunflower-600: #B07D00;
+  --sunflower-700: #8F5F00;
 
-  /* Text */
-  --muted:         #5b6b64;
-  --muted-darker:  #8fa098;
+  --sand-0:   #FFFFFF;
+  --sand-25:  #FBF8F2;
+  --sand-50:  #F5F0E7;
+  --sand-100: #ECE5D8;
+  --sand-400: #8E857A;
+  --sand-600: #6B6258;
+  --sand-950: #1C1917;
 
-  /* Brand — teal fresco como acento principal; violeta suave como acento de
-     apoyo (usado en detalles secundarios, no en estados/CTAs primarios). */
-  --accent:        #00B88D;
-  --accent-hover:  #009973;
-  --on-accent:     #ffffff;
+  --leaf-600: #0F6E5C;
+  --leaf-700: #0B5A4B;
+  --leaf-50:  #E3F1EE;
 
-  --accent-2:       #6C5CE7;
-  --accent-2-hover: #5847C9;
-  --accent-2-bg:    rgba(108, 92, 231, 0.10);
+  --green-700: #27713C;  --green-50:  #E6F2E8;  --green-200: #BFDEC6;
+  --orange-700:#9A4307;  --orange-50: #FDEFE3;  --orange-200:#F6CBA8;
+  --red-700:   #B42D25;  --red-50:    #FBE6E3;  --red-200:   #F1B9B3;
+  --blue-700:  #2A62B5;  --blue-50:   #E6EEFA;  --blue-200:  #B8CDEE;
 
-  /* Semantic — deliberadamente separados en hue del accent teal (antes el
-     success también era teal y colisionaba visualmente con el acento). */
-  --success:       #2f8f45;
-  --success-bg:    rgba(63, 166, 83, 0.13);
-  --success-border:rgba(63, 166, 83, 0.32);
+  /* ── Semánticos ── */
+  --background:    var(--sand-25);
+  --foreground:    var(--sand-950);
+  --surface:       var(--sand-0);
+  --surface-light: var(--sand-50);
+  --border:        var(--sand-100);
 
-  --warning:       #b5790f;
-  --warning-bg:    rgba(216, 154, 31, 0.14);
-  --warning-border:rgba(216, 154, 31, 0.32);
+  --muted:         var(--sand-600);
+  --muted-darker:  var(--sand-400);   /* placeholders y texto deshabilitado */
 
-  --danger:        #d1483c;
-  --danger-bg:     rgba(228, 87, 74, 0.12);
-  --danger-border: rgba(228, 87, 74, 0.3);
+  --accent:        var(--sunflower-500);
+  --accent-hover:  var(--sunflower-550);
+  --on-accent:     var(--sand-950);
+  --accent-strong: var(--sunflower-600);
+  --accent-ink:    var(--sunflower-700);
+  --accent-subtle: var(--sunflower-50);
+  --accent-muted:  var(--sunflower-200);
 
-  --info:          #3b7ddb;
-  --info-bg:       rgba(59, 125, 219, 0.12);
-  --info-border:   rgba(59, 125, 219, 0.3);
+  /* Acento de apoyo: verde hoja (iconos secundarios, detalles). No es CTA. */
+  --accent-2:       var(--leaf-600);
+  --accent-2-hover: var(--leaf-700);
+  --accent-2-bg:    var(--leaf-50);
 
-  /* Elevation — sombras suaves multicapa, apropiadas para tarjetas sobre
-     fondo claro (antes calibradas para superficies oscuras). */
-  --shadow-sm: 0 1px 2px rgba(20, 30, 25, 0.05);
-  --shadow-md: 0 10px 28px rgba(20, 30, 25, 0.08), 0 2px 6px rgba(20, 30, 25, 0.05);
-  --shadow-lg: 0 20px 48px rgba(20, 30, 25, 0.12), 0 4px 10px rgba(20, 30, 25, 0.06);
+  /* Estados. warning es naranja, no amarillo, para no confundirse con la marca. */
+  --success:        var(--green-700);
+  --success-bg:     var(--green-50);
+  --success-border: var(--green-200);
+  --warning:        var(--orange-700);
+  --warning-bg:     var(--orange-50);
+  --warning-border: var(--orange-200);
+  --danger:         var(--red-700);
+  --danger-bg:      var(--red-50);
+  --danger-border:  var(--red-200);
+  --info:           var(--blue-700);
+  --info-bg:        var(--blue-50);
+  --info-border:    var(--blue-200);
+
+  /* Elevation — sombras suaves con tinte cálido. */
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.05);
+  --shadow-md: 0 10px 28px rgba(28, 25, 23, 0.08), 0 2px 6px rgba(28, 25, 23, 0.05);
+  --shadow-lg: 0 20px 48px rgba(28, 25, 23, 0.12), 0 4px 10px rgba(28, 25, 23, 0.06);
 
   /* Focus */
-  --ring:      var(--accent);
+  --ring:        var(--accent-strong);
   --ring-offset: var(--background);
 
   /* Radius */
@@ -65,12 +97,10 @@
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
 
-  /* Hue por entidad (cuentas WhatsApp/Telegram) — lightness/chroma fijos por
-     tema, solo varía el hue. El set original ya esquivaba ~180° (donde vivía
-     el viejo success teal) y ~300-25° (donde vivía el viejo accent berry);
-     esa franja ~180° ahora protege al nuevo accent teal casi sin cambios.
-     Solo asignar vía HUE_CLASS de lib/…/hue.ts — nunca interpolar "hue-N". */
-  --entity: oklch(0.78 0.11 60); /* fallback si falta la clase hue-N */
+  /* Hue por entidad (cuentas) — lightness/chroma fijos, solo varía el hue.
+     Solo asignar vía HUE_CLASS de app/components/ui/hue.ts — nunca
+     interpolar "hue-N". */
+  --entity: oklch(0.52 0.12 60); /* fallback si falta la clase hue-N */
 
   /* Durations */
   --dur-fast: 120ms;
@@ -79,72 +109,22 @@
   --ease:     cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ─────────────────────────────────────────────────
-   LIGHT TOKENS — mismos valores que :root, ver nota arriba.
-   ───────────────────────────────────────────────── */
 .light {
   color-scheme: light;
-
-  --background:    #fafbfa;
-  --foreground:    #1a2421;
-  --surface:       #ffffff;
-  --surface-light: #f2f7f5;
-  --border:        #e3e8e5;
-  --muted:         #5b6b64;
-  --muted-darker:  #8fa098;
-
-  --accent:        #00B88D;
-  --accent-hover:  #009973;
-  --on-accent:     #ffffff;
-
-  --accent-2:       #6C5CE7;
-  --accent-2-hover: #5847C9;
-  --accent-2-bg:    rgba(108, 92, 231, 0.10);
-
-  --success:        #2f8f45;
-  --success-bg:     rgba(63, 166, 83, 0.13);
-  --success-border: rgba(63, 166, 83, 0.32);
-
-  --warning:        #b5790f;
-  --warning-bg:     rgba(216, 154, 31, 0.14);
-  --warning-border: rgba(216, 154, 31, 0.32);
-
-  --danger:         #d1483c;
-  --danger-bg:      rgba(228, 87, 74, 0.12);
-  --danger-border:  rgba(228, 87, 74, 0.3);
-
-  --info:           #3b7ddb;
-  --info-bg:        rgba(59, 125, 219, 0.12);
-  --info-border:    rgba(59, 125, 219, 0.3);
-
-  --shadow-sm: 0 1px 2px rgba(20, 30, 25, 0.05);
-  --shadow-md: 0 10px 28px rgba(20, 30, 25, 0.08), 0 2px 6px rgba(20, 30, 25, 0.05);
-  --shadow-lg: 0 20px 48px rgba(20, 30, 25, 0.12), 0 4px 10px rgba(20, 30, 25, 0.06);
-
-  --ring:       var(--accent);
-  --ring-offset: var(--background);
 }
 
 /* ─────────────────────────────────────────────────
-   HUE POR ENTIDAD — 8 clases, dark (default) + light
+   HUE POR ENTIDAD — 8 clases (tema único; antes había un juego "oscuro"
+   sin .light que se colaba al activar el toggle)
    ───────────────────────────────────────────────── */
-.hue-0 { --entity: oklch(0.78 0.11 25);  }
-.hue-1 { --entity: oklch(0.80 0.11 60);  }
-.hue-2 { --entity: oklch(0.82 0.10 95);  }
-.hue-3 { --entity: oklch(0.78 0.10 200); }
-.hue-4 { --entity: oklch(0.77 0.10 225); }
-.hue-5 { --entity: oklch(0.76 0.11 250); }
-.hue-6 { --entity: oklch(0.76 0.11 275); }
-.hue-7 { --entity: oklch(0.77 0.11 300); }
-
-.light .hue-0 { --entity: oklch(0.50 0.13 25);  }
-.light .hue-1 { --entity: oklch(0.52 0.12 60);  }
-.light .hue-2 { --entity: oklch(0.53 0.11 95);  }
-.light .hue-3 { --entity: oklch(0.50 0.10 200); }
-.light .hue-4 { --entity: oklch(0.49 0.10 225); }
-.light .hue-5 { --entity: oklch(0.48 0.11 250); }
-.light .hue-6 { --entity: oklch(0.48 0.11 275); }
-.light .hue-7 { --entity: oklch(0.49 0.11 300); }
+.hue-0 { --entity: oklch(0.50 0.13 25);  }
+.hue-1 { --entity: oklch(0.52 0.12 60);  }
+.hue-2 { --entity: oklch(0.53 0.11 95);  }
+.hue-3 { --entity: oklch(0.50 0.10 200); }
+.hue-4 { --entity: oklch(0.49 0.10 225); }
+.hue-5 { --entity: oklch(0.48 0.11 250); }
+.hue-6 { --entity: oklch(0.48 0.11 275); }
+.hue-7 { --entity: oklch(0.49 0.11 300); }
 
 /* Mezclado contra --surface (opaco), no "transparent": a 14% sobre
    transparent el relleno quedaba casi invisible en algunos hues sobre el
@@ -168,9 +148,13 @@
   --color-muted:        var(--muted);
   --color-muted-darker: var(--muted-darker);
 
-  --color-accent:       var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-on-accent:    var(--on-accent);
+  --color-accent:        var(--accent);
+  --color-accent-hover:  var(--accent-hover);
+  --color-on-accent:     var(--on-accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink:    var(--accent-ink);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-muted:  var(--accent-muted);
 
   --color-accent-2:       var(--accent-2);
   --color-accent-2-hover: var(--accent-2-hover);

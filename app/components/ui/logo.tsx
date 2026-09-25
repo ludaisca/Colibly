@@ -5,10 +5,28 @@ import { BRAND_NAME } from "@/lib/brand";
 type LogoSize = "sm" | "md" | "lg";
 
 const SIZE = {
-  sm: { box: "h-7 w-7 text-xs",  text: "text-sm"  },
-  md: { box: "h-8 w-8 text-sm",  text: "text-base" },
-  lg: { box: "h-9 w-9 text-sm",  text: "text-lg"  },
+  sm: { box: "h-7 w-7", text: "text-sm"  },
+  md: { box: "h-8 w-8", text: "text-base" },
+  lg: { box: "h-9 w-9", text: "text-lg"  },
 };
+
+const PETALS = Array.from({ length: 12 }, (_, i) => i * 30);
+
+// Girasol: 12 pétalos en --accent alrededor de un centro en --accent-ink.
+// Colores por token, así sigue a la paleta sin tocar el SVG.
+export function SunflowerMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={cn("shrink-0", className)} aria-hidden>
+      <g fill="var(--accent)">
+        {PETALS.map((deg) => (
+          <ellipse key={deg} cx="16" cy="6.2" rx="3.1" ry="5.4" transform={`rotate(${deg} 16 16)`} />
+        ))}
+      </g>
+      <circle cx="16" cy="16" r="6.6" fill="var(--accent-ink)" />
+      <circle cx="16" cy="16" r="6.6" fill="none" stroke="var(--accent-hover)" strokeWidth="1" />
+    </svg>
+  );
+}
 
 interface LogoProps {
   brand?: string;
@@ -18,17 +36,10 @@ interface LogoProps {
   className?: string;
 }
 
-function LogoMark({ size = "md", brand = "S" }: { size?: LogoSize; brand?: string }) {
+function LogoMark({ size = "md", brand = BRAND_NAME }: { size?: LogoSize; brand?: string }) {
   return (
     <span className={cn("flex items-center gap-2")}>
-      <span
-        className={cn(
-          "flex items-center justify-center rounded-lg bg-accent text-on-accent font-display font-bold shrink-0 -rotate-3",
-          SIZE[size].box
-        )}
-      >
-        {brand.charAt(0).toUpperCase()}
-      </span>
+      <SunflowerMark className={SIZE[size].box} />
       <span className={cn("font-display font-semibold tracking-tight", SIZE[size].text)}>
         {brand}
       </span>
@@ -39,14 +50,8 @@ function LogoMark({ size = "md", brand = "S" }: { size?: LogoSize; brand?: strin
 export function Logo({ brand = BRAND_NAME, size = "md", href, showWordmark = true, className }: LogoProps) {
   if (!showWordmark) {
     const box = (
-      <span
-        className={cn(
-          "flex items-center justify-center rounded-lg bg-accent text-on-accent font-bold",
-          SIZE[size].box,
-          className
-        )}
-      >
-        {brand.charAt(0)}
+      <span className={cn("inline-flex", className)} role="img" aria-label={brand}>
+        <SunflowerMark className={SIZE[size].box} />
       </span>
     );
     return href ? <Link href={href}>{box}</Link> : box;

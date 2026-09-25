@@ -35,8 +35,8 @@ export function Checkbox({
           disabled={disabled}
           className={cn(
             "peer h-4 w-4 shrink-0 rounded border border-border bg-surface-light",
-            "checked:bg-accent checked:border-accent",
-            "focus:outline-none focus:ring-2 focus:ring-accent/30 focus:ring-offset-1 focus:ring-offset-background",
+            "checked:bg-accent checked:border-accent-strong",
+            "focus:outline-none focus:ring-2 focus:ring-accent-muted focus:ring-offset-1 focus:ring-offset-background",
             disabled && "opacity-50 cursor-not-allowed",
             error && "border-danger-border",
             "appearance-none cursor-pointer transition-colors"

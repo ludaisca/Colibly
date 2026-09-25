@@ -96,8 +96,8 @@ function buildWidgetScript(accountId: string): string {
     bubble.style.whiteSpace = "pre-wrap";
     bubble.style.wordBreak = "break-word";
     if (msg.direction === "OUTBOUND") {
-      bubble.style.background = "#00B88D";
-      bubble.style.color = "#fff";
+      bubble.style.background = "#F5B700";
+      bubble.style.color = "#1C1917";
     } else {
       bubble.style.background = "#f2f7f5";
       bubble.style.color = "#111";
@@ -121,9 +121,9 @@ function buildWidgetScript(accountId: string): string {
         var b = document.createElement("button");
         b.type = "button";
         b.textContent = opt.title;
-        b.style.border = "1px solid #00B88D";
+        b.style.border = "1px solid #B07D00";
         b.style.background = "#fff";
-        b.style.color = "#00805f";
+        b.style.color = "#8F5F00";
         b.style.borderRadius = "999px";
         b.style.padding = "6px 12px";
         b.style.fontSize = "12px";
@@ -195,8 +195,8 @@ function buildWidgetScript(accountId: string): string {
     bubble.style.width = "56px";
     bubble.style.height = "56px";
     bubble.style.borderRadius = "50%";
-    bubble.style.background = "#00B88D";
-    bubble.style.color = "#fff";
+    bubble.style.background = "#F5B700";
+    bubble.style.color = "#1C1917";
     bubble.style.border = "none";
     bubble.style.cursor = "pointer";
     bubble.style.boxShadow = "0 4px 14px rgba(0,0,0,0.2)";
@@ -220,8 +220,8 @@ function buildWidgetScript(accountId: string): string {
     panel.style.fontFamily = "system-ui, -apple-system, sans-serif";
 
     var header = document.createElement("div");
-    header.style.background = "#00B88D";
-    header.style.color = "#fff";
+    header.style.background = "#F5B700";
+    header.style.color = "#1C1917";
     header.style.padding = "12px 16px";
     header.style.fontSize = "14px";
     header.style.fontWeight = "600";
@@ -249,8 +249,8 @@ function buildWidgetScript(accountId: string): string {
     sendBtn.type = "submit";
     sendBtn.textContent = "Enviar";
     sendBtn.style.border = "none";
-    sendBtn.style.background = "#00B88D";
-    sendBtn.style.color = "#fff";
+    sendBtn.style.background = "#F5B700";
+    sendBtn.style.color = "#1C1917";
     sendBtn.style.padding = "0 16px";
     sendBtn.style.cursor = "pointer";
     sendBtn.style.fontSize = "13px";

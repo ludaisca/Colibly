@@ -5,7 +5,8 @@ import type { EmailMessage } from "./mailer";
 // fijos a propósito — mismo criterio que <TemplatePreview>: un correo no sigue
 // el tema de la app.
 
-const ACCENT = "#00B88D";
+const ACCENT = "#F5B700";
+const ON_ACCENT = "#1C1917";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -17,10 +18,10 @@ function layout(input: { title: string; paragraphs: string[]; cta: { label: stri
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#ffffff;border-radius:16px;padding:32px">
 <tr><td>
-<p style="margin:0 0 24px;font-size:18px;font-weight:700;color:${ACCENT}">SunflowCRM</p>
+<p style="margin:0 0 24px;font-size:18px;font-weight:700;color:#1C1917">SunflowCRM</p>
 <h1 style="margin:0 0 16px;font-size:22px;color:#12201c">${input.title}</h1>
 ${body}
-<p style="margin:24px 0"><a href="${escapeHtml(input.cta.url)}" style="display:inline-block;background:${ACCENT};color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:12px">${input.cta.label}</a></p>
+<p style="margin:24px 0"><a href="${escapeHtml(input.cta.url)}" style="display:inline-block;background:${ACCENT};color:${ON_ACCENT};text-decoration:none;font-weight:600;padding:12px 22px;border-radius:12px">${input.cta.label}</a></p>
 <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#6b7c77">Si el botón no funciona, copia este enlace en tu navegador:<br><span style="word-break:break-all">${escapeHtml(input.cta.url)}</span></p>
 <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#6b7c77">${input.footnote}</p>
 </td></tr></table></td></tr></table></body></html>`;

@@ -75,7 +75,7 @@ export function DetailPage({
               className={cn(
                 "border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
                 activeTab === t.id
-                  ? "border-accent text-accent"
+                  ? "border-accent-strong text-accent-ink"
                   : "border-transparent text-muted hover:text-foreground"
               )}
             >

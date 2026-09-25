@@ -117,7 +117,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
       <div className="min-h-[320px] flex-1 space-y-2 overflow-y-auto rounded-xl border border-border bg-surface-light/40 p-3">
         {entries.map((e, i) =>
           e.kind === "effect" || e.kind === "status" ? (
-            <p key={i} className={cn("text-center text-[11px]", e.kind === "status" ? "font-medium text-accent" : "text-muted")}>
+            <p key={i} className={cn("text-center text-[11px]", e.kind === "status" ? "font-medium text-accent-ink" : "text-muted")}>
               {e.kind === "effect" ? `⚙ ${e.text}` : e.text}
             </p>
           ) : (
@@ -137,7 +137,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
                         type="button"
                         disabled={busy || !waitingReply || e !== lastBot}
                         onClick={() => reply(o.title, o.id)}
-                        className="block w-full rounded-lg border border-accent/30 px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
+                        className="block w-full rounded-lg border border-accent-muted px-2 py-1 text-xs font-medium text-accent-ink transition-colors hover:bg-accent-subtle disabled:opacity-50"
                       >
                         {o.title}
                       </button>

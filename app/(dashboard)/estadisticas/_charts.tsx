@@ -122,7 +122,7 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
             />
             <YAxis allowDecimals={false} tick={TICK_STYLE} axisLine={false} tickLine={false} width={40} />
             <Tooltip
-              cursor={{ stroke: "var(--accent)", strokeWidth: 1, strokeDasharray: "3 3" }}
+              cursor={{ stroke: "var(--accent-strong)", strokeWidth: 1, strokeDasharray: "3 3" }}
               content={(props) => (
                 <ChartTooltip {...props} formatLabel={(d) => formatDay(d, "long")} />
               )}
@@ -131,7 +131,7 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
               type="monotone"
               dataKey="count"
               name="Mensajes"
-              stroke="var(--accent)"
+              stroke="var(--accent-strong)"
               strokeWidth={2}
               fill="url(#messagesFill)"
               isAnimationActive={!reducedMotion}
@@ -249,8 +249,8 @@ export function DeliveryComparisonChart({ data }: { data: Estadisticas["campaign
 const LABEL_TONE_COLOR: Record<string, string> = {
   prioridad_alta: "var(--danger)",
   oportunidad: "var(--success)",
-  interesado: "var(--info)",
-  frio: "var(--accent-2)",
+  interesado: "var(--accent-strong)",
+  frio: "var(--info)",
   descartado: "var(--muted-darker)",
 };
 

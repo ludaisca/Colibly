@@ -83,7 +83,7 @@ export function ChatComposer({
                 i === cannedIndex ? "bg-surface-light" : "hover:bg-surface-light"
               }`}
             >
-              <span className="font-semibold text-accent">/{c.shortcut}</span>
+              <span className="font-semibold text-accent-ink">/{c.shortcut}</span>
               <span className="text-muted-darker ml-2 truncate">{c.content}</span>
             </button>
           ))}
@@ -147,7 +147,7 @@ export function ChatComposer({
                 }}
                 maxLength={MAX_BUTTON_LENGTH}
                 placeholder={`Botón ${i + 1}`}
-                className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted"
               />
               <button
                 type="button"
@@ -185,7 +185,7 @@ export function ChatComposer({
           type="button"
           onClick={onPickFile}
           disabled={sending || attachmentsDisabled}
-          className="text-accent hover:text-accent/80 transition-colors p-2.5 rounded-lg border border-accent/30 bg-accent/10 hover:bg-accent/15 disabled:opacity-50 shrink-0 cursor-pointer"
+          className="text-accent-ink hover:text-foreground transition-colors p-2.5 rounded-lg border border-accent-muted bg-accent-subtle hover:bg-accent-muted disabled:opacity-50 shrink-0 cursor-pointer"
           title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un medio" : "Adjuntar medio"}
           aria-label="Adjuntar medio"
         >
@@ -195,7 +195,7 @@ export function ChatComposer({
           type="button"
           onClick={onToggleButtonsPanel}
           disabled={sending || interactiveDisabled}
-          className="text-accent hover:text-accent/80 transition-colors p-2.5 rounded-lg border border-accent/30 bg-accent/10 hover:bg-accent/15 disabled:opacity-50 shrink-0 cursor-pointer"
+          className="text-accent-ink hover:text-foreground transition-colors p-2.5 rounded-lg border border-accent-muted bg-accent-subtle hover:bg-accent-muted disabled:opacity-50 shrink-0 cursor-pointer"
           title={
             interactiveDisabled
               ? "Los botones no están disponibles para Telegram todavía"
@@ -242,7 +242,7 @@ export function ChatComposer({
                 ? "Añadir comentario (opcional)..."
                 : "Escribe un mensaje... (usa /atajo para respuestas rápidas)"
           }
-          className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent/40 transition-colors"
+          className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted transition-colors"
           disabled={sending}
         />
         <Button
