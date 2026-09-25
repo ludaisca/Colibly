@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
 import { generateRecoveryReply } from "@/lib/ai/recovery";
 import type { AIProvider } from "@/lib/ai/types";
@@ -67,7 +67,7 @@ export async function sendRecoveryMessage(
   }
 
   const provider = bot.provider as AIProvider;
-  const apiKey = await getUserApiKey(bot.userId, provider);
+  const apiKey = getPlatformApiKey(provider);
   if (!apiKey) {
     throw new Error(`Bot "${bot.name}" sin API key configurada — no se puede generar el mensaje de reactivación`);
   }

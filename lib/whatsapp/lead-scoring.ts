@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import { wrapUserPrompt } from "@/lib/ai/prompt-sanitizer";
 import { estimateCost } from "@/lib/ai/pricing";
 import type { AIProvider } from "@/lib/ai/types";
@@ -8,6 +8,7 @@ import type { ScoreDetails } from "@/lib/whatsapp/export-columns";
 import type { WALeadScorerBot } from "@prisma/client";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
+import { reserveAiCredit } from "@/lib/ai/credits";
 
 // Five-phase funnel (replaces the old frio/tibio/caliente 3-tier system) —
 // distinguishes "never engaged" from "explicitly rejected", and separates
@@ -88,9 +89,12 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
   }
 
   const provider = scorer.provider as AIProvider;
-  const apiKey = await getUserApiKey(scorer.userId, provider);
+  const apiKey = getPlatformApiKey(provider);
   if (!apiKey) {
-    throw new LeadScoringError("Falta configurar la clave del proveedor de IA");
+    throw new LeadScoringError("La IA no está disponible en este momento");
+  }
+  if (!(await reserveAiCredit(scorer.organizationId))) {
+    throw new LeadScoringError("Se acabaron los créditos de IA de este mes");
   }
 
   const transcript = messages

@@ -1,41 +1,21 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getUserApiKey } from "@/lib/ai/settings";
-import { listOpenRouterModels, listGoogleModels } from "@/lib/ai/models";
-import { publicErrorMessage } from "@/lib/api-errors";
+import { availableModels, enabledProviders } from "@/lib/ai/platform";
 
+// Modelos que se pueden elegir para bots y calificadores: la lista curada de
+// lib/billing/plans.ts, filtrada a los proveedores con key de plataforma.
+// Abierta a todos los roles (los formularios de bots y calificadores la usan).
+// Sin ?provider= devuelve { providers, models } para que el formulario sepa
+// qué proveedores ofrecer.
 export async function GET(req: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const { searchParams } = new URL(req.url);
-    const provider = searchParams.get("provider");
-
-    if (provider !== "openrouter" && provider !== "google") {
-      return NextResponse.json({ error: "Proveedor inválido" }, { status: 400 });
-    }
-
-    if (provider === "google") {
-      const apiKey = await getUserApiKey(session.user.id, "google");
-      if (!apiKey) {
-        return NextResponse.json(
-          { error: "Configura tu API key de Google en Configuración > IA" },
-          { status: 400 }
-        );
-      }
-      const models = await listGoogleModels(apiKey);
-      return NextResponse.json(models);
-    }
-
-    const apiKey = await getUserApiKey(session.user.id, "openrouter");
-    const models = await listOpenRouterModels(apiKey ?? undefined);
-    return NextResponse.json(models);
-  } catch (error) {
-    const message =
-      publicErrorMessage(error, "Error interno del servidor");
-    return NextResponse.json({ error: message }, { status: 500 });
+  const provider = new URL(req.url).searchParams.get("provider");
+  const models = availableModels().map((m) => ({ id: m.id, name: m.label, provider: m.provider, description: m.description }));
+  if (!provider) return NextResponse.json({ providers: enabledProviders(), models });
+  if (provider !== "openrouter" && provider !== "google") {
+    return NextResponse.json({ error: "Proveedor inválido" }, { status: 400 });
   }
+  return NextResponse.json(models.filter((m) => m.provider === provider));
 }

@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import { searchKnowledge } from "@/lib/ai/rag";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { estimateCost } from "@/lib/ai/pricing";
-import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { reserveAiCredit } from "@/lib/ai/credits";
 import type { AIProvider, AIMessage } from "@/lib/ai/types";
 import type { WABot } from "@prisma/client";
 
@@ -38,14 +38,13 @@ export async function suggestReply(
   bot: WABot,
   channel: "WHATSAPP" | "TELEGRAM"
 ): Promise<{ suggestion: string }> {
-  if (await isMonthlyBudgetExceeded(bot.userId, new Date())) {
-    throw new ReplySuggestionError("El presupuesto mensual de IA ya se agotó este mes.");
-  }
-
   const provider = bot.provider as AIProvider;
-  const apiKey = await getUserApiKey(bot.userId, provider);
+  const apiKey = getPlatformApiKey(provider);
   if (!apiKey) {
-    throw new ReplySuggestionError("Falta configurar la clave del proveedor de IA en Configuración.");
+    throw new ReplySuggestionError("La IA no está disponible en este momento.");
+  }
+  if (!(await reserveAiCredit(bot.organizationId))) {
+    throw new ReplySuggestionError("Se acabaron los créditos de IA de este mes.");
   }
 
   const history: HistoryMessage[] = (
@@ -122,7 +121,6 @@ export async function suggestReply(
       },
     });
 
-    await checkBudgetAlert(bot.userId, new Date());
   }
 
   return { suggestion: result.content.trim() };

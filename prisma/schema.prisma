@@ -39,7 +39,6 @@ model User {
   waCampaigns           WACampaign[]
   waBots                WABot[]
   leadScorerBots        WALeadScorerBot[]
-  appSettings           AppSettings?
   googleAccount         GoogleAccount?
   sharedAccounts        WAAccountShare[]
   notes                 WANote[]
@@ -65,32 +64,7 @@ model User {
   @@map("users")
 }
 
-model AppSettings {
-  id               String  @id @default(cuid())
-  userId           String  @unique
-  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  openrouterApiKey String?
-  googleApiKey     String?
-  defaultProvider  String  @default("openrouter")
-  defaultModel     String  @default("google/gemini-2.5-flash")
-  monthlyBudgetUsd Float?
-  budgetAlertMonth String?
-
-  // Recuperación de leads: config global por usuario, aplica a todas sus
-  // cuentas de WhatsApp. secondMessageHours null = solo se manda 1 mensaje.
-  leadRecoveryEnabled            Boolean @default(false)
-  leadRecoveryFirstMessageHours  Int     @default(2)
-  leadRecoverySecondMessageHours Int?    @default(12)
-  leadRecoveryBusinessHourStart  Int     @default(8)
-  leadRecoveryBusinessHourEnd    Int     @default(20)
-  leadRecoveryTimezone           String  @default("America/Mexico_City")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("app_settings")
-}
-
-// Conexión OAuth por usuario a Google (Sheets). A diferencia de WAAccount/AppSettings
+// Conexión OAuth por usuario a Google (Sheets). A diferencia de WAAccount
 // (secretos estáticos que no expiran), accessToken/refreshToken son un par OAuth que
 // se refresca en runtime — ver lib/google/sheets-client.ts. Ambos se guardan cifrados
 // con lib/crypto.ts, igual que los demás secretos del proyecto.
@@ -1695,6 +1669,19 @@ model Organization {
   lastBillingNotice    String?            @map("last_billing_notice")
   aiCreditsUsed        Int                @default(0) @map("ai_credits_used")
   aiCreditsPeriodStart DateTime           @default(now()) @map("ai_credits_period_start")
+  // Último umbral de créditos avisado en el periodo (0, 80 o 100).
+  aiCreditsAlertLevel  Int                @default(0) @map("ai_credits_alert_level")
+
+  // Operación de la organización (antes vivían por usuario en AppSettings):
+  // zona horaria y horario laboral (recuperación de leads, citas del bot,
+  // importación de hojas) y la recuperación automática de leads.
+  timezone                       String  @default("America/Mexico_City")
+  businessHourStart              Int     @default(8) @map("business_hour_start")
+  businessHourEnd                Int     @default(20) @map("business_hour_end")
+  leadRecoveryEnabled            Boolean @default(false) @map("lead_recovery_enabled")
+  leadRecoveryFirstMessageHours  Int     @default(2) @map("lead_recovery_first_message_hours")
+  // null = solo se manda 1 mensaje.
+  leadRecoverySecondMessageHours Int?    @default(12) @map("lead_recovery_second_message_hours")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

@@ -541,21 +541,17 @@ const isValidTimeZone = (tz: string) => {
   }
 };
 
-// PATCH /api/configuracion/ia — antes el body se validaba a mano con
-// Math.round/Math.max y un valor no numérico producía NaN → 500 de Prisma.
-export const aiSettingsUpdateSchema = z
+// PATCH /api/configuracion/ia — configuración operativa de la organización
+// (horario, zona horaria, recuperación de leads). La IA la provee la
+// plataforma: aquí ya no hay keys, proveedor ni presupuesto.
+export const orgAiSettingsUpdateSchema = z
   .object({
-    openrouterApiKey: z.string().max(500).optional(),
-    googleApiKey: z.string().max(500).optional(),
-    defaultProvider: z.enum(["openrouter", "google"]).optional(),
-    defaultModel: z.string().min(1).max(200).optional(),
-    monthlyBudgetUsd: z.number().min(0, "El presupuesto no puede ser negativo").nullable().optional(),
+    timezone: z.string().refine(isValidTimeZone, "Zona horaria inválida").optional(),
+    businessHourStart: z.number().int().min(0).max(23).optional(),
+    businessHourEnd: z.number().int().min(1).max(24).optional(),
     leadRecoveryEnabled: z.boolean().optional(),
     leadRecoveryFirstMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").optional(),
     leadRecoverySecondMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").nullable().optional(),
-    leadRecoveryBusinessHourStart: z.number().int().min(0).max(23).optional(),
-    leadRecoveryBusinessHourEnd: z.number().int().min(1).max(24).optional(),
-    leadRecoveryTimezone: z.string().refine(isValidTimeZone, "Zona horaria inválida").optional(),
   })
   .refine(
     (d) =>
@@ -564,4 +560,8 @@ export const aiSettingsUpdateSchema = z
       d.leadRecoverySecondMessageHours === null ||
       d.leadRecoverySecondMessageHours > d.leadRecoveryFirstMessageHours,
     { message: "El mensaje 2 debe esperar más horas que el mensaje 1", path: ["leadRecoverySecondMessageHours"] }
-  );
+  )
+  .refine((d) => d.businessHourStart === undefined || d.businessHourEnd === undefined || d.businessHourEnd > d.businessHourStart, {
+    message: "La hora de cierre debe ser posterior a la de apertura",
+    path: ["businessHourEnd"],
+  });

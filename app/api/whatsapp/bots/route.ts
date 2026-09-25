@@ -5,6 +5,7 @@ import { botSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
+import { modelChoiceError } from "@/lib/ai/platform";
 
 export async function POST(req: Request) {
   try {
@@ -42,6 +43,9 @@ export async function POST(req: Request) {
       appointmentSchedulingEnabled,
     } = parsed.data;
 
+    const choiceError = modelChoiceError(provider, model);
+    if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 });
+
     if (waAccountId) {
       // getUserAccountIds (propias + compartidas vía WAAccountShare), no
       // `userId: session.user.id`: con el filtro por dueño, un admin que
@@ -63,12 +67,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
       }
     }
-
-    await prisma.appSettings.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id },
-      update: {},
-    });
 
     const bot = await prisma.wABot.create({
       data: {

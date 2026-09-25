@@ -3,11 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { getAIProvider } from "@/lib/ai/factory";
 import { searchKnowledge } from "@/lib/ai/rag";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { buildAppointmentMarkerContract, parseAppointmentMarker } from "@/lib/ai/appointment-marker";
 import type { AppointmentProposal } from "@/lib/ai/appointment-marker";
-import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { reserveAiCredit } from "@/lib/ai/credits";
 import { getBotSkipReason } from "@/lib/bots/guards";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
@@ -18,6 +18,7 @@ import type { AIProvider, AIMessage, ContentPart } from "@/lib/ai/types";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForContact } from "@/lib/events/refs";
 import { BillingBlockedError, isBotWritable } from "@/lib/billing/gates";
+import { getOrgBusinessHours } from "@/lib/organizations";
 
 interface BotMessageJob {
   botId: string;
@@ -150,20 +151,18 @@ async function handleBotMessage(job: BotMessageJob) {
     return;
   }
 
-  // Mismo gate que lead-scoring y lead-recovery: con el presupuesto mensual ya
-  // agotado, el bot deja de responder (sin marcar ERROR — no es una falla del
-  // bot) en lugar de seguir gastando sin límite. La notificación BUDGET_EXCEEDED
-  // ya avisó al dueño cuando se cruzó el umbral.
-  if (await isMonthlyBudgetExceeded(bot.userId, new Date())) {
-    console.log(`[bot-worker] Presupuesto mensual de IA superado — el bot "${bot.name}" no responde este mensaje`);
+  const provider = bot.provider as AIProvider;
+  const apiKey = getPlatformApiKey(provider);
+
+  if (!apiKey) {
+    await failBotAndNotify(botId, waChatId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
     return;
   }
 
-  const provider = bot.provider as AIProvider;
-  const apiKey = await getUserApiKey(bot.userId, provider);
-
-  if (!apiKey) {
-    await failBotAndNotify(botId, waChatId, "Configura la clave del proveedor de IA en Configuración.");
+  // Un crédito de IA por respuesta; sin créditos el bot calla (sin marcar
+  // ERROR — no es una falla del bot) y el admin ya recibió el aviso del 100 %.
+  if (!(await reserveAiCredit(bot.organizationId))) {
+    console.log(`[bots] Sin créditos de IA — el bot "${bot.name}" no responde este mensaje`);
     return;
   }
 
@@ -177,16 +176,11 @@ async function handleBotMessage(job: BotMessageJob) {
     });
   }
 
-  // Reutiliza AppSettings.leadRecoveryTimezone como "en qué zona horaria opera
-  // este negocio" — es la única noción de timezone que ya existe en el schema,
-  // no se agrega un campo nuevo solo para Citas Fase 2.
+  // Zona horaria de la organización: en qué hora local se interpretan las
+  // fechas que propone el bot.
   let appointmentTimeZone: string | null = null;
   if (bot.appointmentSchedulingEnabled) {
-    const settings = await prisma.appSettings.findUnique({
-      where: { userId: bot.userId },
-      select: { leadRecoveryTimezone: true },
-    });
-    appointmentTimeZone = settings?.leadRecoveryTimezone ?? "America/Mexico_City";
+    appointmentTimeZone = (await getOrgBusinessHours(bot.organizationId)).timezone;
   }
 
   const messages: AIMessage[] = [];

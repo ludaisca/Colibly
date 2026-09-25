@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Save, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Save, Sparkles } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
@@ -10,163 +10,109 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { Switch } from "@/app/components/ui/switch";
+import { Progress } from "@/app/components/ui/progress";
 import { useToast } from "@/app/components/ui/toast";
 import { Banner } from "@/app/components/ui/banner";
 
-interface ModelOption { id: string; name: string; }
-
-const FALLBACK_MODELS: Record<string, ModelOption[]> = {
-  openrouter: [
-    { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-    { id: "openai/gpt-4o", name: "GPT-4o" },
-    { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
-  ],
-  google: [
-    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-  ],
-};
-
-interface AISettings {
-  id: string;
-  openrouterApiKey: string | null;
-  googleApiKey: string | null;
-  defaultProvider: string;
-  defaultModel: string;
-  monthlyBudgetUsd: number | null;
+interface OrgAiSettings {
+  aiCredits: { used: number; limit: number | null };
+  aiCreditsPeriodStart: string;
+  models: Array<{ id: string; label: string; description: string }>;
+  timezone: string;
+  businessHourStart: number;
+  businessHourEnd: number;
   leadRecoveryEnabled: boolean;
   leadRecoveryFirstMessageHours: number;
   leadRecoverySecondMessageHours: number | null;
-  leadRecoveryBusinessHourStart: number;
-  leadRecoveryBusinessHourEnd: number;
-  leadRecoveryTimezone: string;
 }
+
+// Zonas más comunes de los clientes; la actual se agrega si no está.
+const TIMEZONES = [
+  "America/Mexico_City",
+  "America/Tijuana",
+  "America/Cancun",
+  "America/Guatemala",
+  "America/Costa_Rica",
+  "America/Panama",
+  "America/Bogota",
+  "America/Lima",
+  "America/Guayaquil",
+  "America/Caracas",
+  "America/La_Paz",
+  "America/Santiago",
+  "America/Argentina/Buenos_Aires",
+  "America/Montevideo",
+  "America/Asuncion",
+  "America/Santo_Domingo",
+  "America/New_York",
+  "America/Los_Angeles",
+  "Europe/Madrid",
+];
 
 export default function IASettingsPage() {
   const { success, error: toastError } = useToast();
-  const [settings, setSettings] = useState<AISettings | null>(null);
+  const [settings, setSettings] = useState<OrgAiSettings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [openrouterKey, setOpenrouterKey] = useState("");
-  const [googleKey, setGoogleKey] = useState("");
-  const [defaultProvider, setDefaultProvider] = useState("openrouter");
-  const [defaultModel, setDefaultModel] = useState("google/gemini-2.5-flash");
-  const [monthlyBudget, setMonthlyBudget] = useState("");
-  const [showOpenrouter, setShowOpenrouter] = useState(false);
-  const [showGoogle, setShowGoogle] = useState(false);
+  const [timezone, setTimezone] = useState("America/Mexico_City");
+  const [hourStart, setHourStart] = useState(8);
+  const [hourEnd, setHourEnd] = useState(20);
+  const [savingHours, setSavingHours] = useState(false);
   const [recoveryEnabled, setRecoveryEnabled] = useState(false);
   const [recoveryFirstHours, setRecoveryFirstHours] = useState(2);
   const [recoverySecondHours, setRecoverySecondHours] = useState("12");
-  const [recoveryHourStart, setRecoveryHourStart] = useState(8);
-  const [recoveryHourEnd, setRecoveryHourEnd] = useState(20);
   const [savingRecovery, setSavingRecovery] = useState(false);
-  const [models, setModels] = useState<ModelOption[]>(FALLBACK_MODELS.openrouter);
-  const [loadingModels, setLoadingModels] = useState(false);
-  const [modelsProvider, setModelsProvider] = useState("openrouter");
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-
-  const fetchModels = useCallback(async (p: string) => {
-    setLoadingModels(true);
-    try {
-      const res = await fetch(`/api/configuracion/ia/models?provider=${p}`);
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        setModels(data);
-      } else {
-        setModels(FALLBACK_MODELS[p] ?? []);
-        toastError(data.error ?? "No se pudo obtener la lista de modelos del proveedor, mostrando lista de respaldo");
-      }
-    } catch {
-      setModels(FALLBACK_MODELS[p] ?? []);
-      toastError("No se pudo obtener la lista de modelos del proveedor, mostrando lista de respaldo");
-    } finally {
-      setModelsProvider(p);
-      setLoadingModels(false);
-    }
-  }, [toastError]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/provider-change; fetchModels also used for manual refresh
-    fetchModels(defaultProvider);
-  }, [defaultProvider, fetchModels]);
 
   useEffect(() => {
     fetch("/api/configuracion/ia")
-      .then(r => r.json())
-      .then(d => {
-        if (d.id) {
-          setSettings(d);
-          setDefaultProvider(d.defaultProvider || "openrouter");
-          setDefaultModel(d.defaultModel || "google/gemini-2.5-flash");
-          setMonthlyBudget(d.monthlyBudgetUsd != null ? String(d.monthlyBudgetUsd) : "");
-          setRecoveryEnabled(!!d.leadRecoveryEnabled);
-          setRecoveryFirstHours(d.leadRecoveryFirstMessageHours ?? 2);
-          setRecoverySecondHours(d.leadRecoverySecondMessageHours != null ? String(d.leadRecoverySecondMessageHours) : "");
-          setRecoveryHourStart(d.leadRecoveryBusinessHourStart ?? 8);
-          setRecoveryHourEnd(d.leadRecoveryBusinessHourEnd ?? 20);
-        }
+      .then((r) => r.json())
+      .then((d: OrgAiSettings & { error?: string }) => {
+        if (d.error) throw new Error(d.error);
+        setSettings(d);
+        setTimezone(d.timezone);
+        setHourStart(d.businessHourStart);
+        setHourEnd(d.businessHourEnd);
+        setRecoveryEnabled(d.leadRecoveryEnabled);
+        setRecoveryFirstHours(d.leadRecoveryFirstMessageHours);
+        setRecoverySecondHours(d.leadRecoverySecondMessageHours != null ? String(d.leadRecoverySecondMessageHours) : "");
       })
-      .catch(() => toastError("Error al cargar configuración"))
-      .finally(() => { setLoading(false); setSettingsLoaded(true); });
+      .catch(() => toastError("Error al cargar la configuración"))
+      .finally(() => setLoading(false));
   }, [toastError]);
 
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    if (modelsProvider !== defaultProvider) return;
-    if (models.length === 0) return;
-    if (!models.some((m) => m.id === defaultModel)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- snap to a valid model when the fetched list no longer contains the current one
-      setDefaultModel(models[0].id);
-    }
-  }, [models, modelsProvider, defaultProvider, defaultModel, settingsLoaded]);
+  async function patch(body: Record<string, unknown>, okMessage: string) {
+    const res = await fetch("/api/configuracion/ia", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Error al guardar");
+    setSettings(data);
+    success(okMessage);
+  }
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
+  async function handleSaveHours() {
+    setSavingHours(true);
     try {
-      const body: Record<string, string | number | null> = { defaultProvider, defaultModel };
-      if (openrouterKey.trim()) body.openrouterApiKey = openrouterKey.trim();
-      if (googleKey.trim()) body.googleApiKey = googleKey.trim();
-      body.monthlyBudgetUsd = monthlyBudget.trim() ? Number(monthlyBudget) : null;
-
-      const res = await fetch("/api/configuracion/ia", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      success("Configuración guardada");
-      setOpenrouterKey("");
-      setGoogleKey("");
-      setShowOpenrouter(false);
-      setShowGoogle(false);
+      await patch({ timezone, businessHourStart: hourStart, businessHourEnd: hourEnd }, "Horario guardado");
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
-      setSaving(false);
+      setSavingHours(false);
     }
   }
 
   async function handleSaveRecovery() {
     setSavingRecovery(true);
     try {
-      const res = await fetch("/api/configuracion/ia", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await patch(
+        {
           leadRecoveryEnabled: recoveryEnabled,
           leadRecoveryFirstMessageHours: recoveryFirstHours,
           leadRecoverySecondMessageHours: recoverySecondHours.trim() ? Number(recoverySecondHours) : null,
-          leadRecoveryBusinessHourStart: recoveryHourStart,
-          leadRecoveryBusinessHourEnd: recoveryHourEnd,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      success("Configuración de recuperación de leads guardada");
+        },
+        "Recuperación de leads guardada"
+      );
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
@@ -176,151 +122,121 @@ export default function IASettingsPage() {
 
   if (loading) return <div className="flex items-center justify-center py-16"><Spinner /></div>;
 
+  const credits = settings?.aiCredits;
+  const pct = credits?.limit ? Math.round((credits.used / credits.limit) * 100) : 0;
+  const timezones = TIMEZONES.includes(timezone) ? TIMEZONES : [timezone, ...TIMEZONES];
+
   return (
     <DetailPage
       backHref="/configuracion"
       backLabel="Volver a configuración"
-      title="Configuración IA"
-      description="Administra las API keys y preferencias de los proveedores de inteligencia artificial."
+      title="Inteligencia artificial"
+      description="La IA viene incluida en tu plan: no necesitas API keys."
     >
-      <section className="space-y-5">
-        <form onSubmit={handleSave} className="space-y-5">
-              <FormField label="OpenRouter API Key" hint="Usada para acceder a modelos vía OpenRouter (Gemini, GPT-4, Claude, etc.)">
-                {(id) => (
-                  <div className="relative">
-                    <Input
-                      id={id}
-                      type={showOpenrouter ? "text" : "password"}
-                      value={openrouterKey}
-                      onChange={(e) => setOpenrouterKey(e.target.value)}
-                      placeholder={settings?.openrouterApiKey ? "•••••••• (configurada)" : "sk-or-..."}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowOpenrouter(!showOpenrouter)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-darker hover:text-foreground"
-                    >
-                      {showOpenrouter ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                )}
-              </FormField>
-
-              <FormField label="Google AI API Key" hint="Usada para acceder directamente a modelos Gemini">
-                {(id) => (
-                  <div className="relative">
-                    <Input
-                      id={id}
-                      type={showGoogle ? "text" : "password"}
-                      value={googleKey}
-                      onChange={(e) => setGoogleKey(e.target.value)}
-                      placeholder={settings?.googleApiKey ? "•••••••• (configurada)" : "AIza..."}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowGoogle(!showGoogle)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-darker hover:text-foreground"
-                    >
-                      {showGoogle ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                )}
-              </FormField>
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <FormField label="Proveedor por defecto">
-                  {(id) => (
-                    <Select id={id} value={defaultProvider} onChange={(e) => setDefaultProvider(e.target.value)}>
-                      <option value="openrouter">OpenRouter</option>
-                      <option value="google">Google Gemini</option>
-                    </Select>
-                  )}
-                </FormField>
-                <FormField label="Modelo por defecto">
-                  {(id) => (
-                    <div className="space-y-1">
-                      <Select id={id} value={defaultModel} onChange={(e) => setDefaultModel(e.target.value)} disabled={loadingModels}>
-                        {!models.some((m) => m.id === defaultModel) && (
-                          <option value={defaultModel}>{defaultModel}</option>
-                        )}
-                        {models.map((m) => (
-                          <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                      </Select>
-                      <button
-                        type="button"
-                        onClick={() => fetchModels(defaultProvider)}
-                        disabled={loadingModels}
-                        className="inline-flex items-center gap-1 text-xs text-accent hover:underline disabled:opacity-50"
-                      >
-                        <RefreshCw size={11} className={loadingModels ? "animate-spin" : ""} />
-                        Actualizar lista desde {defaultProvider === "google" ? "Google" : "OpenRouter"}
-                      </button>
-                    </div>
-                  )}
-                </FormField>
-              </div>
-
-              <FormField label="Presupuesto mensual de IA (USD)" hint="Opcional. Recibirás una notificación cuando el costo estimado del mes supere este monto.">
-                {(id) => (
-                  <Input
-                    id={id}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={monthlyBudget}
-                    onChange={(e) => setMonthlyBudget(e.target.value)}
-                    placeholder="Sin límite"
-                  />
-                )}
-              </FormField>
-
-          <div>
-            <Button type="submit" icon={saving ? undefined : Save} disabled={saving}>
-              {saving ? <Spinner /> : "Guardar"}
-            </Button>
+      <section className="space-y-4">
+        <SectionHeader eyebrow="Incluida en tu plan" title="Créditos de IA" />
+        {credits && (
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm font-medium">Este mes</p>
+              <p className="text-sm tabular-nums text-muted">
+                <span className="font-semibold text-foreground">{credits.used.toLocaleString("es-MX")}</span>
+                {credits.limit !== null ? ` / ${credits.limit.toLocaleString("es-MX")}` : " · sin límite"}
+              </p>
+            </div>
+            {credits.limit !== null && (
+              <Progress value={pct} tone={pct >= 100 ? "danger" : pct >= 80 ? "warning" : "accent"} className="mt-3" />
+            )}
+            <p className="mt-2 text-xs text-muted-darker">
+              1 crédito = 1 respuesta de bot, sugerencia, calificación, mensaje de recuperación o paso de IA. Al agotarse,
+              los bots dejan de responder hasta el siguiente periodo.{" "}
+              <a href="/configuracion/plan" className="text-accent hover:underline">Ver mi plan</a>
+            </p>
           </div>
-        </form>
+        )}
+        {settings && settings.models.length === 0 ? (
+          <Banner tone="warning">La IA no está disponible en este momento. Escríbenos si el problema continúa.</Banner>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Modelos disponibles para tus bots y calificadores</p>
+            <ul className="space-y-1.5">
+              {settings?.models.map((m) => (
+                <li key={m.id} className="flex items-start gap-2 text-sm">
+                  <Sparkles size={14} className="mt-0.5 shrink-0 text-accent" />
+                  <span>
+                    <span className="font-medium">{m.label}</span> <span className="text-muted">— {m.description}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-5">
+        <SectionHeader title="Horario del negocio" />
+        <p className="text-sm text-muted">
+          Se usa para no mandar mensajes automáticos de madrugada (recuperación de leads, leads de Facebook), para la
+          condición “en horario” de las automatizaciones y para las citas que agenda el bot.
+        </p>
+        <FormField label="Zona horaria">
+          {(id) => (
+            <Select id={id} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+              {timezones.map((tz) => (
+                <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>
+              ))}
+            </Select>
+          )}
+        </FormField>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField label="Abre">
+            {(id) => (
+              <Select id={id} value={String(hourStart)} onChange={(e) => setHourStart(Number(e.target.value))}>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+          <FormField label="Cierra">
+            {(id) => (
+              <Select id={id} value={String(hourEnd)} onChange={(e) => setHourEnd(Number(e.target.value))}>
+                {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => (
+                  <option key={h} value={h}>{String(h % 24).padStart(2, "0")}:00</option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+        </div>
+        <Button size="sm" variant="secondary" icon={Save} loading={savingHours} onClick={handleSaveHours}>
+          Guardar horario
+        </Button>
       </section>
 
       <section className="space-y-5">
         <SectionHeader title="Recuperación de leads" />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium">Reactivar leads que dejan de responder</p>
             <p className="text-xs text-muted-darker">
-              Cuando un lead se queda &quot;en visto&quot;, el mismo bot de esa cuenta le manda hasta 2 mensajes de seguimiento, generados con IA y coherentes con la conversación.
+              Cuando un lead se queda &quot;en visto&quot;, el bot de esa cuenta le manda hasta 2 mensajes de seguimiento,
+              generados con IA, dentro del horario del negocio. Cada mensaje usa un crédito de IA.
             </p>
           </div>
-          <Switch checked={recoveryEnabled} onCheckedChange={setRecoveryEnabled} />
+          <Switch checked={recoveryEnabled} onCheckedChange={setRecoveryEnabled} label="Reactivar leads" />
         </div>
 
         {recoveryEnabled && (
           <>
             <div className="grid gap-5 sm:grid-cols-2">
-              <FormField label="Horas de silencio para el mensaje 1" hint="Medido desde el último mensaje del lead">
+              <FormField label="Horas de silencio para el mensaje 1" hint="Desde el último mensaje del lead">
                 {(id) => (
-                  <Input
-                    id={id}
-                    type="number"
-                    min="1"
-                    max="168"
-                    value={recoveryFirstHours}
-                    onChange={(e) => setRecoveryFirstHours(Number(e.target.value))}
-                  />
+                  <Input id={id} type="number" min="1" max="168" value={recoveryFirstHours} onChange={(e) => setRecoveryFirstHours(Number(e.target.value))} />
                 )}
               </FormField>
               <FormField label="Horas de silencio para el mensaje 2" hint="Vacío = solo se manda 1 mensaje">
                 {(id) => (
-                  <Input
-                    id={id}
-                    type="number"
-                    min="1"
-                    max="168"
-                    value={recoverySecondHours}
-                    onChange={(e) => setRecoverySecondHours(e.target.value)}
-                    placeholder="Deshabilitado"
-                  />
+                  <Input id={id} type="number" min="1" max="168" value={recoverySecondHours} onChange={(e) => setRecoverySecondHours(e.target.value)} placeholder="Deshabilitado" />
                 )}
               </FormField>
             </div>
@@ -331,37 +247,12 @@ export default function IASettingsPage() {
                 Instagram, que no tienen esa restricción).
               </Banner>
             )}
-            <div className="grid gap-5 sm:grid-cols-2">
-              <FormField label="Horario de negocio — desde">
-                {(id) => (
-                  <Select id={id} value={String(recoveryHourStart)} onChange={(e) => setRecoveryHourStart(Number(e.target.value))}>
-                    {Array.from({ length: 24 }, (_, h) => (
-                      <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
-                    ))}
-                  </Select>
-                )}
-              </FormField>
-              <FormField label="Horario de negocio — hasta">
-                {(id) => (
-                  <Select id={id} value={String(recoveryHourEnd)} onChange={(e) => setRecoveryHourEnd(Number(e.target.value))}>
-                    {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => (
-                      <option key={h} value={h}>{String(h % 24).padStart(2, "0")}:00</option>
-                    ))}
-                  </Select>
-                )}
-              </FormField>
-            </div>
-            <p className="text-[11px] text-muted-darker">
-              Solo se envían mensajes de texto libre dentro de la ventana de 24h de Meta (desde el último mensaje del lead). Si ya pasaron más de 24h, el sistema no manda nada — no hay plantilla de reactivación configurada todavía. Respeta el presupuesto mensual de IA de arriba.
-            </p>
           </>
         )}
 
-        <div className="pt-1">
-          <Button size="sm" variant="secondary" icon={savingRecovery ? undefined : Save} onClick={handleSaveRecovery} disabled={savingRecovery}>
-            {savingRecovery ? <Spinner /> : "Guardar recuperación de leads"}
-          </Button>
-        </div>
+        <Button size="sm" variant="secondary" icon={Save} loading={savingRecovery} onClick={handleSaveRecovery}>
+          Guardar recuperación de leads
+        </Button>
       </section>
     </DetailPage>
   );

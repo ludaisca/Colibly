@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -12,20 +11,14 @@ import { Switch } from "@/app/components/ui/switch";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import { AI_MODELS } from "@/lib/billing/plans";
 
 interface ModelOption { id: string; name: string; }
 
+// Lista curada (lib/billing/plans.ts): la IA la provee la plataforma.
 const FALLBACK_MODELS: Record<string, ModelOption[]> = {
-  openrouter: [
-    { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-    { id: "openai/gpt-4o", name: "GPT-4o" },
-    { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
-  ],
-  google: [
-    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-  ],
+  openrouter: AI_MODELS.filter((m) => m.provider === "openrouter").map((m) => ({ id: m.id, name: m.label })),
+  google: AI_MODELS.filter((m) => m.provider === "google").map((m) => ({ id: m.id, name: m.label })),
 };
 
 interface Props {
@@ -102,12 +95,11 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
       if (Array.isArray(data) && data.length > 0) {
         setModels(data);
       } else {
-        setModels(FALLBACK_MODELS[p] ?? []);
-        toastError(data.error ?? "No se pudo obtener la lista de modelos del proveedor, mostrando lista de respaldo");
+        setModels([]);
+        toastError(data.error ?? "Ese proveedor de IA no está disponible, elige otro");
       }
     } catch {
       setModels(FALLBACK_MODELS[p] ?? []);
-      toastError("No se pudo obtener la lista de modelos del proveedor, mostrando lista de respaldo");
     } finally {
       setModelsProvider(p);
       setLoadingModels(false);
@@ -264,22 +256,11 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
             </FormField>
             <FormField label="Modelo" required>
               {(id) => (
-                <div className="space-y-1">
-                  <Select id={id} value={model} onChange={(e) => setModel(e.target.value)} disabled={loadingModels}>
-                    {models.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </Select>
-                  <button
-                    type="button"
-                    onClick={() => fetchModels(provider)}
-                    disabled={loadingModels}
-                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline disabled:opacity-50"
-                  >
-                    <RefreshCw size={11} className={loadingModels ? "animate-spin" : ""} />
-                    Actualizar lista desde {provider === "google" ? "Google" : "OpenRouter"}
-                  </button>
-                </div>
+                <Select id={id} value={model} onChange={(e) => setModel(e.target.value)} disabled={loadingModels}>
+                  {models.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </Select>
               )}
             </FormField>
           </div>

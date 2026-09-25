@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { TRIAL_DAYS, TRIAL_PLAN } from "@/lib/billing/plans";
 
@@ -23,4 +24,25 @@ export async function createOrganizationWithOwner(
   });
   await tx.organization.update({ where: { id: organization.id }, data: { ownerId: owner.id } });
   return { organization, owner };
+}
+
+export interface BusinessHours {
+  timezone: string;
+  startHour: number;
+  endHour: number;
+}
+
+// Horario laboral y zona horaria de la organización (recuperación de leads,
+// importación de hojas, citas del bot, condición "en horario" de las
+// automatizaciones).
+export async function getOrgBusinessHours(organizationId: string): Promise<BusinessHours> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { timezone: true, businessHourStart: true, businessHourEnd: true },
+  });
+  return {
+    timezone: org?.timezone ?? "America/Mexico_City",
+    startHour: org?.businessHourStart ?? 8,
+    endHour: org?.businessHourEnd ?? 20,
+  };
 }

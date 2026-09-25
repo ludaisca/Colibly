@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import type { AIProvider } from "@/lib/ai/types";
 import { rateLimit } from "@/lib/rate-limit";
-import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { reserveAiCredit } from "@/lib/ai/credits";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
@@ -46,18 +46,18 @@ export async function POST(
       return NextResponse.json({ error: "El mensaje es requerido" }, { status: 400 });
     }
 
-    if (await isMonthlyBudgetExceeded(bot.userId, new Date())) {
-      return NextResponse.json({ error: "El presupuesto mensual de IA está agotado." }, { status: 400 });
-    }
-
     const provider = bot.provider as AIProvider;
-    const apiKey = await getUserApiKey(bot.userId, provider);
+    const apiKey = getPlatformApiKey(provider);
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "No hay API key configurada. Configúrala en Ajustes > IA." },
+        { error: "La IA no está disponible en este momento. Intenta más tarde." },
         { status: 400 }
       );
+    }
+
+    if (!(await reserveAiCredit(bot.organizationId))) {
+      return NextResponse.json({ error: "Se acabaron los créditos de IA de este mes. Mejora tu plan en Configuración → Plan y facturación.", code: "ai_credits" }, { status: 402 });
     }
 
     const client = getAIProvider(provider, apiKey);

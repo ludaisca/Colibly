@@ -6,6 +6,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
+import { modelChoiceError } from "@/lib/ai/platform";
 
 export async function POST(req: Request) {
   try {
@@ -28,6 +29,9 @@ export async function POST(req: Request) {
 
     const { name, provider, model, systemPrompt, isActive, scheduleEnabled, scheduleIntervalMinutes, scheduleAccountIds, scheduleChannelAccountIds } = parsed.data;
 
+    const choiceError = modelChoiceError(provider, model);
+    if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 });
+
     let validAccountIds: string[] = [];
     if (scheduleAccountIds && scheduleAccountIds.length > 0) {
       const ownedIds = await getUserAccountIds(session.user.id);
@@ -47,12 +51,6 @@ export async function POST(req: Request) {
       }
       validChannelAccountIds = scheduleChannelAccountIds;
     }
-
-    await prisma.appSettings.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id },
-      update: {},
-    });
 
     const scorer = await prisma.wALeadScorerBot.create({
       data: {

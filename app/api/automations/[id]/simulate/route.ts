@@ -58,6 +58,7 @@ export async function POST(req: Request, { params }: Params) {
       runInput: parsed.data.input as RunInput,
       channel: automationChannel(a),
       ownerId: a.waAccount?.userId ?? a.channelAccount!.userId,
+      organizationId: a.organizationId,
       automationId: a.id,
     });
     return NextResponse.json(result);

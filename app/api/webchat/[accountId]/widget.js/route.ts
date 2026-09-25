@@ -291,5 +291,5 @@ function buildWidgetScript(accountId: string): string {
 }
 
 function getPublicBaseUrl(): string {
-  return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:15100";
+  return process.env.APP_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:15100";
 }

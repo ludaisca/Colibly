@@ -42,6 +42,8 @@ SundayCRM is a hosted multi-tenant SaaS (see AGENTS.md → "Architecture: tenanc
 - Admin resources are filtered with `orgWhere(userId)`, accounts through `getUserAccountIds()`/`getUserChannelAccountIds()`, account edits/shares with `accountManageWhere(userId)` — **never** `userId: session.user.id` for something the organization shares.
 - `tsc` can't catch a missing scope — check a new route with a second organization (signup creates one) before calling it done.
 - Billing gates are the same kind of thing `tsc` won't catch: a new way to **send** a message must go through a sender that calls `assertOrgCanSend()`, a new **worker/tick** must skip organizations that aren't writable (`isOrgWritable` / `isAccountWritable` / `isBotWritable`) *before* calling the AI, and a new **countable resource** needs its `checkPlanLimit()` at creation (see AGENTS.md → "Billing").
+- A new **AI call** reserves a credit with `reserveAiCredit(organizationId)` after checking `getPlatformApiKey()` and before calling the provider — there are no per-user API keys anymore (AGENTS.md → "AI providers").
+- A new **server env var** must also be added to the `app.environment` list of `docker-compose.yml`, or it won't exist in production.
 
 ## Architecture: two parallel channel stacks
 

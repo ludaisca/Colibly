@@ -4,6 +4,7 @@ import { execute, type ExecutorAdapters, type Facts, type OutgoingMessage } from
 import { aiClassify, aiExtract, aiMatchOption } from "./ai";
 import type { Graph, RunInput, RunState } from "./types";
 import type { AutomationChannel } from "./validate";
+import { getOrgBusinessHours } from "@/lib/organizations";
 
 // "Probar" del editor: el MISMO ejecutor con adaptadores de simulación. Nada
 // sale a Meta/Telegram ni toca el CRM real — los efectos se describen en la
@@ -36,6 +37,7 @@ export async function simulate(input: {
   runInput: RunInput;
   channel: AutomationChannel;
   ownerId: string;
+  organizationId: string;
   automationId: string;
 }): Promise<SimulationResult> {
   const facts: SimFacts = { ...input.facts, tags: [...input.facts.tags], customFields: { ...input.facts.customFields } };
@@ -43,7 +45,7 @@ export async function simulate(input: {
   const effect = (text: string): void => {
     transcript.push({ kind: "effect", text });
   };
-  const aiCtx = { ownerId: input.ownerId, automationId: input.automationId, runId: null, waChatId: null, conversationId: null };
+  const aiCtx = { ownerId: input.ownerId, organizationId: input.organizationId, automationId: input.automationId, runId: null, waChatId: null, conversationId: null };
 
   const templateName = async (id: string) =>
     (await prisma.wATemplate.findUnique({ where: { id }, select: { name: true } }))?.name ?? "plantilla";
@@ -60,12 +62,7 @@ export async function simulate(input: {
     }),
     lastInboundText: async () => (input.runInput.kind === "reply" ? input.runInput.text : (input.state?.vars.respuesta ?? input.state?.vars.mensaje ?? "")),
     isBusinessHours: async () => {
-      const s = await prisma.appSettings.findUnique({ where: { userId: input.ownerId } });
-      return isWithinBusinessHours(new Date(), {
-        timezone: s?.leadRecoveryTimezone ?? "America/Mexico_City",
-        startHour: s?.leadRecoveryBusinessHourStart ?? 8,
-        endHour: s?.leadRecoveryBusinessHourEnd ?? 20,
-      });
+      return isWithinBusinessHours(new Date(), await getOrgBusinessHours(input.organizationId));
     },
     send: async (m: OutgoingMessage) => {
       if (m.type === "text") transcript.push({ kind: "bot", text: m.text });

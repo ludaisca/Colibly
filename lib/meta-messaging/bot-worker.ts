@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { getAIProvider } from "@/lib/ai/factory";
 import { searchKnowledge } from "@/lib/ai/rag";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
-import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { reserveAiCredit } from "@/lib/ai/credits";
 import { getBotSkipReason } from "@/lib/bots/guards";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
@@ -137,16 +137,18 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
     return;
   }
 
-  if (await isMonthlyBudgetExceeded(bot.userId, new Date())) {
-    console.log(`[meta-messaging bot-worker] Presupuesto mensual de IA superado — el bot "${bot.name}" no responde este mensaje`);
+  const provider = bot.provider as AIProvider;
+  const apiKey = getPlatformApiKey(provider);
+
+  if (!apiKey) {
+    await failBotAndNotify(botId, conversationId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
     return;
   }
 
-  const provider = bot.provider as AIProvider;
-  const apiKey = await getUserApiKey(bot.userId, provider);
-
-  if (!apiKey) {
-    await failBotAndNotify(botId, conversationId, "Configura la clave del proveedor de IA en Configuración.");
+  // Un crédito de IA por respuesta; sin créditos el bot calla (sin marcar
+  // ERROR — no es una falla del bot) y el admin ya recibió el aviso del 100 %.
+  if (!(await reserveAiCredit(bot.organizationId))) {
+    console.log(`[bots] Sin créditos de IA — el bot "${bot.name}" no responde este mensaje`);
     return;
   }
 

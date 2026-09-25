@@ -1,110 +1,81 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { encrypt } from "@/lib/crypto";
-import { aiSettingsUpdateSchema } from "@/lib/validations";
+import { orgAiSettingsUpdateSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { planLimits } from "@/lib/billing/state";
+import { availableModels } from "@/lib/ai/platform";
+
+// IA y operación de la organización (solo admin). La IA la provee la
+// plataforma: aquí se ven los créditos del plan y los modelos disponibles, y se
+// editan el horario del negocio y la recuperación de leads.
+
+const SELECT = {
+  plan: true,
+  isInternal: true,
+  aiCreditsUsed: true,
+  aiCreditsPeriodStart: true,
+  timezone: true,
+  businessHourStart: true,
+  businessHourEnd: true,
+  leadRecoveryEnabled: true,
+  leadRecoveryFirstMessageHours: true,
+  leadRecoverySecondMessageHours: true,
+} as const;
+
+type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
+  plan: "BASIC" | "PRO";
+  isInternal: boolean;
+  aiCreditsUsed: number;
+};
+
+function serialize(org: OrgAiRow) {
+  const limit = planLimits(org).aiCreditsPerMonth;
+  const { plan: _plan, isInternal: _internal, aiCreditsUsed, ...rest } = org;
+  return {
+    ...rest,
+    aiCredits: { used: aiCreditsUsed, limit: Number.isFinite(limit) ? limit : null },
+    models: availableModels().map((m) => ({ id: m.id, label: m.label, description: m.description })),
+  };
+}
+
+async function requireAdminOrg() {
+  const session = await auth();
+  if (!session?.user?.id) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
+  if (session.user.role !== "admin") return { error: NextResponse.json({ error: "No autorizado" }, { status: 403 }) };
+  return { organizationId: await requireOrgId(session.user.id) };
+}
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-
-    let settings = await prisma.appSettings.findUnique({
-      where: { userId: session.user.id },
-    });
-
-    if (!settings) {
-      settings = await prisma.appSettings.create({
-        data: { userId: session.user.id },
-      });
-    }
-
-    return NextResponse.json({
-      id: settings.id,
-      openrouterApiKey: settings.openrouterApiKey ? "••••••••" : null,
-      googleApiKey: settings.googleApiKey ? "••••••••" : null,
-      defaultProvider: settings.defaultProvider,
-      defaultModel: settings.defaultModel,
-      monthlyBudgetUsd: settings.monthlyBudgetUsd,
-      leadRecoveryEnabled: settings.leadRecoveryEnabled,
-      leadRecoveryFirstMessageHours: settings.leadRecoveryFirstMessageHours,
-      leadRecoverySecondMessageHours: settings.leadRecoverySecondMessageHours,
-      leadRecoveryBusinessHourStart: settings.leadRecoveryBusinessHourStart,
-      leadRecoveryBusinessHourEnd: settings.leadRecoveryBusinessHourEnd,
-      leadRecoveryTimezone: settings.leadRecoveryTimezone,
-    });
+    const ctx = await requireAdminOrg();
+    if ("error" in ctx) return ctx.error;
+    const org = await prisma.organization.findUniqueOrThrow({ where: { id: ctx.organizationId }, select: SELECT });
+    return NextResponse.json(serialize(org));
   } catch (error) {
-    const message = publicErrorMessage(error, "Error interno");
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: publicErrorMessage(error, "Error interno") }, { status: 500 });
   }
 }
 
 export async function PATCH(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
+    const ctx = await requireAdminOrg();
+    if ("error" in ctx) return ctx.error;
+    const parsed = orgAiSettingsUpdateSchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-    const parsed = aiSettingsUpdateSchema.safeParse(await req.json().catch(() => ({})));
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-    }
-    const body = parsed.data;
-
-    const data: Record<string, unknown> = {};
-
-    if (body.openrouterApiKey !== undefined) {
-      data.openrouterApiKey = body.openrouterApiKey ? encrypt(body.openrouterApiKey) : null;
-    }
-    if (body.googleApiKey !== undefined) {
-      data.googleApiKey = body.googleApiKey ? encrypt(body.googleApiKey) : null;
-    }
-    if (body.defaultProvider) data.defaultProvider = body.defaultProvider;
-    if (body.defaultModel) data.defaultModel = body.defaultModel;
-    if (body.monthlyBudgetUsd !== undefined) {
-      data.monthlyBudgetUsd = body.monthlyBudgetUsd;
-      data.budgetAlertMonth = null;
-    }
-
-    if (body.leadRecoveryEnabled !== undefined) data.leadRecoveryEnabled = body.leadRecoveryEnabled;
-    if (body.leadRecoveryFirstMessageHours !== undefined) data.leadRecoveryFirstMessageHours = body.leadRecoveryFirstMessageHours;
-    if (body.leadRecoverySecondMessageHours !== undefined) data.leadRecoverySecondMessageHours = body.leadRecoverySecondMessageHours;
-    if (body.leadRecoveryBusinessHourStart !== undefined) data.leadRecoveryBusinessHourStart = body.leadRecoveryBusinessHourStart;
-    if (body.leadRecoveryBusinessHourEnd !== undefined) data.leadRecoveryBusinessHourEnd = body.leadRecoveryBusinessHourEnd;
-    if (body.leadRecoveryTimezone) data.leadRecoveryTimezone = body.leadRecoveryTimezone;
-
-    const settings = await prisma.appSettings.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id, ...data },
-      update: data,
+    const current = await prisma.organization.findUniqueOrThrow({
+      where: { id: ctx.organizationId },
+      select: { businessHourStart: true, businessHourEnd: true },
     });
+    const start = parsed.data.businessHourStart ?? current.businessHourStart;
+    const end = parsed.data.businessHourEnd ?? current.businessHourEnd;
+    if (end <= start) return NextResponse.json({ error: "La hora de cierre debe ser posterior a la de apertura" }, { status: 400 });
 
-    return NextResponse.json({
-      id: settings.id,
-      openrouterApiKey: settings.openrouterApiKey ? "••••••••" : null,
-      googleApiKey: settings.googleApiKey ? "••••••••" : null,
-      defaultProvider: settings.defaultProvider,
-      defaultModel: settings.defaultModel,
-      monthlyBudgetUsd: settings.monthlyBudgetUsd,
-      leadRecoveryEnabled: settings.leadRecoveryEnabled,
-      leadRecoveryFirstMessageHours: settings.leadRecoveryFirstMessageHours,
-      leadRecoverySecondMessageHours: settings.leadRecoverySecondMessageHours,
-      leadRecoveryBusinessHourStart: settings.leadRecoveryBusinessHourStart,
-      leadRecoveryBusinessHourEnd: settings.leadRecoveryBusinessHourEnd,
-      leadRecoveryTimezone: settings.leadRecoveryTimezone,
-    });
+    const org = await prisma.organization.update({ where: { id: ctx.organizationId }, data: parsed.data, select: SELECT });
+    return NextResponse.json(serialize(org));
   } catch (error) {
-    const message = publicErrorMessage(error, "Error interno");
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: publicErrorMessage(error, "Error interno") }, { status: 500 });
   }
 }

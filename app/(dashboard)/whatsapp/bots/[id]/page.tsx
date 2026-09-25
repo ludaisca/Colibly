@@ -264,7 +264,7 @@ export default function BotDetailPage() {
     >
       {bot.status === "ERROR" && (
         <Banner tone="danger" title="Este bot dejó de responder por un error">
-          Quedó marcado en estado de error tras un fallo (API key inválida, error del proveedor, etc.) y no procesará mensajes nuevos aunque esté &quot;Activo&quot;. Pausa y vuelve a activarlo para reintentar.
+          Quedó marcado en estado de error tras un fallo (error del proveedor de IA, etc.) y no procesará mensajes nuevos aunque esté &quot;Activo&quot;. Pausa y vuelve a activarlo para reintentar.
         </Banner>
       )}
 

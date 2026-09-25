@@ -266,7 +266,7 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
             )}
           </FormField>
           <FieldSelect label="Guardar también en campo personalizado" value={step.config.saveToCustomField} fields={options.fields} onChange={(saveToCustomField) => set(step, { saveToCustomField })} />
-          <p className="text-xs text-muted">Usa la IA configurada por el dueño de la cuenta y cuenta en su presupuesto mensual.</p>
+          <p className="text-xs text-muted">Usa la IA incluida en tu plan: cada llamada gasta un crédito.</p>
         </>
       )}
 
@@ -523,7 +523,7 @@ function CategoriesEditor({ step, onChange }: { step: StepOf<"ai_classify">; onC
           <Textarea id={id} rows={3} value={step.config.instructions} onChange={(e) => onChange({ ...step, config: { ...step.config, instructions: e.target.value } })} />
         )}
       </FormField>
-      <p className="text-xs text-muted">Si la IA no está configurada o no encuentra categoría, sigue por “Otro”. Cuenta en el presupuesto mensual de IA.</p>
+      <p className="text-xs text-muted">Si no quedan créditos de IA o no encuentra categoría, sigue por “Otro”. Gasta un crédito por mensaje clasificado.</p>
     </>
   );
 }

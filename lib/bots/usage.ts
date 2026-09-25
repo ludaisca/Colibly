@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { estimateCost } from "@/lib/ai/pricing";
-import { checkBudgetAlert } from "@/lib/ai/budget";
 import type { AIProvider } from "@/lib/ai/types";
 
 // Registra el costo de UNA llamada de IA de un bot justo después de hacerla —
@@ -31,5 +30,4 @@ export async function recordBotUsage(params: {
       estimatedCost,
     },
   });
-  await checkBudgetAlert(params.userId, new Date());
 }

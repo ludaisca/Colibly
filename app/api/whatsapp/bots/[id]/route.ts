@@ -6,6 +6,7 @@ import { getUserAccountIds } from "@/lib/shared-accounts";
 import { findOtherActiveBot } from "@/lib/bots/guards";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
+import { modelChoiceError } from "@/lib/ai/platform";
 
 export async function GET(
   _req: Request,
@@ -97,6 +98,11 @@ export async function PATCH(
 
     const data: Record<string, unknown> = {};
     const fields = parsed.data;
+
+    if (fields.provider || fields.model) {
+      const choiceError = modelChoiceError(fields.provider ?? existing.provider, fields.model ?? existing.model);
+      if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 });
+    }
 
     if (fields.name) data.name = fields.name;
     if (fields.waAccountId !== undefined) {

@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getStripe, syncSubscription } from "@/lib/billing/stripe";
+import { resetAiCredits } from "@/lib/ai/credits";
 
 // Webhook de Stripe. Firma verificada con STRIPE_WEBHOOK_SECRET sobre el cuerpo
 // crudo. Cada evento se procesa releyendo la suscripción (syncSubscription),
@@ -33,8 +34,20 @@ async function handle(event: Stripe.Event): Promise<void> {
       return;
     case "invoice.paid":
     case "invoice.payment_failed": {
-      const subscriptionId = subscriptionIdOf(event.data.object.parent?.subscription_details?.subscription);
-      if (subscriptionId) await syncSubscription(subscriptionId);
+      const invoice = event.data.object;
+      const subscriptionId = subscriptionIdOf(invoice.parent?.subscription_details?.subscription);
+      if (!subscriptionId) return;
+      const organizationId = await syncSubscription(subscriptionId);
+      // Cada periodo pagado (alta o renovación) trae créditos de IA nuevos.
+      // Una factura de $0 (prueba) no reinicia: la prueba ya tiene los suyos.
+      if (
+        organizationId &&
+        event.type === "invoice.paid" &&
+        invoice.amount_paid > 0 &&
+        (invoice.billing_reason === "subscription_cycle" || invoice.billing_reason === "subscription_create")
+      ) {
+        await resetAiCredits(organizationId);
+      }
       return;
     }
     default:

@@ -139,10 +139,7 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
     },
   ];
 
-  const budgetPct =
-    stats.monthlyBudgetUsd != null && stats.monthlyBudgetUsd > 0
-      ? Math.min(100, (stats.monthlyCost / stats.monthlyBudgetUsd) * 100)
-      : null;
+  const creditsPct = stats.aiCredits.limit ? Math.min(100, (stats.aiCredits.used / stats.aiCredits.limit) * 100) : null;
 
   return (
     <div className="space-y-10">
@@ -267,20 +264,20 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                 <span className="text-xs text-muted">tokens consumidos</span>
               </div>
 
-              {stats.monthlyBudgetUsd != null && budgetPct != null && (
+              {stats.aiCredits.limit != null && creditsPct != null && (
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs text-muted-darker">Presupuesto del mes</p>
-                    <p className="font-mono text-xs font-medium">
-                      {formatCost(stats.monthlyCost)} / {formatCost(stats.monthlyBudgetUsd)}
+                    <p className="text-xs text-muted-darker">Créditos de IA del mes</p>
+                    <p className="text-xs font-medium tabular-nums">
+                      {stats.aiCredits.used.toLocaleString("es-MX")} / {stats.aiCredits.limit.toLocaleString("es-MX")}
                     </p>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-surface">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        stats.monthlyCost >= stats.monthlyBudgetUsd ? "bg-danger" : "bg-accent"
+                        stats.aiCredits.used >= stats.aiCredits.limit ? "bg-danger" : creditsPct >= 80 ? "bg-warning" : "bg-accent"
                       }`}
-                      style={{ width: `${budgetPct}%` }}
+                      style={{ width: `${creditsPct}%` }}
                     />
                   </div>
                 </div>

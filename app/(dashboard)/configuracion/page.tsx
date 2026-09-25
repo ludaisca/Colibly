@@ -275,7 +275,7 @@ export default function SettingsPage() {
         <section className="space-y-4">
           <SectionHeader title="Inteligencia Artificial" />
           <p className="text-sm text-muted">
-            Configura las API keys de OpenRouter y Google Gemini para usar los bots IA, RAG y embeddings.
+            Créditos de IA incluidos, horario del negocio y recuperación automática de leads.
           </p>
           <Button href="/configuracion/ia" variant="secondary" size="sm" icon={Brain}>
             Configurar IA

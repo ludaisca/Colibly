@@ -17,6 +17,7 @@ import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { SendFailure, type ExecutorAdapters, type Facts, type OutgoingMessage } from "./executor";
 import { aiClassify, aiExtract, aiMatchOption, type AiCallContext } from "./ai";
 import type { AccountRef, ChatRef } from "@/lib/events/types";
+import { getOrgBusinessHours } from "@/lib/organizations";
 
 // Adaptadores reales del ejecutor: cada efecto contra Prisma y los módulos
 // existentes (envío unificado, efectos de CRM compartidos con la UI y la API,
@@ -36,6 +37,7 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
   const isWhatsapp = ctx.chat.kind === "whatsapp";
   const aiCtx: AiCallContext = {
     ownerId: ctx.ownerId,
+    organizationId: ctx.organizationId,
     automationId: ctx.automationId,
     runId: ctx.runId,
     waChatId: isWhatsapp ? ctx.chat.id : null,
@@ -123,15 +125,7 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
     },
 
     async isBusinessHours() {
-      const s = await prisma.appSettings.findUnique({
-        where: { userId: ctx.ownerId },
-        select: { leadRecoveryBusinessHourStart: true, leadRecoveryBusinessHourEnd: true, leadRecoveryTimezone: true },
-      });
-      return isWithinBusinessHours(new Date(), {
-        timezone: s?.leadRecoveryTimezone ?? "America/Mexico_City",
-        startHour: s?.leadRecoveryBusinessHourStart ?? 8,
-        endHour: s?.leadRecoveryBusinessHourEnd ?? 20,
-      });
+      return isWithinBusinessHours(new Date(), await getOrgBusinessHours(ctx.organizationId));
     },
 
     async send(message: OutgoingMessage) {

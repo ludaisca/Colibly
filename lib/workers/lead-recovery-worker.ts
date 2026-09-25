@@ -2,11 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { sendRecoveryMessage, isWithinBusinessHours, isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramRecoveryMessage } from "@/lib/telegram/lead-recovery";
 import { sendMetaChannelRecoveryMessage } from "@/lib/meta-messaging/lead-recovery";
-import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
-import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
-import type { AppSettings, WABot, WAAccount, ChannelAccount } from "@prisma/client";
+import { hasAiCredits, reserveAiCredit } from "@/lib/ai/credits";
+import type { Organization, WABot, WAAccount, ChannelAccount } from "@prisma/client";
 import { isOrgWritable } from "@/lib/billing/gates";
-import { requireOrgId } from "@/lib/tenancy";
 
 // Scheduled runs are unattended, so keep each tick's blast radius bounded —
 // same reasoning as lead-scoring-worker.ts's CANDIDATE_POOL/BATCH_SIZE.
@@ -26,38 +24,40 @@ function candidateWindow(now: Date, maxAgeHours: number) {
 export async function processLeadRecoveryTick() {
   const now = new Date();
 
-  const settingsList = await prisma.appSettings.findMany({
-    where: { leadRecoveryEnabled: true },
+  // La configuración es de la organización (una sola pasada por empresa, no
+  // una por cada admin que la hubiera activado).
+  const orgs = await prisma.organization.findMany({
+    where: { leadRecoveryEnabled: true, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
   });
 
-  for (const settings of settingsList) {
+  for (const org of orgs) {
     try {
-      await runRecoveryForUser(settings, now);
+      await runRecoveryForOrg(org, now);
     } catch (err) {
-      console.error(`[lead-recovery] Error ejecutando recuperación para usuario ${settings.userId}:`, err);
+      console.error(`[lead-recovery] Error ejecutando recuperación para la organización ${org.id}:`, err);
     }
   }
 }
 
-async function runRecoveryForUser(settings: AppSettings, now: Date) {
-  if (!(await isOrgWritable(await requireOrgId(settings.userId)))) return;
-  if (await isMonthlyBudgetExceeded(settings.userId, now)) {
-    console.log(`[lead-recovery] Presupuesto mensual de IA superado, se omite la recuperación para el usuario ${settings.userId} en este ciclo`);
+async function runRecoveryForOrg(settings: Organization, now: Date) {
+  if (!(await isOrgWritable(settings.id))) return;
+  if (!(await hasAiCredits(settings.id, now))) {
+    console.log(`[lead-recovery] Sin créditos de IA, se omite la recuperación de la organización ${settings.id} en este ciclo`);
     return;
   }
 
   if (
     !isWithinBusinessHours(now, {
-      timezone: settings.leadRecoveryTimezone,
-      startHour: settings.leadRecoveryBusinessHourStart,
-      endHour: settings.leadRecoveryBusinessHourEnd,
+      timezone: settings.timezone,
+      startHour: settings.businessHourStart,
+      endHour: settings.businessHourEnd,
     })
   ) {
     return; // fuera de horario — se reintenta en el próximo tick
   }
 
-  const accountIds = await getUserAccountIds(settings.userId);
-  if (accountIds.length === 0) return;
+  const accountIds = (await prisma.wAAccount.findMany({ where: { organizationId: settings.id }, select: { id: true } })).map((a) => a.id);
+  if (accountIds.length === 0 && !(await prisma.channelAccount.count({ where: { organizationId: settings.id } }))) return;
 
   const candidates = await prisma.wAChat.findMany({
     where: {
@@ -85,7 +85,8 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
 
   const botCache = new Map<string, (WABot & { waAccount: WAAccount | null }) | null>();
   let sentCount = 0;
-  let sentAny = false;
+  // Un crédito por mensaje generado; al agotarse, el tick termina para esta organización.
+  let outOfCredits = false;
 
   for (const chat of silentChats) {
     if (sentCount >= BATCH_SIZE) break;
@@ -129,9 +130,12 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
     const bot = botCache.get(chat.accountId);
     if (!bot) continue; // sin bot activo en esa cuenta, no hay con qué generar el mensaje
 
+    if (!(await reserveAiCredit(settings.id, now))) {
+      outOfCredits = true;
+      break;
+    }
     try {
       await sendRecoveryMessage(chat, bot, attemptNumber, lastInbound.timestamp, now);
-      sentAny = true;
       sentCount++;
     } catch (err) {
       console.error(`[lead-recovery] Error enviando reactivación al chat ${chat.id}:`, err instanceof Error ? err.message : err);
@@ -147,8 +151,8 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
   // ChannelAccount de Messenger/Instagram (credentials sin `botToken`) hacía
   // fallar el envío en silencio y la recuperación nunca ocurría para esos dos
   // canales (ver lib/meta-messaging/lead-recovery.ts).
-  const channelAccountIds = await getUserChannelAccountIds(settings.userId);
-  if (channelAccountIds.length > 0) {
+  const channelAccountIds = (await prisma.channelAccount.findMany({ where: { organizationId: settings.id }, select: { id: true } })).map((a) => a.id);
+  if (channelAccountIds.length > 0 && !outOfCredits) {
     const channelCandidates = await prisma.conversation.findMany({
       where: {
         channelAccountId: { in: channelAccountIds },
@@ -212,21 +216,17 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       const channelBot = channelBotCache.get(conv.channelAccountId);
       if (!channelBot?.channelAccount) continue;
 
+      if (!(await reserveAiCredit(settings.id, now))) break;
       try {
         if (channelBot.channelAccount.channel === "TELEGRAM") {
           await sendTelegramRecoveryMessage(conv, channelBot, attemptNumber, now);
         } else {
           await sendMetaChannelRecoveryMessage(conv, channelBot, attemptNumber, now);
         }
-        sentAny = true;
         sentCount++;
       } catch (err) {
         console.error(`[lead-recovery] Error enviando reactivación a la conversación ${conv.id}:`, err instanceof Error ? err.message : err);
       }
     }
-  }
-
-  if (sentAny) {
-    await checkBudgetAlert(settings.userId, now);
   }
 }

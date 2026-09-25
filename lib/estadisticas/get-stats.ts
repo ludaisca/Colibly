@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { getMonthlyAiCost } from "@/lib/ai/budget";
+import { getOrgAiCost } from "@/lib/ai/budget";
+import { getOrgBilling } from "@/lib/billing/gates";
+import { planLimits } from "@/lib/billing/state";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { orgWhere } from "@/lib/tenancy";
 import {
@@ -90,7 +92,8 @@ export interface Estadisticas {
     avgResolutionMinutes: number | null;
   }>;
   monthlyCost: number;
-  monthlyBudgetUsd: number | null;
+  // Créditos de IA del periodo (lib/ai/credits.ts); limit null = sin límite.
+  aiCredits: { used: number; limit: number | null };
   // Estado de entrega de mensajes de campaña, separado por origen — campañas
   // masivas (WACampaign, WACampaignRecipient) vs. automatizaciones de leads de
   // Facebook (LeadSheetSource, LeadSheetImportedRow). Ver lib/whatsapp/export-columns.ts
@@ -168,7 +171,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     accountsList,
     chatCountsByAccount,
     monthlyCost,
-    appSettings,
+    orgBilling,
     assignedChats,
     campaignsForMessageStats,
     leadSheetSources,
@@ -230,8 +233,8 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     }),
     // Misma función que usan bot-worker/lead-scoring/lead-recovery para decidir
     // pausar el gasto — así el % de presupuesto mostrado nunca diverge del real.
-    getMonthlyAiCost(userId, monthStart),
-    prisma.appSettings.findUnique({ where: { userId }, select: { monthlyBudgetUsd: true } }),
+    getOrgAiCost(org.organizationId, monthStart),
+    getOrgBilling(org.organizationId),
     prisma.wAChat.findMany({
       where: {
         assignedToId: { not: null },
@@ -488,7 +491,10 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     accountBreakdown,
     agentPerformance,
     monthlyCost: Math.round(monthlyCost * 10000) / 10000,
-    monthlyBudgetUsd: appSettings?.monthlyBudgetUsd ?? null,
+    aiCredits: {
+      used: orgBilling?.aiCreditsUsed ?? 0,
+      limit: orgBilling && Number.isFinite(planLimits(orgBilling).aiCreditsPerMonth) ? planLimits(orgBilling).aiCreditsPerMonth : null,
+    },
     campaignMessagesByOrigin,
     campaignMessageBreakdown,
     qualifiedChats,

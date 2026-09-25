@@ -1,8 +1,9 @@
-import type { AIProvider } from "./types";
+import type { AICompletionParams, AIProvider } from "./types";
+import { curateModel } from "./platform";
 import { createOpenRouterClient } from "./providers/openrouter";
 import { createGoogleClient } from "./providers/google";
 
-export function getAIProvider(provider: AIProvider, apiKey: string) {
+function createClient(provider: AIProvider, apiKey: string) {
   switch (provider) {
     case "openrouter":
       return createOpenRouterClient(apiKey);
@@ -11,6 +12,17 @@ export function getAIProvider(provider: AIProvider, apiKey: string) {
     default:
       throw new Error(`Unknown AI provider: ${provider}`);
   }
+}
+
+// Todo completion pasa por la lista curada: un bot con un modelo que ya no
+// está en AI_MODELS corre con el recomendado de su proveedor (la IA la paga la
+// plataforma; un modelo caro guardado de antes no debe colarse).
+export function getAIProvider(provider: AIProvider, apiKey: string) {
+  const client = createClient(provider, apiKey);
+  return {
+    ...client,
+    complete: (params: AICompletionParams) => client.complete({ ...params, model: curateModel(provider, params.model) }),
+  };
 }
 
 export function getEmbeddingModel(provider: AIProvider): string {

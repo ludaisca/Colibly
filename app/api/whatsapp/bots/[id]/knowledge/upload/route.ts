@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ragQueue } from "@/lib/queue";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import type { AIProvider } from "@/lib/ai/types";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
@@ -65,7 +65,7 @@ export async function POST(
 
     const provider = bot.provider as AIProvider;
 
-    const apiKey = await getUserApiKey(session.user.id, provider);
+    const apiKey = getPlatformApiKey(provider);
     if (!apiKey) {
       return NextResponse.json(
         { error: "No hay API key configurada para el proveedor de este bot" },

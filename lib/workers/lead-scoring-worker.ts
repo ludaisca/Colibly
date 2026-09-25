@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { scoreChatWithScorer } from "@/lib/whatsapp/lead-scoring";
-import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { hasAiCredits } from "@/lib/ai/credits";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import type { WALeadScorerBot } from "@prisma/client";
 import { isOrgWritable } from "@/lib/billing/gates";
@@ -35,8 +35,10 @@ export async function processLeadScoringTick() {
 async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
   // Solo lectura: la calificación automática no gasta IA.
   if (!(await isOrgWritable(scorer.organizationId))) return;
-  if (await isMonthlyBudgetExceeded(scorer.userId, now)) {
-    console.log(`[lead-scoring] Presupuesto mensual de IA superado, se omite el calificador ${scorer.id} en este ciclo`);
+  // Cada calificación reserva su crédito (scoreChatWithScorer); esto solo
+  // evita recorrer el lote si ya no queda ninguno.
+  if (!(await hasAiCredits(scorer.organizationId, now))) {
+    console.log(`[lead-scoring] Sin créditos de IA, se omite el calificador ${scorer.id} en este ciclo`);
     return;
   }
 
@@ -81,12 +83,10 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     })
     .slice(0, BATCH_SIZE_PER_SCORER);
 
-  let scoredAny = false;
 
   for (const chat of dueChats) {
     try {
       await scoreChatWithScorer(chat.id, scorer, "WHATSAPP");
-      scoredAny = true;
     } catch (err) {
       console.error(`[lead-scoring] Error calificando chat ${chat.id} con el calificador ${scorer.id}:`, err);
     }
@@ -147,16 +147,12 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     for (const conversation of tgDueConversations) {
       try {
         await scoreChatWithScorer(conversation.id, scorer, "TELEGRAM");
-        scoredAny = true;
       } catch (err) {
         console.error(`[lead-scoring] Error calificando conversación ${conversation.id} con el calificador ${scorer.id}:`, err);
       }
     }
   }
 
-  if (scoredAny) {
-    await checkBudgetAlert(scorer.userId, now);
-  }
 
   await prisma.wALeadScorerBot.update({
     where: { id: scorer.id },

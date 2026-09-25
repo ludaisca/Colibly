@@ -1,19 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { enabledProviders, getPlatformApiKey } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
-import { isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { reserveAiCredit } from "@/lib/ai/credits";
+import { DEFAULT_AI_MODEL } from "@/lib/billing/plans";
 import { SCOPE_GUARDRAIL, wrapUserPrompt } from "@/lib/ai/prompt-sanitizer";
 import type { AIProvider } from "@/lib/ai/types";
 
-// IA de los pasos de automatización. Usa la configuración de IA del DUEÑO de
-// la cuenta (proveedor y modelo por defecto de /configuracion/ia) — el mismo
-// que paga el presupuesto. Devuelve null en vez de lanzar si no hay IA
-// disponible (sin API key, presupuesto agotado, respuesta ilegible): los
-// pasos tienen una rama "otro" / seguir sin el dato para ese caso.
+// IA de los pasos de automatización: el modelo recomendado del primer
+// proveedor que la plataforma tenga configurado, y un crédito de la
+// organización por llamada. Devuelve null en vez de lanzar si no hay IA
+// disponible (sin créditos, sin proveedor, respuesta ilegible): los pasos
+// tienen una rama "otro" / seguir sin el dato para ese caso.
 
 export interface AiCallContext {
   ownerId: string;
+  organizationId: string;
   automationId: string;
   runId: string | null;
   waChatId: string | null;
@@ -21,15 +23,12 @@ export interface AiCallContext {
 }
 
 async function complete(ctx: AiCallContext, system: string, user: string, maxTokens: number): Promise<string | null> {
-  if (await isMonthlyBudgetExceeded(ctx.ownerId, new Date())) return null;
-  const settings = await prisma.appSettings.findUnique({
-    where: { userId: ctx.ownerId },
-    select: { defaultProvider: true, defaultModel: true },
-  });
-  const provider = (settings?.defaultProvider ?? "openrouter") as AIProvider;
-  const model = settings?.defaultModel ?? "google/gemini-2.5-flash";
-  const apiKey = await getUserApiKey(ctx.ownerId, provider);
+  const provider: AIProvider | undefined = enabledProviders()[0];
+  if (!provider) return null;
+  const model = DEFAULT_AI_MODEL[provider];
+  const apiKey = getPlatformApiKey(provider);
   if (!apiKey) return null;
+  if (!(await reserveAiCredit(ctx.organizationId))) return null;
 
   const result = await getAIProvider(provider, apiKey).complete({
     model,
