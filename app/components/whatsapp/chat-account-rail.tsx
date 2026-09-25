@@ -104,7 +104,7 @@ function RailButton({
       {/* WhatsApp es el canal por defecto/mayoritario y no necesita
           distinguirse a sí mismo — los otros 3 llevan marca de canal. */}
       {channel === "TELEGRAM" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-on-accent ring-2 ring-background">
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-surface ring-2 ring-background">
           <Send size={9} />
         </span>
       )}
@@ -114,7 +114,7 @@ function RailButton({
         </span>
       )}
       {channel === "INSTAGRAM" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-on-accent ring-2 ring-background">
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-surface ring-2 ring-background">
           <Camera size={9} />
         </span>
       )}

@@ -19,16 +19,23 @@ export function contrastRatio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/**
- * Lee las custom properties del primer bloque `:root { … }` y resuelve las
- * referencias `var(--x)` hasta llegar a un hex. Los valores que no terminan
- * en hex (sombras, radios, oklch) se dejan tal cual.
- */
-export function readRootTokens(css: string): Record<string, string> {
-  const block = css.match(/:root\s*\{([\s\S]*?)\n\}/);
-  if (!block) throw new Error("No se encontró el bloque :root");
+function readBlock(css: string, selector: string): Record<string, string> {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const block = css.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([\\s\\S]*?)\\n\\}`));
+  if (!block) throw new Error(`No se encontró el bloque ${selector}`);
   const raw: Record<string, string> = {};
   for (const m of block[1].matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)) raw[m[1]] = m[2].trim();
+  return raw;
+}
+
+/**
+ * Lee las custom properties de `:root` (y, si se pide un tema, las del bloque
+ * de ese selector encima, p. ej. ".dark") y resuelve las referencias
+ * `var(--x)` hasta llegar a un hex. Los valores que no terminan en hex
+ * (sombras, radios, oklch) se dejan tal cual.
+ */
+export function readThemeTokens(css: string, themeSelector?: string): Record<string, string> {
+  const raw = { ...readBlock(css, ":root"), ...(themeSelector ? readBlock(css, themeSelector) : {}) };
 
   const resolve = (name: string, seen: Set<string>): string => {
     const value = raw[name];

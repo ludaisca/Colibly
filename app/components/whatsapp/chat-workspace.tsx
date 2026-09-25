@@ -84,6 +84,10 @@ export function ChatWorkspace({
   const [hasRepliedFilter, setHasRepliedFilter] = useState<"" | "yes" | "no">(initialHasReplied || "");
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  // Con un filtro de cuenta (p. ej. al abrir un chat por URL), la lista espera
+  // a saber de qué canal es esa cuenta: sin eso consultaba los 5 endpoints y
+  // los 4 que no le corresponden respondían 404 "cuenta no encontrada".
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [contactDrawerOpen, setContactDrawerOpen] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<PreviewMedia | null>(null);
   const [cannedResponses, setCannedResponses] = useState<CannedResponseItem[]>([]);
@@ -308,11 +312,15 @@ export function ChatWorkspace({
           ...toChannelOptions(wc, "WEBCHAT"),
         ]);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setAccountsLoaded(true));
   }, []);
+
+  const waitingForAccounts = !!accountFilter && !accountsLoaded;
 
   // Load initial chats list
   useEffect(() => {
+    if (waitingForAccounts) return;
     const generation = ++chatsGenerationRef.current;
     async function reset() {
       setLoadingChats(true);
@@ -328,7 +336,7 @@ export function ChatWorkspace({
       }
     }
     reset();
-  }, [fetchChatsPage, firstPagePerChannel, toastError]);
+  }, [fetchChatsPage, firstPagePerChannel, toastError, waitingForAccounts]);
 
   // Refresco periódico de la LISTA — antes solo se refrescaba cuando cambiaba
   // el chat abierto, así que las conversaciones nuevas de otros leads no
@@ -337,7 +345,7 @@ export function ChatWorkspace({
   // perder lo traído con "Cargar más". Se salta con la pestaña oculta.
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (document.visibilityState === "hidden") return;
+      if (document.visibilityState === "hidden" || waitingForAccounts) return;
       const generation = chatsGenerationRef.current;
       try {
         const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
@@ -356,7 +364,7 @@ export function ChatWorkspace({
       }
     }, CHATS_LIST_POLL_MS);
     return () => clearInterval(interval);
-  }, [fetchChatsPage, firstPagePerChannel]);
+  }, [fetchChatsPage, firstPagePerChannel, waitingForAccounts]);
 
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.

@@ -44,7 +44,7 @@ export interface AppShellProps {
 function activeClass(accent: "accent" | "danger") {
   return accent === "accent"
     ? "bg-accent text-on-accent font-semibold shadow-sm"
-    : "bg-danger text-on-accent font-semibold shadow-sm";
+    : "bg-danger text-surface font-semibold shadow-sm";
 }
 
 function SidebarContent({

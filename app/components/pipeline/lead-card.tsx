@@ -1,6 +1,7 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
+import { labelText } from "@/lib/whatsapp/export-columns";
 import { GripVertical, Phone, Clock } from "lucide-react";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
@@ -35,11 +36,14 @@ function scoreTone(score: number): "danger" | "warning" | "success" {
   return "success";
 }
 
+// Etiquetas actuales del calificador (lib/whatsapp/lead-scoring.ts) más las
+// del esquema viejo frio/tibio/caliente, que siguen en scores antiguos.
 function scoreLabelClass(label: string): string {
   const l = label.toLowerCase();
+  if (l === "prioridad_alta" || l === "caliente") return "bg-danger-bg text-danger";
+  if (l === "oportunidad") return "bg-success-bg text-success";
+  if (l === "interesado" || l === "tibio") return "bg-warning-bg text-warning";
   if (l === "frio") return "bg-info-bg text-info";
-  if (l === "tibio") return "bg-warning-bg text-warning";
-  if (l === "caliente") return "bg-danger-bg text-danger";
   return "bg-surface-light text-muted";
 }
 
@@ -131,11 +135,11 @@ export function LeadCard({ data }: { data: LeadCardData }) {
           </div>
           <span
             className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
+              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold",
               scoreLabelClass(data.bestScore.label)
             )}
           >
-            {data.bestScore.label}
+            {labelText(data.bestScore.label)}
           </span>
         </div>
       )}

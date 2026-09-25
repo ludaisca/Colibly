@@ -38,6 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      data-scroll-behavior="smooth"
       className={`${bricolage.variable} ${hankenGrotesk.variable} antialiased`}
       suppressHydrationWarning
     >

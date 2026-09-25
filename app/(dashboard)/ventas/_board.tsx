@@ -126,6 +126,10 @@ export function PipelineBoard({ initialData }: PipelineBoardProps) {
 
   return (
     <DndContext
+      // id fijo: sin él dnd-kit numera su contador distinto en servidor y
+      // cliente (aria-describedby="DndDescribedBy-N") y React avisa de un
+      // desajuste de hidratación.
+      id="pipeline-board"
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}

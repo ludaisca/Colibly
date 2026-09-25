@@ -169,11 +169,11 @@ function MessageBubble({
         className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
           isInbound
             ? "rounded-2xl rounded-tl-sm bg-surface text-foreground"
-            : "rounded-2xl rounded-tr-sm bg-accent-muted text-on-accent"
+            : "rounded-2xl rounded-tr-sm bg-accent-muted text-foreground"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
-          <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${isInbound ? "text-muted-darker" : "text-on-accent/70"}`}>
+          <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${isInbound ? "text-muted-darker" : "text-foreground/65"}`}>
             <MessageSquare size={10} />
             <span>Desde un comentario</span>
           </div>
@@ -188,10 +188,9 @@ function MessageBubble({
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
         {buttons && buttons.length > 0 && (
           // Un mensaje interactivo siempre es OUTBOUND (lo arma el agente), y
-          // esta burbuja ya es bg-accent-muted/text-on-accent (ver arriba) — por
-          // eso el divisor/texto usan tonos on-accent, no los tokens neutros
-          // que usaría una burbuja inbound.
-          <div className="mt-2 pt-2 border-t border-on-accent/25 space-y-1">
+          // esta burbuja ya es bg-accent-muted/text-foreground (ver arriba) — por
+          // eso el divisor usa foreground con opacidad, que funciona en ambos temas.
+          <div className="mt-2 pt-2 border-t border-foreground/20 space-y-1">
             {buttons.map((b) => (
               <div key={b.id} className="flex items-center justify-center gap-1.5 text-xs py-1">
                 <CornerUpLeft size={12} />
@@ -201,7 +200,7 @@ function MessageBubble({
           </div>
         )}
         <div className={`flex items-center justify-end gap-1 mt-1 ${
-          isInbound ? "text-muted-darker" : "text-on-accent/70"
+          isInbound ? "text-muted-darker" : "text-foreground/65"
         }`}>
           {isFailed && (
             <button
@@ -358,7 +357,10 @@ export function ChatThreadPanel({
             ))}
           </select>
           <ChatTagPicker key={selectedChat.id} chatId={selectedChat.id} />
-          <LeadScoreBadge key={`score-${selectedChat.id}`} chatId={selectedChat.id} />
+          {/* La calificación solo existe para WhatsApp y Telegram (la API responde 400 al resto). */}
+          {(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && (
+            <LeadScoreBadge key={`score-${selectedChat.id}`} chatId={selectedChat.id} />
+          )}
           <ChatCostBadge key={`cost-${selectedChat.id}`} chatId={selectedChat.id} />
           <AutomationChip key={`auto-${selectedChat.id}`} chatId={selectedChat.id} />
           <ChatAssigneePicker
