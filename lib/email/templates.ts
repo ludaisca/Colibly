@@ -17,7 +17,7 @@ function layout(input: { title: string; paragraphs: string[]; cta: { label: stri
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#ffffff;border-radius:16px;padding:32px">
 <tr><td>
-<p style="margin:0 0 24px;font-size:18px;font-weight:700;color:${ACCENT}">SundayCRM</p>
+<p style="margin:0 0 24px;font-size:18px;font-weight:700;color:${ACCENT}">SunflowCRM</p>
 <h1 style="margin:0 0 16px;font-size:22px;color:#12201c">${input.title}</h1>
 ${body}
 <p style="margin:24px 0"><a href="${escapeHtml(input.cta.url)}" style="display:inline-block;background:${ACCENT};color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:12px">${input.cta.label}</a></p>
@@ -30,14 +30,14 @@ export function verifyEmailTemplate(input: { to: string; name: string | null; ur
   const hello = input.name ? `Hola ${input.name},` : "Hola,";
   return {
     to: input.to,
-    subject: "Confirma tu correo en SundayCRM",
+    subject: "Confirma tu correo en SunflowCRM",
     html: layout({
       title: "Confirma tu correo",
       paragraphs: [escapeHtml(hello), "Confirma que este correo es tuyo para poder conectar tus canales y activar tu plan."],
       cta: { label: "Confirmar correo", url: input.url },
-      footnote: "El enlace vence en 48 horas. Si no creaste una cuenta en SundayCRM, ignora este mensaje.",
+      footnote: "El enlace vence en 48 horas. Si no creaste una cuenta en SunflowCRM, ignora este mensaje.",
     }),
-    text: `${hello}\n\nConfirma tu correo en SundayCRM:\n${input.url}\n\nEl enlace vence en 48 horas. Si no creaste una cuenta, ignora este mensaje.`,
+    text: `${hello}\n\nConfirma tu correo en SunflowCRM:\n${input.url}\n\nEl enlace vence en 48 horas. Si no creaste una cuenta, ignora este mensaje.`,
   };
 }
 
@@ -45,14 +45,14 @@ export function passwordResetTemplate(input: { to: string; name: string | null; 
   const hello = input.name ? `Hola ${input.name},` : "Hola,";
   return {
     to: input.to,
-    subject: "Restablece tu contraseña de SundayCRM",
+    subject: "Restablece tu contraseña de SunflowCRM",
     html: layout({
       title: "Restablece tu contraseña",
       paragraphs: [escapeHtml(hello), "Recibimos una solicitud para cambiar la contraseña de tu cuenta."],
       cta: { label: "Elegir nueva contraseña", url: input.url },
       footnote: "El enlace vence en 1 hora y solo funciona una vez. Si no lo pediste, ignora este correo: tu contraseña no cambia.",
     }),
-    text: `${hello}\n\nPara elegir una nueva contraseña de SundayCRM entra a:\n${input.url}\n\nEl enlace vence en 1 hora. Si no lo pediste, ignora este correo.`,
+    text: `${hello}\n\nPara elegir una nueva contraseña de SunflowCRM entra a:\n${input.url}\n\nEl enlace vence en 1 hora. Si no lo pediste, ignora este correo.`,
   };
 }
 
@@ -61,10 +61,10 @@ const ROLE_LABEL: Record<string, string> = { admin: "administrador", user: "usua
 export function invitationTemplate(input: { to: string; organizationName: string; inviterName: string | null; role: string; url: string }): EmailMessage {
   const who = input.inviterName ?? "Un administrador";
   const role = ROLE_LABEL[input.role] ?? input.role;
-  const line = `${who} te invitó a unirte a ${input.organizationName} en SundayCRM como ${role}.`;
+  const line = `${who} te invitó a unirte a ${input.organizationName} en SunflowCRM como ${role}.`;
   return {
     to: input.to,
-    subject: `Te invitaron a ${input.organizationName} en SundayCRM`,
+    subject: `Te invitaron a ${input.organizationName} en SunflowCRM`,
     html: layout({
       title: "Tienes una invitación",
       paragraphs: [escapeHtml(line), "Crea tu contraseña para empezar a atender conversaciones con tu equipo."],
@@ -84,7 +84,7 @@ export function billingNoticeTemplate(input: { to: string; title: string; paragr
       title: escapeHtml(input.title),
       paragraphs: input.paragraphs.map(escapeHtml),
       cta: { label: escapeHtml(input.ctaLabel), url: input.url },
-      footnote: "Recibes este correo porque administras una cuenta de SundayCRM.",
+      footnote: "Recibes este correo porque administras una cuenta de SunflowCRM.",
     }),
     text: `${input.title}\n\n${input.paragraphs.join("\n\n")}\n\n${input.ctaLabel}: ${input.url}`,
   };

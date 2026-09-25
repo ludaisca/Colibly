@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+The product is **SunflowCRM** (formerly SundayCRM; internal names like the repo folder keep the old one). Use `lib/brand.ts:BRAND_NAME` in user-facing text.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 @AGENTS.md

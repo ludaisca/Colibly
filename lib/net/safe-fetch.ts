@@ -186,7 +186,7 @@ export async function safeFetch(rawUrl: string, options: SafeFetchOptions = {}):
       {
         method: options.method ?? "GET",
         headers: {
-          "User-Agent": "SundayCRM-Webhooks/1.0",
+          "User-Agent": "SunflowCRM-Webhooks/1.0",
           ...(options.body !== undefined ? { "Content-Length": Buffer.byteLength(options.body).toString() } : {}),
           ...options.headers,
         },

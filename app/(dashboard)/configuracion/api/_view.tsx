@@ -41,7 +41,7 @@ export function ApiIntegrationsView() {
       backHref="/configuracion"
       backLabel="Volver a configuración"
       title="API e integraciones"
-      description="Conecta SundayCRM con tu ERP, tienda, Zapier/Make o tus propios sistemas."
+      description="Conecta SunflowCRM con tu ERP, tienda, Zapier/Make o tus propios sistemas."
       maxWidth="max-w-4xl"
       tabs={TABS as unknown as { id: string; label: string }[]}
       activeTab={tab}

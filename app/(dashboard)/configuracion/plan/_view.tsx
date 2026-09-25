@@ -12,7 +12,8 @@ import { Button } from "@/app/components/ui/button";
 import { Progress } from "@/app/components/ui/progress";
 import { useToast } from "@/app/components/ui/toast";
 import { cn } from "@/app/components/ui/cn";
-import { PLAN_LIST, PLANS, TRIAL_DAYS, type Plan } from "@/lib/billing/plans";
+import { PLAN_LIST, PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
+import { planFeatures } from "@/lib/billing/plan-features";
 import type { AccessMode } from "@/lib/billing/state";
 
 export interface PlanViewData {
@@ -62,20 +63,6 @@ function statusLine(d: PlanViewData): string {
   if (d.status === "READ_ONLY") return "Tu cuenta está en solo lectura: ves tus datos, pero no se envían mensajes ni corren bots.";
   if (d.status === "CANCELED") return "Tu suscripción terminó. Conservamos tus datos 60 días: vuelve a suscribirte para reactivar todo.";
   return "Tu cuenta está suspendida. Escríbenos para resolverlo.";
-}
-
-function features(plan: Plan): Array<{ text: string; included: boolean }> {
-  const l = plan.limits;
-  const n = (v: number) => (Number.isFinite(v) ? v.toLocaleString("es-MX") : "Ilimitadas");
-  return [
-    { text: `${l.users} usuarios`, included: true },
-    { text: l.channels === 1 ? "1 canal (WhatsApp, Telegram, Messenger o Instagram)" : `${l.channels} canales`, included: true },
-    { text: "Widget de chat para tu web", included: true },
-    { text: `${n(l.contacts)} contactos`, included: true },
-    { text: `${n(l.aiCreditsPerMonth)} créditos de IA al mes`, included: true },
-    { text: Number.isFinite(l.activeAutomations) ? `${l.activeAutomations} automatizaciones activas` : "Automatizaciones ilimitadas", included: true },
-    { text: "API y webhooks", included: l.apiAccess },
-  ];
 }
 
 export function PlanView({ data }: { data: PlanViewData }) {
@@ -184,7 +171,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                     <span className="text-sm text-muted"> USD / mes</span>
                   </p>
                   <ul className="mt-4 flex-1 space-y-2 text-sm">
-                    {features(plan).map((f) => (
+                    {planFeatures(plan).map((f) => (
                       <li key={f.text} className={cn("flex items-start gap-2", !f.included && "text-muted-darker line-through")}>
                         {f.included ? <Check size={16} className="mt-0.5 shrink-0 text-accent" /> : <X size={16} className="mt-0.5 shrink-0" />}
                         {f.text}

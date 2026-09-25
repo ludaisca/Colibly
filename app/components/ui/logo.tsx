@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "./cn";
+import { BRAND_NAME } from "@/lib/brand";
 
 type LogoSize = "sm" | "md" | "lg";
 
@@ -35,7 +36,7 @@ function LogoMark({ size = "md", brand = "S" }: { size?: LogoSize; brand?: strin
   );
 }
 
-export function Logo({ brand = "SundayCRM", size = "md", href, showWordmark = true, className }: LogoProps) {
+export function Logo({ brand = BRAND_NAME, size = "md", href, showWordmark = true, className }: LogoProps) {
   if (!showWordmark) {
     const box = (
       <span

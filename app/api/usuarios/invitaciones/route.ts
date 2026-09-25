@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const existing = await prisma.user.findUnique({ where: { email }, select: { organizationId: true } });
     if (existing) {
       const organizationId = await requireOrgId(session.user.id);
-      const message = existing.organizationId === organizationId ? "Esa persona ya es parte de tu equipo." : "Ese correo ya tiene una cuenta en SundayCRM con otra empresa.";
+      const message = existing.organizationId === organizationId ? "Esa persona ya es parte de tu equipo." : "Ese correo ya tiene una cuenta en SunflowCRM con otra empresa.";
       return NextResponse.json({ error: message }, { status: 409 });
     }
 

@@ -42,8 +42,8 @@ export async function processWebhookDelivery(job: Job<WebhookDeliveryJob>): Prom
       headers: {
         "Content-Type": "application/json",
         [SIGNATURE_HEADER]: signWebhookBody(decrypt(endpoint.secret), body),
-        "X-Sunday-Event": delivery.eventType,
-        "X-Sunday-Delivery": delivery.id,
+        "X-Sunflow-Event": delivery.eventType,
+        "X-Sunflow-Delivery": delivery.id,
       },
       maxResponseBytes: 4096,
     });

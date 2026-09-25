@@ -15,7 +15,7 @@ services:
       # (http://localhost:18025), nunca en bandejas reales.
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
-      EMAIL_FROM: "SundayCRM <no-reply@sundaycrm.test>"
+      EMAIL_FROM: "SunflowCRM <no-reply@sundaycrm.test>"
     command: >
       sh -c "npx prisma generate && sh scripts/db-migrate.sh && mkdir -p /app/media && npm run dev"
 

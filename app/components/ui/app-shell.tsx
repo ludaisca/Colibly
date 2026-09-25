@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
 import { RouteProgressBar } from "./route-progress-bar";
 import { cn } from "./cn";
+import { BRAND_NAME } from "@/lib/brand";
 
 export interface NavItem {
   href: string;
@@ -50,7 +51,7 @@ function SidebarContent({
   accent = "accent",
   bottomActions,
   logoArea,
-  brand = "SundayCRM",
+  brand = BRAND_NAME,
   collapsed,
   onClose,
 }: Pick<AppShellProps, "nav" | "accent" | "bottomActions" | "brand"> & {
@@ -267,7 +268,7 @@ export function AppShell({
                 S
               </div>
               <span className="text-sm font-semibold tracking-tight">
-                SundayCRM
+                {BRAND_NAME}
               </span>
             </Link>
           </div>

@@ -1,4 +1,4 @@
-# SundayCRM
+# SunflowCRM
 
 > CRM multi-tenant y multi-canal en evolución. Hoy el canal principal es WhatsApp con Telegram ya integrado como segundo canal — ver [`docs/FORK_PLAN.md`](docs/FORK_PLAN.md) para la hoja de ruta de las fases de multi-tenancy y abstracción de canal.
 

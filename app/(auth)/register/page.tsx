@@ -72,7 +72,7 @@ export default function RegisterPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex justify-center">
-        <Logo href="/" brand="SundayCRM" size="lg" />
+        <Logo href="/" size="lg" />
       </div>
 
       <Card>
@@ -146,6 +146,11 @@ export default function RegisterPage() {
             <Button type="submit" fullWidth loading={loading} icon={UserPlus}>
               Crear cuenta
             </Button>
+            <p className="text-center text-xs text-muted-darker">
+              Al crear tu cuenta aceptas los{" "}
+              <Link href="/terminos" className="text-accent hover:underline">Términos y condiciones</Link> y el{" "}
+              <Link href="/privacidad" className="text-accent hover:underline">Aviso de privacidad</Link>.
+            </p>
           </form>
         </CardBody>
         <CardFooter>

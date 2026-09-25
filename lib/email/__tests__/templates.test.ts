@@ -27,11 +27,11 @@ describe("plantillas de correo", () => {
   it("saluda sin nombre cuando no hay", () => {
     const msg = verifyEmailTemplate({ to: "x@y.com", name: null, url: "https://a/b" });
     expect(msg.text.startsWith("Hola,")).toBe(true);
-    expect(msg.subject).toBe("Confirma tu correo en SundayCRM");
+    expect(msg.subject).toBe("Confirma tu correo en SunflowCRM");
   });
 
   it("traduce el rol de la invitación", () => {
     const msg = invitationTemplate({ to: "x@y.com", organizationName: "Spa", inviterName: null, role: "ejecutivo", url: "https://a/b" });
-    expect(msg.text).toContain("Un administrador te invitó a unirte a Spa en SundayCRM como ejecutivo.");
+    expect(msg.text).toContain("Un administrador te invitó a unirte a Spa en SunflowCRM como ejecutivo.");
   });
 });

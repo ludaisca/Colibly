@@ -42,7 +42,7 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
     console.info(`[email] (sin SMTP) Para: ${message.to} · ${message.subject}\n${message.text}`);
     return;
   }
-  await t.sendMail({ from: process.env.EMAIL_FROM || "SundayCRM <no-reply@localhost>", ...message });
+  await t.sendMail({ from: process.env.EMAIL_FROM || "SunflowCRM <no-reply@localhost>", ...message });
 }
 
 // Envío en segundo plano (dentro de after() de Next): un fallo del SMTP se

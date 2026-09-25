@@ -35,7 +35,7 @@ function VerifyEmail() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex justify-center">
-        <Logo href="/" brand="SundayCRM" size="lg" />
+        <Logo href="/" size="lg" />
       </div>
       <Card>
         <CardHeader>
@@ -52,7 +52,7 @@ function VerifyEmail() {
           {state.status !== "loading" && (
             <p className="text-sm">
               <Link href="/dashboard" className="text-accent hover:underline">
-                Ir a SundayCRM
+                Ir a SunflowCRM
               </Link>
             </p>
           )}

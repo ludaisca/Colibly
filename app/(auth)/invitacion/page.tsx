@@ -75,7 +75,7 @@ function AcceptInvitation() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex justify-center">
-        <Logo href="/" brand="SundayCRM" size="lg" />
+        <Logo href="/" size="lg" />
       </div>
 
       <Card>

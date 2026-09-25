@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof InvitationError) return NextResponse.json({ error: error.message }, { status: 400 });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json({ error: "Ese correo ya tiene una cuenta en SundayCRM. Inicia sesión con él." }, { status: 409 });
+      return NextResponse.json({ error: "Ese correo ya tiene una cuenta en SunflowCRM. Inicia sesión con él." }, { status: 409 });
     }
     console.error("[invitacion]", error);
     return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 });

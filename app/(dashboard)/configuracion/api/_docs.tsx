@@ -20,11 +20,11 @@ function Code({ children }: { children: string }) {
   return <pre className="overflow-x-auto rounded-lg border border-border bg-surface p-3 text-xs leading-relaxed">{children}</pre>;
 }
 
-const VERIFY_SNIPPET = `// Node.js (Express) — verifica X-Sunday-Signature antes de confiar en el cuerpo.
+const VERIFY_SNIPPET = `// Node.js (Express) — verifica X-Sunflow-Signature antes de confiar en el cuerpo.
 import crypto from "node:crypto";
 
 app.post("/webhooks/sunday", express.raw({ type: "application/json" }), (req, res) => {
-  const header = req.get("X-Sunday-Signature") ?? "";
+  const header = req.get("X-Sunflow-Signature") ?? "";
   const [, t, v1] = header.match(/t=(\\d+),v1=([0-9a-f]+)/) ?? [];
   const expected = crypto
     .createHmac("sha256", process.env.SUNDAY_WEBHOOK_SECRET)
@@ -91,9 +91,9 @@ export function ApiDocsSection() {
       <section className="space-y-3">
         <SectionHeader eyebrow="Webhooks" title="Verificar la firma" />
         <p className="text-sm text-muted">
-          Cada entrega es un POST JSON con los headers <code className="font-mono text-xs">X-Sunday-Event</code>,{" "}
-          <code className="font-mono text-xs">X-Sunday-Delivery</code> y{" "}
-          <code className="font-mono text-xs">X-Sunday-Signature: t=&lt;unix&gt;,v1=&lt;hex&gt;</code>, donde v1 es el
+          Cada entrega es un POST JSON con los headers <code className="font-mono text-xs">X-Sunflow-Event</code>,{" "}
+          <code className="font-mono text-xs">X-Sunflow-Delivery</code> y{" "}
+          <code className="font-mono text-xs">X-Sunflow-Signature: t=&lt;unix&gt;,v1=&lt;hex&gt;</code>, donde v1 es el
           HMAC-SHA256 del secreto sobre <code className="font-mono text-xs">{"`${t}.${cuerpo}`"}</code>. Responde 2xx en menos
           de 20 s; si no, se reintenta hasta 6 veces (≈30 min).
         </p>

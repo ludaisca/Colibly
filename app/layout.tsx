@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Providers } from "./providers";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 
 const bricolage = Bricolage_Grotesque({
   variable: "--font-display",
@@ -17,8 +18,8 @@ const hankenGrotesk = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "SundayCRM — Dashboard",
-  description: "SundayCRM — CRM multi-canal de WhatsApp y Telegram: bandeja de chats, bots de IA, calificación de leads, campañas y sincronización con Google Sheets.",
+  title: { default: BRAND_NAME, template: `%s · ${BRAND_NAME}` },
+  description: `${BRAND_NAME} — ${BRAND_TAGLINE}: WhatsApp, Instagram, Messenger, Telegram y tu web en una sola bandeja, con bots de IA y automatizaciones.`,
   icons: {
     icon: [
       {

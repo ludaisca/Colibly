@@ -31,13 +31,13 @@ export function buildOpenApiSpec(serverUrl: string) {
   return {
     openapi: "3.1.0",
     info: {
-      title: "SundayCRM API",
+      title: "SunflowCRM API",
       version: "1.0.0",
       description:
-        "API pública de SundayCRM. Autenticación: `Authorization: Bearer sk_live_...` (API key creada por un admin en Configuración → API). " +
+        "API pública de SunflowCRM. Autenticación: `Authorization: Bearer sk_live_...` (API key creada por un admin en Configuración → API). " +
         "Límite: 120 solicitudes por minuto por key. Los errores tienen la forma `{ error: { code, message } }`.\n\n" +
         "**Webhooks salientes**: cada entrega es un POST con el evento en el cuerpo y el header " +
-        "`X-Sunday-Signature: t=<unix>,v1=<hex>`, donde v1 = HMAC-SHA256(secret, `${t}.${cuerpo}`). " +
+        "`X-Sunflow-Signature: t=<unix>,v1=<hex>`, donde v1 = HMAC-SHA256(secret, `${t}.${cuerpo}`). " +
         "Responde 2xx en menos de 20 s; se reintenta hasta 6 veces con espera creciente.",
     },
     servers: [{ url: serverUrl }],
@@ -302,7 +302,7 @@ export function buildOpenApiSpec(serverUrl: string) {
               type: "object",
               required: ["id"],
               properties: {
-                id: { type: "string", description: "Id de la plantilla en SundayCRM" },
+                id: { type: "string", description: "Id de la plantilla en SunflowCRM" },
                 bodyParams: { type: "array", items: { type: "string" } },
                 headerParam: { type: ["string", "null"] },
                 buttonParam: { type: ["string", "null"] },

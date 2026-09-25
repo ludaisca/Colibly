@@ -98,14 +98,14 @@ export function WebhookFormModal({
         onClose={handleClose}
         persistent
         title="Webhook creado"
-        description="Guarda el secreto de firma en tu servidor para verificar que cada entrega viene de SundayCRM. No se vuelve a mostrar."
+        description="Guarda el secreto de firma en tu servidor para verificar que cada entrega viene de SunflowCRM. No se vuelve a mostrar."
         size="md"
         footer={<Button onClick={handleClose}>Listo, ya lo guardé</Button>}
       >
         <div className="space-y-4">
           <SecretField label="Secreto de firma" value={secret} />
           <p className="text-sm text-muted">
-            Cada entrega trae el header <code className="font-mono text-xs">X-Sunday-Signature</code>. La pestaña Documentación
+            Cada entrega trae el header <code className="font-mono text-xs">X-Sunflow-Signature</code>. La pestaña Documentación
             tiene el código para verificarlo. Usa “Probar” en la lista para mandar un evento de prueba.
           </p>
         </div>
@@ -118,7 +118,7 @@ export function WebhookFormModal({
       open={open}
       onClose={handleClose}
       title={editing ? "Editar webhook" : "Nuevo webhook"}
-      description="SundayCRM hará un POST firmado a tu URL cada vez que ocurra uno de los eventos elegidos."
+      description="SunflowCRM hará un POST firmado a tu URL cada vez que ocurra uno de los eventos elegidos."
       size="lg"
       footer={
         <>

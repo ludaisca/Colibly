@@ -21,6 +21,8 @@ import { IconBox } from "@/app/components/ui/icon-box";
 import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { cn } from "@/app/components/ui/cn";
+import { OnboardingChecklist } from "@/app/components/ui/onboarding-checklist";
+import { getOnboardingSteps } from "@/lib/onboarding";
 
 function formatTime(ts: Date | null): string {
   if (!ts) return "—";
@@ -120,12 +122,21 @@ export default async function DashboardPage() {
   ];
 
   const needsAttention = unreadCount > 0;
+  // Primeros pasos: solo admins (son quienes pueden hacerlos) y mientras falte alguno.
+  const onboarding = session.user.role === "admin" ? await getOnboardingSteps(userId) : [];
+  const showOnboarding = onboarding.some((step) => !step.done);
 
   return (
     <div className="space-y-8">
       <div className="animate-fade-in-up">
-        <PageHeader title="Panel" description="Resumen de tu actividad en WhatsApp y Telegram" />
+        <PageHeader title="Panel" description="Resumen de la actividad de tus canales" />
       </div>
+
+      {showOnboarding && (
+        <div className="animate-fade-in-up animation-delay-100">
+          <OnboardingChecklist steps={onboarding} />
+        </div>
+      )}
 
       {/* Estado del sistema — la única métrica que responde "¿todo bien?"
           antes que la fila de KPIs, así el usuario no tiene que sumar cifras

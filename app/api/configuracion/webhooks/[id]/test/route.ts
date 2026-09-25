@@ -32,7 +32,7 @@ export async function POST(_req: Request, { params }: Params) {
       account: null,
       contact: null,
       conversation: null,
-      data: { message: "Evento de prueba enviado desde SundayCRM" },
+      data: { message: "Evento de prueba enviado desde SunflowCRM" },
     });
     if (!delivery) return NextResponse.json({ error: "No se pudo crear la entrega" }, { status: 500 });
     await webhookDeliveryQueue.add("deliver", { deliveryId: delivery.id }, { jobId: delivery.id });
