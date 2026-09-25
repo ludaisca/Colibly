@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
 import {
+  BadgeCheck,
   Bot,
   CalendarCheck,
   Check,
   Globe,
   Inbox,
+  Lock,
   Camera,
   Megaphone,
   MessageCircle,
   Send,
   Sparkles,
+  Store,
+  Stethoscope,
   Target,
+  UtensilsCrossed,
+  Briefcase,
   Workflow,
   X,
 } from "lucide-react";
@@ -52,34 +58,63 @@ const CHANNELS = [
 const FEATURES = [
   {
     icon: Inbox,
-    title: "Una sola bandeja para todo tu equipo",
-    text: "Todos tus canales en un lugar. Asigna conversaciones, etiqueta clientes y sabe quién respondió qué.",
+    title: "Todo tu equipo en los mismos chats, sin perder ninguno",
+    text: "Una sola bandeja para todos tus canales. Asigna conversaciones, etiqueta clientes y sabe quién respondió qué.",
   },
   {
     icon: Bot,
-    title: "Bots de IA que conocen tu negocio",
-    text: "Responden al instante con tu información y tus precios, entienden fotos y te pasan la plática cuando hace falta.",
+    title: "Respuestas al instante, aunque sean las 11 de la noche",
+    text: "Un bot de IA que conoce tu información y tus precios, entiende fotos y te pasa la plática cuando hace falta.",
   },
   {
     icon: Workflow,
-    title: "Automatizaciones con botones",
-    text: "Menús de bienvenida, preguntas de calificación y seguimientos que se envían solos, en todos los canales.",
+    title: "Seguimientos que se envían solos",
+    text: "Automatizaciones con botones: menús de bienvenida, preguntas de calificación y recordatorios, en todos los canales.",
   },
   {
     icon: Target,
-    title: "Leads calificados y pipeline",
-    text: "La IA marca quién está listo para comprar y tu equipo mueve cada oportunidad por etapas hasta cerrar.",
+    title: "Sabes quién está listo para comprar",
+    text: "La IA califica cada conversación y tu equipo mueve cada oportunidad por etapas en el pipeline hasta cerrar.",
   },
   {
     icon: Megaphone,
-    title: "Campañas de WhatsApp",
-    text: "Envía plantillas aprobadas por Meta a tus listas y mide entregas, lecturas y respuestas.",
+    title: "Vuelve a escribirle a tus clientes con campañas",
+    text: "Envía plantillas de WhatsApp aprobadas por Meta a tus listas y mide entregas, lecturas y respuestas.",
   },
   {
     icon: CalendarCheck,
-    title: "Citas y recordatorios",
+    title: "Citas sin ir y venir de mensajes",
     text: "Agenda desde el chat o deja que el bot proponga el horario; tu equipo recibe el recordatorio a tiempo.",
   },
+];
+
+// Es una secuencia real (lo que hace un cliente nuevo), por eso va numerada.
+const STEPS = [
+  {
+    title: "Crea tu cuenta y conecta tu WhatsApp",
+    text: "Con la API oficial de WhatsApp Business. También Instagram, Messenger, Telegram y el chat de tu web.",
+  },
+  {
+    title: "Enséñale a tu bot tu negocio",
+    text: "Escribe cómo debe atender y sube tus precios, servicios y preguntas frecuentes. El bot responde con esa información.",
+  },
+  {
+    title: "Atiende y vende desde una bandeja",
+    text: "Tu equipo toma las conversaciones que el bot no resuelve, y el pipeline te muestra quién está por comprar.",
+  },
+];
+
+const USE_CASES = [
+  { icon: Store, title: "Tiendas", text: "Responde precios y existencias al instante y da seguimiento a quien preguntó y no compró." },
+  { icon: Stethoscope, title: "Consultorios, spas y salones", text: "El bot agenda la cita y a tu equipo le llega el recordatorio antes de que empiece." },
+  { icon: UtensilsCrossed, title: "Restaurantes", text: "Menú de bienvenida con botones para horarios, ubicación, pedidos y reservaciones." },
+  { icon: Briefcase, title: "Servicios e inmobiliarias", text: "Califica a los prospectos de tus anuncios y pásale al asesor los que van en serio." },
+];
+
+const TRUST = [
+  { icon: BadgeCheck, text: "API oficial de WhatsApp Business" },
+  { icon: Lock, text: "Pagos seguros con Stripe" },
+  { icon: Check, text: "Sin tarjeta · Cancela cuando quieras" },
 ];
 
 const FAQ = [
@@ -198,10 +233,17 @@ export default function LandingPage() {
               <span className="text-sm text-muted">con la IA incluida</span>
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button href="/register" size="lg">{CTA}</Button>
+              <Button href="/register" size="lg" data-track="cta" data-track-location="hero">{CTA}</Button>
               <Button href="#precios" variant="secondary" size="lg">Ver precios</Button>
             </div>
-            <p className="mt-3 text-sm text-muted">Sin tarjeta · Cancela cuando quieras</p>
+            <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted" aria-label="Por qué confiar">
+              {TRUST.map(({ icon: Icon, text }) => (
+                <li key={text} className="inline-flex items-center gap-1.5">
+                  <Icon size={16} className="shrink-0 text-accent-2" aria-hidden />
+                  {text}
+                </li>
+              ))}
+            </ul>
           </div>
           <div className="animate-fade-in-up animation-delay-200">
             <InboxPreview />
@@ -219,6 +261,26 @@ export default function LandingPage() {
             </span>
           ))}
         </div>
+      </section>
+
+      <section aria-labelledby="como-funciona" className="mx-auto max-w-6xl px-4 pt-20 md:px-6">
+        <p className="text-eyebrow font-medium uppercase tracking-wider text-muted">Cómo funciona</p>
+        <h2 id="como-funciona" className="mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
+          Empieza a atender con IA hoy mismo
+        </h2>
+        <ol className="mt-10 grid gap-5 md:grid-cols-3">
+          {STEPS.map(({ title, text }, i) => (
+            <li key={title} className="flex gap-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent font-display text-lg font-semibold text-on-accent tabular-nums" aria-hidden>
+                {i + 1}
+              </span>
+              <div>
+                <h3 className="font-display text-lg font-semibold">{title}</h3>
+                <p className="mt-1 text-sm text-muted">{text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <section id="funciones" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 md:px-6">
@@ -245,6 +307,22 @@ export default function LandingPage() {
         <p className="mt-6 text-sm text-muted">
           Además: API y webhooks para conectar tu tienda o ERP, reportes por agente y campos personalizados para tu giro.
         </p>
+      </section>
+
+      <section aria-labelledby="giros" className="mx-auto max-w-6xl px-4 pb-20 md:px-6">
+        <p className="text-eyebrow font-medium uppercase tracking-wider text-muted">Para tu negocio</p>
+        <h2 id="giros" className="mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
+          Si vendes por mensaje, te sirve
+        </h2>
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {USE_CASES.map(({ icon: Icon, title, text }) => (
+            <div key={title} className="rounded-2xl border border-border bg-surface p-5">
+              <Icon size={22} className="text-accent-ink" aria-hidden />
+              <h3 className="mt-3 font-display text-base font-semibold">{title}</h3>
+              <p className="mt-1 text-sm text-muted">{text}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section id="precios" className="scroll-mt-20 border-y border-border/60 bg-surface">
@@ -287,7 +365,7 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Button href="/register" variant={featured ? "primary" : "secondary"} size="lg" fullWidth className="mt-6">
+                  <Button href="/register" variant={featured ? "primary" : "secondary"} size="lg" fullWidth className="mt-6" data-track="cta" data-track-location={`plan_${plan.id.toLowerCase()}`}>
                     {CTA}
                   </Button>
                 </div>
@@ -301,7 +379,7 @@ export default function LandingPage() {
         <h2 className="text-center font-display text-3xl font-semibold tracking-tight">Preguntas frecuentes</h2>
         <div className="mt-10 divide-y divide-border rounded-2xl border border-border bg-surface">
           {FAQ.map(({ q, a }) => (
-            <details key={q} className="group">
+            <details key={q} className="group" data-track="faq">
               {/* El relleno va en el summary para que toda la fila sea tocable. */}
               <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-2xl px-5 py-3 font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-strong">
                 {q}
@@ -317,7 +395,7 @@ export default function LandingPage() {
         <div className="rounded-3xl bg-accent px-6 py-12 text-center text-on-accent md:px-12">
           <h2 className="font-display text-3xl font-semibold tracking-tight">Tu próximo cliente ya te está escribiendo</h2>
           <p className="mx-auto mt-3 max-w-xl opacity-90">Crea tu cuenta en un minuto y conecta tu primer canal hoy.</p>
-          <Button href="/register" variant="secondary" size="lg" className="mt-8">
+          <Button href="/register" variant="secondary" size="lg" className="mt-8" data-track="cta" data-track-location="cierre">
             {CTA}
           </Button>
         </div>

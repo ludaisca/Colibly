@@ -14,6 +14,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Logo } from "@/app/components/ui/logo";
 import { registerSchema } from "@/lib/validations";
+import { newAnalyticsEventId, track } from "@/lib/analytics/client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -42,9 +43,12 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
+      // Con consentimiento de cookies, el mismo id viaja al servidor (Conversions
+      // API de Meta) y al Pixel del navegador para que Meta cuente un solo registro.
+      const analyticsEventId = newAnalyticsEventId();
       const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(analyticsEventId ? { "x-analytics-event-id": analyticsEventId } : {}) },
         body: JSON.stringify({ name, email, password, businessName }),
       });
 
@@ -52,6 +56,8 @@ export default function RegisterPage() {
         const data = await res.json();
         throw new Error(data.error || "Error al registrar");
       }
+
+      if (analyticsEventId) track({ name: "sign_up", eventId: analyticsEventId });
 
       // Entra directo a su espacio de prueba; el correo de verificación ya va
       // en camino y el aviso superior del panel lo recuerda.

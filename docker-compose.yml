@@ -65,6 +65,14 @@ services:
       STRIPE_PRICE_PRO: "${STRIPE_PRICE_PRO:-}"
       PLATFORM_OPENROUTER_API_KEY: "${PLATFORM_OPENROUTER_API_KEY:-}"
       PLATFORM_GOOGLE_API_KEY: "${PLATFORM_GOOGLE_API_KEY:-}"
+      # Medición del sitio público (lib/analytics); vacías = no se carga nada.
+      META_PIXEL_ID: "${META_PIXEL_ID:-}"
+      META_CAPI_ACCESS_TOKEN: "${META_CAPI_ACCESS_TOKEN:-}"
+      GA_MEASUREMENT_ID: "${GA_MEASUREMENT_ID:-}"
+      GOOGLE_ADS_ID: "${GOOGLE_ADS_ID:-}"
+      GOOGLE_ADS_SIGNUP_LABEL: "${GOOGLE_ADS_SIGNUP_LABEL:-}"
+      # Cuenta de chat web (propia) que se muestra en la landing.
+      LANDING_WEBCHAT_ACCOUNT_ID: "${LANDING_WEBCHAT_ACCOUNT_ID:-}"
     healthcheck:
       # 127.0.0.1, no "localhost": dentro del contenedor localhost resuelve a
       # ::1 primero y next-server solo escucha en IPv4 — con localhost el

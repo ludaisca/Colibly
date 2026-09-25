@@ -40,6 +40,7 @@ export default function PrivacyPage() {
         <li>Plataformas de mensajería que el Cliente conecta (Meta —WhatsApp, Instagram, Messenger— y Telegram), para enviar y recibir los mensajes.</li>
         <li>Proveedores de inteligencia artificial (OpenRouter y/o Google), que procesan el texto necesario para generar cada respuesta.</li>
         <li>Stripe, para procesar los pagos.</li>
+        <li>Meta y Google, para medir nuestros anuncios, solo si aceptas las cookies de medición (ver sección 7).</li>
         <li>Proveedores de infraestructura y de envío de correo. <Blank>[Nombrar hosting y proveedor de correo.]</Blank></li>
       </ul>
       <p>
@@ -69,10 +70,14 @@ export default function PrivacyPage() {
         dirige tu solicitud a ese negocio; nosotros lo apoyaremos para atenderla.
       </p>
 
-      <h2>7. Cookies</h2>
+      <h2 id="cookies">7. Cookies</h2>
       <p>
-        Usamos cookies estrictamente necesarias para mantener tu sesión iniciada. No usamos cookies de publicidad.{" "}
-        <Blank>[Actualizar si se agrega analítica.]</Blank>
+        Usamos cookies estrictamente necesarias para mantener tu sesión iniciada. En el sitio público, y solo si lo
+        aceptas en el aviso de cookies, también usamos cookies de medición de Meta (Pixel) y Google (Analytics y
+        Google Ads) para saber qué anuncios nos traen visitas y registros. Si creas una cuenta después de aceptar,
+        enviamos a Meta tu correo cifrado de forma irreversible para atribuir el registro al anuncio. Puedes cambiar
+        tu elección en cualquier momento desde &quot;Preferencias de cookies&quot;, al pie de la página.{" "}
+        <Blank>[Revisar con el abogado: medición y transferencia a Meta y Google.]</Blank>
       </p>
 
       <h2>8. Cambios a este aviso</h2>

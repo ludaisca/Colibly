@@ -6,6 +6,8 @@ import { registerSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { createOrganizationWithOwner } from "@/lib/organizations";
 import { sendVerificationEmail } from "@/lib/auth-emails";
+import { sendMetaSignupEvent } from "@/lib/analytics/meta-capi";
+import { appUrl } from "@/lib/app-url";
 
 // Registro público (SaaS): cada registro crea un cliente nuevo — su
 // organización en prueba gratis y su usuario dueño. Los demás miembros de un
@@ -40,6 +42,11 @@ export async function POST(req: Request) {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
     after(() => sendVerificationEmail(owner));
+    // Solo llega si el visitante aceptó cookies (lo manda la página de registro).
+    const analyticsEventId = req.headers.get("x-analytics-event-id");
+    if (analyticsEventId && /^[\w-]{8,64}$/.test(analyticsEventId)) {
+      after(() => sendMetaSignupEvent(req, { eventId: analyticsEventId, email, sourceUrl: appUrl("/register") }));
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
