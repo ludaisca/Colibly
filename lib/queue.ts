@@ -52,3 +52,23 @@ export const sequenceQueue = new Queue("sequence-tick", { connection, defaultJob
 // 1) quedaba esperando detrás de cualquier campaña en envío, y una campaña de
 // miles de destinatarios retrasaba todas las programadas hasta terminar.
 export const campaignScheduleQueue = new Queue("campaign-schedule-tick", { connection, defaultJobOptions });
+
+// Bus de eventos de dominio (lib/events): un job por evento; el worker lo
+// reparte a los webhooks que coinciden (y a automatizaciones en la fase 2).
+export const domainEventQueue = new Queue("domain-events", {
+  connection,
+  defaultJobOptions: { ...defaultJobOptions, removeOnComplete: { count: 500 } },
+});
+// Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a
+// propósito: el receptor suele estar caído por minutos, no por segundos
+// (30s, 1m, 2m, 4m, 8m, 16m ≈ 31 min en total).
+export const WEBHOOK_DELIVERY_ATTEMPTS = 6;
+export const webhookDeliveryQueue = new Queue("webhook-deliveries", {
+  connection,
+  defaultJobOptions: {
+    removeOnComplete: { count: 200 },
+    removeOnFail: { count: 200 },
+    attempts: WEBHOOK_DELIVERY_ATTEMPTS,
+    backoff: { type: "exponential" as const, delay: 30_000 },
+  },
+});

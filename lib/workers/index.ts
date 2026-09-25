@@ -14,6 +14,9 @@ import { processLeadSheetImportTick } from "./lead-sheet-worker";
 import { processMetaConversionsJob } from "./meta-conversions-worker";
 import { processAppointmentReminderTick } from "./appointment-reminder-worker";
 import { processSequenceTickJob } from "./sequence-worker";
+import { fanOutToWebhooks } from "@/lib/webhooks/fanout";
+import { processWebhookDelivery } from "@/lib/webhooks/deliver";
+import type { DomainEvent } from "@/lib/events/types";
 import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue } from "@/lib/queue";
 
 const connection = {
@@ -113,7 +116,19 @@ export function startWorkers() {
     await processSequenceTickJob();
   }, { connection, concurrency: 1 });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker);
+  // Bus de eventos de dominio (lib/events) — reparte cada evento a los
+  // webhooks salientes que coinciden.
+  const domainEventWorker = new Worker("domain-events", async (job) => {
+    await fanOutToWebhooks(job.data as DomainEvent);
+  }, { connection, concurrency: 5 });
+
+  // Una entrega HTTP por job; los reintentos (backoff largo) los maneja
+  // BullMQ, el registro de cada intento vive en WebhookDelivery.
+  const webhookDeliveryWorker = new Worker("webhook-deliveries", async (job) => {
+    await processWebhookDelivery(job);
+  }, { connection, concurrency: 5 });
+
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker);
 
   mediaCleanupQueue
     .add(

@@ -12,6 +12,8 @@ import { resolveAbsolutePath, isAccountMediaPath } from "@/lib/whatsapp/media-st
 import fs from "fs/promises";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForChat } from "@/lib/events/refs";
 
 export async function POST(
   req: Request,
@@ -132,6 +134,8 @@ export async function POST(
       data: { lastActivity: now },
     });
 
+    await emitAgentMessageSent(chat.id, newMessage, session.user.id);
+
     return NextResponse.json(newMessage);
   } catch (error) {
     const message =
@@ -221,6 +225,8 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
     data: { lastActivity: now },
   });
 
+  await emitAgentMessageSent(conversation.id, newMessage, userId);
+
   return NextResponse.json(newMessage);
 }
 
@@ -272,6 +278,8 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
     where: { id: conversation.channelAccount.id },
     data: { lastActivity: now },
   });
+
+  await emitAgentMessageSent(conversation.id, newMessage, userId);
 
   return NextResponse.json(newMessage);
 }
@@ -382,5 +390,22 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
     data: { lastActivity: now },
   });
 
+  await emitAgentMessageSent(conversation.id, newMessage, userId);
+
   return NextResponse.json(newMessage);
+}
+
+// Evento de dominio de un envío manual — común a las 4 ramas de canal.
+async function emitAgentMessageSent(
+  chatId: string,
+  message: { id: string; messageType: string; body: string | null },
+  userId: string
+) {
+  const refs = await eventRefsForChat(chatId);
+  if (!refs) return;
+  await emitDomainEvent({
+    type: "message.sent",
+    ...refs,
+    data: { messageId: message.id, messageType: message.messageType, text: message.body, source: "agent", senderId: userId },
+  });
 }

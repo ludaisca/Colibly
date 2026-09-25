@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getContactScopeIds, canAssignToContact } from "@/lib/appointments";
 import { appointmentSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForContact } from "@/lib/events/refs";
 
 const TAKE = 500;
 
@@ -141,6 +143,15 @@ export async function POST(req: Request) {
         createdBy: { select: { id: true, name: true } },
       },
     });
+
+    const refs = await eventRefsForContact(contact.id);
+    if (refs) {
+      await emitDomainEvent({
+        type: "appointment.created",
+        ...refs,
+        data: { appointmentId: appointment.id, title: appointment.title, scheduledAt: appointment.scheduledAt.toISOString(), source: "MANUAL" },
+      });
+    }
 
     return NextResponse.json(appointment, { status: 201 });
   } catch (error) {

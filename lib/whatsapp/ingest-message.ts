@@ -4,6 +4,7 @@ import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
+import { emitDomainEvent } from "@/lib/events/emit";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -179,8 +180,34 @@ export async function ingestInboundMessage(
   }
 
   let assignedToId = chat.assignedToId;
+  const autoAssigned = !assignedToId;
   if (!assignedToId) {
     assignedToId = await autoAssignChat(accountId, chat.id);
+  }
+
+  // Eventos de dominio (webhooks salientes). emitDomainEvent solo encola y
+  // nunca lanza, así que no puede tumbar la ingesta.
+  const refs = {
+    account: { kind: "whatsapp" as const, id: accountId },
+    chat: { kind: "whatsapp" as const, id: chat.id },
+    contactId: contactRecord.id,
+  };
+  if (!existingContact) {
+    await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: contactRecord.leadOrigin, source: "inbound" } }, msg.timestamp);
+    if (contactRecord.leadOrigin === "CTWA") {
+      await emitDomainEvent({ type: "lead.ad_captured", ...refs, data: { origin: "CTWA", adId: contactRecord.adId } }, msg.timestamp);
+    }
+  }
+  await emitDomainEvent(
+    {
+      type: "message.received",
+      ...refs,
+      data: { messageId: createdMessage.id, messageType: msg.type, text: msg.body || null, interactiveReplyId: msg.interactiveReplyId ?? null },
+    },
+    msg.timestamp
+  );
+  if (autoAssigned && assignedToId) {
+    await emitDomainEvent({ type: "conversation.assigned", ...refs, data: { assignedToId, auto: true } });
   }
 
   if (assignedToId) {

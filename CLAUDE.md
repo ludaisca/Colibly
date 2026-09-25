@@ -16,7 +16,7 @@ docker compose exec app sh scripts/new-migration.sh <nombre>   # schema.prisma c
 docker compose restart app                      # required after a migration — see AGENTS.md "Dev container needs a restart"
 ```
 
-There is no test suite (no `test` script in `package.json`). Verification is `tsc --noEmit` + `npm run lint` + a production build, plus manual click-through for UI changes. For a single file use `npx eslint <path>`; `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
+Tests exist only for pure logic with delicate rules (`lib/**/__tests__/*.test.ts`, vitest): `docker compose exec app npm test`. Everything else is verified with `tsc --noEmit` + `npm run lint` + a production build, plus manual click-through for UI changes. For a single file use `npx eslint <path>`; `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
 
 ### The dev server is on port 15100 — open it as `localhost`
 

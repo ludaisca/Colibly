@@ -35,7 +35,17 @@ async function purgeBatches(
   return deleted;
 }
 
+// El registro de entregas de webhooks solo sirve para depurar integraciones
+// recientes; sin purga crece una fila por evento y endpoint para siempre.
+const WEBHOOK_DELIVERY_RETENTION_DAYS = 30;
+
 export async function processMediaCleanupJob() {
+  // Antes de la salida por MEDIA_RETENTION_DAYS: es independiente de la media.
+  const { count: deliveries } = await prisma.webhookDelivery.deleteMany({
+    where: { createdAt: { lt: new Date(Date.now() - WEBHOOK_DELIVERY_RETENTION_DAYS * 24 * 60 * 60 * 1000) } },
+  });
+  if (deliveries > 0) console.log(`[media-cleanup] ${deliveries} entrega(s) de webhook purgada(s)`);
+
   if (!RETENTION_DAYS || RETENTION_DAYS <= 0) return;
 
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);

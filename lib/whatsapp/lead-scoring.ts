@@ -6,6 +6,8 @@ import { estimateCost } from "@/lib/ai/pricing";
 import type { AIProvider } from "@/lib/ai/types";
 import type { ScoreDetails } from "@/lib/whatsapp/export-columns";
 import type { WALeadScorerBot } from "@prisma/client";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForChat } from "@/lib/events/refs";
 
 // Five-phase funnel (replaces the old frio/tibio/caliente 3-tier system) —
 // distinguishes "never engaged" from "explicitly rejected", and separates
@@ -117,6 +119,14 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
     throw new LeadScoringError("La IA no devolvió un resultado válido");
   }
 
+  const previous = await prisma.wALeadScore.findUnique({
+    where:
+      channel === "TELEGRAM"
+        ? { conversationId_scorerId: { conversationId: chatId, scorerId: scorer.id } }
+        : { chatId_scorerId: { chatId, scorerId: scorer.id } },
+    select: { label: true },
+  });
+
   const leadScore = await prisma.wALeadScore.upsert({
     where:
       channel === "TELEGRAM"
@@ -142,6 +152,21 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
     },
     include: { scorer: { select: { id: true, name: true } } },
   });
+
+  const refs = await eventRefsForChat(chatId);
+  if (refs) {
+    await emitDomainEvent({
+      type: "lead.scored",
+      ...refs,
+      data: {
+        scorerId: scorer.id,
+        scorerName: scorer.name,
+        score: parsed.score,
+        label: parsed.label,
+        previousLabel: previous?.label ?? null,
+      },
+    });
+  }
 
   // El nombre real detectado en conversación se guarda aparte de Contact.name
   // (que viene del CSV/hoja de origen y no debe tocarse) — se propaga siempre

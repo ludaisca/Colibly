@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getEligibleAssignees, getEligibleChannelAssignees } from "@/lib/chat-assignees";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForChat } from "@/lib/events/refs";
 
 const ASSIGNEE_SELECT = {
   id: true,
@@ -47,6 +49,7 @@ export async function PATCH(
         data: { assignedToId },
         select: ASSIGNEE_SELECT,
       });
+      await emitAssigned(chatId, assignedToId);
       return NextResponse.json(updated);
     }
 
@@ -70,6 +73,7 @@ export async function PATCH(
       data: { assignedToId },
       select: ASSIGNEE_SELECT,
     });
+    await emitAssigned(chatId, assignedToId);
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -77,4 +81,9 @@ export async function PATCH(
       publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+async function emitAssigned(chatId: string, assignedToId: string | null) {
+  const refs = await eventRefsForChat(chatId);
+  if (refs) await emitDomainEvent({ type: "conversation.assigned", ...refs, data: { assignedToId, auto: false } });
 }

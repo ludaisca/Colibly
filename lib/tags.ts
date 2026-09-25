@@ -66,3 +66,26 @@ export function tagBelongsTo(
   if (owner.channelAccountId) return tag.channelAccountId === owner.channelAccountId;
   return false;
 }
+
+// Busca o crea una etiqueta por nombre en la cuenta del contacto — la API
+// pública y las automatizaciones aceptan nombres ("VIP") además de ids.
+export async function findOrCreateTag(
+  owner: { accountId: string | null; channelAccountId: string | null },
+  name: string
+): Promise<{ id: string; name: string }> {
+  const trimmed = name.trim();
+  if (owner.accountId) {
+    return prisma.tag.upsert({
+      where: { waAccountId_name: { waAccountId: owner.accountId, name: trimmed } },
+      create: { waAccountId: owner.accountId, name: trimmed },
+      update: {},
+      select: { id: true, name: true },
+    });
+  }
+  return prisma.tag.upsert({
+    where: { channelAccountId_name: { channelAccountId: owner.channelAccountId!, name: trimmed } },
+    create: { channelAccountId: owner.channelAccountId!, name: trimmed },
+    update: {},
+    select: { id: true, name: true },
+  });
+}

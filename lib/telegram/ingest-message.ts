@@ -4,6 +4,7 @@ import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { autoAssignConversation } from "./auto-assign";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
+import { emitDomainEvent } from "@/lib/events/emit";
 
 // Equivalente a lib/whatsapp/ingest-message.ts pero sobre las tablas
 // genéricas ChannelAccount/Conversation/ChannelMessage — mismos pasos
@@ -171,8 +172,30 @@ export async function ingestChannelMessage(
   }
 
   let assignedToId = conversation.assignedToId;
+  const autoAssigned = !assignedToId;
   if (!assignedToId) {
     assignedToId = await autoAssignConversation(channelAccountId, conversation.id);
+  }
+
+  // Eventos de dominio — mismo criterio que lib/whatsapp/ingest-message.ts.
+  const refs = {
+    account: { kind: "channel" as const, id: channelAccountId, channel },
+    chat: { kind: "channel" as const, id: conversation.id },
+    contactId: contactRecord.id,
+  };
+  if (!existingContact) {
+    await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: contactRecord.leadOrigin, source: "inbound" } }, msg.timestamp);
+  }
+  await emitDomainEvent(
+    {
+      type: "message.received",
+      ...refs,
+      data: { messageId: createdMessage.id, messageType: msg.type, text: msg.body || null, interactiveReplyId: null },
+    },
+    msg.timestamp
+  );
+  if (autoAssigned && assignedToId) {
+    await emitDomainEvent({ type: "conversation.assigned", ...refs, data: { assignedToId, auto: true } });
   }
 
   if (assignedToId) {

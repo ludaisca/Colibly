@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { User, Lock, CalendarDays, Brain, FileSpreadsheet, ExternalLink, RefreshCw, Unlink } from "lucide-react";
+import { User, Lock, CalendarDays, Brain, FileSpreadsheet, ExternalLink, RefreshCw, Unlink, Plug } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { PasswordInput } from "@/app/components/ui/password-input";
@@ -282,6 +282,18 @@ export default function SettingsPage() {
           </p>
           <Button href="/configuracion/ia" variant="secondary" size="sm" icon={Brain}>
             Configurar IA
+          </Button>
+        </section>
+      )}
+
+      {isAdmin && (
+        <section className="space-y-4">
+          <SectionHeader title="API e integraciones" />
+          <p className="text-sm text-muted">
+            API keys, webhooks salientes y documentación para conectar el CRM con tu ERP, tienda o Zapier/Make.
+          </p>
+          <Button href="/configuracion/api" variant="secondary" size="sm" icon={Plug}>
+            Configurar API
           </Button>
         </section>
       )}

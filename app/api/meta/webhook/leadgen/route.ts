@@ -6,6 +6,7 @@ import { decrypt } from "@/lib/crypto";
 import { validateMetaWebhookSignature } from "@/lib/meta/webhook-signature";
 import { normalizePhone } from "@/lib/phone";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { emitDomainEvent } from "@/lib/events/emit";
 
 // Webhook de Meta para el campo `leadgen` (Instant Forms) de una Página de
 // Facebook/Instagram. A diferencia del webhook de mensajes de WhatsApp, la
@@ -160,7 +161,7 @@ export async function POST(req: Request) {
         // setean en el create, mismo principio que la atribución CTWA en
         // lib/whatsapp/ingest-message.ts — un segundo lead del mismo teléfono
         // no debe pisar el origen ya registrado.
-        await prisma.contact.upsert({
+        const contact = await prisma.contact.upsert({
           where: { accountId_remoteJid: { accountId: account.waAccountId, remoteJid: phone } },
           create: {
             accountId: account.waAccountId,
@@ -172,7 +173,18 @@ export async function POST(req: Request) {
             metaAdsAccountId: account.id,
           },
           update: nameShouldUpdate ? { name: fullName! } : {},
+          select: { id: true, chat: { select: { id: true } } },
         });
+
+        if (!existingContact) {
+          const refs = {
+            account: { kind: "whatsapp" as const, id: account.waAccountId },
+            chat: contact.chat ? { kind: "whatsapp" as const, id: contact.chat.id } : null,
+            contactId: contact.id,
+          };
+          await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: "INSTANT_FORM", source: "lead_ads" } });
+          await emitDomainEvent({ type: "lead.ad_captured", ...refs, data: { origin: "INSTANT_FORM", adId: value.ad_id ?? null } });
+        }
       }
     }
 

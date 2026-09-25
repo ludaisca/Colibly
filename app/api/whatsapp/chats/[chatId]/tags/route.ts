@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { resolveTagScope, tagBelongsTo } from "@/lib/tags";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForChat } from "@/lib/events/refs";
 
 export async function GET(
   _req: Request,
@@ -63,18 +65,14 @@ export async function POST(
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 
-    if (resolved.channel !== "WHATSAPP") {
-      await prisma.chatTag.upsert({
-        where: { conversationId_tagId: { conversationId: chatId, tagId } },
-        create: { conversationId: chatId, tagId },
-        update: {},
-      });
-    } else {
-      await prisma.chatTag.upsert({
-        where: { chatId_tagId: { chatId, tagId } },
-        create: { chatId, tagId },
-        update: {},
-      });
+    const target = resolved.channel !== "WHATSAPP" ? { conversationId: chatId } : { chatId };
+    const alreadyTagged = await prisma.chatTag.findFirst({ where: { ...target, tagId }, select: { id: true } });
+    if (!alreadyTagged) {
+      await prisma.chatTag.create({ data: { ...target, tagId } });
+      const refs = await eventRefsForChat(chatId);
+      if (refs) {
+        await emitDomainEvent({ type: "tag.added", ...refs, data: { tagId, tagName: tag.name, target: "conversation" } });
+      }
     }
 
     return NextResponse.json({ success: true }, { status: 201 });

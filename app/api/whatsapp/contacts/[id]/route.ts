@@ -3,8 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { contactUpdateSchema } from "@/lib/validations";
-import { metaConversionsQueue } from "@/lib/queue";
-import { enrollContactInTrigger } from "@/lib/sequences";
+import { afterLeadStatusChanged } from "@/lib/contacts/side-effects";
 import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
@@ -97,34 +96,10 @@ export async function PATCH(
       },
     });
 
-    // Feedback loop de calificación hacia Meta Ads: solo si leadStatus
-    // realmente cambió y el contacto viene de un anuncio (no ORGANIC). La
-    // resolución de la MetaAdsAccount (incluyendo el chequeo de status
-    // CONNECTED) vive enteramente en sendLeadConversionEvent — para CTWA se
-    // resuelve dinámicamente por waAccountId, no hay un campo aquí que
-    // consultar de antemano. jobId determinístico como segunda capa de
-    // dedupe junto al @@unique([contactId, leadStatus]) de MetaConversionEvent.
-    if (
-      parsed.data.leadStatus &&
-      parsed.data.leadStatus !== existing.leadStatus &&
-      existing.leadOrigin !== "ORGANIC"
-    ) {
-      await metaConversionsQueue
-        .add(
-          "send-event",
-          { contactId: id, leadStatus: parsed.data.leadStatus },
-          { jobId: `meta-conversion-${id}-${parsed.data.leadStatus}` }
-        )
-        .catch((err) => console.error("[contacts] meta-conversions enqueue failed:", err));
-    }
-
-    // Trigger de secuencias (roadmap P3-a) — independiente del feedback loop
-    // de Meta Ads de arriba, corre para cualquier leadStatus nuevo sin
-    // importar leadOrigin.
-    if (parsed.data.leadStatus && parsed.data.leadStatus !== existing.leadStatus) {
-      await enrollContactInTrigger("LEAD_STATUS_CHANGED", parsed.data.leadStatus, id).catch((err) =>
-        console.error("[contacts] enrollContactInTrigger falló:", err)
-      );
+    // Meta Ads (CAPI), secuencias y evento de dominio — compartido con la API
+    // pública y las automatizaciones.
+    if (parsed.data.leadStatus) {
+      await afterLeadStatusChanged(existing, existing.leadStatus, parsed.data.leadStatus);
     }
 
     return NextResponse.json(updated);

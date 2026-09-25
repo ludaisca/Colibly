@@ -15,6 +15,8 @@ import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
 import { botSendQueue } from "@/lib/queue";
 import type { AIProvider, AIMessage, ContentPart } from "@/lib/ai/types";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForContact } from "@/lib/events/refs";
 
 interface BotMessageJob {
   botId: string;
@@ -507,6 +509,15 @@ async function createAiProposedAppointment(params: {
         originMessageId,
       },
     });
+
+    const refs = await eventRefsForContact(contactId);
+    if (refs) {
+      await emitDomainEvent({
+        type: "appointment.created",
+        ...refs,
+        data: { appointmentId: appointment.id, title: appointment.title, scheduledAt: appointment.scheduledAt.toISOString(), source: "AI_BOT" },
+      });
+    }
 
     await prisma.notification.create({
       data: {

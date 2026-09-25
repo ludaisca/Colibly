@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForChat } from "@/lib/events/refs";
 
 const VALID_STATUSES = ["OPEN", "PENDING", "RESOLVED"] as const;
 
@@ -38,6 +40,7 @@ export async function PATCH(
         data: { status, resolvedAt: willBeResolved ? new Date() : wasResolved && !willBeResolved ? null : undefined },
         select: { id: true, status: true, resolvedAt: true },
       });
+      if (willBeResolved && !wasResolved) await emitResolved(chatId);
       return NextResponse.json(updated);
     }
 
@@ -53,6 +56,7 @@ export async function PATCH(
       },
       select: { id: true, status: true, resolvedAt: true },
     });
+    if (willBeResolved && !wasResolved) await emitResolved(chatId);
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -60,4 +64,9 @@ export async function PATCH(
       publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+async function emitResolved(chatId: string) {
+  const refs = await eventRefsForChat(chatId);
+  if (refs) await emitDomainEvent({ type: "conversation.resolved", ...refs, data: {} });
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
-import { enrollContactInTrigger } from "@/lib/sequences";
+import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { tagBelongsTo } from "@/lib/tags";
 import { publicErrorMessage } from "@/lib/api-errors";
 
@@ -41,17 +41,16 @@ export async function POST(
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 
-    await prisma.contactTag.upsert({
+    const alreadyTagged = await prisma.contactTag.findUnique({
       where: { contactId_tagId: { contactId: id, tagId } },
-      create: { contactId: id, tagId },
-      update: {},
+      select: { tagId: true },
     });
-
-    // Trigger de secuencias (roadmap P3-a) — no bloquea la respuesta si falla,
-    // el tag ya quedó agregado independientemente de esto.
-    await enrollContactInTrigger("TAG_ADDED", tagId, id).catch((err) =>
-      console.error("[contacts/tags] enrollContactInTrigger falló:", err)
-    );
+    if (!alreadyTagged) {
+      await prisma.contactTag.create({ data: { contactId: id, tagId } });
+      // Secuencias + evento de dominio. Solo si la etiqueta es nueva: volver a
+      // "agregar" una que ya tenía no es un hecho nuevo que disparar.
+      await afterContactTagAdded(id, tag);
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
