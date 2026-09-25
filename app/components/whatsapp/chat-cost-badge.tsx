@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { DollarSign, Bot, Sparkles } from "lucide-react";
+import { DollarSign, Bot, Sparkles, Zap } from "lucide-react";
 import { Dropdown, DropdownButton } from "@/app/components/ui/dropdown";
 import { Badge } from "@/app/components/ui/badge";
 
 interface UsageEntry {
-  source: "bot" | "scorer";
+  source: "bot" | "scorer" | "automation";
   name: string;
   model: string;
   promptTokens: number;
@@ -75,7 +75,7 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
         </div>
 
         <p className="text-[11px] text-muted-darker">
-          Costo estimado de IA atribuible a esta conversación (respuestas del bot + calificaciones de lead). No incluye el costo de mensajes API de WhatsApp.
+          Costo estimado de IA atribuible a esta conversación (respuestas del bot, calificaciones de lead y pasos de IA de automatizaciones). No incluye el costo de mensajes API de WhatsApp.
         </p>
 
         <div className="space-y-1.5 pt-2 border-t border-border">
@@ -84,6 +84,8 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
               <div className="flex items-start gap-1.5 min-w-0">
                 {entry.source === "bot" ? (
                   <Bot size={12} className="text-accent shrink-0 mt-0.5" />
+                ) : entry.source === "automation" ? (
+                  <Zap size={12} className="text-info shrink-0 mt-0.5" />
                 ) : (
                   <Sparkles size={12} className="text-warning shrink-0 mt-0.5" />
                 )}

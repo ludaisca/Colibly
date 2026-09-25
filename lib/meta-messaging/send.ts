@@ -32,6 +32,17 @@ export async function sendMetaChannelText(
   return { externalMessageId: result.messageId };
 }
 
+// Opciones como quick replies (Messenger e Instagram). Títulos recortados a
+// 20 caracteres, límite de Meta.
+export async function sendMetaChannelOptions(
+  account: ChannelAccount,
+  params: { to: string; body: string; options: { id: string; title: string }[] }
+): Promise<{ externalMessageId: string | null }> {
+  const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
+  const result = await sendMetaChannelMessage(pageAccessToken, pageId, params.to, { text: params.body, quickReplies: params.options });
+  return { externalMessageId: result.messageId };
+}
+
 // Roadmap P3-c — envío de la primera respuesta a una conversación que
 // arrancó de un comentario (ver isFromComment/isFirstResponse en
 // chats/[chatId]/send). Paralelo a sendMetaChannelText pero apuntando al

@@ -105,6 +105,41 @@ function buildWidgetScript(accountId: string): string {
     bubble.textContent = msg.body || "";
     row.appendChild(bubble);
     container.appendChild(row);
+
+    // Opciones de un mensaje con botones/lista: se tocan una vez; al tocar
+    // se manda el título como texto + replyId para que la automatización
+    // sepa qué opción fue.
+    var options = msg.direction === "OUTBOUND" && msg.interactivePayload && msg.interactivePayload.buttons;
+    if (options && options.length) {
+      var group = document.createElement("div");
+      group.style.display = "flex";
+      group.style.flexWrap = "wrap";
+      group.style.justifyContent = "flex-end";
+      group.style.gap = "6px";
+      group.style.margin = "2px 0 8px";
+      options.forEach(function (opt) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = opt.title;
+        b.style.border = "1px solid #00B88D";
+        b.style.background = "#fff";
+        b.style.color = "#00805f";
+        b.style.borderRadius = "999px";
+        b.style.padding = "6px 12px";
+        b.style.fontSize = "12px";
+        b.style.cursor = "pointer";
+        b.onclick = function () {
+          Array.prototype.forEach.call(group.querySelectorAll("button"), function (x) {
+            x.disabled = true;
+            x.style.opacity = x === b ? "1" : "0.4";
+            x.style.cursor = "default";
+          });
+          sendMessage(opt.title, container, opt.id);
+        };
+        group.appendChild(b);
+      });
+      container.appendChild(group);
+    }
   }
 
   function poll(messagesEl) {
@@ -131,7 +166,7 @@ function buildWidgetScript(accountId: string): string {
       .catch(function () {});
   }
 
-  function sendMessage(text, messagesEl) {
+  function sendMessage(text, messagesEl, replyId) {
     getToken().then(function (tok) {
       if (!tok) return;
       var clientMessageId = window.crypto && window.crypto.randomUUID
@@ -144,7 +179,7 @@ function buildWidgetScript(accountId: string): string {
       fetch(API_BASE + "/messages", {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ text: text, clientMessageId: clientMessageId }),
+        body: JSON.stringify({ text: text, clientMessageId: clientMessageId, replyId: replyId || null }),
       })
         .then(function () { poll(messagesEl); })
         .catch(function () {});

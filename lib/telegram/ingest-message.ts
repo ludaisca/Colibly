@@ -5,6 +5,7 @@ import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { autoAssignConversation } from "./auto-assign";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
+import { dispatchInboundMessage } from "@/lib/automations/dispatch";
 
 // Equivalente a lib/whatsapp/ingest-message.ts pero sobre las tablas
 // genéricas ChannelAccount/Conversation/ChannelMessage — mismos pasos
@@ -38,6 +39,9 @@ export interface NormalizedChannelMessage {
   // chats/[chatId]/send). Queda para una iteración futura enseñarle esto al
   // bot-worker si se decide automatizar.
   isFromComment?: boolean;
+  // Id de la opción elegida al tocar un botón (callback_data de Telegram,
+  // quick_reply.payload de Messenger/Instagram, replyId del widget web).
+  interactiveReplyId?: string | null;
 }
 
 export interface IngestChannelResult {
@@ -146,6 +150,7 @@ export async function ingestChannelMessage(
         filename: msg.filename ?? null,
         bytesSize: msg.bytesSize ?? null,
         isFromComment: msg.isFromComment ?? false,
+        interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
         timestamp: msg.timestamp,
       },
     });
@@ -190,7 +195,7 @@ export async function ingestChannelMessage(
     {
       type: "message.received",
       ...refs,
-      data: { messageId: createdMessage.id, messageType: msg.type, text: msg.body || null, interactiveReplyId: null },
+      data: { messageId: createdMessage.id, messageType: msg.type, text: msg.body || null, interactiveReplyId: msg.interactiveReplyId ?? null },
     },
     msg.timestamp
   );
@@ -221,7 +226,21 @@ export async function ingestChannelMessage(
   // el Send API normal, que Meta rechaza sin un hilo ya abierto.
   // Un solo bot por cuenta + retraso para agrupar ráfagas — mismo criterio que
   // lib/whatsapp/ingest-message.ts (ver lib/bots/guards.ts).
-  const activeBot = msg.isFromComment
+  // Automatizaciones antes que el bot — mismo criterio que la ingesta de
+  // WhatsApp. Un fallo del motor no debe dejar al lead sin bot.
+  const { suppressBot } = await dispatchInboundMessage({
+    account: refs.account,
+    chat: refs.chat,
+    contactId: contactRecord.id,
+    text: msg.body,
+    replyId: msg.interactiveReplyId ?? null,
+    isFirstMessage: !existingConversation,
+  }).catch((err) => {
+    console.error(`[${channel.toLowerCase()} ingest] dispatchInboundMessage falló:`, err);
+    return { suppressBot: false };
+  });
+
+  const activeBot = msg.isFromComment || suppressBot
     ? null
     : await prisma.wABot.findFirst({
         where: { channelAccountId, isActive: true, status: "ACTIVE" },

@@ -19,6 +19,7 @@ import {
   Camera,
   CalendarClock,
   Workflow,
+  Zap,
   Globe,
 } from "lucide-react";
 // Meta (feedback loop de calificación de leads) usa el mismo ícono que
@@ -76,6 +77,7 @@ export function DashboardShell({
           items: [
             ...(isAdmin ? [{ href: "/whatsapp/bots" as const, label: "Bots IA", icon: Bot as React.ElementType }] : []),
             { href: "/whatsapp/calificadores",  label: "Calificadores de Leads", icon: Target },
+            { href: "/whatsapp/automatizaciones", label: "Automatizaciones",    icon: Zap },
             { href: "/whatsapp/secuencias",     label: "Secuencias",            icon: Workflow },
           ],
         },

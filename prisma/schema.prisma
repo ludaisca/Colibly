@@ -47,6 +47,8 @@ model User {
   sequences             WASequence[]
   apiKeys               ApiKey[]
   webhookEndpoints      WebhookEndpoint[]
+  automations           Automation[]
+  automationVersions    AutomationVersion[]
 
   @@map("users")
 }
@@ -160,6 +162,7 @@ model WAAccount {
   customFieldDefinitions ContactCustomFieldDefinition[]
   routingRules           WAAccountRoutingRule[]
   sequences              WASequence[]
+  automations            Automation[]
 
   @@unique([phoneNumberId])
   @@unique([userId, name])
@@ -331,6 +334,7 @@ model ChannelAccount {
   sharedWith             ChannelAccountShare[]
   customFieldDefinitions ContactCustomFieldDefinition[]
   sequences              WASequence[]
+  automations            Automation[]
 
   @@unique([userId, name])
   // findUnique determinístico en el webhook compartido de Messenger/
@@ -374,6 +378,7 @@ model Conversation {
 
   messages         ChannelMessage[]
   botConversations WABotConversation[]
+  automationRuns   AutomationRun[]
 
   @@unique([channelAccountId, externalId])
   @@index([assignedToId])
@@ -405,6 +410,9 @@ model ChannelMessage {
   // significados tiene. Necesario para decidir el mecanismo de envío de la
   // primera respuesta: ver sendMetaChannelReply() en chats/[chatId]/send.
   isFromComment     Boolean          @default(false) @map("is_from_comment")
+  // Botones/lista enviados (OUTBOUND) o la opción elegida (INBOUND:
+  // { replyId }) — paridad con WAMessage.interactivePayload.
+  interactivePayload Json?          @map("interactive_payload")
   timestamp         DateTime
   createdAt         DateTime         @default(now()) @map("created_at")
 
@@ -435,6 +443,7 @@ model WAChat {
 
   messages         WAMessage[]
   botConversations WABotConversation[]
+  automationRuns   AutomationRun[]
   chatTags         ChatTag[]
   leadScores       WALeadScore[]
   recoveryAttempts WALeadRecoveryAttempt[]
@@ -937,6 +946,7 @@ model Contact {
   metaConversionEvents MetaConversionEvent[]
   customFieldValues    ContactCustomFieldValue[]
   sequenceEnrollments  WASequenceEnrollment[]
+  automationRuns       AutomationRun[]
 
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
@@ -1443,4 +1453,164 @@ model WebhookDelivery {
   @@index([endpointId, createdAt])
   @@index([createdAt])
   @@map("webhook_deliveries")
+}
+
+// ─── Automatizaciones (motor único: flujos con botones, reglas y secuencias) ──
+// El grafo es un árbol JSON (lib/automations/types.ts). Se edita en
+// draftGraph; publicar crea una AutomationVersion inmutable y las ejecuciones
+// quedan fijadas a su versión — editar nunca rompe una ejecución en curso.
+enum AutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model Automation {
+  id                 String           @id @default(cuid())
+  // Mutuamente excluyentes a nivel de aplicación — mismo patrón que WASequence.
+  waAccountId        String?          @map("wa_account_id")
+  waAccount          WAAccount?       @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId   String?          @map("channel_account_id")
+  channelAccount     ChannelAccount?  @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  status             AutomationStatus @default(DRAFT)
+  draftGraph         Json             @map("draft_graph")
+  // Desnormalizados de la versión publicada para filtrar por índice al
+  // evaluar disparadores (no hay que abrir el JSON de cada automatización).
+  triggerType        String?          @map("trigger_type")
+  triggerConfig      Json?            @map("trigger_config")
+  conversational     Boolean          @default(false)
+  publishedVersionId String?          @unique @map("published_version_id")
+  publishedVersion   AutomationVersion? @relation("PublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  // { exitOnReply, allowReentry } — ver lib/automations/settings.ts
+  settings           Json             @default("{}")
+  createdById        String           @map("created_by_id")
+  createdBy          User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  versions AutomationVersion[] @relation("AutomationVersions")
+  runs     AutomationRun[]
+  aiUsage  AutomationAiUsage[]
+
+  @@index([waAccountId, status, triggerType])
+  @@index([channelAccountId, status, triggerType])
+  @@map("automations")
+}
+
+model AutomationVersion {
+  id            String     @id @default(cuid())
+  automationId  String     @map("automation_id")
+  automation    Automation @relation("AutomationVersions", fields: [automationId], references: [id], onDelete: Cascade)
+  version       Int
+  graph         Json
+  publishedAt   DateTime   @default(now()) @map("published_at")
+  publishedById String     @map("published_by_id")
+  publishedBy   User       @relation(fields: [publishedById], references: [id], onDelete: Cascade)
+
+  publishedOf Automation?     @relation("PublishedVersion")
+  runs        AutomationRun[]
+
+  @@unique([automationId, version])
+  @@map("automation_versions")
+}
+
+enum AutomationRunStatus {
+  ACTIVE // encolada o avanzando ahora
+  WAITING_DELAY
+  WAITING_REPLY
+  PAUSED_BY_AGENT // un humano respondió en el chat
+  HANDED_OFF // terminó pasando la conversación a un humano
+  HANDED_TO_BOT // terminó cediendo la conversación al bot IA
+  COMPLETED
+  EXITED_REPLY // el contacto respondió y la automatización sale al responder
+  EXPIRED // ventana de 24 h cerrada sin plantilla de respaldo
+  FAILED
+  CANCELLED
+}
+
+model AutomationRun {
+  id             String              @id @default(cuid())
+  automationId   String              @map("automation_id")
+  automation     Automation          @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  versionId      String              @map("version_id")
+  version        AutomationVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  contactId      String              @map("contact_id")
+  contact        Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  waChatId       String?             @map("wa_chat_id")
+  waChat         WAChat?             @relation(fields: [waChatId], references: [id], onDelete: Cascade)
+  conversationId String?             @map("conversation_id")
+  conversation   Conversation?       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  status         AutomationRunStatus @default(ACTIVE)
+  conversational Boolean             @default(false)
+  // RunState del ejecutor: paso actual, variables y espera pendiente.
+  currentNodeId  String?             @map("current_node_id")
+  vars           Json                @default("{}")
+  waiting        Json?
+  // Entrada pendiente de procesar (respuesta del cliente / timeout) — la
+  // escribe quien reanuda la ejecución y la consume el worker.
+  pendingInput   Json?               @map("pending_input")
+  // Se incrementa cada vez que llega una entrada nueva. El worker lo lee al
+  // empezar a avanzar: si cambió al terminar, llegó otra respuesta mientras
+  // avanzaba y no se borra pendingInput (se vuelve a encolar).
+  inputSeq       Int                 @default(0) @map("input_seq")
+  nextRunAt      DateTime?           @map("next_run_at")
+  // Candado de avance: un solo worker a la vez por ejecución.
+  lockedAt       DateTime?           @map("locked_at")
+  attempts       Int                 @default(0)
+  lastError      String?             @map("last_error") @db.Text
+  startedAt      DateTime            @default(now()) @map("started_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  endedAt        DateTime?           @map("ended_at")
+
+  logs    AutomationRunLog[]
+  aiUsage AutomationAiUsage[]
+
+  @@index([status, nextRunAt])
+  @@index([waChatId, status])
+  @@index([conversationId, status])
+  @@index([automationId, contactId, status])
+  @@index([contactId, startedAt])
+  @@map("automation_runs")
+}
+
+model AutomationRunLog {
+  id       String        @id @default(cuid())
+  runId    String        @map("run_id")
+  run      AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  nodeId   String?       @map("node_id")
+  nodeType String        @map("node_type")
+  outcome  String
+  detail   String        @db.Text
+  at       DateTime      @default(now())
+
+  @@index([runId, at])
+  @@map("automation_run_logs")
+}
+
+// Consumo de IA de los pasos ai_classify / ai_extract / emparejado con IA.
+// userId = dueño de la cuenta (quien paga): lib/ai/budget.ts lo suma al
+// presupuesto mensual igual que WABotUsage/WALeadScorerUsage.
+model AutomationAiUsage {
+  id               String         @id @default(cuid())
+  automationId     String         @map("automation_id")
+  automation       Automation     @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  runId            String?        @map("run_id")
+  run              AutomationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  userId           String         @map("user_id")
+  waChatId         String?        @map("wa_chat_id")
+  conversationId   String?        @map("conversation_id")
+  model            String
+  promptTokens     Int            @map("prompt_tokens")
+  completionTokens Int            @map("completion_tokens")
+  totalTokens      Int            @map("total_tokens")
+  estimatedCost    Float          @map("estimated_cost")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([waChatId])
+  @@index([conversationId])
+  @@map("automation_ai_usage")
 }

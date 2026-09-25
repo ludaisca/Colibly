@@ -59,6 +59,17 @@ export const domainEventQueue = new Queue("domain-events", {
   connection,
   defaultJobOptions: { ...defaultJobOptions, removeOnComplete: { count: 500 } },
 });
+// Motor de automatizaciones: un job por avance de ejecución ({ runId }), con
+// delay para las esperas de tiempo. Sin reintentos de BullMQ: los fallos de
+// envío los maneja el runner (backoff propio en la ejecución) y un error
+// inesperado deja la ejecución FAILED con su mensaje.
+export const automationRunQueue = new Queue("automation-run", {
+  connection,
+  defaultJobOptions: { removeOnComplete: { count: 500 }, removeOnFail: { count: 200 }, attempts: 1 },
+});
+// Respaldo cada minuto: esperas vencidas cuyo job diferido se perdió y
+// timeouts de "esperar respuesta".
+export const automationTickQueue = new Queue("automation-tick", { connection, defaultJobOptions });
 // Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a
 // propósito: el receptor suele estar caído por minutos, no por segundos
 // (30s, 1m, 2m, 4m, 8m, 16m ≈ 31 min en total).

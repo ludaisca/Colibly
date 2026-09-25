@@ -25,13 +25,24 @@ export async function sendMetaChannelMessage(
   pageAccessToken: string,
   pageId: string,
   recipientId: string,
-  message: { text: string } | { attachmentId: string; mimeType: string }
+  message: { text: string; quickReplies?: { id: string; title: string }[] } | { attachmentId: string; mimeType: string }
 ): Promise<SendMessageResult> {
   const url = `${GRAPH_API}/${pageId}/messages`;
 
+  // quick_replies: botones bajo el mensaje (máx. 13, título máx. 20); el toque
+  // llega en el webhook como message.quick_reply.payload = id de la opción.
   const body =
     "text" in message
-      ? { recipient: { id: recipientId }, messaging_type: "RESPONSE", message: { text: message.text } }
+      ? {
+          recipient: { id: recipientId },
+          messaging_type: "RESPONSE",
+          message: {
+            text: message.text,
+            ...(message.quickReplies?.length
+              ? { quick_replies: message.quickReplies.slice(0, 13).map((q) => ({ content_type: "text", title: q.title.slice(0, 20), payload: q.id })) }
+              : {}),
+          },
+        }
       : {
           recipient: { id: recipientId },
           messaging_type: "RESPONSE",

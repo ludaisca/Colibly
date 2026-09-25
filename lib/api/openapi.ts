@@ -141,6 +141,18 @@ export function buildOpenApiSpec(serverUrl: string) {
           },
         },
       },
+      "/automations/{id}/runs": {
+        post: {
+          summary: "Iniciar una automatización manual para un contacto",
+          description: `${scopeNote("automations:run")} Solo automatizaciones activas con disparador “Manual”. 409 si ya hay una ejecución en curso para ese contacto u otra automatización conversacional atiende su chat.`,
+          parameters: [idParam],
+          requestBody: {
+            required: true,
+            content: json({ type: "object", required: ["contactId"], properties: { contactId: { type: "string" }, vars: { type: "object", additionalProperties: { type: "string" }, description: "Disponibles como {{var.x}}" } } }),
+          },
+          responses: { "201": ok({ type: "object", properties: { runId: { type: "string" } } }), "409": { $ref: "#/components/responses/Error" }, ...errors },
+        },
+      },
       "/webhooks": {
         get: { summary: "Listar webhooks", description: scopeNote("webhooks:manage"), responses: { "200": ok({ type: "object" }), ...errors } },
         post: {

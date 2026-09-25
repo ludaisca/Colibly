@@ -7,7 +7,7 @@ const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/m
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.
 // Cualquier sección nueva (un canal adicional, p. ej.) debe entrar en PROTECTED
 // aunque el layout ya redirija a los no autenticados.
-const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/ventas", "/meta-ads", "/whatsapp/secuencias"];
+const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/ventas", "/meta-ads", "/whatsapp/secuencias", "/whatsapp/automatizaciones"];
 // Regular "user" role keeps Panel/Estadísticas/Chats/Cuentas/Plantillas/Campañas/Config,
 // but loses Contactos and Bots IA entirely (la antigua página /whatsapp/conocimiento se
 // eliminó — el flujo de conocimiento vive en la pestaña del bot, ya bloqueada vía

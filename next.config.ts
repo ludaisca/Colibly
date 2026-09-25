@@ -3,8 +3,19 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Next dev blocks cross-origin requests to dev resources (HMR websocket, RSC
   // payloads) by default. Needed while testing through an ngrok tunnel for the
-  // Meta webhook — without this, HMR silently fails and forces hard reloads.
-  allowedDevOrigins: ["*.ngrok-free.dev", "*.ngrok-free.app", "*.ngrok.io"],
+  // Meta webhook, and for the LAN/Tailscale hostnames used to reach this dev
+  // server from another machine — without this the page loads but never
+  // hydrates (login submits as a plain GET). Mismos nombres que WAB y Factzi:
+  // el servidor es "ludaisca" (renombrado el 2026-09-01), la laptop "ldic".
+  allowedDevOrigins: [
+    "*.ngrok-free.dev",
+    "*.ngrok-free.app",
+    "*.ngrok.io",
+    "ludaisca",
+    "ldic",
+    "*.taila2291d.ts.net",
+    "100.*.*.*",
+  ],
   async headers() {
     return [
       {

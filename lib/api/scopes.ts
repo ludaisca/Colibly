@@ -6,6 +6,7 @@ export const API_SCOPES = {
   "conversations:read": "Leer conversaciones y mensajes",
   "messages:send": "Enviar mensajes (texto, plantillas y botones)",
   "webhooks:manage": "Administrar webhooks salientes",
+  "automations:run": "Iniciar automatizaciones manuales",
 } as const;
 
 export type ApiScope = keyof typeof API_SCOPES;

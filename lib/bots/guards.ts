@@ -15,6 +15,9 @@ export const BOT_REPLY_DEBOUNCE_MS = 4_000;
 // Pasada la ventana sin actividad humana, el bot retoma.
 export const BOT_HUMAN_TAKEOVER_MINUTES = 30;
 
+// Tras un paso "Pasar a humano", el bot no retoma el chat en este plazo.
+export const AUTOMATION_HANDOFF_HOURS = 24;
+
 export type BotChatRef = { waChatId: string } | { conversationId: string };
 
 // Devuelve el motivo por el que el bot NO debe responder, o null si puede.
@@ -24,6 +27,25 @@ export async function getBotSkipReason(
   now: Date = new Date()
 ): Promise<string | null> {
   const takeoverSince = new Date(now.getTime() - BOT_HUMAN_TAKEOVER_MINUTES * 60_000);
+
+  // Automatizaciones: mientras una conversacional tiene el chat, o durante
+  // AUTOMATION_HANDOFF_HOURS después de pasarlo a un humano, el bot no habla
+  // encima. HANDED_TO_BOT no bloquea: es justo la que le cede el turno.
+  const automationHold = await prisma.automationRun.findFirst({
+    where: {
+      ...("waChatId" in ref ? { waChatId: ref.waChatId } : { conversationId: ref.conversationId }),
+      OR: [
+        { conversational: true, status: { in: ["ACTIVE", "WAITING_DELAY", "WAITING_REPLY"] } },
+        { status: "HANDED_OFF", endedAt: { gte: new Date(now.getTime() - AUTOMATION_HANDOFF_HOURS * 3_600_000) } },
+      ],
+    },
+    select: { status: true },
+  });
+  if (automationHold) {
+    return automationHold.status === "HANDED_OFF"
+      ? "una automatización pasó la conversación a un humano"
+      : "una automatización está atendiendo el chat";
+  }
 
   if ("waChatId" in ref) {
     const humanReply = await prisma.wAMessage.findFirst({

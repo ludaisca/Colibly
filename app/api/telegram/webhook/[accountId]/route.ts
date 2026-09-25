@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
 import { ingestChannelMessage } from "@/lib/telegram/ingest-message";
+import { answerCallbackQuery } from "@/lib/telegram";
 
 // Telegram identifica la cuenta por la URL del webhook misma (no manda un id
 // de cuenta reutilizable en el payload, a diferencia de Meta) — por eso la
@@ -55,8 +56,19 @@ interface TelegramMessagePayload {
   sticker?: { file_id: string };
 }
 
+// Toque de un botón del teclado inline (automatizaciones / API).
+interface TelegramCallbackQuery {
+  id: string;
+  from: TelegramFrom;
+  data?: string;
+  message?: TelegramMessagePayload & {
+    reply_markup?: { inline_keyboard?: { text: string; callback_data?: string }[][] };
+  };
+}
+
 interface TelegramUpdate {
   update_id: number;
+  callback_query?: TelegramCallbackQuery;
   message?: TelegramMessagePayload;
 }
 
@@ -133,7 +145,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
 
-    const { webhookSecret } = JSON.parse(decrypt(account.credentials)) as {
+    const { webhookSecret, botToken } = JSON.parse(decrypt(account.credentials)) as {
       botToken: string;
       webhookSecret: string;
     };
@@ -149,11 +161,35 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
       // Malformado: reintentar no lo arregla.
       return NextResponse.json({ ok: true });
     }
+    // Toque de un botón inline: se ingiere como un mensaje de texto con el
+    // título del botón (lo que el cliente "dijo") + interactiveReplyId, igual
+    // que una respuesta a botones de WhatsApp.
+    const cb = update.callback_query;
+    if (cb?.data && cb.message) {
+      await answerCallbackQuery(botToken, cb.id).catch((err) =>
+        console.warn("[telegram webhook] answerCallbackQuery falló:", err instanceof Error ? err.message : err)
+      );
+      const title =
+        cb.message.reply_markup?.inline_keyboard?.flat().find((b) => b.callback_data === cb.data)?.text ?? cb.data;
+      await ingestChannelMessage(accountId, "TELEGRAM", {
+        externalId: String(cb.message.chat.id),
+        // callback_query.id es único por toque: dedupe de reintentos del webhook.
+        externalMessageId: `cb_${cb.id}`,
+        timestamp: new Date(),
+        type: "text",
+        body: title,
+        contactName: cb.from.first_name || cb.from.username || String(cb.message.chat.id),
+        isGroup: cb.message.chat.type !== "private",
+        interactiveReplyId: cb.data,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     const msg = update.message;
     if (!msg) {
-      // Otros tipos de update (edited_message, callback_query, my_chat_member,
-      // etc.) llegan a la misma URL y se ignoran — mismo criterio que el
-      // webhook de Meta con change.field desconocidos.
+      // Otros tipos de update (edited_message, my_chat_member, etc.) llegan a
+      // la misma URL y se ignoran — mismo criterio que el webhook de Meta con
+      // change.field desconocidos.
       return NextResponse.json({ ok: true });
     }
 

@@ -18,9 +18,9 @@ docker compose restart app                      # required after a migration —
 
 Tests exist only for pure logic with delicate rules (`lib/**/__tests__/*.test.ts`, vitest): `docker compose exec app npm test`. Everything else is verified with `tsc --noEmit` + `npm run lint` + a production build, plus manual click-through for UI changes. For a single file use `npx eslint <path>`; `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
 
-### The dev server is on port 15100 — open it as `localhost`
+### The dev server is on port 15100 — open it as `localhost` or `ludaisca`
 
-`docker-compose.override.yml` maps `15100:5000`. Use `http://localhost:15100`, **not** `127.0.0.1`: Next's dev server blocks `/_next/*` for origins outside `allowedDevOrigins`, so on `127.0.0.1` the page loads but never hydrates — forms submit as plain GETs (`/login?`) and nothing interactive works, with only a "Blocked cross-origin request" line in the server log. `curl` against API routes works on either host.
+`docker-compose.override.yml` maps `15100:5000`. Use `http://localhost:15100` or, from another machine over Tailscale, `http://ludaisca:15100` — **not** `127.0.0.1` or any other name: Next's dev server blocks `/_next/*` for origins outside `allowedDevOrigins` (`next.config.ts`), so the page loads but never hydrates — forms submit as plain GETs (`/login?`) and nothing interactive works, with only a "Blocked cross-origin request" line in the server log. A new hostname goes into that list (same names as WAB/Factzi). `curl` against API routes works on any host.
 
 ### Production build check
 
@@ -58,6 +58,7 @@ What the two worlds share:
 
 - **Telegram's `message_id` is unique per chat, not per bot** — it restarts at 1 in every new conversation. Deduplicating inbound messages by `externalMessageId` across a whole account silently discards real messages. Scope the check to the conversation, matching `@@unique([conversationId, externalMessageId])`. Meta's `wamid` *is* globally unique, which is why the WhatsApp code looks different and must not be copied verbatim.
 - **`proxy.ts` runs all three role checks inside the `PROTECTED` block.** A route missing from that list skips `EXECUTIVE_BLOCKED`/`USER_BLOCKED` entirely — not just the login redirect — even when a layout already redirects unauthenticated users. Every new top-level section must be added to `PROTECTED`.
+- **Automations and the bot share the chat.** Both ingests call `dispatchInboundMessage()` *before* enqueuing the bot and skip the bot when it returns `suppressBot`; `getBotSkipReason()` also checks for a conversational run. A new inbound path (another channel) must do the same, or the bot and a button flow will both answer.
 - **A `where.OR` used for account scoping gets overwritten by one used for search.** Combine them under `AND` (see `GET /api/whatsapp/contacts`); assigning both to `where.OR` leaks other users' rows.
 
 ## Navigation

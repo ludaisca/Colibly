@@ -65,6 +65,26 @@ export async function sendTextMessage(botToken: string, chatId: string, text: st
   return callTelegramApi<TelegramMessage>(botToken, "sendMessage", { chat_id: chatId, text });
 }
 
+// Opciones como teclado inline (una por fila): el toque llega como
+// callback_query con callback_data = id de la opción (máx. 64 bytes).
+export async function sendKeyboardMessage(
+  botToken: string,
+  chatId: string,
+  text: string,
+  options: { id: string; title: string }[]
+): Promise<TelegramMessage> {
+  return callTelegramApi<TelegramMessage>(botToken, "sendMessage", {
+    chat_id: chatId,
+    text,
+    reply_markup: { inline_keyboard: options.map((o) => [{ text: o.title, callback_data: o.id }]) },
+  });
+}
+
+// Quita el "cargando" del botón en la app de Telegram tras un toque.
+export async function answerCallbackQuery(botToken: string, callbackQueryId: string): Promise<void> {
+  await callTelegramApi<boolean>(botToken, "answerCallbackQuery", { callback_query_id: callbackQueryId });
+}
+
 export type TelegramMediaKind = "photo" | "document" | "audio" | "video";
 
 interface TelegramSentMedia extends TelegramMessage {

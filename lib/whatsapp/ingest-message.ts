@@ -5,6 +5,7 @@ import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
+import { dispatchInboundMessage } from "@/lib/automations/dispatch";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -231,11 +232,28 @@ export async function ingestInboundMessage(
   // el orderBy cubre cuentas que quedaron con varios activos de antes). El
   // retraso agrupa ráfagas: si llega otro mensaje en esos segundos, este job
   // se descarta y responde el del mensaje más reciente (ver lib/bots/guards.ts).
-  const activeBot = await prisma.wABot.findFirst({
-    where: { waAccountId: accountId, isActive: true, status: "ACTIVE" },
-    orderBy: { updatedAt: "desc" },
-    select: { id: true },
+  // Automatizaciones antes que el bot: una que esté esperando respuesta en
+  // este chat, o que arranque con este mensaje, lo toma y el bot calla. Un
+  // fallo del motor nunca debe dejar al lead sin respuesta del bot.
+  const { suppressBot } = await dispatchInboundMessage({
+    account: refs.account,
+    chat: refs.chat,
+    contactId: contactRecord.id,
+    text: msg.body,
+    replyId: msg.interactiveReplyId ?? null,
+    isFirstMessage: !existingChat,
+  }).catch((err) => {
+    console.error("[ingest] dispatchInboundMessage falló:", err);
+    return { suppressBot: false };
   });
+
+  const activeBot = suppressBot
+    ? null
+    : await prisma.wABot.findFirst({
+        where: { waAccountId: accountId, isActive: true, status: "ACTIVE" },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
 
   if (activeBot) {
     await botQueue.add("process-message", {

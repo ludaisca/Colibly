@@ -65,6 +65,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
     // del propio cliente (fetch falló pero el server sí procesó) no duplique
     // el mensaje, vía @@unique([conversationId, externalMessageId]).
     const clientMessageId = typeof body?.clientMessageId === "string" ? body.clientMessageId : null;
+    // Id de la opción tocada en un mensaje con botones (automatizaciones/API).
+    const replyId = typeof body?.replyId === "string" && body.replyId.length <= 64 ? body.replyId : null;
 
     // Tope de conversaciones NUEVAS por cuenta: cada una puede disparar
     // respuestas del bot de IA (con costo) — sin esto, un script abría cientos.
@@ -87,6 +89,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
       body: text,
       contactName: visitorId,
       isGroup: false,
+      interactiveReplyId: replyId,
     });
 
     return NextResponse.json({ success: true, messageId: result?.messageId ?? null }, { headers: corsHeaders(origin!) });
@@ -131,7 +134,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ accountI
 
     const messages = await prisma.channelMessage.findMany({
       where: { conversationId: conversation.id, ...(sinceDate ? { timestamp: { gt: sinceDate } } : {}) },
-      select: { id: true, direction: true, body: true, timestamp: true },
+      select: { id: true, direction: true, body: true, timestamp: true, interactivePayload: true },
       orderBy: { timestamp: "asc" },
       take: 100,
     });

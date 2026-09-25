@@ -11,7 +11,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 // So this returns a per-interaction list (source + timestamp + cost) rather
 // than trying to force a strict 1:1 link to a WAMessage id.
 interface UsageEntry {
-  source: "bot" | "scorer";
+  source: "bot" | "scorer" | "automation";
   name: string;
   model: string;
   promptTokens: number;
@@ -40,7 +40,7 @@ export async function GET(
     // Los calificadores de leads (WALeadScorerUsage) no soportan Telegram
     // todavía (fuera de alcance del MVP, ver plan) — solo el gasto de
     // respuesta del bot aplica para ese canal.
-    const [botUsage, scorerUsage] = await Promise.all([
+    const [botUsage, scorerUsage, automationUsage] = await Promise.all([
       prisma.wABotUsage.findMany({
         where: resolved.channel !== "WHATSAPP" ? { conversationId: chatId } : { waChatId: chatId },
         orderBy: { createdAt: "desc" },
@@ -69,6 +69,20 @@ export async function GET(
               scorer: { select: { name: true } },
             },
           }),
+      // Pasos de IA de automatizaciones (clasificar, extraer, emparejar respuesta).
+      prisma.automationAiUsage.findMany({
+        where: resolved.channel !== "WHATSAPP" ? { conversationId: chatId } : { waChatId: chatId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          model: true,
+          promptTokens: true,
+          completionTokens: true,
+          totalTokens: true,
+          estimatedCost: true,
+          createdAt: true,
+          automation: { select: { name: true } },
+        },
+      }),
     ]);
 
     const entries: UsageEntry[] = [
@@ -85,6 +99,16 @@ export async function GET(
       ...scorerUsage.map((u) => ({
         source: "scorer" as const,
         name: u.scorer.name,
+        model: u.model,
+        promptTokens: u.promptTokens,
+        completionTokens: u.completionTokens,
+        totalTokens: u.totalTokens,
+        estimatedCost: u.estimatedCost,
+        createdAt: u.createdAt.toISOString(),
+      })),
+      ...automationUsage.map((u) => ({
+        source: "automation" as const,
+        name: u.automation.name,
         model: u.model,
         promptTokens: u.promptTokens,
         completionTokens: u.completionTokens,

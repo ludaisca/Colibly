@@ -14,6 +14,7 @@ import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
+import { pauseConversationalRuns } from "@/lib/automations/dispatch";
 
 export async function POST(
   req: Request,
@@ -403,6 +404,11 @@ async function emitAgentMessageSent(
 ) {
   const refs = await eventRefsForChat(chatId);
   if (!refs) return;
+  // Un humano tomó la conversación: las automatizaciones conversacionales de
+  // este chat se pausan (se reanudan desde el chip del chat).
+  if (refs.chat) {
+    await pauseConversationalRuns(refs.chat).catch((err) => console.error("[send] pauseConversationalRuns falló:", err));
+  }
   await emitDomainEvent({
     type: "message.sent",
     ...refs,

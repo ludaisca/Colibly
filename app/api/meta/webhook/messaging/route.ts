@@ -30,6 +30,8 @@ interface MessagingEvent {
     mid: string;
     text?: string;
     attachments?: MessagingAttachment[];
+    // Toque de un quick reply (automatizaciones / API): payload = id de opción.
+    quick_reply?: { payload?: string };
     // Eco de un mensaje que NOSOTROS mandamos — ya se crea el ChannelMessage
     // OUTBOUND de forma síncrona al enviar (ver lib/meta-messaging/send.ts),
     // ingerir el eco también duplicaría el mensaje como si fuera INBOUND.
@@ -184,6 +186,7 @@ export async function POST(req: Request) {
             return profile.name ?? senderId;
           },
           isGroup: false,
+          interactiveReplyId: event.message.quick_reply?.payload ?? null,
           mediaId: info.mediaId,
           mimeType: info.mimeType,
           caption: info.caption,

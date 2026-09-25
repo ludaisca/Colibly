@@ -1,12 +1,12 @@
-import type { ChannelAccount, Conversation, WAAccount, WAChat } from "@prisma/client";
+import type { ChannelAccount, Conversation, Prisma, WAAccount, WAChat } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
-import { sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
+import { sendInteractiveList, sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/template-variables";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
-import { sendTelegramMessage } from "@/lib/telegram/send";
-import { sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
+import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
+import { sendMetaChannelOptions, sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { emitDomainEvent } from "@/lib/events/emit";
 import type { MessageSource } from "@/lib/events/types";
 
@@ -19,10 +19,31 @@ export type OutboundTarget =
   | { kind: "whatsapp"; chat: WAChat & { account: WAAccount } }
   | { kind: "channel"; conversation: Conversation & { channelAccount: ChannelAccount } };
 
+export interface OutboundOption {
+  id: string;
+  title: string;
+  description?: string;
+}
+
 export type OutboundContent =
   | { type: "text"; text: string }
-  | { type: "buttons"; text: string; buttons: { id: string; title: string }[] }
+  | { type: "buttons"; text: string; buttons: OutboundOption[] }
+  | { type: "list"; text: string; buttonLabel: string; rows: OutboundOption[] }
   | { type: "template"; templateId: string; bodyParams?: string[]; headerParam?: string | null; buttonParam?: string | null };
+
+// Forma de interactivePayload en WAMessage y ChannelMessage — la burbuja del
+// chat (chat-thread-panel.tsx) dibuja `buttons` igual para botones y listas.
+export interface InteractivePayload {
+  buttons: { id: string; title: string }[];
+  style?: "list";
+  buttonLabel?: string;
+}
+
+function payloadFor(content: Extract<OutboundContent, { type: "buttons" | "list" }>): InteractivePayload {
+  return content.type === "buttons"
+    ? { buttons: content.buttons.map(({ id, title }) => ({ id, title })) }
+    : { buttons: content.rows.map(({ id, title }) => ({ id, title })), style: "list", buttonLabel: content.buttonLabel };
+}
 
 export class OutboundError extends Error {
   constructor(
@@ -74,17 +95,31 @@ async function sendWhatsapp(
   let wamid: string | null;
   let body: string;
   let messageType = "text";
-  let interactivePayload: { buttons: { id: string; title: string }[] } | undefined;
+  let interactivePayload: InteractivePayload | undefined;
 
   try {
     if (content.type === "text") {
       ({ wamid } = await sendWhatsAppMessage(chat.account, { to: chat.remoteJid, type: "text", body: content.text }));
       body = content.text;
     } else if (content.type === "buttons") {
-      ({ wamid } = await sendInteractiveMessage(chat.account, { to: chat.remoteJid, body: content.text, buttons: content.buttons }));
+      ({ wamid } = await sendInteractiveMessage(chat.account, {
+        to: chat.remoteJid,
+        body: content.text,
+        buttons: content.buttons.map(({ id, title }) => ({ id, title })),
+      }));
       body = content.text;
       messageType = "interactive";
-      interactivePayload = { buttons: content.buttons };
+      interactivePayload = payloadFor(content);
+    } else if (content.type === "list") {
+      ({ wamid } = await sendInteractiveList(chat.account, {
+        to: chat.remoteJid,
+        body: content.text,
+        buttonLabel: content.buttonLabel,
+        rows: content.rows,
+      }));
+      body = content.text;
+      messageType = "interactive";
+      interactivePayload = payloadFor(content);
     } else {
       const template = await prisma.wATemplate.findFirst({
         where: { id: content.templateId, waAccountId: chat.accountId },
@@ -129,7 +164,7 @@ async function sendWhatsapp(
       direction: "OUTBOUND",
       messageType,
       body,
-      interactivePayload,
+      interactivePayload: interactivePayload as Prisma.InputJsonObject | undefined,
       status: "sent",
       senderId: opts.senderId ?? null,
       timestamp: now,
@@ -168,19 +203,22 @@ async function sendChannel(
   if (content.type === "template") {
     throw new OutboundError("invalid_request", "Las plantillas solo existen en WhatsApp");
   }
-  if (content.type === "buttons") {
-    throw new OutboundError("invalid_request", "Los botones por API solo están disponibles en WhatsApp por ahora");
-  }
 
   const now = new Date();
+  const text = content.text;
+  const options = content.type === "buttons" ? content.buttons : content.type === "list" ? content.rows : null;
+  const interactivePayload = content.type === "text" ? undefined : payloadFor(content);
   let externalId: string | null = null;
   try {
     if (channelAccount.channel === "TELEGRAM") {
-      ({ externalMessageId: externalId } = await sendTelegramMessage(channelAccount, { to: conversation.externalId, body: content.text }));
+      ({ externalMessageId: externalId } = options
+        ? await sendTelegramOptions(channelAccount, { to: conversation.externalId, body: text, options })
+        : await sendTelegramMessage(channelAccount, { to: conversation.externalId, body: text }));
     } else if (channelAccount.channel === "MESSENGER" || channelAccount.channel === "INSTAGRAM") {
       // Conversación que nació de un comentario y aún no tiene respuesta: Meta
       // exige el endpoint de private reply (mismo criterio que
-      // chats/[chatId]/send — ver AGENTS.md "Comment-to-inbox").
+      // chats/[chatId]/send — ver AGENTS.md "Comment-to-inbox"). Ese endpoint
+      // no admite quick replies: van las opciones numeradas en el texto.
       const originComment =
         channelAccount.channel === "MESSENGER" && conversation.firstResponseAt === null
           ? await prisma.channelMessage.findFirst({
@@ -189,12 +227,21 @@ async function sendChannel(
               select: { externalMessageId: true },
             })
           : null;
-      ({ externalMessageId: externalId } = originComment?.externalMessageId
-        ? await sendMetaChannelPrivateReply(channelAccount, { commentId: originComment.externalMessageId, body: content.text })
-        : await sendMetaChannelText(channelAccount, { to: conversation.externalId, body: content.text }));
+      if (originComment?.externalMessageId) {
+        const withMenu = options ? `${text}\n\n${options.map((o, i) => `${i + 1}. ${o.title}`).join("\n")}` : text;
+        ({ externalMessageId: externalId } = await sendMetaChannelPrivateReply(channelAccount, {
+          commentId: originComment.externalMessageId,
+          body: withMenu,
+        }));
+      } else {
+        ({ externalMessageId: externalId } = options
+          ? await sendMetaChannelOptions(channelAccount, { to: conversation.externalId, body: text, options })
+          : await sendMetaChannelText(channelAccount, { to: conversation.externalId, body: text }));
+      }
     }
     // WEBCHAT: no hay API externa — el ChannelMessage de abajo ES la entrega
-    // (el widget lo recoge por polling), igual que lib/channel-send.ts.
+    // (el widget lo recoge por polling y dibuja los botones de
+    // interactivePayload), igual que lib/channel-send.ts.
   } catch (err) {
     throw new OutboundError("upstream_error", err instanceof Error ? err.message : String(err));
   }
@@ -204,8 +251,9 @@ async function sendChannel(
       externalMessageId: externalId,
       conversationId: conversation.id,
       direction: "OUTBOUND",
-      messageType: "text",
-      body: content.text,
+      messageType: options ? "interactive" : "text",
+      body: text,
+      interactivePayload: interactivePayload as Prisma.InputJsonObject | undefined,
       status: "sent",
       senderId: opts.senderId ?? null,
       timestamp: now,
@@ -214,7 +262,7 @@ async function sendChannel(
   });
   await prisma.conversation.update({
     where: { id: conversation.id },
-    data: { lastMessage: content.text.slice(0, 500), lastMessageAt: now },
+    data: { lastMessage: text.slice(0, 500), lastMessageAt: now },
   });
   await prisma.channelAccount.update({ where: { id: channelAccount.id }, data: { lastActivity: now } });
 
@@ -223,7 +271,7 @@ async function sendChannel(
     account: { kind: "channel", id: channelAccount.id, channel: channelAccount.channel },
     chat: { kind: "channel", id: conversation.id },
     contactId: conversation.contactId,
-    data: { messageId: message.id, messageType: "text", text: content.text, source: opts.source, senderId: opts.senderId ?? null },
+    data: { messageId: message.id, messageType: options ? "interactive" : "text", text, source: opts.source, senderId: opts.senderId ?? null },
   });
 
   return { messageId: message.id, externalId };
