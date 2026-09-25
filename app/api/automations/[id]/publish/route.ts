@@ -3,6 +3,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { automationChannel, findAccessibleAutomation, requireAutomationSession } from "@/lib/automations/access";
 import { parseGraph, publishAutomation, validateForPublish } from "@/lib/automations/publish";
 import { hasErrors } from "@/lib/automations/validate";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,6 +24,11 @@ export async function POST(_req: Request, { params }: Params) {
     const issues = await validateForPublish(graph, { waAccountId: a.waAccountId, channelAccountId: a.channelAccountId, organizationId: a.organizationId }, automationChannel(a));
     if (hasErrors(issues)) {
       return NextResponse.json({ error: "La automatización tiene errores", issues }, { status: 422 });
+    }
+    // Publicar activa: si ya estaba activa no ocupa otro lugar del plan.
+    if (a.status !== "ACTIVE") {
+      const overLimit = await checkPlanLimit(a.organizationId, "activeAutomations");
+      if (overLimit) return overLimit;
     }
     const published = await publishAutomation(a.id, graph, session.user.id);
     return NextResponse.json({ status: published.status, publishedVersion: published.publishedVersion, issues });

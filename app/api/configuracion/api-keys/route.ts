@@ -7,6 +7,7 @@ import { isApiScope } from "@/lib/api/scopes";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
+import { checkApiAccess } from "@/lib/billing/gates";
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(80),
@@ -33,6 +34,8 @@ export async function POST(req: Request) {
   try {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
+    const noApi = await checkApiAccess(await requireOrgId(admin.userId));
+    if (noApi) return noApi;
 
     const parsed = createSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

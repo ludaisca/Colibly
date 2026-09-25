@@ -12,6 +12,8 @@ export type ApiErrorCode =
   | "conflict"
   | "rate_limited"
   | "window_closed"
+  | "plan_limit"
+  | "read_only"
   | "upstream_error"
   | "internal_error";
 

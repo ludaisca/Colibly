@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
+import { isOrgWritable } from "@/lib/billing/gates";
 
 // Roadmap P3-a — motor de secuencias lineales (ver comentario de
 // SequenceTriggerType en schema.prisma para el porqué de "sin ramas"). Dos
@@ -257,7 +258,9 @@ async function processSingleEnrollment(enrollment: EnrollmentWithRelations, now:
 export async function processSequenceTick(): Promise<void> {
   const now = new Date();
   const enrollments = await prisma.wASequenceEnrollment.findMany({
-    where: { status: "ACTIVE", nextRunAt: { lte: now } },
+    // Solo organizaciones que pueden enviar: las de solo lectura esperan (sus
+    // inscripciones siguen ACTIVE y retoman al reactivar el plan).
+    where: { status: "ACTIVE", nextRunAt: { lte: now }, sequence: { organization: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } } } },
     // Las más atrasadas primero — sin orden, un bloque de inscripciones que
     // fallaban siempre acaparaba el lote y las demás nunca se procesaban.
     orderBy: { nextRunAt: "asc" },
@@ -269,6 +272,7 @@ export async function processSequenceTick(): Promise<void> {
   });
 
   for (const enrollment of enrollments) {
+    if (!(await isOrgWritable(enrollment.sequence.organizationId))) continue;
     try {
       await processSingleEnrollment(enrollment, now);
     } catch (err) {

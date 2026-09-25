@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/integrations/admin-session";
 import { createWebhook, serializeWebhook, webhookCreateSchema, WebhookInputError } from "@/lib/webhooks/crud";
 import { publicErrorMessage } from "@/lib/api-errors";
-import { orgWhere } from "@/lib/tenancy";
+import { checkApiAccess } from "@/lib/billing/gates";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
 
 export async function GET() {
   try {
@@ -23,6 +24,8 @@ export async function POST(req: Request) {
   try {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
+    const noApi = await checkApiAccess(await requireOrgId(admin.userId));
+    if (noApi) return noApi;
     const parsed = webhookCreateSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     const { endpoint, secret } = await createWebhook(admin.userId, parsed.data);

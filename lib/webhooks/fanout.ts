@@ -4,6 +4,7 @@ import { webhookDeliveryQueue } from "@/lib/queue";
 import type { DomainEvent } from "@/lib/events/types";
 import { resolveIntegrationScope, scopeIncludes, type ResolvedScope } from "@/lib/integrations/account-scope";
 import { buildPublicEvent, type PublicEvent } from "./payload";
+import { hasApiAccess, isOrgWritable } from "@/lib/billing/gates";
 
 // Worker de domain-events → una WebhookDelivery por endpoint que coincide
 // (tipo de evento + alcance de cuentas de su dueño) y un job de entrega por
@@ -12,7 +13,7 @@ import { buildPublicEvent, type PublicEvent } from "./payload";
 export async function fanOutToWebhooks(event: DomainEvent): Promise<number> {
   const endpoints = await prisma.webhookEndpoint.findMany({
     where: { active: true, disabledAt: null, events: { hasSome: [event.type, "*"] } },
-    select: { id: true, userId: true, accountIds: true, channelAccountIds: true },
+    select: { id: true, userId: true, organizationId: true, accountIds: true, channelAccountIds: true },
   });
   if (endpoints.length === 0) return 0;
 
@@ -20,7 +21,17 @@ export async function fanOutToWebhooks(event: DomainEvent): Promise<number> {
   let payload: PublicEvent | null = null;
   let created = 0;
 
+  // Webhooks salientes: solo en planes con API y con la cuenta al corriente.
+  const deliverable = new Map<string, Promise<boolean>>();
+  const orgCanReceive = (organizationId: string) => {
+    if (!deliverable.has(organizationId)) {
+      deliverable.set(organizationId, Promise.all([hasApiAccess(organizationId), isOrgWritable(organizationId)]).then(([api, ok]) => api && ok));
+    }
+    return deliverable.get(organizationId)!;
+  };
+
   for (const endpoint of endpoints) {
+    if (!(await orgCanReceive(endpoint.organizationId))) continue;
     const scopeKey = `${endpoint.userId}:${endpoint.accountIds.join(",")}:${endpoint.channelAccountIds.join(",")}`;
     if (!scopeByOwner.has(scopeKey)) {
       scopeByOwner.set(scopeKey, resolveIntegrationScope(endpoint.userId, endpoint));

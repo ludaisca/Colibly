@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { emailField } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
@@ -105,6 +106,11 @@ export async function PATCH(req: Request) {
     if (disabled === true && target.id === session.user.id) {
       return NextResponse.json({ error: "No puedes desactivar tu propia cuenta" }, { status: 400 });
     }
+    // Reactivar ocupa un lugar del plan (desactivar lo libera).
+    if (disabled === false && target.disabledAt) {
+      const overLimit = await checkPlanLimit(orgId, "users");
+      if (overLimit) return overLimit;
+    }
 
     const user = await prisma.user.update({
       where: { id: userId },
@@ -153,10 +159,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email ya registrado" }, { status: 409 });
     }
 
+    const organizationId = await requireOrgId(session.user.id);
+    const overLimit = await checkPlanLimit(organizationId, "users");
+    if (overLimit) return overLimit;
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId: await requireOrgId(session.user.id) },
+      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });
 

@@ -3,10 +3,17 @@ import { cn } from "./cn";
 interface ProgressProps {
   value: number;
   label?: string;
+  tone?: "accent" | "warning" | "danger";
   className?: string;
 }
 
-export function Progress({ value, label, className }: ProgressProps) {
+const BAR: Record<NonNullable<ProgressProps["tone"]>, string> = {
+  accent: "bg-accent",
+  warning: "bg-warning",
+  danger: "bg-danger",
+};
+
+export function Progress({ value, label, tone = "accent", className }: ProgressProps) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <div className={cn("w-full space-y-1", className)}>
@@ -24,7 +31,7 @@ export function Progress({ value, label, className }: ProgressProps) {
         aria-valuemax={100}
       >
         <div
-          className="h-full rounded-full bg-accent transition-all duration-300 ease-out"
+          className={cn("h-full rounded-full transition-all duration-300 ease-out", BAR[tone])}
           style={{ width: `${clamped}%` }}
         />
       </div>

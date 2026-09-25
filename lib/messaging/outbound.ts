@@ -9,6 +9,7 @@ import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
 import { sendMetaChannelOptions, sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { emitDomainEvent } from "@/lib/events/emit";
 import type { MessageSource } from "@/lib/events/types";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 // Envío saliente iniciado por el sistema (API pública; en la fase 2 también
 // las automatizaciones): manda por el canal que corresponda, persiste el
@@ -64,6 +65,9 @@ export async function sendOutbound(
   content: OutboundContent,
   opts: { source: MessageSource; senderId?: string | null }
 ): Promise<OutboundResult> {
+  // Antes que la ventana de 24 h y que el widget web (que no pasa por ningún
+  // emisor externo): en solo lectura no sale nada.
+  await assertOrgCanSend(target.kind === "whatsapp" ? target.chat.account.organizationId : target.conversation.channelAccount.organizationId);
   return target.kind === "whatsapp"
     ? sendWhatsapp(target.chat, content, opts)
     : sendChannel(target.conversation, content, opts);

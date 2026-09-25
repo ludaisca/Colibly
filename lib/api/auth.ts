@@ -5,6 +5,7 @@ import { resolveIntegrationScope, type ResolvedScope } from "@/lib/integrations/
 import { ApiError } from "./respond";
 import { API_KEY_PREFIX } from "./keys";
 import type { ApiScope } from "./scopes";
+import { hasApiAccess, isOrgWritable } from "@/lib/billing/gates";
 
 export interface ApiContext extends ResolvedScope {
   keyId: string;
@@ -18,6 +19,7 @@ export interface ApiContext extends ResolvedScope {
 const REQUESTS_PER_MINUTE = 120;
 // No se escribe lastUsedAt en cada request — basta con resolución de minutos.
 const LAST_USED_RESOLUTION_MS = 60_000;
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 // Autentica `Authorization: Bearer sk_live_...`, exige `scope` si se pide y
 // devuelve el alcance ya resuelto (cuentas del dueño ∩ recorte de la key).
@@ -44,6 +46,14 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
   // instante, igual que su sesión.
   if (key.user.role !== "admin" || key.user.disabledAt) {
     throw new ApiError(401, "unauthorized", "El dueño de esta API key ya no tiene acceso");
+  }
+
+  // Facturación: la API es del plan Pro, y en solo lectura solo se consulta.
+  if (!(await hasApiAccess(key.organizationId))) {
+    throw new ApiError(402, "plan_limit", "La API está incluida en el plan Pro. Mejora el plan de tu cuenta para usarla.");
+  }
+  if (!SAFE_METHODS.has(req.method) && !(await isOrgWritable(key.organizationId))) {
+    throw new ApiError(402, "read_only", "La cuenta está en solo lectura (prueba vencida o pago pendiente): la API solo admite consultas.");
   }
 
   const { allowed } = await rateLimit(`api:${key.id}`, REQUESTS_PER_MINUTE, 60);

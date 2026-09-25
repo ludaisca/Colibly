@@ -13,6 +13,7 @@ import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
 import { botSendQueue } from "@/lib/queue";
 import type { AIProvider, AIMessage, ContentPart } from "@/lib/ai/types";
+import { BillingBlockedError, isBotWritable } from "@/lib/billing/gates";
 
 // Compartido entre Messenger e Instagram (a diferencia de lib/telegram/
 // bot-worker.ts, que es hermano deliberado de lib/workers/bot-worker.ts para
@@ -50,9 +51,16 @@ export async function processMetaChannelBotMessageJob(
   job: MetaChannelBotMessageJob,
   attemptInfo: AttemptInfo = { attemptsMade: 0, maxAttempts: 1 }
 ) {
+  // Cuenta en solo lectura (prueba vencida, impago): el bot no responde ni
+  // gasta IA. No es un fallo del bot, así que no pasa a ERROR.
+  if (!(await isBotWritable(job.botId))) {
+    console.info(`[bots] ${job.botId}: organización en solo lectura, no se responde`);
+    return;
+  }
   try {
     await handleMetaChannelBotMessage(job);
   } catch (err) {
+    if (err instanceof BillingBlockedError) return;
     console.error("[meta-messaging bot-worker] Error processing job:", err instanceof Error ? err.message : err);
     const isLastAttempt = attemptInfo.attemptsMade + 1 >= attemptInfo.maxAttempts;
     if (!isLastAttempt) {

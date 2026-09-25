@@ -6,6 +6,7 @@ import { execute, type Outcome } from "./executor";
 import { createRunAdapters } from "./adapters";
 import { parseSettings } from "./settings";
 import type { Graph, RunInput, RunState, TriggerType, WaitingReply } from "./types";
+import { isOrgWritable } from "@/lib/billing/gates";
 
 // Capa con base de datos del motor: arrancar, reanudar y avanzar ejecuciones.
 // El ejecutor (executor.ts) es puro; aquí vive todo lo que toca Prisma y
@@ -312,12 +313,17 @@ async function finish(
 export async function processAutomationTick(): Promise<void> {
   const now = new Date();
   const due = await prisma.automationRun.findMany({
-    where: { status: { in: ["WAITING_DELAY", "WAITING_REPLY"] }, nextRunAt: { lte: now } },
-    select: { id: true, status: true },
+    where: {
+      status: { in: ["WAITING_DELAY", "WAITING_REPLY"] },
+      nextRunAt: { lte: now },
+      automation: { organization: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } } },
+    },
+    select: { id: true, status: true, automation: { select: { organizationId: true } } },
     orderBy: { nextRunAt: "asc" },
     take: 200,
   });
   for (const run of due) {
+    if (!(await isOrgWritable(run.automation.organizationId))) continue;
     // Reclamo atómico del cambio de estado: si el job diferido ya la tomó,
     // count = 0 y no se duplica.
     const claimed = await prisma.automationRun.updateMany({

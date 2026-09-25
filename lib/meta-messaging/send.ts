@@ -1,6 +1,7 @@
 import type { ChannelAccount } from "@prisma/client";
 import { decrypt } from "@/lib/crypto";
 import { sendMetaChannelMessage, uploadMetaAttachment, sendPrivateReplyToComment } from "@/lib/meta-messaging";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 // Shape de ChannelAccount.credentials para MESSENGER/INSTAGRAM — ambos
 // comparten pageId+pageAccessToken (modelo Página-vinculada); IG además
@@ -27,6 +28,7 @@ export async function sendMetaChannelText(
   account: ChannelAccount,
   params: SendParams
 ): Promise<{ externalMessageId: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
   const result = await sendMetaChannelMessage(pageAccessToken, pageId, params.to, { text: params.body });
   return { externalMessageId: result.messageId };
@@ -38,6 +40,7 @@ export async function sendMetaChannelOptions(
   account: ChannelAccount,
   params: { to: string; body: string; options: { id: string; title: string }[] }
 ): Promise<{ externalMessageId: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
   const result = await sendMetaChannelMessage(pageAccessToken, pageId, params.to, { text: params.body, quickReplies: params.options });
   return { externalMessageId: result.messageId };
@@ -51,6 +54,7 @@ export async function sendMetaChannelPrivateReply(
   account: ChannelAccount,
   params: { commentId: string; body: string }
 ): Promise<{ externalMessageId: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   const { pageAccessToken } = getMetaChannelCredentials(account);
   const result = await sendPrivateReplyToComment(pageAccessToken, params.commentId, params.body);
   return { externalMessageId: result.messageId || null };
@@ -67,6 +71,7 @@ export async function sendMetaChannelMedia(
   account: ChannelAccount,
   params: SendMediaParams
 ): Promise<{ externalMessageId: string | null; attachmentId: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
   const uploaded = await uploadMetaAttachment(pageAccessToken, pageId, params.buffer, params.filename, params.mimeType);
   const result = await sendMetaChannelMessage(pageAccessToken, pageId, params.to, {

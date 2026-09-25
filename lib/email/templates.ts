@@ -74,3 +74,18 @@ export function invitationTemplate(input: { to: string; organizationName: string
     text: `${line}\n\nAcepta la invitación aquí:\n${input.url}\n\nVence en 7 días.`,
   };
 }
+
+// Avisos de facturación (prueba por vencer, pago fallido, solo lectura…).
+export function billingNoticeTemplate(input: { to: string; title: string; paragraphs: string[]; ctaLabel: string; url: string }): EmailMessage {
+  return {
+    to: input.to,
+    subject: input.title,
+    html: layout({
+      title: escapeHtml(input.title),
+      paragraphs: input.paragraphs.map(escapeHtml),
+      cta: { label: escapeHtml(input.ctaLabel), url: input.url },
+      footnote: "Recibes este correo porque administras una cuenta de SundayCRM.",
+    }),
+    text: `${input.title}\n\n${input.paragraphs.join("\n\n")}\n\n${input.ctaLabel}: ${input.url}`,
+  };
+}

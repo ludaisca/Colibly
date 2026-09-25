@@ -16,6 +16,7 @@ const errors = {
   "400": { $ref: "#/components/responses/Error" },
   "401": { $ref: "#/components/responses/Error" },
   "403": { $ref: "#/components/responses/Error" },
+  "402": { $ref: "#/components/responses/Error", description: "plan_limit (la API es del plan Pro, o se alcanzó un límite del plan) o read_only (cuenta en solo lectura: solo GET)" },
   "404": { $ref: "#/components/responses/Error" },
   "429": { $ref: "#/components/responses/Error" },
 };

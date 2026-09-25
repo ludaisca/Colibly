@@ -5,6 +5,7 @@ import { normalize } from "./match-reply";
 import { deliverInput, HOLDING_STATUSES, startRun } from "./runner";
 import { parseSettings } from "./settings";
 import type { Trigger, TriggerType } from "./types";
+import { isAccountWritable } from "@/lib/billing/gates";
 
 // Punto de entrada del motor desde fuera:
 //  - dispatchInboundMessage: la ingesta lo llama con cada mensaje entrante,
@@ -22,6 +23,12 @@ export interface InboundContext {
   isFirstMessage: boolean;
 }
 
+// Solo lectura: no arrancan ni avanzan automatizaciones (lo entrante se
+// guarda igual; las ejecuciones en espera retoman al reactivar el plan).
+function accountWritable(account: AccountRef) {
+  return isAccountWritable(account.kind === "whatsapp" ? { waAccountId: account.id } : { channelAccountId: account.id });
+}
+
 function accountWhere(account: AccountRef) {
   return account.kind === "whatsapp" ? { waAccountId: account.id } : { channelAccountId: account.id };
 }
@@ -31,6 +38,7 @@ function chatWhere(chat: ChatRef) {
 }
 
 export async function dispatchInboundMessage(ctx: InboundContext): Promise<{ suppressBot: boolean }> {
+  if (!(await accountWritable(ctx.account))) return { suppressBot: false };
   // 1. Una ejecución esperando respuesta en este chat se la lleva.
   const waiting = await prisma.automationRun.findFirst({
     where: { ...chatWhere(ctx.chat), status: "WAITING_REPLY" },
@@ -147,6 +155,7 @@ function eventTrigger(event: DomainEvent): { type: TriggerType; matches: (config
 export async function handleDomainEvent(event: DomainEvent): Promise<number> {
   const trigger = eventTrigger(event);
   if (!trigger || !event.contactId) return 0;
+  if (!event.account || !(await accountWritable(event.account))) return 0;
 
   const automations = await prisma.automation.findMany({
     where: { ...accountWhere(event.account), status: "ACTIVE", triggerType: trigger.type },

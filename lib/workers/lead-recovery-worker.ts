@@ -5,6 +5,8 @@ import { sendMetaChannelRecoveryMessage } from "@/lib/meta-messaging/lead-recove
 import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import type { AppSettings, WABot, WAAccount, ChannelAccount } from "@prisma/client";
+import { isOrgWritable } from "@/lib/billing/gates";
+import { requireOrgId } from "@/lib/tenancy";
 
 // Scheduled runs are unattended, so keep each tick's blast radius bounded —
 // same reasoning as lead-scoring-worker.ts's CANDIDATE_POOL/BATCH_SIZE.
@@ -38,6 +40,7 @@ export async function processLeadRecoveryTick() {
 }
 
 async function runRecoveryForUser(settings: AppSettings, now: Date) {
+  if (!(await isOrgWritable(await requireOrgId(settings.userId)))) return;
   if (await isMonthlyBudgetExceeded(settings.userId, now)) {
     console.log(`[lead-recovery] Presupuesto mensual de IA superado, se omite la recuperación para el usuario ${settings.userId} en este ciclo`);
     return;

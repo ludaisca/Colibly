@@ -7,6 +7,7 @@ import { automationChannel, findAccessibleAutomation, requireAutomationSession }
 import { parseGraph } from "@/lib/automations/publish";
 import { parseSettings } from "@/lib/automations/settings";
 import type { Graph, TriggerType } from "@/lib/automations/types";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -73,6 +74,10 @@ export async function PATCH(req: Request, { params }: Params) {
     }
     if (status === "ACTIVE" && !a.publishedVersionId) {
       return NextResponse.json({ error: "Publica la automatización antes de activarla" }, { status: 400 });
+    }
+    if (status === "ACTIVE" && a.status !== "ACTIVE") {
+      const overLimit = await checkPlanLimit(a.organizationId, "activeAutomations");
+      if (overLimit) return overLimit;
     }
 
     const updated = await prisma.automation.update({

@@ -1,5 +1,6 @@
 import type { ChannelAccount } from "@prisma/client";
 import { sendTelegramMessage } from "@/lib/telegram/send";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 // Roadmap P3-f — lib/telegram/bot-worker.ts se reutiliza tal cual para
 // WEBCHAT (mismo perfil simple: texto plano, sin medios, sin ventana de
@@ -13,6 +14,7 @@ export async function sendChannelReplyText(
   to: string,
   body: string
 ): Promise<{ externalMessageId: string | null }> {
+  await assertOrgCanSend(channelAccount.organizationId);
   if (channelAccount.channel === "WEBCHAT") {
     return { externalMessageId: null };
   }

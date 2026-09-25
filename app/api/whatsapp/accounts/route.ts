@@ -10,6 +10,7 @@ import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 export async function POST(req: Request) {
   try {
@@ -22,6 +23,8 @@ export async function POST(req: Request) {
 
     const unverified = await requireVerifiedEmail(session.user.id);
     if (unverified) return unverified;
+    const overLimit = await checkPlanLimit(await requireOrgId(session.user.id), "channels");
+    if (overLimit) return overLimit;
 
     const { allowed } = await rateLimit(`account-create:${session.user.id}`, 10, 60);
     if (!allowed) {

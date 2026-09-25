@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { User, Lock, CalendarDays, Brain, FileSpreadsheet, ExternalLink, RefreshCw, Unlink, Plug } from "lucide-react";
+import { User, Lock, CalendarDays, Brain, FileSpreadsheet, ExternalLink, RefreshCw, Unlink, Plug, CreditCard } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { PasswordInput } from "@/app/components/ui/password-input";
@@ -258,6 +258,18 @@ export default function SettingsPage() {
           Cambiar contraseña
         </Button>
       </section>
+
+      {isAdmin && (
+        <section className="space-y-4">
+          <SectionHeader title="Plan y facturación" />
+          <p className="text-sm text-muted">
+            Tu plan, el consumo contra sus límites, tus pagos y facturas.
+          </p>
+          <Button href="/configuracion/plan" variant="secondary" size="sm" icon={CreditCard}>
+            Ver plan
+          </Button>
+        </section>
+      )}
 
       {isAdmin && (
         <section className="space-y-4">

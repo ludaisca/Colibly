@@ -4,6 +4,7 @@ import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/templat
 import { saveMediaFromMeta, isImageMime, isVideoMime } from "@/lib/whatsapp/media-store";
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { isOrgWritable } from "@/lib/billing/gates";
 
 function mediaMessageTypeFromMime(mimeType: string): string {
   if (isImageMime(mimeType)) return "image";
@@ -22,12 +23,18 @@ interface CampaignJob {
 export async function processScheduledCampaignsTick() {
   const now = new Date();
   const due = await prisma.wACampaign.findMany({
-    where: { status: "SCHEDULED", scheduledAt: { lte: now } },
-    select: { id: true },
+    // Organizaciones ya marcadas como solo lectura/canceladas se excluyen en la
+    // consulta (si no, 20 campañas bloqueadas taparían a las demás); las que
+    // vencieron hace menos de una hora (el tick de facturación aún no las
+    // marca) se saltan abajo y quedan programadas.
+    where: { status: "SCHEDULED", scheduledAt: { lte: now }, organization: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } } },
+    select: { id: true, organizationId: true },
+    orderBy: { scheduledAt: "asc" },
     take: 20,
   });
 
-  for (const { id } of due) {
+  for (const { id, organizationId } of due) {
+    if (!(await isOrgWritable(organizationId))) continue;
     const claimed = await prisma.wACampaign.updateMany({
       where: { id, status: "SCHEDULED" },
       data: { status: "SENDING", sentAt: now },
@@ -50,6 +57,13 @@ export async function processCampaignJob(job: CampaignJob) {
   });
 
   if (!campaign || campaign.status !== "SENDING") return;
+
+  // Cuenta en solo lectura: la campaña no sale (cada envío lo rechazaría de
+  // todos modos) y queda como fallida, visible en su detalle.
+  if (!(await isOrgWritable(campaign.organizationId))) {
+    await prisma.wACampaign.update({ where: { id: campaignId }, data: { status: "FAILED", completedAt: new Date() } });
+    return;
+  }
 
   if (
     campaign.waAccount.channel !== "META_CLOUD" ||

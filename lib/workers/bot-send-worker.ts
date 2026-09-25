@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 import { sendMetaChannelText } from "@/lib/meta-messaging/send";
+import { assertOrgCanSend, isAccountWritable } from "@/lib/billing/gates";
 
 interface BotSendJob {
   accountId: string;
@@ -18,6 +19,7 @@ interface BotSendJob {
 // so the delayed sends don't hold a concurrency slot on the bot-messages queue, which
 // would otherwise let a single humanized conversation block the other two bot jobs.
 export async function processBotSendJob(job: BotSendJob) {
+  if (!(await isAccountWritable(job.channel ? { channelAccountId: job.accountId } : { waAccountId: job.accountId }))) return;
   if (job.channel === "TELEGRAM" || job.channel === "MESSENGER" || job.channel === "INSTAGRAM" || job.channel === "WEBCHAT") {
     await processChannelBotSendJob(job);
     return;
@@ -94,6 +96,6 @@ function sendChannelChunk(account: ChannelAccount, to: string, body: string): Pr
   // WEBCHAT (roadmap P3-f): no hay ninguna API externa a la que llamar — el
   // ChannelMessage OUTBOUND creado justo abajo YA es la entrega, el widget
   // lo recoge por polling.
-  if (account.channel === "WEBCHAT") return Promise.resolve({ externalMessageId: null });
+  if (account.channel === "WEBCHAT") return assertOrgCanSend(account.organizationId).then(() => ({ externalMessageId: null }));
   return sendMetaChannelText(account, { to, body });
 }

@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { type NextRequest, NextResponse } from "next/server";
+import { getOrgAccess, readOnlyResponse } from "@/lib/billing/gates";
 
 const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/meta-ads"];
 // Ojo: las tres comprobaciones de rol viven DENTRO del bloque PROTECTED — una
@@ -7,7 +8,7 @@ const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/m
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.
 // Cualquier sección nueva (un canal adicional, p. ej.) debe entrar en PROTECTED
 // aunque el layout ya redirija a los no autenticados.
-const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/ventas", "/meta-ads", "/whatsapp/secuencias", "/whatsapp/automatizaciones"];
+const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/ventas", "/meta-ads", "/whatsapp/secuencias", "/whatsapp/automatizaciones"];
 // Regular "user" role keeps Panel/Estadísticas/Chats/Cuentas/Plantillas/Campañas/Config,
 // but loses Contactos and Bots IA entirely (la antigua página /whatsapp/conocimiento se
 // eliminó — el flujo de conocimiento vive en la pestaña del bot, ya bloqueada vía
@@ -18,15 +19,34 @@ const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/wh
 // only the account owner administers AI provider config, not shared/delegated roles.
 // /meta-ads es admin-only (credenciales de negocio sensibles, sin
 // WAAccountShare equivalente) — mismo criterio que /configuracion/ia.
-const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia", "/configuracion/api", "/meta-ads"];
+const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/meta-ads"];
 // /verificar-correo e /invitacion no van aquí: funcionan con o sin sesión.
 const AUTH = ["/login", "/register", "/recuperar", "/restablecer"];
-const EXCLUDE = ["/_next", "/api", "/favicon.ico"];
+const EXCLUDE = ["/_next", "/favicon.ico"];
+
+// Solo lectura (prueba vencida, impago tras la gracia, cancelada): la UI puede
+// leer todo pero ninguna mutación de /api pasa, salvo lo necesario para salir
+// de ese estado (pagar, cuenta, equipo) o para no molestar (notificaciones).
+// Las rutas públicas (webhooks de Meta/Telegram, widget, API v1 con key) no
+// traen sesión y siguen su curso: lo entrante se guarda igual, y los envíos
+// tienen su propio candado en los emisores y en la API v1.
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const READ_ONLY_ALLOWED = ["/api/auth", "/api/billing", "/api/usuarios", "/api/whatsapp/notifications"];
 
 export default async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   if (EXCLUDE.some((e) => path.startsWith(e))) {
+    return NextResponse.next();
+  }
+
+  if (path.startsWith("/api")) {
+    if (SAFE_METHODS.has(req.method) || READ_ONLY_ALLOWED.some((r) => path === r || path.startsWith(r + "/"))) {
+      return NextResponse.next();
+    }
+    const apiSession = await auth();
+    const organizationId = apiSession?.user?.organizationId;
+    if (organizationId && (await getOrgAccess(organizationId)) !== "full") return readOnlyResponse();
     return NextResponse.next();
   }
 

@@ -7,6 +7,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { issueAuthToken } from "@/lib/auth-tokens";
 import { sendInvitationEmail } from "@/lib/auth-emails";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 // Invitaciones pendientes de la organización (solo admin).
 export async function GET() {
@@ -48,6 +49,14 @@ export async function POST(req: Request) {
       const message = existing.organizationId === organizationId ? "Esa persona ya es parte de tu equipo." : "Ese correo ya tiene una cuenta en SundayCRM con otra empresa.";
       return NextResponse.json({ error: message }, { status: 409 });
     }
+
+    // Reinvitar al mismo correo reemplaza su invitación: no ocupa otro lugar.
+    const organizationId = await requireOrgId(session.user.id);
+    const pendingSame = await prisma.authToken.count({
+      where: { organizationId, type: "INVITE", email, usedAt: null, expiresAt: { gt: new Date() } },
+    });
+    const overLimit = await checkPlanLimit(organizationId, "users", pendingSame > 0 ? 0 : 1);
+    if (overLimit) return overLimit;
 
     const inviter = await prisma.user.findUniqueOrThrow({
       where: { id: session.user.id },

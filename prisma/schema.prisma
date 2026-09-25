@@ -1380,6 +1380,8 @@ enum NotificationType {
   APPOINTMENT_PROPOSED
   // Una integración saliente (webhook) se desactivó sola tras fallar seguido.
   INTEGRATION_ERROR
+  // Prueba por vencer, pago fallido, solo lectura, límite del plan alcanzado.
+  BILLING
 }
 
 model Notification {
@@ -1684,6 +1686,13 @@ model Organization {
   graceEndsAt          DateTime?          @map("grace_ends_at")
   stripeCustomerId     String?            @unique @map("stripe_customer_id")
   stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  // El cliente canceló desde el portal: sigue activa hasta currentPeriodEnd.
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  // Cuándo pasó a CANCELED — la purga de datos corre RETENTION_DAYS_AFTER_CANCEL después.
+  canceledAt           DateTime?          @map("canceled_at")
+  // Último aviso de facturación enviado (clave del aviso + fecha), para no
+  // repetir el mismo correo/notificación en cada tick.
+  lastBillingNotice    String?            @map("last_billing_notice")
   aiCreditsUsed        Int                @default(0) @map("ai_credits_used")
   aiCreditsPeriodStart DateTime           @default(now()) @map("ai_credits_period_start")
   createdAt            DateTime           @default(now()) @map("created_at")
@@ -1736,4 +1745,14 @@ model AuthToken {
   @@index([userId, type])
   @@index([organizationId, type])
   @@map("auth_tokens")
+}
+
+// Eventos del webhook de Stripe ya procesados (idempotencia por event.id:
+// Stripe reintenta y puede entregar el mismo evento más de una vez).
+model StripeEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("stripe_events")
 }

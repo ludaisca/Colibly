@@ -3,6 +3,7 @@ import { scoreChatWithScorer } from "@/lib/whatsapp/lead-scoring";
 import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import type { WALeadScorerBot } from "@prisma/client";
+import { isOrgWritable } from "@/lib/billing/gates";
 
 // Scheduled runs are unattended, so keep each tick's blast radius bounded:
 // only chats still "active" (OPEN/PENDING) and only ones that have new
@@ -32,6 +33,8 @@ export async function processLeadScoringTick() {
 }
 
 async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
+  // Solo lectura: la calificación automática no gasta IA.
+  if (!(await isOrgWritable(scorer.organizationId))) return;
   if (await isMonthlyBudgetExceeded(scorer.userId, now)) {
     console.log(`[lead-scoring] Presupuesto mensual de IA superado, se omite el calificador ${scorer.id} en este ciclo`);
     return;

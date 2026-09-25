@@ -6,6 +6,7 @@ import { getUserAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 export async function POST(req: Request) {
   try {
@@ -63,11 +64,19 @@ export async function POST(req: Request) {
       );
     }
 
+    // Cada destinatario que aún no es contacto se vuelve uno al enviarle: la
+    // campaña no puede pasar el límite de contactos del plan.
+    const organizationId = await requireOrgId(session.user.id);
+    const phones = [...new Set(recipients.map((r) => r.phoneNumber))];
+    const known = await prisma.contact.count({ where: { accountId: waAccountId, remoteJid: { in: phones } } });
+    const overLimit = await checkPlanLimit(organizationId, "contacts", phones.length - known);
+    if (overLimit) return overLimit;
+
     const campaign = await prisma.$transaction(async (tx) => {
       const created = await tx.wACampaign.create({
         data: {
           userId: session.user.id,
-          organizationId: await requireOrgId(session.user.id),
+          organizationId,
           waAccountId,
           waTemplateId,
           name,

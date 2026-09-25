@@ -70,6 +70,8 @@ export const automationRunQueue = new Queue("automation-run", {
 // Respaldo cada minuto: esperas vencidas cuyo job diferido se perdió y
 // timeouts de "esperar respuesta".
 export const automationTickQueue = new Queue("automation-tick", { connection, defaultJobOptions });
+// Facturación cada hora: pruebas y gracias vencidas → solo lectura, avisos.
+export const billingTickQueue = new Queue("billing-tick", { connection, defaultJobOptions });
 // Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a
 // propósito: el receptor suele estar caído por minutos, no por segundos
 // (30s, 1m, 2m, 4m, 8m, 16m ≈ 31 min en total).

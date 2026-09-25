@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { acceptInvitationSchema } from "@/lib/validations";
 import { findValidAuthToken } from "@/lib/auth-tokens";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 const INVALID = "La invitación no es válida o ya venció. Pide a tu administrador que te envíe una nueva.";
 
@@ -41,6 +42,12 @@ export async function POST(req: Request) {
     if (!record?.organizationId || !record.role) return NextResponse.json({ error: INVALID }, { status: 400 });
     const organizationId = record.organizationId;
     const role = record.role;
+    // La invitación ya ocupa su lugar (cuenta como pendiente): aceptarla no
+    // suma. Solo falla si el plan bajó después de invitar.
+    const overLimit = await checkPlanLimit(organizationId, "users", 0);
+    if (overLimit) {
+      return NextResponse.json({ error: "Tu equipo ya llegó al límite de usuarios de su plan. Pide a tu administrador que libere un lugar.", code: "plan_limit" }, { status: 402 });
+    }
     const password = await bcrypt.hash(parsed.data.password, 12);
 
     // Consumir el token y crear el usuario juntos: si el alta falla (correo

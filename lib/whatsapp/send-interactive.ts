@@ -1,6 +1,7 @@
 import { decrypt } from "@/lib/crypto";
 import type { WAAccount } from "@prisma/client";
 import { httpTimeout } from "@/lib/http-timeouts";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 export interface InteractiveButton {
   id: string; // generado por el caller (btn_1, btn_2...), nunca confiado del cliente
@@ -20,6 +21,7 @@ export async function sendInteractiveMessage(
   account: WAAccount,
   params: SendInteractiveParams
 ): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   return postInteractive(account, params.to, {
     type: "button",
     body: { text: params.body },
@@ -37,6 +39,7 @@ export interface SendListParams {
 }
 
 export async function sendInteractiveList(account: WAAccount, params: SendListParams): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   return postInteractive(account, params.to, {
     type: "list",
     body: { text: params.body },

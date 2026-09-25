@@ -19,7 +19,8 @@ import { processWebhookDelivery } from "@/lib/webhooks/deliver";
 import type { DomainEvent } from "@/lib/events/types";
 import { handleDomainEvent as handleAutomationEvent } from "@/lib/automations/dispatch";
 import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue } from "@/lib/queue";
+import { processBillingTick } from "@/lib/billing/tick";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -134,13 +135,17 @@ export function startWorkers() {
     await processAutomationTick();
   }, { connection, concurrency: 1 });
 
+  const billingTickWorker = new Worker("billing-tick", async () => {
+    await processBillingTick();
+  }, { connection, concurrency: 1 });
+
   // Una entrega HTTP por job; los reintentos (backoff largo) los maneja
   // BullMQ, el registro de cada intento vive en WebhookDelivery.
   const webhookDeliveryWorker = new Worker("webhook-deliveries", async (job) => {
     await processWebhookDelivery(job);
   }, { connection, concurrency: 5 });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker);
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker);
 
   mediaCleanupQueue
     .add(
@@ -237,6 +242,11 @@ export function startWorkers() {
       { jobId: "automation-tick", repeat: { pattern: "* * * * *" } }
     )
     .catch((err) => console.error("[workers] No se pudo programar automation-tick:", err));
+
+  // Facturación: al minuto 7 de cada hora (lejos de los ticks de :00).
+  billingTickQueue
+    .add("tick", {}, { jobId: "billing-tick", repeat: { pattern: "7 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar billing-tick:", err));
 
   console.log("[workers] BullMQ workers started");
 }

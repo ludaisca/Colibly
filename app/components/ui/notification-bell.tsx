@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, CalendarClock, CalendarPlus, Plug } from "lucide-react";
+import { Bell, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, CalendarClock, CalendarPlus, Plug, CreditCard } from "lucide-react";
 import type { NotificationType } from "@prisma/client";
 import { Dropdown } from "./dropdown";
 import { cn } from "./cn";
@@ -27,6 +27,7 @@ const TYPE_ICON: Record<NotificationItem["type"], React.ElementType> = {
   APPOINTMENT_REMINDER: CalendarClock,
   APPOINTMENT_PROPOSED: CalendarPlus,
   INTEGRATION_ERROR: Plug,
+  BILLING: CreditCard,
 };
 
 function formatRelative(iso: string): string {

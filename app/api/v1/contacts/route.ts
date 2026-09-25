@@ -8,6 +8,7 @@ import { setCustomFieldsByKey } from "@/lib/contacts/custom-fields";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { findOrCreateTag } from "@/lib/tags";
 import { emitDomainEvent } from "@/lib/events/emit";
+import { evaluatePlanLimit } from "@/lib/billing/gates";
 
 const LEAD_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"] as const;
 
@@ -88,6 +89,9 @@ export const POST = withApiErrors(async (req: Request) => {
     select: { id: true },
   });
   if (existing) return apiOk(serializeContact(await findScopedContact(ctx, existing.id)), 200);
+
+  const exceeded = await evaluatePlanLimit(ctx.organizationId, "contacts");
+  if (exceeded) throw new ApiError(402, "plan_limit", exceeded.message);
 
   let created;
   try {

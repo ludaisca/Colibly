@@ -7,6 +7,8 @@ import { createMetaChannelAccount } from "@/lib/meta-messaging/account-crud";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
+import { checkPlanLimit } from "@/lib/billing/gates";
+import { requireOrgId } from "@/lib/tenancy";
 
 function isForbiddenRole(role: string | undefined): boolean {
   return role === "ejecutivo";
@@ -24,6 +26,8 @@ export async function POST(req: Request) {
 
     const unverified = await requireVerifiedEmail(session.user.id);
     if (unverified) return unverified;
+    const overLimit = await checkPlanLimit(await requireOrgId(session.user.id), "channels");
+    if (overLimit) return overLimit;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {

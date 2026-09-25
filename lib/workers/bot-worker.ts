@@ -17,6 +17,7 @@ import { botSendQueue } from "@/lib/queue";
 import type { AIProvider, AIMessage, ContentPart } from "@/lib/ai/types";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForContact } from "@/lib/events/refs";
+import { BillingBlockedError, isBotWritable } from "@/lib/billing/gates";
 
 interface BotMessageJob {
   botId: string;
@@ -40,9 +41,16 @@ export async function processBotMessageJob(
   job: BotMessageJob,
   attemptInfo: AttemptInfo = { attemptsMade: 0, maxAttempts: 1 }
 ) {
+  // Cuenta en solo lectura (prueba vencida, impago): el bot no responde ni
+  // gasta IA. No es un fallo del bot, así que no pasa a ERROR.
+  if (!(await isBotWritable(job.botId))) {
+    console.info(`[bots] ${job.botId}: organización en solo lectura, no se responde`);
+    return;
+  }
   try {
     await handleBotMessage(job);
   } catch (err) {
+    if (err instanceof BillingBlockedError) return;
     console.error("[bot-worker] Error processing job:", err instanceof Error ? err.message : err);
     const isLastAttempt = attemptInfo.attemptsMade + 1 >= attemptInfo.maxAttempts;
     if (!isLastAttempt) {
