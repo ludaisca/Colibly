@@ -8,6 +8,7 @@ import { createOrganizationWithOwner } from "@/lib/organizations";
 import { sendVerificationEmail } from "@/lib/auth-emails";
 import { sendMetaSignupEvent } from "@/lib/analytics/meta-capi";
 import { appUrl } from "@/lib/app-url";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 // Registro público (SaaS): cada registro crea un cliente nuevo — su
 // organización en prueba gratis y su usuario dueño. Los demás miembros de un
@@ -23,7 +24,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Demasiados intentos. Intenta de nuevo en un minuto." }, { status: 429 });
     }
 
-    const parsed = registerSchema.safeParse(await req.json().catch(() => null));
+    const body = await req.json().catch(() => null);
+    // Captcha (si está configurado) antes de tocar la base o hashear nada.
+    if (!(await verifyTurnstile(body?.turnstileToken, forwarded ? ip : null))) {
+      return NextResponse.json({ error: "No pudimos confirmar que no eres un robot. Vuelve a marcar la verificación e intenta de nuevo." }, { status: 400 });
+    }
+
+    const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
