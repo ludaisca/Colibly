@@ -31,8 +31,10 @@ Outgoing email in dev (verification, password reset, invitations) never leaves t
 Build the Dockerfile's `builder` stage in an isolated image — exactly what Coolify runs (`npm ci`, `prisma generate`, `next build` with `NODE_OPTIONS` set), without touching the dev container, `node_modules`, `.next` or `package.json`:
 
 ```bash
-podman build --target builder -t localhost/sundaycrm-buildcheck:tmp . && podman rmi localhost/sundaycrm-buildcheck:tmp
+podman build --target builder -t localhost/sundaycrm-buildcheck:tmp . && podman rmi localhost/sundaycrm-buildcheck:tmp && podman image prune -f
 ```
+
+The final `podman image prune -f` matters: `rmi` only drops the tag, and each build's intermediate layers stay behind as untagged images — they filled the 39 GB Podman LV to 97 % by 2026-09-27. (Clearing space on that LV: `podman image prune -a -f` removes images no container uses; never `--volumes`, those are other projects' dev databases, and they live on the RAID anyway.)
 
 `npm run build` inside the dev container fails while prerendering (`NODE_ENV=development` poisons the production build) — don't use it. To check the production *startup* (migrations + healthcheck), build `--target runner` and run it against a throwaway database on the compose network.
 
