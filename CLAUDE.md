@@ -1,24 +1,28 @@
 # CLAUDE.md
 
-The product is **SunflowCRM** (formerly SundayCRM; internal names like the repo folder keep the old one). Use `lib/brand.ts:BRAND_NAME` in user-facing text.
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+The product is **SunflowCRM** (formerly SundayCRM; internal names like the repo folder keep the old one). Use `lib/brand.ts:BRAND_NAME` in user-facing text. A second rename (to **Colibly**) is planned — see `docs/PLAN_LANZAMIENTO.md` before touching brand text.
 
 @AGENTS.md
 
 ## Commands
 
-Everything runs in containers — never install dependencies or run Node/Postgres/Redis on the host. `docker compose` and `podman compose` are interchangeable here (same compose CLI); on the shared server development uses **Podman rootless**, which is why every bind mount in the compose files carries `:z` (SELinux) — keep it on new mounts, Docker ignores it.
+Everything runs in containers — never install dependencies or run Node/Postgres/Redis on the host. `docker compose` and `podman compose` are the same compose CLI, and the files work with both. **On the shared dev server (`ludaisca`) always use `podman compose`**: that host's Docker daemon is Coolify's production runtime. Rootless Podman under SELinux is also why every bind mount in the compose files carries `:z` — keep it on new mounts; Docker ignores it.
 
 ```bash
-docker compose up --build                       # dev stack (app + postgres + redis), hot reload on :15100
-docker compose exec app npx tsc --noEmit        # type check
-docker compose exec app npm run lint            # eslint (flat config, eslint-config-next)
-docker compose exec app sh scripts/new-migration.sh <nombre>   # schema.prisma changed → create + apply a migration (NOT `migrate dev`, NOT `db push`)
-docker compose restart app                      # required after a migration — see AGENTS.md "Dev container needs a restart"
+podman compose up --build                       # dev stack (app + postgres + redis + mailpit), hot reload on :15100
+podman compose exec app npx tsc --noEmit        # type check (whole project only)
+podman compose exec app npm run lint            # eslint (flat config, eslint-config-next)
+podman compose exec app npx eslint <path>       # lint one file or folder
+podman compose exec app npm test                # vitest: lib/**/__tests__/*.test.ts
+podman compose exec app npx vitest run lib/billing            # one test folder/file
+podman compose exec app npx vitest run lib/billing -t purgeDue  # tests whose name matches
+podman compose exec app sh scripts/new-migration.sh <nombre>   # schema.prisma changed → create + apply a migration (NOT `migrate dev`, NOT `db push`)
+podman compose restart app                      # after a migration or worker-code change; `.env` changes need `podman compose up -d app`
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same `tsc` + lint + tests plus the `builder` stage build on every PR and push to `main`. Tests exist only for pure logic with delicate rules (`lib/**/__tests__/*.test.ts`, vitest): `docker compose exec app npm test`. Everything else is verified with `tsc --noEmit` + `npm run lint` + a production build, plus manual click-through for UI changes. For a single file use `npx eslint <path>`; `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
+CI (`.github/workflows/ci.yml`) runs the same `tsc` + lint + tests plus the `builder` stage build on every PR and push to `main`. Tests exist only for pure logic with delicate rules (billing state machine, automations engine, contrast, SSRF guard, email templates); everything else is verified with `tsc --noEmit` + `npm run lint` + a production build, plus a real click-through for UI changes. `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
 
 Outgoing email in dev (verification, password reset, invitations) never leaves the machine: the override points SMTP at Mailpit, inbox at `http://localhost:18025` (API `/api/v1/messages`).
 
@@ -54,14 +58,14 @@ SundayCRM is a hosted multi-tenant SaaS (see AGENTS.md → "Architecture: tenanc
 
 The app began WhatsApp-only and gained generic channels (Telegram, then Messenger/Instagram) through an **adapter layer rather than a migration** — the `WA*` tables hold production data and were deliberately left untouched.
 
-| | WhatsApp | Other channels (Telegram/Messenger/Instagram) |
+| | WhatsApp | Other channels (Telegram/Messenger/Instagram/Web widget) |
 |---|---|---|
 | Account | `WAAccount` (Meta credentials as flat columns) | `ChannelAccount` (`channel` enum + one encrypted JSON `credentials` blob) |
 | Thread | `WAChat` (`remoteJid`) | `Conversation` (`externalId`) |
 | Message | `WAMessage` (`wamid`) | `ChannelMessage` (`externalMessageId`) |
 | Client | `lib/whatsapp.ts` | `lib/telegram.ts` / `lib/meta-messaging.ts` |
-| Ingest | `lib/whatsapp/ingest-message.ts` | `lib/telegram/ingest-message.ts` / `lib/meta-messaging/account-crud.ts` |
-| Webhook | `/api/whatsapp/webhook` (one URL, disambiguated by `phone_number_id`) | `/api/telegram/webhook/[accountId]` (URL identifies the account; the `X-Telegram-Bot-Api-Secret-Token` header authenticates) and `/api/meta/webhook/messaging` (Messenger/Instagram, `X-Hub-Signature-256`) |
+| Ingest | `lib/whatsapp/ingest-message.ts:ingestInboundMessage()` | `lib/telegram/ingest-message.ts:ingestChannelMessage()` — shared by every generic channel despite the folder name |
+| Webhook | `/api/whatsapp/webhook` (one URL, disambiguated by `phone_number_id`) | `/api/telegram/webhook/[accountId]` (URL identifies the account; the `X-Telegram-Bot-Api-Secret-Token` header authenticates) `/api/meta/webhook/messaging` (Messenger/Instagram, `X-Hub-Signature-256`) and the public `/api/webchat/[accountId]/*` routes (web widget: we are the provider, auth is a self-signed session token) |
 
 What the two worlds share:
 
@@ -81,4 +85,4 @@ What the two worlds share:
 
 ## Navigation
 
-`app/(dashboard)/dashboard-shell.tsx` builds `NAV[]` from `useSession().user.role`: five groups for admin/user (Principal · Automatización · Difusión WhatsApp · Canales · Ajustes) and a reduced two-group nav for `ejecutivo`. "Difusión **WhatsApp**" carries its scope in the name on purpose — templates and campaigns are Meta-only. When restricting anything new, follow the established defense-in-depth shape: hide the nav item → block the route in `proxy.ts` → 403 in the API.
+`app/(dashboard)/dashboard-shell.tsx` builds `NAV[]` from `useSession().user.role`: five groups for admin/user (Principal · Automatización · Difusión WhatsApp · Canales · Ajustes) and a reduced two-group nav for `ejecutivo`, plus a "Plataforma" group (`/plataforma`, the operator panel) only for emails in `PLATFORM_ADMIN_EMAILS` — that access is not a role and is checked in `plataforma/layout.tsx` and every `/api/plataforma` handler. "Difusión **WhatsApp**" carries its scope in the name on purpose — templates and campaigns are Meta-only. When restricting anything new, follow the established defense-in-depth shape: hide the nav item → block the route in `proxy.ts` → 403 in the API.
