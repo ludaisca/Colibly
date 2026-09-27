@@ -73,6 +73,10 @@ services:
       GOOGLE_ADS_SIGNUP_LABEL: "${GOOGLE_ADS_SIGNUP_LABEL:-}"
       # Cuenta de chat web (propia) que se muestra en la landing.
       LANDING_WEBCHAT_ACCOUNT_ID: "${LANDING_WEBCHAT_ACCOUNT_ID:-}"
+      # Operadores de la plataforma (panel /plataforma) y captcha del registro.
+      PLATFORM_ADMIN_EMAILS: "${PLATFORM_ADMIN_EMAILS:-}"
+      TURNSTILE_SITE_KEY: "${TURNSTILE_SITE_KEY:-}"
+      TURNSTILE_SECRET_KEY: "${TURNSTILE_SECRET_KEY:-}"
     healthcheck:
       # 127.0.0.1, no "localhost": dentro del contenedor localhost resuelve a
       # ::1 primero y next-server solo escucha en IPv4 — con localhost el

@@ -51,6 +51,8 @@ export const TRIAL_PLAN: PlanId = "PRO";
 export const GRACE_DAYS = 7;
 // Organización cancelada: días antes de purgar sus datos.
 export const RETENTION_DAYS_AFTER_CANCEL = 60;
+// Prueba vencida sin haber pagado nunca: días en solo lectura antes de purgarla.
+export const RETENTION_DAYS_AFTER_TRIAL = 60;
 
 // ── IA incluida ──
 // Modelos que un cliente puede elegir para bots, calificadores y pasos de IA.

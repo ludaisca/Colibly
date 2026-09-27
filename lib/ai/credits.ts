@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { planLimits } from "@/lib/billing/state";
+import { aiCreditLimit } from "@/lib/billing/state";
 import { invalidateOrgBilling } from "@/lib/billing/gates";
 import { notifyOrgAdmins } from "@/lib/billing/notify";
 import { requireOrgId } from "@/lib/tenancy";
@@ -24,7 +24,7 @@ function monthAgo(now: Date): Date {
 async function rollPeriodIfDue(organizationId: string, now: Date): Promise<void> {
   const { count } = await prisma.organization.updateMany({
     where: { id: organizationId, aiCreditsPeriodStart: { lte: monthAgo(now) } },
-    data: { aiCreditsUsed: 0, aiCreditsPeriodStart: now, aiCreditsAlertLevel: 0 },
+    data: { aiCreditsUsed: 0, aiCreditsBonus: 0, aiCreditsPeriodStart: now, aiCreditsAlertLevel: 0 },
   });
   if (count > 0) invalidateOrgBilling(organizationId);
 }
@@ -33,7 +33,7 @@ async function rollPeriodIfDue(organizationId: string, now: Date): Promise<void>
 export async function resetAiCredits(organizationId: string, at = new Date()): Promise<void> {
   await prisma.organization.update({
     where: { id: organizationId },
-    data: { aiCreditsUsed: 0, aiCreditsPeriodStart: at, aiCreditsAlertLevel: 0 },
+    data: { aiCreditsUsed: 0, aiCreditsBonus: 0, aiCreditsPeriodStart: at, aiCreditsAlertLevel: 0 },
   });
   invalidateOrgBilling(organizationId);
 }
@@ -41,9 +41,9 @@ export async function resetAiCredits(organizationId: string, at = new Date()): P
 async function limitFor(organizationId: string): Promise<{ used: number; max: number } | null> {
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { plan: true, isInternal: true, aiCreditsUsed: true },
+    select: { plan: true, isInternal: true, aiCreditsUsed: true, aiCreditsBonus: true },
   });
-  return org ? { used: org.aiCreditsUsed, max: planLimits(org).aiCreditsPerMonth } : null;
+  return org ? { used: org.aiCreditsUsed, max: aiCreditLimit(org) } : null;
 }
 
 // ¿Queda al menos un crédito? Para cortar un lote antes de empezar (ticks).
@@ -94,7 +94,7 @@ async function alertIfThreshold(organizationId: string, max: number): Promise<vo
       ? {
           title: "Se acabaron tus créditos de IA de este mes",
           paragraphs: [
-            `Usaste los ${max.toLocaleString("es-MX")} créditos de tu plan. Los bots dejan de responder y los pasos de IA de tus automatizaciones toman la rama "otro" hasta el próximo periodo.`,
+            `Usaste los ${max.toLocaleString("es-MX")} créditos de este periodo. Los bots dejan de responder y los pasos de IA de tus automatizaciones toman la rama "otro" hasta el próximo periodo.`,
             "Mejora tu plan para tener más créditos.",
           ],
           email: true,

@@ -1,5 +1,5 @@
 import type { OrganizationStatus, PlanId } from "@prisma/client";
-import { GRACE_DAYS, PLANS, type PlanLimits } from "./plans";
+import { GRACE_DAYS, PLANS, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, type PlanLimits } from "./plans";
 
 // Reglas de facturación como funciones puras (sin Prisma ni Stripe): qué puede
 // hacer una organización según su estado, qué aviso ver, cómo avanza el reloj y
@@ -101,6 +101,66 @@ export function tickTransition(org: BillingSnapshot, now: Date): OrganizationSta
   if (org.status === "TRIALING" && (!org.trialEndsAt || org.trialEndsAt <= now)) return "READ_ONLY";
   if (org.status === "PAST_DUE" && (!org.graceEndsAt || org.graceEndsAt <= now)) return "READ_ONLY";
   return null;
+}
+
+// Purga de datos (lo que prometen términos y aviso de privacidad):
+//  - cancelada: RETENTION_DAYS_AFTER_CANCEL días después de cancelarse;
+//  - prueba vencida sin haber pagado nunca (solo lectura y sin suscripción):
+//    RETENTION_DAYS_AFTER_TRIAL días después de vencer la prueba.
+// Sin la fecha de referencia no se purga: mejor conservar que borrar por error.
+// Una solo lectura CON suscripción (impago) nunca se purga por esta vía: su
+// destino lo decide Stripe (se recupera o termina cancelada).
+export interface PurgeSnapshot {
+  status: OrganizationStatus;
+  isInternal: boolean;
+  canceledAt: Date | null;
+  trialEndsAt: Date | null;
+  stripeSubscriptionId: string | null;
+}
+
+export function purgeDue(org: PurgeSnapshot, now: Date): boolean {
+  if (org.isInternal) return false;
+  const elapsed = (from: Date) => now.getTime() - from.getTime();
+  if (org.status === "CANCELED") return !!org.canceledAt && elapsed(org.canceledAt) >= RETENTION_DAYS_AFTER_CANCEL * DAY_MS;
+  if (org.status === "READ_ONLY" && !org.stripeSubscriptionId) {
+    return !!org.trialEndsAt && elapsed(org.trialEndsAt) >= RETENTION_DAYS_AFTER_TRIAL * DAY_MS;
+  }
+  return false;
+}
+
+// ── Operación de la plataforma (panel /plataforma) ──
+
+// Tope de créditos del periodo: el del plan más el bono que dio la plataforma
+// (se reinicia con el periodo, igual que el consumo).
+export function aiCreditLimit(org: Pick<BillingSnapshot, "plan" | "isInternal"> & { aiCreditsBonus: number }): number {
+  return planLimits(org).aiCreditsPerMonth + Math.max(0, org.aiCreditsBonus);
+}
+
+export const MAX_TRIAL_EXTENSION_DAYS = 90;
+
+// Extender (o volver a dar) la prueba. Solo sin suscripción de pago vigente:
+// a quien paga se le ayuda desde Stripe, no con días de prueba. Una cancelada
+// que recibe prueba sale de la cuenta regresiva de purga (canceledAt: null).
+export function extendTrial(
+  org: { status: OrganizationStatus; isInternal: boolean; trialEndsAt: Date | null; stripeSubscriptionId: string | null },
+  days: number,
+  now: Date
+): { error: string } | { status: OrganizationStatus; trialEndsAt: Date; canceledAt: null; graceEndsAt: null } {
+  if (org.isInternal) return { error: "Una organización interna no tiene prueba" };
+  if (!Number.isInteger(days) || days < 1 || days > MAX_TRIAL_EXTENSION_DAYS) return { error: `Los días deben ser entre 1 y ${MAX_TRIAL_EXTENSION_DAYS}` };
+  if (org.status === "SUSPENDED") return { error: "Reactiva la organización antes de extender su prueba" };
+  if (org.status === "ACTIVE" || org.status === "PAST_DUE") return { error: "La organización tiene una suscripción vigente" };
+  if (org.status === "READ_ONLY" && org.stripeSubscriptionId) return { error: "La organización está en solo lectura por un pago: se resuelve en Stripe" };
+  const from = org.trialEndsAt && org.trialEndsAt > now ? org.trialEndsAt : now;
+  return { status: "TRIALING", trialEndsAt: new Date(from.getTime() + days * DAY_MS), canceledAt: null, graceEndsAt: null };
+}
+
+// Estado al quitar una suspensión cuando no hay suscripción que consultar en
+// Stripe (con suscripción, el estado lo decide syncSubscription).
+export function statusAfterSuspension(org: { trialEndsAt: Date | null; canceledAt: Date | null }, now: Date): OrganizationStatus {
+  if (org.canceledAt) return "CANCELED";
+  if (org.trialEndsAt && org.trialEndsAt > now) return "TRIALING";
+  return "READ_ONLY";
 }
 
 // ── Stripe ──

@@ -2,8 +2,9 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { requireOrgId } from "@/lib/tenancy";
+import { prisma } from "@/lib/prisma";
 import { getOrgBilling, getOrgUsage, invalidateOrgBilling } from "@/lib/billing/gates";
-import { accessMode, planLimits } from "@/lib/billing/state";
+import { accessMode, aiCreditLimit, planLimits } from "@/lib/billing/state";
 import { isStripeConfigured } from "@/lib/billing/stripe";
 import { PlanView, type PlanViewData } from "./_view";
 
@@ -16,7 +17,11 @@ export default async function PlanPage() {
   const organizationId = await requireOrgId(session.user.id);
   // Recién vuelto de Stripe el estado puede haber cambiado por el webhook.
   invalidateOrgBilling(organizationId);
-  const [org, usage] = await Promise.all([getOrgBilling(organizationId), getOrgUsage(organizationId)]);
+  const [org, usage, owner] = await Promise.all([
+    getOrgBilling(organizationId),
+    getOrgUsage(organizationId),
+    prisma.organization.findUnique({ where: { id: organizationId }, select: { ownerId: true } }),
+  ]);
   if (!org) redirect("/configuracion");
 
   const now = new Date();
@@ -24,6 +29,8 @@ export default async function PlanPage() {
   const finite = (n: number) => (Number.isFinite(n) ? n : null);
 
   const data: PlanViewData = {
+    organizationName: org.name,
+    isOwner: owner?.ownerId === session.user.id,
     plan: org.plan,
     status: org.status,
     isInternal: org.isInternal,
@@ -42,7 +49,15 @@ export default async function PlanPage() {
       { key: "channels", label: "Canales conectados", hint: "WhatsApp, Telegram, Messenger e Instagram. El widget web no cuenta", used: usage.channels, max: finite(limits.channels) },
       { key: "contacts", label: "Contactos", hint: null, used: usage.contacts, max: finite(limits.contacts) },
       { key: "automations", label: "Automatizaciones activas", hint: null, used: usage.activeAutomations, max: finite(limits.activeAutomations) },
-      { key: "ai", label: "Créditos de IA este mes", hint: "1 crédito = 1 respuesta o análisis de IA", used: org.aiCreditsUsed, max: finite(limits.aiCreditsPerMonth) },
+      {
+        key: "ai",
+        label: "Créditos de IA este mes",
+        hint: org.aiCreditsBonus > 0
+          ? `1 crédito = 1 respuesta o análisis de IA. Incluye ${org.aiCreditsBonus.toLocaleString("es-MX")} créditos extra de este periodo`
+          : "1 crédito = 1 respuesta o análisis de IA",
+        used: org.aiCreditsUsed,
+        max: finite(aiCreditLimit(org)),
+      },
     ],
   };
   return (

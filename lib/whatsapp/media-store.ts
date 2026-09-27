@@ -99,6 +99,14 @@ export function resolveAbsolutePath(relativePath: string): string {
   return path.join(MEDIA_ROOT, safe);
 }
 
+// Borra la carpeta de media de una cuenta (WAAccount o ChannelAccount): todo lo
+// de la cuenta vive en `<accountId>/`. El id se valida estricto — uno vacío o con
+// separadores apuntaría a MEDIA_ROOT entero o fuera de él.
+export async function removeAccountMedia(accountId: string): Promise<void> {
+  if (!/^[A-Za-z0-9_-]+$/.test(accountId)) throw new Error(`Id de cuenta inválido para borrar media: "${accountId}"`);
+  await fs.rm(path.join(MEDIA_ROOT, accountId), { recursive: true, force: true });
+}
+
 export function mediaReadStream(relativePath: string) {
   const abs = resolveAbsolutePath(relativePath);
   return createReadStream(abs);

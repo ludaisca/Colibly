@@ -8,7 +8,7 @@ import { accessMode, planLimits, type AccessMode, type BillingSnapshot } from ".
 // escribir y enviar?) y límites del plan. Las APIs responden 402 con un
 // `code` estable que la UI puede reconocer: "read_only" o "plan_limit".
 
-export type OrgBilling = BillingSnapshot & Pick<Organization, "id" | "name" | "aiCreditsUsed" | "aiCreditsPeriodStart" | "stripeCustomerId" | "stripeSubscriptionId" | "canceledAt">;
+export type OrgBilling = BillingSnapshot & Pick<Organization, "id" | "name" | "aiCreditsUsed" | "aiCreditsBonus" | "aiCreditsPeriodStart" | "stripeCustomerId" | "stripeSubscriptionId" | "canceledAt">;
 
 // Caché corto: se consulta en cada envío y en cada mutación de la UI. Un
 // cambio de estado (webhook de Stripe, tick) invalida el de su organización en
@@ -33,6 +33,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
       cancelAtPeriodEnd: true,
       canceledAt: true,
       aiCreditsUsed: true,
+      aiCreditsBonus: true,
       aiCreditsPeriodStart: true,
       stripeCustomerId: true,
       stripeSubscriptionId: true,

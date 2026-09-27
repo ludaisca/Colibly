@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { orgAiSettingsUpdateSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
-import { planLimits } from "@/lib/billing/state";
+import { aiCreditLimit } from "@/lib/billing/state";
 import { availableModels } from "@/lib/ai/platform";
 
 // IA y operación de la organización (solo admin). La IA la provee la
@@ -15,6 +15,7 @@ const SELECT = {
   plan: true,
   isInternal: true,
   aiCreditsUsed: true,
+  aiCreditsBonus: true,
   aiCreditsPeriodStart: true,
   timezone: true,
   businessHourStart: true,
@@ -28,11 +29,12 @@ type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
   plan: "BASIC" | "PRO";
   isInternal: boolean;
   aiCreditsUsed: number;
+  aiCreditsBonus: number;
 };
 
 function serialize(org: OrgAiRow) {
-  const limit = planLimits(org).aiCreditsPerMonth;
-  const { plan: _plan, isInternal: _internal, aiCreditsUsed, ...rest } = org;
+  const limit = aiCreditLimit(org);
+  const { plan: _plan, isInternal: _internal, aiCreditsUsed, aiCreditsBonus: _bonus, ...rest } = org;
   return {
     ...rest,
     aiCredits: { used: aiCreditsUsed, limit: Number.isFinite(limit) ? limit : null },

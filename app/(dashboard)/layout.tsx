@@ -6,6 +6,7 @@ import { VerifyEmailBanner } from "@/app/components/ui/verify-email-banner";
 import { BillingBanner } from "@/app/components/ui/billing-banner";
 import { getOrgBilling } from "@/lib/billing/gates";
 import { billingNotice } from "@/lib/billing/state";
+import { isPlatformAdminEmail } from "@/lib/platform-admin";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -34,7 +35,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     </>
   );
   return (
-    <DashboardShell businessName={user?.organization.name} topBanner={topBanner}>
+    <DashboardShell businessName={user?.organization.name} topBanner={topBanner} platformAdmin={isPlatformAdminEmail(user?.email)}>
       {children}
     </DashboardShell>
   );

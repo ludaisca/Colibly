@@ -21,6 +21,7 @@ import {
   Workflow,
   Zap,
   Globe,
+  Building2,
 } from "lucide-react";
 // Meta (feedback loop de calificación de leads) usa el mismo ícono que
 // Difusión WhatsApp para no introducir un cuarto ícono de "anuncios" — la
@@ -32,10 +33,13 @@ export function DashboardShell({
   children,
   businessName,
   topBanner,
+  platformAdmin = false,
 }: {
   children: React.ReactNode;
   businessName?: string | null;
   topBanner?: React.ReactNode;
+  // Operador de la plataforma (PLATFORM_ADMIN_EMAILS): ve el grupo "Plataforma".
+  platformAdmin?: boolean;
 }) {
   const { data: session } = useSession();
   const role = session?.user?.role;
@@ -116,6 +120,10 @@ export function DashboardShell({
           ],
         },
       ];
+
+  if (platformAdmin) {
+    NAV.push({ title: "Plataforma", items: [{ href: "/plataforma", label: "Organizaciones", icon: Building2 }] });
+  }
 
   return (
     <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner}>

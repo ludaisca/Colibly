@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
-import { GRACE_DAYS, PLAN_LIST, RETENTION_DAYS_AFTER_CANCEL, TRIAL_DAYS } from "@/lib/billing/plans";
+import { GRACE_DAYS, PLAN_LIST, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_DAYS } from "@/lib/billing/plans";
 import { Blank, LEGAL, LegalPage } from "../_legal";
 
 export const metadata: Metadata = { title: "Términos y condiciones", alternates: { canonical: "/terminos" } };
@@ -73,7 +73,10 @@ export default function TermsPage() {
       <p>
         El Cliente puede cancelar su suscripción en cualquier momento desde su cuenta; seguirá activa hasta el final del
         periodo pagado. Tras la cancelación, conservamos los datos {RETENTION_DAYS_AFTER_CANCEL} días en modo de solo
-        lectura por si el Cliente decide volver; después se eliminan de forma definitiva.
+        lectura por si el Cliente decide volver; después se eliminan de forma definitiva. Si la prueba gratuita termina sin
+        que el Cliente contrate un plan, la cuenta queda en solo lectura y sus datos se eliminan{" "}
+        {RETENTION_DAYS_AFTER_TRIAL} días después. El Cliente puede descargar sus datos o eliminar su cuenta en cualquier
+        momento desde la sección de plan y facturación.
       </p>
 
       <h2>9. Disponibilidad y soporte</h2>

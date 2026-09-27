@@ -12,11 +12,15 @@ import { Button } from "@/app/components/ui/button";
 import { Progress } from "@/app/components/ui/progress";
 import { useToast } from "@/app/components/ui/toast";
 import { cn } from "@/app/components/ui/cn";
-import { PLAN_LIST, PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
+import { PLAN_LIST, PLANS, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_DAYS } from "@/lib/billing/plans";
 import { planFeatures } from "@/lib/billing/plan-features";
 import type { AccessMode } from "@/lib/billing/state";
+import { DataSection } from "./_datos";
+import { OrgStatusBadge } from "@/app/components/billing/org-status-badge";
 
 export interface PlanViewData {
+  organizationName: string;
+  isOwner: boolean;
   plan: PlanId;
   status: OrganizationStatus;
   isInternal: boolean;
@@ -32,15 +36,6 @@ export interface PlanViewData {
   usage: Array<{ key: string; label: string; hint: string | null; used: number; max: number | null }>;
 }
 
-const STATUS_BADGE: Record<OrganizationStatus, { label: string; tone: "success" | "warning" | "danger" | "info" | "neutral" }> = {
-  TRIALING: { label: "En prueba", tone: "info" },
-  ACTIVE: { label: "Activo", tone: "success" },
-  PAST_DUE: { label: "Pago pendiente", tone: "warning" },
-  READ_ONLY: { label: "Solo lectura", tone: "danger" },
-  CANCELED: { label: "Cancelado", tone: "danger" },
-  SUSPENDED: { label: "Suspendido", tone: "danger" },
-};
-
 function formatDate(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "";
 }
@@ -48,7 +43,7 @@ function formatDate(iso: string | null): string {
 function statusLine(d: PlanViewData): string {
   if (d.isInternal) return "Cuenta interna: sin cobro ni límites.";
   if (d.status === "TRIALING") {
-    if (d.access !== "full") return "Tu prueba terminó. Elige un plan para reactivar tu cuenta.";
+    if (d.access !== "full") return `Tu prueba terminó. Elige un plan para reactivar tu cuenta; sin plan, tus datos se eliminan ${RETENTION_DAYS_AFTER_TRIAL} días después de terminar la prueba.`;
     return `Prueba gratis de ${TRIAL_DAYS} días con todo el plan Pro, hasta el ${formatDate(d.trialEndsAt)}.`;
   }
   if (d.status === "ACTIVE") {
@@ -60,8 +55,12 @@ function statusLine(d: PlanViewData): string {
       ? `No pudimos cobrar tu último pago. Actualiza tu tarjeta antes del ${formatDate(d.graceEndsAt)} para no pasar a solo lectura.`
       : "No pudimos cobrar tu suscripción y tu cuenta está en solo lectura.";
   }
-  if (d.status === "READ_ONLY") return "Tu cuenta está en solo lectura: ves tus datos, pero no se envían mensajes ni corren bots.";
-  if (d.status === "CANCELED") return "Tu suscripción terminó. Conservamos tus datos 60 días: vuelve a suscribirte para reactivar todo.";
+  if (d.status === "READ_ONLY") {
+    return d.hasSubscription
+      ? "Tu cuenta está en solo lectura: ves tus datos, pero no se envían mensajes ni corren bots."
+      : `Tu prueba terminó y tu cuenta está en solo lectura. Elige un plan para reactivarla; sin plan, tus datos se eliminan ${RETENTION_DAYS_AFTER_TRIAL} días después de terminar la prueba.`;
+  }
+  if (d.status === "CANCELED") return `Tu suscripción terminó. Conservamos tus datos ${RETENTION_DAYS_AFTER_CANCEL} días: vuelve a suscribirte para reactivar todo.`;
   return "Tu cuenta está suspendida. Escríbenos para resolverlo.";
 }
 
@@ -87,7 +86,6 @@ export function PlanView({ data }: { data: PlanViewData }) {
     }
   }
 
-  const badge = STATUS_BADGE[data.status];
   const canCheckout = data.stripeConfigured && !data.isInternal && !data.hasSubscription;
 
   return (
@@ -119,7 +117,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-display text-xl font-semibold">Plan {PLANS[data.plan].name}</p>
-          {!data.isInternal && <Badge tone={badge.tone}>{badge.label}</Badge>}
+          {!data.isInternal && <OrgStatusBadge status={data.status} />}
         </div>
         <p className={cn("mt-2 text-sm", data.access === "full" ? "text-muted" : "text-danger")}>{statusLine(data)}</p>
       </section>
@@ -194,6 +192,8 @@ export function PlanView({ data }: { data: PlanViewData }) {
           )}
         </section>
       )}
+
+      <DataSection organizationName={data.organizationName} isOwner={data.isOwner} isInternal={data.isInternal} />
     </div>
   );
 }

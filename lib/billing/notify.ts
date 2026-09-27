@@ -2,7 +2,7 @@ import type { OrganizationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { appUrl, sendEmailSafely } from "@/lib/email/mailer";
 import { billingNoticeTemplate } from "@/lib/email/templates";
-import { RETENTION_DAYS_AFTER_CANCEL } from "./plans";
+import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "./plans";
 
 // Avisos de facturación a los admins de la organización: notificación en la
 // campana (todos los admins activos) y, si se pide, correo.
@@ -77,7 +77,9 @@ export async function notifyBillingTransition(organizationId: string, from: Orga
       title: from === "TRIALING" ? "Tu prueba de SunflowCRM terminó" : "Tu cuenta de SunflowCRM está en solo lectura",
       paragraphs: [
         "Tus datos siguen ahí, pero no se envían mensajes ni responden los bots y automatizaciones. Los mensajes de tus clientes se siguen recibiendo.",
-        "Elige un plan para reactivar todo al instante.",
+        from === "TRIALING"
+          ? `Elige un plan para reactivar todo al instante. Si no eliges uno, conservamos tus datos ${RETENTION_DAYS_AFTER_TRIAL} días y después se eliminan.`
+          : "Elige un plan para reactivar todo al instante.",
       ],
       email: true,
     };

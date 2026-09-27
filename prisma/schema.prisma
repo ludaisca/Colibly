@@ -1668,6 +1668,9 @@ model Organization {
   // repetir el mismo correo/notificación en cada tick.
   lastBillingNotice    String?            @map("last_billing_notice")
   aiCreditsUsed        Int                @default(0) @map("ai_credits_used")
+  // Créditos extra del periodo actual dados por la plataforma (/plataforma);
+  // se reinician a 0 junto con el consumo.
+  aiCreditsBonus       Int                @default(0) @map("ai_credits_bonus")
   aiCreditsPeriodStart DateTime           @default(now()) @map("ai_credits_period_start")
   // Último umbral de créditos avisado en el periodo (0, 80 o 100).
   aiCreditsAlertLevel  Int                @default(0) @map("ai_credits_alert_level")

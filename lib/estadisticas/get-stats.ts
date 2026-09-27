@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getOrgAiCost } from "@/lib/ai/budget";
 import { getOrgBilling } from "@/lib/billing/gates";
-import { planLimits } from "@/lib/billing/state";
+import { aiCreditLimit } from "@/lib/billing/state";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { orgWhere } from "@/lib/tenancy";
 import {
@@ -493,7 +493,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     monthlyCost: Math.round(monthlyCost * 10000) / 10000,
     aiCredits: {
       used: orgBilling?.aiCreditsUsed ?? 0,
-      limit: orgBilling && Number.isFinite(planLimits(orgBilling).aiCreditsPerMonth) ? planLimits(orgBilling).aiCreditsPerMonth : null,
+      limit: orgBilling && Number.isFinite(aiCreditLimit(orgBilling)) ? aiCreditLimit(orgBilling) : null,
     },
     campaignMessagesByOrigin,
     campaignMessageBreakdown,

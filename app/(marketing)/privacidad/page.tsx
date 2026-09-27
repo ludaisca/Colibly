@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
-import { RETENTION_DAYS_AFTER_CANCEL } from "@/lib/billing/plans";
+import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "@/lib/billing/plans";
 import { Blank, LEGAL, LegalPage } from "../_legal";
 
 export const metadata: Metadata = { title: "Aviso de privacidad", alternates: { canonical: "/privacidad" } };
@@ -51,8 +51,10 @@ export default function PrivacyPage() {
       <h2>4. Cuánto tiempo los conservamos</h2>
       <p>
         Mientras la cuenta esté activa. Si se cancela, conservamos los datos {RETENTION_DAYS_AFTER_CANCEL} días por si el
-        Cliente vuelve y después los eliminamos, salvo lo que la ley nos obligue a conservar (por ejemplo, información
-        fiscal). Los archivos multimedia de las conversaciones se eliminan periódicamente según la configuración del
+        Cliente vuelve y después los eliminamos; si la prueba gratuita termina sin contratar un plan, los conservamos{" "}
+        {RETENTION_DAYS_AFTER_TRIAL} días y después los eliminamos. En ambos casos, salvo lo que la ley nos obligue a
+        conservar (por ejemplo, información fiscal). El Cliente puede descargar o eliminar sus datos en cualquier momento
+        desde su cuenta. Los archivos multimedia de las conversaciones se eliminan periódicamente según la configuración del
         Servicio.
       </p>
 

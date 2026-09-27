@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { accessMode, billingNotice, deriveFromSubscription, planLimits, tickTransition, type BillingSnapshot } from "../state";
+import { accessMode, aiCreditLimit, billingNotice, deriveFromSubscription, extendTrial, planLimits, purgeDue, statusAfterSuspension, tickTransition, type BillingSnapshot } from "../state";
+import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "../plans";
 
 const NOW = new Date("2026-10-01T12:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -55,6 +56,85 @@ describe("tickTransition", () => {
     expect(tickTransition(org({ status: "ACTIVE" }), NOW)).toBeNull();
     expect(tickTransition(org({ isInternal: true, trialEndsAt: days(-1) }), NOW)).toBeNull();
   });
+});
+
+describe("purgeDue", () => {
+  const canceled = (daysAgo: number | null, over: Partial<{ isInternal: boolean; status: BillingSnapshot["status"] }> = {}) => ({
+    status: "CANCELED" as BillingSnapshot["status"],
+    isInternal: false,
+    canceledAt: daysAgo === null ? null : days(-daysAgo),
+    trialEndsAt: null,
+    stripeSubscriptionId: null,
+    ...over,
+  });
+  const expiredTrial = (daysAgo: number | null, stripeSubscriptionId: string | null = null) => ({
+    status: "READ_ONLY" as const,
+    isInternal: false,
+    canceledAt: null,
+    trialEndsAt: daysAgo === null ? null : days(-daysAgo),
+    stripeSubscriptionId,
+  });
+  it("cancelada dentro de la retención: se conserva", () => expect(purgeDue(canceled(RETENTION_DAYS_AFTER_CANCEL - 1), NOW)).toBe(false));
+  it("cancelada al cumplir la retención: se purga", () => expect(purgeDue(canceled(RETENTION_DAYS_AFTER_CANCEL), NOW)).toBe(true));
+  it("sin fecha de cancelación: nunca", () => expect(purgeDue(canceled(null), NOW)).toBe(false));
+  it("interna: nunca", () => expect(purgeDue(canceled(365, { isInternal: true }), NOW)).toBe(false));
+  it("suspendida o activa, aunque tenga fecha vieja: no", () => {
+    expect(purgeDue(canceled(365, { status: "SUSPENDED" }), NOW)).toBe(false);
+    expect(purgeDue(canceled(365, { status: "ACTIVE" }), NOW)).toBe(false);
+  });
+  it("prueba vencida sin pagar, dentro de la retención: se conserva", () =>
+    expect(purgeDue(expiredTrial(RETENTION_DAYS_AFTER_TRIAL - 1), NOW)).toBe(false));
+  it("prueba vencida sin pagar, al cumplir la retención: se purga", () =>
+    expect(purgeDue(expiredTrial(RETENTION_DAYS_AFTER_TRIAL), NOW)).toBe(true));
+  it("solo lectura por impago (con suscripción): nunca por esta vía", () =>
+    expect(purgeDue(expiredTrial(365, "sub_1"), NOW)).toBe(false));
+  it("solo lectura sin fecha de fin de prueba: nunca", () => expect(purgeDue(expiredTrial(null), NOW)).toBe(false));
+  it("en prueba con fecha vencida (el tick aún no la pasa a solo lectura): no", () =>
+    expect(purgeDue({ ...expiredTrial(365), status: "TRIALING" }, NOW)).toBe(false));
+});
+
+describe("aiCreditLimit", () => {
+  it("plan más bono", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: false, aiCreditsBonus: 200 })).toBe(500));
+  it("un bono negativo no resta", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: false, aiCreditsBonus: -50 })).toBe(300));
+  it("interna: sin límite", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: true, aiCreditsBonus: 0 })).toBe(Infinity));
+});
+
+describe("extendTrial", () => {
+  const base = { status: "TRIALING" as const, isInternal: false, trialEndsAt: days(3), stripeSubscriptionId: null };
+  const ok = (r: ReturnType<typeof extendTrial>) => {
+    if ("error" in r) throw new Error(r.error);
+    return r;
+  };
+  it("prueba vigente: suma a la fecha actual de fin", () => expect(ok(extendTrial(base, 7, NOW)).trialEndsAt).toEqual(days(10)));
+  it("prueba vencida (solo lectura): cuenta desde hoy y vuelve a prueba", () => {
+    const r = ok(extendTrial({ ...base, status: "READ_ONLY", trialEndsAt: days(-5) }, 7, NOW));
+    expect(r.status).toBe("TRIALING");
+    expect(r.trialEndsAt).toEqual(days(7));
+  });
+  it("cancelada: vuelve a prueba y sale de la purga", () => {
+    const r = ok(extendTrial({ ...base, status: "CANCELED", trialEndsAt: null, stripeSubscriptionId: "sub_1" }, 14, NOW));
+    expect(r.status).toBe("TRIALING");
+    expect(r.canceledAt).toBeNull();
+  });
+  it("con suscripción vigente o impago: no", () => {
+    expect("error" in extendTrial({ ...base, status: "ACTIVE" }, 7, NOW)).toBe(true);
+    expect("error" in extendTrial({ ...base, status: "PAST_DUE" }, 7, NOW)).toBe(true);
+    expect("error" in extendTrial({ ...base, status: "READ_ONLY", stripeSubscriptionId: "sub_1" }, 7, NOW)).toBe(true);
+  });
+  it("suspendida, interna o días fuera de rango: no", () => {
+    expect("error" in extendTrial({ ...base, status: "SUSPENDED" }, 7, NOW)).toBe(true);
+    expect("error" in extendTrial({ ...base, isInternal: true }, 7, NOW)).toBe(true);
+    expect("error" in extendTrial(base, 0, NOW)).toBe(true);
+    expect("error" in extendTrial(base, 91, NOW)).toBe(true);
+    expect("error" in extendTrial(base, 1.5, NOW)).toBe(true);
+  });
+});
+
+describe("statusAfterSuspension", () => {
+  it("con prueba vigente: en prueba", () => expect(statusAfterSuspension({ trialEndsAt: days(2), canceledAt: null }, NOW)).toBe("TRIALING"));
+  it("prueba vencida: solo lectura", () => expect(statusAfterSuspension({ trialEndsAt: days(-2), canceledAt: null }, NOW)).toBe("READ_ONLY"));
+  it("cancelada antes de suspenderse: sigue cancelada (y corre su purga)", () =>
+    expect(statusAfterSuspension({ trialEndsAt: days(2), canceledAt: days(-10) }, NOW)).toBe("CANCELED"));
 });
 
 describe("deriveFromSubscription", () => {

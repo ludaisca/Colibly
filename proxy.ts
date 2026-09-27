@@ -2,7 +2,9 @@ import { auth } from "@/lib/auth";
 import { type NextRequest, NextResponse } from "next/server";
 import { getOrgAccess, readOnlyResponse } from "@/lib/billing/gates";
 
-const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/meta-ads"];
+// /plataforma (panel del operador) no va en las listas de rol: su acceso lo
+// decide PLATFORM_ADMIN_EMAILS en la página y en /api/plataforma (404 al resto).
+const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/meta-ads", "/plataforma"];
 // Ojo: las tres comprobaciones de rol viven DENTRO del bloque PROTECTED — una
 // ruta ausente de esa lista no solo pierde el redirect a /login con
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.
@@ -26,12 +28,13 @@ const EXCLUDE = ["/_next", "/favicon.ico"];
 
 // Solo lectura (prueba vencida, impago tras la gracia, cancelada): la UI puede
 // leer todo pero ninguna mutación de /api pasa, salvo lo necesario para salir
-// de ese estado (pagar, cuenta, equipo) o para no molestar (notificaciones).
+// de ese estado (pagar, cuenta, equipo, eliminar la organización) o para no
+// molestar (notificaciones).
 // Las rutas públicas (webhooks de Meta/Telegram, widget, API v1 con key) no
 // traen sesión y siguen su curso: lo entrante se guarda igual, y los envíos
 // tienen su propio candado en los emisores y en la API v1.
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const READ_ONLY_ALLOWED = ["/api/auth", "/api/billing", "/api/usuarios", "/api/whatsapp/notifications"];
+const READ_ONLY_ALLOWED = ["/api/auth", "/api/billing", "/api/organizacion", "/api/plataforma", "/api/usuarios", "/api/whatsapp/notifications"];
 
 export default async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
