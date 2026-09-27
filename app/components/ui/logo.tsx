@@ -36,10 +36,13 @@ interface LogoProps {
   className?: string;
 }
 
+// El girasol gira al pasar el mouse sobre un logo con enlace (el <Link> lleva `group`).
+const MARK_HOVER = "transition-transform duration-700 ease-out motion-safe:group-hover:rotate-[60deg]";
+
 function LogoMark({ size = "md", brand = BRAND_NAME }: { size?: LogoSize; brand?: string }) {
   return (
     <span className={cn("flex items-center gap-2")}>
-      <SunflowerMark className={SIZE[size].box} />
+      <SunflowerMark className={cn(SIZE[size].box, MARK_HOVER)} />
       <span className={cn("font-display font-semibold tracking-tight", SIZE[size].text)}>
         {brand}
       </span>
@@ -51,17 +54,17 @@ export function Logo({ brand = BRAND_NAME, size = "md", href, showWordmark = tru
   if (!showWordmark) {
     const box = (
       <span className={cn("inline-flex", className)} role="img" aria-label={brand}>
-        <SunflowerMark className={SIZE[size].box} />
+        <SunflowerMark className={cn(SIZE[size].box, MARK_HOVER)} />
       </span>
     );
-    return href ? <Link href={href}>{box}</Link> : box;
+    return href ? <Link href={href} className="group">{box}</Link> : box;
   }
 
   const mark = <LogoMark size={size} brand={brand} />;
 
   if (href) {
     return (
-      <Link href={href} className={cn("inline-flex", className)}>
+      <Link href={href} className={cn("group inline-flex", className)}>
         {mark}
       </Link>
     );

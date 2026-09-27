@@ -11,7 +11,6 @@ import {
   Megaphone,
   MessageCircle,
   Send,
-  Sparkles,
   Store,
   Stethoscope,
   Target,
@@ -25,6 +24,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
 import { PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
 import { planFeatures } from "@/lib/billing/plan-features";
+import { HeroDemo } from "./_hero-demo";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { appUrl } from "@/lib/app-url";
 
@@ -144,38 +144,6 @@ const FAQ = [
   },
 ];
 
-// Vista de ejemplo de la bandeja (solo marcado, sin datos reales).
-function InboxPreview() {
-  return (
-    <div className="relative mx-auto w-full max-w-md rounded-2xl border border-border bg-surface p-4 shadow-lg">
-      <div className="flex items-center gap-3 border-b border-border pb-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-subtle text-sm font-semibold text-accent-ink">MR</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">María Rodríguez</p>
-          <p className="text-xs text-muted">WhatsApp · Lead de anuncio</p>
-        </div>
-        <Badge tone="danger" size="sm">Prioridad alta</Badge>
-      </div>
-      <div className="space-y-2.5 py-4 text-sm">
-        <p className="max-w-[80%] rounded-2xl rounded-tl-sm bg-surface-light px-3 py-2">Hola, ¿cuánto cuesta el facial hidratante?</p>
-        <p className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-accent-muted px-3 py-2">
-          ¡Hola María! El facial hidratante cuesta $850 y dura 60 min. ¿Te gustaría agendar?
-        </p>
-        <div className="ml-auto flex max-w-[80%] flex-wrap justify-end gap-1.5">
-          {["Agendar cita", "Ver otros servicios", "Hablar con alguien"].map((b) => (
-            <span key={b} className="rounded-full border border-accent-muted px-3 py-1 text-xs text-accent-ink">{b}</span>
-          ))}
-        </div>
-        <p className="max-w-[80%] rounded-2xl rounded-tl-sm bg-surface-light px-3 py-2">Agendar cita 🙌</p>
-      </div>
-      <div className="flex items-center gap-2 rounded-xl bg-accent-2-bg px-3 py-2 text-xs text-foreground">
-        <Sparkles size={14} className="shrink-0 text-accent-2" aria-hidden />
-        Respondido por tu bot de IA en segundos
-      </div>
-    </div>
-  );
-}
-
 // Datos estructurados para Google: el software con sus planes y las preguntas.
 function jsonLd() {
   const data = [
@@ -245,9 +213,7 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          <div className="animate-fade-in-up animation-delay-200">
-            <InboxPreview />
-          </div>
+          <HeroDemo />
         </div>
       </section>
 
@@ -265,13 +231,17 @@ export default function LandingPage() {
 
       <section aria-labelledby="como-funciona" className="mx-auto max-w-6xl px-4 pt-20 md:px-6">
         <p className="text-eyebrow font-medium uppercase tracking-wider text-muted">Cómo funciona</p>
-        <h2 id="como-funciona" className="mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
+        <h2 id="como-funciona" className="reveal mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
           Empieza a atender con IA hoy mismo
         </h2>
-        <ol className="mt-10 grid gap-5 md:grid-cols-3">
+        <ol className="steps-track relative mt-10 grid gap-5 md:grid-cols-3">
+          {/* Línea que une los 3 números (solo en md+): pista fija y relleno ligado al scroll. */}
+          <span aria-hidden className="absolute left-5 top-5 hidden h-0.5 w-[calc((100%+1.25rem)*2/3)] -translate-y-1/2 rounded-full bg-accent-muted md:block">
+            <span className="steps-fill block h-full origin-left rounded-full bg-accent-strong" />
+          </span>
           {STEPS.map(({ title, text }, i) => (
-            <li key={title} className="flex gap-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent font-display text-lg font-semibold text-on-accent tabular-nums" aria-hidden>
+            <li key={title} className="reveal relative flex gap-4 md:flex-col md:gap-3">
+              <span className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent font-display text-lg font-semibold text-on-accent tabular-nums ring-4 ring-background" aria-hidden>
                 {i + 1}
               </span>
               <div>
@@ -285,15 +255,15 @@ export default function LandingPage() {
 
       <section id="funciones" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 md:px-6">
         <p className="text-eyebrow font-medium uppercase tracking-wider text-muted">Funciones</p>
-        <h2 className="mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
+        <h2 className="reveal mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
           Todo lo que tu equipo necesita para atender y vender por chat
         </h2>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, text }, i) => (
-            <div key={title} className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+            <div key={title} className="reveal group rounded-2xl border border-border bg-surface p-5 shadow-sm transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-md">
               <span
                 className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl",
+                  "flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110",
                   i < 3 ? "bg-accent-subtle text-accent-ink" : "bg-accent-2-bg text-accent-2"
                 )}
               >
@@ -311,13 +281,13 @@ export default function LandingPage() {
 
       <section aria-labelledby="giros" className="mx-auto max-w-6xl px-4 pb-20 md:px-6">
         <p className="text-eyebrow font-medium uppercase tracking-wider text-muted">Para tu negocio</p>
-        <h2 id="giros" className="mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
+        <h2 id="giros" className="reveal mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
           Si vendes por mensaje, te sirve
         </h2>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {USE_CASES.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="rounded-2xl border border-border bg-surface p-5">
-              <Icon size={22} className="text-accent-ink" aria-hidden />
+            <div key={title} className="reveal group rounded-2xl border border-border bg-surface p-5 transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-md">
+              <Icon size={22} className="text-accent-ink transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:scale-110" aria-hidden />
               <h3 className="mt-3 font-display text-base font-semibold">{title}</h3>
               <p className="mt-1 text-sm text-muted">{text}</p>
             </div>
@@ -328,7 +298,7 @@ export default function LandingPage() {
       <section id="precios" className="scroll-mt-20 border-y border-border/60 bg-surface">
         <div className="mx-auto max-w-4xl px-4 py-20 md:px-6">
           <p className="text-center text-eyebrow font-medium uppercase tracking-wider text-muted">Precios</p>
-          <h2 className="mt-2 text-center font-display text-3xl font-semibold tracking-tight">Precios simples, en dólares</h2>
+          <h2 className="reveal mt-2 text-center font-display text-3xl font-semibold tracking-tight">Precios simples, en dólares</h2>
           <p className="mt-3 text-center text-muted">
             La IA ya viene incluida. Empieza con {TRIAL_DAYS} días gratis del plan Pro, sin tarjeta.
           </p>
@@ -339,7 +309,7 @@ export default function LandingPage() {
                 <div
                   key={plan.id}
                   className={cn(
-                    "flex flex-col rounded-2xl border p-6 shadow-sm",
+                    "reveal flex flex-col rounded-2xl border p-6 shadow-sm",
                     featured ? "border-accent-strong bg-accent-subtle ring-1 ring-accent-strong shadow-md" : "border-border bg-background"
                   )}
                 >
@@ -376,8 +346,8 @@ export default function LandingPage() {
       </section>
 
       <section id="preguntas" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-20 md:px-6">
-        <h2 className="text-center font-display text-3xl font-semibold tracking-tight">Preguntas frecuentes</h2>
-        <div className="mt-10 divide-y divide-border rounded-2xl border border-border bg-surface">
+        <h2 className="reveal text-center font-display text-3xl font-semibold tracking-tight">Preguntas frecuentes</h2>
+        <div className="reveal mt-10 divide-y divide-border rounded-2xl border border-border bg-surface">
           {FAQ.map(({ q, a }) => (
             <details key={q} className="group" data-track="faq">
               {/* El relleno va en el summary para que toda la fila sea tocable. */}
@@ -392,7 +362,7 @@ export default function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-20 md:px-6">
-        <div className="rounded-3xl bg-accent px-6 py-12 text-center text-on-accent md:px-12">
+        <div className="reveal rounded-3xl bg-accent px-6 py-12 text-center text-on-accent md:px-12">
           <h2 className="font-display text-3xl font-semibold tracking-tight">Tu próximo cliente ya te está escribiendo</h2>
           <p className="mx-auto mt-3 max-w-xl opacity-90">Crea tu cuenta en un minuto y conecta tu primer canal hoy.</p>
           <Button href="/register" variant="secondary" size="lg" className="mt-8" data-track="cta" data-track-location="cierre">

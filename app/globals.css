@@ -492,3 +492,44 @@ body {
 .animation-delay-200 { animation-delay: 200ms; }
 .animation-delay-300 { animation-delay: 300ms; }
 .animation-delay-400 { animation-delay: 400ms; }
+
+/* ─────────────────────────────────────────────────
+   SITIO PÚBLICO — movimiento
+   Solo transform/opacity (se animan en el compositor). Todo es decorativo:
+   sin soporte o con "reducir movimiento" el contenido se ve completo y quieto.
+   ───────────────────────────────────────────────── */
+
+/* Puntos de "escribiendo…" de la demo del hero (_hero-demo.tsx). */
+@keyframes typing-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+  40%           { transform: translateY(-3px); opacity: 1; }
+}
+.typing-dot { animation: typing-dot 1s ease-in-out infinite; }
+
+/* Revelado al entrar en pantalla, ligado al scroll (sin JS). Firefox aún no
+   soporta animation-timeline: ahí simplemente no hay efecto (mejora
+   progresiva, sin polyfill). Úsese en bloques cortos (tarjetas, encabezados),
+   no en secciones más altas que la pantalla. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    @keyframes reveal-up {
+      from { opacity: 0; translate: 0 1.5rem; }
+    }
+    .reveal {
+      animation: reveal-up auto linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+
+    /* Línea de "Cómo funciona": se llena conforme la lista cruza la pantalla. */
+    @keyframes steps-fill {
+      from { scale: 0 1; }
+    }
+    .steps-track { view-timeline: --steps block; }
+    .steps-fill {
+      animation: steps-fill auto linear both;
+      animation-timeline: --steps;
+      animation-range: entry 40% cover 55%;
+    }
+  }
+}
