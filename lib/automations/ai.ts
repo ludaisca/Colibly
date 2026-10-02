@@ -23,10 +23,10 @@ export interface AiCallContext {
 }
 
 async function complete(ctx: AiCallContext, system: string, user: string, maxTokens: number): Promise<string | null> {
-  const provider: AIProvider | undefined = enabledProviders()[0];
+  const provider: AIProvider | undefined = (await enabledProviders())[0];
   if (!provider) return null;
   const model = DEFAULT_AI_MODEL[provider];
-  const apiKey = getPlatformApiKey(provider);
+  const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) return null;
   if (!(await reserveAiCredit(ctx.organizationId))) return null;
 

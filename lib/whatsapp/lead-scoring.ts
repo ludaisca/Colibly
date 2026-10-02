@@ -89,7 +89,7 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
   }
 
   const provider = scorer.provider as AIProvider;
-  const apiKey = getPlatformApiKey(provider);
+  const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     throw new LeadScoringError("La IA no está disponible en este momento");
   }

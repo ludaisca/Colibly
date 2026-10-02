@@ -5,7 +5,6 @@ import { orgAiSettingsUpdateSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { aiCreditLimit } from "@/lib/billing/state";
-import { availableModels } from "@/lib/ai/platform";
 
 // IA y operación de la organización (solo admin). La IA la provee la
 // plataforma: aquí se ven los créditos del plan y los modelos disponibles, y se
@@ -32,13 +31,13 @@ type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
   aiCreditsBonus: number;
 };
 
+// El cliente nunca ve qué proveedor/modelo usan sus bots — solo sus créditos.
 function serialize(org: OrgAiRow) {
   const limit = aiCreditLimit(org);
   const { plan: _plan, isInternal: _internal, aiCreditsUsed, aiCreditsBonus: _bonus, ...rest } = org;
   return {
     ...rest,
     aiCredits: { used: aiCreditsUsed, limit: Number.isFinite(limit) ? limit : null },
-    models: availableModels().map((m) => ({ id: m.id, label: m.label, description: m.description })),
   };
 }
 

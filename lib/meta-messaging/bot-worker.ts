@@ -138,7 +138,7 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
   }
 
   const provider = bot.provider as AIProvider;
-  const apiKey = getPlatformApiKey(provider);
+  const apiKey = await getPlatformApiKey(provider);
 
   if (!apiKey) {
     await failBotAndNotify(botId, conversationId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");

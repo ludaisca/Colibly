@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Sparkles } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
@@ -13,11 +13,11 @@ import { Switch } from "@/app/components/ui/switch";
 import { Progress } from "@/app/components/ui/progress";
 import { useToast } from "@/app/components/ui/toast";
 import { Banner } from "@/app/components/ui/banner";
+import { Card } from "@/app/components/ui/card";
 
 interface OrgAiSettings {
   aiCredits: { used: number; limit: number | null };
   aiCreditsPeriodStart: string;
-  models: Array<{ id: string; label: string; description: string }>;
   timezone: string;
   businessHourStart: number;
   businessHourEnd: number;
@@ -133,10 +133,10 @@ export default function IASettingsPage() {
       title="Inteligencia artificial"
       description="La IA viene incluida en tu plan: no necesitas API keys."
     >
-      <section className="space-y-4">
+      <Card as="section" className="space-y-4">
         <SectionHeader eyebrow="Incluida en tu plan" title="Créditos de IA" />
         {credits && (
-          <div className="rounded-xl border border-border bg-surface p-4">
+          <div>
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-sm font-medium">Este mes</p>
               <p className="text-sm tabular-nums text-muted">
@@ -150,30 +150,13 @@ export default function IASettingsPage() {
             <p className="mt-2 text-xs text-muted-darker">
               1 crédito = 1 respuesta de bot, sugerencia, calificación, mensaje de recuperación o paso de IA. Al agotarse,
               los bots dejan de responder hasta el siguiente periodo.{" "}
-              <a href="/configuracion/plan" className="text-accent-ink hover:underline">Ver mi plan</a>
+              <a href="/configuracion/plan" className="text-accent-ink underline underline-offset-2">Ver mi plan</a>
             </p>
           </div>
         )}
-        {settings && settings.models.length === 0 ? (
-          <Banner tone="warning">La IA no está disponible en este momento. Escríbenos si el problema continúa.</Banner>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Modelos disponibles para tus bots y calificadores</p>
-            <ul className="space-y-1.5">
-              {settings?.models.map((m) => (
-                <li key={m.id} className="flex items-start gap-2 text-sm">
-                  <Sparkles size={14} className="mt-0.5 shrink-0 text-accent-ink" />
-                  <span>
-                    <span className="font-medium">{m.label}</span> <span className="text-muted">— {m.description}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
+      </Card>
 
-      <section className="space-y-5">
+      <Card as="section" className="space-y-5">
         <SectionHeader title="Horario del negocio" />
         <p className="text-sm text-muted">
           Se usa para no mandar mensajes automáticos de madrugada (recuperación de leads, leads de Facebook), para la
@@ -211,9 +194,9 @@ export default function IASettingsPage() {
         <Button size="sm" variant="secondary" icon={Save} loading={savingHours} onClick={handleSaveHours}>
           Guardar horario
         </Button>
-      </section>
+      </Card>
 
-      <section className="space-y-5">
+      <Card as="section" className="space-y-5">
         <SectionHeader title="Recuperación de leads" />
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -253,7 +236,7 @@ export default function IASettingsPage() {
         <Button size="sm" variant="secondary" icon={Save} loading={savingRecovery} onClick={handleSaveRecovery}>
           Guardar recuperación de leads
         </Button>
-      </section>
+      </Card>
     </DetailPage>
   );
 }

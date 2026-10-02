@@ -67,7 +67,7 @@ export async function sendRecoveryMessage(
   }
 
   const provider = bot.provider as AIProvider;
-  const apiKey = getPlatformApiKey(provider);
+  const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     throw new Error(`Bot "${bot.name}" sin API key configurada — no se puede generar el mensaje de reactivación`);
   }

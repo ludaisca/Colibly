@@ -55,29 +55,31 @@ export const RETENTION_DAYS_AFTER_CANCEL = 60;
 export const RETENTION_DAYS_AFTER_TRIAL = 60;
 
 // ── IA incluida ──
-// Modelos que un cliente puede elegir para bots, calificadores y pasos de IA.
-// Lista corta y económica a propósito: la IA la paga la plataforma, y con
+// Modelos curados que la plataforma asigna sola a bots/calificadores/pasos de
+// IA (nunca elegidos por el cliente, ver lib/ai/platform.ts:pickCuratedModel())
+// — lista corta y económica a propósito: la IA la paga la plataforma, y con
 // créditos por llamada (no por token) un modelo caro se comería el margen.
 // `provider` debe tener su key de plataforma configurada para aparecer
-// (lib/ai/platform.ts).
+// (lib/ai/platform.ts). `vision` decide qué modelos son candidatos para un bot
+// que puede recibir imágenes (WhatsApp/Telegram) — un calificador (solo texto)
+// no lo necesita.
 export interface AiModelOption {
   id: string;
-  provider: "openrouter" | "google";
+  provider: "opencode" | "google";
   label: string;
   description: string;
+  vision: boolean;
 }
 
 export const AI_MODELS: AiModelOption[] = [
-  { id: "google/gemini-2.5-flash", provider: "openrouter", label: "Gemini 2.5 Flash", description: "Recomendado: rápido, entiende imágenes" },
-  { id: "google/gemini-2.5-flash-lite", provider: "openrouter", label: "Gemini 2.5 Flash Lite", description: "El más rápido, para respuestas simples" },
-  { id: "openai/gpt-4o-mini", provider: "openrouter", label: "GPT-4o mini", description: "Alternativa de OpenAI" },
-  { id: "gemini-2.5-flash", provider: "google", label: "Gemini 2.5 Flash", description: "Recomendado: entiende imágenes y audios" },
-  { id: "gemini-2.5-flash-lite", provider: "google", label: "Gemini 2.5 Flash Lite", description: "El más rápido, para respuestas simples" },
+  { id: "opencode-go/glm-5.3-flash", provider: "opencode", label: "GLM 5.3 Flash", description: "Recomendado: rápido y barato", vision: false },
+  { id: "opencode-go/deepseek-v4-flash-vision-exp", provider: "opencode", label: "DeepSeek V4 Flash Vision", description: "Con visión, para WhatsApp multimodal", vision: true },
+  { id: "gemini-3.8-flash", provider: "google", label: "Gemini 3.8 Flash", description: "Recomendado: entiende imágenes y audios", vision: true },
 ];
 
 export const DEFAULT_AI_MODEL: Record<AiModelOption["provider"], string> = {
-  openrouter: "google/gemini-2.5-flash",
-  google: "gemini-2.5-flash",
+  opencode: "opencode-go/glm-5.3-flash",
+  google: "gemini-3.8-flash",
 };
 
 export function isCuratedModel(provider: string, model: string): boolean {

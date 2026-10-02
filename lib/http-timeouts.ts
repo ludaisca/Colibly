@@ -1,4 +1,4 @@
-// Timeouts de TODA llamada HTTP saliente (Meta Graph API, Telegram, OpenRouter,
+// Timeouts de TODA llamada HTTP saliente (Meta Graph API, Telegram, OpenCode,
 // Google). Sin ellos, una llamada colgada retenía el job de BullMQ varios
 // minutos (el timeout por defecto de undici) — y las colas con concurrencia 1
 // (campañas, ticks de recuperación/calificación/secuencias/recordatorios) se

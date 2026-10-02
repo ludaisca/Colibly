@@ -47,7 +47,7 @@ export async function POST(
     }
 
     const provider = bot.provider as AIProvider;
-    const apiKey = getPlatformApiKey(provider);
+    const apiKey = await getPlatformApiKey(provider);
 
     if (!apiKey) {
       return NextResponse.json(
@@ -86,8 +86,14 @@ export async function POST(
       usage: result.usage,
     });
   } catch (error) {
-    const message =
-      publicErrorMessage(error, "Error interno del servidor");
+    const message = publicErrorMessage(error, "Error interno del servidor");
+    const providerStatus = (error as { status?: unknown } | null)?.status;
+    if (providerStatus === 503 || /503|high demand|overloaded/i.test(message)) {
+      return NextResponse.json({ error: "El proveedor de IA está ocupado. Intenta de nuevo en unos minutos." }, { status: 503 });
+    }
+    if (providerStatus === 429 || /429|resource exhausted|quota exceeded/i.test(message)) {
+      return NextResponse.json({ error: "El proveedor de IA alcanzó su límite temporal. Intenta más tarde." }, { status: 503 });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -219,12 +219,12 @@ export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export const botSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
   // waAccountId y channelAccountId son mutuamente excluyentes: un bot atiende
-  // una cuenta de WhatsApp o una de un canal adicional (Telegram), nunca las
+  // una cuenta de WhatsApp o una de un canal adicional, nunca las
   // dos — el pipeline de entrada las resuelve por separado.
   waAccountId: z.string().min(1).optional().nullable(),
   channelAccountId: z.string().min(1).optional().nullable(),
-  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }),
-  model: z.string().min(1, "El modelo es requerido"),
+  // provider/model NO vienen del cliente — la plataforma los asigna sola
+  // (lib/ai/platform.ts:pickCuratedModel()), el cliente nunca elige ni sabe cuál usa.
   systemPrompt: z.string().min(1, "El prompt del sistema es requerido"),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8192).optional(),
@@ -238,7 +238,7 @@ export const botSchema = z.object({
   appointmentSchedulingEnabled: z.boolean().optional(),
 }).refine(
   (d) => !(d.waAccountId && d.channelAccountId),
-  { message: "Un bot no puede atender una cuenta de WhatsApp y una de Telegram a la vez", path: ["channelAccountId"] }
+  { message: "Un bot no puede atender dos cuentas a la vez", path: ["channelAccountId"] }
 );
 
 // .partial() no existe en un ZodEffects (lo que devuelve .refine), así que el
@@ -247,8 +247,6 @@ export const botUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   waAccountId: z.string().min(1).optional().nullable(),
   channelAccountId: z.string().min(1).optional().nullable(),
-  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }).optional(),
-  model: z.string().min(1).optional(),
   systemPrompt: z.string().min(1).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8192).optional(),
@@ -259,15 +257,14 @@ export const botUpdateSchema = z.object({
   appointmentSchedulingEnabled: z.boolean().optional(),
 }).refine(
   (d) => !(d.waAccountId && d.channelAccountId),
-  { message: "Un bot no puede atender una cuenta de WhatsApp y una de Telegram a la vez", path: ["channelAccountId"] }
+  { message: "Un bot no puede atender dos cuentas a la vez", path: ["channelAccountId"] }
 );
 
 export const LEAD_SCORER_SCHEDULE_INTERVALS = [15, 30, 60, 180, 360, 720, 1440] as const;
 
 export const leadScorerBotSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
-  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }),
-  model: z.string().min(1, "El modelo es requerido"),
+  // provider/model los asigna la plataforma sola, ver botSchema arriba.
   systemPrompt: z.string().min(1, "El prompt es requerido"),
   isActive: z.boolean().optional(),
   scheduleEnabled: z.boolean().optional(),
@@ -287,8 +284,6 @@ export const leadScorerBotSchema = z.object({
 
 export const leadScorerBotUpdateSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100).optional(),
-  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }).optional(),
-  model: z.string().min(1, "El modelo es requerido").optional(),
   systemPrompt: z.string().min(1, "El prompt es requerido").optional(),
   isActive: z.boolean().optional(),
   scheduleEnabled: z.boolean().optional(),

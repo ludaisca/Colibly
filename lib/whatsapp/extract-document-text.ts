@@ -4,7 +4,7 @@ const MAX_EXTRACTED_CHARS = 6000;
 
 // Keeps the bot's document understanding provider-agnostic (unlike audio, which is
 // Gemini-only) — extracted text is just injected as a normal text ContentPart, so it
-// works the same whether the bot runs on Google or OpenRouter.
+// works the same whether the bot runs on Google or OpenCode.
 export async function extractDocumentText(absolutePath: string, mimeType: string | null): Promise<string | null> {
   try {
     if (mimeType === "application/pdf") {

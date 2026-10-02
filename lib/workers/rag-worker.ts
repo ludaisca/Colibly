@@ -30,7 +30,7 @@ function chunkText(text: string): string[] {
 export async function processRagJob(job: RagJob) {
   const { title, content, botIds, provider, userId, sourceName } = job;
 
-  const apiKey = getPlatformApiKey(provider);
+  const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     await notifyIndexFailure(userId, botIds[0], title, "No hay API key configurada para el proveedor de este bot.");
     return;

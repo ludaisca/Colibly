@@ -65,7 +65,7 @@ export async function POST(
 
     const provider = bot.provider as AIProvider;
 
-    const apiKey = getPlatformApiKey(provider);
+    const apiKey = await getPlatformApiKey(provider);
     if (!apiKey) {
       return NextResponse.json(
         { error: "No hay API key configurada para el proveedor de este bot" },

@@ -139,7 +139,7 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
   }
 
   const provider = bot.provider as AIProvider;
-  const apiKey = getPlatformApiKey(provider);
+  const apiKey = await getPlatformApiKey(provider);
 
   if (!apiKey) {
     await failBotAndNotify(botId, conversationId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
@@ -318,7 +318,7 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
 async function buildUserContent(job: TelegramBotMessageJob, provider: AIProvider): Promise<string | ContentPart[]> {
   const isImage = job.messageType === "image" || job.messageType === "sticker";
   // Igual que en WhatsApp: entendimiento de audio solo vía inlineData nativo
-  // de Gemini — OpenRouter no tiene una forma genérica de audio.
+  // de Gemini — OpenCode no tiene una forma genérica de audio.
   const isAudio = job.messageType === "audio" && provider === "google";
   const isDocument = job.messageType === "document";
   const bodyText = job.caption ?? job.incomingMessage ?? "";

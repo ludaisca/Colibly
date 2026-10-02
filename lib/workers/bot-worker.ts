@@ -152,7 +152,7 @@ async function handleBotMessage(job: BotMessageJob) {
   }
 
   const provider = bot.provider as AIProvider;
-  const apiKey = getPlatformApiKey(provider);
+  const apiKey = await getPlatformApiKey(provider);
 
   if (!apiKey) {
     await failBotAndNotify(botId, waChatId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
@@ -405,7 +405,7 @@ async function handleBotMessage(job: BotMessageJob) {
 
 async function buildUserContent(job: BotMessageJob, provider: AIProvider): Promise<string | ContentPart[]> {
   const isImage = job.messageType === "image" || job.messageType === "sticker";
-  // Audio understanding only works through Gemini's native inlineData — OpenRouter
+  // Audio understanding only works through Gemini's native inlineData — OpenCode
   // has no generic audio content shape (see ContentPart["audio_url"] comment).
   const isAudio = job.messageType === "audio" && provider === "google";
   const isDocument = job.messageType === "document";

@@ -2,7 +2,7 @@ export type ContentPart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } }
   // Gemini-only today (see google.ts toParts) — inlineData is mime-agnostic there,
-  // but OpenRouter/OpenAI has no equivalent generic shape, so bot-worker only
+  // but OpenCode/OpenAI has no equivalent generic shape, so bot-worker only
   // builds this part when the bot's provider is "google".
   | { type: "audio_url"; audio_url: { url: string } };
 
@@ -35,4 +35,4 @@ export interface AIEmbeddingResponse {
   embeddings: number[][];
 }
 
-export type AIProvider = "openrouter" | "google";
+export type AIProvider = "opencode" | "google";

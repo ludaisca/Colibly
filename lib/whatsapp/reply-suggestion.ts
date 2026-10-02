@@ -39,7 +39,7 @@ export async function suggestReply(
   channel: "WHATSAPP" | "TELEGRAM"
 ): Promise<{ suggestion: string }> {
   const provider = bot.provider as AIProvider;
-  const apiKey = getPlatformApiKey(provider);
+  const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     throw new ReplySuggestionError("La IA no está disponible en este momento.");
   }

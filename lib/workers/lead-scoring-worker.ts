@@ -50,12 +50,7 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     ? eligibleAccountIds.filter((id) => scorer.scheduleAccountIds.includes(id))
     : eligibleAccountIds;
 
-  if (scopedAccountIds.length === 0) {
-    await prisma.wALeadScorerBot.update({ where: { id: scorer.id }, data: { lastRunAt: now } });
-    return;
-  }
-
-  const candidates = await prisma.wAChat.findMany({
+  const candidates = scopedAccountIds.length > 0 ? await prisma.wAChat.findMany({
     where: {
       accountId: { in: scopedAccountIds },
       status: { in: ["OPEN", "PENDING"] },
@@ -74,7 +69,7 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     },
     orderBy: { lastMessageAt: "desc" },
     take: CANDIDATE_POOL,
-  });
+  }) : [];
 
   const dueChats = candidates
     .filter((c) => {
