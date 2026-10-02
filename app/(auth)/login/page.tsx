@@ -108,7 +108,7 @@ function LoginForm() {
             </FormField>
 
             <div className="flex justify-end -mt-1">
-              <Link href="/recuperar" className="text-sm text-accent-ink hover:underline">
+              <Link href="/recuperar" className="text-sm text-accent-ink underline underline-offset-2">
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
@@ -121,7 +121,7 @@ function LoginForm() {
         <CardFooter>
           <p className="text-sm text-muted-darker">
             ¿No tienes cuenta?{" "}
-            <Link href="/register" className="text-accent-ink hover:underline">
+            <Link href="/register" className="text-accent-ink underline underline-offset-2">
               Regístrate
             </Link>
           </p>

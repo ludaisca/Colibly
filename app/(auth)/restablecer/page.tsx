@@ -103,7 +103,7 @@ function ResetPasswordForm() {
         <CardFooter>
           <p className="text-sm text-muted-darker">
             ¿El enlace venció?{" "}
-            <Link href="/recuperar" className="text-accent-ink hover:underline">
+            <Link href="/recuperar" className="text-accent-ink underline underline-offset-2">
               Pide uno nuevo
             </Link>
           </p>

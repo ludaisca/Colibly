@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { BRAND_COLORS as C } from "@/lib/brand-colors";
 
 // Roadmap P3-f — script embebible del widget, servido como JS plano (no un
 // bundle de Next/React: el sitio del cliente es un dominio arbitrario de
@@ -40,11 +41,21 @@ function buildWidgetScript(accountId: string): string {
   // Solo se guarda el TOKEN firmado: el visitorId lo asigna el servidor y
   // viaja dentro del token (antes el widget inventaba el id y cualquiera que lo
   // conociera podía abrir la conversación de otra persona).
-  var TOKEN_KEY = "sundaycrm_webchat_token_" + ACCOUNT_ID;
+  var TOKEN_KEY = "colibly_webchat_token_" + ACCOUNT_ID;
+  // Clave de antes del cambio de nombre: se lee una vez y se migra, para no
+  // cortar la conversación de quien ya la tenía guardada.
+  var LEGACY_TOKEN_KEY = "sundaycrm_webchat_token_" + ACCOUNT_ID;
   var POLL_MS = 4000;
 
   function readStoredToken() {
-    try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+    try {
+      var token = localStorage.getItem(TOKEN_KEY);
+      if (!token) {
+        token = localStorage.getItem(LEGACY_TOKEN_KEY);
+        if (token) { localStorage.setItem(TOKEN_KEY, token); localStorage.removeItem(LEGACY_TOKEN_KEY); }
+      }
+      return token;
+    } catch (e) { return null; }
   }
   function storeToken(value) {
     try { if (value) localStorage.setItem(TOKEN_KEY, value); } catch (e) {}
@@ -96,11 +107,11 @@ function buildWidgetScript(accountId: string): string {
     bubble.style.whiteSpace = "pre-wrap";
     bubble.style.wordBreak = "break-word";
     if (msg.direction === "OUTBOUND") {
-      bubble.style.background = "#F5B700";
-      bubble.style.color = "#1C1917";
+      bubble.style.background = "${C.accent}";
+      bubble.style.color = "${C.onAccent}";
     } else {
-      bubble.style.background = "#f2f7f5";
-      bubble.style.color = "#111";
+      bubble.style.background = "${C.surfaceLight}";
+      bubble.style.color = "${C.ink}";
     }
     bubble.textContent = msg.body || "";
     row.appendChild(bubble);
@@ -121,9 +132,9 @@ function buildWidgetScript(accountId: string): string {
         var b = document.createElement("button");
         b.type = "button";
         b.textContent = opt.title;
-        b.style.border = "1px solid #B07D00";
+        b.style.border = "1px solid ${C.accent}";
         b.style.background = "#fff";
-        b.style.color = "#8F5F00";
+        b.style.color = "${C.accentInk}";
         b.style.borderRadius = "999px";
         b.style.padding = "6px 12px";
         b.style.fontSize = "12px";
@@ -195,8 +206,8 @@ function buildWidgetScript(accountId: string): string {
     bubble.style.width = "56px";
     bubble.style.height = "56px";
     bubble.style.borderRadius = "50%";
-    bubble.style.background = "#F5B700";
-    bubble.style.color = "#1C1917";
+    bubble.style.background = "${C.accent}";
+    bubble.style.color = "${C.onAccent}";
     bubble.style.border = "none";
     bubble.style.cursor = "pointer";
     bubble.style.boxShadow = "0 4px 14px rgba(0,0,0,0.2)";
@@ -220,8 +231,8 @@ function buildWidgetScript(accountId: string): string {
     panel.style.fontFamily = "system-ui, -apple-system, sans-serif";
 
     var header = document.createElement("div");
-    header.style.background = "#F5B700";
-    header.style.color = "#1C1917";
+    header.style.background = "${C.accent}";
+    header.style.color = "${C.onAccent}";
     header.style.padding = "12px 16px";
     header.style.fontSize = "14px";
     header.style.fontWeight = "600";
@@ -236,7 +247,7 @@ function buildWidgetScript(accountId: string): string {
 
     var form = document.createElement("form");
     form.style.display = "flex";
-    form.style.borderTop = "1px solid #eee";
+    form.style.borderTop = "1px solid ${C.border}";
     var input = document.createElement("input");
     input.type = "text";
     input.placeholder = "Escribe un mensaje...";
@@ -249,8 +260,8 @@ function buildWidgetScript(accountId: string): string {
     sendBtn.type = "submit";
     sendBtn.textContent = "Enviar";
     sendBtn.style.border = "none";
-    sendBtn.style.background = "#F5B700";
-    sendBtn.style.color = "#1C1917";
+    sendBtn.style.background = "${C.accent}";
+    sendBtn.style.color = "${C.onAccent}";
     sendBtn.style.padding = "0 16px";
     sendBtn.style.cursor = "pointer";
     sendBtn.style.fontSize = "13px";

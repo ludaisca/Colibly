@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { acceptInvitationSchema } from "@/lib/validations";
 import { findValidAuthToken } from "@/lib/auth-tokens";
 import { checkPlanLimit } from "@/lib/billing/gates";
+import { BRAND_NAME } from "@/lib/brand";
 
 const INVALID = "La invitación no es válida o ya venció. Pide a tu administrador que te envíe una nueva.";
 
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof InvitationError) return NextResponse.json({ error: error.message }, { status: 400 });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json({ error: "Ese correo ya tiene una cuenta en SunflowCRM. Inicia sesión con él." }, { status: 409 });
+      return NextResponse.json({ error: `Ese correo ya tiene una cuenta en ${BRAND_NAME}. Inicia sesión con él.` }, { status: 409 });
     }
     console.error("[invitacion]", error);
     return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 });

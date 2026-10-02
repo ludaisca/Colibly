@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardBody } from "@/app/components/ui/card"
 import { Banner } from "@/app/components/ui/banner";
 import { Logo } from "@/app/components/ui/logo";
 import { Spinner } from "@/app/components/ui/spinner";
+import { BRAND_NAME } from "@/lib/brand";
 
 type State = { status: "loading" } | { status: "ok" } | { status: "error"; message: string };
 
@@ -51,8 +52,8 @@ function VerifyEmail() {
           {state.status === "error" && <Banner tone="danger">{state.message}</Banner>}
           {state.status !== "loading" && (
             <p className="text-sm">
-              <Link href="/dashboard" className="text-accent-ink hover:underline">
-                Ir a SunflowCRM
+              <Link href="/dashboard" className="text-accent-ink underline underline-offset-2">
+                Ir a {BRAND_NAME}
               </Link>
             </p>
           )}

@@ -46,8 +46,8 @@ export async function deleteOrganizationData(organizationId: string, opts: { onl
   if (opts.onlyIfPurgeDue && !purgeDue(org, opts.onlyIfPurgeDue)) return null;
 
   if (org.stripeSubscriptionId && org.status !== "CANCELED") {
-    if (!isStripeConfigured()) throw new Error("La organización tiene una suscripción y los pagos no están configurados para cancelarla");
-    const stripe = getStripe();
+    if (!(await isStripeConfigured())) throw new Error("La organización tiene una suscripción y los pagos no están configurados para cancelarla");
+    const stripe = await getStripe();
     const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
     // Ya terminada en Stripe (p. ej. el webhook aún no llegaba): nada que cancelar.
     if (sub.status !== "canceled" && sub.status !== "incomplete_expired") {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -31,6 +31,10 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
   const [captchaError, setCaptchaError] = useState(false);
+  const businessRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,6 +48,11 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
         fieldErrors[i.path[0] as string] = i.message;
       });
       setErrors(fieldErrors);
+      const firstInvalid = (["businessName", "name", "email", "password"] as const).find((field) => fieldErrors[field]);
+      if (firstInvalid) {
+        const refs = { businessName: businessRef, name: nameRef, email: emailRef, password: passwordRef };
+        requestAnimationFrame(() => refs[firstInvalid].current?.focus());
+      }
       return;
     }
 
@@ -101,56 +110,68 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <FormField label="Nombre de tu negocio" required error={errors.businessName}>
-              {(id) => (
+              {(id, describedBy) => (
                 <Input
+                  ref={businessRef}
                   id={id}
+                  aria-describedby={describedBy}
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="Spa Serenidad"
                   autoComplete="organization"
                   error={errors.businessName}
+                  showErrorMessage={false}
                 />
               )}
             </FormField>
 
             <FormField label="Nombre completo" required error={errors.name}>
-              {(id) => (
+              {(id, describedBy) => (
                 <Input
+                  ref={nameRef}
                   id={id}
+                  aria-describedby={describedBy}
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Tu nombre"
                   autoComplete="name"
                   error={errors.name}
+                  showErrorMessage={false}
                 />
               )}
             </FormField>
 
             <FormField label="Email" required error={errors.email}>
-              {(id) => (
+              {(id, describedBy) => (
                 <Input
+                  ref={emailRef}
                   id={id}
+                  aria-describedby={describedBy}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@email.com"
                   autoComplete="email"
                   error={errors.email}
+                  showErrorMessage={false}
                 />
               )}
             </FormField>
 
             <FormField label="Contraseña" required error={errors.password} hint="Mínimo 8 caracteres">
-              {(id) => (
+              {(id, describedBy) => (
                 <>
                   <PasswordInput
+                    ref={passwordRef}
                     id={id}
+                    aria-describedby={describedBy}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Crea una contraseña segura"
                     autoComplete="new-password"
                     error={errors.password}
+                    showErrorMessage={false}
                   />
                   <PasswordStrength password={password} />
                 </>
@@ -179,15 +200,15 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
             </Button>
             <p className="text-center text-xs text-muted-darker">
               Al crear tu cuenta aceptas los{" "}
-              <Link href="/terminos" className="text-accent-ink hover:underline">Términos y condiciones</Link> y el{" "}
-              <Link href="/privacidad" className="text-accent-ink hover:underline">Aviso de privacidad</Link>.
+              <Link href="/terminos" className="text-accent-ink underline underline-offset-2">Términos y condiciones</Link> y el{" "}
+              <Link href="/privacidad" className="text-accent-ink underline underline-offset-2">Aviso de privacidad</Link>.
             </p>
           </form>
         </CardBody>
         <CardFooter>
           <p className="text-sm text-muted-darker">
             ¿Ya tienes cuenta?{" "}
-            <Link href="/login" className="text-accent-ink hover:underline">
+            <Link href="/login" className="text-accent-ink underline underline-offset-2">
               Inicia sesión
             </Link>
           </p>

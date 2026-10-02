@@ -7,6 +7,7 @@ import { createDelivery } from "@/lib/webhooks/fanout";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
+import { BRAND_NAME } from "@/lib/brand";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,7 +33,7 @@ export async function POST(_req: Request, { params }: Params) {
       account: null,
       contact: null,
       conversation: null,
-      data: { message: "Evento de prueba enviado desde SunflowCRM" },
+      data: { message: `Evento de prueba enviado desde ${BRAND_NAME}` },
     });
     if (!delivery) return NextResponse.json({ error: "No se pudo crear la entrega" }, { status: 500 });
     await webhookDeliveryQueue.add("deliver", { deliveryId: delivery.id }, { jobId: delivery.id });

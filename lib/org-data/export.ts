@@ -32,7 +32,7 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
   const waIds = waAccounts.map((a) => a.id);
   const channelIds = channelAccounts.map((a) => a.id);
 
-  yield `{"format":"sunflowcrm-export-v1","exportedAt":${JSON.stringify(new Date())}`;
+  yield `{"format":"colibly-export-v1","exportedAt":${JSON.stringify(new Date())}`;
   yield `,"organization":${JSON.stringify(organization)}`;
   yield `,"users":${JSON.stringify(members)}`;
   yield `,"accounts":${JSON.stringify([

@@ -12,7 +12,7 @@ export const GET = withApiErrors(async (req: Request) => {
 });
 
 // POST — devuelve `secret` (whsec_...) una sola vez: guárdalo para verificar
-// la firma X-Sunflow-Signature de cada entrega.
+// la firma X-Colibly-Signature de cada entrega.
 export const POST = withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "webhooks:manage");
   const parsed = webhookCreateSchema.safeParse(await req.json().catch(() => null));

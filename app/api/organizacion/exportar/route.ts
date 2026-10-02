@@ -46,7 +46,7 @@ export async function GET() {
   return new Response(stream, {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="sunflowcrm-${slug}-${date}.json"`,
+      "Content-Disposition": `attachment; filename="colibly-${slug}-${date}.json"`,
       "Cache-Control": "no-store",
     },
   });

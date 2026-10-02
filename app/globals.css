@@ -1,78 +1,86 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
-   TOKENS — marca "Girasol" (2026-09, con el cambio a SunflowCRM).
+   TOKENS — paleta "Colibrí" de Colibly (2026-09-27): violeta colibrí como
+   acento, rubí (la garganta del colibrí) como acento de apoyo y neutros con
+   un tinte violeta. Reemplaza a la paleta "Girasol" de SunflowCRM.
    Dos capas:
-   1. Primitivos (--sunflower-*, --sand-*, --leaf-*, estados): solo se usan
-      aquí dentro, nunca desde componentes.
+   1. Primitivos (--violet-*, --ruby-*, --ink-*, estados): solo se usan aquí
+      dentro, nunca desde componentes.
    2. Semánticos (--accent, --surface, --muted…): lo único que consumen los
       componentes vía las utilidades de Tailwind (@theme inline, abajo).
-   El amarillo girasol no sirve como color de texto sobre fondo claro
-   (contraste 1.8), por eso el acento tiene cuatro usos separados:
+   El acento conserva sus cuatro usos separados (vienen de cuando el amarillo
+   no servía como texto; con el violeta casi coinciden, pero los componentes
+   ya dependen de esos nombres):
      accent        relleno (botón principal, switch, barras) con texto --on-accent
      accent-strong bordes, anillos de foco y trazos de gráficas (≥ 3:1)
      accent-ink    texto e iconos en color de marca (≥ 4.5:1)
      accent-subtle / accent-muted  fondos suaves y bordes decorativos
+   El rubí brillante (--ruby-500) no pasa como texto: solo rellenos
+   decorativos; como texto se usa --ruby-700 (--accent-2).
+   Los mismos valores en hex para lo que no lee CSS (correos, imágenes,
+   widget de chat web): lib/brand-colors.ts — cambiarlos juntos.
    lib/design/__tests__/contrast.test.ts verifica los pares texto/fondo.
    Temas: `:root, .theme-light` es el claro; .dark (abajo) remapea solo los
    semánticos.
    ───────────────────────────────────────────────── */
 :root {
   /* ── Primitivos ── */
-  --sunflower-50:  #FFF8E1;
-  --sunflower-100: #FEF0C3;
-  --sunflower-200: #FDE68A;
-  --sunflower-300: #FCD34D;
-  --sunflower-500: #F5B700;
-  --sunflower-550: #E5A500;
-  --sunflower-600: #B07D00;
-  --sunflower-700: #8F5F00;
+  --violet-50:  #F5F2FF;
+  --violet-100: #EEE9FE;
+  --violet-200: #D9CFFC;
+  --violet-300: #B7A6FF;
+  --violet-400: #9B85FF;
+  --violet-600: #5B34E6;
+  --violet-700: #4A26C9;
+  --violet-800: #3A1CA8;
 
-  --sand-0:   #FFFFFF;
-  --sand-25:  #FBF8F2;
-  --sand-50:  #F5F0E7;
-  --sand-100: #ECE5D8;
-  --sand-400: #8E857A;
-  --sand-600: #6B6258;
-  --sand-950: #1C1917;
+  --ruby-50:  #FFE4EB;
+  --ruby-500: #FF4F7B;
+  --ruby-700: #C21E4C;
+  --ruby-800: #A3173F;
 
-  --leaf-600: #0F6E5C;
-  --leaf-700: #0B5A4B;
-  --leaf-50:  #E3F1EE;
+  --ink-0:   #FFFFFF;
+  --ink-25:  #F8F6FC;
+  --ink-50:  #F1EEF8;
+  --ink-100: #E7E2F3;
+  --ink-400: #8C86A0;
+  --ink-600: #5F5A73;
+  --ink-950: #17132B;
 
-  --green-700: #27713C;  --green-50:  #E6F2E8;  --green-200: #BFDEC6;
+  --green-700: #17663F;  --green-50:  #E3F4EA;  --green-200: #B9E0C9;
   --orange-700:#9A4307;  --orange-50: #FDEFE3;  --orange-200:#F6CBA8;
-  --red-700:   #B42D25;  --red-50:    #FBE6E3;  --red-200:   #F1B9B3;
-  --blue-700:  #2A62B5;  --blue-50:   #E6EEFA;  --blue-200:  #B8CDEE;
+  --red-700:   #B42318;  --red-50:    #FBE6E3;  --red-200:   #F1B9B3;
+  --blue-700:  #1D5FBF;  --blue-50:   #E6EEFA;  --blue-200:  #B8CDEE;
 }
 
 /* ── Semánticos (tema claro) ──
    También en .theme-light: un contenedor con esa clase vuelve a la paleta
    clara aunque <html> tenga .dark (la landing es siempre clara). */
 :root, .theme-light {
-  --background:    var(--sand-25);
-  --foreground:    var(--sand-950);
-  --surface:       var(--sand-0);
-  --surface-light: var(--sand-50);
-  --border:        var(--sand-100);
+  --background:    var(--ink-25);
+  --foreground:    var(--ink-950);
+  --surface:       var(--ink-0);
+  --surface-light: var(--ink-50);
+  --border:        var(--ink-100);
 
-  --muted:         var(--sand-600);
-  --muted-darker:  var(--sand-400);   /* placeholders y texto deshabilitado */
+  --muted:         var(--ink-600);
+  --muted-darker:  var(--ink-600);   /* texto secundario pequeño y placeholders legibles */
 
-  --accent:        var(--sunflower-500);
-  --accent-hover:  var(--sunflower-550);
-  --on-accent:     var(--sand-950);
-  --accent-strong: var(--sunflower-600);
-  --accent-ink:    var(--sunflower-700);
-  --accent-subtle: var(--sunflower-50);
-  --accent-muted:  var(--sunflower-200);
+  --accent:        var(--violet-600);
+  --accent-hover:  var(--violet-700);
+  --on-accent:     var(--ink-0);
+  --accent-strong: var(--violet-600);
+  --accent-ink:    var(--violet-700);
+  --accent-subtle: var(--violet-100);
+  --accent-muted:  var(--violet-200);
 
-  /* Acento de apoyo: verde hoja (iconos secundarios, detalles). No es CTA. */
-  --accent-2:       var(--leaf-600);
-  --accent-2-hover: var(--leaf-700);
-  --accent-2-bg:    var(--leaf-50);
+  /* Acento de apoyo: rubí (iconos secundarios, destacados). No es CTA. */
+  --accent-2:       var(--ruby-700);
+  --accent-2-hover: var(--ruby-800);
+  --accent-2-bg:    var(--ruby-50);
 
-  /* Estados. warning es naranja, no amarillo, para no confundirse con la marca. */
+  /* Estados. */
   --success:        var(--green-700);
   --success-bg:     var(--green-50);
   --success-border: var(--green-200);
@@ -86,10 +94,10 @@
   --info-bg:        var(--blue-50);
   --info-border:    var(--blue-200);
 
-  /* Elevation — sombras suaves con tinte cálido. */
-  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.05);
-  --shadow-md: 0 10px 28px rgba(28, 25, 23, 0.08), 0 2px 6px rgba(28, 25, 23, 0.05);
-  --shadow-lg: 0 20px 48px rgba(28, 25, 23, 0.12), 0 4px 10px rgba(28, 25, 23, 0.06);
+  /* Elevation — sombras suaves con tinte de la tinta violeta. */
+  --shadow-sm: 0 1px 2px rgba(23, 19, 43, 0.05);
+  --shadow-md: 0 10px 28px rgba(23, 19, 43, 0.08), 0 2px 6px rgba(23, 19, 43, 0.05);
+  --shadow-lg: 0 20px 48px rgba(23, 19, 43, 0.12), 0 4px 10px rgba(23, 19, 43, 0.06);
 
   /* Focus */
   --ring:        var(--accent-strong);
@@ -120,33 +128,34 @@
 
 /* ─────────────────────────────────────────────────
    TEMA OSCURO — solo remapea la capa semántica (next-themes pone .dark en
-   <html>). Neutros cálidos casi negros; el girasol sigue siendo el relleno
-   con texto oscuro encima, y los tonos de texto/borde se aclaran para leerse
-   sobre fondo oscuro. Los pares se verifican en contrast.test.ts.
+   <html>). Fondo "noche" violeta casi negro; el acento de relleno se aclara un
+   poco pero conserva texto blanco encima, y los tonos de texto/borde se
+   aclaran para leerse sobre fondo oscuro. Los pares se verifican en
+   contrast.test.ts.
    ───────────────────────────────────────────────── */
 .dark {
   color-scheme: dark;
 
-  --background:    #14110F;
-  --foreground:    #F3EEE7;
-  --surface:       #1E1A17;
-  --surface-light: #28231F;
-  --border:        #3A332D;
+  --background:    #100D1F;
+  --foreground:    #F2F0F8;
+  --surface:       #1B1731;
+  --surface-light: #25203F;
+  --border:        #3A3357;
 
-  --muted:         #B3A99C;
-  --muted-darker:  #8A8176;
+  --muted:         #B1ABC7;
+  --muted-darker:  #8A84A3;
 
-  --accent:        var(--sunflower-500);
-  --accent-hover:  #FFC933;
-  --on-accent:     var(--sand-950);
-  --accent-strong: #E0A800;
-  --accent-ink:    #FFD25C;
-  --accent-subtle: #2A2213;
-  --accent-muted:  #4A3A10;
+  --accent:        #6A50F5;
+  --accent-hover:  #5A3FE3;
+  --on-accent:     #FFFFFF;
+  --accent-strong: #9B85FF;
+  --accent-ink:    #B7A6FF;
+  --accent-subtle: #241C48;
+  --accent-muted:  #3A2F72;
 
-  --accent-2:       #5CC9AE;
-  --accent-2-hover: #7FD8C1;
-  --accent-2-bg:    #15302A;
+  --accent-2:       #FF7A9A;
+  --accent-2-hover: #FF96AE;
+  --accent-2-bg:    #3A1E2B;
 
   --success:        #74CC8F;
   --success-bg:     #18301F;
@@ -170,16 +179,16 @@
    HUE POR ENTIDAD — 8 clases; en .dark suben de luminosidad para leerse
    sobre fondo oscuro
    ───────────────────────────────────────────────── */
-.hue-0 { --entity: oklch(0.50 0.13 25);  }
-.hue-1 { --entity: oklch(0.52 0.12 60);  }
-.hue-2 { --entity: oklch(0.53 0.11 95);  }
-.hue-3 { --entity: oklch(0.50 0.10 200); }
-.hue-4 { --entity: oklch(0.49 0.10 225); }
-.hue-5 { --entity: oklch(0.48 0.11 250); }
-.hue-6 { --entity: oklch(0.48 0.11 275); }
-.hue-7 { --entity: oklch(0.49 0.11 300); }
+.hue-0 { --entity: oklch(0.44 0.13 25);  }
+.hue-1 { --entity: oklch(0.44 0.12 60);  }
+.hue-2 { --entity: oklch(0.44 0.11 95);  }
+.hue-3 { --entity: oklch(0.44 0.10 200); }
+.hue-4 { --entity: oklch(0.44 0.10 225); }
+.hue-5 { --entity: oklch(0.44 0.11 250); }
+.hue-6 { --entity: oklch(0.44 0.11 275); }
+.hue-7 { --entity: oklch(0.44 0.11 300); }
 
-.dark .hue-0 { --entity: oklch(0.78 0.11 25);  }
+.dark .hue-0 { --entity: oklch(0.84 0.11 25); --entity-bg: color-mix(in oklab, var(--entity) 12%, var(--surface)); }
 .dark .hue-1 { --entity: oklch(0.80 0.11 60);  }
 .dark .hue-2 { --entity: oklch(0.82 0.10 95);  }
 .dark .hue-3 { --entity: oklch(0.78 0.10 200); }
@@ -333,54 +342,6 @@ html {
   color-scheme: light;
 }
 
-/* ─────────────────────────────────────────────────
-   TEMA OSCURO — solo remapea la capa semántica (next-themes pone .dark en
-   <html>). Neutros cálidos casi negros; el girasol sigue siendo el relleno
-   con texto oscuro encima, y los tonos de texto/borde se aclaran para leerse
-   sobre fondo oscuro. Los pares se verifican en contrast.test.ts.
-   ───────────────────────────────────────────────── */
-.dark {
-  color-scheme: dark;
-
-  --background:    #14110F;
-  --foreground:    #F3EEE7;
-  --surface:       #1E1A17;
-  --surface-light: #28231F;
-  --border:        #3A332D;
-
-  --muted:         #B3A99C;
-  --muted-darker:  #8A8176;
-
-  --accent:        var(--sunflower-500);
-  --accent-hover:  #FFC933;
-  --on-accent:     var(--sand-950);
-  --accent-strong: #E0A800;
-  --accent-ink:    #FFD25C;
-  --accent-subtle: #2A2213;
-  --accent-muted:  #4A3A10;
-
-  --accent-2:       #5CC9AE;
-  --accent-2-hover: #7FD8C1;
-  --accent-2-bg:    #15302A;
-
-  --success:        #74CC8F;
-  --success-bg:     #18301F;
-  --success-border: #2D5638;
-  --warning:        #FBA35E;
-  --warning-bg:     #362213;
-  --warning-border: #6A3D19;
-  --danger:         #F58C80;
-  --danger-bg:      #3A1C19;
-  --danger-border:  #6E302A;
-  --info:           #86B2F2;
-  --info-bg:        #162840;
-  --info-border:    #2D4D7C;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.40), 0 2px 6px rgba(0, 0, 0, 0.30);
-  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.50), 0 4px 10px rgba(0, 0, 0, 0.35);
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
@@ -487,6 +448,26 @@ body {
 .animate-slide-up    { animation: slide-up    var(--dur) var(--ease) both; }
 .animate-slide-down  { animation: slide-down  var(--dur) var(--ease) both; }
 .animate-pulse-live  { animation: pulse-live  2.4s var(--ease) infinite; }
+
+/* Movimiento corto para contenido que aparece en el inbox. La selección del
+   chat usa una barra que se despliega sin mover las filas de la lista. */
+@keyframes chat-disclosure-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chat-disclosure-enter { animation: chat-disclosure-enter 180ms var(--ease) both; }
+.chat-list-row { position: relative; }
+.chat-list-row::before {
+  content: "";
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent-strong);
+  transform: scaleY(0);
+  transition: transform 180ms var(--ease);
+}
+.chat-list-row[aria-current="true"]::before { transform: scaleY(1); }
 
 .animation-delay-100 { animation-delay: 100ms; }
 .animation-delay-200 { animation-delay: 200ms; }

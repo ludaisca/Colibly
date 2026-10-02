@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { invitationTemplate, passwordResetTemplate, verifyEmailTemplate } from "../templates";
+import { BRAND_NAME } from "@/lib/brand";
 
 // El nombre del negocio y el del invitador los escribe el cliente: no deben
 // poder inyectar HTML en correos que se envían a terceros.
@@ -27,11 +28,11 @@ describe("plantillas de correo", () => {
   it("saluda sin nombre cuando no hay", () => {
     const msg = verifyEmailTemplate({ to: "x@y.com", name: null, url: "https://a/b" });
     expect(msg.text.startsWith("Hola,")).toBe(true);
-    expect(msg.subject).toBe("Confirma tu correo en SunflowCRM");
+    expect(msg.subject).toBe(`Confirma tu correo en ${BRAND_NAME}`);
   });
 
   it("traduce el rol de la invitación", () => {
     const msg = invitationTemplate({ to: "x@y.com", organizationName: "Spa", inviterName: null, role: "ejecutivo", url: "https://a/b" });
-    expect(msg.text).toContain("Un administrador te invitó a unirte a Spa en SunflowCRM como ejecutivo.");
+    expect(msg.text).toContain(`Un administrador te invitó a unirte a Spa en ${BRAND_NAME} como ejecutivo.`);
   });
 });

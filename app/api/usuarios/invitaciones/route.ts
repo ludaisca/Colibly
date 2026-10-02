@@ -8,6 +8,7 @@ import { requireOrgId } from "@/lib/tenancy";
 import { issueAuthToken } from "@/lib/auth-tokens";
 import { sendInvitationEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
+import { BRAND_NAME } from "@/lib/brand";
 
 // Invitaciones pendientes de la organización (solo admin).
 export async function GET() {
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     const existing = await prisma.user.findUnique({ where: { email }, select: { organizationId: true } });
     if (existing) {
       const organizationId = await requireOrgId(session.user.id);
-      const message = existing.organizationId === organizationId ? "Esa persona ya es parte de tu equipo." : "Ese correo ya tiene una cuenta en SunflowCRM con otra empresa.";
+      const message = existing.organizationId === organizationId ? "Esa persona ya es parte de tu equipo." : `Ese correo ya tiene una cuenta en ${BRAND_NAME} con otra empresa.`;
       return NextResponse.json({ error: message }, { status: 409 });
     }
 

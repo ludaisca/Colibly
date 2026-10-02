@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
         <CardFooter>
           <p className="text-sm text-muted-darker">
             ¿La recordaste?{" "}
-            <Link href="/login" className="text-accent-ink hover:underline">
+            <Link href="/login" className="text-accent-ink underline underline-offset-2">
               Inicia sesión
             </Link>
           </p>

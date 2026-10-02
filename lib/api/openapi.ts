@@ -1,5 +1,6 @@
 import { API_SCOPES } from "./scopes";
 import { DOMAIN_EVENT_CATALOG } from "@/lib/events/types";
+import { BRAND_NAME } from "@/lib/brand";
 
 // Especificación OpenAPI 3.1 de /api/v1, escrita a mano (la API es chica y
 // estable; generarla desde zod agregaría una dependencia por poco). Si cambias
@@ -31,13 +32,14 @@ export function buildOpenApiSpec(serverUrl: string) {
   return {
     openapi: "3.1.0",
     info: {
-      title: "SunflowCRM API",
+      title: `${BRAND_NAME} API`,
       version: "1.0.0",
       description:
-        "API pública de SunflowCRM. Autenticación: `Authorization: Bearer sk_live_...` (API key creada por un admin en Configuración → API). " +
+        `API pública de ${BRAND_NAME}. ` +
+        "Autenticación: `Authorization: Bearer sk_live_...` (API key creada por un admin en Configuración → API). " +
         "Límite: 120 solicitudes por minuto por key. Los errores tienen la forma `{ error: { code, message } }`.\n\n" +
         "**Webhooks salientes**: cada entrega es un POST con el evento en el cuerpo y el header " +
-        "`X-Sunflow-Signature: t=<unix>,v1=<hex>`, donde v1 = HMAC-SHA256(secret, `${t}.${cuerpo}`). " +
+        "`X-Colibly-Signature: t=<unix>,v1=<hex>`, donde v1 = HMAC-SHA256(secret, `${t}.${cuerpo}`). " +
         "Responde 2xx en menos de 20 s; se reintenta hasta 6 veces con espera creciente.",
     },
     servers: [{ url: serverUrl }],
@@ -302,7 +304,7 @@ export function buildOpenApiSpec(serverUrl: string) {
               type: "object",
               required: ["id"],
               properties: {
-                id: { type: "string", description: "Id de la plantilla en SunflowCRM" },
+                id: { type: "string", description: `Id de la plantilla en ${BRAND_NAME}` },
                 bodyParams: { type: "array", items: { type: "string" } },
                 headerParam: { type: ["string", "null"] },
                 buttonParam: { type: ["string", "null"] },

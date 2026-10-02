@@ -10,20 +10,15 @@ const SIZE = {
   lg: { box: "h-9 w-9", text: "text-lg"  },
 };
 
-const PETALS = Array.from({ length: 12 }, (_, i) => i * 30);
-
-// Girasol: 12 pétalos en --accent alrededor de un centro en --accent-ink.
-// Colores por token, así sigue a la paleta sin tocar el SVG.
-export function SunflowerMark({ className }: { className?: string }) {
+// Marca provisional de Colibly: una "C" sobre el acento, mientras se define el
+// logo final (concepto "Impulso", ver docs/PLAN_LANZAMIENTO.md). Colores por
+// token, así sigue a la paleta y al tema sin tocar el SVG. La misma figura en
+// colores fijos vive en lib/brand-mark.ts (favicon, ícono de iOS, imágenes).
+export function BrandMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={cn("shrink-0", className)} aria-hidden>
-      <g fill="var(--accent)">
-        {PETALS.map((deg) => (
-          <ellipse key={deg} cx="16" cy="6.2" rx="3.1" ry="5.4" transform={`rotate(${deg} 16 16)`} />
-        ))}
-      </g>
-      <circle cx="16" cy="16" r="6.6" fill="var(--accent-ink)" />
-      <circle cx="16" cy="16" r="6.6" fill="none" stroke="var(--accent-hover)" strokeWidth="1" />
+      <rect width="32" height="32" rx="9" fill="var(--accent)" />
+      <path d="M21.1 11.2 A7 7 0 1 0 21.1 20.8" fill="none" stroke="var(--on-accent)" strokeWidth="3.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -36,13 +31,13 @@ interface LogoProps {
   className?: string;
 }
 
-// El girasol gira al pasar el mouse sobre un logo con enlace (el <Link> lleva `group`).
-const MARK_HOVER = "transition-transform duration-700 ease-out motion-safe:group-hover:rotate-[60deg]";
+// La marca se inclina un poco al pasar el mouse sobre un logo con enlace (el <Link> lleva `group`).
+const MARK_HOVER = "transition-transform duration-300 ease-out motion-safe:group-hover:-rotate-6";
 
 function LogoMark({ size = "md", brand = BRAND_NAME }: { size?: LogoSize; brand?: string }) {
   return (
     <span className={cn("flex items-center gap-2")}>
-      <SunflowerMark className={cn(SIZE[size].box, MARK_HOVER)} />
+      <BrandMark className={cn(SIZE[size].box, MARK_HOVER)} />
       <span className={cn("font-display font-semibold tracking-tight", SIZE[size].text)}>
         {brand}
       </span>
@@ -54,7 +49,7 @@ export function Logo({ brand = BRAND_NAME, size = "md", href, showWordmark = tru
   if (!showWordmark) {
     const box = (
       <span className={cn("inline-flex", className)} role="img" aria-label={brand}>
-        <SunflowerMark className={cn(SIZE[size].box, MARK_HOVER)} />
+        <BrandMark className={cn(SIZE[size].box, MARK_HOVER)} />
       </span>
     );
     return href ? <Link href={href} className="group">{box}</Link> : box;
