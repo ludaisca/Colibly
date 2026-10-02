@@ -7,7 +7,10 @@ services:
       POSTGRES_DB: colibly_db
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:z
+      # Sin montar docker/init.sql: en Coolify el repo se clona dentro de un contenedor
+      # auxiliar, así que ese archivo no existe en el host, Docker crea un DIRECTORIO
+      # con ese nombre y Postgres falla al ejecutarlo. La extensión vector la crea
+      # el servicio db-init de abajo.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

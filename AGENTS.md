@@ -140,7 +140,7 @@ sh scripts/db-migrate.sh               # what dev boot and prod startup run: mig
 - Back up the production database before deploying a migration (Coolify scheduled backup or `pg_dump`) — `migrate deploy` doesn't roll back a half-applied data migration.
 
 ### pgvector
-PostgreSQL image is `pgvector/pgvector:pg16`. Extension enabled via `docker/init.sql`. Vector column is `vector(768)` — **all embeddings are Google's** (`gemini-embedding-2`, truncated to 768 via `outputDimensionality`), since OpenCode Go has no embeddings endpoint (see "AI providers" → embeddings fallback).
+PostgreSQL image is `pgvector/pgvector:pg16`. Extension enabled by the `db-init` service in `docker-compose.yml` (`docker/init.sql` is no longer mounted: under Coolify a bind mount of a repo file becomes a directory and Postgres fails to start). Vector column is `vector(768)` — **all embeddings are Google's** (`gemini-embedding-2`, truncated to 768 via `outputDimensionality`), since OpenCode Go has no embeddings endpoint (see "AI providers" → embeddings fallback).
 
 **IVFFlat index gotcha**: `docker/init.sql` only runs once, at Postgres's *first* volume init — before the migrations have created `wa_bot_knowledge`, so a `CREATE INDEX` there fails silently (table doesn't exist yet) and never gets a second chance. The index is instead created by `prisma/sql/ensure-vector-index.sql`, run via `npx prisma db execute --file ... ` *after* `migrate deploy` in `scripts/db-migrate.sh` (run by both prod startup and the dev command). If RAG search feels like it's doing a full table scan, check `SELECT indexname FROM pg_indexes WHERE tablename = 'wa_bot_knowledge'` for `idx_knowledge_embedding` before assuming it's a query problem.
 
