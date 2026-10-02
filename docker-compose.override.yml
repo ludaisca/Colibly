@@ -1,3 +1,7 @@
+# Nombre fijo del proyecto de desarrollo (contenedores colibly-*, volúmenes
+# colibly_*), sin depender del nombre de la carpeta. Coolify no usa este archivo.
+name: colibly
+
 services:
   app:
     build:
@@ -15,7 +19,7 @@ services:
       # (http://localhost:18025), nunca en bandejas reales.
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
-      EMAIL_FROM: "SunflowCRM <no-reply@sundaycrm.test>"
+      EMAIL_FROM: "Colibly <no-reply@colibly.com>"
     command: >
       sh -c "npx prisma generate && sh scripts/db-migrate.sh && mkdir -p /app/media && npm run dev"
 

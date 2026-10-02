@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "=== SunflowCRM Production Startup ==="
+echo "=== Colibly Production Startup ==="
 
 echo "1. Generating Prisma client..."
 npx prisma generate
