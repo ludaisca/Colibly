@@ -28,7 +28,7 @@ export function DataSection({ organizationName, isOwner, isInternal }: { organiz
         throw new Error(body.error || "No se pudo exportar");
       }
       const blob = await res.blob();
-      const name = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "sunflowcrm-datos.json";
+      const name = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "colibly-datos.json";
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -45,7 +45,7 @@ export function DataSection({ organizationName, isOwner, isInternal }: { organiz
   return (
     <section className="space-y-4">
       <SectionHeader eyebrow="Tus datos" title="Exportar o eliminar" />
-      <div className="divide-y divide-border rounded-2xl border border-border bg-surface">
+      <div className="divide-y divide-border rounded-xl border border-border bg-surface">
         <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium">Descargar todos los datos</p>

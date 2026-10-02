@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
     const { allowed } = await rateLimit(`billing-checkout:${session.user.id}`, 10, 600);
     if (!allowed) return NextResponse.json({ error: "Demasiados intentos, espera un momento" }, { status: 429 });
-    if (!isStripeConfigured()) {
+    if (!(await isStripeConfigured())) {
       return NextResponse.json({ error: "Los pagos aún no están habilitados. Escríbenos para activar tu plan." }, { status: 503 });
     }
     const unverified = await requireVerifiedEmail(session.user.id);
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const stripe = getStripe();
+    const stripe = await getStripe();
     let customerId = org.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create(
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       mode: "subscription",
       customer: customerId,
       client_reference_id: org.id,
-      line_items: [{ price: priceIdFor(parsed.data.plan), quantity: 1 }],
+      line_items: [{ price: await priceIdFor(parsed.data.plan), quantity: 1 }],
       subscription_data: {
         metadata: { organizationId: org.id },
         ...(trialEnd ? { trial_end: Math.floor(trialEnd.getTime() / 1000) } : {}),

@@ -14,11 +14,19 @@ import { Badge } from "@/app/components/ui/badge";
 import { Modal } from "@/app/components/ui/modal";
 import { Banner } from "@/app/components/ui/banner";
 import { FormField } from "@/app/components/ui/form-field";
+import { Switch } from "@/app/components/ui/switch";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Pagination } from "@/app/components/ui/pagination";
 import { useToast } from "@/app/components/ui/toast";
 import { ORG_STATUS_BADGE, OrgStatusBadge } from "@/app/components/billing/org-status-badge";
 import { PLANS } from "@/lib/billing/plans";
+import { BRAND_NAME } from "@/lib/brand";
+import { PlataformaConfiguracion } from "./_configuracion";
+import { HeroTabs } from "@/app/components/ui/hero-tabs";
+
+const TABS = ["organizaciones", "configuracion"] as const;
+type Tab = (typeof TABS)[number];
+const TAB_LABEL: Record<Tab, string> = { organizaciones: "Organizaciones", configuracion: "Configuración" };
 
 export interface PlatformSummary {
   total: number;
@@ -50,6 +58,7 @@ export interface PlatformOrgRow {
   ownerVerified: boolean;
   members: number;
   channels: number;
+  channelFlags: { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean };
 }
 
 const n = (v: number) => v.toLocaleString("es-MX");
@@ -80,6 +89,7 @@ export function PlatformView({
   filters: { q: string; status: OrganizationStatus | null };
 }) {
   const router = useRouter();
+  const [tab, setTab] = useState<Tab>("organizaciones");
   const [q, setQ] = useState(filters.q);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // La fila se toma de las props: tras router.refresh() el modal ve los datos nuevos.
@@ -133,60 +143,69 @@ export function PlatformView({
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Plataforma" description="Todas las organizaciones de SunflowCRM, su cobro y acciones de soporte." />
+      <PageHeader title="Plataforma" description={`Todas las organizaciones de ${BRAND_NAME}, su cobro y acciones de soporte.`} />
 
-      <KpiStrip
-        size="compact"
-        items={[
-          { label: "Ingreso mensual", value: `$${n(summary.mrrUsd)} USD`, hint: "Suscripciones activas" },
-          { label: "Pagando", value: n(summary.paying), delta: summary.pastDue ? `${n(summary.pastDue)} con pago pendiente` : undefined, deltaTone: "danger" },
-          { label: "En prueba", value: n(summary.trialing), delta: `${n(summary.signups7d)} altas en 7 días`, deltaTone: "neutral" },
-          {
-            label: "Sin actividad",
-            value: n(summary.inactive),
-            hint: "Solo lectura o canceladas",
-            delta: summary.suspended ? `${n(summary.suspended)} suspendidas` : undefined,
-            deltaTone: "danger",
-          },
-        ]}
-      />
+      <HeroTabs items={TABS.map((id) => ({ id, label: TAB_LABEL[id] }))} value={tab} onChange={setTab} label="Secciones de Plataforma">
+      {tab === "configuracion" ? (
+        <PlataformaConfiguracion />
+      ) : (
+        <>
+          <KpiStrip
+            size="compact"
+            items={[
+              { label: "Ingreso mensual", value: `$${n(summary.mrrUsd)} USD`, hint: "Suscripciones activas" },
+              { label: "Pagando", value: n(summary.paying), delta: summary.pastDue ? `${n(summary.pastDue)} con pago pendiente` : undefined, deltaTone: "danger" },
+              { label: "En prueba", value: n(summary.trialing), delta: `${n(summary.signups7d)} altas en 7 días`, deltaTone: "neutral" },
+              {
+                label: "Sin actividad",
+                value: n(summary.inactive),
+                hint: "Solo lectura o canceladas",
+                delta: summary.suspended ? `${n(summary.suspended)} suspendidas` : undefined,
+                deltaTone: "danger",
+              },
+            ]}
+          />
 
-      <div className="space-y-4">
-        <form
-          className="flex flex-col gap-2 sm:flex-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            go({ q: q.trim(), pagina: 1 });
-          }}
-        >
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Organización o correo" aria-label="Buscar" className="sm:max-w-sm" />
-          <Select value={filters.status ?? ""} onChange={(e) => go({ estado: e.target.value || null, pagina: 1 })} aria-label="Estado" className="sm:w-48">
-            <option value="">Todos los estados</option>
-            {Object.entries(ORG_STATUS_BADGE).map(([value, { label }]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-          <Button type="submit" variant="secondary" icon={Search}>
-            Buscar
-          </Button>
-        </form>
+          <div className="space-y-4">
+            <form
+              className="flex flex-col gap-2 sm:flex-row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                go({ q: q.trim(), pagina: 1 });
+              }}
+            >
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Organización o correo" aria-label="Buscar" className="sm:max-w-sm" />
+              <Select value={filters.status ?? ""} onChange={(e) => go({ estado: e.target.value || null, pagina: 1 })} aria-label="Estado" className="sm:w-48">
+                <option value="">Todos los estados</option>
+                {Object.entries(ORG_STATUS_BADGE).map(([value, { label }]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+              <Button type="submit" variant="secondary" icon={Search}>
+                Buscar
+              </Button>
+            </form>
 
-        <p className="text-sm text-muted">{n(total)} organización(es)</p>
-        <Table
-          columns={columns}
-          rows={rows}
-          rowKey={(r) => r.id}
-          onRowClick={(r) => setSelectedId(r.id)}
-          emptyIcon={Building2}
-          emptyTitle="Sin organizaciones"
-          emptyDescription={filters.q || filters.status ? "Nada coincide con la búsqueda." : "Aún no se registra nadie."}
-        />
-        {totalPages > 1 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={(p) => go({ pagina: p })} />}
-      </div>
+            <p className="text-sm text-muted">{n(total)} organización(es)</p>
+            <Table
+              className="rounded-xl border border-border bg-surface p-5 shadow-sm"
+              columns={columns}
+              rows={rows}
+              rowKey={(r) => r.id}
+              onRowClick={(r) => setSelectedId(r.id)}
+              emptyIcon={Building2}
+              emptyTitle="Sin organizaciones"
+              emptyDescription={filters.q || filters.status ? "Nada coincide con la búsqueda." : "Aún no se registra nadie."}
+            />
+            {totalPages > 1 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={(p) => go({ pagina: p })} />}
+          </div>
 
-      {selected && <OrgModal org={selected} onClose={() => setSelectedId(null)} onChanged={() => router.refresh()} />}
+          {selected && <OrgModal org={selected} onClose={() => setSelectedId(null)} onChanged={() => router.refresh()} />}
+        </>
+      )}
+      </HeroTabs>
     </div>
   );
 }
@@ -238,7 +257,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
   ];
 
   return (
-    <Modal open onClose={onClose} title={org.name} size="lg">
+    <Modal open onClose={onClose} title={org.name} size="xl">
       <div className="space-y-6">
         {error && <Banner tone="danger">{error}</Banner>}
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
@@ -249,6 +268,41 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
             </div>
           ))}
         </dl>
+
+        <div className="space-y-3 border-t border-border pt-5">
+          <div>
+            <p className="text-sm font-medium">Canales habilitados</p>
+            <p className="text-xs text-muted-darker">
+              WhatsApp siempre está disponible. Los demás son una feature por organización — desactivar uno no apaga las
+              cuentas que ya tenga conectadas, solo bloquea agregar cuentas nuevas de ese canal.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ["telegram", "Telegram"],
+                ["messenger", "Messenger"],
+                ["instagram", "Instagram"],
+                ["webchat", "Web Widget"],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">
+                <span className="text-sm">{label}</span>
+                <Switch
+                  label={`Habilitar ${label}`}
+                  checked={org.channelFlags[key]}
+                  disabled={!!busy}
+                  onCheckedChange={(checked) =>
+                    act(
+                      { action: "set_channels", ...org.channelFlags, [key]: checked },
+                      `${label} ${checked ? "habilitado" : "deshabilitado"}`
+                    )
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </div>
 
         {!org.isInternal && (
           <div className="space-y-4 border-t border-border pt-5">

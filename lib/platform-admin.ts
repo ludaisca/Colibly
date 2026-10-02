@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
-// Operadores de la plataforma (quien vende SunflowCRM, no un rol dentro de una
+// Operadores de la plataforma (quien vende Colibly, no un rol dentro de una
 // organización): los correos de PLATFORM_ADMIN_EMAILS, separados por comas.
 // Sin la variable no hay operadores y /plataforma no existe para nadie.
 

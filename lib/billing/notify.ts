@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { appUrl, sendEmailSafely } from "@/lib/email/mailer";
 import { billingNoticeTemplate } from "@/lib/email/templates";
 import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "./plans";
+import { BRAND_NAME } from "@/lib/brand";
 
 // Avisos de facturación a los admins de la organización: notificación en la
 // campana (todos los admins activos) y, si se pide, correo.
@@ -42,7 +43,7 @@ function formatDate(date: Date): string {
 
 export function trialEndingNotice(daysLeft: number): Notice {
   return {
-    title: daysLeft <= 1 ? "Tu prueba de SunflowCRM termina mañana" : `Tu prueba de SunflowCRM termina en ${daysLeft} días`,
+    title: daysLeft <= 1 ? `Tu prueba de ${BRAND_NAME} termina mañana` : `Tu prueba de ${BRAND_NAME} termina en ${daysLeft} días`,
     paragraphs: ["Elige un plan para seguir atendiendo a tus clientes sin interrupciones. Tus datos, canales y automatizaciones se conservan."],
     email: true,
   };
@@ -74,7 +75,7 @@ export async function notifyBillingTransition(organizationId: string, from: Orga
     };
   } else if (to === "READ_ONLY") {
     notice = {
-      title: from === "TRIALING" ? "Tu prueba de SunflowCRM terminó" : "Tu cuenta de SunflowCRM está en solo lectura",
+      title: from === "TRIALING" ? `Tu prueba de ${BRAND_NAME} terminó` : `Tu cuenta de ${BRAND_NAME} está en solo lectura`,
       paragraphs: [
         "Tus datos siguen ahí, pero no se envían mensajes ni responden los bots y automatizaciones. Los mensajes de tus clientes se siguen recibiendo.",
         from === "TRIALING"
@@ -85,7 +86,7 @@ export async function notifyBillingTransition(organizationId: string, from: Orga
     };
   } else if (to === "CANCELED") {
     notice = {
-      title: "Tu suscripción de SunflowCRM terminó",
+      title: `Tu suscripción de ${BRAND_NAME} terminó`,
       paragraphs: [`Tu cuenta quedó en solo lectura. Conservamos tus datos ${RETENTION_DAYS_AFTER_CANCEL} días: si vuelves a suscribirte antes, todo sigue igual.`],
       email: true,
     };

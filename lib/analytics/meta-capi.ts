@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { httpTimeout } from "@/lib/http-timeouts";
+import { getPlatformSettings } from "@/lib/platform-settings";
 
 // Conversions API de Meta para el registro de NUESTROS clientes (medición de
-// anuncios de SunflowCRM). No confundir con lib/meta/conversions.ts, que manda
+// anuncios de Colibly). No confundir con lib/meta/conversions.ts, que manda
 // eventos de los leads de cada cliente a SU cuenta de anuncios.
 // Se envía solo si el visitante aceptó cookies (el navegador manda el eventId
 // únicamente en ese caso) y si existen META_PIXEL_ID y META_CAPI_ACCESS_TOKEN.
@@ -18,8 +19,7 @@ function readCookie(header: string | null, name: string): string | undefined {
 }
 
 export async function sendMetaSignupEvent(req: Request, input: { eventId: string; email: string; sourceUrl: string }): Promise<void> {
-  const pixelId = process.env.META_PIXEL_ID?.trim();
-  const token = process.env.META_CAPI_ACCESS_TOKEN?.trim();
+  const { metaPixelId: pixelId, metaCapiAccessToken: token } = await getPlatformSettings();
   if (!pixelId || !token || !/^\d{6,20}$/.test(pixelId)) return;
 
   const cookies = req.headers.get("cookie");

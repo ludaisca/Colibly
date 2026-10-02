@@ -620,9 +620,9 @@ model WATemplate {
 
 // Fuente de leads externa (hoja de Google Sheets, típicamente alimentada por la
 // sincronización nativa de Facebook Lead Ads → Sheets). A diferencia de GoogleAccount
-// (una hoja por usuario, la que SunflowCRM crea para exportar), spreadsheetId aquí es una hoja
+// (una hoja por usuario, la que la app crea para exportar), spreadsheetId aquí es una hoja
 // arbitraria del usuario — la misma conexión OAuth (lib/google/sheets-client.ts) sirve
-// para leerla porque el scope otorgado no está restringido a los archivos creados por SunflowCRM.
+// para leerla porque el scope otorgado no está restringido a los archivos creados por la app.
 model LeadSheetSource {
   id                String     @id @default(cuid())
   userId            String
@@ -1405,7 +1405,7 @@ model ApiKey {
 
 // Destino de webhooks salientes: cada evento de dominio (lib/events) que
 // coincide con `events` y el alcance de cuentas se entrega firmado con HMAC
-// (X-Sunflow-Signature) por la cola webhook-deliveries.
+// (X-Colibly-Signature) por la cola webhook-deliveries.
 model WebhookEndpoint {
   id                  String    @id @default(cuid())
   userId              String
@@ -1655,6 +1655,14 @@ model Organization {
   // Organizaciones de la casa (la instalación original, demos): sin cobro ni
   // candados de facturación.
   isInternal           Boolean            @default(false) @map("is_internal")
+  // Canales adicionales como feature por organización — el operador los
+  // activa desde /plataforma (lib/channel-flags.ts). WhatsApp no tiene flag,
+  // siempre disponible. Default false: una organización nueva solo tiene
+  // WhatsApp hasta que se le habilite algo más.
+  channelTelegramEnabled  Boolean          @default(false) @map("channel_telegram_enabled")
+  channelMessengerEnabled Boolean          @default(false) @map("channel_messenger_enabled")
+  channelInstagramEnabled Boolean          @default(false) @map("channel_instagram_enabled")
+  channelWebchatEnabled   Boolean          @default(false) @map("channel_webchat_enabled")
   trialEndsAt          DateTime?          @map("trial_ends_at")
   currentPeriodEnd     DateTime?          @map("current_period_end")
   graceEndsAt          DateTime?          @map("grace_ends_at")
@@ -1745,4 +1753,50 @@ model StripeEvent {
   processedAt DateTime @default(now()) @map("processed_at")
 
   @@map("stripe_events")
+}
+
+// Configuración de negocio de la plataforma (IA, Stripe, SMTP, Turnstile,
+// medición), editable desde /plataforma en vez de variables de entorno. Fila
+// única con id fijo "platform" — ver lib/platform-settings.ts, el único punto
+// que la lee/escribe. Los campos marcados "cifrado" pasan por lib/crypto.ts
+// antes de guardarse; nunca se re-exponen en texto plano vía la API (solo un
+// booleano "configurado"). Lo que NO vive aquí (DATABASE_URL, REDIS_URL,
+// AUTH_SECRET, ENCRYPTION_KEY, APP_URL, PLATFORM_ADMIN_EMAILS) es
+// infraestructura de arranque y se queda en env — ver AGENTS.md.
+model PlatformSettings {
+  id String @id @default("platform")
+
+  // IA (lib/ai/platform.ts)
+  opencodeApiKey String? @map("opencode_api_key") // cifrado
+  googleApiKey   String? @map("google_api_key") // cifrado
+
+  // Stripe (lib/billing/stripe.ts)
+  stripeSecretKey     String? @map("stripe_secret_key") // cifrado
+  stripeWebhookSecret String? @map("stripe_webhook_secret") // cifrado
+  stripePriceBasic    String? @map("stripe_price_basic")
+  stripePricePro      String? @map("stripe_price_pro")
+
+  // SMTP (lib/email/mailer.ts)
+  smtpHost   String?  @map("smtp_host")
+  smtpPort   Int?     @map("smtp_port")
+  smtpSecure Boolean  @default(false) @map("smtp_secure")
+  smtpUser   String?  @map("smtp_user")
+  smtpPass   String?  @map("smtp_pass") // cifrado
+  emailFrom  String?  @map("email_from")
+
+  // Captcha (lib/turnstile.ts)
+  turnstileSiteKey   String? @map("turnstile_site_key")
+  turnstileSecretKey String? @map("turnstile_secret_key") // cifrado
+
+  // Medición del sitio público (lib/analytics/)
+  metaPixelId          String? @map("meta_pixel_id")
+  metaCapiAccessToken  String? @map("meta_capi_access_token") // cifrado
+  gaMeasurementId      String? @map("ga_measurement_id")
+  googleAdsId          String? @map("google_ads_id")
+  googleAdsSignupLabel String? @map("google_ads_signup_label")
+
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  updatedByEmail String?  @map("updated_by_email")
+
+  @@map("platform_settings")
 }

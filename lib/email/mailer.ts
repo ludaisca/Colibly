@@ -1,48 +1,48 @@
 import nodemailer, { type Transporter } from "nodemailer";
+import { BRAND_NAME, BRAND_DOMAIN } from "@/lib/brand";
+import { getPlatformSettings } from "@/lib/platform-settings";
 
 // Envío de correo transaccional por SMTP (Resend, Brevo, SES… todos lo
-// hablan). Sin SMTP_HOST, en desarrollo el correo se imprime en el log del
-// contenedor; en producción falta de configuración es un error, no un silencio
-// — un registro cuyo correo de verificación nunca sale deja al cliente atorado.
+// hablan). Configuración editable desde /plataforma — ver
+// lib/platform-settings.ts. Sin SMTP host, en desarrollo el correo se imprime
+// en el log del contenedor; en producción falta de configuración es un error,
+// no un silencio — un registro cuyo correo de verificación nunca sale deja al
+// cliente atorado.
 
 export interface EmailMessage {
   to: string;
+  replyTo?: string;
   subject: string;
   html: string;
   text: string;
 }
 
-let transporter: Transporter | null | undefined;
-
-function getTransporter(): Transporter | null {
-  if (transporter !== undefined) return transporter;
-  const host = process.env.SMTP_HOST;
-  if (!host) {
-    transporter = null;
-    return null;
-  }
-  const user = process.env.SMTP_USER;
-  transporter = nodemailer.createTransport({
-    host,
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: user ? { user, pass: process.env.SMTP_PASS ?? "" } : undefined,
+// Sin caché de instancia a propósito: la config puede cambiar desde la GUI y
+// construir el transporter no abre conexión (nodemailer la abre al enviar).
+async function getTransporter(): Promise<Transporter | null> {
+  const settings = await getPlatformSettings();
+  if (!settings.smtpHost) return null;
+  return nodemailer.createTransport({
+    host: settings.smtpHost,
+    port: settings.smtpPort,
+    secure: settings.smtpSecure,
+    auth: settings.smtpUser ? { user: settings.smtpUser, pass: settings.smtpPass ?? "" } : undefined,
     // Un SMTP colgado no debe retener el request (o el job) indefinidamente.
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 20_000,
   });
-  return transporter;
 }
 
 export async function sendEmail(message: EmailMessage): Promise<void> {
-  const t = getTransporter();
+  const settings = await getPlatformSettings();
+  const t = await getTransporter();
   if (!t) {
-    if (process.env.NODE_ENV === "production") throw new Error("SMTP no configurado (SMTP_HOST)");
+    if (process.env.NODE_ENV === "production") throw new Error("SMTP no configurado (falta el host en /plataforma)");
     console.info(`[email] (sin SMTP) Para: ${message.to} · ${message.subject}\n${message.text}`);
     return;
   }
-  await t.sendMail({ from: process.env.EMAIL_FROM || "SunflowCRM <no-reply@localhost>", ...message });
+  await t.sendMail({ from: settings.emailFrom || `${BRAND_NAME} <no-reply@${BRAND_DOMAIN}>`, ...message });
 }
 
 // Envío en segundo plano (dentro de after() de Next): un fallo del SMTP se

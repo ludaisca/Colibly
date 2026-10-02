@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getStripe, syncSubscription } from "@/lib/billing/stripe";
+import { getStripe, getStripeWebhookSecret, syncSubscription } from "@/lib/billing/stripe";
 import { resetAiCredits } from "@/lib/ai/credits";
 
-// Webhook de Stripe. Firma verificada con STRIPE_WEBHOOK_SECRET sobre el cuerpo
-// crudo. Cada evento se procesa releyendo la suscripción (syncSubscription),
-// así que repetir uno es inofensivo; StripeEvent además evita trabajo doble.
-// Si el procesamiento falla se responde 500 y Stripe reintenta.
+// Webhook de Stripe. Firma verificada con el webhook secret configurado en
+// /plataforma sobre el cuerpo crudo. Cada evento se procesa releyendo la
+// suscripción (syncSubscription), así que repetir uno es inofensivo;
+// StripeEvent además evita trabajo doble. Si el procesamiento falla se
+// responde 500 y Stripe reintenta.
 
 function subscriptionIdOf(ref: string | { id: string } | null | undefined): string | null {
   if (!ref) return null;
@@ -56,7 +57,7 @@ async function handle(event: Stripe.Event): Promise<void> {
 }
 
 export async function POST(req: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = await getStripeWebhookSecret();
   if (!secret) return NextResponse.json({ error: "Webhook de Stripe no configurado" }, { status: 503 });
 
   const signature = req.headers.get("stripe-signature");
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
   try {
     if (!signature) throw new Error("Falta stripe-signature");
-    event = getStripe().webhooks.constructEvent(body, signature, secret);
+    event = (await getStripe()).webhooks.constructEvent(body, signature, secret);
   } catch (err) {
     console.warn("[billing/webhook] Firma inválida:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Firma inválida" }, { status: 400 });

@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}"
-      POSTGRES_DB: sunday_crm_db
+      POSTGRES_DB: colibly_db
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:z
@@ -20,7 +20,7 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "PGPASSWORD=${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno} psql -h db -U postgres -d sunday_crm_db -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
+      sh -c "PGPASSWORD=${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno} psql -h db -U postgres -d colibly_db -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
     restart: "no"
 
   redis:
@@ -38,7 +38,7 @@ services:
     expose:
       - "5000"
     environment:
-      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}@db:5432/sunday_crm_db"
+      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}@db:5432/colibly_db"
       AUTH_SECRET: "${AUTH_SECRET}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
       REDIS_URL: "redis://redis:6379"
@@ -50,33 +50,17 @@ services:
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       GOOGLE_OAUTH_REDIRECT_URI: "${GOOGLE_OAUTH_REDIRECT_URI:-}"
       MEDIA_RETENTION_DAYS: "${MEDIA_RETENTION_DAYS:-90}"
-      # SaaS: URL pública (enlaces de correos y de Stripe), correo, cobro e IA de
-      # la plataforma. Igual que arriba: sin passthrough no llegan al proceso.
+      # URL pública (enlaces de correos y de Stripe) — infraestructura de
+      # arranque, se queda en env. IA, Stripe, SMTP, Turnstile y medición ya NO
+      # son env vars: se configuran desde /plataforma → PlatformSettings
+      # (lib/platform-settings.ts), cifradas en base de datos.
       APP_URL: "${APP_URL:-}"
-      SMTP_HOST: "${SMTP_HOST:-}"
-      SMTP_PORT: "${SMTP_PORT:-587}"
-      SMTP_SECURE: "${SMTP_SECURE:-false}"
-      SMTP_USER: "${SMTP_USER:-}"
-      SMTP_PASS: "${SMTP_PASS:-}"
-      EMAIL_FROM: "${EMAIL_FROM:-}"
-      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
-      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
-      STRIPE_PRICE_BASIC: "${STRIPE_PRICE_BASIC:-}"
-      STRIPE_PRICE_PRO: "${STRIPE_PRICE_PRO:-}"
-      PLATFORM_OPENROUTER_API_KEY: "${PLATFORM_OPENROUTER_API_KEY:-}"
-      PLATFORM_GOOGLE_API_KEY: "${PLATFORM_GOOGLE_API_KEY:-}"
-      # Medición del sitio público (lib/analytics); vacías = no se carga nada.
-      META_PIXEL_ID: "${META_PIXEL_ID:-}"
-      META_CAPI_ACCESS_TOKEN: "${META_CAPI_ACCESS_TOKEN:-}"
-      GA_MEASUREMENT_ID: "${GA_MEASUREMENT_ID:-}"
-      GOOGLE_ADS_ID: "${GOOGLE_ADS_ID:-}"
-      GOOGLE_ADS_SIGNUP_LABEL: "${GOOGLE_ADS_SIGNUP_LABEL:-}"
+      SITE_URL: "${SITE_URL:-}"
       # Cuenta de chat web (propia) que se muestra en la landing.
       LANDING_WEBCHAT_ACCOUNT_ID: "${LANDING_WEBCHAT_ACCOUNT_ID:-}"
-      # Operadores de la plataforma (panel /plataforma) y captcha del registro.
+      # Operadores de la plataforma (panel /plataforma): perímetro de acceso,
+      # deliberadamente fuera de la base de datos — ver lib/platform-admin.ts.
       PLATFORM_ADMIN_EMAILS: "${PLATFORM_ADMIN_EMAILS:-}"
-      TURNSTILE_SITE_KEY: "${TURNSTILE_SITE_KEY:-}"
-      TURNSTILE_SECRET_KEY: "${TURNSTILE_SECRET_KEY:-}"
     healthcheck:
       # 127.0.0.1, no "localhost": dentro del contenedor localhost resuelve a
       # ::1 primero y next-server solo escucha en IPv4 — con localhost el

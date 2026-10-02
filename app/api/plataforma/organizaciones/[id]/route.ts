@@ -15,6 +15,13 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("grant_credits"), credits: z.number().int().min(1).max(MAX_BONUS_CREDITS) }),
   z.object({ action: z.literal("suspend") }),
   z.object({ action: z.literal("reactivate") }),
+  z.object({
+    action: z.literal("set_channels"),
+    telegram: z.boolean(),
+    messenger: z.boolean(),
+    instagram: z.boolean(),
+    webchat: z.boolean(),
+  }),
 ]);
 
 // Acciones del operador sobre una organización (panel /plataforma). Cada una
@@ -68,9 +75,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       // accessMode "suspended"); la sesión cae en su próxima revalidación (el
       // token se revisa cada 60 s y el estado del usuario tiene otro caché de 60 s).
       for (const m of org.members) invalidateUserSessionCache(m.id);
-    } else {
+    } else if (input.action === "reactivate") {
       if (org.status !== "SUSPENDED") return NextResponse.json({ error: "No está suspendida" }, { status: 400 });
-      if (org.stripeSubscriptionId && isStripeConfigured()) {
+      if (org.stripeSubscriptionId && (await isStripeConfigured())) {
         // syncSubscription no toca a una SUSPENDED: se saca primero a un estado
         // neutro y Stripe decide el real (activa, impago, cancelada…).
         await prisma.organization.update({ where: { id }, data: { status: "READ_ONLY" } });
@@ -80,13 +87,32 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         await prisma.organization.update({ where: { id }, data: { status: statusAfterSuspension(org, now) } });
       }
       for (const m of org.members) invalidateUserSessionCache(m.id);
+    } else {
+      // set_channels: feature por organización, no toca facturación ni sesiones.
+      await prisma.organization.update({
+        where: { id },
+        data: {
+          channelTelegramEnabled: input.telegram,
+          channelMessengerEnabled: input.messenger,
+          channelInstagramEnabled: input.instagram,
+          channelWebchatEnabled: input.webchat,
+        },
+      });
     }
 
     invalidateOrgBilling(id);
     console.log(`[plataforma] ${admin.email} → ${JSON.stringify(input)} en "${org.name}" (${id})`);
     const updated = await prisma.organization.findUniqueOrThrow({
       where: { id },
-      select: { status: true, trialEndsAt: true, aiCreditsBonus: true },
+      select: {
+        status: true,
+        trialEndsAt: true,
+        aiCreditsBonus: true,
+        channelTelegramEnabled: true,
+        channelMessengerEnabled: true,
+        channelInstagramEnabled: true,
+        channelWebchatEnabled: true,
+      },
     });
     return NextResponse.json({ organization: updated });
   } catch (error) {

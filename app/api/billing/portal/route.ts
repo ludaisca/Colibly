@@ -13,7 +13,7 @@ export async function POST() {
     if (!session?.user?.id || session.user.role !== "admin") {
       return NextResponse.json({ error: "Solo un administrador puede administrar la facturación" }, { status: 403 });
     }
-    if (!isStripeConfigured()) return NextResponse.json({ error: "Los pagos aún no están habilitados." }, { status: 503 });
+    if (!(await isStripeConfigured())) return NextResponse.json({ error: "Los pagos aún no están habilitados." }, { status: 503 });
     const org = await prisma.organization.findUniqueOrThrow({
       where: { id: await requireOrgId(session.user.id) },
       select: { stripeCustomerId: true },
@@ -21,7 +21,8 @@ export async function POST() {
     if (!org.stripeCustomerId) {
       return NextResponse.json({ error: "Aún no tienes una suscripción. Elige un plan primero." }, { status: 400 });
     }
-    const portal = await getStripe().billingPortal.sessions.create({
+    const stripe = await getStripe();
+    const portal = await stripe.billingPortal.sessions.create({
       customer: org.stripeCustomerId,
       return_url: appUrl("/configuracion/plan"),
     });

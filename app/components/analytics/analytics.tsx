@@ -15,7 +15,7 @@ declare global {
 }
 
 // Avisa a los componentes de esta pestaña que cambió la elección guardada.
-const CONSENT_CHANGE_EVENT = "sunflow:consent-change";
+const CONSENT_CHANGE_EVENT = "colibly:consent-change";
 
 function subscribeConsent(onChange: () => void) {
   window.addEventListener(CONSENT_CHANGE_EVENT, onChange);
@@ -80,7 +80,7 @@ function loadGoogleTag(config: AnalyticsConfig) {
   if (config.gaMeasurementId) window.gtag("config", config.gaMeasurementId);
   if (config.googleAdsId) window.gtag("config", config.googleAdsId);
   if (config.googleAdsId && config.googleAdsSignupLabel) {
-    window.__sunflowAnalytics = { googleAdsSignup: `${config.googleAdsId}/${config.googleAdsSignupLabel}` };
+    window.__colibly_analytics = { googleAdsSignup: `${config.googleAdsId}/${config.googleAdsSignupLabel}` };
   }
 }
 

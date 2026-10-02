@@ -9,11 +9,11 @@ declare global {
   interface Window {
     fbq?: Fbq;
     gtag?: Gtag;
-    __sunflowAnalytics?: { googleAdsSignup?: string };
+    __colibly_analytics?: { googleAdsSignup?: string };
   }
 }
 
-export const CONSENT_KEY = "sunflow_consent";
+export const CONSENT_KEY = "colibly_consent";
 export type Consent = "granted" | "denied";
 
 export function readConsent(): Consent | null {
@@ -33,6 +33,7 @@ export type SiteEvent =
   | { name: "cta_click"; location: string }
   | { name: "view_pricing" }
   | { name: "faq_open"; question: string }
+  | { name: "beta_apply" }
   | { name: "sign_up"; eventId: string };
 
 export function track(event: SiteEvent): void {
@@ -50,12 +51,16 @@ export function track(event: SiteEvent): void {
     case "faq_open":
       gtag?.("event", "faq_open", { question: event.question });
       break;
+    case "beta_apply":
+      fbq?.("track", "Lead", { content_name: "beta" });
+      gtag?.("event", "generate_lead", { lead_source: "beta_landing" });
+      break;
     case "sign_up": {
       // eventID igual al del evento que manda el servidor (Conversions API):
       // Meta los deduplica y cuenta un solo registro.
       fbq?.("track", "CompleteRegistration", {}, { eventID: event.eventId });
       gtag?.("event", "sign_up", { method: "email" });
-      const sendTo = window.__sunflowAnalytics?.googleAdsSignup;
+      const sendTo = window.__colibly_analytics?.googleAdsSignup;
       if (sendTo) gtag?.("event", "conversion", { send_to: sendTo });
       break;
     }

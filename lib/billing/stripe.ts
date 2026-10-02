@@ -1,37 +1,43 @@
 import Stripe from "stripe";
 import type { OrganizationStatus, PlanId } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getPlatformSettings } from "@/lib/platform-settings";
 import { deriveFromSubscription, type SubscriptionSnapshot } from "./state";
 import { invalidateOrgBilling } from "./gates";
 import { notifyBillingTransition } from "./notify";
 
 // Integración con Stripe: cliente, precios por plan y sincronización de la
-// suscripción → Organization. Variables: STRIPE_SECRET_KEY,
-// STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_BASIC, STRIPE_PRICE_PRO (IDs de precio
-// mensual en USD).
+// suscripción → Organization. Configuración (secret key, webhook secret,
+// price ids) editable desde /plataforma — ver lib/platform-settings.ts.
 
-let client: Stripe | null = null;
-
-export function isStripeConfigured(): boolean {
-  return !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_BASIC && process.env.STRIPE_PRICE_PRO);
+export async function isStripeConfigured(): Promise<boolean> {
+  const s = await getPlatformSettings();
+  return !!(s.stripeSecretKey && s.stripePriceBasic && s.stripePricePro);
 }
 
-export function getStripe(): Stripe {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Stripe no está configurado (STRIPE_SECRET_KEY)");
-  client ??= new Stripe(key, { timeout: 20_000, maxNetworkRetries: 2 });
-  return client;
+export async function getStripe(): Promise<Stripe> {
+  const { stripeSecretKey } = await getPlatformSettings();
+  if (!stripeSecretKey) throw new Error("Stripe no está configurado (falta la secret key en /plataforma)");
+  // Sin caché de instancia a propósito: la key puede cambiar desde la GUI y
+  // construir un cliente de Stripe no hace ninguna llamada de red.
+  return new Stripe(stripeSecretKey, { timeout: 20_000, maxNetworkRetries: 2 });
 }
 
-export function priceIdFor(plan: PlanId): string {
-  const id = plan === "BASIC" ? process.env.STRIPE_PRICE_BASIC : process.env.STRIPE_PRICE_PRO;
-  if (!id) throw new Error(`Falta el precio de Stripe del plan ${plan}`);
+export async function getStripeWebhookSecret(): Promise<string | null> {
+  return (await getPlatformSettings()).stripeWebhookSecret;
+}
+
+export async function priceIdFor(plan: PlanId): Promise<string> {
+  const { stripePriceBasic, stripePricePro } = await getPlatformSettings();
+  const id = plan === "BASIC" ? stripePriceBasic : stripePricePro;
+  if (!id) throw new Error(`Falta el precio de Stripe del plan ${plan} en /plataforma`);
   return id;
 }
 
-export function planForPrice(priceId: string): PlanId | null {
-  if (priceId === process.env.STRIPE_PRICE_BASIC) return "BASIC";
-  if (priceId === process.env.STRIPE_PRICE_PRO) return "PRO";
+export async function planForPrice(priceId: string): Promise<PlanId | null> {
+  const { stripePriceBasic, stripePricePro } = await getPlatformSettings();
+  if (priceId === stripePriceBasic) return "BASIC";
+  if (priceId === stripePricePro) return "PRO";
   return null;
 }
 
@@ -55,7 +61,7 @@ function idOf(ref: string | { id: string } | null | undefined): string | null {
 // los eventos no importa) y la aplica a su organización. Devuelve el id de la
 // organización, o null si no se pudo asociar.
 export async function syncSubscription(subscriptionId: string, hintOrganizationId?: string | null): Promise<string | null> {
-  const sub = await getStripe().subscriptions.retrieve(subscriptionId);
+  const sub = await (await getStripe()).subscriptions.retrieve(subscriptionId);
   const customerId = idOf(sub.customer);
   const metaOrg = sub.metadata?.organizationId || null;
 
@@ -75,7 +81,12 @@ export async function syncSubscription(subscriptionId: string, hintOrganizationI
     return org.id;
   }
 
-  const update = deriveFromSubscription(subscriptionSnapshot(sub), org, new Date(), planForPrice);
+  const snapshot = subscriptionSnapshot(sub);
+  // deriveFromSubscription es pura y síncrona (lib/billing/state.ts, testeada
+  // sin Stripe/DB) — el plan se resuelve aquí, antes de llamarla, en vez de
+  // pasarle planForPrice (que ahora es async) como callback.
+  const plan = snapshot.priceId ? await planForPrice(snapshot.priceId) : null;
+  const update = deriveFromSubscription(snapshot, org, new Date(), () => plan);
   await prisma.organization.update({
     where: { id: org.id },
     data: {

@@ -114,7 +114,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
         </Banner>
       )}
 
-      <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+      <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-display text-xl font-semibold">Plan {PLANS[data.plan].name}</p>
           {!data.isInternal && <OrgStatusBadge status={data.status} />}
@@ -157,7 +157,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
               return (
                 <div
                   key={plan.id}
-                  className={cn("flex flex-col rounded-2xl border bg-surface p-5 shadow-sm", current ? "border-accent-strong" : "border-border")}
+                  className={cn("flex flex-col rounded-xl border bg-surface p-5 shadow-sm", current ? "border-accent-strong" : "border-border")}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-display text-lg font-semibold">{plan.name}</p>

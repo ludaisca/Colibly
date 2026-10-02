@@ -41,12 +41,12 @@ export default async function PlanPage() {
     cancelAtPeriodEnd: org.cancelAtPeriodEnd,
     hasSubscription: !!org.stripeSubscriptionId && org.status !== "CANCELED",
     hasCustomer: !!org.stripeCustomerId,
-    stripeConfigured: isStripeConfigured(),
+    stripeConfigured: await isStripeConfigured(),
     // Stripe solo difiere el primer cobro si quedan más de 48 h de prueba.
     chargeDeferredToTrialEnd: org.status === "TRIALING" && !!org.trialEndsAt && org.trialEndsAt.getTime() - now.getTime() > 49 * 60 * 60 * 1000,
     usage: [
       { key: "users", label: "Usuarios", hint: "Incluye invitaciones pendientes", used: usage.users, max: finite(limits.users) },
-      { key: "channels", label: "Canales conectados", hint: "WhatsApp, Telegram, Messenger e Instagram. El widget web no cuenta", used: usage.channels, max: finite(limits.channels) },
+      { key: "channels", label: "Canales registrados", hint: "WhatsApp, Telegram, Messenger e Instagram. El widget web no cuenta", used: usage.channels, max: finite(limits.channels) },
       { key: "contacts", label: "Contactos", hint: null, used: usage.contacts, max: finite(limits.contacts) },
       { key: "automations", label: "Automatizaciones activas", hint: null, used: usage.activeAutomations, max: finite(limits.activeAutomations) },
       {
