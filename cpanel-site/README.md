@@ -17,7 +17,7 @@ El `index.php` inicia una sesión para generar un token CSRF. El formulario env�
 1. Dejar el DNS raíz y el MX actuales en Neubox. `app.colibly.com` mantiene su CNAME a `ludaisca.ddns.net`; comprobar HTTPS y `APP_URL=https://app.colibly.com` en el despliegue de la app.
 2. Configurar SSL de `colibly.com` en cPanel y comprobar que la raíz sirve `index.php` por HTTPS. El servidor cPanel debe seguir siendo el destino del A raíz.
 3. Probar una solicitud real desde la landing y verificar recepción en `contacto@colibly.com`. Probar también campos inválidos, reenvío excesivo y la página de confirmación.
-4. Revisar los borradores de `/terminos` y `/privacidad` con asesoría legal. Tienen marcadores pendientes, `noindex` y no se incluyen en el sitemap hasta que estén listos. **La landing anuncia una beta asistida de 30 días, mientras que el registro abierto de la app y los términos actuales describen una prueba estándar de 14 días:** resolver esa diferencia antes de invitar público.
+4. Revisar los borradores de `/terminos` y `/privacidad` con asesoría legal. Tienen marcadores pendientes, `noindex` y no se incluyen en el sitemap hasta que estén listos. La prueba es de 30 días en la landing, el registro y los términos (`TRIAL_DAYS`); si cambia, actualizar `terminos.php` a mano.
 5. Si cambia la oferta, marca o precios, actualizar tanto esta copia como la landing Next.js. Son dos publicaciones distintas; la versión de cPanel no se sincroniza sola.
 
 ## Prueba local con PHP
