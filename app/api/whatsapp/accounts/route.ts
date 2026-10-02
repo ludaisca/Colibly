@@ -11,6 +11,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
+import { getUserAccountIds } from "@/lib/shared-accounts";
 
 export async function POST(req: Request) {
   try {
@@ -96,18 +97,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
 
-    const userId = session.user.id;
-
-    const sharedIds = await prisma.wAAccountShare.findMany({
-      where: { userId },
-      select: { waAccountId: true },
-    });
-
     const where: Record<string, unknown> = {
-      OR: [
-        { userId },
-        ...(sharedIds.length > 0 ? [{ id: { in: sharedIds.map((s) => s.waAccountId) } }] : []),
-      ],
+      id: { in: await getUserAccountIds(session.user.id) },
     };
     if (statusFilter) {
       where.status = statusFilter;

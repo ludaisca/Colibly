@@ -11,6 +11,7 @@ import { requireOrgId } from "@/lib/tenancy";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
+import { assertChannelEnabled } from "@/lib/channel-flags";
 
 // El rol "ejecutivo" tiene /telegram/cuentas bloqueado en proxy.ts — este 403
 // cierra el acceso directo a la API (defensa en profundidad, mismo patrón que
@@ -32,7 +33,10 @@ export async function POST(req: Request) {
 
     const unverified = await requireVerifiedEmail(session.user.id);
     if (unverified) return unverified;
-    const overLimit = await checkPlanLimit(await requireOrgId(session.user.id), "channels");
+    const organizationId = await requireOrgId(session.user.id);
+    const channelDisabled = await assertChannelEnabled(organizationId, "TELEGRAM");
+    if (channelDisabled) return channelDisabled;
+    const overLimit = await checkPlanLimit(organizationId, "channels");
     if (overLimit) return overLimit;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
@@ -55,7 +59,7 @@ export async function POST(req: Request) {
     const account = await prisma.channelAccount.create({
       data: {
         userId: session.user.id,
-        organizationId: await requireOrgId(session.user.id),
+        organizationId,
         channel: "TELEGRAM",
         name,
         credentials,

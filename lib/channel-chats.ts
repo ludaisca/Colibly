@@ -31,6 +31,8 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
     channelAccountId: accountId ? accountId : { in: channelAccountIds },
     channelAccount: { channel },
   };
+  const chatId = searchParams.get("chatId");
+  if (chatId) where.id = chatId;
 
   const search = searchParams.get("search")?.trim();
   if (search) {

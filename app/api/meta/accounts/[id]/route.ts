@@ -36,6 +36,7 @@ export async function GET(
         waAccountId: true,
         waAccount: { select: { id: true, name: true } },
         appSecret: true,
+        capiAccessToken: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { contacts: true, conversionEvents: true } },
@@ -46,8 +47,8 @@ export async function GET(
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
 
-    const { appSecret, ...rest } = account;
-    return NextResponse.json({ ...rest, hasAppSecret: !!appSecret });
+    const { appSecret, capiAccessToken, ...rest } = account;
+    return NextResponse.json({ ...rest, hasAppSecret: !!appSecret, hasCapiAccessToken: !!capiAccessToken });
   } catch (error) {
     const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
@@ -119,18 +120,16 @@ export async function PATCH(
       data.capiAccessToken = capiAccessToken ? encrypt(capiAccessToken) : null;
     }
 
-    // mode:LIVE es una decisión de negocio explícita — nunca se activa sola.
-    // Ver lib/meta/conversions.ts: rechaza mandar si no hay testEventCode NI
-    // mode LIVE ya confirmado por un admin desde este mismo formulario.
-    if (mode) {
-      if (mode === "LIVE" && !existing.datasetId && !data.datasetId) {
-        return NextResponse.json(
-          { error: "Configura el Dataset ID antes de pasar a modo LIVE" },
-          { status: 400 }
-        );
-      }
-      data.mode = mode;
+    // LIVE sin Dataset ID o token parece activo en la UI, pero el worker
+    // omite todos los eventos. También se valida al borrar credenciales.
+    const effectiveMode = mode ?? existing.mode;
+    const effectiveDataset = datasetId !== undefined ? datasetId.trim() : existing.datasetId;
+    const hasCapiToken = capiAccessToken !== undefined ? !!capiAccessToken.trim() : !!existing.capiAccessToken;
+    if (effectiveMode === "LIVE" && (!effectiveDataset || !hasCapiToken)) {
+      return NextResponse.json({ error: "Para usar LIVE configura el Dataset ID y el token de Conversions API" }, { status: 400 });
     }
+    // mode:LIVE solo llega cuando un admin lo confirma en el formulario.
+    if (mode) data.mode = mode;
 
     const updated = await prisma.metaAdsAccount.update({
       where: { id },

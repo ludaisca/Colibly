@@ -10,6 +10,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
+import { ChannelAvailabilityNotice, useChannelAvailability } from "@/app/components/channel-accounts/availability";
 import { WebchatCuentaFormModal } from "./_form";
 import { useSession } from "next-auth/react";
 import { ChannelAccountShareModal } from "@/app/components/channel-accounts/share-modal";
@@ -34,6 +35,7 @@ const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" 
 
 export default function WebchatCuentasPage() {
   const { success, error: toastError } = useToast();
+  const { available, error: availabilityError } = useChannelAvailability("webchat");
   const [accounts, setAccounts] = useState<ChannelAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -86,11 +88,13 @@ export default function WebchatCuentasPage() {
         title="Cuentas Web"
         description="Widget de chat en vivo embebible en tu sitio web — el visitante escribe sin necesitar cuenta, la conversación llega al mismo inbox."
         actions={
-          <Button icon={Plus} size="sm" onClick={() => { setEditId(null); setFormOpen(true); }}>
+          <Button icon={Plus} size="sm" disabled={!available} onClick={() => { setEditId(null); setFormOpen(true); }}>
             Nueva cuenta web
           </Button>
         }
       />
+
+      <ChannelAvailabilityNotice available={available} error={availabilityError} />
 
       <EntityList
         rows={accounts}
@@ -102,12 +106,12 @@ export default function WebchatCuentasPage() {
         emptyTitle="Sin cuentas web"
         emptyDescription="Crea una cuenta para obtener el script embebible del widget de chat en vivo."
         onRowClick={(a) => {
-          if (a.userId !== session?.user?.id) return; // compartida contigo: solo el dueño la edita
+          if (session?.user?.role !== "admin" && a.userId !== session?.user?.id) return;
           setEditId(a.id);
           setFormOpen(true);
         }}
         rowActions={(a) =>
-          a.userId === session?.user?.id ? (
+          session?.user?.role === "admin" || a.userId === session?.user?.id ? (
             <>
               {session?.user?.role === "admin" && (
                 <DropdownItem icon={Share2} onClick={() => setShareAccount(a)}>

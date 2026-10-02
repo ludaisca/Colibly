@@ -16,6 +16,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { TelegramCuentaFormModal } from "./_form";
 import { useSession } from "next-auth/react";
 import { ChannelAccountShareModal } from "@/app/components/channel-accounts/share-modal";
+import { ChannelAvailabilityNotice, useChannelAvailability } from "@/app/components/channel-accounts/availability";
 
 interface ChannelAccount {
   id: string;
@@ -56,10 +57,13 @@ function TelegramCuentasView() {
   const [statusFilter, setStatusFilter] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { data: session } = useSession();
+  const { available, error: availabilityError } = useChannelAvailability("telegram");
   // Solo el admin dueño comparte; una cuenta compartida contigo se ve y se
   // atiende, pero no se comparte ni elimina desde aquí.
   const [shareAccount, setShareAccount] = useState<ChannelAccount | null>(null);
-  const [formOpen, setFormOpen] = useState(searchParams.get("nueva") === "1");
+  const [formOpen, setFormOpen] = useState(false);
+
+  const openNewFromUrl = available === true && searchParams.get("nueva") === "1";
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -116,10 +120,12 @@ function TelegramCuentasView() {
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>
               Actualizar
             </Button>
-            <Button icon={Plus} size="sm" onClick={() => setFormOpen(true)}>Conectar bot</Button>
+            <Button icon={Plus} size="sm" disabled={!available} onClick={() => setFormOpen(true)}>Conectar bot</Button>
           </>
         }
       />
+
+      <ChannelAvailabilityNotice available={available} error={availabilityError} />
 
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -131,6 +137,7 @@ function TelegramCuentasView() {
             className="sm:max-w-xs flex-1"
           />
           <Select
+            aria-label="Filtrar por estado"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             placeholder="Todos los estados"
@@ -158,7 +165,7 @@ function TelegramCuentasView() {
               : "No se encontraron cuentas con los filtros actuales."
           }
           rowActions={(a) =>
-            a.userId === session?.user?.id ? (
+            session?.user?.role === "admin" || a.userId === session?.user?.id ? (
               <>
                 {session?.user?.role === "admin" && (
                   <DropdownItem icon={Share2} onClick={() => setShareAccount(a)}>
@@ -212,7 +219,7 @@ function TelegramCuentasView() {
       />
 
       <TelegramCuentaFormModal
-        open={formOpen}
+        open={formOpen || openNewFromUrl}
         onClose={() => {
           setFormOpen(false);
           if (searchParams.get("nueva")) router.replace("/telegram/cuentas");

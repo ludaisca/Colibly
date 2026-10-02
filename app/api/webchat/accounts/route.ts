@@ -8,6 +8,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
+import { assertChannelEnabled } from "@/lib/channel-flags";
 
 // Mismo criterio de rol que Telegram/Messenger/Instagram — "ejecutivo" tiene
 // /webchat/cuentas bloqueado en proxy.ts, este 403 cierra el acceso directo
@@ -41,6 +42,9 @@ export async function POST(req: Request) {
 
     const unverified = await requireVerifiedEmail(session.user.id);
     if (unverified) return unverified;
+    const organizationId = await requireOrgId(session.user.id);
+    const channelDisabled = await assertChannelEnabled(organizationId, "WEBCHAT");
+    if (channelDisabled) return channelDisabled;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {
@@ -60,7 +64,7 @@ export async function POST(req: Request) {
     const account = await prisma.channelAccount.create({
       data: {
         userId: session.user.id,
-        organizationId: await requireOrgId(session.user.id),
+        organizationId,
         channel: "WEBCHAT",
         name,
         credentials: encrypt(JSON.stringify({ allowedOrigins })),
