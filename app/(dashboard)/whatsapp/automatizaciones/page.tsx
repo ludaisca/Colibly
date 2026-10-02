@@ -64,15 +64,19 @@ export default function AutomationsPage() {
   }, [load]);
 
   async function setStatus(row: AutomationRow, status: "ACTIVE" | "PAUSED") {
-    const res = await fetch(`/api/automations/${row.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toastError(data.error ?? "No se pudo actualizar");
-    success(status === "ACTIVE" ? "Automatización activada" : "Pausada: no arrancan nuevas ejecuciones");
-    load();
+    try {
+      const res = await fetch(`/api/automations/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "No se pudo actualizar");
+      success(status === "ACTIVE" ? "Automatización activada" : "Pausada: no arrancan nuevas ejecuciones");
+      await load();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo actualizar");
+    }
   }
 
   async function handleDelete() {

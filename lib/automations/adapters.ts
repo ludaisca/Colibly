@@ -216,7 +216,7 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
     async webhook({ url, method, body }) {
       const res = await safeFetch(url, {
         method,
-        headers: { "Content-Type": "application/json", "X-Sunflow-Automation": ctx.automationId },
+        headers: { "Content-Type": "application/json", "X-Colibly-Automation": ctx.automationId },
         body: method === "POST" ? body : undefined,
         maxResponseBytes: 32 * 1024,
       });

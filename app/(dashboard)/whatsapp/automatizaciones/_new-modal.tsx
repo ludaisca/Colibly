@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -26,13 +27,16 @@ export function NewAutomationModal({ open, onClose }: { open: boolean; onClose: 
   useEffect(() => {
     if (!open) return;
     fetch("/api/automations/accounts")
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || !Array.isArray(data)) throw new Error(data.error ?? "No se pudieron cargar las cuentas");
+        return data as AutomationAccount[];
+      })
       .then((d) => {
-        if (!Array.isArray(d)) return;
         setAccounts(d);
         if (d.length === 1) setAccountId(d[0].id);
       })
-      .catch(() => setError("No se pudieron cargar las cuentas"));
+      .catch((err) => setError(err instanceof Error ? err.message : "No se pudieron cargar las cuentas"));
   }, [open]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -71,12 +75,15 @@ export function NewAutomationModal({ open, onClose }: { open: boolean; onClose: 
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" form="new-automation-form" loading={saving}>Crear y editar</Button>
+          <Button type="submit" form="new-automation-form" loading={saving} disabled={accounts.length === 0}>Crear y editar</Button>
         </>
       }
     >
       <form id="new-automation-form" onSubmit={handleSubmit} className="space-y-5">
         {error && <Banner tone="danger">{error}</Banner>}
+        {accounts.length === 0 && !error && (
+          <Banner tone="info">Conecta una cuenta antes de crear una automatización. Puedes empezar desde <Link href="/whatsapp/cuentas" className="underline">Cuentas WhatsApp</Link> o desde otro canal del menú.</Banner>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Nombre" required>
             {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Menú de bienvenida" maxLength={120} autoFocus />}

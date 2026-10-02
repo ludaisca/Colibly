@@ -140,8 +140,8 @@ function AddButton(props: BuilderProps & { listId: string; index: number; allowT
       type="button"
       onClick={() => props.onRequestAdd({ listId: props.listId, index: props.index, allowTerminal: props.allowTerminal })}
       className={cn(
-        "flex items-center justify-center rounded-full border bg-surface text-muted shadow-sm transition-colors hover:border-accent-strong hover:text-accent-ink",
-        props.prominent ? "h-9 gap-1.5 px-3 text-xs font-medium" : "h-6 w-6"
+        "flex items-center justify-center border bg-surface text-muted shadow-sm transition-colors hover:border-accent-strong hover:text-accent-ink",
+        props.prominent ? "h-9 gap-1.5 rounded-[12px] px-3 text-xs font-medium" : "h-6 w-6 rounded-full"
       )}
       aria-label="Agregar paso"
     >

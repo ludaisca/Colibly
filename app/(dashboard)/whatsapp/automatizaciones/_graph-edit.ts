@@ -74,6 +74,82 @@ export function findStep(graph: Graph, stepId: string): Step | null {
   return walk(graph.steps);
 }
 
+interface StepLocation { listId: string; index: number; step: Step }
+
+function findLocation(graph: Graph, stepId: string): StepLocation | null {
+  const walk = (list: Step[], listId: string): StepLocation | null => {
+    for (let index = 0; index < list.length; index++) {
+      const step = list[index];
+      if (step.id === stepId) return { listId, index, step };
+      if (isBranching(step)) for (const branch of step.branches) {
+        const found = walk(branch.steps, branch.id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(graph.steps, ROOT);
+}
+
+function findList(graph: Graph, listId: string): Step[] | null {
+  if (listId === ROOT) return graph.steps;
+  const walk = (list: Step[]): Step[] | null => {
+    for (const step of list) if (isBranching(step)) for (const branch of step.branches) {
+      if (branch.id === listId) return branch.steps;
+      const found = walk(branch.steps);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(graph.steps);
+}
+
+// Una conexión del lienzo significa «mueve el destino inmediatamente después
+// del origen»; si sale de una rama, significa «al inicio de esa rama». El
+// formato ejecutable es un árbol, así que no admitimos uniones ni ciclos.
+export function connectStep(graph: Graph, sourceId: string, targetId: string, sourceHandle?: string | null): { graph: Graph; error?: string } {
+  if (targetId === "trigger" || targetId.startsWith("empty:") || sourceId.startsWith("empty:")) {
+    return { graph, error: "Conecta dos pasos existentes; usa Añadir paso para crear uno" };
+  }
+  const target = findLocation(graph, targetId);
+  if (!target) return { graph, error: "El paso de destino ya no existe" };
+  if (sourceId === targetId) return { graph, error: "Un paso no puede conectarse consigo mismo" };
+
+  // Al quitar primero el destino, un origen que era descendiente suyo
+  // desaparece. Esto evita ciclos incluso entre ramas anidadas.
+  const withoutTarget = removeStep(graph, targetId);
+  if (sourceId !== "trigger" && !findLocation(withoutTarget, sourceId)) {
+    return { graph, error: "No puedes conectar un paso con uno de sus descendientes" };
+  }
+
+  let listId = ROOT;
+  let index = 0;
+  if (sourceId !== "trigger") {
+    const source = findLocation(withoutTarget, sourceId)!;
+    if (isBranching(source.step)) {
+      if (!sourceHandle || !source.step.branches.some((branch) => branch.id === sourceHandle)) {
+        return { graph, error: "Elige una salida válida de la rama" };
+      }
+      listId = sourceHandle;
+    } else {
+      if (sourceHandle) return { graph, error: "Este paso no tiene esa salida" };
+      if (isTerminal(source.step)) return { graph, error: "Este paso termina la automatización" };
+      listId = source.listId;
+      index = source.index + 1;
+    }
+  } else if (sourceHandle) {
+    return { graph, error: "El disparador no tiene ramas" };
+  }
+
+  const destination = findList(withoutTarget, listId);
+  if (!destination) return { graph, error: "La rama de destino ya no existe" };
+  if (isTerminal(target.step) && index < destination.length) {
+    return { graph, error: "Este paso solo puede ir al final de la columna" };
+  }
+  const next = insertStep(withoutTarget, listId, index, target.step);
+  return { graph: next };
+}
+
 // Mantiene una rama por opción/categoría: conserva los pasos de las que
 // siguen existiendo, crea ramas vacías para las nuevas, quita las sobrantes.
 export function syncBranches(step: Step): Step {

@@ -3,20 +3,22 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, FlaskConical, History, Rocket, Save, Pencil } from "lucide-react";
+import { ArrowLeft, FlaskConical, History, Rocket, Save, Pencil, GitBranch, List } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { Drawer } from "@/app/components/ui/drawer";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Input } from "@/app/components/ui/input";
 import { useToast } from "@/app/components/ui/toast";
 import { validateGraph, hasErrors, type AutomationChannel, type ValidationIssue } from "@/lib/automations/validate";
 import type { AutomationSettings } from "@/lib/automations/settings";
 import type { Graph, Step, StepType } from "@/lib/automations/types";
-import { insertStep, moveStep, removeStep, updateStep, createStep, findStep, syncBranches } from "../_graph-edit";
+import { connectStep, insertStep, moveStep, removeStep, updateStep, createStep, findStep, syncBranches } from "../_graph-edit";
 import { CHANNEL_LABEL } from "../_shared";
 import { Builder, StepPicker, type AddRequest } from "./_builder";
+import { FlowBuilderPreview } from "./_flow-builder-preview";
 import { StepEditor, type EditorOptions } from "./_step-editor";
 import { TriggerEditor } from "./_trigger-editor";
 import { Simulator } from "./_simulator";
@@ -61,6 +63,7 @@ export default function AutomationEditorPage() {
   const [dirty, setDirty] = useState(false);
   const [selected, setSelected] = useState<string | null>("trigger");
   const [panel, setPanel] = useState<"edit" | "test">("edit");
+  const [builderView, setBuilderView] = useState<"list" | "flow">("list");
   const [addRequest, setAddRequest] = useState<AddRequest | null>(null);
   const [serverIssues, setServerIssues] = useState<ValidationIssue[]>([]);
   const [saving, setSaving] = useState(false);
@@ -69,6 +72,7 @@ export default function AutomationEditorPage() {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -129,12 +133,28 @@ export default function AutomationEditorPage() {
     if (!isDesktop) setDrawerOpen(true);
   };
 
+  const selectFlow = (nodeId: string) => {
+    setSelected(nodeId);
+    setPanel("edit");
+  };
+
   const addStep = (type: StepType) => {
     if (!addRequest) return;
     const step = createStep(type);
     mutate((g) => insertStep(g, addRequest.listId, addRequest.index, step));
     setAddRequest(null);
     select(step.id);
+  };
+
+  const connectNodes = (sourceId: string, targetId: string, sourceHandle: string | null) => {
+    if (!graph) return;
+    const result = connectStep(graph, sourceId, targetId, sourceHandle);
+    if (result.error) {
+      toastError(result.error);
+      return;
+    }
+    if (JSON.stringify(result.graph) !== JSON.stringify(graph)) mutate(() => result.graph);
+    selectFlow(targetId);
   };
 
   async function save(): Promise<boolean> {
@@ -220,11 +240,7 @@ export default function AutomationEditorPage() {
         options={options}
         issues={issues.filter((i) => i.nodeId === selectedStep.id)}
         onChange={(s) => mutate((g) => updateStep(g, s.id, () => syncBranches(s)))}
-        onDelete={() => {
-          mutate((g) => removeStep(g, selectedStep.id));
-          setSelected("trigger");
-          setDrawerOpen(false);
-        }}
+        onDelete={() => setDeleteId(selectedStep.id)}
       />
     ) : (
       <p className="text-sm text-muted">Selecciona un paso para editarlo.</p>
@@ -306,16 +322,39 @@ export default function AutomationEditorPage() {
         <Banner tone="info">Es un borrador: no corre hasta que la publiques. Pruébala antes con “Probar”.</Banner>
       )}
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted">Elige cómo explorar el mismo borrador.</p>
+        <div className="flex gap-1 rounded-[12px] border border-border bg-surface p-1" role="group" aria-label="Vista del constructor">
+          <button type="button" aria-pressed={builderView === "list"} onClick={() => setBuilderView("list")} className={builderView === "list" ? "flex items-center gap-1.5 rounded-[9px] bg-accent-subtle px-3 py-1.5 text-xs font-semibold text-accent-ink" : "flex items-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs text-muted hover:bg-surface-light"}><List size={14} /> Constructor</button>
+          <button type="button" aria-pressed={builderView === "flow"} onClick={() => setBuilderView("flow")} className={builderView === "flow" ? "flex items-center gap-1.5 rounded-[9px] bg-accent-subtle px-3 py-1.5 text-xs font-semibold text-accent-ink" : "flex items-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs text-muted hover:bg-surface-light"}><GitBranch size={14} /> Mapa de flujo</button>
+        </div>
+      </div>
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <Builder
-          graph={graph}
-          issues={issues}
-          selectedId={panel === "edit" ? selected : null}
-          onSelect={select}
-          onRequestAdd={setAddRequest}
-          onMove={(stepId, d) => mutate((g) => moveStep(g, stepId, d))}
-          unavailable={unavailable}
-        />
+        {builderView === "flow" ? (
+          <FlowBuilderPreview
+            graph={graph}
+            issues={issues}
+            selectedId={panel === "edit" ? selected : null}
+            isDesktop={isDesktop}
+            onSelect={selectFlow}
+            onEdit={select}
+            onRequestAdd={setAddRequest}
+            onMove={(stepId, delta) => mutate((g) => moveStep(g, stepId, delta))}
+            onConnect={connectNodes}
+            onDelete={setDeleteId}
+          />
+        ) : (
+          <Builder
+            graph={graph}
+            issues={issues}
+            selectedId={panel === "edit" ? selected : null}
+            onSelect={select}
+            onRequestAdd={setAddRequest}
+            onMove={(stepId, d) => mutate((g) => moveStep(g, stepId, d))}
+            unavailable={unavailable}
+          />
+        )}
         {isDesktop && (
           <aside className="self-start rounded-2xl border border-border bg-surface p-5 shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100svh-2rem)] lg:overflow-y-auto">
             {panelContent}
@@ -324,12 +363,25 @@ export default function AutomationEditorPage() {
       </div>
 
       {!isDesktop && (
-        <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} side="right" width="w-full sm:w-[440px]">
+        <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} side="right" title={panel === "test" ? "Prueba de automatización" : "Editar automatización"} width="w-full sm:w-[440px]">
           <div className="p-4">{panelContent}</div>
         </Drawer>
       )}
 
       <StepPicker request={addRequest} unavailable={unavailable} onPick={addStep} onClose={() => setAddRequest(null)} />
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        title="Eliminar paso"
+        description="Se quitará este paso y, si tiene ramas, todos los pasos dentro de ellas. El cambio quedará en el borrador hasta que lo guardes."
+        confirmLabel="Eliminar paso"
+        onConfirm={() => {
+          if (deleteId) mutate((g) => removeStep(g, deleteId));
+          setDeleteId(null);
+          setSelected("trigger");
+          setDrawerOpen(false);
+        }}
+      />
     </div>
   );
 }
