@@ -79,11 +79,16 @@ function ChartTooltip({
 export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages"] }) {
   const reducedMotion = useReducedMotion();
 
-  if (data.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted">Sin datos aún</p>;
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+  if (total === 0) {
+    return (
+      <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface/60 px-4 text-center">
+        <p className="text-sm font-medium text-foreground">Aún no hay mensajes</p>
+        <p className="mt-1 text-xs text-muted">La tendencia aparecerá cuando tus canales reciban conversaciones.</p>
+      </div>
+    );
   }
 
-  const total = data.reduce((sum, d) => sum + d.count, 0);
   const formatDay = (d: string, style: "short" | "long") =>
     new Date(d + "T00:00:00").toLocaleDateString("es-MX", {
       day: "2-digit",
@@ -95,12 +100,12 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
     <div>
       <p className="mb-3 text-xs text-muted-darker">
         <span className="font-semibold tabular-nums text-foreground">{total.toLocaleString("es-MX")}</span>{" "}
-        mensajes en los últimos {data.length} {data.length === 1 ? "día" : "días"}
+        {total === 1 ? "mensaje" : "mensajes"} en los últimos {data.length} {data.length === 1 ? "día" : "días"}
       </p>
       <div
         className="h-64 w-full"
         role="img"
-        aria-label={`Gráfica de mensajes diarios de los últimos ${data.length} días, total ${total} mensajes`}
+        aria-label={`Gráfica de mensajes diarios de los últimos ${data.length} días, total ${total} ${total === 1 ? "mensaje" : "mensajes"}`}
       >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>

@@ -55,7 +55,7 @@ export function Banner({
         <button
           onClick={onClose}
           aria-label="Cerrar aviso"
-          className="text-muted-darker hover:text-foreground transition-colors mt-0.5 shrink-0"
+          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-darker transition-colors hover:text-foreground"
         >
           <X size={14} />
         </button>

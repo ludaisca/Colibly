@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { Settings, LogOut, ChevronDown } from "lucide-react";
 
-export function UserDropdown() {
+export function UserDropdown({ initialUser }: { initialUser?: { name?: string | null; email?: string | null } }) {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -18,10 +18,11 @@ export function UserDropdown() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  if (!session?.user) return null;
+  const user = session?.user ?? initialUser;
+  if (!user) return null;
 
-  const name    = session.user.name ?? session.user.email ?? "Usuario";
-  const email   = session.user.email ?? "";
+  const name    = user.name ?? user.email ?? "Usuario";
+  const email   = user.email ?? "";
   const initials = name.slice(0, 2).toUpperCase();
   const shortName = name.split(/\s+/).slice(0, 2).join(" ");
 

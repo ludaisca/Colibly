@@ -16,8 +16,35 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // SystemConfig global, de cuando cada instalación era una sola empresa).
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { email: true, emailVerifiedAt: true, organizationId: true, organization: { select: { name: true } } },
+    select: {
+      email: true,
+      emailVerifiedAt: true,
+      organizationId: true,
+      organization: {
+        select: {
+          name: true,
+          channelTelegramEnabled: true,
+          channelMessengerEnabled: true,
+          channelInstagramEnabled: true,
+          channelWebchatEnabled: true,
+        },
+      },
+    },
   });
+
+  // Un canal se ve en el nav si el operador lo habilitó, o si la organización
+  // ya tiene cuentas ahí (desactivar el flag después no le esconde lo que ya
+  // tenía conectado — ver lib/channel-flags.ts).
+  const channelCounts = user
+    ? await prisma.channelAccount.groupBy({ by: ["channel"], where: { organizationId: user.organizationId }, _count: true })
+    : [];
+  const hasAccount = (channel: string) => channelCounts.some((c) => c.channel === channel && c._count > 0);
+  const channels = {
+    telegram: !!user?.organization.channelTelegramEnabled || hasAccount("TELEGRAM"),
+    messenger: !!user?.organization.channelMessengerEnabled || hasAccount("MESSENGER"),
+    instagram: !!user?.organization.channelInstagramEnabled || hasAccount("INSTAGRAM"),
+    webchat: !!user?.organization.channelWebchatEnabled || hasAccount("WEBCHAT"),
+  };
 
   // Aviso del plan: los admins ven también "prueba por vencer" y "pago
   // pendiente" (pueden resolverlo); el resto, solo cuando la cuenta ya no
@@ -35,7 +62,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     </>
   );
   return (
-    <DashboardShell businessName={user?.organization.name} topBanner={topBanner} platformAdmin={isPlatformAdminEmail(user?.email)}>
+    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email }} topBanner={topBanner} platformAdmin={isPlatformAdminEmail(user?.email)} channels={channels}>
       {children}
     </DashboardShell>
   );

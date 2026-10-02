@@ -18,6 +18,7 @@ export interface AppointmentDetail {
   notes: string | null;
   scheduledAt: string;
   durationMinutes: number;
+  reminderMinutesBefore: number;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
   source: "MANUAL" | "AI_BOT";
   cancelReason: string | null;
@@ -106,7 +107,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
       setScheduledAt(isoToLocalInput(initialData.scheduledAt));
       setDurationMinutes(initialData.durationMinutes);
       setAssignedToId(initialData.assignedTo?.id ?? "");
-      setReminderMinutesBefore(60);
+      setReminderMinutesBefore(initialData.reminderMinutesBefore);
       setStatus(initialData.status);
       setCancelReason(initialData.cancelReason ?? "");
       setSelectedContact(null);
@@ -325,7 +326,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
           )}
         </FormField>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Fecha y hora" required>
             {(id) => (
               <Input id={id} type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
@@ -360,6 +361,9 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
         <FormField label="Recordatorio">
           {(id) => (
             <Select id={id} value={reminderMinutesBefore} onChange={(e) => setReminderMinutesBefore(Number(e.target.value))}>
+              {!REMINDER_OPTIONS.some((opt) => opt.value === reminderMinutesBefore) && (
+                <option value={reminderMinutesBefore}>{reminderMinutesBefore} minutos antes</option>
+              )}
               {REMINDER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}

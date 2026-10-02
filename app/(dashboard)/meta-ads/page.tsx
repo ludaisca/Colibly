@@ -28,6 +28,7 @@ interface MetaAdsAccountRow {
   _count: { contacts: number };
   driftCount: number;
   hasAppSecret: boolean;
+  hasCapiAccessToken: boolean;
 }
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
@@ -97,6 +98,7 @@ export default function MetaAdsPage() {
         testEventCode: data.testEventCode,
         datasetId: data.datasetId,
         waAccountId: data.waAccountId,
+        hasCapiAccessToken: data.hasCapiAccessToken,
       });
       setFormOpen(true);
     } catch (err) {
@@ -171,6 +173,7 @@ export default function MetaAdsPage() {
                       {a.mode === "LIVE" ? "LIVE" : "TEST"}
                     </Badge>
                     {!a.hasAppSecret && <Badge tone="danger" size="sm">Sin App Secret</Badge>}
+                    {!a.hasCapiAccessToken && <Badge tone="warning" size="sm">Sin token CAPI</Badge>}
                     {a.driftCount > 0 && (
                       <Badge tone="warning" size="sm">
                         <AlertTriangle size={12} className="mr-1 inline" />

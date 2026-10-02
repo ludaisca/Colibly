@@ -6,11 +6,12 @@ import { cn } from "./cn";
 
 export interface PasswordInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
   error?: string;
+  showErrorMessage?: boolean;
   showIcon?: boolean;
 }
 
 export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
-  ({ error, showIcon = true, className, ...props }, ref) => {
+  ({ error, showErrorMessage = false, showIcon = true, className, ...props }, ref) => {
     const [visible, setVisible] = useState(false);
 
     return (
@@ -39,11 +40,11 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
           aria-pressed={visible}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-darker hover:text-muted transition-colors"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-darker hover:text-muted transition-colors"
         >
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
-        {error && (
+        {error && showErrorMessage && (
           <p className="mt-1.5 text-xs text-danger" role="alert">
             {error}
           </p>

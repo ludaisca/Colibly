@@ -13,9 +13,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { MultiSelect } from "@/app/components/ui/multi-select";
 import { useToast } from "@/app/components/ui/toast";
 import { LEAD_SCORER_SCHEDULE_INTERVALS } from "@/lib/validations";
-import { AI_MODELS } from "@/lib/billing/plans";
 
-interface ModelOption { id: string; name: string; }
 interface AccountOption { id: string; name: string; channel: "WHATSAPP" | "TELEGRAM"; }
 
 const INTERVAL_LABEL: Record<number, string> = {
@@ -26,12 +24,6 @@ const INTERVAL_LABEL: Record<number, string> = {
   360: "Cada 6 horas",
   720: "Cada 12 horas",
   1440: "Cada 24 horas",
-};
-
-// Lista curada (lib/billing/plans.ts): la IA la provee la plataforma.
-const FALLBACK_MODELS: Record<string, ModelOption[]> = {
-  openrouter: AI_MODELS.filter((m) => m.provider === "openrouter").map((m) => ({ id: m.id, name: m.label })),
-  google: AI_MODELS.filter((m) => m.provider === "google").map((m) => ({ id: m.id, name: m.label })),
 };
 
 interface Props {
@@ -46,8 +38,6 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
   const { success, error: toastError } = useToast();
 
   const [name, setName] = useState("");
-  const [provider, setProvider] = useState("openrouter");
-  const [model, setModel] = useState("google/gemini-2.5-flash");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
@@ -59,15 +49,10 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [models, setModels] = useState<ModelOption[]>(FALLBACK_MODELS.openrouter);
-  const [loadingModels, setLoadingModels] = useState(false);
-  const [modelsProvider, setModelsProvider] = useState("openrouter");
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
 
   const resetForm = useCallback(() => {
     setName("");
-    setProvider("openrouter");
-    setModel("google/gemini-2.5-flash");
     setSystemPrompt("");
     setIsActive(true);
     setScheduleEnabled(false);
@@ -77,36 +62,11 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
     setError("");
   }, []);
 
-  const fetchModels = useCallback(async (p: string) => {
-    setLoadingModels(true);
-    try {
-      const res = await fetch(`/api/configuracion/ia/models?provider=${p}`);
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        setModels(data);
-      } else {
-        setModels([]);
-        toastError(data.error ?? "Ese proveedor de IA no está disponible, elige otro");
-      }
-    } catch {
-      setModels(FALLBACK_MODELS[p] ?? []);
-    } finally {
-      setModelsProvider(p);
-      setLoadingModels(false);
-    }
-  }, [toastError]);
-
-  useEffect(() => {
-    if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open/provider-change; fetchModels also used for manual refresh
-    fetchModels(provider);
-  }, [open, provider, fetchModels]);
-
   useEffect(() => {
     if (!open) return;
     Promise.all([
-      fetch("/api/whatsapp/accounts").then((r) => r.json()),
-      fetch("/api/telegram/accounts").then((r) => r.json()),
+      fetch("/api/whatsapp/accounts").then(async (r) => { if (!r.ok) throw new Error(); return r.json(); }),
+      fetch("/api/telegram/accounts").then(async (r) => { if (!r.ok) throw new Error(); return r.json(); }),
     ])
       .then(([wa, tg]) => {
         setAccounts([
@@ -114,29 +74,18 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
           ...(Array.isArray(tg) ? tg.map((a) => ({ id: a.id, name: a.name, channel: "TELEGRAM" as const })) : []),
         ]);
       })
-      .catch(() => {});
-  }, [open]);
-
-  useEffect(() => {
-    if (modelsProvider !== provider) return;
-    if (models.length === 0) return;
-    if (!models.some((m) => m.id === model)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- snap to a valid model when the fetched list no longer contains the current one
-      setModel(models[0].id);
-    }
-  }, [models, model, provider, modelsProvider]);
+      .catch(() => { setError("Error al cargar cuentas"); toastError("Error al cargar cuentas"); });
+  }, [open, toastError]);
 
   useEffect(() => {
     if (!open || !editId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-open for edit mode
     setLoading(true);
     fetch(`/api/whatsapp/lead-scorers/${editId}`)
-      .then((r) => r.json())
+      .then(async (r) => { if (!r.ok) throw new Error("Error al cargar el calificador"); return r.json(); })
       .then((d) => {
         if (d.name) {
           setName(d.name);
-          setProvider(d.provider);
-          setModel(d.model);
           setSystemPrompt(d.systemPrompt);
           setIsActive(d.isActive);
           setScheduleEnabled(d.scheduleEnabled ?? false);
@@ -144,7 +93,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
           setScheduleScopeIds([...(d.scheduleAccountIds ?? []), ...(d.scheduleChannelAccountIds ?? [])]);
         }
       })
-      .catch(() => toastError("Error al cargar el calificador"))
+      .catch(() => { setError("Error al cargar el calificador"); toastError("Error al cargar el calificador"); })
       .finally(() => setLoading(false));
   }, [open, editId, toastError]);
 
@@ -167,10 +116,9 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
       const scheduleAccountIds = accounts.filter((a) => a.channel === "WHATSAPP" && scopeSet.has(a.id)).map((a) => a.id);
       const scheduleChannelAccountIds = accounts.filter((a) => a.channel === "TELEGRAM" && scopeSet.has(a.id)).map((a) => a.id);
 
+      // provider/model NO se mandan — la plataforma los asigna sola.
       const body = {
         name: name.trim(),
-        provider,
-        model,
         systemPrompt: systemPrompt.trim(),
         isActive,
         scheduleEnabled,
@@ -225,26 +173,6 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
               <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Calificador bienes raíces" error={errors.name} />
             )}
           </FormField>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <FormField label="Proveedor IA" required>
-              {(id) => (
-                <Select id={id} value={provider} onChange={(e) => setProvider(e.target.value)}>
-                  <option value="openrouter">OpenRouter</option>
-                  <option value="google">Google Gemini</option>
-                </Select>
-              )}
-            </FormField>
-            <FormField label="Modelo" required>
-              {(id) => (
-                <Select id={id} value={model} onChange={(e) => setModel(e.target.value)} disabled={loadingModels}>
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </Select>
-              )}
-            </FormField>
-          </div>
 
           <FormField
             label="Prompt de calificación"

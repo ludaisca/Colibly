@@ -4,11 +4,12 @@ import { cn } from "./cn";
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ElementType;
   error?: string;
+  showErrorMessage?: boolean;
   inputClassName?: string;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ icon: Icon, error, className, inputClassName, ...props }, ref) => {
+  ({ icon: Icon, error, showErrorMessage = false, className, inputClassName, ...props }, ref) => {
     return (
       <div className={cn("relative", className)}>
         {Icon && (
@@ -32,7 +33,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
           {...props}
         />
-        {error && (
+        {error && showErrorMessage && (
           <p className="mt-1.5 text-xs text-danger" role="alert">
             {error}
           </p>

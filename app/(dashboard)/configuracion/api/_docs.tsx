@@ -4,30 +4,32 @@ import { useSyncExternalStore } from "react";
 import { FileJson } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { SectionHeader } from "@/app/components/ui/section-header";
+import { Card } from "@/app/components/ui/card";
 import { SecretField } from "@/app/components/integrations/secret-field";
 import { DOMAIN_EVENT_CATALOG } from "@/lib/events/types";
+import { BRAND_DOMAIN } from "@/lib/brand";
 
-// El origen real solo existe en el navegador; en SSR se muestra un marcador.
+// El origen real solo existe en el navegador; en SSR se muestra el dominio público.
 function useOrigin(): string {
   return useSyncExternalStore(
     () => () => {},
     () => window.location.origin,
-    () => "https://tu-dominio"
+    () => `https://${BRAND_DOMAIN}`
   );
 }
 
 function Code({ children }: { children: string }) {
-  return <pre className="overflow-x-auto rounded-lg border border-border bg-surface p-3 text-xs leading-relaxed">{children}</pre>;
+  return <pre className="overflow-x-auto rounded-xl bg-surface-light p-3 text-xs leading-relaxed">{children}</pre>;
 }
 
-const VERIFY_SNIPPET = `// Node.js (Express) — verifica X-Sunflow-Signature antes de confiar en el cuerpo.
+const VERIFY_SNIPPET = `// Node.js (Express) — verifica X-Colibly-Signature antes de confiar en el cuerpo.
 import crypto from "node:crypto";
 
-app.post("/webhooks/sunday", express.raw({ type: "application/json" }), (req, res) => {
-  const header = req.get("X-Sunflow-Signature") ?? "";
+app.post("/webhooks/colibly", express.raw({ type: "application/json" }), (req, res) => {
+  const header = req.get("X-Colibly-Signature") ?? "";
   const [, t, v1] = header.match(/t=(\\d+),v1=([0-9a-f]+)/) ?? [];
   const expected = crypto
-    .createHmac("sha256", process.env.SUNDAY_WEBHOOK_SECRET)
+    .createHmac("sha256", process.env.COLIBLY_WEBHOOK_SECRET)
     .update(\`\${t}.\${req.body}\`)
     .digest("hex");
   const fresh = Math.abs(Date.now() / 1000 - Number(t)) < 300; // 5 min contra reenvíos
@@ -45,7 +47,7 @@ export function ApiDocsSection() {
 
   return (
     <div className="space-y-8">
-      <section className="space-y-3">
+      <Card as="section" className="space-y-3">
         <SectionHeader
           eyebrow="Referencia"
           title="API REST"
@@ -62,47 +64,47 @@ export function ApiDocsSection() {
           <code className="font-mono text-xs">{`{ "error": { "code", "message" } }`}</code>. Importa la especificación OpenAPI en
           Postman, Insomnia o tu generador de clientes.
         </p>
-      </section>
+      </Card>
 
-      <section className="space-y-3">
+      <Card as="section" className="space-y-3">
         <SectionHeader title="Ejemplos" />
         <p className="text-sm text-muted">Crear (o encontrar) un contacto de WhatsApp con etiquetas y campos personalizados:</p>
         <Code>{`curl -X POST ${base}/contacts \\
-  -H "Authorization: Bearer $SUNDAY_API_KEY" \\
+  -H "Authorization: Bearer $COLIBLY_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{ "accountId": "<id de la cuenta>", "phone": "5215512345678", "name": "Ana López",
         "tags": ["Web"], "customFields": { "tipo_piel": "Mixta" } }'`}</Code>
         <p className="text-sm text-muted">Mover el lead de etapa (dispara Meta Ads, secuencias y webhooks como el Pipeline):</p>
         <Code>{`curl -X PATCH ${base}/contacts/<contactId> \\
-  -H "Authorization: Bearer $SUNDAY_API_KEY" -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $COLIBLY_API_KEY" -H "Content-Type: application/json" \\
   -d '{ "leadStatus": "CUSTOMER" }'`}</Code>
         <p className="text-sm text-muted">
           Enviar una plantilla aprobada (abre el chat si el contacto aún no escribió). Texto y botones solo dentro de la ventana de
           24 h de WhatsApp; fuera de ella la API responde <code className="font-mono text-xs">422 window_closed</code>:
         </p>
         <Code>{`curl -X POST ${base}/messages \\
-  -H "Authorization: Bearer $SUNDAY_API_KEY" -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $COLIBLY_API_KEY" -H "Content-Type: application/json" \\
   -d '{ "contactId": "<contactId>", "type": "template",
         "template": { "id": "<id de plantilla>", "bodyParams": ["Ana", "viernes 3", "11:00"] } }'`}</Code>
         <p className="text-sm text-muted">Listar conversaciones abiertas de todos los canales (paginado con nextCursor):</p>
-        <Code>{`curl "${base}/conversations?status=OPEN&limit=50" -H "Authorization: Bearer $SUNDAY_API_KEY"`}</Code>
-      </section>
+        <Code>{`curl "${base}/conversations?status=OPEN&limit=50" -H "Authorization: Bearer $COLIBLY_API_KEY"`}</Code>
+      </Card>
 
-      <section className="space-y-3">
+      <Card as="section" className="space-y-3">
         <SectionHeader eyebrow="Webhooks" title="Verificar la firma" />
         <p className="text-sm text-muted">
-          Cada entrega es un POST JSON con los headers <code className="font-mono text-xs">X-Sunflow-Event</code>,{" "}
-          <code className="font-mono text-xs">X-Sunflow-Delivery</code> y{" "}
-          <code className="font-mono text-xs">X-Sunflow-Signature: t=&lt;unix&gt;,v1=&lt;hex&gt;</code>, donde v1 es el
+          Cada entrega es un POST JSON con los headers <code className="font-mono text-xs">X-Colibly-Event</code>,{" "}
+          <code className="font-mono text-xs">X-Colibly-Delivery</code> y{" "}
+          <code className="font-mono text-xs">X-Colibly-Signature: t=&lt;unix&gt;,v1=&lt;hex&gt;</code>, donde v1 es el
           HMAC-SHA256 del secreto sobre <code className="font-mono text-xs">{"`${t}.${cuerpo}`"}</code>. Responde 2xx en menos
           de 20 s; si no, se reintenta hasta 6 veces (≈30 min).
         </p>
         <Code>{VERIFY_SNIPPET}</Code>
-      </section>
+      </Card>
 
-      <section className="space-y-3">
+      <Card as="section" className="space-y-3">
         <SectionHeader title="Eventos" />
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="divide-y divide-border border-y border-border">
           {Object.entries(DOMAIN_EVENT_CATALOG).map(([type, label]) => (
             <li key={type} className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2">
               <code className="font-mono text-xs text-foreground">{type}</code>
@@ -110,7 +112,7 @@ export function ApiDocsSection() {
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
     </div>
   );
 }

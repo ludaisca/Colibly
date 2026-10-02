@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Plus, CalendarClock } from "lucide-react";
-import { Modal } from "@/app/components/ui/modal";
+import { Plus, CalendarClock, X } from "lucide-react";
+import { Drawer } from "@base-ui/react/drawer";
 import { Banner } from "@/app/components/ui/banner";
 import { Select } from "@/app/components/ui/select";
 import { MultiSelect } from "@/app/components/ui/multi-select";
@@ -13,6 +13,7 @@ import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
+import "./contact-drawer.css";
 
 interface ContactDetail {
   id: string;
@@ -236,7 +237,17 @@ export function ContactDrawer({
   }
 
   return (
-    <Modal open onClose={onClose} title={contact?.name ?? contact?.remoteJid ?? "Contacto"} size="md">
+    <Drawer.Root defaultOpen modal={!appointmentModalOpen} swipeDirection="right" onOpenChangeComplete={(open) => { if (!open) onClose(); }}>
+      <Drawer.Portal>
+        <Drawer.Backdrop className="colibly-contact-backdrop" />
+        <Drawer.Viewport className="colibly-contact-viewport">
+          <Drawer.Popup className="colibly-contact-popup">
+            <Drawer.Content className="flex h-full flex-col">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
+                <Drawer.Title className="truncate text-sm font-semibold text-foreground">{contact?.name ?? contact?.remoteJid ?? "Contacto"}</Drawer.Title>
+                <Drawer.Close aria-label="Cerrar ficha" className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"><X size={18} /></Drawer.Close>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-5">
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Spinner />
@@ -395,6 +406,11 @@ export function ContactDrawer({
           </div>
         </div>
       )}
+              </div>
+            </Drawer.Content>
+          </Drawer.Popup>
+        </Drawer.Viewport>
+      </Drawer.Portal>
 
       {contact && (
         <AppointmentFormModal
@@ -405,6 +421,6 @@ export function ContactDrawer({
           contactLabel={contact.name ?? contact.remoteJid}
         />
       )}
-    </Modal>
+    </Drawer.Root>
   );
 }

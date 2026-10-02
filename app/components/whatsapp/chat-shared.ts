@@ -74,6 +74,10 @@ export interface Message {
   bytesSize: number | null;
   status: string | null;
   timestamp: string;
+  /** Identidad visual estable mientras el envío optimista recibe su id real. */
+  motionKey?: string;
+  /** Solo los mensajes nuevos entran animados; el historial cargado no. */
+  animateOnMount?: boolean;
   /** Solo en mensajes optimistas locales (id "temp-…"): preview del archivo
    *  adjunto antes de que exista un mediaId real servido por el proxy. */
   localPreviewUrl?: string;

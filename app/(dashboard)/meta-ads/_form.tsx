@@ -24,6 +24,7 @@ export interface MetaAdsAccountDetail {
   testEventCode: string | null;
   datasetId: string | null;
   waAccountId: string | null;
+  hasCapiAccessToken: boolean;
 }
 
 interface Props {
@@ -44,6 +45,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
   const [appSecret, setAppSecret] = useState("");
   const [datasetId, setDatasetId] = useState(initialData?.datasetId ?? "");
   const [capiAccessToken, setCapiAccessToken] = useState("");
+  const [clearCapiToken, setClearCapiToken] = useState(false);
   const [waAccountId, setWaAccountId] = useState(initialData?.waAccountId ?? "");
   const [mode, setMode] = useState<"TEST" | "LIVE">(initialData?.mode ?? "TEST");
   const [testEventCode, setTestEventCode] = useState(initialData?.testEventCode ?? "");
@@ -69,6 +71,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
     setAppSecret("");
     setDatasetId(initialData?.datasetId ?? "");
     setCapiAccessToken("");
+    setClearCapiToken(false);
     setWaAccountId(initialData?.waAccountId ?? "");
     setMode(initialData?.mode ?? "TEST");
     setTestEventCode(initialData?.testEventCode ?? "");
@@ -100,8 +103,11 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
       if (!pageAccessToken.trim()) newErrors.pageAccessToken = "El token de la página es requerido";
       if (!appSecret.trim()) newErrors.appSecret = "El App Secret es requerido";
     }
-    if (mode === "LIVE" && !datasetId.trim() && !initialData?.datasetId) {
+    if (mode === "LIVE" && !datasetId.trim()) {
       newErrors.datasetId = "Configura el Dataset ID antes de pasar a modo LIVE";
+    }
+    if (mode === "LIVE" && (clearCapiToken || (!capiAccessToken.trim() && !initialData?.hasCapiAccessToken))) {
+      newErrors.capiAccessToken = "Configura el token de Conversions API antes de pasar a modo LIVE";
     }
 
     setErrors(newErrors);
@@ -119,10 +125,10 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
           ...(!isEdit ? { pageId: pageId.trim(), pageAccessToken: pageAccessToken.trim() } : {}),
           ...(isEdit && pageAccessToken.trim() ? { pageAccessToken: pageAccessToken.trim() } : {}),
           appSecret: appSecret.trim() || undefined,
-          datasetId: datasetId.trim() || undefined,
-          capiAccessToken: capiAccessToken.trim() || undefined,
+          datasetId: datasetId.trim(),
+          capiAccessToken: clearCapiToken ? "" : capiAccessToken.trim() || undefined,
           waAccountId: waAccountId || null,
-          ...(isEdit ? { mode, testEventCode: testEventCode.trim() || undefined } : {}),
+          ...(isEdit ? { mode, testEventCode: testEventCode.trim() } : {}),
         }),
       });
 
@@ -161,8 +167,8 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
         <div className="space-y-4">
           <div>
             <p className="text-xs font-medium text-muted-darker uppercase tracking-wider mb-1.5">URL del webhook</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-surface px-3 py-2 rounded-lg text-xs font-mono break-all">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <code className="min-w-0 flex-1 bg-surface px-3 py-2 rounded-xl text-xs font-mono break-all">
                 {getWebhookUrl()}
               </code>
               <Button
@@ -179,8 +185,8 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
 
           <div>
             <p className="text-xs font-medium text-muted-darker uppercase tracking-wider mb-1.5">Verify token</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-surface px-3 py-2 rounded-lg text-xs font-mono break-all">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <code className="min-w-0 flex-1 bg-surface px-3 py-2 rounded-xl text-xs font-mono break-all">
                 {verifyToken}
               </code>
               <Button
@@ -275,8 +281,17 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
           {(id) => <Input id={id} value={datasetId} onChange={(e) => setDatasetId(e.target.value)} placeholder="123456789012345" error={errors.datasetId} />}
         </FormField>
 
-        <FormField label="Access token de Conversions API" hint={isEdit ? "Déjalo vacío para no cambiarlo" : "Token con permiso sobre el dataset"}>
-          {(id) => <Textarea id={id} value={capiAccessToken} onChange={(e) => setCapiAccessToken(e.target.value)} placeholder="EAA..." rows={2} />}
+        <FormField label="Access token de Conversions API" error={errors.capiAccessToken} hint={isEdit ? initialData?.hasCapiAccessToken ? "Configurado. Déjalo vacío para conservarlo." : "Sin configurar." : "Token con permiso sobre el dataset"}>
+          {(id) => (
+            <div className="space-y-2">
+              <Textarea id={id} value={capiAccessToken} onChange={(e) => setCapiAccessToken(e.target.value)} placeholder={clearCapiToken ? "Se quitará al guardar" : "EAA..."} rows={2} disabled={clearCapiToken} />
+              {isEdit && initialData?.hasCapiAccessToken && (
+                <Button type="button" size="sm" variant="secondary" onClick={() => { setClearCapiToken((v) => !v); setCapiAccessToken(""); }}>
+                  {clearCapiToken ? "Deshacer" : "Quitar token"}
+                </Button>
+              )}
+            </div>
+          )}
         </FormField>
 
         {isEdit && (

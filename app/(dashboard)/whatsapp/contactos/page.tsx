@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Search, RefreshCw, Contact as ContactIcon } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
@@ -32,7 +32,7 @@ interface ContactRow {
   tags: Array<{ tag: { id: string; name: string; color: string } }>;
   chat: { id: string; unreadCount: number; lastMessageAt: string | null } | null;
   _count: { notes: number };
-  channel: "WHATSAPP" | "TELEGRAM";
+  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
 }
 
 function phoneFromJid(remoteJid: string): string {
@@ -60,6 +60,7 @@ export default function ContactosPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const requestId = useRef(0);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 300);
@@ -72,6 +73,7 @@ export default function ContactosPage() {
   }, [search, leadStatusFilter, accountFilter]);
 
   const fetchContacts = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
     setFetchError(null);
     try {
@@ -83,34 +85,34 @@ export default function ContactosPage() {
       params.set("pageSize", String(PAGE_SIZE));
       const res = await fetch(`/api/whatsapp/contacts?${params.toString()}`);
       const data = await res.json();
-      if (Array.isArray(data.items)) {
-        setContacts(data.items);
-        setTotal(data.total ?? 0);
+      if (res.ok && Array.isArray(data.items)) {
+        if (currentRequest === requestId.current) {
+          setContacts(data.items);
+          setTotal(data.total ?? 0);
+        }
       } else throw new Error(data.error ?? "Error al cargar contactos");
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : "Error al cargar contactos");
+      if (currentRequest === requestId.current) setFetchError(err instanceof Error ? err.message : "Error al cargar contactos");
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   }, [search, leadStatusFilter, accountFilter, page]);
 
-  // Ambos canales en una sola lista — el <Select> de cuenta filtra por id sin
+  // Todos los canales en una sola lista — el selector filtra por id sin
   // importar de qué canal venga (la API resuelve la columna correcta).
   const fetchAccounts = useCallback(async () => {
     try {
-      const [wa, tg] = await Promise.all([
-        fetch("/api/whatsapp/accounts").then((r) => r.json()),
-        fetch("/api/telegram/accounts").then((r) => r.json()),
-      ]);
-      const waOptions: AccountOption[] = Array.isArray(wa)
-        ? wa.map((a: { id: string; name: string; phoneNumber: string | null }) => ({
-            id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null,
-          }))
-        : [];
-      const tgOptions: AccountOption[] = Array.isArray(tg)
-        ? tg.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, phoneNumber: null }))
-        : [];
-      setAccounts([...waOptions, ...tgOptions]);
+      const endpoints = ["whatsapp", "telegram", "messenger", "instagram", "webchat"];
+      const results = await Promise.all(endpoints.map(async (channel) => {
+        const res = await fetch(`/api/${channel}/accounts`);
+        if (!res.ok) throw new Error("Error al cargar cuentas");
+        const data: unknown = await res.json();
+        if (!Array.isArray(data)) throw new Error("Respuesta inválida de cuentas");
+        return data as Array<{ id: string; name: string; phoneNumber?: string | null }>;
+      }));
+      setAccounts(results.flatMap((rows) => rows.map((a) => ({
+        id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null,
+      }))));
     } catch {
       toastError("Error al cargar cuentas");
     }
@@ -144,7 +146,7 @@ export default function ContactosPage() {
             icon={Search}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Buscar por nombre o número..."
+            placeholder="Buscar por nombre o identificador..."
             className="sm:max-w-xs flex-1"
           />
           <FiltersPanel
@@ -155,7 +157,7 @@ export default function ContactosPage() {
                     key: "account",
                     label: "Cuenta",
                     options: [
-                      { value: "", label: "Todos los números" },
+                      { value: "", label: "Todas las cuentas" },
                       ...accounts.map((acc) => ({
                         value: acc.id,
                         label: acc.name + (acc.phoneNumber ? ` · ${acc.phoneNumber}` : ""),
@@ -188,8 +190,18 @@ export default function ContactosPage() {
           onRetry={fetchContacts}
           onRowClick={(c) => setSelectedId(c.id)}
           emptyIcon={ContactIcon}
-          emptyTitle="Sin contactos"
-          emptyDescription="Los contactos se crean automáticamente cuando recibes un mensaje de WhatsApp o Telegram."
+          emptyTitle={search || leadStatusFilter || accountFilter ? "Sin resultados" : "Sin contactos"}
+          emptyDescription={search || leadStatusFilter || accountFilter
+            ? "No se encontraron contactos con la búsqueda o los filtros actuales."
+            : "Los contactos se crean automáticamente cuando recibes mensajes en tus canales."}
+          emptyAction={search || leadStatusFilter || accountFilter ? (
+            <Button variant="secondary" size="sm" onClick={() => {
+              setSearchInput("");
+              setSearch("");
+              setLeadStatusFilter("");
+              setAccountFilter("");
+            }}>Limpiar búsqueda y filtros</Button>
+          ) : undefined}
           renderRow={(contact) => {
             const badge = LEAD_STATUS_BADGE[contact.leadStatus] ?? { label: contact.leadStatus, tone: "neutral" as const };
             const account = accounts.find((a) => a.id === contact.accountId);
@@ -208,12 +220,9 @@ export default function ContactosPage() {
                 }
                 subtitle={
                   <>
-                    {/* En Telegram remoteJid es un chat_id numérico, no un
-                        teléfono — mostrarlo en la misma columna lo haría pasar
-                        por un número real. */}
-                    {contact.channel === "TELEGRAM"
-                      ? <span>Telegram</span>
-                      : <span className="tabular-nums">{phoneFromJid(contact.remoteJid)}</span>}
+                    {contact.channel === "WHATSAPP"
+                      ? <span className="tabular-nums">{phoneFromJid(contact.remoteJid)}</span>
+                      : <span>{contact.channel === "WEBCHAT" ? "Chat web" : contact.channel.charAt(0) + contact.channel.slice(1).toLowerCase()}</span>}
                     {accounts.length > 1 && account && <> · {account.name}</>}
                     {contact._count.notes > 0 && <> · {contact._count.notes} nota(s)</>}
                   </>

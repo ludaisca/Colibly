@@ -17,6 +17,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   error?: string;
+  showErrorMessage?: boolean;
   disabled?: boolean;
   id?: string;
   className?: string;
@@ -34,6 +35,7 @@ export function SearchableSelect({
   placeholder = "Seleccionar...",
   searchPlaceholder = "Buscar...",
   error,
+  showErrorMessage = false,
   disabled,
   id,
   className,
@@ -138,7 +140,7 @@ export function SearchableSelect({
         />
       </div>
 
-      {error && (
+      {error && showErrorMessage && (
         <p className="mt-1.5 text-xs text-danger" role="alert">
           {error}
         </p>

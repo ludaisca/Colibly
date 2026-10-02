@@ -30,6 +30,8 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <button
+        type="button"
+        aria-label="Página anterior"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -62,6 +64,8 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
       </div>
 
       <button
+        type="button"
+        aria-label="Página siguiente"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"

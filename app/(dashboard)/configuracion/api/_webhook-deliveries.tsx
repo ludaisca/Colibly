@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, RotateCcw } from "lucide-react";
-import { Modal } from "@/app/components/ui/modal";
+import { DetailPage } from "@/app/components/ui/detail-page";
+import { Card } from "@/app/components/ui/card";
+import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -29,32 +31,27 @@ const STATUS: Record<Delivery["status"], { label: string; tone: "success" | "war
 
 // Registro de las últimas 50 entregas de un endpoint: estado, intentos,
 // respuesta del receptor y el cuerpo exacto que se envió.
-export function WebhookDeliveriesModal({
-  webhook,
-  onClose,
-}: {
-  webhook: { id: string; name: string } | null;
-  onClose: () => void;
-}) {
+export function WebhookDeliveriesView({ webhook }: { webhook: { id: string; name: string } }) {
   const { success, error: toastError } = useToast();
   const [items, setItems] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!webhook) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch(`/api/configuracion/webhooks/${webhook.id}/deliveries`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al cargar entregas");
       setItems(data);
     } catch (err) {
-      toastError(err instanceof Error ? err.message : "Error al cargar entregas");
+      setLoadError(err instanceof Error ? err.message : "Error al cargar entregas");
     } finally {
       setLoading(false);
     }
-  }, [webhook, toastError]);
+  }, [webhook.id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open; load también refresca manualmente
@@ -76,19 +73,16 @@ export function WebhookDeliveriesModal({
   }
 
   return (
-    <Modal
-      open={!!webhook}
-      onClose={onClose}
-      title={`Entregas · ${webhook?.name ?? ""}`}
+    <DetailPage
+      backHref="/configuracion/api?tab=webhooks"
+      backLabel="Volver a webhooks"
+      title={`Entregas · ${webhook.name}`}
       description="Últimas 50 entregas (se conservan 30 días). Las fallidas se reintentan solas hasta 6 veces."
-      size="xl"
-      footer={
-        <>
-          <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Actualizar</Button>
-          <Button onClick={onClose}>Cerrar</Button>
-        </>
-      }
+      maxWidth="max-w-4xl"
+      actions={<Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Actualizar</Button>}
     >
+      <Card as="section" padding="lg">
+      {loadError && <Banner tone="danger">{loadError} <button type="button" onClick={load} className="underline">Reintentar</button></Banner>}
       {loading && items.length === 0 ? (
         <div className="flex justify-center py-10"><Spinner /></div>
       ) : items.length === 0 ? (
@@ -106,30 +100,30 @@ export function WebhookDeliveriesModal({
                     {d.attempts} intento{d.attempts === 1 ? "" : "s"}
                   </span>
                   <span className="ml-auto text-xs text-muted tabular-nums">{formatDateTime(d.createdAt)}</span>
-                  {d.status === "FAILED" && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      icon={RotateCcw}
-                      loading={retrying === d.id}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        retry(d.id);
-                      }}
-                    >
-                      Reintentar
-                    </Button>
-                  )}
                 </summary>
                 {d.error && <p className="mt-2 text-xs text-danger break-words">{d.error}</p>}
                 <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-surface p-3 text-xs">
                   {JSON.stringify(d.payload, null, 2)}
                 </pre>
               </details>
+              {d.status === "FAILED" && (
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={RotateCcw}
+                    loading={retrying === d.id}
+                    onClick={() => retry(d.id)}
+                  >
+                    Reintentar
+                  </Button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
-    </Modal>
+      </Card>
+    </DetailPage>
   );
 }

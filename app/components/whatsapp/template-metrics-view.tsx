@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTheme } from "next-themes";
 import { CalendarRange } from "lucide-react";
-import { Modal } from "@/app/components/ui/modal";
+import { DetailPage } from "@/app/components/ui/detail-page";
 import { Card, CardHeader, CardTitle, CardBody } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -12,7 +12,6 @@ import { DatePicker } from "@/app/components/ui/date-picker";
 import { Button } from "@/app/components/ui/button";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
 import { Table, type TableColumn } from "@/app/components/ui/table";
-import { useToast } from "@/app/components/ui/toast";
 import { useHasMounted } from "@/app/hooks/use-has-mounted";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
@@ -244,12 +243,11 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
   );
 }
 
-export function TemplateMetricsModal({ templateId, onClose }: { templateId: string | null; onClose: () => void }) {
-  const { error: toastError } = useToast();
-
+export function TemplateMetricsView({ templateId }: { templateId: string }) {
   const [template, setTemplate] = useState<TemplateDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [points, setPoints] = useState<AnalyticsPoint[]>([]);
-  const [totals, setTotals] = useState<AnalyticsTotals>({ sent: 0, delivered: 0, read: 0, clicked: 0 });
+  const [totals, setTotals] = useState<AnalyticsTotals | null>(null);
   const [dateFrom, setDateFrom] = useState(() => isoDaysAgo(29));
   const [dateTo, setDateTo] = useState(() => isoDaysAgo(0));
   const [loading, setLoading] = useState(false);
@@ -259,33 +257,34 @@ export function TemplateMetricsModal({ templateId, onClose }: { templateId: stri
   const loadTemplate = useCallback(async (id: string) => {
     setTemplate(null);
     setPoints([]);
+    setTotals(null);
     setDateFrom(isoDaysAgo(29));
     setDateTo(isoDaysAgo(0));
+    setLoadError(null);
     setLoading(true);
     try {
       const res = await fetch(`/api/whatsapp/templates/${id}`);
       const d = await res.json();
-      if (d.error) throw new Error(d.error);
+      if (!res.ok || d.error) throw new Error(d.error ?? "Error al cargar la plantilla");
       setTemplate(d);
     } catch (err) {
-      toastError(err instanceof Error ? err.message : "Error al cargar la plantilla");
+      setLoadError(err instanceof Error ? err.message : "Error al cargar la plantilla");
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, []);
 
-  // Reset to a fresh 30-day window and re-fetch whenever a different template opens —
-  // this component stays mounted (Modal needs `open` to toggle for its exit animation,
-  // see LeadsTab's detail modal for the same pattern), so state doesn't reset on its own.
+  // Restablece el rango al cambiar de plantilla mediante navegación cliente.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open; resets state for a newly opened template
-    if (templateId) loadTemplate(templateId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch al cambiar de plantilla
+    loadTemplate(templateId);
   }, [templateId, loadTemplate]);
 
   const fetchAnalytics = useCallback(async () => {
-    if (!templateId) return;
     setAnalyticsLoading(true);
     setAnalyticsError(null);
+    setPoints([]);
+    setTotals(null);
     try {
       const res = await fetch(`/api/whatsapp/templates/${templateId}/analytics?start=${dateFrom}&end=${dateTo}`);
       const data = await res.json();
@@ -300,8 +299,8 @@ export function TemplateMetricsModal({ templateId, onClose }: { templateId: stri
   }, [templateId, dateFrom, dateTo]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open/date-change; fetchAnalytics also used for manual refresh
-    if (templateId) fetchAnalytics();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch al cambiar el rango
+    fetchAnalytics();
   }, [templateId, dateFrom, dateTo, fetchAnalytics]);
 
   function applyPreset(days: number) {
@@ -320,14 +319,16 @@ export function TemplateMetricsModal({ templateId, onClose }: { templateId: stri
   const statusBadge = template ? (STATUS_BADGE[template.status] ?? { label: template.status, tone: "neutral" as const }) : null;
 
   return (
-    <Modal
-      open={!!templateId}
-      onClose={onClose}
-      size="xl"
-      title={template?.name}
+    <DetailPage
+      backHref="/whatsapp/plantillas"
+      backLabel="Volver a plantillas"
+      title={template?.name ?? "Métricas de plantilla"}
       description={template ? `${template.waAccount.name} · ${template.language} · ${template.category}` : undefined}
+      maxWidth="max-w-5xl"
     >
-      {loading || !template ? (
+      {loadError ? (
+        <Banner tone="danger">{loadError} <button type="button" onClick={() => loadTemplate(templateId)} className="underline">Reintentar</button></Banner>
+      ) : loading || !template ? (
         <div className="flex items-center justify-center py-16"><Spinner /></div>
       ) : (
         <div className="space-y-6">
@@ -343,20 +344,20 @@ export function TemplateMetricsModal({ templateId, onClose }: { templateId: stri
               <Button variant="secondary" size="sm" onClick={() => applyPreset(90)}>90 días</Button>
             </div>
             <div className="w-36">
-              <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="Desde" max={dateTo} />
+              <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="Desde" ariaLabel="Fecha desde" max={dateTo} />
             </div>
             <div className="w-36">
-              <DatePicker value={dateTo} onChange={setDateTo} placeholder="Hasta" min={dateFrom} max={isoDaysAgo(0)} />
+              <DatePicker value={dateTo} onChange={setDateTo} placeholder="Hasta" ariaLabel="Fecha hasta" min={dateFrom} max={isoDaysAgo(0)} />
             </div>
           </div>
 
           {analyticsError && (
             <Banner tone="danger" title="No se pudieron obtener las métricas de Meta">
-              {analyticsError}
+              {analyticsError} <button type="button" onClick={fetchAnalytics} className="underline">Reintentar</button>
             </Banner>
           )}
 
-          <KpiStrip
+          {totals && <KpiStrip
             size="compact"
             items={[
               { label: "Enviados", value: String(totals.sent) },
@@ -364,9 +365,9 @@ export function TemplateMetricsModal({ templateId, onClose }: { templateId: stri
               { label: "Leídos", value: String(totals.read), hint: `${pct(totals.read, totals.delivered)} de entregados` },
               { label: "Clics", value: String(totals.clicked), hint: `${pct(totals.clicked, totals.read)} de leídos` },
             ]}
-          />
+          />}
 
-          <Card>
+          {!analyticsError && <Card>
             <CardHeader>
               <CardTitle>Evolución diaria</CardTitle>
             </CardHeader>
@@ -377,7 +378,7 @@ export function TemplateMetricsModal({ templateId, onClose }: { templateId: stri
                 <AnalyticsChart points={points} />
               )}
             </CardBody>
-          </Card>
+          </Card>}
 
           {points.length > 0 && (
             <Card>
@@ -406,6 +407,6 @@ export function TemplateMetricsModal({ templateId, onClose }: { templateId: stri
           )}
         </div>
       )}
-    </Modal>
+    </DetailPage>
   );
 }

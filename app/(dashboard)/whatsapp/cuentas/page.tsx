@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Search, Plus, RefreshCw, Phone, Trash2, Settings2 } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
@@ -18,6 +19,7 @@ import { CuentaFormModal } from "./_form";
 
 interface WaAccount {
   id: string;
+  userId: string;
   name: string;
   channel: string;
   phoneNumber: string | null;
@@ -49,6 +51,7 @@ export default function CuentasPage() {
 
 function CuentasView() {
   const router = useRouter();
+  const { data: session } = useSession();
   const searchParams = useSearchParams();
   const { success, error: toastError } = useToast();
   const [accounts, setAccounts] = useState<WaAccount[]>([]);
@@ -129,6 +132,7 @@ function CuentasView() {
             className="sm:max-w-xs flex-1"
           />
           <Select
+            aria-label="Filtrar por estado"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             placeholder="Todos los estados"
@@ -161,9 +165,11 @@ function CuentasView() {
               <DropdownItem icon={Settings2} onClick={() => router.push(`/whatsapp/cuentas/${a.id}`)}>
                 Detalles
               </DropdownItem>
-              <DropdownItem icon={Trash2} onClick={() => setDeleteId(a.id)}>
-                Eliminar
-              </DropdownItem>
+              {(session?.user?.role === "admin" || a.userId === session?.user?.id) && (
+                <DropdownItem icon={Trash2} onClick={() => setDeleteId(a.id)}>
+                  Eliminar
+                </DropdownItem>
+              )}
             </>
           )}
           renderRow={(a) => {

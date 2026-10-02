@@ -7,6 +7,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { SectionHeader } from "@/app/components/ui/section-header";
+import { Card } from "@/app/components/ui/card";
 import { Workbench, WorkbenchMain, WorkbenchAside } from "@/app/components/ui/workbench";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
@@ -35,16 +36,18 @@ function formatCost(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
-export function EstadisticasView({ stats }: { stats: Estadisticas }) {
+export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas; canManageBots: boolean }) {
+  const accountChannels = new Set(stats.accountBreakdown.map((account) => account.channel));
+  const accountsHref = accountChannels.size === 1
+    ? `/${stats.accountBreakdown[0].channel.toLowerCase()}/cuentas`
+    : undefined;
   const botColumns: TableColumn<BotBreakdownRow>[] = useMemo(() => [
     {
       key: "name",
       header: "Bot",
-      render: (b) => (
-        <Link href={`/whatsapp/bots/${b.id}`} className="font-medium hover:text-accent-ink transition-colors">
-          {b.name}
-        </Link>
-      ),
+      render: (b) => canManageBots
+        ? <Link href={`/whatsapp/bots/${b.id}`} className="font-medium hover:text-accent-ink transition-colors">{b.name}</Link>
+        : <span className="font-medium">{b.name}</span>,
     },
     {
       key: "status",
@@ -68,7 +71,7 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
       cellClassName: "text-right",
       render: (b) => <span className="font-mono text-xs">{formatCost(b.totalCost)}</span>,
     },
-  ], []);
+  ], [canManageBots]);
 
   const agentColumns: TableColumn<AgentPerformanceRow>[] = useMemo(() => [
     { key: "userName", header: "Agente", render: (a) => <span className="font-medium">{a.userName ?? "Sin nombre"}</span> },
@@ -127,10 +130,10 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
   ], []);
 
   const kpis: KpiItem[] = [
-    { label: "Cuentas", value: String(stats.accounts), href: "/whatsapp/cuentas" },
+    { label: "Cuentas", value: String(stats.accounts), href: accountsHref },
     { label: "Chats activos", value: String(stats.chats), href: "/whatsapp/chat" },
     { label: "Mensajes", value: stats.messages.toLocaleString("es-MX"), href: "/whatsapp/chat" },
-    { label: "Bots IA", value: `${stats.activeBots}/${stats.bots}`, hint: "activos", href: "/whatsapp/bots" },
+    { label: "Bots IA", value: `${stats.activeBots}/${stats.bots}`, hint: "activos", href: canManageBots ? "/whatsapp/bots" : undefined },
     {
       label: "Campañas",
       value: `${stats.campaignsCompleted}/${stats.campaigns}`,
@@ -153,17 +156,18 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
 
       <Workbench>
         <WorkbenchMain>
-          <section className="animate-fade-in-up animation-delay-200">
+          <Card as="section" className="animate-fade-in-up animation-delay-200">
             <SectionHeader eyebrow="Actividad" title="Mensajes diarios" />
             <div className="mt-4">
               <MessagesTrendChart data={stats.dailyMessages} />
             </div>
-          </section>
+          </Card>
 
-          <section className="animate-fade-in-up animation-delay-300">
+          <Card as="section" className="animate-fade-in-up animation-delay-300">
             <SectionHeader eyebrow="Difusión" title="Mensajes por campaña / automatización" />
             <div className="mt-4">
               <Table
+                className="px-5 sm:px-0"
                 columns={campaignColumns}
                 rows={stats.campaignMessageBreakdown}
                 rowKey={(r) => `${r.origin}-${r.id}`}
@@ -186,12 +190,13 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                 )}
               />
             </div>
-          </section>
+          </Card>
 
-          <section className="animate-fade-in-up animation-delay-300">
+          <Card as="section" className="animate-fade-in-up animation-delay-300">
             <SectionHeader eyebrow="Automatización" title="Uso por bot" />
             <div className="mt-4">
               <Table
+                className="px-5 sm:px-0"
                 columns={botColumns}
                 rows={stats.botBreakdown}
                 rowKey={(b) => b.id}
@@ -203,9 +208,9 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                   return (
                     <div className="w-full min-w-0 space-y-1">
                       <div className="flex items-center justify-between gap-2">
-                        <Link href={`/whatsapp/bots/${b.id}`} className="truncate text-sm font-medium hover:text-accent-ink transition-colors">
-                          {b.name}
-                        </Link>
+                        {canManageBots
+                          ? <Link href={`/whatsapp/bots/${b.id}`} className="truncate text-sm font-medium hover:text-accent-ink transition-colors">{b.name}</Link>
+                          : <span className="truncate text-sm font-medium">{b.name}</span>}
                         {status.render(b)}
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs text-muted-darker">
@@ -217,12 +222,13 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                 }}
               />
             </div>
-          </section>
+          </Card>
 
-          <section className="animate-fade-in-up animation-delay-400">
+          <Card as="section" className="animate-fade-in-up animation-delay-400">
             <SectionHeader eyebrow="Equipo" title="Rendimiento por agente" />
             <div className="mt-4">
               <Table
+                className="px-5 sm:px-0"
                 columns={agentColumns}
                 rows={stats.agentPerformance}
                 rowKey={(a) => a.userId}
@@ -247,11 +253,11 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                 }}
               />
             </div>
-          </section>
+          </Card>
         </WorkbenchMain>
 
         <WorkbenchAside>
-          <section className="animate-fade-in-up animation-delay-200">
+          <Card as="section" className="animate-fade-in-up animation-delay-200">
             <SectionHeader eyebrow="Inteligencia artificial" title="Inversión en IA" />
             <div className="mt-3 space-y-4">
               <div>
@@ -283,9 +289,9 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                 </div>
               )}
             </div>
-          </section>
+          </Card>
 
-          <section className="animate-fade-in-up animation-delay-300">
+          <Card as="section" className="animate-fade-in-up animation-delay-300">
             <SectionHeader eyebrow="Leads" title="Chats calificados" />
             <div className="mt-3 space-y-4">
               <QualifiedLabelDonut data={stats.qualifiedChats.byLabel} labelText={LABEL_TEXT} total={stats.qualifiedChats.total} />
@@ -305,9 +311,9 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                 </div>
               )}
             </div>
-          </section>
+          </Card>
 
-          <section className="animate-fade-in-up animation-delay-300">
+          <Card as="section" className="animate-fade-in-up animation-delay-300">
             <SectionHeader eyebrow="Difusión" title="Entregas por origen" />
             <div className="mt-3 space-y-3">
               <DeliveryComparisonChart data={stats.campaignMessagesByOrigin} />
@@ -326,10 +332,10 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                 ))}
               </div>
             </div>
-          </section>
+          </Card>
 
-          <section className="animate-fade-in-up animation-delay-400">
-            <SectionHeader eyebrow="Canales" title="Chats por número" />
+          <Card as="section" className="animate-fade-in-up animation-delay-400">
+            <SectionHeader eyebrow="Canales" title="Chats por cuenta" />
             <div className="mt-3">
               <HorizontalBarChart
                 data={stats.accountBreakdown.map((a) => ({ id: a.id, label: a.name, value: a.chats, sublabel: a.phoneNumber ?? undefined }))}
@@ -337,7 +343,7 @@ export function EstadisticasView({ stats }: { stats: Estadisticas }) {
                 emptyLabel="Sin cuentas todavía"
               />
             </div>
-          </section>
+          </Card>
         </WorkbenchAside>
       </Workbench>
     </div>

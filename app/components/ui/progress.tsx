@@ -26,6 +26,7 @@ export function Progress({ value, label, tone = "accent", className }: ProgressP
       <div
         className="h-1.5 w-full overflow-hidden rounded-full bg-surface-light"
         role="progressbar"
+        aria-label={label ?? "Progreso"}
         aria-valuenow={clamped}
         aria-valuemin={0}
         aria-valuemax={100}

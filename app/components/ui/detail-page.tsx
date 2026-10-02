@@ -4,11 +4,12 @@ import React from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "./cn";
+import { HeroTabs } from "./hero-tabs";
 
 // Plantilla compartida de página de detalle (cuentas/[id], bots/[id], etc.):
 // back-link + título (+ badge) + tabs opcionales + contenido. Sustituye al
-// patrón repetido de header manual + <Card> apilados — el contenido del
-// caller debe separar sus propias secciones con <SectionHeader>, no <Card>.
+// patrón repetido de header manual. Cada caller agrupa el contenido según su
+// función: superficies para bloques de ajustes, listas para datos densos.
 
 export interface DetailTab {
   id: string;
@@ -55,37 +56,20 @@ export function DetailPage({
           {backLabel}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-display text-page-title font-semibold tracking-tight">{title}</h1>
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <h1 className="min-w-0 break-words font-display text-page-title font-semibold tracking-tight">{title}</h1>
               {badge}
             </div>
             {description && <p className="mt-1 text-sm text-muted">{description}</p>}
           </div>
-          {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+          {actions && <div className="flex max-w-full flex-wrap gap-2">{actions}</div>}
         </div>
       </div>
 
-      {tabs && (
-        <div className="flex gap-1 border-b border-border">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => onTabChange?.(t.id)}
-              className={cn(
-                "border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
-                activeTab === t.id
-                  ? "border-accent-strong text-accent-ink"
-                  : "border-transparent text-muted hover:text-foreground"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {children}
+      {tabs?.length ? <HeroTabs items={tabs} value={activeTab ?? tabs[0].id} onChange={(id) => onTabChange?.(id)} label={`Secciones de ${title}`}>
+        {children}
+      </HeroTabs> : children}
     </div>
   );
 }

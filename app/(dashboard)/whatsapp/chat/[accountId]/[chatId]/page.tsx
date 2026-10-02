@@ -1,31 +1,15 @@
-"use client";
-
 import { Suspense } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { ChatWorkspace } from "@/app/components/whatsapp/chat-workspace";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { getChatAccountOptions } from "@/lib/chat-account-options";
 import { Spinner } from "@/app/components/ui/spinner";
+import { ChatPageView } from "../../_view";
 
-function ChatDetailPageContent() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const accountId = params.accountId as string;
-  const chatId = params.chatId as string;
-  const campaignId = searchParams.get("campaignId") || undefined;
-  const hasReplied = searchParams.get("hasReplied");
-  const search = searchParams.get("search") || undefined;
+export default async function ChatDetailPage({ params }: { params: Promise<{ accountId: string; chatId: string }> }) {
+  const [session, { accountId, chatId }] = await Promise.all([auth(), params]);
+  if (!session?.user) redirect("/login");
+  const initialAccounts = await getChatAccountOptions(session.user.id);
 
-  return (
-    <ChatWorkspace
-      initialAccountId={accountId}
-      initialChatId={chatId}
-      initialCampaignId={campaignId}
-      initialHasReplied={hasReplied === "yes" || hasReplied === "no" ? hasReplied : ""}
-      initialSearch={search}
-    />
-  );
-}
-
-export default function ChatDetailPage() {
   return (
     <Suspense
       fallback={
@@ -34,7 +18,7 @@ export default function ChatDetailPage() {
         </div>
       }
     >
-      <ChatDetailPageContent />
+      <ChatPageView initialAccounts={initialAccounts} initialAccountId={accountId} initialChatId={chatId} />
     </Suspense>
   );
 }

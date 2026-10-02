@@ -10,6 +10,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Spinner } from "@/app/components/ui/spinner";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Banner } from "@/app/components/ui/banner";
+import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
@@ -20,8 +21,6 @@ import { BotFormModal } from "../_form";
 interface BotDetail {
   id: string;
   name: string;
-  provider: string;
-  model: string;
   systemPrompt: string;
   temperature: number;
   maxTokens: number;
@@ -35,6 +34,7 @@ interface BotDetail {
   createdAt: string;
   updatedAt: string;
   waAccount: { id: string; name: string; phoneNumber: string | null } | null;
+  channelAccount: { id: string; name: string; channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" } | null;
   _count: { conversations: number; knowledgeBots: number };
 }
 
@@ -69,12 +69,14 @@ export default function BotDetailPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("config");
   const [bot, setBot] = useState<BotDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   const [knowledge, setKnowledge] = useState<KnowledgeDoc[]>([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
   const [docTitle, setDocTitle] = useState("");
   const [uploading, setUploading] = useState(false);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
@@ -87,32 +89,39 @@ export default function BotDetailPage() {
 
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
+  const [usageError, setUsageError] = useState<string | null>(null);
 
   const fetchBot = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch(`/api/whatsapp/bots/${id}`);
       const data = await res.json();
-      if (res.ok) setBot(data);
-    } catch { toastError("Error al cargar"); } finally { setLoading(false); }
-  }, [id, toastError]);
+      if (!res.ok) throw new Error(data.error ?? "Error al cargar el bot");
+      setBot(data);
+    } catch (err) { setLoadError(err instanceof Error ? err.message : "Error al cargar el bot"); } finally { setLoading(false); }
+  }, [id]);
 
   const fetchKnowledge = useCallback(async () => {
     setKnowledgeLoading(true);
+    setKnowledgeError(null);
     try {
       const res = await fetch(`/api/whatsapp/bots/${id}/knowledge`);
       const data = await res.json();
-      if (Array.isArray(data)) setKnowledge(data);
-    } catch { /* */ } finally { setKnowledgeLoading(false); }
+      if (!res.ok || !Array.isArray(data)) throw new Error(data.error ?? "Error al cargar documentos");
+      setKnowledge(data);
+    } catch (err) { setKnowledgeError(err instanceof Error ? err.message : "Error al cargar documentos"); } finally { setKnowledgeLoading(false); }
   }, [id]);
 
   const fetchUsage = useCallback(async () => {
     setUsageLoading(true);
+    setUsageError(null);
     try {
       const res = await fetch(`/api/whatsapp/bots/${id}/usage`);
       const data = await res.json();
-      if (res.ok) setUsageData(data);
-    } catch { /* */ } finally { setUsageLoading(false); }
+      if (!res.ok) throw new Error(data.error ?? "Error al cargar uso");
+      setUsageData(data);
+    } catch (err) { setUsageError(err instanceof Error ? err.message : "Error al cargar uso"); } finally { setUsageLoading(false); }
   }, [id]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchBot also used for manual refresh
@@ -234,6 +243,7 @@ export default function BotDetailPage() {
   ], []);
 
   if (loading) return <div className="flex items-center justify-center py-16"><Spinner /></div>;
+  if (loadError) return <ListErrorState message={loadError} onRetry={fetchBot} />;
   if (!bot) return <Banner tone="danger" title="Bot no encontrado">El bot solicitado no existe.</Banner>;
 
   return (
@@ -241,7 +251,7 @@ export default function BotDetailPage() {
       backHref="/whatsapp/bots"
       backLabel="Volver a bots"
       title={bot.name}
-      description={`${bot.waAccount?.name ?? "Sin cuenta (solo pruebas)"} · ${bot.provider === "openrouter" ? "OpenRouter" : "Gemini"} · ${bot.model}`}
+      description={bot.waAccount?.name ?? bot.channelAccount?.name ?? "Sin cuenta (solo pruebas)"}
       maxWidth="max-w-3xl"
       tabs={TABS as unknown as { id: string; label: string }[]}
       activeTab={tab}
@@ -284,6 +294,7 @@ export default function BotDetailPage() {
 
       {tab === "knowledge" && (
         <div className="space-y-8">
+          {knowledgeError && <Banner tone="danger">{knowledgeError} <button onClick={fetchKnowledge} className="underline">Reintentar</button></Banner>}
           <section className="space-y-4">
             <SectionHeader title="Subir documento" />
             <div className="space-y-3">
@@ -338,6 +349,7 @@ export default function BotDetailPage() {
       {tab === "test" && (
         <section className="space-y-4">
           <SectionHeader title="Probar el bot" />
+          <p className="text-xs text-muted">Cada prueba usa un crédito de IA de tu organización.</p>
           <FormField label="Mensaje de prueba">
             {(id) => (
               <Textarea id={id} value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Escribe un mensaje para probar..." rows={3} />
@@ -369,10 +381,13 @@ export default function BotDetailPage() {
           <section className="space-y-4">
             <SectionHeader title={`Últimas interacciones (${usageData?.total.interactions ?? 0} total)`} />
             <Table
+              className="rounded-xl border border-border bg-surface p-5 shadow-sm"
               columns={usageColumns}
               rows={usageData?.recent ?? []}
               rowKey={(u) => `${u.createdAt}-${u.totalTokens}-${u.estimatedCost}`}
               loading={usageLoading}
+              error={usageError}
+              onRetry={fetchUsage}
               emptyIcon={Send}
               emptyTitle="Sin datos de uso aún"
             />

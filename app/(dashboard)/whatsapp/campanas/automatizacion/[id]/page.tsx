@@ -12,6 +12,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { DetailPage } from "@/app/components/ui/detail-page";
+import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { useToast } from "@/app/components/ui/toast";
 
 interface SourceDetail {
@@ -64,6 +65,8 @@ export default function LeadSheetSourceDetailPage() {
   const [syncing, setSyncing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [importConfirmOpen, setImportConfirmOpen] = useState(false);
 
   const fetchSource = useCallback(async () => {
@@ -71,14 +74,15 @@ export default function LeadSheetSourceDetailPage() {
     try {
       const res = await fetch(`/api/whatsapp/lead-sheet-sources/${id}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error ?? "No se pudo cargar la fuente");
       setSource(data);
+      setLoadError(null);
     } catch (err) {
-      toastError(err instanceof Error ? err.message : "Error");
+      setLoadError(err instanceof Error ? err.message : "Error al cargar la fuente");
     } finally {
       setLoading(false);
     }
-  }, [id, toastError]);
+  }, [id]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchSource also used for manual refresh
   useEffect(() => { fetchSource(); }, [fetchSource]);
@@ -139,6 +143,7 @@ export default function LeadSheetSourceDetailPage() {
   }
 
   async function handleDelete() {
+    setDeleting(true);
     try {
       const res = await fetch(`/api/whatsapp/lead-sheet-sources/${id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -149,6 +154,8 @@ export default function LeadSheetSourceDetailPage() {
       router.push("/whatsapp/campanas");
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -168,6 +175,9 @@ export default function LeadSheetSourceDetailPage() {
 
   if (loading) {
     return <div className="flex justify-center py-16"><Spinner /></div>;
+  }
+  if (loadError) {
+    return <ListErrorState message={loadError} onRetry={fetchSource} />;
   }
   if (!source) {
     return <p className="text-sm text-muted-darker">Fuente no encontrada.</p>;
@@ -190,7 +200,7 @@ export default function LeadSheetSourceDetailPage() {
           <Button variant="secondary" size="sm" icon={importing ? undefined : History} onClick={() => setImportConfirmOpen(true)} disabled={importing || seededCount === 0}>
             {importing ? <Spinner /> : "Importar leads existentes"}
           </Button>
-          <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)} className="text-muted-darker hover:text-danger" />
+          <Button variant="ghost" size="sm" icon={Trash2} aria-label="Eliminar fuente de leads" onClick={() => setDeleteOpen(true)} className="text-muted-darker hover:text-danger" />
         </>
       }
     >
@@ -249,15 +259,24 @@ export default function LeadSheetSourceDetailPage() {
           </p>
         </section>
 
-        <section className="space-y-4">
+        <section className="min-w-0 space-y-4">
           <SectionHeader title="Actividad reciente" />
           <Table
+            className="rounded-xl border border-border bg-surface p-5 shadow-sm"
             columns={rowColumns}
             rows={source.recentRows}
             rowKey={(r) => r.id}
             emptyIcon={History}
             emptyTitle="Sin actividad todavía"
             emptyDescription="Cuando esta fuente procese leads, aparecerán aquí."
+            mobileCard={(row) => (
+              <div className="grid min-w-0 grid-cols-2 gap-1 text-xs">
+                <span className="col-span-2 break-all font-mono text-foreground">{row.phoneNumber}</span>
+                <span>{ROW_STATUS_BADGE[row.status]?.label ?? row.status}</span>
+                <span className="text-right text-muted-darker">{new Date(row.importedAt).toLocaleDateString("es-MX")}</span>
+                {row.errorMessage && <span className="col-span-2 break-words text-danger">{row.errorMessage}</span>}
+              </div>
+            )}
           />
         </section>
       </div>
@@ -265,6 +284,7 @@ export default function LeadSheetSourceDetailPage() {
       <ConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
+        loading={deleting}
         title="Eliminar fuente de leads"
         description="Se dejará de revisar esta hoja. Los chats y contactos ya creados no se eliminan."
         confirmLabel="Eliminar"

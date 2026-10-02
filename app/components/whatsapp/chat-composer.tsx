@@ -72,7 +72,7 @@ export function ChatComposer({
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-2 px-4 py-3 border-t border-border bg-surface shrink-0 relative">
       {cannedSuggestions.length > 0 && (
-        <div className="absolute bottom-full left-4 right-4 mb-1.5 rounded-lg border border-border bg-surface shadow-lg overflow-hidden z-20">
+        <div className="chat-disclosure-enter absolute bottom-full left-4 right-4 mb-1.5 rounded-lg border border-border bg-surface shadow-lg overflow-hidden z-20">
           {cannedSuggestions.map((c, i) => (
             <button
               key={c.id}
@@ -91,7 +91,7 @@ export function ChatComposer({
       )}
 
       {attachment && (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-2">
+        <div className="chat-disclosure-enter flex items-center gap-3 rounded-lg border border-border bg-background p-2">
           {attachmentPreview && isImageMime(attachment.type) ? (
             // eslint-disable-next-line @next/next/no-img-element -- local preview blob
             <img src={attachmentPreview} alt={attachment.name} className="h-12 w-12 rounded object-cover animate-fade-in" />
@@ -119,7 +119,7 @@ export function ChatComposer({
       )}
 
       {buttonsPanelOpen && (
-        <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+        <div className="chat-disclosure-enter rounded-lg border border-border bg-background p-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-darker">
               Botones de respuesta rápida ({interactiveButtons.length}/{MAX_BUTTONS})
@@ -208,6 +208,7 @@ export function ChatComposer({
         <ReplySuggestionButton chatId={chatId} onInsert={onMessageChange} />
         <input
           value={newMessage}
+          aria-label="Mensaje"
           onChange={(e) => { onMessageChange(e.target.value); onCannedIndexChange(0); }}
           onKeyDown={(e) => {
             if (cannedSuggestions.length > 0) {
@@ -242,11 +243,12 @@ export function ChatComposer({
                 ? "Añadir comentario (opcional)..."
                 : "Escribe un mensaje... (usa /atajo para respuestas rápidas)"
           }
-          className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted transition-colors"
+          className="min-w-0 flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted transition-colors"
           disabled={sending}
         />
         <Button
           type="submit"
+          aria-label="Enviar mensaje"
           icon={sending ? undefined : Send}
           size="sm"
           disabled={

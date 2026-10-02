@@ -9,8 +9,8 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Select } from "@/app/components/ui/select";
 import { Spinner } from "@/app/components/ui/spinner";
-import { Banner } from "@/app/components/ui/banner";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
@@ -68,7 +68,9 @@ function endOfWeek(d: Date): Date {
 }
 
 function dayKey(iso: string): string {
-  return iso.slice(0, 10);
+  const date = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 function dayLabel(iso: string): string {
   const label = new Date(iso).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
@@ -83,6 +85,7 @@ export function CitasView() {
   const highlightId = searchParams.get("id");
 
   const [appointments, setAppointments] = useState<AppointmentDetail[]>([]);
+  const [now, setNow] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
@@ -94,10 +97,18 @@ export function CitasView() {
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch("/api/whatsapp/appointments");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error al cargar las citas");
-      setAppointments(Array.isArray(data) ? data : []);
+      const all: AppointmentDetail[] = [];
+      let page = 1;
+      while (true) {
+        const res = await fetch(`/api/whatsapp/appointments?page=${page}`);
+        const data = await res.json();
+        if (!res.ok || !Array.isArray(data)) throw new Error(data.error ?? "Error al cargar las citas");
+        all.push(...data);
+        if (data.length < 500) break;
+        page++;
+      }
+      setAppointments(all);
+      setNow(new Date());
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Error al cargar las citas");
     } finally {
@@ -109,13 +120,6 @@ export function CitasView() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAppointments also used for manual refresh
     fetchAppointments();
   }, [fetchAppointments]);
-
-  // Memoizado una sola vez por montaje (no atado a `appointments`, que
-  // disparaba "dependencia innecesaria" en exhaustive-deps): "ahora" solo
-  // necesita ser razonablemente reciente para las cifras de KPIs/agrupado,
-  // no exacta al milisegundo — un refresh de página (o "Actualizar") ya la
-  // renueva.
-  const now = useMemo(() => new Date(), []);
 
   const kpis: KpiItem[] = useMemo(() => {
     const todayStart = startOfDay(now).getTime();
@@ -202,13 +206,13 @@ export function CitasView() {
         }
       />
 
-      <KpiStrip items={kpis} />
+      {!fetchError && <KpiStrip items={kpis} />}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-48">
+      {!fetchError && <div className="flex flex-wrap items-center gap-3">
+        <Select aria-label="Filtrar citas por estado" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-48">
           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </Select>
-        <Select value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)} className="w-48">
+        <Select aria-label="Filtrar citas por fecha" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)} className="w-48">
           {SCOPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </Select>
         {contactIdParam && (
@@ -223,10 +227,10 @@ export function CitasView() {
             </button>
           </Badge>
         )}
-      </div>
+      </div>}
 
       {fetchError ? (
-        <Banner tone="danger">{fetchError}</Banner>
+        <ListErrorState message={fetchError} onRetry={fetchAppointments} />
       ) : loading ? (
         <div className="flex items-center justify-center py-16">
           <Spinner />
@@ -251,13 +255,13 @@ export function CitasView() {
                       key={a.id}
                       onClick={() => { setEditing(a); setModalOpen(true); }}
                       className={cn(
-                        "group relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-surface-light/60",
+                        "group relative flex flex-col items-stretch gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-surface-light/60 sm:flex-row sm:items-center",
                         a.id === highlightId && "bg-accent-subtle"
                       )}
                     >
                       <EntityRow
                         leading={<EntityAvatar id={a.contact.id} name={contactLabelOf(a.contact)} size="sm" />}
-                        title={a.title}
+                        title={<button type="button" onClick={(event) => { event.stopPropagation(); setEditing(a); setModalOpen(true); }} className="text-left hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong" aria-label={`Editar cita: ${a.title}`}>{a.title}</button>}
                         badges={
                           <span className="flex shrink-0 items-center gap-1">
                             <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
@@ -278,9 +282,12 @@ export function CitasView() {
                       />
                       {a.status === "SCHEDULED" && (
                         <div
-                          className="shrink-0 flex gap-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 md:opacity-0"
+                          className="flex shrink-0 items-center justify-end gap-1.5 border-t border-border pt-2 opacity-100 transition-opacity focus-within:opacity-100 sm:border-0 sm:pt-0 md:opacity-0 md:group-hover:opacity-100"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          <span className="mr-auto text-xs text-muted sm:hidden">
+                            {new Date(a.scheduledAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
                           <Button size="sm" variant="secondary" onClick={() => handleQuickComplete(a, "COMPLETED")}>
                             Completada
                           </Button>

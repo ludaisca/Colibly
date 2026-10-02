@@ -12,6 +12,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { useToast } from "@/app/components/ui/toast";
+import { HeroTabs } from "@/app/components/ui/hero-tabs";
 
 interface Campaign {
   id: string;
@@ -51,8 +52,7 @@ const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" 
   FAILED:    { label: "Fallida",    tone: "danger" },
 };
 
-const TABS = ["campanas", "automatizacion"] as const;
-type Tab = (typeof TABS)[number];
+type Tab = "campanas" | "automatizacion";
 
 export default function CampaignsPage() {
   const [tab, setTab] = useState<Tab>("campanas");
@@ -64,24 +64,9 @@ export default function CampaignsPage() {
         description="Envía mensajes masivos usando plantillas de WhatsApp, manualmente o disparados en automático desde una hoja de Google Sheets."
       />
 
-      <div className="flex gap-1 border-b border-border">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === t ? "border-accent-strong text-accent-ink" : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            {/* "Desde Google Sheets" y no "Automatización": ese nombre ya lo
-                usa un grupo del menú lateral (Bots IA + Calificadores), y
-                tenerlo en dos lugares para cosas distintas confundía. */}
-            {t === "campanas" ? "Campañas" : "Desde Google Sheets"}
-          </button>
-        ))}
-      </div>
-
-      {tab === "campanas" ? <CampaignsTab /> : <AutomationTab />}
+      <HeroTabs items={[{ id: "campanas", label: "Campañas" }, { id: "automatizacion", label: "Desde Google Sheets" }]} value={tab} onChange={setTab} label="Secciones de campañas">
+        {tab === "campanas" ? <CampaignsTab /> : <AutomationTab />}
+      </HeroTabs>
     </div>
   );
 }
@@ -91,26 +76,31 @@ function CampaignsTab() {
   const { success, error: toastError } = useToast();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch("/api/whatsapp/campaigns");
       const data = await res.json();
-      if (Array.isArray(data)) setCampaigns(data);
-    } catch {
-      toastError("Error al cargar campañas");
+      if (!res.ok || !Array.isArray(data)) throw new Error(data?.error ?? "Error al cargar campañas");
+      setCampaigns(data);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Error al cargar campañas");
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchCampaigns also used for manual refresh
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
 
   async function handleDelete() {
     if (!deleteId) return;
+    setDeleting(true);
     try {
       const res = await fetch(`/api/whatsapp/campaigns/${deleteId}`, { method: "DELETE" });
       if (!res.ok) {
@@ -119,10 +109,11 @@ function CampaignsTab() {
       }
       success("Campaña eliminada");
       setCampaigns((prev) => prev.filter((c) => c.id !== deleteId));
+      setDeleteId(null);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error");
     } finally {
-      setDeleteId(null);
+      setDeleting(false);
     }
   }
 
@@ -136,6 +127,8 @@ function CampaignsTab() {
         rows={campaigns}
         rowKey={(c) => c.id}
         loading={loading}
+        error={loadError}
+        onRetry={fetchCampaigns}
         emptyIcon={Megaphone}
         emptyTitle="Sin campañas"
         emptyDescription="Crea tu primera campaña de WhatsApp para enviar mensajes a múltiples destinatarios."
@@ -204,6 +197,7 @@ function CampaignsTab() {
       <ConfirmDialog
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
+        loading={deleting}
         title="Eliminar campaña"
         description="Solo se pueden eliminar campañas en borrador."
         confirmLabel="Eliminar"
@@ -219,21 +213,25 @@ function AutomationTab() {
   const { success, error: toastError } = useToast();
   const [sources, setSources] = useState<LeadSheetSource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch("/api/whatsapp/lead-sheet-sources");
       const data = await res.json();
-      if (Array.isArray(data)) setSources(data);
-    } catch {
-      toastError("Error al cargar las fuentes de leads");
+      if (!res.ok || !Array.isArray(data)) throw new Error(data?.error ?? "Error al cargar las fuentes de leads");
+      setSources(data);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Error al cargar las fuentes de leads");
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchSources also used for manual refresh
   useEffect(() => { fetchSources(); }, [fetchSources]);
@@ -260,6 +258,7 @@ function AutomationTab() {
 
   async function handleDelete() {
     if (!deleteId) return;
+    setDeleting(true);
     try {
       const res = await fetch(`/api/whatsapp/lead-sheet-sources/${deleteId}`, { method: "DELETE" });
       if (!res.ok) {
@@ -268,10 +267,11 @@ function AutomationTab() {
       }
       success("Fuente eliminada");
       setSources((prev) => prev.filter((s) => s.id !== deleteId));
+      setDeleteId(null);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error");
     } finally {
-      setDeleteId(null);
+      setDeleting(false);
     }
   }
 
@@ -292,6 +292,8 @@ function AutomationTab() {
         rows={sources}
         rowKey={(s) => s.id}
         loading={loading}
+        error={loadError}
+        onRetry={fetchSources}
         emptyIcon={Workflow}
         emptyTitle="Sin fuentes de leads"
         emptyDescription="Conecta una hoja de Google Sheets para disparar plantillas automáticamente a leads nuevos."
@@ -360,6 +362,7 @@ function AutomationTab() {
       <ConfirmDialog
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
+        loading={deleting}
         title="Eliminar fuente de leads"
         description="Se dejará de revisar esta hoja. Los chats y contactos ya creados no se eliminan."
         confirmLabel="Eliminar"

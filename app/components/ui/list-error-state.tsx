@@ -4,7 +4,7 @@ import { Button } from "./button";
 
 interface ListErrorStateProps {
   message?: string;
-  onRetry: () => void;
+  onRetry?: () => void;
   retryLabel?: string;
   className?: string;
 }
@@ -20,11 +20,11 @@ export function ListErrorState({
       tone="danger"
       title="Error al cargar"
       className={className}
-      action={
+      action={onRetry ? (
         <Button variant="secondary" size="sm" icon={RefreshCw} onClick={onRetry}>
           {retryLabel}
         </Button>
-      }
+      ) : undefined}
     >
       {message}
     </Banner>

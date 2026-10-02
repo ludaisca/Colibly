@@ -46,6 +46,11 @@ import {
 // tocar el merge por id del polling ni el scroll (ambos se quedan en el
 // orquestador, que sigue siendo dueño de `messages`/los refs de scroll).
 
+const MESSAGE_STATUS_LABEL: Record<string, string> = {
+  sending: "Enviando", failed: "No enviado", sent: "Enviado",
+  delivered: "Entregado", read: "Leído",
+};
+
 function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: PreviewMedia) => void }) {
   const mediaSrc = msg.localPreviewUrl ?? (msg.mediaUrl ? mediaEndpointFor(msg.id) : null);
 
@@ -152,10 +157,12 @@ function MessageBubble({
   msg,
   onPreview,
   onRetry,
+  reduceMotion,
 }: {
   msg: Message;
   onPreview: (media: PreviewMedia) => void;
   onRetry?: (msg: Message) => void;
+  reduceMotion: boolean;
 }) {
   const isInbound = msg.direction === "INBOUND";
   const hasMedia = msg.messageType !== "text" && (msg.mediaUrl || msg.mediaId || msg.localPreviewUrl);
@@ -213,13 +220,19 @@ function MessageBubble({
           )}
           <span className="text-[10px]">{formatBubbleTime(msg.timestamp)}</span>
           {!isInbound && msg.status && (
-            <span className="text-[10px]">
-              {msg.status === "sending" && <Clock size={10} />}
-              {msg.status === "failed" && <AlertCircle size={10} className="text-danger" />}
-              {msg.status === "sent" && <Check size={10} />}
-              {msg.status === "delivered" && <CheckCheck size={10} />}
-              {msg.status === "read" && <CheckCheck size={10} className="text-info" />}
-            </span>
+            <AnimatePresence initial={false} mode="wait">
+              <motion.span key={msg.status} className="text-[10px]" role="img" aria-label={MESSAGE_STATUS_LABEL[msg.status] ?? msg.status}
+                initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={reduceMotion ? undefined : { opacity: 0, scale: 0.8 }}
+                transition={{ duration: reduceMotion ? 0 : 0.12 }}>
+                {msg.status === "sending" && <Clock size={10} />}
+                {msg.status === "failed" && <AlertCircle size={10} className="text-danger" />}
+                {msg.status === "sent" && <Check size={10} />}
+                {msg.status === "delivered" && <CheckCheck size={10} />}
+                {msg.status === "read" && <CheckCheck size={10} className="text-info" />}
+              </motion.span>
+            </AnimatePresence>
           )}
         </div>
       </div>
@@ -291,9 +304,7 @@ export function ChatThreadPanel({
   messagesContainerRef,
   messagesEndRef,
 }: ChatThreadPanelProps) {
-  // CSS ya neutraliza animate-* globalmente (globals.css), pero motion no
-  // corre por CSS — se apaga a mano la transición de entrada/salida de
-  // burbujas cuando el usuario prefiere menos movimiento.
+  // Motion no responde a las reglas CSS de reduced-motion: se ajusta aquí.
   const shouldReduceMotion = useReducedMotion();
 
   return (
@@ -306,7 +317,7 @@ export function ChatThreadPanel({
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onCloseChat}
-            className="md:hidden text-muted-darker hover:text-foreground transition-colors shrink-0"
+            className="lg:hidden text-muted-darker hover:text-foreground transition-colors shrink-0"
             aria-label="Volver a la lista de chats"
           >
             <ArrowLeft size={18} />
@@ -393,11 +404,11 @@ export function ChatThreadPanel({
                 const showDivider = !prev || new Date(prev.timestamp).toDateString() !== new Date(msg.timestamp).toDateString();
                 return (
                   <motion.div
-                    key={msg.id}
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
-                    transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: [0.4, 0, 0.2, 1] }}
+                    key={msg.motionKey ?? msg.id}
+                    initial={shouldReduceMotion || !msg.animateOnMount ? false : { opacity: 0, x: msg.direction === "INBOUND" ? -12 : 12, y: 4, scale: 0.985 }}
+                    animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                    exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.98 }}
+                    transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
                   >
                     {showDivider && (
                       <div className="flex justify-center my-3">
@@ -406,7 +417,7 @@ export function ChatThreadPanel({
                         </span>
                       </div>
                     )}
-                    <MessageBubble msg={msg} onPreview={onPreview} onRetry={onRetry} />
+                    <MessageBubble msg={msg} onPreview={onPreview} onRetry={onRetry} reduceMotion={!!shouldReduceMotion} />
                   </motion.div>
                 );
               })}

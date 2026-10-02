@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { DropdownItem } from "@/app/components/ui/dropdown";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SectionHeader } from "@/app/components/ui/section-header";
+import { Card } from "@/app/components/ui/card";
 import { useToast } from "@/app/components/ui/toast";
 import { CannedResponseFormModal } from "./_respuestas-rapidas-form";
 
@@ -111,7 +112,7 @@ export function RespuestasRapidasSection() {
   ], []);
 
   return (
-    <section className="space-y-4">
+    <Card as="section" className="space-y-4">
       <SectionHeader title="Respuestas rápidas" />
       <p className="text-sm text-muted">
         Atajos de texto (/atajo) que el equipo puede insertar al escribir en un chat.
@@ -191,6 +192,6 @@ export function RespuestasRapidasSection() {
         tone="danger"
         onConfirm={handleDelete}
       />
-    </section>
+    </Card>
   );
 }

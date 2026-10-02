@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useRouter, usePathname } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -46,6 +47,7 @@ const MEDIA_UPLOAD_ENDPOINT: Record<Channel, string> = {
 };
 
 interface ChatWorkspaceProps {
+  initialAccounts: AccountOption[];
   initialAccountId?: string;
   initialChatId?: string;
   initialCampaignId?: string;
@@ -54,6 +56,7 @@ interface ChatWorkspaceProps {
 }
 
 export function ChatWorkspace({
+  initialAccounts,
   initialAccountId,
   initialChatId,
   initialCampaignId,
@@ -63,9 +66,16 @@ export function ChatWorkspace({
   const router = useRouter();
   const pathname = usePathname();
   const { error: toastError } = useToast();
+  const resizable = useSyncExternalStore(
+    (onChange) => { const query = window.matchMedia("(min-width: 1024px)"); query.addEventListener("change", onChange); return () => query.removeEventListener("change", onChange); },
+    () => window.matchMedia("(min-width: 1024px)").matches,
+    () => false
+  );
 
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
+  const [chatsError, setChatsError] = useState<string | null>(null);
+  const [missingChat, setMissingChat] = useState(false);
   const [loadingMoreChats, setLoadingMoreChats] = useState(false);
   const [chatsTotal, setChatsTotal] = useState(0);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
@@ -83,11 +93,9 @@ export function ChatWorkspace({
   const [campaignFilter, setCampaignFilter] = useState(initialCampaignId || "");
   const [hasRepliedFilter, setHasRepliedFilter] = useState<"" | "yes" | "no">(initialHasReplied || "");
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
-  const [accounts, setAccounts] = useState<AccountOption[]>([]);
-  // Con un filtro de cuenta (p. ej. al abrir un chat por URL), la lista espera
-  // a saber de qué canal es esa cuenta: sin eso consultaba los 5 endpoints y
-  // los 4 que no le corresponden respondían 404 "cuenta no encontrada".
-  const [accountsLoaded, setAccountsLoaded] = useState(false);
+  const accounts = initialAccounts;
+  // Las cuentas llegan del servidor: un filtro de cuenta ya conoce su canal
+  // antes de pedir chats y no consulta los otros cuatro endpoints por error.
   const [contactDrawerOpen, setContactDrawerOpen] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<PreviewMedia | null>(null);
   const [cannedResponses, setCannedResponses] = useState<CannedResponseItem[]>([]);
@@ -163,7 +171,9 @@ export function ChatWorkspace({
         const skip = (!!selectedAccountChannel && selectedAccountChannel !== source.channel) || (!!campaignFilter && source.channel !== "WHATSAPP");
         if (skip) return { items: [] as ChatItem[], total: 0 };
         const params = buildChannelParams(source.channel, pages[source.channel], pageSize);
-        const data = await fetch(`${source.endpoint}?${params}`).then((r) => r.json());
+        const response = await fetch(`${source.endpoint}?${params}`);
+        const data = await response.json();
+        if (!response.ok || !Array.isArray(data.items)) throw new Error(data.error ?? "Error al cargar chats");
         return { items: Array.isArray(data.items) ? (data.items as ChatItem[]) : [], total: data.total ?? 0 };
       })
     );
@@ -188,10 +198,18 @@ export function ChatWorkspace({
       const { items, total } = await fetchChatsPage(firstPagePerChannel, pageSize);
       setChats(items);
       setChatsTotal(total);
-    } catch {
-      toastError("Error al cargar chats");
+      setChatsError(null);
+    } catch (error) {
+      if (chats.length === 0) setChatsError(error instanceof Error ? error.message : "Error al cargar chats");
+      else toastError("Error al actualizar chats");
     }
   }, [chats.length, fetchChatsPage, firstPagePerChannel, toastError]);
+
+  const retryChats = useCallback(async () => {
+    setLoadingChats(true);
+    await refreshChats();
+    setLoadingChats(false);
+  }, [refreshChats]);
 
   const loadMoreChats = useCallback(async () => {
     setLoadingMoreChats(true);
@@ -280,63 +298,29 @@ export function ChatWorkspace({
       .catch(() => {});
   }, []);
 
-  // Cuentas para el selector — de la API, no derivadas de los chats cargados:
-  // con el filtro de cuenta server-side, los chats en memoria pueden ser de
-  // una sola cuenta y el selector perdería las demás opciones. Se mezclan las
-  // cuentas de los 4 canales en una sola lista — el rail/selector no
-  // distingue el canal, solo pinta id+nombre+color. Solo WhatsApp trae
-  // phoneNumber; los demás canales lo dejan null.
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/whatsapp/accounts").then((r) => r.json()),
-      fetch("/api/telegram/accounts").then((r) => r.json()),
-      fetch("/api/messenger/accounts").then((r) => r.json()),
-      fetch("/api/instagram/accounts").then((r) => r.json()),
-      fetch("/api/webchat/accounts").then((r) => r.json()),
-    ])
-      .then(([wa, tg, ms, ig, wc]) => {
-        const waOptions: AccountOption[] = Array.isArray(wa)
-          ? wa.map((a: { id: string; name: string; phoneNumber: string | null }) => ({
-              id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null, channel: "WHATSAPP",
-            }))
-          : [];
-        const toChannelOptions = (list: unknown, channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT"): AccountOption[] =>
-          Array.isArray(list)
-            ? list.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, phoneNumber: null, channel }))
-            : [];
-        setAccounts([
-          ...waOptions,
-          ...toChannelOptions(tg, "TELEGRAM"),
-          ...toChannelOptions(ms, "MESSENGER"),
-          ...toChannelOptions(ig, "INSTAGRAM"),
-          ...toChannelOptions(wc, "WEBCHAT"),
-        ]);
-      })
-      .catch(() => {})
-      .finally(() => setAccountsLoaded(true));
-  }, []);
-
-  const waitingForAccounts = !!accountFilter && !accountsLoaded;
-
   // Load initial chats list
   useEffect(() => {
-    if (waitingForAccounts) return;
     const generation = ++chatsGenerationRef.current;
     async function reset() {
       setLoadingChats(true);
+      setChatsError(null);
       try {
         const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
         if (generation !== chatsGenerationRef.current) return; // filtros cambiaron mientras tanto
         setChats(items);
         setChatsTotal(total);
-      } catch {
-        if (generation === chatsGenerationRef.current) toastError("Error al cargar chats");
+      } catch (error) {
+        if (generation === chatsGenerationRef.current) {
+          setChats([]);
+          setChatsTotal(0);
+          setChatsError(error instanceof Error ? error.message : "Error al cargar chats");
+        }
       } finally {
         if (generation === chatsGenerationRef.current) setLoadingChats(false);
       }
     }
     reset();
-  }, [fetchChatsPage, firstPagePerChannel, toastError, waitingForAccounts]);
+  }, [fetchChatsPage, firstPagePerChannel]);
 
   // Refresco periódico de la LISTA — antes solo se refrescaba cuando cambiaba
   // el chat abierto, así que las conversaciones nuevas de otros leads no
@@ -345,7 +329,7 @@ export function ChatWorkspace({
   // perder lo traído con "Cargar más". Se salta con la pestaña oculta.
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (document.visibilityState === "hidden" || waitingForAccounts) return;
+      if (document.visibilityState === "hidden") return;
       const generation = chatsGenerationRef.current;
       try {
         const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
@@ -364,11 +348,43 @@ export function ChatWorkspace({
       }
     }, CHATS_LIST_POLL_MS);
     return () => clearInterval(interval);
-  }, [fetchChatsPage, firstPagePerChannel, waitingForAccounts]);
+  }, [fetchChatsPage, firstPagePerChannel]);
 
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
+
+  // Los enlaces desde Panel, Contactos y notificaciones pueden apuntar a un
+  // chat anterior a la primera página. Se recupera por id dentro de la cuenta
+  // autorizada y se incorpora a la lista para abrir también su hilo.
+  useEffect(() => {
+    if (!initialChatId || !initialAccountId || loadingChats || selectedChat) return;
+    const account = accounts.find((a) => a.id === initialAccountId);
+    const source = CHANNEL_SOURCES.find((item) => item.channel === account?.channel);
+    if (!source) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- estado de enlace inválido
+      setMissingChat(true);
+      return;
+    }
+    const controller = new AbortController();
+    const params = new URLSearchParams({ accountId: initialAccountId, chatId: initialChatId, page: "1", pageSize: "1" });
+    fetch(`${source.endpoint}?${params}`, { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? "No se pudo abrir el chat");
+        const chat = Array.isArray(data.items) ? data.items[0] as ChatItem | undefined : undefined;
+        if (!chat) { setMissingChat(true); return; }
+        setMissingChat(false);
+        setChats((current) => current.some((item) => item.id === chat.id) ? current : [chat, ...current]);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          setMissingChat(true);
+          toastError(error.message);
+        }
+      });
+    return () => controller.abort();
+  }, [initialChatId, initialAccountId, loadingChats, selectedChat, accounts, CHANNEL_SOURCES, toastError]);
 
   // Fetch canned responses
   useEffect(() => {
@@ -474,12 +490,18 @@ export function ChatWorkspace({
               const fresh = byId.get(m.id);
               if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl)) {
                 changed = true;
-                return fresh;
+                return { ...fresh, motionKey: m.motionKey, animateOnMount: false };
               }
               return m;
             });
             const known = new Set(prev.map((m) => m.id));
-            const appended = data.filter((m) => !known.has(m.id));
+            const newMessages = data.filter((m) => !known.has(m.id));
+            const appended = newMessages.map((m, index) => ({
+              ...m,
+              // Al volver a una pestaña puede llegar un lote grande: anima
+              // solo los últimos, no toda la conversación a la vez.
+              animateOnMount: index >= newMessages.length - 3,
+            }));
             if (!changed && appended.length === 0) return prev;
             anyChange = true;
             return [...merged, ...appended];
@@ -605,7 +627,13 @@ export function ChatWorkspace({
         }
         // El id real puede ya estar en pantalla si el poll de 5s lo trajo
         // antes que esta respuesta — se descarta cualquier duplicado.
-        setMessages((prev) => [...prev.filter((m) => m.id !== tempId && m.id !== data.id), data]);
+        setMessages((prev) => {
+          const optimistic = prev.find((m) => m.id === tempId);
+          return [
+            ...prev.filter((m) => m.id !== tempId && m.id !== data.id),
+            { ...data, motionKey: optimistic?.motionKey ?? data.id },
+          ];
+        });
         if (opts.filePreviewUrl) URL.revokeObjectURL(opts.filePreviewUrl);
         pendingSendsRef.current.delete(tempId);
         refreshChats();
@@ -630,6 +658,8 @@ export function ChatWorkspace({
 
     const optimisticMessage: Message = {
       id: tempId,
+      motionKey: tempId,
+      animateOnMount: true,
       direction: "OUTBOUND",
       messageType: buttons.length > 0 ? "interactive" : file ? detectMessageType(file) : "text",
       body: file ? null : text.trim(),
@@ -737,16 +767,9 @@ export function ChatWorkspace({
     setCannedIndex(0);
   }
 
-  return (
-    <div className="flex flex-1 min-h-0">
-      <ChatAccountRail
-        accounts={accountOptions}
-        selectedAccountId={accountFilter}
-        onSelect={setAccountFilter}
-        unreadByAccount={unreadByAccount}
-      />
-
+  const listPane = (
       <ChatListPanel
+        resizable={resizable}
         selectedChatId={selectedChatId}
         onChatSelect={handleChatSelect}
         accountOptions={accountOptions}
@@ -760,21 +783,24 @@ export function ChatWorkspace({
         hasRepliedFilter={hasRepliedFilter}
         onHasRepliedFilterChange={setHasRepliedFilter}
         loadingChats={loadingChats}
+        loadError={chatsError}
+        onRetry={retryChats}
         totalChatsLoaded={chats.length}
         groupedChats={groupedChats}
         chatsTotal={chatsTotal}
         loadingMoreChats={loadingMoreChats}
         onLoadMore={loadMoreChats}
       />
+  );
 
-      {/* Main pane - Chat thread */}
-      <div className={`${selectedChatId ? "flex" : "hidden md:flex"} flex-col flex-1 min-w-0 bg-background`}>
+  const conversationPane = (
+      <div className={`${selectedChatId ? "flex" : "hidden lg:flex"} flex-col flex-1 min-w-0 bg-background`}>
         {!selectedChatId ? (
           <div className="flex-1 flex items-center justify-center">
             <EmptyState
               icon={MessageSquare}
               title="Selecciona un chat"
-              description={chats.length === 0 ? "Conecta una cuenta de WhatsApp o Telegram para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes."}
+              description={chats.length === 0 ? "Conecta un canal para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes."}
             />
           </div>
         ) : selectedChat ? (
@@ -826,12 +852,28 @@ export function ChatWorkspace({
               interactiveDisabled={selectedChat.channel !== "WHATSAPP" || !!attachment}
             />
           </>
+        ) : missingChat ? (
+          <div className="flex-1 flex items-center justify-center">
+            <EmptyState icon={MessageSquare} title="Chat no encontrado" description="Esta conversación no está disponible para tu cuenta." />
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <Spinner />
           </div>
         )}
       </div>
+  );
+
+  return (
+    <div className="flex flex-1 min-h-0">
+      <ChatAccountRail accounts={accountOptions} selectedAccountId={accountFilter} onSelect={setAccountFilter} unreadByAccount={unreadByAccount} />
+      {resizable ? <Group orientation="horizontal" className="h-full min-w-0 flex-1">
+        <Panel id="conversations" defaultSize="38%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>
+        <Separator aria-label="Ajustar ancho de conversaciones" className="group relative w-2 shrink-0 bg-background hover:bg-accent-subtle focus-visible:bg-accent-subtle">
+          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border group-hover:bg-accent-strong group-focus-visible:bg-accent-strong" />
+        </Separator>
+        <Panel id="conversation" defaultSize="62%" minSize="300px" className="flex min-w-0">{conversationPane}</Panel>
+      </Group> : <>{listPane}{conversationPane}</>}
 
       {/* Drawers */}
       {contactDrawerOpen && selectedChat?.contactId && (

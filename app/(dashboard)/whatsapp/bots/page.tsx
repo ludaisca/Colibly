@@ -17,8 +17,6 @@ import { BotFormModal } from "./_form";
 interface WaBot {
   id: string;
   name: string;
-  provider: string;
-  model: string;
   isActive: boolean;
   status: string;
   waAccountId: string | null;
@@ -28,36 +26,34 @@ interface WaBot {
   updatedAt: string;
   waAccount: { id: string; name: string; phoneNumber: string | null } | null;
   channelAccountId: string | null;
-  channelAccount: { id: string; name: string } | null;
+  channelAccount: { id: string; name: string; channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" } | null;
   _count: { conversations: number; knowledgeBots: number };
 }
-
-const PROVIDER_BADGE: Record<string, { label: string; tone: "accent" | "info" }> = {
-  openrouter: { label: "OpenRouter", tone: "accent" },
-  google: { label: "Gemini", tone: "info" },
-};
 
 export default function BotsPage() {
   const router = useRouter();
   const { success, error: toastError } = useToast();
   const [bots, setBots] = useState<WaBot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
   const fetchBots = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch("/api/whatsapp/bots");
       const data = await res.json();
-      if (Array.isArray(data)) setBots(data);
-    } catch {
-      toastError("Error al cargar bots");
+      if (!res.ok || !Array.isArray(data)) throw new Error(data.error ?? "Error al cargar bots");
+      setBots(data);
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : "Error al cargar bots");
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchBots also used for manual refresh
   useEffect(() => { fetchBots(); }, [fetchBots]);
@@ -96,7 +92,7 @@ export default function BotsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Bots IA"
-        description="Configura bots con IA para responder automáticamente mensajes de WhatsApp."
+        description="Configura bots con IA para responder automáticamente en tus canales."
         actions={
           <Button icon={Plus} size="sm" onClick={() => setFormOpen(true)}>
             Crear bot
@@ -108,12 +104,13 @@ export default function BotsPage() {
         rows={bots}
         rowKey={(bot) => bot.id}
         loading={loading}
+        error={fetchError}
+        onRetry={fetchBots}
         emptyIcon={Bot}
         emptyTitle="Sin bots"
-        emptyDescription="Crea tu primer bot de IA para automatizar conversaciones de WhatsApp."
+        emptyDescription="Crea tu primer bot de IA para automatizar conversaciones en tus canales."
         onRowClick={(bot) => router.push(`/whatsapp/bots/${bot.id}`)}
         renderRow={(bot) => {
-          const provider = PROVIDER_BADGE[bot.provider] ?? { label: bot.provider, tone: "info" as const };
           return (
             <>
             <EntityRow
@@ -122,14 +119,13 @@ export default function BotsPage() {
                 <Link
                   href={`/whatsapp/bots/${bot.id}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-accent-ink transition-colors"
+                  className="inline-flex min-h-6 items-center hover:text-accent-ink transition-colors"
                 >
                   {bot.name}
                 </Link>
               }
               badges={
                 <span className="flex shrink-0 items-center gap-1">
-                  <Badge tone={provider.tone} size="sm">{provider.label}</Badge>
                   {bot.ragEnabled && <Badge tone="success" size="sm" className="hidden md:inline-flex">RAG</Badge>}
                   <Badge tone={bot.isActive ? "success" : "neutral"} size="sm">
                     {bot.isActive ? "Activo" : "Inactivo"}
@@ -145,7 +141,7 @@ export default function BotsPage() {
                       waAccount — sin este fallback se mostraba como "Sin
                       cuenta (solo pruebas)" aunque sí atiende mensajes reales. */}
                   {bot.waAccount?.name
-                    ?? (bot.channelAccount ? `${bot.channelAccount.name} · Telegram` : "Sin cuenta (solo pruebas)")} · {bot.model} ·{" "}
+                    ?? (bot.channelAccount ? `${bot.channelAccount.name} · ${bot.channelAccount.channel === "WEBCHAT" ? "Chat web" : bot.channelAccount.channel.charAt(0) + bot.channelAccount.channel.slice(1).toLowerCase()}` : "Sin cuenta (solo pruebas)")} ·{" "}
                   {bot._count.conversations} conversaciones · {bot._count.knowledgeBots} docs
                 </>
               }

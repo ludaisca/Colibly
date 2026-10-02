@@ -1,0 +1,64 @@
+/* El overlay usa el comportamiento de React Aria/HeroUI y la apariencia de Colibly. */
+.colibly-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow-y: auto;
+  background: rgb(17 13 31 / 62%);
+  backdrop-filter: blur(3px);
+}
+.colibly-modal-container {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-height: calc(100dvh - env(safe-area-inset-top) - 8px);
+  align-items: flex-end;
+  justify-content: center;
+  outline: none;
+}
+.colibly-modal-dialog {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-height: calc(100dvh - env(safe-area-inset-top) - 8px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+}
+.colibly-modal-header, .colibly-modal-footer { flex: none; padding: 16px; }
+.colibly-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); }
+.colibly-modal-body { min-height: 0; flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; padding: 16px; }
+.colibly-modal-footer { display: flex; flex-direction: column-reverse; gap: 8px; border-top: 1px solid var(--border); padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.colibly-modal-footer > * { width: 100%; }
+.colibly-modal-close { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 12px; color: var(--muted); cursor: pointer; }
+.colibly-modal-close:hover { background: var(--surface-light); color: var(--foreground); }
+.colibly-modal-backdrop[data-entering] { animation: colibly-modal-backdrop-in 180ms ease-out both; }
+.colibly-modal-backdrop[data-exiting] { animation: colibly-modal-backdrop-out 160ms ease-in both; }
+.colibly-modal-backdrop[data-entering] .colibly-modal-dialog { animation: colibly-modal-in 200ms ease-out both; }
+.colibly-modal-backdrop[data-exiting] .colibly-modal-dialog { animation: colibly-modal-out 160ms ease-in both; }
+@keyframes colibly-modal-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes colibly-modal-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes colibly-modal-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes colibly-modal-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(10px); } }
+@media (min-width: 640px) {
+  .colibly-modal-backdrop { align-items: center; padding: 20px; }
+  .colibly-modal-container { max-height: min(90dvh, 900px); align-items: center; }
+  .colibly-modal-dialog { max-height: min(90dvh, 900px); border-bottom: 1px solid var(--border); border-radius: 12px; }
+  .colibly-modal-dialog[data-colibly-size="sm"] { max-width: 384px; }
+  .colibly-modal-dialog[data-colibly-size="md"] { max-width: 448px; }
+  .colibly-modal-dialog[data-colibly-size="lg"] { max-width: 512px; }
+  .colibly-modal-dialog[data-colibly-size="xl"] { max-width: 672px; }
+  .colibly-modal-header, .colibly-modal-footer { padding: 20px 24px; }
+  .colibly-modal-body { padding: 20px 24px; }
+  .colibly-modal-footer { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
+  .colibly-modal-footer > * { width: auto; }
+}

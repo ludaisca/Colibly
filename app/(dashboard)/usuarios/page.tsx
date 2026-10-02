@@ -10,6 +10,7 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { Banner } from "@/app/components/ui/banner";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { UserFormModal } from "./_form";
 import { InviteFormModal } from "./_invite";
@@ -22,6 +23,7 @@ interface UserData {
   disabledAt: string | null;
   createdAt: string;
   waAccounts: Array<{ id: string; name: string }>;
+  isOwner: boolean;
 }
 
 interface Invitation {
@@ -45,15 +47,18 @@ export default function UsersPage() {
   const [confirmDisable, setConfirmDisable] = useState<UserData | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [invitationLoadError, setInvitationLoadError] = useState<string | null>(null);
   const [invitationBusy, setInvitationBusy] = useState<string | null>(null);
 
   const fetchInvitations = useCallback(async () => {
+    setInvitationLoadError(null);
     try {
       const res = await fetch("/api/usuarios/invitaciones");
       const data = await res.json();
-      if (Array.isArray(data)) setInvitations(data);
-    } catch {
-      // La lista de pendientes es secundaria: si falla, la página sigue útil.
+      if (!res.ok || !Array.isArray(data)) throw new Error(data.error ?? "No se pudieron cargar las invitaciones");
+      setInvitations(data);
+    } catch (error) {
+      setInvitationLoadError(error instanceof Error ? error.message : "No se pudieron cargar las invitaciones");
     }
   }, []);
 
@@ -184,6 +189,8 @@ export default function UsersPage() {
         }
       />
 
+      {invitationLoadError && <Banner tone="danger">{invitationLoadError} <button type="button" onClick={fetchInvitations} className="underline">Reintentar</button></Banner>}
+
       {invitations.length > 0 && (
         <section className="space-y-3">
           <SectionHeader eyebrow="Pendientes" title="Invitaciones enviadas" />
@@ -192,6 +199,7 @@ export default function UsersPage() {
             rowKey={(i) => i.id}
             emptyIcon={Mail}
             emptyTitle="Sin invitaciones"
+            rowClassName="flex-col items-stretch sm:flex-row sm:items-center"
             renderRow={(inv) => (
               <>
                 <EntityRow
@@ -200,7 +208,7 @@ export default function UsersPage() {
                   badges={<Badge tone="neutral" size="sm">{ROLE_LABEL[inv.role] ?? inv.role}</Badge>}
                   subtitle={`Vence el ${new Date(inv.expiresAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}${inv.invitedBy ? ` · la envió ${inv.invitedBy.name ?? inv.invitedBy.email}` : ""}`}
                 />
-                <span className="flex shrink-0 items-center gap-1">
+                <span className="flex shrink-0 items-center justify-end gap-1 border-t border-border pt-2 sm:border-0 sm:pt-0">
                   <Button variant="ghost" size="sm" icon={RotateCw} disabled={invitationBusy === inv.id} onClick={() => resendInvitation(inv)}>
                     Reenviar
                   </Button>
@@ -225,6 +233,7 @@ export default function UsersPage() {
         emptyIcon={Users}
         emptyTitle="Sin usuarios"
         emptyDescription="Invita a tu equipo para que atienda conversaciones contigo."
+        rowClassName="flex-col items-stretch sm:flex-row sm:items-center"
         renderRow={(u) => (
           <>
             <EntityRow
@@ -235,6 +244,7 @@ export default function UsersPage() {
                   <Badge tone={u.role === "admin" ? "warning" : u.role === "ejecutivo" ? "info" : "neutral"} size="sm">
                     {u.role === "admin" ? "Admin" : u.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}
                   </Badge>
+                  {u.isOwner && <Badge tone="accent" size="sm">Dueña</Badge>}
                   {u.disabledAt && <Badge tone="danger" size="sm">Desactivado</Badge>}
                 </>
               }
@@ -249,7 +259,7 @@ export default function UsersPage() {
                 </span>
               }
             />
-            <span className="flex shrink-0 items-center gap-1">
+            {!u.isOwner && <span className="flex shrink-0 items-center justify-end gap-1 border-t border-border pt-2 sm:border-0 sm:pt-0">
               <Button
                 variant="ghost"
                 size="sm"
@@ -283,7 +293,7 @@ export default function UsersPage() {
                   Desactivar
                 </Button>
               )}
-            </span>
+            </span>}
           </>
         )}
       />
@@ -291,7 +301,7 @@ export default function UsersPage() {
       <ConfirmDialog
         open={!!confirmDisable}
         onClose={() => setConfirmDisable(null)}
-        onConfirm={() => confirmDisable && setDisabled(confirmDisable, true)}
+        onConfirm={() => { if (confirmDisable) return setDisabled(confirmDisable, true); }}
         title={`Desactivar a ${confirmDisable?.name ?? confirmDisable?.email ?? ""}`}
         description="No podrá iniciar sesión, sus sesiones abiertas se cerrarán en menos de un minuto y dejará de recibir chats asignados. Sus datos y su historial se conservan; puedes reactivarlo cuando quieras."
         confirmLabel="Desactivar"

@@ -11,6 +11,7 @@ import { Select } from "@/app/components/ui/select";
 import { SearchableSelect } from "@/app/components/ui/searchable-select";
 import { FormField } from "@/app/components/ui/form-field";
 import { Spinner } from "@/app/components/ui/spinner";
+import { Banner } from "@/app/components/ui/banner";
 import { useToast } from "@/app/components/ui/toast";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import type { SheetTab } from "@/lib/google/sheets-read";
@@ -24,6 +25,7 @@ const TEMPLATE_STATUS_LABEL: Record<string, string> = {
   REJECTED: "Rechazada",
   PAUSED: "Pausada",
   DISABLED: "Deshabilitada",
+  DELETED: "Ya no está en Meta",
 };
 
 export default function NewLeadSheetSourcePage() {
@@ -34,6 +36,9 @@ export default function NewLeadSheetSourcePage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templateLoadError, setTemplateLoadError] = useState("");
+  const [accountLoadError, setAccountLoadError] = useState("");
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
 
   const [name, setName] = useState("");
   const [waAccountId, setWaAccountId] = useState("");
@@ -71,25 +76,29 @@ export default function NewLeadSheetSourcePage() {
   const bodyParamCount = templateVars?.bodyParamCount ?? 0;
 
   useEffect(() => {
-    fetch("/api/whatsapp/accounts").then((r) => r.json()).then((d) => {
-      if (Array.isArray(d)) setAccounts(d.filter((a: Account) => a.channel === "META_CLOUD"));
-    }).catch(() => toastError("Error al cargar cuentas"));
-  }, [toastError]);
+    fetch("/api/whatsapp/accounts").then(async r => {
+      const d = await r.json();
+      if (!r.ok || !Array.isArray(d)) throw new Error(d.error ?? "Error al cargar cuentas");
+      return d;
+    }).then(d => {
+      const available = d.filter((a: Account) => a.channel === "WHATSAPP");
+      setAccounts(available);
+      if (available.length === 1) setWaAccountId(available[0].id);
+    }).catch((err) => setAccountLoadError(err instanceof Error ? err.message : "Error al cargar cuentas"))
+      .finally(() => setAccountsLoaded(true));
+  }, []);
 
   useEffect(() => {
     if (!waAccountId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load templates when account selection changes
     setLoadingTemplates(true);
-    fetch(`/api/whatsapp/templates`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ waAccountId }),
-    })
-      .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d)) setTemplates(d); })
-      .catch(() => toastError("Error al cargar plantillas"))
+    setTemplateLoadError("");
+    fetch(`/api/whatsapp/templates?waAccountId=${encodeURIComponent(waAccountId)}`)
+      .then(async r => { const d = await r.json(); if (!r.ok || !Array.isArray(d)) throw new Error(d.error ?? "Error al cargar plantillas"); return d; })
+      .then(d => setTemplates(d))
+      .catch((err) => setTemplateLoadError(err instanceof Error ? err.message : "Error al cargar plantillas"))
       .finally(() => setLoadingTemplates(false));
-  }, [waAccountId, toastError]);
+  }, [waAccountId]);
 
   function handleTemplateChange(id: string) {
     setWaTemplateId(id);
@@ -249,6 +258,10 @@ export default function NewLeadSheetSourcePage() {
         <form onSubmit={handleSubmit}>
           <CardBody>
             <div className="space-y-5">
+              {accountLoadError && <Banner tone="danger">{accountLoadError}</Banner>}
+              {accountsLoaded && accounts.length === 0 && !accountLoadError && (
+                <Banner tone="info">Conecta una <Link href="/whatsapp/cuentas" className="underline">cuenta WhatsApp</Link> antes de agregar una fuente.</Banner>
+              )}
               <FormField label="Nombre de la fuente" required error={errors.name} hint='Ej: "Formulario Implantes Dentales — Facebook"'>
                 {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Campaña FB — Implantes" error={errors.name} />}
               </FormField>
@@ -256,7 +269,7 @@ export default function NewLeadSheetSourcePage() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <FormField label="Cuenta WhatsApp" required error={errors.waAccountId}>
                   {(id) => (
-                    <Select id={id} value={waAccountId} onChange={(e) => { setWaAccountId(e.target.value); handleTemplateChange(""); }} placeholder="Seleccionar" error={errors.waAccountId}>
+                    <Select id={id} value={waAccountId} onChange={(e) => { setWaAccountId(e.target.value); setTemplates([]); handleTemplateChange(""); }} placeholder="Seleccionar" error={errors.waAccountId}>
                       {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </Select>
                   )}
@@ -280,6 +293,10 @@ export default function NewLeadSheetSourcePage() {
                   )}
                 </FormField>
               </div>
+              {templateLoadError && <Banner tone="danger">{templateLoadError}</Banner>}
+              {waAccountId && !loadingTemplates && !templateLoadError && !templates.some(t => t.status === "APPROVED") && (
+                <Banner tone="info">Esta cuenta no tiene plantillas aprobadas. <Link href={`/whatsapp/plantillas?accountId=${encodeURIComponent(waAccountId)}`} className="underline">Revisa o sincroniza sus plantillas</Link>.</Banner>
+              )}
 
               {templateVars?.header.required && templateVars.header.format === "TEXT" && (
                 <FormField label="Valor de la cabecera" required error={errors.headerParam} hint="Se aplica igual a todos los leads.">

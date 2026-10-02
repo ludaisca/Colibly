@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { User, Lock, CalendarDays, Brain, FileSpreadsheet, ExternalLink, RefreshCw, Unlink, Plug, CreditCard } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -12,11 +12,13 @@ import { Banner } from "@/app/components/ui/banner";
 import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SectionHeader } from "@/app/components/ui/section-header";
+import { Card } from "@/app/components/ui/card";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { useToast } from "@/app/components/ui/toast";
 import { RespuestasRapidasSection } from "./_respuestas-rapidas";
 import { CamposPersonalizadosSection } from "./_campos-personalizados";
+import { CanalesSection } from "./_canales";
 
 interface GoogleSheetsStatus {
   connected: boolean;
@@ -35,7 +37,16 @@ export default function SettingsPage() {
   const name = user?.name ?? "Usuario";
   const email = user?.email ?? "";
 
-  const [newName, setNewName] = useState(name);
+  const [newName, setNewName] = useState("");
+  const nameInitialized = useRef(false);
+  useEffect(() => {
+    if (user && !nameInitialized.current) {
+      // La sesión llega después del primer render; evita dejar "Usuario" como
+      // valor editable cuando el perfil ya muestra el nombre real.
+      setNewName(user.name ?? "Usuario");
+      nameInitialized.current = true;
+    }
+  }, [user]);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -48,18 +59,24 @@ export default function SettingsPage() {
 
   const [googleStatus, setGoogleStatus] = useState<GoogleSheetsStatus>({ connected: false });
   const [loadingGoogleStatus, setLoadingGoogleStatus] = useState(true);
+  const [googleStatusError, setGoogleStatusError] = useState<string | null>(null);
   const [syncingNow, setSyncingNow] = useState(false);
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
   const fetchGoogleStatus = useCallback(() => {
     setLoadingGoogleStatus(true);
+    setGoogleStatusError(null);
     fetch("/api/integrations/google-sheets/status")
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || typeof data.connected !== "boolean") throw new Error(data.error ?? "Error al cargar el estado de Google Sheets");
+        return data as GoogleSheetsStatus;
+      })
       .then((d) => setGoogleStatus(d))
-      .catch(() => toastError("Error al cargar el estado de Google Sheets"))
+      .catch((error) => setGoogleStatusError(error instanceof Error ? error.message : "Error al cargar el estado de Google Sheets"))
       .finally(() => setLoadingGoogleStatus(false));
-  }, [toastError]);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchGoogleStatus también se usa para refrescar manualmente
@@ -182,7 +199,7 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-8">
       <PageHeader title="Configuración" description="Administra tu cuenta y preferencias." />
 
-      <div className="flex items-center gap-4">
+      <Card className="flex items-center gap-4">
         <EntityAvatar id={user?.id ?? email} name={name} size="lg" />
         <div>
           <h2 className="text-lg font-semibold">{name}</h2>
@@ -195,9 +212,9 @@ export default function SettingsPage() {
             </span>
           </div>
         </div>
-      </div>
+      </Card>
 
-      <section className="space-y-4">
+      <Card as="section" className="space-y-4">
         <SectionHeader title="Cuenta" />
         <FormField label="Nombre">
           {(id) => (
@@ -209,9 +226,9 @@ export default function SettingsPage() {
           )}
         </FormField>
         <Button size="sm" icon={User} onClick={handleSaveName} loading={savingName}>Guardar nombre</Button>
-      </section>
+      </Card>
 
-      <section className="space-y-4">
+      <Card as="section" className="space-y-4">
         <SectionHeader title="Cambiar contraseña" />
         {passwordError && <Banner tone="danger">{passwordError}</Banner>}
 
@@ -257,10 +274,10 @@ export default function SettingsPage() {
         <Button size="sm" icon={Lock} onClick={handleSavePassword} loading={saving}>
           Cambiar contraseña
         </Button>
-      </section>
+      </Card>
 
       {isAdmin && (
-        <section className="space-y-4">
+        <Card as="section" className="space-y-4">
           <SectionHeader title="Plan y facturación" />
           <p className="text-sm text-muted">
             Tu plan, el consumo contra sus límites, tus pagos y facturas.
@@ -268,11 +285,13 @@ export default function SettingsPage() {
           <Button href="/configuracion/plan" variant="secondary" size="sm" icon={CreditCard}>
             Ver plan
           </Button>
-        </section>
+        </Card>
       )}
 
+      {isAdmin && <CanalesSection />}
+
       {isAdmin && (
-        <section className="space-y-4">
+        <Card as="section" className="space-y-4">
           <SectionHeader title="Inteligencia Artificial" />
           <p className="text-sm text-muted">
             Créditos de IA incluidos, horario del negocio y recuperación automática de leads.
@@ -280,11 +299,11 @@ export default function SettingsPage() {
           <Button href="/configuracion/ia" variant="secondary" size="sm" icon={Brain}>
             Configurar IA
           </Button>
-        </section>
+        </Card>
       )}
 
       {isAdmin && (
-        <section className="space-y-4">
+        <Card as="section" className="space-y-4">
           <SectionHeader title="API e integraciones" />
           <p className="text-sm text-muted">
             API keys, webhooks salientes y documentación para conectar el CRM con tu ERP, tienda o Zapier/Make.
@@ -292,20 +311,21 @@ export default function SettingsPage() {
           <Button href="/configuracion/api" variant="secondary" size="sm" icon={Plug}>
             Configurar API
           </Button>
-        </section>
+        </Card>
       )}
 
       <RespuestasRapidasSection />
 
       <CamposPersonalizadosSection />
 
-      <section className="space-y-4">
+      <Card as="section" className="space-y-4">
         <SectionHeader title="Google Sheets" />
         <p className="text-sm text-muted">
           Sincroniza automáticamente tus leads calificados y resultados de campaña a una hoja de Google, cada 15 minutos.
         </p>
+        {googleStatusError && <Banner tone="danger">{googleStatusError} <button type="button" onClick={fetchGoogleStatus} className="underline">Reintentar</button></Banner>}
 
-        {!loadingGoogleStatus && !googleStatus.connected && (
+        {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && (
           <Button
             size="sm"
             icon={FileSpreadsheet}
@@ -318,7 +338,7 @@ export default function SettingsPage() {
           </Button>
         )}
 
-        {!loadingGoogleStatus && googleStatus.connected && (
+        {!loadingGoogleStatus && !googleStatusError && googleStatus.connected && (
           <div className="space-y-3">
             {googleStatus.lastSyncError && (
               <Banner tone="danger">{googleStatus.lastSyncError}</Banner>
@@ -353,7 +373,7 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
-      </section>
+      </Card>
 
       <ConfirmDialog
         open={disconnectConfirmOpen}

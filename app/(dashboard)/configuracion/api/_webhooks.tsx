@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Webhook, Plus, Send, History, Pencil, Pause, Play, KeyRound, Trash2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
@@ -12,7 +13,6 @@ import { SectionHeader } from "@/app/components/ui/section-header";
 import { useToast } from "@/app/components/ui/toast";
 import { SecretField } from "@/app/components/integrations/secret-field";
 import { WebhookFormModal, type WebhookRow } from "./_webhook-form";
-import { WebhookDeliveriesModal } from "./_webhook-deliveries";
 import { formatDateTime, scopeSummary, type IntegrationAccount } from "./_shared";
 
 function webhookState(w: WebhookRow): { label: string; tone: "success" | "danger" | "neutral" } {
@@ -22,13 +22,13 @@ function webhookState(w: WebhookRow): { label: string; tone: "success" | "danger
 }
 
 export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }) {
+  const router = useRouter();
   const { success, error: toastError } = useToast();
   const [items, setItems] = useState<WebhookRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<WebhookRow | null>(null);
-  const [deliveriesOf, setDeliveriesOf] = useState<WebhookRow | null>(null);
   const [deleting, setDeleting] = useState<WebhookRow | null>(null);
   const [rotating, setRotating] = useState<WebhookRow | null>(null);
   const [rotatedSecret, setRotatedSecret] = useState<string | null>(null);
@@ -65,7 +65,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
   async function sendTest(w: WebhookRow) {
     try {
       await call(`/api/configuracion/webhooks/${w.id}/test`, { method: "POST" }, "Evento de prueba enviado — revisa las entregas");
-      setTimeout(() => setDeliveriesOf(w), 1200);
+      setTimeout(() => router.push(`/configuracion/api/webhooks/${w.id}/entregas`), 1200);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "No se pudo enviar la prueba");
     }
@@ -139,7 +139,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
         emptyTitle="Sin webhooks"
         emptyDescription="Crea uno para enviar los eventos del CRM a tu ERP, Zapier o Make."
         emptyAction={<Button size="sm" icon={Plus} onClick={openCreate}>Nuevo webhook</Button>}
-        onRowClick={(w) => setDeliveriesOf(w)}
+        onRowClick={(w) => router.push(`/configuracion/api/webhooks/${w.id}/entregas`)}
         renderRow={(w) => {
           const state = webhookState(w);
           return (
@@ -161,7 +161,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
         rowActions={(w) => (
           <>
             <DropdownItem icon={Send} onClick={() => sendTest(w)} disabled={!w.active}>Probar</DropdownItem>
-            <DropdownItem icon={History} onClick={() => setDeliveriesOf(w)}>Ver entregas</DropdownItem>
+            <DropdownItem icon={History} onClick={() => router.push(`/configuracion/api/webhooks/${w.id}/entregas`)}>Ver entregas</DropdownItem>
             <DropdownItem icon={Pencil} onClick={() => { setEditing(w); setFormOpen(true); }}>Editar</DropdownItem>
             <DropdownItem icon={w.active ? Pause : Play} onClick={() => toggleActive(w)}>{w.active ? "Pausar" : "Activar"}</DropdownItem>
             <DropdownItem icon={KeyRound} onClick={() => setRotating(w)}>Rotar secreto</DropdownItem>
@@ -180,7 +180,6 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
           initialData={editing}
         />
       )}
-      <WebhookDeliveriesModal webhook={deliveriesOf} onClose={() => setDeliveriesOf(null)} />
 
       <ConfirmDialog
         open={!!rotating}

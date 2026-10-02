@@ -7,6 +7,7 @@ interface CheckboxProps {
   checked?: boolean;
   onChange?: (checked: boolean) => void;
   label?: string;
+  ariaLabel?: string;
   description?: string;
   disabled?: boolean;
   id?: string;
@@ -18,6 +19,7 @@ export function Checkbox({
   checked = false,
   onChange,
   label,
+  ariaLabel,
   description,
   disabled,
   id,
@@ -29,6 +31,7 @@ export function Checkbox({
       <div className="relative mt-0.5">
         <input
           type="checkbox"
+          aria-label={ariaLabel}
           id={id}
           checked={checked}
           onChange={(e) => onChange?.(e.target.checked)}

@@ -42,6 +42,7 @@ export function Dropdown({
 
   const toggle = useCallback(() => setOpen(!isOpen), [isOpen, setOpen]);
   const close = useCallback(() => setOpen(false), [setOpen]);
+  const triggerIsNativeControl = React.isValidElement(trigger) && (trigger.type === "button" || trigger.type === "a");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -66,10 +67,10 @@ export function Dropdown({
   return (
     <div ref={ref} className={cn("relative inline-block", className)}>
       <div
-        role="button"
-        tabIndex={0}
+        role={triggerIsNativeControl ? undefined : "button"}
+        tabIndex={triggerIsNativeControl ? undefined : 0}
         onClick={toggle}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
+        onKeyDown={triggerIsNativeControl ? undefined : (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
         className="cursor-pointer"
       >
         {trigger}

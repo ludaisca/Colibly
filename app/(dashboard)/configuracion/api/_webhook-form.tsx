@@ -11,6 +11,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { SecretField } from "@/app/components/integrations/secret-field";
 import { DOMAIN_EVENT_CATALOG, type DomainEventType } from "@/lib/events/types";
 import { AccountScopeField, splitAccountIds, type IntegrationAccount } from "./_shared";
+import { BRAND_NAME } from "@/lib/brand";
 
 export interface WebhookRow {
   id: string;
@@ -98,14 +99,14 @@ export function WebhookFormModal({
         onClose={handleClose}
         persistent
         title="Webhook creado"
-        description="Guarda el secreto de firma en tu servidor para verificar que cada entrega viene de SunflowCRM. No se vuelve a mostrar."
+        description={`Guarda el secreto de firma en tu servidor para verificar que cada entrega viene de ${BRAND_NAME}. No se vuelve a mostrar.`}
         size="md"
         footer={<Button onClick={handleClose}>Listo, ya lo guardé</Button>}
       >
         <div className="space-y-4">
           <SecretField label="Secreto de firma" value={secret} />
           <p className="text-sm text-muted">
-            Cada entrega trae el header <code className="font-mono text-xs">X-Sunflow-Signature</code>. La pestaña Documentación
+            Cada entrega trae el header <code className="font-mono text-xs">X-Colibly-Signature</code>. La pestaña Documentación
             tiene el código para verificarlo. Usa “Probar” en la lista para mandar un evento de prueba.
           </p>
         </div>
@@ -118,7 +119,7 @@ export function WebhookFormModal({
       open={open}
       onClose={handleClose}
       title={editing ? "Editar webhook" : "Nuevo webhook"}
-      description="SunflowCRM hará un POST firmado a tu URL cada vez que ocurra uno de los eventos elegidos."
+      description={`${BRAND_NAME} hará un POST firmado a tu URL cada vez que ocurra uno de los eventos elegidos.`}
       size="lg"
       footer={
         <>
@@ -134,7 +135,7 @@ export function WebhookFormModal({
         </FormField>
         <FormField label="URL de destino" required hint="Debe ser https:// y accesible desde internet.">
           {(id) => (
-            <Input id={id} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://mi-servidor.com/webhooks/sunday" inputMode="url" />
+            <Input id={id} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://mi-servidor.com/webhooks/colibly" inputMode="url" />
           )}
         </FormField>
 
