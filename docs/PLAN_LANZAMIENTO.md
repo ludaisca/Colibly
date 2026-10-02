@@ -76,6 +76,11 @@ Qué implicaba el cambio en el código (hecho el 2026-09-27, salvo la identidad 
 
 ### 2. Dominio, producción y correo
 
+**Desplegado el 2026-10-02 en ludaisca (Coolify), https://app.colibly.com.** Aplicación `colibly` (`narrmk3x6fht3fgbz3gsqw33`) en el proyecto "Luis Islas", Docker Compose desde `ludaisca/Colibly`, rama `feat/rebrand-colibly`, dominio solo en el servicio `app` (puerto 5000). Base de datos, Redis y medios van dentro del compose con volúmenes propios (`narrmk3x…_pgdata`, `_media-data`); no se tocaron Factzi, N8N, Gowa, Beszel, Searxng ni el PostgreSQL/Redis independientes. Verificado: `/api/health` con `db` y `redis` en ok, 19 migraciones aplicadas en base nueva, certificado de Let's Encrypt, `/terminos`, `/beta`, `/producto` y `/sitemap.xml` redirigen a colibly.com, `/api/v1/*` pide API key.
+- Variables cargadas por la API de Coolify: `DB_PASSWORD`, `AUTH_SECRET`, `ENCRYPTION_KEY` (generadas, **respaldar `ENCRYPTION_KEY` aparte**), `APP_URL`, `SITE_URL`, `PLATFORM_ADMIN_EMAILS`, `MEDIA_RETENTION_DAYS`.
+- **Lecciones del despliegue:** (1) no montar archivos del repo con bind mount en el compose: Coolify clona dentro de un contenedor auxiliar y Docker crea un directorio (por eso se quitó `docker/init.sql`); (2) con el despliegue automático activo, un push lanza un despliegue por webhook que compite con uno manual y los dos fallan: se desactivó el automático (`is_auto_deploy_enabled=false`, no se pudo confirmar por la API), y los despliegues se lanzan a mano.
+- **Pendiente:** respaldos (la base del compose no entra en los respaldos nativos de Coolify), rotar `DB_PASSWORD` (se mostró una vez en una conversación), revocar el token de API usado, SMTP y claves de IA desde `/plataforma`, SPF/DKIM/DMARC, `/producto` no existe en la landing de cPanel, mezclar el PR a `main` y volver a activar el despliegue automático si se desea.
+
 - [x] Registrar `colibly.com` y definir infraestructura prevista: Contabo principal, ludaisca de respaldo. Véase [plan de infraestructura](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
 - [ ] Contratar, probar y desplegar en Contabo con `APP_URL=https://app.colibly.com` y `SITE_URL=https://colibly.com`.
 - [ ] Plan B: probar y publicar la copia PHP de `cpanel-site/` en Neubox y una instancia de producción separada en ludaisca para `app.colibly.com`.
