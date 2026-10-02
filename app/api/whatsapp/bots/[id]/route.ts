@@ -6,7 +6,7 @@ import { getUserAccountIds } from "@/lib/shared-accounts";
 import { findOtherActiveBot } from "@/lib/bots/guards";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
-import { modelChoiceError } from "@/lib/ai/platform";
+import { modelChoiceError, pickCuratedModel } from "@/lib/ai/platform";
 
 export async function GET(
   _req: Request,
@@ -28,8 +28,6 @@ export async function GET(
       select: {
         id: true,
         name: true,
-        provider: true,
-        model: true,
         systemPrompt: true,
         temperature: true,
         maxTokens: true,
@@ -47,6 +45,7 @@ export async function GET(
         waAccount: {
           select: { id: true, name: true, phoneNumber: true },
         },
+        channelAccount: { select: { id: true, name: true, channel: true } },
         _count: { select: { conversations: true, knowledgeBots: true } },
       },
     });
@@ -99,9 +98,16 @@ export async function PATCH(
     const data: Record<string, unknown> = {};
     const fields = parsed.data;
 
-    if (fields.provider || fields.model) {
-      const choiceError = modelChoiceError(fields.provider ?? existing.provider, fields.model ?? existing.model);
-      if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 });
+    // El cliente nunca envía provider/model — si el que ya tiene guardado dejó
+    // de ser válido (el operador apagó ese proveedor en /plataforma), se
+    // reasigna sola en silencio en vez de bloquear la edición con un error que
+    // el cliente no podría resolver.
+    if (await modelChoiceError(existing.provider, existing.model)) {
+      const picked = await pickCuratedModel(true);
+      if (picked) {
+        data.provider = picked.provider;
+        data.model = picked.model;
+      }
     }
 
     if (fields.name) data.name = fields.name;
@@ -145,8 +151,6 @@ export async function PATCH(
         );
       }
     }
-    if (fields.provider) data.provider = fields.provider;
-    if (fields.model) data.model = fields.model;
     if (fields.systemPrompt) data.systemPrompt = fields.systemPrompt;
     if (fields.temperature !== undefined) data.temperature = fields.temperature;
     if (fields.maxTokens !== undefined) data.maxTokens = fields.maxTokens;
@@ -162,8 +166,6 @@ export async function PATCH(
       select: {
         id: true,
         name: true,
-        provider: true,
-        model: true,
         systemPrompt: true,
         temperature: true,
         maxTokens: true,

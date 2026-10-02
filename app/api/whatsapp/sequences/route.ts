@@ -102,8 +102,8 @@ export async function POST(req: Request) {
     }
     const { waAccountId, channelAccountId, steps, ...data } = parsed.data;
 
-    if (!waAccountId && !channelAccountId) {
-      return NextResponse.json({ error: "Selecciona una cuenta" }, { status: 400 });
+    if (!!waAccountId === !!channelAccountId) {
+      return NextResponse.json({ error: "Selecciona exactamente una cuenta" }, { status: 400 });
     }
 
     if (waAccountId) {

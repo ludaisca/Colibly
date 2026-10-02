@@ -6,7 +6,24 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
-import { modelChoiceError } from "@/lib/ai/platform";
+import { modelChoiceError, pickCuratedModel } from "@/lib/ai/platform";
+
+// El cliente nunca ve ni elige provider/model — se omiten de toda respuesta.
+const SELECT_SCORER = {
+  id: true,
+  userId: true,
+  organizationId: true,
+  name: true,
+  systemPrompt: true,
+  isActive: true,
+  scheduleEnabled: true,
+  scheduleIntervalMinutes: true,
+  scheduleAccountIds: true,
+  scheduleChannelAccountIds: true,
+  lastRunAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 export async function GET(
   _req: Request,
@@ -22,6 +39,7 @@ export async function GET(
 
     const scorer = await prisma.wALeadScorerBot.findFirst({
       where: { id, ...(await orgWhere(session.user.id)) },
+      select: SELECT_SCORER,
     });
 
     if (!scorer) {
@@ -71,14 +89,17 @@ export async function PATCH(
     const data: Record<string, unknown> = {};
     const fields = parsed.data;
 
-    if (fields.provider || fields.model) {
-      const choiceError = modelChoiceError(fields.provider ?? existing.provider, fields.model ?? existing.model);
-      if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 });
+    // Igual que en bots/[id]/route.ts: reasignación silenciosa si el proveedor
+    // guardado dejó de estar disponible — el cliente no tiene cómo arreglarlo.
+    if (await modelChoiceError(existing.provider, existing.model)) {
+      const picked = await pickCuratedModel(false);
+      if (picked) {
+        data.provider = picked.provider;
+        data.model = picked.model;
+      }
     }
 
     if (fields.name) data.name = fields.name;
-    if (fields.provider) data.provider = fields.provider;
-    if (fields.model) data.model = fields.model;
     if (fields.systemPrompt) data.systemPrompt = fields.systemPrompt;
     if (fields.isActive !== undefined) data.isActive = fields.isActive;
     if (fields.scheduleEnabled !== undefined) data.scheduleEnabled = fields.scheduleEnabled;
@@ -112,6 +133,7 @@ export async function PATCH(
     const updated = await prisma.wALeadScorerBot.update({
       where: { id },
       data,
+      select: SELECT_SCORER,
     });
 
     return NextResponse.json(updated);

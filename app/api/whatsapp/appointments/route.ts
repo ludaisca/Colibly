@@ -39,6 +39,8 @@ export async function GET(req: Request) {
     const upcoming = searchParams.get("upcoming") === "true";
     const limitParam = Number(searchParams.get("limit"));
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, TAKE) : TAKE;
+    const pageParam = searchParams.get("page");
+    const page = Math.max(1, Number(pageParam) || 1);
 
     // ejecutivo solo ve/agenda lo suyo — mismo criterio defensa-en-profundidad
     // que el resto de la API (nav oculto + proxy.ts + 403/scoping aquí). Se
@@ -64,6 +66,7 @@ export async function GET(req: Request) {
         notes: true,
         scheduledAt: true,
         durationMinutes: true,
+        reminderMinutesBefore: true,
         status: true,
         source: true,
         cancelReason: true,
@@ -72,7 +75,8 @@ export async function GET(req: Request) {
         assignedTo: { select: { id: true, name: true, email: true } },
         createdBy: { select: { id: true, name: true } },
       },
-      orderBy: { scheduledAt: "asc" },
+      orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+      ...(pageParam ? { skip: (page - 1) * limit } : {}),
       take: limit,
     });
 
@@ -134,6 +138,7 @@ export async function POST(req: Request) {
         notes: true,
         scheduledAt: true,
         durationMinutes: true,
+        reminderMinutesBefore: true,
         status: true,
         source: true,
         cancelReason: true,

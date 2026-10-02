@@ -66,6 +66,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!existing) {
       return NextResponse.json({ error: "Fuente no encontrada" }, { status: 404 });
     }
+    if (parsed.data.enabled === true) {
+      const template = await prisma.wATemplate.findUnique({
+        where: { id: existing.waTemplateId }, select: { status: true },
+      });
+      if (template?.status !== "APPROVED") {
+        return NextResponse.json({ error: "La plantilla ya no está aprobada. Sincroniza Meta antes de reactivar la fuente." }, { status: 400 });
+      }
+    }
 
     const updated = await prisma.leadSheetSource.update({
       where: { id },

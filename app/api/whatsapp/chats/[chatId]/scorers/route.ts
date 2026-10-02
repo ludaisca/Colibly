@@ -47,7 +47,7 @@ export async function GET(
 
     const scorers = await prisma.wALeadScorerBot.findMany({
       where: { userId: ownerUserId, isActive: true },
-      select: { id: true, name: true, provider: true, model: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
 

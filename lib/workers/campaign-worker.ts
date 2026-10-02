@@ -58,6 +58,11 @@ export async function processCampaignJob(job: CampaignJob) {
 
   if (!campaign || campaign.status !== "SENDING") return;
 
+  if (campaign.waTemplate.status !== "APPROVED") {
+    await prisma.wACampaign.update({ where: { id: campaignId }, data: { status: "FAILED", completedAt: new Date() } });
+    return;
+  }
+
   // Cuenta en solo lectura: la campaña no sale (cada envío lo rechazaría de
   // todos modos) y queda como fallida, visible en su detalle.
   if (!(await isOrgWritable(campaign.organizationId))) {

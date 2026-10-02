@@ -23,6 +23,7 @@ const APPOINTMENT_SELECT = {
   notes: true,
   scheduledAt: true,
   durationMinutes: true,
+  reminderMinutesBefore: true,
   status: true,
   source: true,
   cancelReason: true,

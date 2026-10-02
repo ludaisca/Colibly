@@ -24,6 +24,8 @@ export async function GET(req: Request) {
     const where: Record<string, unknown> = {
       accountId: accountId ? accountId : { in: accountIds },
     };
+    const chatId = searchParams.get("chatId");
+    if (chatId) where.id = chatId;
 
     // Búsqueda server-side: con la lista paginada, filtrar solo lo ya cargado
     // en el cliente hacía imposible encontrar chats antiguos.

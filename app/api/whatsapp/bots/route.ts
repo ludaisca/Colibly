@@ -5,7 +5,7 @@ import { botSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
-import { modelChoiceError } from "@/lib/ai/platform";
+import { pickCuratedModel } from "@/lib/ai/platform";
 
 export async function POST(req: Request) {
   try {
@@ -31,8 +31,6 @@ export async function POST(req: Request) {
       name,
       waAccountId,
       channelAccountId,
-      provider,
-      model,
       systemPrompt,
       temperature,
       maxTokens,
@@ -43,8 +41,10 @@ export async function POST(req: Request) {
       appointmentSchedulingEnabled,
     } = parsed.data;
 
-    const choiceError = modelChoiceError(provider, model);
-    if (choiceError) return NextResponse.json({ error: choiceError }, { status: 400 });
+    // La plataforma asigna el proveedor/modelo — el cliente nunca elige (puede
+    // recibir imágenes por WhatsApp/Telegram, por eso needsVision: true).
+    const picked = await pickCuratedModel(true);
+    if (!picked) return NextResponse.json({ error: "La IA no está disponible en este momento. Escríbenos si el problema continúa." }, { status: 503 });
 
     if (waAccountId) {
       // getUserAccountIds (propias + compartidas vía WAAccountShare), no
@@ -75,8 +75,8 @@ export async function POST(req: Request) {
         waAccountId: waAccountId ?? null,
         channelAccountId: channelAccountId ?? null,
         name,
-        provider,
-        model,
+        provider: picked.provider,
+        model: picked.model,
         systemPrompt,
         temperature: temperature ?? 0.7,
         maxTokens: maxTokens ?? 1024,
@@ -89,8 +89,6 @@ export async function POST(req: Request) {
       select: {
         id: true,
         name: true,
-        provider: true,
-        model: true,
         systemPrompt: true,
         temperature: true,
         maxTokens: true,
@@ -135,8 +133,6 @@ export async function GET(req: Request) {
       select: {
         id: true,
         name: true,
-        provider: true,
-        model: true,
         systemPrompt: true,
         temperature: true,
         maxTokens: true,
@@ -155,7 +151,7 @@ export async function GET(req: Request) {
           select: { id: true, name: true, phoneNumber: true },
         },
         channelAccount: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, channel: true },
         },
         _count: { select: { conversations: true, knowledgeBots: true } },
       },

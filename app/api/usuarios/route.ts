@@ -35,11 +35,12 @@ export async function GET() {
         disabledAt: true,
         createdAt: true,
         waAccounts: { select: { id: true, name: true } },
+        ownedOrganization: { select: { id: true } },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(users);
+    return NextResponse.json(users.map(({ ownedOrganization, ...user }) => ({ ...user, isOwner: !!ownedOrganization })));
   } catch (error) {
     const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });

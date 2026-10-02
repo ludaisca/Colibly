@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     }
 
     const accountIds = await getUserAccountIds(session.user.id);
-    // Los contactos de canales adicionales (Telegram) cuelgan de
+    // Los contactos de canales adicionales cuelgan de
     // channelAccountId en vez de accountId — sin esto, un lead que escribe por
     // Telegram genera su Contact pero queda invisible en el CRM.
     const channelAccountIds = await getUserChannelAccountIds(session.user.id);
@@ -70,6 +70,7 @@ export async function GET(req: Request) {
           id: true,
           accountId: true,
           channelAccountId: true,
+          channelAccount: { select: { channel: true } },
           remoteJid: true,
           name: true,
           leadStatus: true,
@@ -89,11 +90,11 @@ export async function GET(req: Request) {
 
     // Se aplana a un solo shape (accountId + chat + channel) para que la UI no
     // tenga que ramificar por canal — mismo criterio que GET /api/telegram/chats.
-    const items = contacts.map(({ channelAccountId, conversation, ...c }) => ({
+    const items = contacts.map(({ channelAccountId, channelAccount, conversation, ...c }) => ({
       ...c,
       accountId: c.accountId ?? channelAccountId!,
       chat: c.chat ?? conversation,
-      channel: c.accountId ? ("WHATSAPP" as const) : ("TELEGRAM" as const),
+      channel: c.accountId ? ("WHATSAPP" as const) : channelAccount?.channel,
     }));
 
     return NextResponse.json({ items, total, page, pageSize });
