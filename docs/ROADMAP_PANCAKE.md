@@ -1,5 +1,7 @@
 # Roadmap competitivo — CRM conversacional (originado vs Pancake, ampliado a otros CRM)
 
+> **Documento histórico (agosto 2026).** Se escribió cuando el producto se llamaba SundayCRM y se planeaba como self-hosted; hoy es Colibly, SaaS multi-organización. Los pasos marcados `[x]` están cerrados; el sitio de marketing ya existe (`app/(marketing)`, `app/(beta)`, `cpanel-site/`). Vigente: `docs/PLAN_LANZAMIENTO.md`.
+
 **Fecha de creación:** 2026-08-06
 **Estado:** P0/P1/P2 y los 6 candidatos P3 (a–f) **implementados** (P3 el 2026-08-06, más Citas Fase 2 — ver `docs/PLAN_ROADMAP.md`). Pendiente: sitio web de marketing/ventas del producto. Revisión integral posterior con correcciones: `docs/AUDIT_2026-09-16.md`.
 **Cómo se generó:** empezó como investigación competitiva contra Pancake (CRM de social commerce) en una sesión anterior de Claude Code. **Ese análisis original no se persistió como documento** — solo sobrevivió fragmentado en 3 mensajes de commit y en un par de notas dentro de `AGENTS.md`. La sección "Cerrado" reconstruye lo que se pudo recuperar de esas fuentes. Como ese análisis original no era recuperable en su totalidad, se optó por **regenerar la investigación desde cero** (ver "Investigación regenerada") y luego, a pedido explícito del usuario, **ampliarla más allá de Pancake** contra un panorama más amplio de CRM de paga y código abierto (ver "Panorama ampliado") — para no basar el roadmap en un solo competidor.

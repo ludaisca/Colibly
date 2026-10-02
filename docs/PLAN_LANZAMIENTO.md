@@ -1,10 +1,12 @@
 # Plan de lanzamiento — de proyecto a negocio
 
-**Creado:** 2026-09-27. Documento para retomar la preparación del producto como negocio: qué está hecho, qué se decidió y en qué orden sigue. Se actualiza conforme avanza (marcar `[x]` solo lo terminado y verificado).
+**Creado:** 2026-09-27. Documento para retomar la preparación del producto como negocio: qué está hecho, qué se decidió y en qué orden sigue. Se actualiza conforme avanza (marcar `[x]` solo lo terminado y verificado). Infraestructura y DNS actualizados el 2026-10-01 en [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
 
-## Estado al 2026-09-27
+## Estado al 2026-09-28 (actualizado el 2026-10-01)
 
-Rama `feat/api-webhooks-automatizaciones` subida a GitHub (aún sin PR a `main`; el CI corre al abrirlo).
+Desde entonces: revisiones y cierres de interfaz (accesibilidad, consistencia, rendimiento, recorrido visual, modales, React Flow del 09-29 al 09-30), landing beta con separación de hosts, copia PHP para cPanel y plan de infraestructura/oferta beta. Índice en [README.md](README.md); punto de retoma en [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md).
+
+El repositorio está en preparación previa al lanzamiento. Los cambios de plataforma, proveedor de IA y habilitación de canales del 2026-09-28 están en el árbol de trabajo y requieren las comprobaciones descritas en README antes de integrarlos.
 
 **Ya construido y verificado:**
 - SaaS multi-organización (S1–S5): tenencia, correo y verificación, planes con candados de facturación, IA de la plataforma con créditos, marca y landing.
@@ -13,6 +15,9 @@ Rama `feat/api-webhooks-automatizaciones` subida a GitHub (aún sin PR a `main`;
 - Panel del operador `/plataforma` (`PLATFORM_ADMIN_EMAILS`): resumen, extender pruebas, dar créditos, suspender/reactivar.
 - Captcha opcional del registro (Cloudflare Turnstile) y CSP corregida (antes bloqueaba el Pixel de Meta y Google).
 - CI: tsc, lint, tests y build de producción.
+- Configuración de negocio de plataforma desde `/plataforma` (`PlatformSettings`): claves de IA (OpenCode Go/Google), Stripe, SMTP, Turnstile y medición; los secretos se cifran en base de datos.
+- Habilitación por organización de Telegram, Messenger, Instagram y webchat desde el panel del operador. Las organizaciones que ya tenían cuentas conservan esos canales.
+- Proveedor/modelos de IA curados y asignados por la plataforma; los clientes ya no eligen proveedor ni modelo.
 
 Detalle técnico de todo lo anterior: `AGENTS.md`.
 
@@ -21,15 +26,16 @@ Detalle técnico de todo lo anterior: `AGENTS.md`.
 | Tema | Decisión |
 |---|---|
 | Quién vende | **Persona física: Luis Islas.** La verificación de Meta y los textos legales van a su nombre; la marca es solo el nombre visible. |
-| Nombre | **Se cambiará** (SunflowCRM es provisional). Es el primer paso: dominio, verificación y App Review dependen de él. |
-| Dominio | Aún no hay. **No estará en Cloudflare** (Turnstile funciona igual: solo requiere cuenta de Cloudflare y dar de alta el dominio en Turnstile). |
+| Nombre | **Colibly** (`colibly.com`); el dominio ya se compró. El registro de la marca sigue pendiente. |
+| Dominio y correo | Dominio registrado en Hostinger; DNS y `contacto@colibly.com` en Neubox/cPanel. No se ha decidido mover DNS a Cloudflare. |
+| Infraestructura beta | Contabo sigue como VPS principal previsto. Plan B: landing PHP en cPanel/Neubox y app en ludaisca, que también aloja DEV. Sin despliegue público nuevo todavía. |
 | Purga de datos | Canceladas y pruebas vencidas sin pago: se borran a los 60 días. Hecho. |
 | Stripe | **Al final.** Las pruebas contra Stripe real se hacen en el último paso. |
 | Canales de Meta | **WhatsApp primero**; Messenger/Instagram en una revisión aparte, después. |
 
 ## Orden de trabajo
 
-### 1. Nombre nuevo  ← siguiente paso
+### 1. Nombre nuevo
 
 **Elegido (2026-09-27): Colibly** (colibrí + "-ly": rápido, va de conversación en conversación), con **Kolibly** como variante a proteger. Salió de ~300 candidatos revisados contra el registro de `.com`; casi todos los nombres cortos estaban tomados.
 
@@ -39,16 +45,19 @@ Revisión del 2026-09-27:
 - GitHub y npm: `colibly` y `kolibly` libres.
 - **Riesgo a revisar en el IMPI:** "Colibly" se parece en sonido a "Colibrí", palabra común con marcas probables en México, y existe **Colibri.ai** (software de inteligencia de conversaciones para ventas, mismo sector). La ortografía distinta ayuda, pero el IMPI evalúa el parecido fonético.
 
-**Logo elegido (2026-09-27): concepto D "Impulso"**: colibrí original en picada diagonal (velocidad), degradado violeta (`#5B34E6` → `#8E6BFF`), pico rubí (`#FF4F7B`), con versión plana de un color para tamaños chicos. Dibujado desde cero en el lienzo de identidad (https://claude.ai/artifact/4fnEnuHXBTvPTaa4fSZGHF), inspirado en el estilo de una referencia de Magnific pero sin calcar pose ni formas. Paleta: violeta colibrí `#5B34E6` (principal, admite texto blanco 6.8:1), rubí `#FF4F7B` (acento, solo rellenos), tinta `#17132B`, suelo `#F8F6FC`, noche `#100D1F`; tipografía Sora (títulos) + Figtree (texto). Contrastes AA verificados en el lienzo.
+**Logo elegido (2026-09-27): concepto D "Impulso"**: colibrí original en picada diagonal (velocidad), degradado violeta (`#5B34E6` → `#8E6BFF`), pico rubí (`#FF4F7B`), con versión plana de un color para tamaños chicos. Dibujado desde cero en el lienzo de identidad (https://claude.ai/artifact/4fnEnuHXBTvPTaa4fSZGHF), inspirado en el estilo de una referencia de Magnific pero sin calcar pose ni formas. Paleta: violeta colibrí `#5B34E6` (principal, admite texto blanco 6.8:1), rubí `#FF4F7B` (acento, solo rellenos), tinta `#17132B`, suelo `#F8F6FC`, noche `#100D1F`; tipografía Bricolage Grotesque (títulos) + Hanken Grotesk (texto), la que usa la beta y la app (decisión 2026-10-01; antes se planeó Sora + Figtree). Contrastes AA verificados en el lienzo.
 - Los `.eps` de referencia de Magnific están fuera del repo (contenido con licencia), en `/data/Proyectos/colibly-marca/referencias-magnific/` del servidor.
 - Luis obtuvo del autor de la referencia la cesión de derechos: conseguirla **por escrito y firmada** (cesión total y exclusiva de derechos patrimoniales, con permiso para registro de marca). Impulso no depende de ella por ser original.
 - [ ] Pulir el trazo final con un diseñador antes del registro (curvas, proporciones, grosor óptico); Claude prepara el brief.
 
 Siguientes pasos del nombre:
-- [ ] Registrar `colibly.com` y `kolibly.com` (este redirige al primero) el mismo día, en un registrador serio. Opcional: `colibly.mx` / `colibly.com.mx`.
+- [x] Registrar `colibly.com` (Hostinger). `kolibly.com`, `colibly.mx` y `colibly.com.mx` siguen siendo opciones futuras, no prerequisitos de la beta.
 - [ ] Reservar usuarios `colibly` en Instagram, Facebook, X, TikTok, LinkedIn y YouTube (los videos del App Review y los tutoriales van ahí). Esto se revisa a mano: esas redes piden sesión.
 - [ ] Búsqueda en el IMPI (MARCia) de "Colibly" y parecidos ("Colibrí", "Colibri") en las clases 9 (software), 35 (gestión comercial/publicidad) y 42 (SaaS). Si está limpio, solicitar el registro de la marca (idealmente con un agente de marcas).
-- [ ] Renombrar en el código y nueva identidad visual (logo de colibrí, paleta nueva): ver lista abajo.
+- [x] Renombrar en el código (2026-09-27, rama `feat/rebrand-colibly`): textos con `BRAND_NAME`, dominio y correo de contacto en `lib/brand.ts` (`BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`), encabezados `X-Colibly-*`, User-Agent, clave de consentimiento, formato de exportación y remitentes. Logo provisional: una "C" (`BrandMark`, `lib/brand-mark.ts`, favicon, ícono de iOS, imagen para compartir).
+- [x] Paleta "Colibrí" aplicada (2026-09-27): violeta `#5B34E6`, rubí, neutros con tinte violeta, tema oscuro "noche"; hex para correos e imágenes en `lib/brand-colors.ts`.
+- [ ] Logo final "Impulso" pulido (hoy es una "C" provisional): reemplazar `BrandMark`, `lib/brand-mark.ts` y `app/icon.svg`.
+- [x] Crear el buzón `contacto@colibly.com` en Neubox (confirmado por el propietario; recepción y SMTP de producción aún por probar).
 
 Criterios usados para elegir:
 - Dominio `.com` disponible (el anterior falló aquí: sundaycrm.com era de otro).
@@ -56,23 +65,25 @@ Criterios usados para elegir:
 - Usuario libre en Instagram, Facebook, X y LinkedIn.
 - Fácil de decir y escribir en español; sin letras ambiguas al dictarlo.
 - **Sin "WhatsApp", "Whats" ni "WA"** en el nombre: las guías de marca de Meta no permiten usar su marca en nombres de producto, y eso se revisa en el App Review.
-- Identidad visual nueva: el girasol se descarta (decisión del 2026-09-27), así que logo y paleta se rediseñan junto con el nombre.
+- Identidad visual: la paleta "Colibrí" ya está aplicada y el logo actual es provisional; el logo final "Impulso" sigue pendiente.
 
-Qué implica el cambio en el código (lo hace Claude en cuanto los dominios estén registrados):
+Qué implicaba el cambio en el código (hecho el 2026-09-27, salvo la identidad visual):
 - `lib/brand.ts` (`BRAND_NAME`, `BRAND_TAGLINE`) y ~48 menciones literales de "SunflowCRM" en ~40 archivos (correos, landing, textos legales, documentación de la API, panel): pasarlas a `BRAND_NAME` donde se pueda.
 - Encabezados de webhooks salientes `X-Sunflow-Signature` / `-Event` / `-Delivery` / `-Automation` y el User-Agent `SunflowCRM-Webhooks`. **Hacerlo antes de tener clientes reales**: después rompe las integraciones de quien ya valida esas cabeceras.
 - Claves internas: `sunflow_consent` (localStorage del aviso de cookies), `sunflowAnalytics`, formato de exportación `sunflowcrm-export-v1` y nombre del archivo exportado.
 - Identidad visual: `SunflowerMark` (`app/components/ui/logo.tsx`), `app/icon.svg`, `app/apple-icon.tsx`, imágenes para compartir (`_share-image.tsx`) y primitivos `--sunflower-*` de `app/globals.css` (si el nombre nuevo no encaja con el girasol).
-- Los identificadores internos (carpeta del repo, contenedores, paquete npm) pueden quedarse como están, igual que se hizo con SundayCRM → SunflowCRM.
+- Identificadores internos: también renombrados el 2026-09-27 (repo `ludaisca/Colibly`, carpeta `/data/Proyectos/Colibly`, contenedores `colibly-*`, base `colibly_db`, paquete npm).
 
 ### 2. Dominio, producción y correo
 
-- [ ] Registrar el dominio del nombre nuevo.
-- [ ] Definir dónde corre producción (no se encontró el proyecto en Coolify al 2026-09-27) y desplegar con `APP_URL` del dominio.
+- [x] Registrar `colibly.com` y definir infraestructura prevista: Contabo principal, ludaisca de respaldo. Véase [plan de infraestructura](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
+- [ ] Contratar, probar y desplegar en Contabo con `APP_URL=https://app.colibly.com` y `SITE_URL=https://colibly.com`.
+- [ ] Plan B: probar y publicar la copia PHP de `cpanel-site/` en Neubox y una instancia de producción separada en ludaisca para `app.colibly.com`.
+- [ ] Separar `mail.colibly.com` y el MX del A raíz antes de apuntar el dominio web al VPS; verificar correo entrante y saliente.
 - [ ] Correo transaccional con el dominio (SMTP + SPF/DKIM/DMARC), para que la verificación y las invitaciones no caigan en spam. Un buzón del dominio también sirve para la verificación de Meta.
 - [ ] Respaldos de producción: base de datos y volumen `media_data`, con copia fuera del servidor.
 - [ ] Monitoreo: aviso si el sitio se cae (`/api/health`) y rastreo de errores.
-- [ ] Variables en producción: `PLATFORM_ADMIN_EMAILS` (tu correo) y, opcional, `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY`.
+- [ ] Variables de infraestructura en producción: `PLATFORM_ADMIN_EMAILS` (tu correo), `APP_URL`, credenciales OAuth de Google Sheets si se usan y `LANDING_WEBCHAT_ACCOUNT_ID` si se activa el chat de la landing. SMTP, claves de IA, Stripe, Turnstile y medición se configuran desde `/plataforma` → **Configuración**.
 
 ### 3. Textos legales
 

@@ -45,7 +45,7 @@ export const PLANS: Record<PlanId, Plan> = {
 export const PLAN_LIST: Plan[] = [PLANS.BASIC, PLANS.PRO];
 
 // Prueba gratis sin tarjeta, con el plan Pro completo.
-export const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 30;
 export const TRIAL_PLAN: PlanId = "PRO";
 // Pago fallido: días de gracia antes de pasar a solo lectura.
 export const GRACE_DAYS = 7;

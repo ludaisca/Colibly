@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-The product is **SunflowCRM** (formerly SundayCRM; internal names like the repo folder keep the old one). Use `lib/brand.ts:BRAND_NAME` in user-facing text. A second rename (to **Colibly**) is planned — see `docs/PLAN_LANZAMIENTO.md` before touching brand text.
+The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). Repo, folder, containers, database and npm package are all named Colibly. Use `lib/brand.ts` (`BRAND_NAME`, `BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`) in user-facing text, never a literal, and colors only through the semantic tokens (palette "Colibrí"; hex copy for emails/images in `lib/brand-colors.ts`). The logo is still a provisional "C" — see `docs/PLAN_LANZAMIENTO.md`.
 
 @AGENTS.md
 
@@ -35,7 +35,7 @@ Outgoing email in dev (verification, password reset, invitations) never leaves t
 Build the Dockerfile's `builder` stage in an isolated image — exactly what Coolify runs (`npm ci`, `prisma generate`, `next build` with `NODE_OPTIONS` set), without touching the dev container, `node_modules`, `.next` or `package.json`:
 
 ```bash
-podman build --target builder -t localhost/sundaycrm-buildcheck:tmp . && podman rmi localhost/sundaycrm-buildcheck:tmp && podman image prune -f
+podman build --target builder -t localhost/colibly-buildcheck:tmp . && podman rmi localhost/colibly-buildcheck:tmp && podman image prune -f
 ```
 
 The final `podman image prune -f` matters: `rmi` only drops the tag, and each build's intermediate layers stay behind as untagged images — they filled the 39 GB Podman LV to 97 % by 2026-09-27. (Clearing space on that LV: `podman image prune -a -f` removes images no container uses; never `--volumes`, those are other projects' dev databases, and they live on the RAID anyway.)
@@ -44,7 +44,7 @@ The final `podman image prune -f` matters: `rmi` only drops the tag, and each bu
 
 ## Multi-tenant: every query is scoped to the organization
 
-SundayCRM is a hosted multi-tenant SaaS (see AGENTS.md → "Architecture: tenancy"). The rules that prevent cross-tenant leaks:
+Colibly is a hosted multi-tenant SaaS (see AGENTS.md → "Architecture: tenancy"). The rules that prevent cross-tenant leaks:
 
 - A new top-level model gets `organizationId`, and its create sets it via `requireOrgId(session.user.id)`.
 - Every required relation must be `onDelete: Cascade` down from `Organization`: deleting an organization (owner deletion, the 60-day purge) is one cascading delete (`lib/org-data/delete.ts`). Data that cascade can't reach — files on disk, rows linked only through a join table — has to be added to that function.
@@ -82,6 +82,10 @@ What the two worlds share:
 - **`proxy.ts` runs all three role checks inside the `PROTECTED` block.** A route missing from that list skips `EXECUTIVE_BLOCKED`/`USER_BLOCKED` entirely — not just the login redirect — even when a layout already redirects unauthenticated users. Every new top-level section must be added to `PROTECTED`.
 - **Automations and the bot share the chat.** Both ingests call `dispatchInboundMessage()` *before* enqueuing the bot and skip the bot when it returns `suppressBot`; `getBotSkipReason()` also checks for a conversational run. A new inbound path (another channel) must do the same, or the bot and a button flow will both answer.
 - **A `where.OR` used for account scoping gets overwritten by one used for search.** Combine them under `AND` (see `GET /api/whatsapp/contacts`); assigning both to `where.OR` leaks other users' rows.
+
+## Beta landing and host split (prepared in DEV, not deployed)
+
+Three copies of the public landing coexist; see `docs/CONTINUIDAD_LANDING_CPANEL_2026-10-01.md` for state and next steps: `app/(marketing)/page.tsx` (original), `app/(beta)/beta/` (beta, Next.js) and `cpanel-site/` (independent PHP copy for `colibly.com` on Neubox/cPanel — no Next.js, no DB; its text must be kept in sync with the Next.js beta by hand). With `SITE_URL` set (`colibly.com`) next to `APP_URL` (`app.colibly.com`), `proxy.ts` splits hosts: the app host redirects landing paths to the site host and vice versa. The trial is 30 days everywhere (`TRIAL_DAYS = 30` in `lib/billing/plans.ts`; the landing and terms read it, `cpanel-site/terminos.php` repeats it by hand — change both together). The beta typography is Bricolage Grotesque (display) + Hanken Grotesk (body), the same as the app; `cpanel-site/assets/site.css` mirrors it. Index of all planning/audit documents: `docs/README.md`.
 
 ## Navigation
 

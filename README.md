@@ -1,6 +1,6 @@
-# SunflowCRM
+# Colibly
 
-> Nombre provisional: el producto pasará a llamarse **Colibly** (ver [`docs/PLAN_LANZAMIENTO.md`](docs/PLAN_LANZAMIENTO.md)). Los nombres internos (carpeta del repo, contenedores, paquete npm) conservan "sundaycrm".
+> Dominio: [colibly.com](https://colibly.com). Antes SunflowCRM y SundayCRM; hoy todo se llama Colibly (repo, carpeta, contenedores, base de datos). Paleta "Colibrí" (violeta y rubí); el logo actual es una "C" provisional mientras se define el definitivo (ver [`docs/PLAN_LANZAMIENTO.md`](docs/PLAN_LANZAMIENTO.md)). El proyecto sigue en desarrollo.
 
 CRM conversacional multi-tenant y de pago (SaaS) para negocios que venden por mensaje: una bandeja para WhatsApp, Instagram, Messenger, Telegram y el chat de la web, con bots de IA, automatizaciones, campañas y calificación de leads.
 
@@ -12,12 +12,12 @@ CRM conversacional multi-tenant y de pago (SaaS) para negocios que venden por me
 - **Campañas y plantillas** de WhatsApp (Meta), con segmentación por etiqueta, variables por destinatario y métricas.
 - **CRM**: contactos con campos personalizados, pipeline Kanban, citas con recordatorios, calificadores de leads por IA, recuperación de leads en visto, feedback a Meta Ads (Conversions API).
 - **Integraciones**: API pública v1 con API keys, webhooks salientes firmados, Google Sheets.
-- **SaaS**: organizaciones aisladas entre sí, planes Básico y Pro con límites, cobro con Stripe, prueba de 14 días, exportar y eliminar datos, purga automática de cuentas canceladas o sin pago, panel del operador (`/plataforma`).
+- **SaaS**: organizaciones aisladas entre sí, planes Básico y Pro con límites, cobro con Stripe, prueba de 30 días, exportar y eliminar datos, purga automática de cuentas canceladas o sin pago, panel del operador (`/plataforma`).
 - **Roles**: `admin`, `user` y `ejecutivo`, aplicados en la navegación, en `proxy.ts` y en cada endpoint.
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS v4 · NextAuth v5 (Credentials + JWT) · Prisma 5 sobre PostgreSQL + pgvector · Redis + BullMQ · SDK `openai` (OpenRouter) y `@google/generative-ai` · Stripe · Vitest.
+Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS v4 · NextAuth v5 (Credentials + JWT) · Prisma 5 sobre PostgreSQL + pgvector · Redis + BullMQ · OpenCode Go (`openai` SDK) y Google Gemini · Stripe · Vitest.
 
 ## Desarrollo
 
@@ -41,15 +41,15 @@ podman compose restart app                                      # tras una migra
 - **Nunca `prisma db push` ni `prisma migrate dev`**: el primero puede borrar columnas con datos y el segundo ofrece reiniciar la base. Los cambios de esquema van siempre con `scripts/new-migration.sh`.
 - Los correos de desarrollo (verificación, invitaciones, recuperar contraseña) no salen de la máquina: llegan a Mailpit, en http://localhost:18025.
 - Abre la app como `localhost` o `ludaisca` (por Tailscale), no como `127.0.0.1`: el servidor de desarrollo de Next bloquea otros orígenes y la página no se hidrata.
-- Build de producción: `podman build --target builder -t localhost/sundaycrm-buildcheck:tmp . && podman rmi localhost/sundaycrm-buildcheck:tmp && podman image prune -f` (`npm run build` dentro del contenedor de desarrollo falla por `NODE_ENV=development`).
+- Build de producción: `podman build --target builder -t localhost/colibly-buildcheck:tmp . && podman rmi localhost/colibly-buildcheck:tmp && podman image prune -f` (`npm run build` dentro del contenedor de desarrollo falla por `NODE_ENV=development`).
 
 El CI (`.github/workflows/ci.yml`) corre tsc, lint, tests y el build de producción en cada PR y push a `main`.
 
 ### Variables de entorno
 
-La lista completa, comentada, está en [`.env.example`](.env.example). Las imprescindibles: `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `DB_PASSWORD` (producción), `APP_URL`, SMTP y al menos una clave de IA de la plataforma (`PLATFORM_OPENROUTER_API_KEY` o `PLATFORM_GOOGLE_API_KEY`). Stripe, captcha (Turnstile), medición del sitio, Google Sheets y los operadores (`PLATFORM_ADMIN_EMAILS`) son opcionales.
+La lista de infraestructura está en [`.env.example`](.env.example). Las imprescindibles son `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `DB_PASSWORD` (producción) y `APP_URL`. SMTP, las claves de IA (OpenCode Go y Google), Stripe, Turnstile y la medición del sitio se configuran desde `/plataforma` → **Configuración** y se guardan cifradas en `PlatformSettings`. Para habilitar `/plataforma`, configura `PLATFORM_ADMIN_EMAILS` en el entorno. Google Sheets usa las credenciales OAuth de entorno. El RAG necesita además una clave de Google para generar embeddings, incluso si las respuestas del bot usan OpenCode.
 
-Toda variable nueva del servidor debe agregarse también a la lista `app.environment` de `docker-compose.yml`, o no llega a producción.
+Toda variable nueva de infraestructura debe agregarse también a la lista `app.environment` de `docker-compose.yml`, o no llega a producción. Las claves de negocio se agregan a `PlatformSettings`, no a Compose.
 
 ## Arquitectura
 
@@ -58,7 +58,7 @@ Toda variable nueva del servidor debe agregarse también a la lista `app.environ
 - `prisma/`: esquema, migraciones y SQL del índice vectorial.
 - `proxy.ts`: el middleware de Next 16 (protección de rutas por rol y bloqueo de escrituras en cuentas de solo lectura).
 
-Las convenciones, decisiones de arquitectura y trampas conocidas están en [`AGENTS.md`](AGENTS.md) (detalle) y [`CLAUDE.md`](CLAUDE.md) (reglas esenciales). Planes y auditorías en [`docs/`](docs/).
+Las convenciones, decisiones de arquitectura y trampas conocidas están en [`AGENTS.md`](AGENTS.md) (detalle) y [`CLAUDE.md`](CLAUDE.md) (reglas esenciales). Planes, auditorías y estado del lanzamiento: índice en [`docs/README.md`](docs/README.md).
 
 ## Despliegue
 
