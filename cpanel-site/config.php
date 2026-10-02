@@ -4,6 +4,7 @@ declare(strict_types=1);
 const CONTACT_EMAIL = 'contacto@colibly.com';
 const FROM_EMAIL = 'contacto@colibly.com';
 const APP_URL = 'https://app.colibly.com';
+const SITE_URL = 'https://colibly.com';
 
 function start_site_session(): void {
     if (session_status() === PHP_SESSION_ACTIVE) return;

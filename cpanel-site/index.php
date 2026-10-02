@@ -4,6 +4,28 @@ require __DIR__ . '/config.php';
 start_site_session();
 if (!isset($_SESSION['beta_csrf'])) $_SESSION['beta_csrf'] = bin2hex(random_bytes(24));
 header('Content-Type: text/html; charset=UTF-8');
+$faq = [
+  ['¿Necesito saber de tecnología para empezar?', 'No. Te acompañamos en la conexión y la configuración inicial. Necesitarás tener control de tu número y autorizar la conexión desde tu cuenta de negocio.'],
+  ['¿Cuándo comienzan los 30 días?', 'Cuando tu cuenta esté preparada para usarla. Coordinaremos contigo la fecha de activación antes de empezar la prueba.'],
+  ['¿Me cobrarán al terminar?', 'No habrá cobro automático por la beta ni pedimos tarjeta para solicitar acceso. Antes de terminar, podrás decidir si continúas con uno de los planes disponibles.'],
+  ['¿Hay algún otro costo por usar WhatsApp?', 'Meta puede cobrar algunos mensajes de WhatsApp según el tipo de mensaje y el destino. Te ayudaremos a entenderlo antes de conectar tu número; esos cargos son independientes de Colibly.'],
+  ['¿Puedo detener las respuestas de IA?', 'Sí. Tu equipo puede atender directamente y pausar el asistente cuando lo necesite. Probamos sus respuestas con tu información antes de activarlo.'],
+];
+$ld = [
+  '@context' => 'https://schema.org',
+  '@graph' => [
+    ['@type' => 'Organization', '@id' => SITE_URL . '/#organization', 'name' => 'Colibly', 'url' => SITE_URL . '/',
+      'logo' => SITE_URL . '/assets/apple-touch-icon.png', 'email' => CONTACT_EMAIL,
+      'contactPoint' => ['@type' => 'ContactPoint', 'email' => CONTACT_EMAIL, 'contactType' => 'customer support', 'availableLanguage' => 'es']],
+    ['@type' => 'WebSite', '@id' => SITE_URL . '/#website', 'url' => SITE_URL . '/', 'name' => 'Colibly', 'inLanguage' => 'es-MX', 'publisher' => ['@id' => SITE_URL . '/#organization']],
+    ['@type' => 'WebPage', '@id' => SITE_URL . '/#webpage', 'url' => SITE_URL . '/', 'name' => 'Colibly Beta — Vende por WhatsApp sin perder conversaciones', 'inLanguage' => 'es-MX', 'isPartOf' => ['@id' => SITE_URL . '/#website'], 'about' => ['@id' => SITE_URL . '/#software'], 'primaryImageOfPage' => SITE_URL . '/assets/share.png'],
+    ['@type' => 'SoftwareApplication', '@id' => SITE_URL . '/#software', 'name' => 'Colibly', 'applicationCategory' => 'BusinessApplication', 'operatingSystem' => 'Web',
+      'description' => 'Colibly es un CRM conversacional para negocios que venden por mensaje: reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente.',
+      'url' => SITE_URL . '/', 'inLanguage' => 'es', 'publisher' => ['@id' => SITE_URL . '/#organization'],
+      'offers' => ['@type' => 'Offer', 'name' => 'Beta privada de 30 días', 'price' => '0', 'priceCurrency' => 'USD', 'description' => '30 días sin costo y sin tarjeta para los primeros 10 negocios, con configuración acompañada.']],
+    ['@type' => 'FAQPage', '@id' => SITE_URL . '/#faq', 'inLanguage' => 'es-MX', 'mainEntity' => array_map(fn($f) => ['@type' => 'Question', 'name' => $f[0], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f[1]]], $faq)],
+  ],
+];
 ?>
 <!doctype html>
 <html lang="es-MX">
@@ -12,7 +34,10 @@ header('Content-Type: text/html; charset=UTF-8');
   <title>Colibly Beta — Vende por WhatsApp sin perder conversaciones</title>
   <meta name="description" content="Reúne tus chats, clientes y equipo en un solo lugar. Te ayudamos a configurar un asistente de IA para tu negocio. Solicita 30 días de beta sin costo y sin tarjeta.">
   <link rel="canonical" href="https://colibly.com/"><link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
-  <meta property="og:type" content="website"><meta property="og:locale" content="es_MX"><meta property="og:site_name" content="Colibly"><meta property="og:title" content="Colibly Beta — Vende por WhatsApp sin perder conversaciones"><meta property="og:description" content="30 días de beta sin costo, sin tarjeta y con configuración acompañada."><meta property="og:url" content="https://colibly.com/"><meta property="og:image" content="https://colibly.com/assets/share.svg">
+  <meta property="og:type" content="website"><meta property="og:locale" content="es_MX"><meta property="og:site_name" content="Colibly"><meta property="og:title" content="Colibly Beta — Vende por WhatsApp sin perder conversaciones"><meta property="og:description" content="30 días de beta sin costo, sin tarjeta y con configuración acompañada."><meta property="og:url" content="https://colibly.com/"><meta property="og:image" content="https://colibly.com/assets/share.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Colibly: cada chat puede ser una oportunidad">
+  <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Colibly Beta — Vende por WhatsApp sin perder conversaciones"><meta name="twitter:description" content="30 días de beta sin costo, sin tarjeta y con configuración acompañada."><meta name="twitter:image" content="https://colibly.com/assets/share.png">
+  <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1"><meta name="theme-color" content="#5B34E6"><link rel="apple-touch-icon" href="/assets/apple-touch-icon.png"><link rel="alternate" type="text/markdown" href="/llms.txt" title="Resumen para asistentes de IA">
+  <script type="application/ld+json"><?= json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script>
   <link rel="stylesheet" href="/assets/site.css"><script src="/assets/site.js" defer></script>
 </head>
 <body>
@@ -53,11 +78,7 @@ header('Content-Type: text/html; charset=UTF-8');
   </div></section>
 
   <section class="section section-tint" id="preguntas"><div class="container split faq-grid"><div><p class="eyebrow">Sin sorpresas</p><h2>Preguntas frecuentes</h2><p class="section-intro">¿Hay algo más que quieras saber? Escríbenos a <a class="text-link" href="mailto:contacto@colibly.com">contacto@colibly.com</a>.</p></div><div class="faqs">
-    <details><summary>¿Necesito saber de tecnología para empezar?</summary><p>No. Te acompañamos en la conexión y la configuración inicial. Necesitarás tener control de tu número y autorizar la conexión desde tu cuenta de negocio.</p></details>
-    <details><summary>¿Cuándo comienzan los 30 días?</summary><p>Cuando tu cuenta esté preparada para usarla. Coordinaremos contigo la fecha de activación antes de empezar la prueba.</p></details>
-    <details><summary>¿Me cobrarán al terminar?</summary><p>No habrá cobro automático por la beta ni pedimos tarjeta para solicitar acceso. Antes de terminar, podrás decidir si continúas con uno de los planes disponibles.</p></details>
-    <details><summary>¿Hay algún otro costo por usar WhatsApp?</summary><p>Meta puede cobrar algunos mensajes de WhatsApp según el tipo de mensaje y el destino. Te ayudaremos a entenderlo antes de conectar tu número; esos cargos son independientes de Colibly.</p></details>
-    <details><summary>¿Puedo detener las respuestas de IA?</summary><p>Sí. Tu equipo puede atender directamente y pausar el asistente cuando lo necesite. Probamos sus respuestas con tu información antes de activarlo.</p></details>
+    <?php foreach ($faq as [$q, $a]): ?><details><summary><?= html($q) ?></summary><p><?= html($a) ?></p></details><?php endforeach; ?>
   </div></div></section>
 
   <section class="section" id="solicitar"><div class="container split application-grid"><div><p class="eyebrow">Tu siguiente paso</p><h2>Empecemos por conocer tu negocio.</h2><p class="section-intro">Solicitar acceso toma menos de dos minutos. Te contactaremos personalmente para confirmar si la beta encaja contigo y ayudarte a empezar.</p><p class="reassurance">✧ Tú mantienes el control de tu número y decides qué información usa el asistente.</p></div>
