@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { BRAND_CONTACT_EMAIL } from "@/lib/brand";
 
 // Piezas compartidas de /terminos y /privacidad. Los textos son BORRADORES:
 // los datos entre corchetes y el contenido deben revisarse con un abogado
@@ -7,11 +8,12 @@ import { AlertTriangle } from "lucide-react";
 // Datos de la empresa pendientes: mientras sigan así, la página muestra el
 // aviso de borrador y los marcadores resaltados.
 export const LEGAL = {
-  company: "[RAZÓN SOCIAL]",
-  address: "[DOMICILIO FISCAL]",
-  email: "[CORREO DE CONTACTO]",
-  jurisdiction: "[CIUDAD Y PAÍS DE JURISDICCIÓN]",
-  updatedAt: "25 de septiembre de 2026",
+  company: "Luis Islas, persona física",
+  address: "el que se indique escribiendo a contacto@colibly.com",
+  // Buzón del dominio de la marca: debe existir antes del lanzamiento.
+  email: BRAND_CONTACT_EMAIL,
+  jurisdiction: "los Estados Unidos Mexicanos",
+  updatedAt: "2 de octubre de 2026",
 };
 
 export function Blank({ children }: { children: React.ReactNode }) {
@@ -24,8 +26,8 @@ export function LegalPage({ title, children }: { title: string; children: React.
       <div className="mb-8 flex gap-3 rounded-xl border border-warning-border bg-warning-bg p-4 text-sm">
         <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
         <p>
-          <strong>Borrador pendiente de revisión legal.</strong> Este texto es una base de trabajo y todavía no es la
-          versión definitiva.
+          <strong>Versión provisional para la beta.</strong> Este texto se mantendrá actualizado y será reemplazado por la
+          versión revisada antes del lanzamiento general.
         </p>
       </div>
       <h1 className="font-display text-page-title font-semibold tracking-tight">{title}</h1>

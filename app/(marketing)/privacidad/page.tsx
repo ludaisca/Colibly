@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
 import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "@/lib/billing/plans";
-import { Blank, LEGAL, LegalPage } from "../_legal";
+import { LEGAL, LegalPage } from "../_legal";
 
 export const metadata: Metadata = { title: "Aviso de privacidad", alternates: { canonical: "/privacidad" } };
 
@@ -9,9 +9,9 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="Aviso de privacidad">
       <p>
-        <Blank>{LEGAL.company}</Blank>, con domicilio en <Blank>{LEGAL.address}</Blank>, es responsable del tratamiento
+        {LEGAL.company}, bajo la marca {BRAND_NAME}, es responsable del tratamiento
         de los datos personales que recaba a través de {BRAND_NAME}, conforme a la Ley Federal de Protección de Datos
-        Personales en Posesión de los Particulares y su reglamento. <Blank>[Ajustar a la legislación de cada país donde se venda.]</Blank>
+        Personales en Posesión de los Particulares y su reglamento. {BRAND_NAME} se ofrece actualmente a negocios en México. Para cualquier asunto sobre tus datos, incluido el domicilio para notificaciones, escribe a {LEGAL.email}.
       </p>
 
       <h2>1. Qué datos tratamos</h2>
@@ -31,17 +31,17 @@ export default function PrivacyPage() {
       </ul>
       <p>
         Finalidades secundarias: enviar novedades del producto. Puedes oponerte en cualquier momento escribiendo a{" "}
-        <Blank>{LEGAL.email}</Blank>, sin que eso afecte el Servicio.
+        {LEGAL.email}, sin que eso afecte el Servicio.
       </p>
 
       <h2>3. Con quién los compartimos</h2>
       <p>Solo con proveedores que nos ayudan a prestar el Servicio y bajo obligaciones de confidencialidad:</p>
       <ul>
         <li>Plataformas de mensajería que el Cliente conecta (Meta —WhatsApp, Instagram, Messenger— y Telegram), para enviar y recibir los mensajes.</li>
-        <li>Proveedores de inteligencia artificial (OpenRouter y/o Google), que procesan el texto necesario para generar cada respuesta.</li>
+        <li>Proveedores de inteligencia artificial (OpenCode y/o Google), que procesan el texto necesario para generar cada respuesta.</li>
         <li>Stripe, para procesar los pagos.</li>
         <li>Meta y Google, para medir nuestros anuncios, solo si aceptas las cookies de medición (ver sección 7).</li>
-        <li>Proveedores de infraestructura y de envío de correo. <Blank>[Nombrar hosting y proveedor de correo.]</Blank></li>
+        <li>Proveedores de infraestructura y de envío de correo. Algunos de estos proveedores tratan datos fuera de México, por ejemplo en Estados Unidos; al usar {BRAND_NAME} aceptas estas transferencias, necesarias para prestar el Servicio.</li>
       </ul>
       <p>
         Algunos de estos proveedores están fuera de tu país, por lo que puede haber transferencias internacionales de
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
       <h2>6. Tus derechos (ARCO)</h2>
       <p>
         Puedes acceder a tus datos, rectificarlos, cancelarlos u oponerte a su tratamiento, así como revocar tu
-        consentimiento, escribiendo a <Blank>{LEGAL.email}</Blank> con tu nombre, el correo de tu cuenta y lo que
+        consentimiento, escribiendo a {LEGAL.email} con tu nombre, el correo de tu cuenta y lo que
         solicitas. Responderemos en un máximo de 20 días hábiles. Si eres cliente de un negocio que usa {BRAND_NAME},
         dirige tu solicitud a ese negocio; nosotros lo apoyaremos para atenderla.
       </p>
@@ -78,8 +78,7 @@ export default function PrivacyPage() {
         aceptas en el aviso de cookies, también usamos cookies de medición de Meta (Pixel) y Google (Analytics y
         Google Ads) para saber qué anuncios nos traen visitas y registros. Si creas una cuenta después de aceptar,
         enviamos a Meta tu correo cifrado de forma irreversible para atribuir el registro al anuncio. Puedes cambiar
-        tu elección en cualquier momento desde &quot;Preferencias de cookies&quot;, al pie de la página.{" "}
-        <Blank>[Revisar con el abogado: medición y transferencia a Meta y Google.]</Blank>
+        tu elección en cualquier momento desde &quot;Preferencias de cookies&quot;, al pie de la página.
       </p>
 
       <h2>8. Cambios a este aviso</h2>

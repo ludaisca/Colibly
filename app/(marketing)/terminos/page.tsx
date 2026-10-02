@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
 import { GRACE_DAYS, PLAN_LIST, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_DAYS } from "@/lib/billing/plans";
-import { Blank, LEGAL, LegalPage } from "../_legal";
+import { LEGAL, LegalPage } from "../_legal";
 
 export const metadata: Metadata = { title: "Términos y condiciones", alternates: { canonical: "/terminos" } };
 
@@ -11,8 +11,7 @@ export default function TermsPage() {
     <LegalPage title="Términos y condiciones de uso">
       <p>
         Estos términos regulan el uso de {BRAND_NAME} (el &quot;Servicio&quot;), un software en línea para atender y
-        gestionar conversaciones con clientes, operado por <Blank>{LEGAL.company}</Blank>, con domicilio en{" "}
-        <Blank>{LEGAL.address}</Blank> (&quot;nosotros&quot;). Al crear una cuenta aceptas estos términos en nombre
+        gestionar conversaciones con clientes, operado por {LEGAL.company}, bajo la marca {BRAND_NAME} (&quot;nosotros&quot;). Puedes contactarnos y enviarnos notificaciones en {LEGAL.email}. Al crear una cuenta aceptas estos términos en nombre
         propio y del negocio que registras (el &quot;Cliente&quot;).
       </p>
 
@@ -33,10 +32,10 @@ export default function TermsPage() {
       <h2>3. Planes, precios y pagos</h2>
       <ul>
         <li>Los planes vigentes son {prices}. Los límites de cada plan (usuarios, canales, contactos, créditos de IA y automatizaciones) se muestran en la página de precios y en la cuenta.</li>
-        <li>Los precios están en dólares estadounidenses (USD) y se cobran por mes adelantado con tarjeta a través de Stripe. La suscripción se renueva automáticamente hasta que se cancele. <Blank>[Definir si los precios incluyen impuestos y cómo se facturan.]</Blank></li>
+        <li>Los precios están en dólares estadounidenses (USD) y se cobran por mes adelantado con tarjeta a través de Stripe. La suscripción se renueva automáticamente hasta que se cancele. Antes de contratar verás el precio final y si incluye impuestos; emitiremos las facturas que correspondan conforme a la ley aplicable, para lo cual podremos pedirte tus datos fiscales.</li>
         <li>Si un cobro falla, hay {GRACE_DAYS} días de gracia con el servicio completo; después la cuenta pasa a solo lectura hasta que se regularice el pago.</li>
         <li>Podemos cambiar precios o límites avisando con al menos 30 días de anticipación; el cambio aplica a partir del siguiente periodo.</li>
-        <li>Los pagos no son reembolsables salvo que la ley aplicable disponga lo contrario. <Blank>[Confirmar política de reembolsos.]</Blank></li>
+        <li>Los pagos no son reembolsables salvo que la ley aplicable disponga lo contrario. Si detectas un cobro erróneo o un cobro por un servicio que no pudimos prestarte, escríbenos y lo revisaremos para corregirlo.</li>
       </ul>
 
       <h2>4. Créditos de inteligencia artificial</h2>
@@ -65,7 +64,7 @@ export default function TermsPage() {
       <h2>7. Datos del Cliente</h2>
       <p>
         Las conversaciones, contactos y demás información que el Cliente carga o recibe en el Servicio le pertenecen. Los
-        tratamos solo para prestar el Servicio, como se describe en el <a href="/privacidad" className="text-accent-ink hover:underline">Aviso de privacidad</a>.
+        tratamos solo para prestar el Servicio, como se describe en el <a href="/privacidad" className="text-accent-ink underline underline-offset-2">Aviso de privacidad</a>.
         El Cliente es responsable de haber obtenido los permisos necesarios de sus propios clientes para tratar sus datos.
       </p>
 
@@ -82,7 +81,7 @@ export default function TermsPage() {
       <h2>9. Disponibilidad y soporte</h2>
       <p>
         Hacemos esfuerzos razonables para que el Servicio esté disponible y funcione correctamente, pero no garantizamos
-        que esté libre de interrupciones o errores. <Blank>[Definir canal y horario de soporte.]</Blank>
+        que esté libre de interrupciones o errores. El soporte se atiende por correo en {LEGAL.email}, de lunes a viernes en horario laboral de México, y respondemos tan pronto como nos es posible.
       </p>
 
       <h2>10. Limitación de responsabilidad</h2>
@@ -106,8 +105,8 @@ export default function TermsPage() {
 
       <h2>13. Ley aplicable y contacto</h2>
       <p>
-        Estos términos se rigen por las leyes de <Blank>{LEGAL.jurisdiction}</Blank>, y cualquier controversia se
-        someterá a sus tribunales competentes. Para cualquier duda escríbenos a <Blank>{LEGAL.email}</Blank>.
+        Estos términos se rigen por las leyes aplicables de {LEGAL.jurisdiction}, y cualquier controversia se
+        someterá a los tribunales competentes de México, salvo que la ley otorgue al consumidor otro fuero. Para cualquier duda escríbenos a {LEGAL.email}.
       </p>
     </LegalPage>
   );
