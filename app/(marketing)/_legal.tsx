@@ -8,7 +8,7 @@ import { BRAND_CONTACT_EMAIL } from "@/lib/brand";
 // Datos de la empresa pendientes: mientras sigan así, la página muestra el
 // aviso de borrador y los marcadores resaltados.
 export const LEGAL = {
-  company: "Luis Islas, persona física",
+  company: "Colibly",
   address: "el que se indique escribiendo a contacto@colibly.com",
   // Buzón del dominio de la marca: debe existir antes del lanzamiento.
   email: BRAND_CONTACT_EMAIL,

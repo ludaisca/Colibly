@@ -9,7 +9,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="Aviso de privacidad">
       <p>
-        {LEGAL.company}, bajo la marca {BRAND_NAME}, es responsable del tratamiento
+        {LEGAL.company} es responsable del tratamiento
         de los datos personales que recaba a través de {BRAND_NAME}, conforme a la Ley Federal de Protección de Datos
         Personales en Posesión de los Particulares y su reglamento. {BRAND_NAME} se ofrece actualmente a negocios en México. Para cualquier asunto sobre tus datos, incluido el domicilio para notificaciones, escribe a {LEGAL.email}.
       </p>

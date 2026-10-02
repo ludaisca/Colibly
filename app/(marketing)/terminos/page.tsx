@@ -11,7 +11,7 @@ export default function TermsPage() {
     <LegalPage title="Términos y condiciones de uso">
       <p>
         Estos términos regulan el uso de {BRAND_NAME} (el &quot;Servicio&quot;), un software en línea para atender y
-        gestionar conversaciones con clientes, operado por {LEGAL.company}, bajo la marca {BRAND_NAME} (&quot;nosotros&quot;). Puedes contactarnos y enviarnos notificaciones en {LEGAL.email}. Al crear una cuenta aceptas estos términos en nombre
+        gestionar conversaciones con clientes, operado por {LEGAL.company} (&quot;nosotros&quot;). Puedes contactarnos y enviarnos notificaciones en {LEGAL.email}. Al crear una cuenta aceptas estos términos en nombre
         propio y del negocio que registras (el &quot;Cliente&quot;).
       </p>
 
