@@ -263,7 +263,7 @@ export function HeroDemo() {
             aria-roledescription="demostración"
             // Mientras se reproduce no se anuncia cada mensaje; en pausa sí.
             aria-live={playing ? "off" : "polite"}
-            className="rounded-2xl border border-border bg-surface p-4 shadow-lg"
+            className="rounded-xl border border-border bg-surface p-4 shadow-lg"
             onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
             onTouchEnd={(e) => {
               if (touchX.current === null) return;

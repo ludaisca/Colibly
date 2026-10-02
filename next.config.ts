@@ -36,6 +36,8 @@ const nextConfig: NextConfig = {
   // hydrates (login submits as a plain GET). Mismos nombres que WAB y Factzi:
   // el servidor es "ludaisca" (renombrado el 2026-09-01), la laptop "ldic".
   allowedDevOrigins: [
+    "127.0.0.1",
+    "localhost",
     "*.ngrok-free.dev",
     "*.ngrok-free.app",
     "*.ngrok.io",

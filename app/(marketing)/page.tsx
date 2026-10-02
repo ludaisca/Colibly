@@ -18,6 +18,7 @@ import {
   Briefcase,
   Workflow,
   X,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
@@ -26,17 +27,17 @@ import { PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
 import { planFeatures } from "@/lib/billing/plan-features";
 import { HeroDemo } from "./_hero-demo";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
-import { appUrl } from "@/lib/app-url";
+import { siteUrl } from "@/lib/app-url";
 
 const TITLE = `${BRAND_NAME} — ${BRAND_TAGLINE}`;
-const DESCRIPTION = `WhatsApp, Instagram, Messenger, Telegram y el chat de tu web en una sola bandeja, con bots de IA, automatizaciones y seguimiento de leads. Desde 5 USD al mes, ${TRIAL_DAYS} días gratis.`;
+const DESCRIPTION = `Atiende WhatsApp con bots de IA, automatizaciones y seguimiento de leads. Instagram, Messenger, Telegram y chat web disponibles por habilitación. Desde 5 USD al mes, ${TRIAL_DAYS} días gratis.`;
 const MIN_PRICE = Math.min(...PLAN_LIST.map((p) => p.priceUsd));
 // Un solo texto para la acción principal en toda la página (el header usa la versión corta).
 const CTA = `Prueba ${TRIAL_DAYS} días gratis`;
 
-// La redirección de quien ya tiene sesión vive en proxy.ts, así esta página no
-// consulta la sesión. canonical y og:url son relativos: el layout de
-// (marketing) fija metadataBase con APP_URL.
+// La landing original queda disponible para comparar el diseño durante la beta.
+// En el dominio público, la raíz se reescribe a /beta y esta página vive en
+// /producto con noindex.
 export const metadata: Metadata = {
   title: { absolute: TITLE },
   description: DESCRIPTION,
@@ -59,7 +60,7 @@ const FEATURES = [
   {
     icon: Inbox,
     title: "Todo tu equipo en los mismos chats, sin perder ninguno",
-    text: "Una sola bandeja para todos tus canales. Asigna conversaciones, etiqueta clientes y sabe quién respondió qué.",
+    text: "Una sola bandeja para los canales que habilites. Asigna conversaciones y sabe quién respondió qué.",
   },
   {
     icon: Bot,
@@ -74,7 +75,7 @@ const FEATURES = [
   {
     icon: Target,
     title: "Sabes quién está listo para comprar",
-    text: "La IA califica cada conversación y tu equipo mueve cada oportunidad por etapas en el pipeline hasta cerrar.",
+    text: "Califica leads con IA y mueve cada oportunidad por etapas en el pipeline hasta cerrar.",
   },
   {
     icon: Megaphone,
@@ -92,7 +93,7 @@ const FEATURES = [
 const STEPS = [
   {
     title: "Crea tu cuenta y conecta tu WhatsApp",
-    text: "Con la API oficial de WhatsApp Business. También Instagram, Messenger, Telegram y el chat de tu web.",
+    text: "Con la API oficial de WhatsApp Business. Puedes solicitar la habilitación de Instagram, Messenger, Telegram y el chat de tu web.",
   },
   {
     title: "Enséñale a tu bot tu negocio",
@@ -127,6 +128,10 @@ const FAQ = [
     a: "Con la API oficial de WhatsApp Business de Meta, la forma aprobada para que las empresas usen WhatsApp con un sistema como este. Te guiamos paso a paso para conectarlo.",
   },
   {
+    q: "¿Cómo activo Instagram, Messenger, Telegram o el chat web?",
+    a: "Escríbenos para habilitar el canal en tu organización. WhatsApp está disponible desde el registro; los canales adicionales se activan manualmente.",
+  },
+  {
     q: "¿Qué es un crédito de IA?",
     a: "Cada respuesta de un bot, sugerencia, calificación de un lead o paso de IA de una automatización usa un crédito. Cada plan incluye créditos cada mes; no necesitas contratar ni configurar ninguna IA por tu cuenta.",
   },
@@ -151,7 +156,7 @@ function jsonLd() {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       name: BRAND_NAME,
-      url: appUrl("/"),
+      url: siteUrl("/producto"),
       description: DESCRIPTION,
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
@@ -173,7 +178,7 @@ export default function LandingPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd() }} />
       <section className="relative isolate overflow-hidden">
-        {/* Brillo cálido detrás del hero: el girasol como luz, no como bloque de color. */}
+        {/* Color de marca detrás de la vista previa, sin competir con el título. */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,black_65%,transparent)]"
@@ -183,16 +188,16 @@ export default function LandingPage() {
           }}
         />
         {/* Dos columnas desde lg: en tablet el título se partía en 5 renglones. */}
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-10 md:px-6 md:pt-16 lg:grid-cols-2 lg:pt-20">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-20 pt-12 md:px-6 md:pt-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)] lg:gap-14 lg:pb-24 lg:pt-24">
           {/* El texto del hero no se anima: es el elemento más grande de la primera
               pantalla y animarlo desde opacidad 0 retrasaba el LCP en móvil. */}
           <div>
-            <p className="text-eyebrow font-medium uppercase tracking-wider text-accent-ink">CRM de WhatsApp con IA</p>
-            <h1 className="mt-3 font-display text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
+            <p className="inline-flex items-center gap-2 rounded-xl border border-accent-muted bg-accent-subtle px-3 py-1.5 text-xs font-semibold text-accent-ink"><Sparkles size={14} aria-hidden /> CRM de WhatsApp con IA</p>
+            <h1 className="mt-5 max-w-2xl font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.5rem]">
               Vende por WhatsApp sin dejar a ningún cliente{" "}
-              <mark className="whitespace-nowrap rounded-md bg-accent-muted px-1.5 text-foreground [box-decoration-break:clone]">en visto</mark>
+              <mark className="whitespace-nowrap rounded-lg bg-accent-muted px-2 text-foreground [box-decoration-break:clone]">en visto</mark>
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-muted">
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
               Todos tus chats en una bandeja, un bot de IA que responde al instante y automatizaciones que dan seguimiento
               por ti. Para negocios que venden por mensaje.
             </p>
@@ -213,19 +218,26 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          <HeroDemo />
+          <div className="relative min-w-0 rounded-xl border border-accent-muted bg-accent-subtle/60 p-3 shadow-sm sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3 px-1 text-xs font-medium text-accent-ink">
+              <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-accent-strong" /> Una conversación, de principio a fin</span>
+              <span className="hidden sm:inline">Ejemplo ilustrativo</span>
+            </div>
+            <HeroDemo />
+          </div>
         </div>
       </section>
 
       <section className="border-y border-border/60 bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 py-6 text-sm text-muted md:px-6">
-          <span className="text-muted">Conecta:</span>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-4 gap-y-3 px-4 py-6 text-sm text-muted md:px-6">
+          <span className="w-full text-center text-xs font-semibold uppercase tracking-wider text-muted lg:w-auto lg:text-left">Tus conversaciones, en un lugar</span>
           {CHANNELS.map(({ label, icon: Icon }) => (
-            <span key={label} className="inline-flex items-center gap-2 font-medium text-foreground">
+            <span key={label} className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 font-medium text-foreground">
               <Icon size={16} className="text-accent-ink" aria-hidden />
               {label}
             </span>
           ))}
+          <span className="w-full text-center text-xs text-muted">Instagram, Messenger, Telegram y chat web requieren habilitación previa.</span>
         </div>
       </section>
 
@@ -258,20 +270,33 @@ export default function LandingPage() {
         <h2 className="reveal mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
           Todo lo que tu equipo necesita para atender y vender por chat
         </h2>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map(({ icon: Icon, title, text }, i) => (
-            <div key={title} className="reveal group rounded-2xl border border-border bg-surface p-5 shadow-sm transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-md">
+            <article key={title} className={cn("reveal group flex flex-col rounded-xl border border-border bg-surface p-5 shadow-sm transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-md", i < 2 && "lg:col-span-2 lg:min-h-72", i === 0 && "border-accent-muted bg-accent-subtle/50")}>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">{i < 3 ? "Atiende" : "Convierte"} · 0{i + 1}</span>
               <span
                 className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110",
+                  "mt-4 flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110",
                   i < 3 ? "bg-accent-subtle text-accent-ink" : "bg-accent-2-bg text-accent-2"
                 )}
               >
                 <Icon size={20} aria-hidden />
               </span>
-              <h3 className="mt-4 font-display text-lg font-semibold">{title}</h3>
-              <p className="mt-2 text-sm text-muted">{text}</p>
-            </div>
+              <h3 className="mt-4 max-w-md font-display text-lg font-semibold">{title}</h3>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">{text}</p>
+              {i === 0 && (
+                <div className="mt-6 grid gap-2 text-xs sm:grid-cols-3" aria-label="Ejemplo de flujo de atención">
+                  <div className="rounded-xl border border-border bg-background p-3"><span className="font-semibold text-accent-ink">01 · Entra</span><p className="mt-1 text-muted">«¿Tienen disponibilidad?»</p></div>
+                  <div className="rounded-xl border border-border bg-background p-3"><span className="font-semibold text-accent-ink">02 · Responde</span><p className="mt-1 text-muted">La IA resuelve la duda</p></div>
+                  <div className="rounded-xl border border-border bg-background p-3"><span className="font-semibold text-accent-ink">03 · Continúa</span><p className="mt-1 text-muted">Tu equipo toma el chat</p></div>
+                </div>
+              )}
+              {i === 1 && (
+                <div className="mt-auto pt-6" aria-label="Ejemplo de conocimiento del bot">
+                  <div className="flex items-start gap-3 rounded-xl border border-accent-muted bg-background p-3 text-xs"><Sparkles size={16} className="mt-0.5 shrink-0 text-accent-ink" aria-hidden /><span><strong className="block text-foreground">Tu bot conoce tu negocio</strong><span className="mt-1 block text-muted">Precios · Servicios · Preguntas frecuentes</span></span></div>
+                </div>
+              )}
+            </article>
           ))}
         </div>
         <p className="mt-6 text-sm text-muted">
@@ -286,7 +311,7 @@ export default function LandingPage() {
         </h2>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {USE_CASES.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="reveal group rounded-2xl border border-border bg-surface p-5 transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-md">
+            <div key={title} className="reveal group rounded-xl border border-border bg-surface p-5 transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-md">
               <Icon size={22} className="text-accent-ink transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:scale-110" aria-hidden />
               <h3 className="mt-3 font-display text-base font-semibold">{title}</h3>
               <p className="mt-1 text-sm text-muted">{text}</p>
@@ -309,7 +334,7 @@ export default function LandingPage() {
                 <div
                   key={plan.id}
                   className={cn(
-                    "reveal flex flex-col rounded-2xl border p-6 shadow-sm",
+                    "reveal flex flex-col rounded-xl border p-6 shadow-sm",
                     featured ? "border-accent-strong bg-accent-subtle ring-1 ring-accent-strong shadow-md" : "border-border bg-background"
                   )}
                 >
@@ -347,11 +372,11 @@ export default function LandingPage() {
 
       <section id="preguntas" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-20 md:px-6">
         <h2 className="reveal text-center font-display text-3xl font-semibold tracking-tight">Preguntas frecuentes</h2>
-        <div className="reveal mt-10 divide-y divide-border rounded-2xl border border-border bg-surface">
+        <div className="reveal mt-10 divide-y divide-border rounded-xl border border-border bg-surface">
           {FAQ.map(({ q, a }) => (
             <details key={q} className="group" data-track="faq">
               {/* El relleno va en el summary para que toda la fila sea tocable. */}
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-2xl px-5 py-3 font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-strong">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 font-medium transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-strong">
                 {q}
                 <span className="text-muted transition-transform group-open:rotate-45" aria-hidden>+</span>
               </summary>
@@ -362,7 +387,7 @@ export default function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-20 md:px-6">
-        <div className="reveal rounded-3xl bg-accent px-6 py-12 text-center text-on-accent md:px-12">
+        <div className="reveal relative overflow-hidden rounded-xl bg-accent px-6 py-12 text-center text-on-accent md:px-12">
           <h2 className="font-display text-3xl font-semibold tracking-tight">Tu próximo cliente ya te está escribiendo</h2>
           <p className="mx-auto mt-3 max-w-xl opacity-90">Crea tu cuenta en un minuto y conecta tu primer canal hoy.</p>
           <Button href="/register" variant="secondary" size="lg" className="mt-8" data-track="cta" data-track-location="cierre">

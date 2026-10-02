@@ -5,15 +5,14 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 
 const LINKS = [
-  { href: "/#funciones", label: "Funciones" },
-  { href: "/#precios", label: "Precios" },
+  { href: "/#como-funciona", label: "Cómo funciona" },
+  { href: "/#incluye", label: "La beta" },
   { href: "/#preguntas", label: "Preguntas" },
-  { href: "/login", label: "Entrar" },
 ];
 
 // Menú del sitio público debajo de md: sin él, en el celular (de donde llega
 // casi todo el tráfico de anuncios) no había forma de saltar a precios.
-export function MobileNav() {
+export function MobileNav({ loginHref }: { loginHref: string }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
 
@@ -54,6 +53,7 @@ export function MobileNav() {
                 </Link>
               </li>
             ))}
+            <li><a href={loginHref} onClick={() => setOpen(false)} className="flex min-h-12 items-center text-base font-medium text-foreground">Entrar</a></li>
           </ul>
         </nav>
       )}
