@@ -64,6 +64,8 @@ services:
       NODE_ENV: development
       DATABASE_URL: "postgresql://postgres:${DB_PASSWORD}@db:5432/colibly_db"
       REDIS_URL: "redis://redis:6379"
+      # Solo DEV: Meta simulado para las pruebas de punta a punta (vacío = Meta real).
+      META_GRAPH_ORIGIN: "${META_GRAPH_ORIGIN:-}"
     command: >
       sh -c "npx prisma generate && sh scripts/db-migrate.sh && mkdir -p /app/media && npm run dev"
 
