@@ -143,7 +143,19 @@ Manuales: con un segundo `Organization` (aislamiento), con la app en modo desarr
 4. No levantar un segundo stack con el mismo nombre de proyecto `colibly` (puertos y contenedores chocan): usar otro nombre de proyecto y puerto, o ejecutar `tsc`/lint/tests en contenedores desechables montando el worktree.
 5. Merge a la rama principal con revisión; nada de despliegue a producción sin respaldo previo de la base (regla del proyecto para migraciones).
 
-## 9. Preguntas abiertas para el usuario
+### Stack de desarrollo aislado (montado el 2026-10-03)
+
+`dev/coexistencia/compose.yml`, proyecto `colibly-coex`, puerto **15101** (el stack normal sigue en 15100). Base, Redis, `node_modules` y medios propios; reutiliza la imagen `colibly-app:latest` (sin build, para no gastar el LV de Podman; los volúmenes viven en el RAID). Secretos nuevos en `dev/coexistencia/.env` (ignorado por git; plantilla en `.env.example`).
+
+```bash
+podman compose -f dev/coexistencia/compose.yml up -d
+podman compose -f dev/coexistencia/compose.yml exec app npx tsc --noEmit
+podman compose -f dev/coexistencia/compose.yml exec app npm test
+podman compose -f dev/coexistencia/compose.yml exec app sh scripts/new-migration.sh <nombre>   # solo aquí, nunca en el stack normal
+podman compose -f dev/coexistencia/compose.yml down        # conserva datos; con -v los borra
+```
+
+## 9. Preguntas abiertas para el usuario (respondidas el 2026-10-03: se aceptan todas las propuestas)
 
 1. ¿La importación de historial debe **contar contra el límite de contactos del plan**? (Propuesta: sí se crean, pero sin bloquear; avisar si se excede.)
 2. ¿Los ecos de la app del teléfono cuentan para las métricas de "primer respuesta" del equipo? (Propuesta: no se mezclan con agentes de Colibly; se muestran aparte.)

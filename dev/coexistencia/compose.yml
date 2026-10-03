@@ -1,0 +1,72 @@
+# Stack de DESARROLLO aislado para la rama feat/wa-coexistencia.
+#
+# Corre al lado del stack normal (proyecto "colibly", puerto 15100) sin tocarlo:
+# su propia base, Redis, node_modules y medios, y otro puerto (15101). Así las
+# migraciones de esta rama no desalinean la base de DEV de las demás ramas.
+#
+# No construye imagen: reutiliza docker.io/library/colibly-app:latest (la del
+# stack normal) para no gastar espacio en el LV de Podman. Los volúmenes nombrados
+# viven en el RAID. Usa podman, nunca el Docker de Coolify:
+#   podman compose -f dev/coexistencia/compose.yml up -d
+#   podman compose -f dev/coexistencia/compose.yml exec app npx tsc --noEmit
+#   podman compose -f dev/coexistencia/compose.yml down        # conserva datos
+#   podman compose -f dev/coexistencia/compose.yml down -v     # borra todo
+# Requiere dev/coexistencia/.env (ver .env.example en esta carpeta; no se versiona).
+name: colibly-coex
+
+services:
+  db:
+    image: docker.io/pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Falta DB_PASSWORD en dev/coexistencia/.env}"
+      POSTGRES_DB: colibly_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data:z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  db-init:
+    image: docker.io/pgvector/pgvector:pg16
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "PGPASSWORD=${DB_PASSWORD} psql -h db -U postgres -d colibly_db -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
+    restart: "no"
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  app:
+    image: docker.io/library/colibly-app:latest
+    pull_policy: never
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    ports:
+      - "15101:5000"
+    working_dir: /app
+    volumes:
+      - ../..:/app:z
+      - /app/node_modules
+      - media_data:/app/media:z
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD}@db:5432/colibly_db"
+      REDIS_URL: "redis://redis:6379"
+    command: >
+      sh -c "npx prisma generate && sh scripts/db-migrate.sh && mkdir -p /app/media && npm run dev"
+
+volumes:
+  pgdata:
+  media_data:
