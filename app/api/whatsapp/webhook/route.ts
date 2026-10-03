@@ -5,7 +5,8 @@ import type { RecipientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
 import { rateLimit } from "@/lib/rate-limit";
-import { validateMetaWebhookSignature } from "@/lib/meta/webhook-signature";
+import { validateWhatsAppWebhookSignature, verifyTokenMatches } from "@/lib/meta/platform-app";
+import { getPlatformSettings } from "@/lib/platform-settings";
 
 interface WebhookMessage {
   from: string;
@@ -381,6 +382,15 @@ export async function GET(req: Request) {
     return new NextResponse("Bad Request", { status: 400 });
   }
 
+  // Token global de la app de plataforma (Embedded Signup): una sola
+  // suscripción de webhook en Meta sirve a todos los clientes conectados con él.
+  // Un fallo al leer la configuración (p. ej. al descifrar) no debe romper la
+  // verificación de las cuentas manuales, que se resuelve más abajo.
+  const platformToken = await getPlatformSettings().then((s) => s.metaWebhookVerifyToken).catch(() => null);
+  if (verifyTokenMatches(token, platformToken)) {
+    return new NextResponse(challenge, { headers: { "Content-Type": "text/plain" } });
+  }
+
   const hash = createHash("sha256").update(token).digest("hex");
 
   const account = await prisma.wAAccount.findFirst({
@@ -438,7 +448,7 @@ export async function POST(req: Request) {
           const value = change.value as QualityUpdateValue;
           const account = await resolveAccountByWabaAndPhone(wabaId, value.display_phone_number);
           if (account) {
-            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
             if (sigValid) {
               await applyPhoneNumberQualityUpdate(wabaId, value);
             }
@@ -450,7 +460,7 @@ export async function POST(req: Request) {
           const value = change.value as AccountUpdateValue;
           const account = await resolveAccountByWabaAndPhone(wabaId, value.phone_number);
           if (account) {
-            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
             if (sigValid) {
               await applyAccountUpdate(wabaId, value);
             }
@@ -465,7 +475,7 @@ export async function POST(req: Request) {
             ? await prisma.wAAccount.findFirst({ where: { phoneNumberId } })
             : null;
           if (account) {
-            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
             if (sigValid) {
               await applyUserPreferences(value);
             }
@@ -484,7 +494,7 @@ export async function POST(req: Request) {
             ? await prisma.wAAccount.findMany({ where: { phoneNumberId: metadata.phone_number_id } })
             : wabaId ? await prisma.wAAccount.findMany({ where: { wabaId } }) : [];
           for (const candidate of candidates) {
-            if (await validateMetaWebhookSignature(rawBody, signature, candidate.appSecret)) {
+            if (await validateWhatsAppWebhookSignature(rawBody, signature, candidate)) {
               console.info("[webhook] Campo aún sin procesar", {
                 field,
                 accountId: candidate.id,
@@ -507,13 +517,13 @@ export async function POST(req: Request) {
 
         if (!account) continue;
 
-        if (!account.appSecret) {
+        if (account.connectionType === "MANUAL" && !account.appSecret) {
           // Sin secreto la firma nunca valida — antes esto descartaba el
           // payload sin dejar rastro. La UI de la cuenta muestra el mismo aviso.
           console.warn(`[webhook] Cuenta "${account.name}" (${account.id}) sin App Secret — payload descartado. Configúralo en Cuentas WhatsApp.`);
           continue;
         }
-        const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
+        const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
         if (!sigValid) {
           console.warn(`[webhook] Firma inválida para la cuenta "${account.name}" (${account.id}) — payload descartado`);
           continue;
