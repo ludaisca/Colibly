@@ -22,17 +22,20 @@ export function ReplySuggestionButton({ chatId, onInsert }: { chatId: string; on
   const [botId, setBotId] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState("");
+  const [loadError, setLoadError] = useState(false);
 
   const fetchBots = useCallback(async () => {
+    setBotsLoaded(false);
+    setLoadError(false);
     try {
       const res = await fetch(`/api/whatsapp/chats/${chatId}/suggest-reply`);
+      if (!res.ok) throw new Error("No se pudieron cargar los bots");
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setBots(data);
-        setBotId((prev) => (data.some((b: BotOption) => b.id === prev) ? prev : data[0]?.id ?? ""));
-      }
+      if (!Array.isArray(data)) throw new Error("Respuesta inválida");
+      setBots(data);
+      setBotId((prev) => (data.some((b: BotOption) => b.id === prev) ? prev : data[0]?.id ?? ""));
     } catch {
-      // silencioso — el popover solo muestra "sin bots" si esto falla
+      setLoadError(true);
     } finally {
       setBotsLoaded(true);
     }
@@ -77,37 +80,41 @@ export function ReplySuggestionButton({ chatId, onInsert }: { chatId: string; on
       open={open}
       onOpenChange={handleOpenChange}
       align="left"
+      portal
+      closeOnSelect={false}
       trigger={
-        // Un <div>, no <button>: Dropdown ya envuelve el trigger en su propio
-        // div[role=button] (ver dropdown.tsx) — anidar un <button> real aquí
-        // duplica el nodo interactivo en el árbol de accesibilidad (mismo
-        // problema documentado en AGENTS.md para <Button> dentro de <Link>).
-        // Mismo motivo por el que DropdownButton (usado por LeadScoreBadge/
-        // ChatCostBadge/ChatTagPicker) renderiza un div en vez de un button.
-        <div
-          className="text-accent-ink hover:text-foreground transition-colors p-2.5 rounded-lg border border-accent-muted bg-accent-subtle hover:bg-accent-muted shrink-0"
-          title="Sugerir respuesta con IA"
+        <button
+          type="button"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong"
           aria-label="Sugerir respuesta con IA"
+          aria-expanded={open}
         >
-          <Sparkles size={20} />
-        </div>
+          <Sparkles size={16} className="text-accent-ink" />
+          <span>Sugerir con IA</span>
+        </button>
       }
     >
-      <div className="p-3 w-80 space-y-3">
+      <div className="w-[min(20rem,calc(100vw-2rem))] space-y-3 p-3">
         {!botsLoaded ? (
           <p className="text-sm text-muted">Cargando bots...</p>
+        ) : loadError ? (
+          <div className="space-y-2">
+            <p className="text-sm text-muted">No se pudieron cargar los bots de esta cuenta.</p>
+            <Button type="button" size="sm" variant="secondary" onClick={fetchBots} className="w-full">Reintentar</Button>
+          </div>
         ) : bots.length === 0 ? (
           <p className="text-sm text-muted">
             Esta cuenta no tiene ningún bot configurado — crea uno en Bots IA para poder usar sugerencias de IA.
           </p>
         ) : (
           <>
-            <Select value={botId} onChange={(e) => setBotId(e.target.value)}>
+            <Select aria-label="Bot para sugerir respuesta" value={botId} onChange={(e) => setBotId(e.target.value)}>
               {bots.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}{!b.isActive ? " (pausado)" : ""}</option>
               ))}
             </Select>
             <Button
+              type="button"
               size="sm"
               variant="secondary"
               icon={loading ? RefreshCw : Sparkles}
@@ -119,8 +126,8 @@ export function ReplySuggestionButton({ chatId, onInsert }: { chatId: string; on
             </Button>
             {suggestion && (
               <div className="space-y-2 pt-1 border-t border-border">
-                <p className="text-sm text-foreground whitespace-pre-wrap">{suggestion}</p>
-                <Button size="sm" onClick={handleUse} className="w-full">
+                <p className="max-h-40 overflow-y-auto text-sm text-foreground whitespace-pre-wrap">{suggestion}</p>
+                <Button type="button" size="sm" onClick={handleUse} className="w-full">
                   Usar este texto
                 </Button>
               </div>

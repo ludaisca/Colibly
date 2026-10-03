@@ -12,6 +12,7 @@ import { requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +44,9 @@ export async function POST(req: Request) {
     const { name, phoneNumberId, accessToken, wabaId, appId, verifyToken, appSecret } =
       parsed.data;
 
+    // Validar el origen antes de crear la cuenta: el verify token solo se
+    // devuelve una vez y debe mostrarse junto a una URL utilizable.
+    const webhookUrl = whatsappWebhookUrl(req.url);
     const validateResult = await validateToken(phoneNumberId, accessToken);
 
     const encryptedToken = encrypt(accessToken);
@@ -78,7 +82,7 @@ export async function POST(req: Request) {
 
     // verifyToken is only ever stored hashed — this is the one response where the
     // caller can see the plaintext value, since it must be copied into Meta's webhook config.
-    return NextResponse.json({ ...account, verifyToken: resolvedVerifyToken }, { status: 201 });
+    return NextResponse.json({ ...account, verifyToken: resolvedVerifyToken, webhookUrl }, { status: 201 });
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");

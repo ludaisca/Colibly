@@ -3,13 +3,23 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey } from "@/lib/ai/platform";
-import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import type { AIProvider } from "@/lib/ai/types";
 import { rateLimit } from "@/lib/rate-limit";
 import { reserveAiCredit } from "@/lib/ai/credits";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
+import { searchKnowledge } from "@/lib/ai/rag";
+import { z } from "zod";
+import { buildTestMessages } from "@/lib/bots/test-conversation";
+
+const testRequest = z.object({
+  message: z.string().trim().min(1).max(4000),
+  history: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string().min(1).max(4000),
+  })).max(100).default([]),
+});
 
 export async function POST(
   req: Request,
@@ -40,11 +50,11 @@ export async function POST(
       return NextResponse.json({ error: "Bot no encontrado" }, { status: 404 });
     }
 
-    const { message } = (await req.json()) as { message: string };
-
-    if (!message?.trim()) {
-      return NextResponse.json({ error: "El mensaje es requerido" }, { status: 400 });
+    const parsed = testRequest.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Mensaje o historial de prueba inválido" }, { status: 400 });
     }
+    const { message, history } = parsed.data;
 
     const provider = bot.provider as AIProvider;
     const apiKey = await getPlatformApiKey(provider);
@@ -62,11 +72,11 @@ export async function POST(
 
     const client = getAIProvider(provider, apiKey);
 
-    const messages = [
-      { role: "system" as const, content: wrapUserPrompt(bot.systemPrompt) },
-      { role: "system" as const, content: SCOPE_GUARDRAIL },
-      { role: "user" as const, content: message },
-    ];
+    // Igual que el worker real: recupera conocimiento para la pregunta actual
+    // y aplica el tipo de memoria configurado. El historial solo contiene
+    // turnos user/assistant validados; nunca admite instrucciones system.
+    const knowledge = bot.ragEnabled ? await searchKnowledge(bot.id, message, provider, apiKey) : null;
+    const messages = buildTestMessages(bot, message, history, knowledge);
 
     const result = await client.complete({
       model: bot.model,

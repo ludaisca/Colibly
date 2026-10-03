@@ -10,6 +10,7 @@ tsconfig.tsbuildinfo
 .env.local
 .env.production
 .env.production.local
+dev/telegram-webhook/.htpasswd
 
 # IDE
 .vscode

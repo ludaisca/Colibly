@@ -16,8 +16,6 @@ interface Props {
   onCreated: () => void;
 }
 
-const WEBHOOK_PATH = "/api/whatsapp/webhook";
-
 export function CuentaFormModal({ open, onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
@@ -29,6 +27,7 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
   const [verifyToken, setVerifyToken] = useState<string | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState<"webhook" | "token" | null>(null);
 
   const resetForm = useCallback(() => {
@@ -41,12 +40,9 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
     setErrors({});
     setApiError("");
     setVerifyToken(null);
+    setWebhookUrl(null);
     setCopied(null);
   }, []);
-
-  function getWebhookUrl() {
-    return typeof window !== "undefined" ? `${window.location.origin}${WEBHOOK_PATH}` : WEBHOOK_PATH;
-  }
 
   async function handleCopy(text: string, which: "webhook" | "token") {
     await navigator.clipboard.writeText(text);
@@ -91,6 +87,7 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
       // Verify token is only ever returned this once (stored hashed from here on) —
       // keep the modal open on a success step so the user can copy it before closing.
       setVerifyToken(data.verifyToken);
+      setWebhookUrl(data.webhookUrl);
       onCreated();
     } catch (err) {
       setApiError(err instanceof Error ? err.message : "Error al conectar la cuenta");
@@ -119,14 +116,14 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
             <p className="text-xs font-medium text-muted-darker uppercase tracking-wider mb-1.5">URL del webhook</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 bg-surface px-3 py-2 rounded-lg text-xs font-mono break-all">
-                {getWebhookUrl()}
+                {webhookUrl}
               </code>
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 icon={copied === "webhook" ? Check : Copy}
-                onClick={() => handleCopy(getWebhookUrl(), "webhook")}
+                onClick={() => handleCopy(webhookUrl || "", "webhook")}
               >
                 {copied === "webhook" ? "Copiado" : "Copiar"}
               </Button>

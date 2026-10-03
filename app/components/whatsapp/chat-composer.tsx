@@ -1,11 +1,13 @@
 "use client";
 
-import { Send, Paperclip, X, FileAudio, Video, FileText, ListChecks, Plus } from "lucide-react";
+import { useRef } from "react";
+import { Send, Paperclip, X, FileAudio, Video, FileText, ListChecks, Plus, Reply } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { ReplySuggestionButton } from "./reply-suggestion-button";
-import type { CannedResponseItem } from "./chat-shared";
+import { StickerPicker } from "./sticker-picker";
+import type { CannedResponseItem, Channel, Message } from "./chat-shared";
 
 // Input + adjuntos + respuestas rápidas — extraído de chat-workspace.tsx sin
 // tocar el envío optimista (vive en el orquestador, que sigue siendo dueño de
@@ -13,10 +15,15 @@ import type { CannedResponseItem } from "./chat-shared";
 
 interface ChatComposerProps {
   chatId: string;
+  channel: Channel;
   newMessage: string;
   onMessageChange: (value: string) => void;
   sending: boolean;
   onSubmit: (e: React.FormEvent) => void;
+  onSendSticker: (id: string) => Promise<void>;
+  replyTo: Message | null;
+  leadName: string;
+  onCancelReply: () => void;
 
   attachment: File | null;
   attachmentPreview: string | null;
@@ -48,10 +55,15 @@ const MAX_BUTTON_LENGTH = 20;
 
 export function ChatComposer({
   chatId,
+  channel,
   newMessage,
   onMessageChange,
   sending,
   onSubmit,
+  onSendSticker,
+  replyTo,
+  leadName,
+  onCancelReply,
   attachment,
   attachmentPreview,
   onPickFile,
@@ -69,8 +81,37 @@ export function ChatComposer({
   onToggleButtonsPanel,
   interactiveDisabled = false,
 }: ChatComposerProps) {
+  const messageInputRef = useRef<HTMLInputElement>(null);
+  const supportsAttachments = channel !== "WEBCHAT";
+  const supportsButtons = channel === "WHATSAPP";
+  const supportsSuggestions = channel === "WHATSAPP" || channel === "TELEGRAM";
+
+  function toggleButtons() {
+    if (buttonsPanelOpen) {
+      onButtonsChange([]);
+    } else if (interactiveButtons.length === 0) {
+      onButtonsChange([""]);
+    }
+    onToggleButtonsPanel();
+  }
+
+  function insertSuggestion(text: string) {
+    onMessageChange(text);
+    messageInputRef.current?.focus();
+  }
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-2 px-4 py-3 border-t border-border bg-surface shrink-0 relative">
+      {replyTo && (
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
+          <Reply size={16} className="shrink-0 text-accent-ink" />
+          <div className="min-w-0 flex-1 border-l-2 border-accent-strong pl-2 text-xs">
+            <p className="font-semibold text-accent-ink">Respondiendo a {replyTo.direction === "OUTBOUND" ? "tu mensaje" : leadName}</p>
+            <p className="truncate text-muted-darker">{replyTo.body || replyTo.caption || `[${replyTo.messageType}]`}</p>
+          </div>
+          <button type="button" onClick={onCancelReply} className="rounded-lg p-1 text-muted-darker hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent" aria-label="Cancelar respuesta citada"><X size={16} /></button>
+        </div>
+      )}
       {cannedSuggestions.length > 0 && (
         <div className="chat-disclosure-enter absolute bottom-full left-4 right-4 mb-1.5 rounded-lg border border-border bg-surface shadow-lg overflow-hidden z-20">
           {cannedSuggestions.map((c, i) => (
@@ -119,33 +160,39 @@ export function ChatComposer({
       )}
 
       {buttonsPanelOpen && (
-        <div className="chat-disclosure-enter rounded-lg border border-border bg-background p-3 space-y-2">
+        <div className="chat-disclosure-enter max-h-[min(40dvh,18rem)] space-y-2 overflow-y-auto rounded-xl border border-border bg-background p-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-darker">
               Botones de respuesta rápida ({interactiveButtons.length}/{MAX_BUTTONS})
             </span>
             <button
               type="button"
-              onClick={() => {
-                onButtonsChange([]);
-                onToggleButtonsPanel();
-              }}
+              onClick={toggleButtons}
               className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
               title="Cerrar y quitar botones"
             >
               <X size={14} />
             </button>
           </div>
+          <p className="text-xs text-muted-darker">Se enviarán con el mensaje. Hasta tres botones de 20 caracteres.</p>
           {interactiveButtons.map((title, i) => (
             <div key={i} className="flex items-center gap-2">
               <input
                 value={title}
+                autoFocus={i === 0}
                 onChange={(e) => {
                   const next = [...interactiveButtons];
                   next[i] = e.target.value.slice(0, MAX_BUTTON_LENGTH);
                   onButtonsChange(next);
                 }}
                 maxLength={MAX_BUTTON_LENGTH}
+                aria-label={`Texto del botón ${i + 1}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    messageInputRef.current?.focus();
+                  }
+                }}
                 placeholder={`Botón ${i + 1}`}
                 className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted"
               />
@@ -153,7 +200,7 @@ export function ChatComposer({
                 type="button"
                 onClick={() => onButtonsChange(interactiveButtons.filter((_, idx) => idx !== i))}
                 className="text-muted-darker hover:text-danger transition-colors p-1.5 rounded-md hover:bg-surface-light shrink-0"
-                title="Quitar botón"
+                aria-label={`Quitar botón ${i + 1}`}
               >
                 <X size={14} />
               </button>
@@ -173,40 +220,46 @@ export function ChatComposer({
         </div>
       )}
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={onFileChosen}
+        accept="image/*,audio/*,video/*,application/pdf,text/plain"
+        className="hidden"
+      />
+      <div className="flex flex-wrap items-center gap-2" aria-label="Herramientas del mensaje">
+        {supportsAttachments && (
+          <button
+            type="button"
+            onClick={onPickFile}
+            disabled={sending || attachmentsDisabled}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong"
+            title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar archivo"}
+          >
+            <Paperclip size={16} className="text-accent-ink" />
+            <span>Adjuntar</span>
+          </button>
+        )}
+        {supportsButtons && (
+          <button
+            type="button"
+            onClick={toggleButtons}
+            disabled={sending || interactiveDisabled}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong data-[active=true]:border-accent-strong data-[active=true]:bg-accent-subtle"
+            title={interactiveDisabled ? "Quita el archivo adjunto para usar botones" : buttonsPanelOpen ? "Cerrar y quitar botones" : "Añadir botones de respuesta rápida"}
+            aria-expanded={buttonsPanelOpen}
+            data-active={buttonsPanelOpen}
+          >
+            <ListChecks size={16} className="text-accent-ink" />
+            <span>Botones{interactiveButtons.length > 0 ? ` (${interactiveButtons.length})` : ""}</span>
+          </button>
+        )}
+        {supportsSuggestions && <ReplySuggestionButton key={chatId} chatId={chatId} onInsert={insertSuggestion} />}
+        {channel === "WHATSAPP" && <StickerPicker key={`stickers-${chatId}`} disabled={sending || !!attachment || interactiveButtons.length > 0} onSend={onSendSticker} />}
+      </div>
       <div className="flex items-end gap-2">
         <input
-          ref={fileInputRef}
-          type="file"
-          onChange={onFileChosen}
-          accept="image/*,audio/*,video/*,application/pdf,text/plain"
-          className="hidden"
-        />
-        <button
-          type="button"
-          onClick={onPickFile}
-          disabled={sending || attachmentsDisabled}
-          className="text-accent-ink hover:text-foreground transition-colors p-2.5 rounded-lg border border-accent-muted bg-accent-subtle hover:bg-accent-muted disabled:opacity-50 shrink-0 cursor-pointer"
-          title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un medio" : "Adjuntar medio"}
-          aria-label="Adjuntar medio"
-        >
-          <Paperclip size={20} />
-        </button>
-        <button
-          type="button"
-          onClick={onToggleButtonsPanel}
-          disabled={sending || interactiveDisabled}
-          className="text-accent-ink hover:text-foreground transition-colors p-2.5 rounded-lg border border-accent-muted bg-accent-subtle hover:bg-accent-muted disabled:opacity-50 shrink-0 cursor-pointer"
-          title={
-            interactiveDisabled
-              ? "Los botones no están disponibles para Telegram todavía"
-              : "Añadir botones de respuesta rápida"
-          }
-          aria-label="Añadir botones de respuesta rápida"
-        >
-          <ListChecks size={20} />
-        </button>
-        <ReplySuggestionButton chatId={chatId} onInsert={onMessageChange} />
-        <input
+          ref={messageInputRef}
           value={newMessage}
           aria-label="Mensaje"
           onChange={(e) => { onMessageChange(e.target.value); onCannedIndexChange(0); }}
@@ -250,7 +303,8 @@ export function ChatComposer({
           type="submit"
           aria-label="Enviar mensaje"
           icon={sending ? undefined : Send}
-          size="sm"
+          size="md"
+          className="px-3"
           disabled={
             (!newMessage.trim() && !attachment && interactiveButtons.length === 0) ||
             (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((t) => !t.trim()))) ||

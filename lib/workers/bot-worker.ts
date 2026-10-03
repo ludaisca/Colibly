@@ -138,6 +138,10 @@ async function sendFallbackReply(botId: string, waChatId: string) {
 async function handleBotMessage(job: BotMessageJob) {
   const { botId, waChatId, incomingMessage } = job;
 
+  // Un sticker aislado es una expresión, no una consulta que requiera IA.
+  // Se conserva en el historial, sin interpretar su imagen ni gastar créditos.
+  if (job.messageType === "sticker" && !job.caption && (!incomingMessage || /^\[sticker(?: recibido)?\]$/i.test(incomingMessage.trim()))) return;
+
   const bot = await prisma.wABot.findUnique({
     where: { id: botId },
     include: { waAccount: true },
@@ -272,7 +276,26 @@ async function handleBotMessage(job: BotMessageJob) {
   // Build the user turn — embed the latest image/audio inline, or the extracted text of a
   // document, if present and the provider/media type combination supports it.
   const userContent = await buildUserContent(job, provider);
-  messages.push({ role: "user", content: userContent });
+  const incomingReply = job.messageId
+    ? await prisma.wAMessage.findUnique({ where: { id: job.messageId }, select: { replyToWamid: true } })
+    : null;
+  const quotedMessage = incomingReply?.replyToWamid
+    ? await prisma.wAMessage.findFirst({
+        where: { chatId: waChatId, wamid: incomingReply.replyToWamid },
+        select: { direction: true, body: true, caption: true, messageType: true },
+      })
+    : null;
+  const quoteContext = quotedMessage
+    ? `El cliente respondió específicamente a este mensaje ${quotedMessage.direction === "OUTBOUND" ? "del negocio" : "anterior"}: "${(quotedMessage.body || quotedMessage.caption || `[${quotedMessage.messageType}]`).slice(0, 700)}".\nSu respuesta actual es:\n`
+    : "";
+  messages.push({
+    role: "user",
+    content: quoteContext
+      ? typeof userContent === "string"
+        ? quoteContext + userContent
+        : [{ type: "text", text: quoteContext } as const, ...userContent]
+      : userContent,
+  });
 
   const client = getAIProvider(provider, apiKey);
   const result = await client.complete({

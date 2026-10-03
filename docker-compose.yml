@@ -59,6 +59,9 @@ services:
       # (lib/platform-settings.ts), cifradas en base de datos.
       APP_URL: "${APP_URL:-}"
       SITE_URL: "${SITE_URL:-}"
+      # Opcional: origen HTTPS exclusivo para webhooks de Telegram en DEV.
+      TELEGRAM_WEBHOOK_BASE_URL: "${TELEGRAM_WEBHOOK_BASE_URL:-}"
+      WHATSAPP_WEBHOOK_BASE_URL: "${WHATSAPP_WEBHOOK_BASE_URL:-}"
       # Cuenta de chat web (propia) que se muestra en la landing.
       LANDING_WEBCHAT_ACCOUNT_ID: "${LANDING_WEBCHAT_ACCOUNT_ID:-}"
       # Operadores de la plataforma (panel /plataforma): perímetro de acceso,

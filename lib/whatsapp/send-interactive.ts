@@ -12,6 +12,7 @@ export interface SendInteractiveParams {
   to: string;
   body: string;
   buttons: InteractiveButton[]; // 1-3, límite de Meta para reply buttons
+  replyToWamid?: string;
 }
 
 // Único lugar que construye un payload type:"interactive" para la Graph API:
@@ -28,7 +29,7 @@ export async function sendInteractiveMessage(
     action: {
       buttons: params.buttons.map((b) => ({ type: "reply", reply: { id: b.id, title: b.title } })),
     },
-  });
+  }, params.replyToWamid);
 }
 
 export interface SendListParams {
@@ -55,7 +56,7 @@ export async function sendInteractiveList(account: WAAccount, params: SendListPa
   });
 }
 
-async function postInteractive(account: WAAccount, to: string, interactive: Record<string, unknown>): Promise<{ wamid: string | null }> {
+async function postInteractive(account: WAAccount, to: string, interactive: Record<string, unknown>, replyToWamid?: string): Promise<{ wamid: string | null }> {
   if (!account.accessToken || !account.phoneNumberId) {
     throw new Error("La cuenta de WhatsApp no tiene accessToken/phoneNumberId configurados");
   }
@@ -68,6 +69,7 @@ async function postInteractive(account: WAAccount, to: string, interactive: Reco
     to,
     type: "interactive",
     interactive,
+    ...(replyToWamid ? { context: { message_id: replyToWamid } } : {}),
   };
 
   const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;

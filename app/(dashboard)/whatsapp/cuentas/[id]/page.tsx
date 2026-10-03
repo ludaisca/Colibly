@@ -33,6 +33,7 @@ interface AccountDetail {
   messagingTier: string | null;
   qualityUpdatedAt: string | null;
   hasAppSecret: boolean;
+  webhookUrl: string;
   createdAt: string;
   updatedAt: string;
   _count: { chats: number; templates: number };
@@ -55,8 +56,6 @@ function qualityTone(rating: string): "success" | "warning" | "danger" | "neutra
   if (r.includes("GREEN") || r.includes("UNFLAG") || r.includes("UPGRADE")) return "success";
   return "neutral";
 }
-
-const WEBHOOK_PATH = "/api/whatsapp/webhook";
 
 interface UserOption {
   id: string;
@@ -279,12 +278,6 @@ export default function CuentaDetailPage() {
       setDeleting(false);
       setDeleteOpen(false);
     }
-  }
-
-  function getWebhookUrl() {
-    return typeof window !== "undefined"
-      ? `${window.location.origin}${WEBHOOK_PATH}`
-      : WEBHOOK_PATH;
   }
 
   async function handleCopy(text: string) {
@@ -522,13 +515,13 @@ export default function CuentaDetailPage() {
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 break-all rounded-lg bg-surface px-3 py-2 font-mono text-xs">
-              {getWebhookUrl()}
+              {account.webhookUrl}
             </code>
             <Button
               variant="secondary"
               size="sm"
               icon={copied ? Check : Copy}
-              onClick={() => handleCopy(getWebhookUrl())}
+              onClick={() => handleCopy(account.webhookUrl)}
             >
               {copied ? "Copiado" : "Copiar"}
             </Button>

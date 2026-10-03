@@ -30,7 +30,7 @@ function formatCost(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
-export function ChatCostBadge({ chatId }: { chatId: string }) {
+export function ChatCostBadge({ chatId, showEmpty = false }: { chatId: string; showEmpty?: boolean }) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<UsageData | null>(null);
 
@@ -49,13 +49,16 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
     fetchUsage();
   }, [fetchUsage]);
 
-  if (!data || data.interactions === 0) return null;
+  if (!data) return showEmpty ? <p className="text-xs text-muted-darker">Consumo no disponible todavía.</p> : null;
+  if (data.interactions === 0) return showEmpty ? <p className="text-xs text-muted-darker">Sin consumo registrado en este chat.</p> : null;
 
   return (
     <Dropdown
       open={open}
       onOpenChange={setOpen}
       align="right"
+      portal
+      closeOnSelect={false}
       trigger={
         <DropdownButton
           label={`${formatCost(data.totalCost)} IA`}
@@ -64,7 +67,7 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
         />
       }
     >
-      <div className="p-3 w-80 space-y-3 max-h-[70vh] overflow-y-auto">
+      <div className="p-3 w-[min(20rem,calc(100vw-2rem))] space-y-3 max-h-[70vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-lg font-semibold">{formatCost(data.totalCost)}</p>

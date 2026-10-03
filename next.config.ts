@@ -41,6 +41,7 @@ const nextConfig: NextConfig = {
     "*.ngrok-free.dev",
     "*.ngrok-free.app",
     "*.ngrok.io",
+    "*.trycloudflare.com",
     "ludaisca",
     "ldic",
     "*.taila2291d.ts.net",

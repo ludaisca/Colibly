@@ -20,40 +20,69 @@ export const AUTOMATION_HANDOFF_HOURS = 24;
 
 export type BotChatRef = { waChatId: string } | { conversationId: string };
 
+export type BotControlState =
+  | { kind: "automation"; name: string }
+  | { kind: "handoff"; until: Date }
+  | { kind: "human"; until: Date }
+  | { kind: "available" };
+
+export function humanTakeoverUntil(lastHumanAt: Date | null, botResumedAt: Date | null, now = new Date()): Date | null {
+  if (!lastHumanAt || (botResumedAt && lastHumanAt <= botResumedAt)) return null;
+  const until = new Date(lastHumanAt.getTime() + BOT_HUMAN_TAKEOVER_MINUTES * 60_000);
+  return until > now ? until : null;
+}
+
+// Fuente única para el indicador y los workers. La asignación a un agente no
+// implica takeover; solo una respuesta manual posterior a botResumedAt lo hace.
+export async function getBotControlState(ref: BotChatRef, now = new Date()): Promise<BotControlState> {
+  const chatWhere = "waChatId" in ref ? { waChatId: ref.waChatId } : { conversationId: ref.conversationId };
+  const activeRun = await prisma.automationRun.findFirst({
+    where: { ...chatWhere, conversational: true, status: { in: ["ACTIVE", "WAITING_DELAY", "WAITING_REPLY"] } },
+    orderBy: { startedAt: "desc" },
+    select: { automation: { select: { name: true } } },
+  });
+  if (activeRun) return { kind: "automation", name: activeRun.automation.name };
+
+  const handoff = await prisma.automationRun.findFirst({
+    where: { ...chatWhere, status: "HANDED_OFF", endedAt: { gte: new Date(now.getTime() - AUTOMATION_HANDOFF_HOURS * 3_600_000) } },
+    orderBy: { endedAt: "desc" },
+    select: { endedAt: true },
+  });
+  if (handoff?.endedAt) return { kind: "handoff", until: new Date(handoff.endedAt.getTime() + AUTOMATION_HANDOFF_HOURS * 3_600_000) };
+
+  const chat = "waChatId" in ref
+    ? await prisma.wAChat.findUnique({ where: { id: ref.waChatId }, select: { botResumedAt: true } })
+    : await prisma.conversation.findUnique({ where: { id: ref.conversationId }, select: { botResumedAt: true } });
+  if (!chat) return { kind: "available" };
+  const cutoff = new Date(now.getTime() - BOT_HUMAN_TAKEOVER_MINUTES * 60_000);
+  const since = chat.botResumedAt && chat.botResumedAt > cutoff ? chat.botResumedAt : cutoff;
+  const lastHuman = "waChatId" in ref
+    ? await prisma.wAMessage.findFirst({
+        where: { chatId: ref.waChatId, direction: "OUTBOUND", senderId: { not: null }, createdAt: { gt: since } },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      })
+    : await prisma.channelMessage.findFirst({
+        where: { conversationId: ref.conversationId, direction: "OUTBOUND", senderId: { not: null }, createdAt: { gt: since } },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+  const until = humanTakeoverUntil(lastHuman?.createdAt ?? null, chat.botResumedAt, now);
+  return until ? { kind: "human", until } : { kind: "available" };
+}
+
 // Devuelve el motivo por el que el bot NO debe responder, o null si puede.
 export async function getBotSkipReason(
   ref: BotChatRef,
   triggerMessageId: string | null | undefined,
   now: Date = new Date()
 ): Promise<string | null> {
-  const takeoverSince = new Date(now.getTime() - BOT_HUMAN_TAKEOVER_MINUTES * 60_000);
-
-  // Automatizaciones: mientras una conversacional tiene el chat, o durante
-  // AUTOMATION_HANDOFF_HOURS después de pasarlo a un humano, el bot no habla
-  // encima. HANDED_TO_BOT no bloquea: es justo la que le cede el turno.
-  const automationHold = await prisma.automationRun.findFirst({
-    where: {
-      ...("waChatId" in ref ? { waChatId: ref.waChatId } : { conversationId: ref.conversationId }),
-      OR: [
-        { conversational: true, status: { in: ["ACTIVE", "WAITING_DELAY", "WAITING_REPLY"] } },
-        { status: "HANDED_OFF", endedAt: { gte: new Date(now.getTime() - AUTOMATION_HANDOFF_HOURS * 3_600_000) } },
-      ],
-    },
-    select: { status: true },
-  });
-  if (automationHold) {
-    return automationHold.status === "HANDED_OFF"
-      ? "una automatización pasó la conversación a un humano"
-      : "una automatización está atendiendo el chat";
-  }
+  const control = await getBotControlState(ref, now);
+  if (control.kind === "automation") return "una automatización está atendiendo el chat";
+  if (control.kind === "handoff") return "una automatización pasó la conversación a un humano";
+  if (control.kind === "human") return `un agente respondió en los últimos ${BOT_HUMAN_TAKEOVER_MINUTES} min`;
 
   if ("waChatId" in ref) {
-    const humanReply = await prisma.wAMessage.findFirst({
-      where: { chatId: ref.waChatId, direction: "OUTBOUND", senderId: { not: null }, createdAt: { gte: takeoverSince } },
-      select: { id: true },
-    });
-    if (humanReply) return `un agente respondió en los últimos ${BOT_HUMAN_TAKEOVER_MINUTES} min`;
-
     if (triggerMessageId) {
       const trigger = await prisma.wAMessage.findUnique({ where: { id: triggerMessageId }, select: { createdAt: true } });
       if (trigger) {
@@ -66,12 +95,6 @@ export async function getBotSkipReason(
     }
     return null;
   }
-
-  const humanReply = await prisma.channelMessage.findFirst({
-    where: { conversationId: ref.conversationId, direction: "OUTBOUND", senderId: { not: null }, createdAt: { gte: takeoverSince } },
-    select: { id: true },
-  });
-  if (humanReply) return `un agente respondió en los últimos ${BOT_HUMAN_TAKEOVER_MINUTES} min`;
 
   if (triggerMessageId) {
     const trigger = await prisma.channelMessage.findUnique({ where: { id: triggerMessageId }, select: { createdAt: true } });

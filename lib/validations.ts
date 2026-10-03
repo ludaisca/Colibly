@@ -112,7 +112,8 @@ export type MetaAdsAccountInput = z.infer<typeof metaAdsAccountSchema>;
 export type MetaAdsAccountUpdateInput = z.infer<typeof metaAdsAccountUpdateSchema>;
 
 export const sendMessageSchema = z.object({
-  type: z.enum(["text", "image", "audio", "video", "document", "interactive"]),
+  type: z.enum(["text", "image", "audio", "video", "document", "interactive", "sticker"]),
+  stickerId: z.string().min(1).optional(),
   // 4096 es el límite de WhatsApp para texto libre — mejor un 400 claro aquí
   // que un error opaco de la Graph API.
   body: z.string().max(4096, "El mensaje supera el límite de 4096 caracteres de WhatsApp").optional(),
@@ -122,6 +123,7 @@ export const sendMessageSchema = z.object({
   filename: z.string().optional(),
   localMediaPath: z.string().nullable().optional(),
   bytesSize: z.number().optional(),
+  replyToMessageId: z.string().min(1).optional(),
   // Solo el título viaja desde el cliente — el id del botón (btn_1, btn_2...)
   // se genera en la ruta de envío, nunca se confía en lo que mande el cliente.
   buttons: z
@@ -132,6 +134,7 @@ export const sendMessageSchema = z.object({
 }).refine(
   (d) => {
     if (d.type === "text") return !!d.body;
+    if (d.type === "sticker") return !!d.stickerId && !d.body && !d.caption;
     if (d.type === "interactive") return !!d.body && !!d.buttons && d.buttons.length > 0;
     return !!d.mediaId || !!d.localMediaPath;
   },

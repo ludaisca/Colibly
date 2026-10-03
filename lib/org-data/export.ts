@@ -35,6 +35,7 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
   yield `{"format":"colibly-export-v1","exportedAt":${JSON.stringify(new Date())}`;
   yield `,"organization":${JSON.stringify(organization)}`;
   yield `,"users":${JSON.stringify(members)}`;
+  yield `,"stickers":${JSON.stringify(await prisma.wASticker.findMany({ where: { organizationId }, select: { id: true, name: true, animated: true, favorite: true, lastUsedAt: true, createdAt: true }, orderBy: { createdAt: "asc" } }))}`;
   yield `,"accounts":${JSON.stringify([
     ...waAccounts.map((a) => ({ ...a, channel: "WHATSAPP" })),
     ...channelAccounts,

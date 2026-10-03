@@ -60,11 +60,13 @@ export function ChatAssigneePicker({
       open={open}
       onOpenChange={setOpen}
       align="right"
+      portal
       trigger={
         <DropdownButton
-          label={assignedTo?.name ?? "Sin asignar"}
+          label={assignedTo?.name ?? "Asignar"}
           icon={UserCheck}
           size="sm"
+          className="max-w-36 [&>span]:truncate"
         />
       }
     >

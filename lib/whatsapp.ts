@@ -5,12 +5,15 @@ const BASE_URL = "https://graph.facebook.com";
 
 interface SendMessageParams {
   to: string;
-  type: "text" | "image" | "audio" | "video" | "document";
+  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction";
+  reactionMessageId?: string;
+  emoji?: string;
   body?: string;
   mediaId?: string;
   mimeType?: string;
   caption?: string;
   filename?: string;
+  replyToWamid?: string;
 }
 
 interface SendMessageResponse {
@@ -64,9 +67,14 @@ export async function sendMessage(
     to: params.to,
     type: params.type,
   };
+  if (params.replyToWamid) payload.context = { message_id: params.replyToWamid };
 
   if (params.type === "text") {
     payload.text = { body: params.body ?? "", preview_url: false };
+  } else if (params.type === "reaction") {
+    payload.reaction = { message_id: params.reactionMessageId, emoji: params.emoji ?? "" };
+  } else if (params.type === "sticker") {
+    payload.sticker = { id: params.mediaId };
   } else {
     payload[params.type] = {
       ...(params.mediaId ? { id: params.mediaId } : {}),

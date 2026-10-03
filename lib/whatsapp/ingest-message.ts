@@ -45,6 +45,7 @@ export interface NormalizedInboundMessage {
   // (interactive.button_reply.id / list_reply.id) — el título ya viaja en
   // `body`, esto es solo para correlacionar qué opción se tocó.
   interactiveReplyId?: string | null;
+  replyToWamid?: string | null;
   // Presente solo en el primer mensaje de un chat que vino de un anuncio
   // click-to-WhatsApp. Meta lo manda en cada mensaje de ese chat, pero solo
   // importa para atribución en el create del Contact (first-touch) — ver
@@ -153,6 +154,7 @@ export async function ingestInboundMessage(
         filename: msg.filename ?? null,
         bytesSize: msg.bytesSize ?? null,
         interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
+        replyToWamid: msg.replyToWamid ?? null,
         referral: msg.referral ? (msg.referral as Prisma.InputJsonValue) : undefined,
         timestamp: msg.timestamp,
       },

@@ -22,7 +22,15 @@ const MESSAGE_SELECT = {
 // interactivePayload (botones/lista enviados, u opción elegida) existe en
 // ambas tablas desde las automatizaciones. isFromComment (roadmap P3-c) es
 // exclusivo de ChannelMessage.
-const WA_MESSAGE_SELECT = { ...MESSAGE_SELECT, interactivePayload: true } as const;
+const WA_MESSAGE_SELECT = {
+  ...MESSAGE_SELECT,
+  interactivePayload: true,
+  wamid: true,
+  replyToWamid: true,
+  reactionEmoji: true,
+  agentReactionEmoji: true,
+  agentReactions: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { id: true, emoji: true, status: true, error: true } },
+} as const;
 const CHANNEL_MESSAGE_SELECT = { ...MESSAGE_SELECT, interactivePayload: true, isFromComment: true } as const;
 
 export async function GET(
@@ -65,7 +73,7 @@ export async function GET(
     }
 
     const messages = await prisma.wAMessage.findMany({
-      where: { chatId, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
+      where: { chatId, messageType: { not: "reaction" }, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
       select: WA_MESSAGE_SELECT,
       orderBy: { timestamp: "desc" },
       take: limit,
@@ -76,7 +84,18 @@ export async function GET(
       data: { unreadCount: 0 },
     });
 
-    return NextResponse.json(messages.reverse());
+    const quotedIds = [...new Set(messages.map((message) => message.replyToWamid).filter((id): id is string => !!id))];
+    const quoted = quotedIds.length
+      ? await prisma.wAMessage.findMany({
+          where: { chatId, wamid: { in: quotedIds } },
+          select: { wamid: true, id: true, direction: true, body: true, caption: true, messageType: true },
+        })
+      : [];
+    const quotedByWamid = new Map(quoted.map((message) => [message.wamid, message]));
+    return NextResponse.json(messages.reverse().map((message) => ({
+      ...message,
+      replyTo: message.replyToWamid ? quotedByWamid.get(message.replyToWamid) ?? null : null,
+    })));
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");

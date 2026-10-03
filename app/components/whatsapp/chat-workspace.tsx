@@ -84,6 +84,7 @@ export function ChatWorkspace({
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [newMessage, setNewMessage] = useState("");
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState(initialSearch || "");
   // La búsqueda va al servidor (la lista está paginada — filtrar solo lo
@@ -111,6 +112,9 @@ export function ChatWorkspace({
   const [interactiveButtons, setInteractiveButtons] = useState<string[]>([]);
   const [buttonsPanelOpen, setButtonsPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageDraftsRef = useRef<Map<string, string>>(new Map());
+  const activeChatIdRef = useRef(selectedChatId);
+  useEffect(() => { activeChatIdRef.current = selectedChatId; }, [selectedChatId]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   // scrollHeight previo a un prepend de historial — permite restaurar la
@@ -118,7 +122,7 @@ export function ChatWorkspace({
   const prependHeightRef = useRef<number | null>(null);
   // Payload original de cada mensaje optimista, por tempId — permite
   // reintentar un envío fallido sin pedirle al usuario que lo reescriba.
-  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }>>(new Map());
+  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[]; replyTo: Message | null }>>(new Map());
   // Se incrementa cada vez que la lista se recarga desde cero (cambio de
   // filtros): un refresco periódico que salió antes descarta su resultado.
   const chatsGenerationRef = useRef(0);
@@ -488,7 +492,7 @@ export function ChatWorkspace({
             let changed = false;
             const merged = prev.map((m) => {
               const fresh = byId.get(m.id);
-              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl)) {
+              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl || fresh.reactionEmoji !== m.reactionEmoji || fresh.agentReactionEmoji !== m.agentReactionEmoji || JSON.stringify(fresh.agentReactions) !== JSON.stringify(m.agentReactions) || fresh.replyToWamid !== m.replyToWamid || JSON.stringify(fresh.replyTo) !== JSON.stringify(m.replyTo))) {
                 changed = true;
                 return { ...fresh, motionKey: m.motionKey, animateOnMount: false };
               }
@@ -521,13 +525,6 @@ export function ChatWorkspace({
     };
   }, [selectedChatId, refreshChats]);
 
-  // Route updates on selection
-  const handleChatSelect = useCallback((chat: ChatItem) => {
-    setSelectedChatId(chat.id);
-    const qs = buildFilterSearchParams().toString();
-    router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}${qs ? `?${qs}` : ""}`);
-  }, [router, buildFilterSearchParams]);
-
   const clearAttachment = useCallback(() => {
     setAttachment(null);
     setAttachmentPreview((prev) => {
@@ -536,12 +533,37 @@ export function ChatWorkspace({
     });
   }, []);
 
+  // Cada conversación tiene su propio destino y capacidades de canal. Un
+  // borrador interactivo/adjunto de otra conversación no debe poder enviarse
+  // por accidente al cambiar de chat.
+  const handleChatSelect = useCallback((chat: ChatItem) => {
+    if (chat.id === selectedChatId) return;
+    if (selectedChatId) messageDraftsRef.current.set(selectedChatId, newMessage);
+    setSelectedChatId(chat.id);
+    setNewMessage(messageDraftsRef.current.get(chat.id) ?? "");
+    setReplyTo(null);
+    setCannedResponses([]);
+    setCannedIndex(0);
+    setInteractiveButtons([]);
+    setButtonsPanelOpen(false);
+    clearAttachment();
+    const qs = buildFilterSearchParams().toString();
+    router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}${qs ? `?${qs}` : ""}`);
+  }, [selectedChatId, newMessage, router, buildFilterSearchParams, clearAttachment]);
+
   const handleCloseChat = useCallback(() => {
+    if (selectedChatId) messageDraftsRef.current.set(selectedChatId, newMessage);
     setSelectedChatId(null);
+    setNewMessage("");
+    setReplyTo(null);
+    setCannedResponses([]);
+    setCannedIndex(0);
+    setInteractiveButtons([]);
+    setButtonsPanelOpen(false);
     clearAttachment();
     const qs = buildFilterSearchParams().toString();
     router.push(`/whatsapp/chat${qs ? `?${qs}` : ""}`);
-  }, [router, clearAttachment, buildFilterSearchParams]);
+  }, [selectedChatId, newMessage, router, clearAttachment, buildFilterSearchParams]);
 
   function detectMessageType(file: File): "image" | "audio" | "video" | "document" | "sticker" {
     if (isImageMime(file.type)) return "image";
@@ -563,7 +585,10 @@ export function ChatWorkspace({
       return;
     }
     setAttachment(file);
-    setAttachmentPreview(URL.createObjectURL(file));
+    setAttachmentPreview((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return URL.createObjectURL(file);
+    });
     e.target.value = "";
   }
 
@@ -573,7 +598,7 @@ export function ChatWorkspace({
   // reintentar. Compartido por el submit del composer y por el botón
   // "Reintentar" de una burbuja fallida.
   const performSend = useCallback(
-    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }) => {
+    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[]; replyTo: Message | null }) => {
       if (!selectedChatId || !selectedChat) return;
       try {
         let data;
@@ -585,6 +610,7 @@ export function ChatWorkspace({
               type: "interactive",
               body: opts.text.trim(),
               buttons: opts.buttons.map((title) => ({ title })),
+              replyToMessageId: opts.replyTo?.id,
             }),
           });
           data = await res.json();
@@ -612,6 +638,7 @@ export function ChatWorkspace({
               caption,
               localMediaPath: upData.localMediaPath,
               bytesSize: upData.bytesSize,
+              replyToMessageId: opts.replyTo?.id,
             }),
           });
           data = await res.json();
@@ -620,7 +647,7 @@ export function ChatWorkspace({
           const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "text", body: opts.text.trim() }),
+            body: JSON.stringify({ type: "text", body: opts.text.trim(), replyToMessageId: opts.replyTo?.id }),
           });
           data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "Error al enviar");
@@ -631,7 +658,7 @@ export function ChatWorkspace({
           const optimistic = prev.find((m) => m.id === tempId);
           return [
             ...prev.filter((m) => m.id !== tempId && m.id !== data.id),
-            { ...data, motionKey: optimistic?.motionKey ?? data.id },
+            { ...data, replyTo: opts.replyTo ? { id: opts.replyTo.id, direction: opts.replyTo.direction, body: opts.replyTo.body, caption: opts.replyTo.caption, messageType: opts.replyTo.messageType } : null, motionKey: optimistic?.motionKey ?? data.id },
           ];
         });
         if (opts.filePreviewUrl) URL.revokeObjectURL(opts.filePreviewUrl);
@@ -647,7 +674,9 @@ export function ChatWorkspace({
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
+    if (sending) return;
     if (!newMessage.trim() && !attachment && interactiveButtons.length === 0) return;
+    if (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((title) => !title.trim()))) return;
     if (!selectedChatId || !selectedChat) return;
 
     const tempId = `temp-${crypto.randomUUID()}`;
@@ -655,6 +684,7 @@ export function ChatWorkspace({
     const file = attachment;
     const filePreviewUrl = file ? attachmentPreview : null;
     const buttons = interactiveButtons;
+    const quotedMessage = selectedChat.channel === "WHATSAPP" ? replyTo : null;
 
     const optimisticMessage: Message = {
       id: tempId,
@@ -675,12 +705,16 @@ export function ChatWorkspace({
           ? { buttons: buttons.map((title, i) => ({ id: `btn_${i + 1}`, title })) }
           : undefined,
       status: "sending",
+      replyToWamid: quotedMessage?.wamid ?? null,
+      replyTo: quotedMessage ? { id: quotedMessage.id, direction: quotedMessage.direction, body: quotedMessage.body, caption: quotedMessage.caption, messageType: quotedMessage.messageType } : null,
       timestamp: new Date().toISOString(),
     };
 
-    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl, buttons });
+    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl, buttons, replyTo: quotedMessage });
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
+    messageDraftsRef.current.delete(selectedChatId);
+    setReplyTo(null);
     // Reset del composer sin revocar el object URL todavía — la burbuja
     // optimista lo sigue usando hasta que el envío se confirme o falle.
     setAttachment(null);
@@ -689,8 +723,25 @@ export function ChatWorkspace({
     setButtonsPanelOpen(false);
 
     setSending(true);
-    await performSend(tempId, { text, file, filePreviewUrl, buttons });
+    await performSend(tempId, { text, file, filePreviewUrl, buttons, replyTo: quotedMessage });
     setSending(false);
+  }
+
+  async function sendSticker(stickerId: string) {
+    if (!selectedChatId || selectedChat?.channel !== "WHATSAPP" || sending) throw new Error("Selecciona una conversación de WhatsApp disponible");
+    const targetChatId = selectedChatId;
+    const quotedMessage = replyTo;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/whatsapp/chats/${targetChatId}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "sticker", stickerId, replyToMessageId: quotedMessage?.id }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo enviar el sticker");
+      if (activeChatIdRef.current === targetChatId) {
+        setMessages((previous) => [...previous.filter((message) => message.id !== data.id), { ...data, animateOnMount: true, replyTo: quotedMessage }]);
+        setReplyTo(null);
+      }
+      refreshChats();
+    } finally { setSending(false); }
   }
 
   const handleRetry = useCallback(
@@ -822,15 +873,22 @@ export function ChatWorkspace({
               }
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
+              onReply={setReplyTo}
+              onReaction={(id, reaction) => setMessages((previous) => previous.map((message) => message.id === id ? { ...message, agentReactions: [reaction] } : message))}
               messagesContainerRef={messagesContainerRef}
               messagesEndRef={messagesEndRef}
             />
             <ChatComposer
               chatId={selectedChat.id}
+              channel={selectedChat.channel}
               newMessage={newMessage}
               onMessageChange={setNewMessage}
               sending={sending}
               onSubmit={handleSend}
+              onSendSticker={sendSticker}
+              replyTo={replyTo}
+              leadName={selectedChat.name || selectedChat.remoteJid}
+              onCancelReply={() => setReplyTo(null)}
               attachment={attachment}
               attachmentPreview={attachmentPreview}
               onPickFile={pickFile}
@@ -868,11 +926,11 @@ export function ChatWorkspace({
     <div className="flex flex-1 min-h-0">
       <ChatAccountRail accounts={accountOptions} selectedAccountId={accountFilter} onSelect={setAccountFilter} unreadByAccount={unreadByAccount} />
       {resizable ? <Group orientation="horizontal" className="h-full min-w-0 flex-1">
-        <Panel id="conversations" defaultSize="38%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>
+        <Panel id="conversations" defaultSize="32%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>
         <Separator aria-label="Ajustar ancho de conversaciones" className="group relative w-2 shrink-0 bg-background hover:bg-accent-subtle focus-visible:bg-accent-subtle">
           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border group-hover:bg-accent-strong group-focus-visible:bg-accent-strong" />
         </Separator>
-        <Panel id="conversation" defaultSize="62%" minSize="300px" className="flex min-w-0">{conversationPane}</Panel>
+        <Panel id="conversation" defaultSize="68%" minSize="300px" className="flex min-w-0">{conversationPane}</Panel>
       </Group> : <>{listPane}{conversationPane}</>}
 
       {/* Drawers */}

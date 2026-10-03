@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Trash2, Power, PowerOff, Send, Upload, X } from "lucide-react";
+import { Trash2, Power, PowerOff, Send, Upload, X, RotateCcw } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Input } from "@/app/components/ui/input";
@@ -53,6 +53,8 @@ interface UsageData {
   recent: Array<{ totalTokens: number; estimatedCost: number; createdAt: string }>;
 }
 
+type TestTurn = { role: "user" | "assistant"; content: string };
+
 const TABS = [
   { id: "config", label: "Configuración" },
   { id: "knowledge", label: "Conocimiento" },
@@ -84,8 +86,9 @@ export default function BotDetailPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [testMessage, setTestMessage] = useState("");
-  const [testResponse, setTestResponse] = useState("");
+  const [testTurns, setTestTurns] = useState<TestTurn[]>([]);
   const [testing, setTesting] = useState(false);
+  const testEndRef = useRef<HTMLDivElement>(null);
 
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
@@ -130,6 +133,7 @@ export default function BotDetailPage() {
   useEffect(() => { if (tab === "knowledge") fetchKnowledge(); }, [tab, fetchKnowledge]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-tab-switch
   useEffect(() => { if (tab === "uso") fetchUsage(); }, [tab, fetchUsage]);
+  useEffect(() => { if (tab === "test") testEndRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [tab, testTurns, testing]);
 
   async function handleToggle() {
     setToggling(true);
@@ -199,19 +203,23 @@ export default function BotDetailPage() {
   }
 
   async function handleTest() {
-    if (!testMessage.trim()) return;
+    const message = testMessage.trim();
+    if (!message || testing) return;
     setTesting(true);
-    setTestResponse("");
+    setTestMessage("");
+    setTestTurns((prev) => [...prev, { role: "user", content: message }]);
     try {
       const res = await fetch(`/api/whatsapp/bots/${id}/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: testMessage }),
+        body: JSON.stringify({ message, history: testTurns.slice(-100) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setTestResponse(data.response);
+      setTestTurns((prev) => [...prev, { role: "assistant", content: data.response }]);
     } catch (err) {
+      setTestTurns((prev) => prev.slice(0, -1));
+      setTestMessage(message);
       toastError(err instanceof Error ? err.message : "Error en el test");
     } finally { setTesting(false); }
   }
@@ -349,21 +357,42 @@ export default function BotDetailPage() {
       {tab === "test" && (
         <section className="space-y-4">
           <SectionHeader title="Probar el bot" />
-          <p className="text-xs text-muted">Cada prueba usa un crédito de IA de tu organización.</p>
-          <FormField label="Mensaje de prueba">
-            {(id) => (
-              <Textarea id={id} value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Escribe un mensaje para probar..." rows={3} />
-            )}
-          </FormField>
-          <Button icon={Send} size="sm" onClick={handleTest} disabled={testing || !testMessage.trim()}>
-            {testing ? <Spinner /> : "Enviar"}
-          </Button>
-          {testResponse && (
-            <div className="rounded-lg border border-border bg-surface p-4">
-              <p className="mb-2 text-xs font-medium text-muted-darker">Respuesta:</p>
-              <p className="whitespace-pre-wrap text-sm">{testResponse}</p>
-            </div>
+          {!bot.waAccountId && !bot.channelAccount && (
+            <Banner tone="warning" title="Este bot aún no responde en chats">
+              Asígnale una cuenta desde Editar y actívalo. La prueba de abajo consulta la IA aunque no tenga una cuenta vinculada.
+            </Banner>
           )}
+          {(bot.waAccountId || bot.channelAccount) && !bot.isActive && (
+            <Banner tone="warning" title="Este bot está pausado">
+              Actívalo para que responda a los mensajes de la cuenta vinculada.
+            </Banner>
+          )}
+          <p className="text-xs text-muted">Conversación de prueba con la memoria y el conocimiento configurados. No envía mensajes al canal ni comprueba el webhook. Cada respuesta usa un crédito de IA.</p>
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+              <span className="text-sm font-medium">Conversación de prueba</span>
+              <Button icon={RotateCcw} variant="ghost" size="sm" onClick={() => { setTestTurns([]); setTestMessage(""); }} disabled={testing || testTurns.length === 0}>Nueva conversación</Button>
+            </div>
+            <div className="max-h-[min(55vh,28rem)] min-h-64 space-y-3 overflow-y-auto p-4" role="log" aria-label="Mensajes de prueba" aria-live="polite">
+              {testTurns.length === 0 && <p className="py-16 text-center text-sm text-muted">Escribe un mensaje para iniciar la conversación.</p>}
+              {testTurns.map((turn, index) => (
+                <div key={index} className={`flex ${turn.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-sm ${turn.role === "user" ? "bg-accent text-white" : "border border-border bg-surface-light text-foreground"}`}>
+                    {turn.content}
+                  </div>
+                </div>
+              ))}
+              {testing && <div className="flex justify-start"><div className="rounded-xl border border-border bg-surface-light px-4 py-3" aria-label="El bot está respondiendo"><Spinner /></div></div>}
+              <div ref={testEndRef} />
+            </div>
+            <form className="flex items-end gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); handleTest(); }}>
+              <div className="min-w-0 flex-1">
+                <label htmlFor="bot-test-message" className="sr-only">Mensaje de prueba</label>
+                <Textarea id="bot-test-message" value={testMessage} maxLength={4000} onChange={(event) => setTestMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); handleTest(); } }} placeholder="Escribe un mensaje…" rows={2} className="min-h-16 resize-none" />
+              </div>
+              <Button type="submit" icon={Send} size="sm" disabled={testing || !testMessage.trim()} aria-label="Enviar mensaje de prueba">Enviar</Button>
+            </form>
+          </div>
         </section>
       )}
 

@@ -68,9 +68,15 @@ export async function POST(req: Request) {
       select: { id: true, name: true, channel: true, status: true, createdAt: true },
     });
 
-    const origin = new URL(req.url).origin;
+    // DEV puede recibir el webhook a través de un túnel HTTPS que solo publica
+    // esta ruta, mientras la interfaz sigue accesible en localhost:15100.
+    const origin = process.env.TELEGRAM_WEBHOOK_BASE_URL || new URL(req.url).origin;
     try {
-      await setWebhook(botToken, `${origin}/api/telegram/webhook/${account.id}`, webhookSecret);
+      const webhookUrl = new URL(`/api/telegram/webhook/${account.id}`, origin);
+      if (webhookUrl.protocol !== "https:") {
+        throw new Error("Telegram requiere una URL pública HTTPS para el webhook");
+      }
+      await setWebhook(botToken, webhookUrl.toString(), webhookSecret);
       const connected = await prisma.channelAccount.update({
         where: { id: account.id },
         data: { status: "CONNECTED", lastActivity: new Date() },

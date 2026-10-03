@@ -5,13 +5,16 @@ import { assertOrgCanSend } from "@/lib/billing/gates";
 
 interface SendParams {
   to: string;
-  type: "text" | "image" | "audio" | "video" | "document";
+  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction";
+  reactionMessageId?: string;
+  emoji?: string;
   body?: string;
   mediaId?: string | null;
   mimeType?: string;
   caption?: string;
   filename?: string;
   localMediaPath?: string | null;
+  replyToWamid?: string;
 }
 
 // Unified outbound sender for Meta Cloud API accounts.

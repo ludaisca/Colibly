@@ -9,6 +9,7 @@ import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { accountManageWhere } from "@/lib/tenancy";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 
 export async function GET(
   req: Request,
@@ -62,7 +63,7 @@ export async function GET(
     // Nunca se devuelve el secreto (ni cifrado) — solo si está configurado,
     // para que la UI avise que sin él el webhook descarta todo.
     const { appSecret, ...rest } = account;
-    return NextResponse.json({ ...rest, hasAppSecret: !!appSecret });
+    return NextResponse.json({ ...rest, hasAppSecret: !!appSecret, webhookUrl: whatsappWebhookUrl(req.url) });
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");

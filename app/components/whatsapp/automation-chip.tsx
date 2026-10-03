@@ -28,7 +28,7 @@ const STATUS_TEXT: Record<string, string> = {
 // (y en qué paso va), con pausar/reanudar/terminar, más las automatizaciones
 // manuales que se pueden iniciar a mano. No se muestra si no hay nada.
 // Mismo patrón self-contained que ChatCostBadge (fetch propio por chat).
-export function AutomationChip({ chatId }: { chatId: string }) {
+export function AutomationChip({ chatId, showEmpty = false }: { chatId: string; showEmpty?: boolean }) {
   const { success, error: toastError } = useToast();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<ChipData | null>(null);
@@ -76,7 +76,8 @@ export function AutomationChip({ chatId }: { chatId: string }) {
     setTimeout(load, 1500);
   }
 
-  if (!data || (data.runs.length === 0 && data.manual.length === 0)) return null;
+  if (!data) return showEmpty ? <p className="text-xs text-muted-darker">Automatizaciones no disponibles todavía.</p> : null;
+  if (data.runs.length === 0 && data.manual.length === 0) return showEmpty ? <p className="text-xs text-muted-darker">Sin automatizaciones en curso ni acciones manuales disponibles.</p> : null;
   const main = data.runs[0];
 
   return (
@@ -84,12 +85,14 @@ export function AutomationChip({ chatId }: { chatId: string }) {
       open={open}
       onOpenChange={setOpen}
       align="right"
+      portal
+      className="max-w-full"
       trigger={
         <DropdownButton
           size="sm"
           icon={Zap}
           label={main ? `${main.automation.name} · ${STATUS_TEXT[main.status] ?? main.status}` : "Automatizar"}
-          className={main && main.status !== "PAUSED_BY_AGENT" ? "border-accent-muted text-accent-ink" : undefined}
+          className={`max-w-full [&>span]:truncate ${main && main.status !== "PAUSED_BY_AGENT" ? "border-accent-muted text-accent-ink" : ""}`}
         />
       }
     >

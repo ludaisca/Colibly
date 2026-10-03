@@ -15,6 +15,10 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
+import { uploadMedia } from "@/lib/whatsapp";
+import { decrypt } from "@/lib/crypto";
+import { saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 export async function POST(
   req: Request,
@@ -69,13 +73,38 @@ export async function POST(
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { type, body: textBody, mediaId, caption, mimeType, filename, localMediaPath, bytesSize, buttons } = parsed.data;
+    const { type, body: textBody, caption, buttons, replyToMessageId, stickerId } = parsed.data;
+    let { mediaId, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
     if (localMediaPath && !isAccountMediaPath(localMediaPath, chat.accountId)) {
       return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
     }
 
     let result: { wamid: string | null };
     let interactivePayload: { buttons: { id: string; title: string }[] } | undefined;
+    const replyTarget = replyToMessageId
+      ? await prisma.wAMessage.findFirst({
+          where: { id: replyToMessageId, chatId: chat.id, wamid: { not: null } },
+          select: { wamid: true },
+        })
+      : null;
+    if (replyToMessageId && !replyTarget?.wamid) {
+      return NextResponse.json({ error: "El mensaje citado ya no está disponible para responder" }, { status: 400 });
+    }
+
+    if (type === "sticker") {
+      const sticker = await prisma.wASticker.findFirst({ where: { id: stickerId, organizationId: chat.account.organizationId } });
+      if (!sticker) return NextResponse.json({ error: "Sticker no encontrado en tu organización" }, { status: 404 });
+      await assertOrgCanSend(chat.account.organizationId);
+      if (!chat.account.phoneNumberId || !chat.account.accessToken) return NextResponse.json({ error: "La cuenta de WhatsApp no está conectada" }, { status: 400 });
+      const buffer = Buffer.from(sticker.data);
+      const uploaded = await uploadMedia(chat.account.phoneNumberId, decrypt(chat.account.accessToken), buffer, "sticker.webp", "image/webp");
+      const stored = await saveMediaFromBuffer(chat.accountId, buffer, "image/webp");
+      mediaId = uploaded.id;
+      localMediaPath = stored.relativePath;
+      mimeType = "image/webp";
+      filename = "sticker.webp";
+      bytesSize = buffer.length;
+    }
 
     if (type === "interactive") {
       const idButtons = buttons!.map((b, i) => ({ id: `btn_${i + 1}`, title: b.title }));
@@ -83,6 +112,7 @@ export async function POST(
         to: chat.remoteJid,
         body: textBody!,
         buttons: idButtons,
+        replyToWamid: replyTarget?.wamid ?? undefined,
       });
       interactivePayload = { buttons: idButtons };
     } else {
@@ -95,6 +125,7 @@ export async function POST(
         mimeType,
         filename,
         localMediaPath,
+        replyToWamid: replyTarget?.wamid ?? undefined,
       });
     }
 
@@ -115,6 +146,7 @@ export async function POST(
         filename,
         bytesSize,
         interactivePayload,
+        replyToWamid: replyTarget?.wamid ?? null,
         status: "sent",
         senderId: session.user.id,
         timestamp: now,
@@ -136,6 +168,8 @@ export async function POST(
     });
 
     await emitAgentMessageSent(chat.id, newMessage, session.user.id);
+
+    if (type === "sticker" && stickerId) await prisma.wASticker.updateMany({ where: { id: stickerId, organizationId: chat.account.organizationId }, data: { lastUsedAt: now } });
 
     return NextResponse.json(newMessage);
   } catch (error) {

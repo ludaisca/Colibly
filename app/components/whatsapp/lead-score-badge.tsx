@@ -137,6 +137,8 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
       open={open}
       onOpenChange={setOpen}
       align="right"
+      portal
+      closeOnSelect={false}
       trigger={
         selectedScore ? (
           <DropdownButton
@@ -149,7 +151,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
         )
       }
     >
-      <div className="p-3 w-80 space-y-3 max-h-[70vh] overflow-y-auto">
+      <div className="p-3 w-[min(20rem,calc(100vw-2rem))] space-y-3 max-h-[70vh] overflow-y-auto">
         {scorers.length === 0 ? (
           <p className="text-sm text-muted">
             Aún no tienes calificadores creados.{" "}

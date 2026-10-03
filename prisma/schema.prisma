@@ -353,6 +353,7 @@ model Conversation {
   assignedTo       User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   resolvedAt       DateTime?
   firstResponseAt  DateTime?
+  botResumedAt     DateTime?
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
@@ -418,6 +419,7 @@ model WAChat {
   status          ChatStatus @default(OPEN)
   resolvedAt      DateTime?
   firstResponseAt DateTime?
+  botResumedAt    DateTime?
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
@@ -516,6 +518,14 @@ model WALeadScore {
 model WAMessage {
   id                 String           @id @default(cuid())
   wamid              String?
+  // Contexto de respuesta de WhatsApp: el id externo del mensaje citado.
+  replyToWamid       String?
+  // Una conversación individual tiene un lead; la reacción vigente de ese
+  // lead se muestra sobre el mensaje original, no como mensaje independiente.
+  reactionEmoji      String?
+  reactionAt         DateTime?
+  agentReactionEmoji String?
+  agentReactions     WAReaction[]
   chatId             String
   chat               WAChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
   direction          MessageDirection
@@ -556,6 +566,7 @@ model WAMessage {
 
   @@unique([chatId, wamid])
   @@index([wamid])
+  @@index([chatId, replyToWamid])
   @@index([chatId, timestamp])
   @@index([chatId, direction])
   @@index([campaignId])
@@ -572,6 +583,37 @@ enum MessageDirection {
 // callado — attemptNumber (1 o 2) + createdAt permiten calcular en qué etapa
 // va un chat sin tener que resetear nada manualmente cuando el lead responde:
 // solo se cuentan los intentos con createdAt posterior al último INBOUND.
+model WAReaction {
+  id        String @id @default(cuid())
+  messageId String
+  message   WAMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  emoji     String
+  wamid     String? @unique
+  status    String @default("pending")
+  error     String?
+  senderId  String
+  createdAt DateTime @default(now())
+
+  @@index([messageId, createdAt])
+  @@map("wa_reactions")
+}
+
+model WASticker {
+  id             String @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  data           Bytes
+  sha256         String
+  animated       Boolean @default(false)
+  favorite       Boolean @default(false)
+  lastUsedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, sha256])
+  @@map("wa_stickers")
+}
+
 model WALeadRecoveryAttempt {
   id               String     @id @default(cuid())
   chatId           String?
@@ -1698,6 +1740,7 @@ model Organization {
 
   members          User[]            @relation("OrganizationMembers")
   waAccounts       WAAccount[]
+  stickers         WASticker[]
   channelAccounts  ChannelAccount[]
   bots             WABot[]
   leadScorers      WALeadScorerBot[]

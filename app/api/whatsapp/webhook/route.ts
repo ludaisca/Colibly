@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applyReactionStatus } from "@/lib/whatsapp/reactions";
 import { createHash } from "crypto";
 import type { RecipientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +24,8 @@ interface WebhookMessage {
     list_reply?: { id: string; title: string; description?: string };
   };
   button?: { payload: string; text: string };
+  context?: { id?: string; from?: string };
+  reaction?: { message_id?: string; emoji?: string };
   // Presente cuando el chat se originó en un anuncio click-to-WhatsApp — ver
   // lib/whatsapp/ingest-message.ts:InboundReferral para el detalle de campos.
   referral?: {
@@ -150,6 +153,7 @@ function statusErrorDetail(status: WebhookStatus): string | null {
 
 async function applyStatusUpdate(accountId: string, status: WebhookStatus): Promise<void> {
   if (!status.id) return;
+  await applyReactionStatus(accountId, status.id, status.status);
 
   const rank = STATUS_RANK[status.status];
   const lowerStatuses = rank
@@ -469,6 +473,29 @@ export async function POST(req: Request) {
           continue;
         }
 
+        // Suscribir un campo en Meta no le da automáticamente una acción en
+        // Colibly. Registrar solo su forma, tras verificar la firma, permite
+        // estudiar los campos nuevos en DEV sin volcar teléfonos, mensajes ni
+        // otros datos personales de Meta en los logs.
+        if (field && field !== "messages") {
+          const eventValue = change.value as Record<string, unknown> | null;
+          const metadata = eventValue?.metadata as { phone_number_id?: string } | undefined;
+          const candidates = metadata?.phone_number_id
+            ? await prisma.wAAccount.findMany({ where: { phoneNumberId: metadata.phone_number_id } })
+            : wabaId ? await prisma.wAAccount.findMany({ where: { wabaId } }) : [];
+          for (const candidate of candidates) {
+            if (await validateMetaWebhookSignature(rawBody, signature, candidate.appSecret)) {
+              console.info("[webhook] Campo aún sin procesar", {
+                field,
+                accountId: candidate.id,
+                keys: eventValue && typeof eventValue === "object" ? Object.keys(eventValue).sort() : [],
+              });
+              break;
+            }
+          }
+          continue;
+        }
+
         const value = change.value as WebhookValue;
         if (!value?.metadata?.phone_number_id) continue;
 
@@ -497,7 +524,7 @@ export async function POST(req: Request) {
           data: { lastActivity: new Date() },
         });
 
-        if (value.messages && value.contacts) {
+        if (value.messages) {
           const groups = new Map<string, WebhookMessage[]>();
           for (const msg of value.messages) {
             const list = groups.get(msg.from) ?? [];
@@ -508,7 +535,25 @@ export async function POST(req: Request) {
           await Promise.all(
             Array.from(groups.values()).map(async (msgs) => {
               for (const msg of msgs) {
-                const contact = value.contacts!.find((c) => c.wa_id === msg.from);
+                if (msg.type === "reaction") {
+                  const targetWamid = msg.reaction?.message_id;
+                  if (!targetWamid) continue;
+                  const target = await prisma.wAMessage.findFirst({
+                    where: { wamid: targetWamid, chat: { accountId: account.id, remoteJid: msg.from } },
+                    select: { id: true, reactionAt: true },
+                  });
+                  if (!target) continue;
+                  const eventSeconds = Number(msg.timestamp);
+                  const reactionAt = Number.isFinite(eventSeconds) && eventSeconds > 0
+                    ? new Date(eventSeconds * 1000) : new Date();
+                  if (target.reactionAt && reactionAt < target.reactionAt) continue;
+                  await prisma.wAMessage.update({
+                    where: { id: target.id },
+                    data: { reactionEmoji: msg.reaction?.emoji || null, reactionAt },
+                  });
+                  continue;
+                }
+                const contact = value.contacts?.find((c) => c.wa_id === msg.from);
                 const contactName = contact?.profile?.name ?? msg.from;
                 const { mediaId, mimeType, filename, caption } = getMediaInfo(msg);
                 // Meta puede omitir timestamp — un Invalid Date rompería el
@@ -531,6 +576,7 @@ export async function POST(req: Request) {
                   filename,
                   caption,
                   interactiveReplyId: msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? null,
+                  replyToWamid: msg.context?.id ?? null,
                   referral: msg.referral ?? null,
                 });
               }
