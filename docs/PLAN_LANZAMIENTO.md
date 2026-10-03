@@ -1,8 +1,8 @@
 # Plan de lanzamiento — de proyecto a negocio
 
-**Creado:** 2026-09-27. Documento para retomar la preparación del producto como negocio: qué está hecho, qué se decidió y en qué orden sigue. Se actualiza conforme avanza (marcar `[x]` solo lo terminado y verificado). Infraestructura y DNS actualizados el 2026-10-01 en [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
+**Creado:** 2026-09-27. Documento para retomar la preparación del producto como negocio: qué está hecho, qué se decidió y en qué orden sigue. Se actualiza conforme avanza (marcar `[x]` solo lo terminado y verificado). Infraestructura y DNS verificados el 2026-10-02 en [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
 
-## Estado al 2026-09-28 (actualizado el 2026-10-01)
+## Estado al 2026-10-02
 
 Desde entonces: revisiones y cierres de interfaz (accesibilidad, consistencia, rendimiento, recorrido visual, modales, React Flow del 09-29 al 09-30), landing beta con separación de hosts, copia PHP para cPanel y plan de infraestructura/oferta beta. Índice en [README.md](README.md); punto de retoma en [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md).
 
@@ -27,8 +27,8 @@ Detalle técnico de todo lo anterior: `AGENTS.md`.
 |---|---|
 | Quién vende | **Persona física: Luis Islas.** La verificación de Meta y los textos legales van a su nombre; la marca es solo el nombre visible. |
 | Nombre | **Colibly** (`colibly.com`); el dominio ya se compró. El registro de la marca sigue pendiente. |
-| Dominio y correo | Dominio registrado en Hostinger; DNS y `contacto@colibly.com` en Neubox/cPanel. No se ha decidido mover DNS a Cloudflare. |
-| Infraestructura beta | Contabo sigue como VPS principal previsto. Plan B: landing PHP en cPanel/Neubox y app en ludaisca, que también aloja DEV. Sin despliegue público nuevo todavía. |
+| Dominio y correo | Dominio registrado en Hostinger; DNS y buzones en Neubox/cPanel. El propietario confirma que el correo funciona. |
+| Infraestructura beta | **Producción activa:** landing PHP en Neubox/cPanel y app aislada en Coolify sobre ludaisca. Contabo queda como migración futura opcional. |
 | Purga de datos | Canceladas y pruebas vencidas sin pago: se borran a los 60 días. Hecho. |
 | Stripe | **Al final.** Las pruebas contra Stripe real se hacen en el último paso. |
 | Canales de Meta | **WhatsApp primero**; Messenger/Instagram en una revisión aparte, después. |
@@ -57,7 +57,7 @@ Siguientes pasos del nombre:
 - [x] Renombrar en el código (2026-09-27, rama `feat/rebrand-colibly`): textos con `BRAND_NAME`, dominio y correo de contacto en `lib/brand.ts` (`BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`), encabezados `X-Colibly-*`, User-Agent, clave de consentimiento, formato de exportación y remitentes. Logo provisional: una "C" (`BrandMark`, `lib/brand-mark.ts`, favicon, ícono de iOS, imagen para compartir).
 - [x] Paleta "Colibrí" aplicada (2026-09-27): violeta `#5B34E6`, rubí, neutros con tinte violeta, tema oscuro "noche"; hex para correos e imágenes en `lib/brand-colors.ts`.
 - [ ] Logo final "Impulso" pulido (hoy es una "C" provisional): reemplazar `BrandMark`, `lib/brand-mark.ts` y `app/icon.svg`.
-- [x] Crear el buzón `contacto@colibly.com` en Neubox (confirmado por el propietario; recepción y SMTP de producción aún por probar).
+- [x] Crear el buzón `contacto@colibly.com` en Neubox y probar recepción y SMTP transaccional de producción (confirmado por el propietario el 2026-10-02).
 
 Criterios usados para elegir:
 - Dominio `.com` disponible (el anterior falló aquí: sundaycrm.com era de otro).
@@ -79,19 +79,21 @@ Qué implicaba el cambio en el código (hecho el 2026-09-27, salvo la identidad 
 **Desplegado el 2026-10-02 en ludaisca (Coolify), https://app.colibly.com.** Aplicación `colibly` (`narrmk3x6fht3fgbz3gsqw33`) en el proyecto "Luis Islas", Docker Compose desde `ludaisca/Colibly`, rama `feat/rebrand-colibly`, dominio solo en el servicio `app` (puerto 5000). Base de datos, Redis y medios van dentro del compose con volúmenes propios (`narrmk3x…_pgdata`, `_media-data`); no se tocaron Factzi, N8N, Gowa, Beszel, Searxng ni el PostgreSQL/Redis independientes. Verificado: `/api/health` con `db` y `redis` en ok, 19 migraciones aplicadas en base nueva, certificado de Let's Encrypt, `/terminos`, `/beta`, `/producto` y `/sitemap.xml` redirigen a colibly.com, `/api/v1/*` pide API key.
 - Variables cargadas por la API de Coolify: `DB_PASSWORD`, `AUTH_SECRET`, `ENCRYPTION_KEY` (generadas, **respaldar `ENCRYPTION_KEY` aparte**), `APP_URL`, `SITE_URL`, `PLATFORM_ADMIN_EMAILS`, `MEDIA_RETENTION_DAYS`.
 - **Lecciones del despliegue:** (1) no montar archivos del repo con bind mount en el compose: Coolify clona dentro de un contenedor auxiliar y Docker crea un directorio (por eso se quitó `docker/init.sql`); (2) con el despliegue automático activo, un push lanza un despliegue por webhook que compite con uno manual y los dos fallan: se desactivó el automático (`is_auto_deploy_enabled=false`, no se pudo confirmar por la API), y los despliegues se lanzan a mano.
-- **Pendiente:** respaldos (la base del compose no entra en los respaldos nativos de Coolify), rotar `DB_PASSWORD` (se mostró una vez en una conversación), revocar el token de API usado, SMTP y claves de IA desde `/plataforma`, SPF/DKIM/DMARC, `/producto` no existe en la landing de cPanel, mezclar el PR a `main` y volver a activar el despliegue automático si se desea.
+- **Pendiente:** respaldos (la base del compose no entra en los respaldos nativos de Coolify), claves de IA desde `/plataforma`, `/producto` no existe en la landing de cPanel, mezclar el PR a `main` y decidir si se reactiva el despliegue automático. `DB_PASSWORD` fue rotada, el token temporal de Coolify fue revocado, SMTP y el formulario público fueron probados.
 
-- [x] Registrar `colibly.com` y definir infraestructura prevista: Contabo principal, ludaisca de respaldo. Véase [plan de infraestructura](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
-- [ ] Contratar, probar y desplegar en Contabo con `APP_URL=https://app.colibly.com` y `SITE_URL=https://colibly.com`.
-- [ ] Plan B: probar y publicar la copia PHP de `cpanel-site/` en Neubox y una instancia de producción separada en ludaisca para `app.colibly.com`.
-- [ ] Separar `mail.colibly.com` y el MX del A raíz antes de apuntar el dominio web al VPS; verificar correo entrante y saliente.
-- [ ] Correo transaccional con el dominio (SMTP + SPF/DKIM/DMARC), para que la verificación y las invitaciones no caigan en spam. Un buzón del dominio también sirve para la verificación de Meta.
+- [x] Registrar `colibly.com` y documentar la arquitectura y su alternativa de migración. Véase [plan de infraestructura](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
+- [x] Publicar la copia PHP de `cpanel-site/` en Neubox y una instancia de producción separada en ludaisca para `app.colibly.com`.
+- [x] Verificar externamente HTTPS, redirección de la app, salud de base/Redis y DNS de correo (SPF, DKIM y DMARC publicados).
+- [ ] Si se mueve el A raíz a otro proveedor, separar primero `mail.colibly.com` y el MX. No hace falta en la arquitectura activa.
+- [x] Correo transaccional de la aplicación configurado y probado desde `/plataforma`; los buzones y el formulario público también funcionan.
+- [ ] Migrar a Contabo u otro VPS estático si el riesgo operativo de la conexión residencial deja de ser aceptable; no bloquea la beta inicial.
 - [ ] Respaldos de producción: base de datos y volumen `media_data`, con copia fuera del servidor.
 - [ ] Monitoreo: aviso si el sitio se cae (`/api/health`) y rastreo de errores.
 - [ ] Variables de infraestructura en producción: `PLATFORM_ADMIN_EMAILS` (tu correo), `APP_URL`, credenciales OAuth de Google Sheets si se usan y `LANDING_WEBCHAT_ACCOUNT_ID` si se activa el chat de la landing. SMTP, claves de IA, Stripe, Turnstile y medición se configuran desde `/plataforma` → **Configuración**.
 
 ### 3. Textos legales
 
+- [x] Publicar términos y privacidad con texto genérico funcional para la etapa beta (confirmado por el propietario el 2026-10-02).
 - [ ] Llenar `LEGAL` en `app/(marketing)/_legal.tsx` (razón social = tu nombre como persona física, domicilio fiscal, correo, jurisdicción) y los 13 huecos `<Blank>` de términos y privacidad (p. ej. si los precios incluyen impuestos y cómo se factura).
 - [ ] Revisión con abogado antes del lanzamiento.
 - [ ] Con el contador: alta en el SAT con actividad empresarial (también se necesita para cobrar y facturar) y si hay que emitir CFDI a clientes mexicanos (Stripe no lo hace).

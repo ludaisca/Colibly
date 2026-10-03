@@ -1,84 +1,94 @@
-# Continuidad: landing beta de cPanel y arquitectura de dominios
+# Continuidad: despliegue público de Colibly
 
-**Corte de información: 1 de octubre de 2026.** Este documento permite retomar el trabajo en otra sesión sin asumir que la vista previa o los DNS siguen iguales. No contiene contraseñas ni tokens.
+**Corte verificado: 2 de octubre de 2026.** Este documento deja el estado operativo para retomar el proyecto sin reconstruir decisiones anteriores. No contiene contraseñas ni tokens.
 
-## Decisión y estado real
+## Arquitectura activa
 
-El usuario quiere conservar el dominio y el correo en Neubox/cPanel y usar `app.colibly.com` para la aplicación en **ludaisca** como plan B. Sigue existiendo un plan A con VPS de Contabo para producción, documentado en [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md). **Actualización 2026-10-02: la landing PHP ya está publicada en https://colibly.com** (carpeta `colibly.com` del cPanel `ludaisca`, que es un dominio adicional en hosting compartido; `public_html` pertenece a ludaisca.com y no se toca). Verificado: HTTPS, PHP 8.2, rutas limpias, CSRF, redirección a HTTPS y sin www (excluye `/.well-known/`), JSON-LD, `robots.txt` con rastreadores de IA permitidos y `llms.txt`. **Pendiente: envío real del formulario y textos legales.** El `.htaccess` del servidor es el del repo precedido por el bloque que genera cPanel (no borrarlo). El texto original de abajo describe el estado antes de publicar. Antes: no se había subido a Neubox; no se ha publicado `app.colibly.com` como una instancia de producción independiente; no se han modificado DNS, correo ni Coolify por este trabajo.
-
-| Versión | Código | Vista previa actual | Propósito |
+| Servicio | Dirección | Alojamiento | Estado |
 |---|---|---|---|
-| Landing original | `app/(marketing)/page.tsx` | `http://ludaisca:15100/` | Referencia anterior en DEV. |
-| Landing beta Next.js | `app/(beta)/beta/` | `http://ludaisca:15100/beta` | Fuente visual y de contenido; la opción de servir ambos hostnames desde un Next.js también está implementada en `proxy.ts`. |
-| Landing beta PHP/cPanel | [`cpanel-site/`](../cpanel-site/README.md) | `http://ludaisca:18080/` mientras exista el contenedor de vista previa | Copia independiente para `colibly.com`; no requiere Next.js ni la BD. |
+| Landing beta | `https://colibly.com` | Neubox/cPanel, PHP 8.2 | Pública y responde 200 por HTTPS. |
+| Aplicación | `https://app.colibly.com` | ludaisca, Coolify, stack de producción aislado | Pública; `/` redirige a `/login` y `/api/health` reporta `db: ok`, `redis: ok`. |
+| Correo | `contacto@colibly.com` y buzones del dominio | Neubox/cPanel | El propietario confirma envío y recepción. DNS de autenticación publicado. |
+| Desarrollo | puerto 15100 y servicios Podman de DEV | ludaisca | Separado de la instancia pública; no exponerlo ni reutilizar sus datos. |
 
-Las tres URLs son de desarrollo. El puerto `18080` se publica desde un contenedor temporal llamado `colibly-beta-php-preview`; al tener `--rm` y no tener política de reinicio, **desaparecerá al detenerlo o reiniciar ludaisca**. `15100` corresponde al contenedor DEV `colibly-app-1`, no a una producción.
+La landing y la aplicación son publicaciones independientes. La primera vive en la carpeta de dominio adicional `colibly.com` de cPanel; `public_html` pertenece a `ludaisca.com` y no debe tocarse. La aplicación pública usa su propia base, Redis, medios, secretos y volúmenes de Coolify. Los demás proyectos alojados en ludaisca no se modificaron.
 
-## Inventario de `cpanel-site/`
+## Verificación pública del 2026-10-02
 
-| Archivo | Función |
-|---|---|
-| `index.php` | HTML completo de la beta: hero, ejemplo de chat, beneficios, tres pasos, oferta, preguntas, formulario, header/footer, SEO/canonical/Open Graph. Crea token CSRF de sesión. |
-| `assets/site.css` | Diseño adaptable para escritorio/móvil, tokens de color Colibly y controles de 12 px. Descarga Bricolage Grotesque/Hanken Grotesk de Google Fonts (las mismas de la beta Next.js); el sitio no es 100 % autosuficiente en fuentes. |
-| `assets/site.js` | Validación nativa, POST AJAX al PHP del mismo dominio, estado de envío/error/éxito y foco tras el resultado. |
-| `assets/icon.svg`, `assets/share.svg` | Ícono provisional «C» y tarjeta para compartir. |
-| `solicitud.php` | Backend del formulario; validación del lado servidor, CSRF, campo trampa, límite de 3 solicitudes por IP y hora en archivos temporales, `mail()` a `contacto@colibly.com` con `Reply-To` del solicitante. No escribe a DB. |
-| `config.php` | Correo público y `APP_URL=https://app.colibly.com`; no contiene credenciales. |
-| `terminos.php`, `privacidad.php`, `legal-layout.php` | Copias HTML de los borradores legales. Se añadió a privacidad el tratamiento de datos de la solicitud beta. Siguen con marcadores legales; llevan `noindex`. |
-| `.htaccess` | Índice, rutas limpias `/terminos` y `/privacidad`, protección de archivos auxiliares y cabeceras básicas. Requiere Apache/mod_rewrite habilitado en cPanel. |
-| `robots.txt`, `sitemap.xml` | Solo indexar la landing; los borradores legales no están en sitemap. |
-| `preview-router.php` | Simula las rutas limpias con `php -S`; **no subirlo a `public_html`**. |
-| `README.md` | Lista de archivos a subir, requisitos de PHP y comprobaciones para cPanel. |
+- `https://colibly.com/`, `/terminos`, `/privacidad`, `/robots.txt` y `/llms.txt` responden 200 por HTTPS.
+- La landing publica canonical, Open Graph, JSON-LD, oferta beta de 30 días y enlaces de acceso hacia `https://app.colibly.com/login`.
+- Los textos legales genéricos son funcionales y se aceptan para esta etapa de beta; siguen con `noindex` y queda una revisión profesional antes del lanzamiento general.
+- `https://app.colibly.com/` responde 307 hacia `/login`; el destino responde 200.
+- `https://app.colibly.com/api/health` devuelve `status: ok`, `db: ok` y `redis: ok`.
+- Ambos hosts sirven HSTS y cabeceras de seguridad. La aplicación tiene CSP propia.
+- No se envió una solicitud de beta ni un correo durante esta verificación. El propietario confirmó que los correos funcionan.
 
-La copia conserva el texto y composición de la beta Next.js, pero no es un render idéntico píxel por píxel: los íconos React/Lucide se reemplazaron por caracteres/CSS y la fuente externa puede afectar el resultado si no carga. No se ha ejecutado una comparación visual automatizada en tres tamaños; hacerlo antes de dar por cerrada la paridad visual.
+## DNS observado
 
-### Flujo del formulario
-
-`index.php` emite una cookie de sesión técnica y un token CSRF. El navegador envía el formulario a `solicitud.php` **en `colibly.com`**, de modo que una caída de ludaisca no impide solicitar la beta. El endpoint rechaza método diferente de POST, cuerpo >8 KiB, token incorrecto, valores inválidos y más de 3 envíos/hora por IP. El campo oculto `website` actúa como trampa para bots. `mail()` intenta entregar al correo de Neubox; una respuesta 201 significa que PHP aceptó el mensaje, **no confirma llegada al buzón**. El límite usa `sys_get_temp_dir()`: comprobar que cPanel permite escribir allí y que la retención de temporales no cambia de forma inesperada. Las solicitudes exitosas solo quedan en el buzón, por lo que las copias de correo también importan.
-
-La versión Next.js original del formulario usa `/api/beta/solicitudes`, Redis para límites y SMTP desde `/plataforma`; **la versión PHP no usa ninguno de esos servicios**. La versión PHP tampoco incluye widget web, Meta Pixel, GA4 ni Google Ads. En sus textos de privacidad solo se declara la cookie técnica; actualizar consentimiento y aviso antes de añadir medición. Los enlaces «Entrar» van a `https://app.colibly.com/login` y las páginas legales quedan en `colibly.com`.
-
-## DNS y servicios vistos al cierre
-
-Dominio comprado en Hostinger. DNS autoritativo en `ns143`, `ns144` y `ns245.neubox.net`. Consultas del 2026-10-01:
-
-| Nombre/tipo | Valor observado | Acción para el plan B elegido |
+| Registro | Valor público observado | Uso |
 |---|---|---|
-| `colibly.com A` | `65.99.252.96` | **Conservar**: web/cPanel de Neubox. |
-| `colibly.com MX` | `0 colibly.com.` | **Conservar** mientras el A raíz siga en Neubox. |
-| `mail.colibly.com CNAME` | `colibly.com.` | **Conservar** bajo esta misma condición. |
-| `app.colibly.com CNAME` | `ludaisca.ddns.net.` | Conservar; verificar que el proxy publique la app con TLS. |
-| `ludaisca.ddns.net A` | `189.171.112.105` en la consulta | IP residencial dinámica; revisar antes de cada prueba externa. |
+| `colibly.com A` | `65.99.252.96` | Landing y servidor de correo de Neubox. |
+| `app.colibly.com CNAME` | `ludaisca.ddns.net` | Aplicación; durante la revisión resolvió a `189.171.112.105`. |
+| `colibly.com MX` | `0 colibly.com.` | Entrega de correo actual. |
+| `mail.colibly.com` | CNAME hacia `colibly.com`, luego `65.99.252.96` | Nombre de correo actual. |
+| SPF | Autoriza `65.99.252.96`, MailChannels y el relay de Neubox | Publicado. |
+| DKIM | Clave RSA en `default._domainkey.colibly.com` | Publicada. |
+| DMARC | `v=DMARC1; p=none;` | Monitoreo; todavía no aplica cuarentena o rechazo. |
 
-Neubox solo ofrece crear A, AAAA, CAA, CNAME, DMARC, MX, TXT y SRV en el editor; no muestra ALIAS/ANAME. El plan B elegido **no los necesita** porque la landing queda en cPanel. Si algún día se mueve **también `colibly.com`** a Contabo/ludaisca, entonces se debe independizar primero `mail` y MX del A raíz; el procedimiento está en el documento de infraestructura. No aplicar esos cambios al plan B elegido.
+Esta topología conserva el correo porque el A raíz continúa en Neubox. Si algún día se mueve `colibly.com` a otro servidor, primero hay que cambiar `mail.colibly.com` a un A explícito de Neubox y el MX a `mail.colibly.com`; el procedimiento está en [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
 
-Ludaisca: 31 GiB RAM observados; raíz de 15 GB con ~6 GB libres; `/data` RAID ~3.6 TB libres. La raíz ya se llenó anteriormente con builds, así que mantener artefactos y volúmenes en el LV de Podman y no borrar otros proyectos. Coolify responde localmente en `:8000`; proxy escucha en `:80` y `:443`. No se confirmó desde fuera que el router y firewall permitan llegar a ambos hostnames de producción. DEV de Colibly está saludable en Podman: `colibly-app-1` (`15100:5000`), `colibly-db-1`, `colibly-redis-1`, `colibly-mailpit-1` (`18025:8025`). Hay otros proyectos en el host; no tocarlos.
+## Código de la landing en cPanel
 
-## Pruebas efectuadas
+La fuente publicable está en [`cpanel-site/`](../cpanel-site/README.md):
 
-- Sintaxis PHP: `php -l` en todos los `.php` mediante `docker.io/library/php:8.2-cli`; todos sin errores.
-- `node --check cpanel-site/assets/site.js`: sin errores.
-- PHP integrado en contenedor: `GET /` 200, CSS 200, `/terminos` y `/privacidad` 200 mediante el router de vista previa, `GET /config.php` 404 y `GET /solicitud.php` 405.
-- `http://127.0.0.1:15100/` y `/beta` respondieron 200.
-- `git diff --check`: sin errores de formato.
+- `index.php`: landing, SEO, formulario y token CSRF.
+- `solicitud.php`: validación del servidor, honeypot, límite de tres solicitudes por IP/hora y entrega mediante `mail()`.
+- `config.php`: correo público y URL de la aplicación; no contiene credenciales.
+- `terminos.php`, `privacidad.php`, `legal-layout.php`: borradores legales.
+- `.htaccess`: HTTPS/sin `www`, rutas limpias, protección de auxiliares y cabeceras. En producción debe conservarse antes el bloque generado por cPanel.
+- `assets/`: estilos, JavaScript, íconos e imágenes sociales.
+- `robots.txt`, `llms.txt`, `sitemap.xml`: descubrimiento y SEO.
+- `preview-router.php`: solo para `php -S`; no se publica.
 
-**No verificado:** entrega real con `mail()` en Neubox; recepción y respuesta desde el buzón; Apache `.htaccess` en cPanel; HTTPS real; POST exitoso del formulario en cPanel; acceso externo al puerto de vista previa; revisión visual en navegador/móvil; accesibilidad automatizada de la copia; soporte de PHP `mbstring`; legal final. Las pruebas anteriores no equivalen a publicar el sitio.
+El formulario de cPanel es independiente de Next.js, Redis y la base de datos. Una solicitud exitosa existe únicamente en el buzón, por lo que también debe incluirse el correo en el plan de respaldo. La copia PHP no incorpora Pixel, GA4, Google Ads ni el widget del chat; si se agregan, antes debe implementarse el consentimiento y actualizarse privacidad.
 
-## Retomar en la próxima sesión
+## Despliegue de la aplicación
 
-1. Confirmar qué arquitectura se ejecutará primero: plan A Contabo o plan B cPanel+ludaisca. La copia PHP es utilizable para el plan B; si se decide usarla también junto con Contabo, el A raíz puede seguir en Neubox y solo `app.colibly.com` necesitaría apuntar al VPS.
-2. Comparar visualmente las tres URLs en escritorio y móvil. Ajustar la copia PHP donde difiera de la beta de Next.js; revisar foco, contraste y errores del formulario. Si el contenedor temporal ya no existe, recrearlo con:
+La aplicación `colibly` en Coolify usa Docker Compose desde `ludaisca/Colibly`, servicio `app` en el puerto interno 5000 y dominio `app.colibly.com`. PostgreSQL, Redis y `media_data` usan volúmenes propios. `APP_URL` apunta a `https://app.colibly.com` y `SITE_URL` a `https://colibly.com`.
 
-   ```sh
-   podman run -d --rm --name colibly-beta-php-preview -p 18080:8080 -v /data/Proyectos/Colibly/cpanel-site:/site:ro,z docker.io/library/php:8.2-cli php -S 0.0.0.0:8080 -t /site /site/preview-router.php
-   ```
+No añadir un `ports:` fijo al compose de producción. No usar bind mounts de archivos del repositorio en Coolify: el origen se clona en un contenedor auxiliar y puede terminar montándose como directorio. Evitar también dos despliegues simultáneos, por ejemplo uno manual y otro disparado por webhook.
 
-3. En el cPanel de Neubox, comprobar versión PHP ≥8.1, extensión `mbstring`, `mail()`, HTTPS y mod_rewrite. **Subir únicamente los archivos indicados en `cpanel-site/README.md`** cuando se vaya a probar allí. Si `mail()` no entrega, adaptar a SMTP autenticado de Neubox con secretos fuera de `public_html` y del repositorio.
-4. Probar un envío real desde `colibly.com` y revisar entrada, spam y autenticación SPF/DKIM. Probar validación, límite, CSRF, URL legales, favicon, share image y móvil. Asegurar que el sitio de cPanel no anteponga una plantilla vieja o redirección propia.
-5. Configurar una instancia **de producción separada** para la app en ludaisca o Contabo; no exponer el DEV `15100` como producción. Usar secretos/BD/volúmenes distintos, `APP_URL=https://app.colibly.com`, HTTPS, backups externos y webhooks/callbacks correctos. La separación de hosts ya está programada en `proxy.ts`, pero verificar sus redirecciones con la arquitectura elegida.
-6. Cerrar textos legales con asesoría, (la prueba ya es de **30 días** en beta, registro, plan y términos desde 2026-10-01). Probar la incorporación de WhatsApp y el correo transaccional antes de invitar negocios.
-7. Cuando se apruebe el contenido, quitar `noindex` de las páginas legales y agregarlas al sitemap. Mantener sincronizadas la landing Next.js y la PHP si cambia el texto/branding.
+## Validado después del despliegue
+
+- [x] Contraseña de la base rotada y token temporal de la API de Coolify revocado (confirmado por el propietario el 2026-10-02).
+- [x] SMTP transaccional configurado y probado desde la aplicación.
+- [x] Formulario público probado de punta a punta y entrega confirmada.
+- [x] Términos y privacidad accesibles con texto genérico funcional para la beta. La revisión profesional queda como mejora previa al lanzamiento general.
+
+## Pendientes prioritarios
+
+1. Configurar respaldos diarios externos de PostgreSQL y `media_data`, guardar `ENCRYPTION_KEY` fuera del servidor y probar una restauración.
+2. Configurar las claves de IA de plataforma y ejecutar una prueba controlada de consumo/créditos.
+3. Añadir la ruta `/producto` a la copia PHP o retirar cualquier enlace/redirección que dependa de ella.
+4. Crear monitoreo externo de la landing y `/api/health`, además de alertas de disco en ludaisca.
+5. Integrar la rama desplegada en `main` y decidir si se reactiva el despliegue automático, evitando carreras con despliegues manuales.
+6. Probar registro, login, roles, WhatsApp, workers, medios y reinicio completo antes de invitar negocios externos.
+7. Antes del lanzamiento general, revisar legalmente términos y privacidad; después decidir si se quita `noindex` y se agregan al sitemap.
+
+Contabo queda como opción futura de migración a una IP estática y mejor aislamiento. Ya no es un requisito para iniciar la beta: la arquitectura cPanel + ludaisca es la producción activa, con el riesgo aceptado de que la aplicación depende de energía, ISP e IP dinámica residencial.
 
 ## Estado del repositorio
 
-Los archivos `cpanel-site/` y varios documentos de esta etapa están **sin seguimiento o modificados en un árbol de trabajo amplio**, junto con muchos cambios anteriores del proyecto. No se hizo commit, push ni despliegue. No asumir que un deploy desde GitHub incluirá la landing PHP hasta revisar, integrar y publicar esos archivos por el mecanismo elegido. No imprimir ni subir `.env` ni credenciales de correo.
+`cpanel-site/` y estos documentos forman parte de un árbol de trabajo amplio con cambios previos. Antes del próximo despliegue desde Git hay que revisar, integrar y versionar el conjunto correcto. No borrar ni restablecer cambios ajenos, y nunca incluir `.env`, credenciales o secretos en commits.
+
+## Pruebas de canales en DEV (2026-10-02)
+
+Se inició un túnel temporal de Cloudflare hacia un gateway Nginx de Podman. La configuración y los comandos de operación están en [`dev/telegram-webhook/README.md`](../dev/telegram-webhook/README.md). Desde el 2026-10-02 publica también **la interfaz completa de DEV** por HTTPS, protegida con HTTP Basic Auth antes del login normal; el usuario externo es `colibly-dev` y el hash de la contraseña queda solo en `dev/telegram-webhook/.htpasswd` (ignorado por Git). Las rutas de webhook Telegram, WhatsApp, Messenger/Instagram y Lead Ads no requieren Basic Auth y conservan la verificación propia. Se comprobó: `/login` sin clave devuelve 401, con clave 200, GET al webhook Telegram devuelve 403 y GET al de mensajería Meta sin parámetros devuelve 400. `next.config.ts` permite `*.trycloudflare.com` en DEV para la hidratación de la UI. La URL rápida cambia cuando se recrea el túnel.
+
+`APP_URL`, `TELEGRAM_WEBHOOK_BASE_URL` y `WHATSAPP_WEBHOOK_BASE_URL` están en el `.env` local de DEV y apuntan a la URL temporal del túnel. Los valores no se publican en Git. `APP_URL` permite que correos de verificación e invitación usen un enlace externo; el código de Telegram registra su webhook con el otro origen, y la pantalla WhatsApp muestra la URL pública adecuada. En producción, sin override, WhatsApp sigue usando `APP_URL`.
+
+En la organización **Colibly de DEV** (administrador `luis.islas@ludaisca.com`) quedó conectada la cuenta `Telegram QA DEV`, bot `@TheCocoBlue_Bot`. Telegram reportó webhook configurado y cero actualizaciones pendientes, sin error de entrega. El bot IA «Ventas» se vinculó y activó en esa cuenta. La captura aportada el 2026-10-02 ya muestra un chat entrante y respuestas automáticas en la bandeja, por lo que la ingestión y la respuesta básica funcionan. Queda validar un intercambio largo y la respuesta manual después de pausar el bot.
+
+El apartado **Bots IA → Probar** ahora conserva una conversación durante la visita a esa página (el botón «Nueva conversación» la reinicia), respeta la memoria `NONE`/`RECENT`/`SUMMARY` y recupera conocimiento cuando RAG está habilitado. No guarda esa conversación en el inbox ni prueba el webhook; cada respuesta usa un crédito. El historial se valida y limita en la API. El selector de etiquetas de la bandeja ahora usa un portal para que no quede recortado detrás del panel de chats.
+
+La cuenta WhatsApp real que envía manualmente está en **`app.colibly.com` (Coolify)**, una base distinta de la DEV local. El túnel ya acepta su handshake y POST, pero para probar desde DEV hay que crear una cuenta equivalente en la organización Colibly local y después apuntar la app de Meta de prueba a la URL del túnel. Al cambiar ese callback, la instancia Coolify dejará de recibir los eventos entrantes de esa app mientras dure la prueba.

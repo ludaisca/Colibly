@@ -1,13 +1,13 @@
-# Infraestructura de la beta: Contabo y respaldo ludaisca
+# Infraestructura de la beta: producción en ludaisca y alternativa Contabo
 
-**Decisión del 2026-10-01. Estado: plan; sin VPS contratado ni despliegue público verificado.**
+**Decisión del 2026-10-01. Estado actualizado y verificado externamente el 2026-10-02.**
 
 ## Objetivo y límites
 
-- Producción pública: `https://colibly.com` (landing beta) y `https://app.colibly.com` (producto), ambos en un VPS de Contabo. Los dos hostnames llegan al mismo servicio `app` de Next.js, puerto interno 5000, mediante el proxy HTTPS de Coolify.
-- Desarrollo: permanece en el servidor actual **ludaisca**, con Podman rootless y sus datos de prueba. No desmontar ese entorno ni borrar otros proyectos del servidor.
+- Producción pública: `https://colibly.com` sirve la landing PHP desde Neubox/cPanel y `https://app.colibly.com` sirve el producto desde una instancia aislada de Coolify en ludaisca.
+- Desarrollo: permanece también en **ludaisca**, con Podman rootless y sus datos de prueba, separado de producción. No desmontar ese entorno ni borrar otros proyectos del servidor.
 - Correo: permanece con **Neubox/cPanel**. El VPS no recibirá correo ni reemplazará los buzones. `contacto@colibly.com` es el destino de solicitudes beta.
-- Plan B preferido: `colibly.com` se sirve desde cPanel/Neubox mediante la copia PHP; `app.colibly.com` se sirve desde ludaisca con Coolify/proxy y su IP residencial dinámica. No constituye alta disponibilidad automática. La variante de servir ambos hostnames desde ludaisca se conserva abajo solo como alternativa descartada por ahora.
+- Arquitectura activa: `colibly.com` se sirve desde cPanel/Neubox mediante la copia PHP; `app.colibly.com` se sirve desde ludaisca con Coolify/proxy y su IP residencial dinámica. No constituye alta disponibilidad automática. Contabo queda documentado como futura migración a IP estática.
 
 La aplicación ya implementa la separación por hostname; véase [DOMINIOS_Y_LANDING_BETA.md](DOMINIOS_Y_LANDING_BETA.md). El cambio de servidor no requiere cambiar el dominio visible ni las URL canónicas.
 
@@ -54,7 +54,7 @@ El A raíz **no puede cambiarse primero**: con el MX y CNAME actuales, el correo
 - Backups **diarios y externos a Contabo** de PostgreSQL y `media_data`, cifrados y con retención definida; guardar también secretos y configuración de despliegue. Un snapshot del VPS no es sustituto. Hacer al menos una restauración real en entorno aislado. Objetivo inicial propuesto: pérdida máxima de datos de 24 h (RPO) y recuperación en 24 h (RTO); revisarlo antes de aceptar clientes que necesiten más.
 - Monitoreo externo de `https://colibly.com/`, `https://app.colibly.com/api/health` y espacio de disco; alertar a una dirección atendida. Vigilar latencia de páginas y uso de CPU compartida durante builds y tráfico real.
 - Prueba completa de registro, correo, login, chat, recepción y envío de WhatsApp, workers, archivos de medios y recuperación tras reinicio. Mantener canales nuevos habilitados manualmente desde Plataforma según la política acordada.
-- Bloqueos de lanzamiento independientes del hosting: textos legales finales, oferta beta de 30 días alineada con el registro que hoy anuncia 14, configuración asistida de WhatsApp, SMTP real y pruebas de pagos si se cobrarán. Ver [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) y [OFERTA_BETA_COLIBLY.md](OFERTA_BETA_COLIBLY.md).
+- Trabajo posterior independiente del hosting: revisión legal profesional antes del lanzamiento general, configuración asistida de WhatsApp y pruebas de pagos si se cobrarán. SMTP y el formulario público ya fueron probados; la oferta beta, el registro y los términos anuncian 30 días. Ver [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) y [OFERTA_BETA_COLIBLY.md](OFERTA_BETA_COLIBLY.md).
 
 ## Alternativa al plan B elegido: publicar también la landing desde ludaisca
 
@@ -69,18 +69,22 @@ El A raíz **no puede cambiarse primero**: con el MX y CNAME actuales, el correo
 
 **Limitaciones de esta variante descartada:** conexión residencial con IP dinámica, disponibilidad ligada a energía/ISP local y DNS raíz pendiente de automatización; Coolify, DEV y la contingencia compartirían un servidor físico. No prometer recuperación instantánea ni balanceo automático.
 
-## Plan B elegido: landing en Neubox, app en ludaisca
+## Arquitectura activa: landing en Neubox, app en ludaisca
 
-Decisión posterior: mantener `colibly.com` alojado en el cPanel de Neubox y `app.colibly.com` en ludaisca. Con esta distribución el A raíz puede seguir en `65.99.252.96` y no necesita seguir la IP residencial; el MX y el correo permanecen como están. El CNAME explícito de `app.colibly.com` ya apunta a `ludaisca.ddns.net`. La landing PHP independiente y su formulario de correo están preparados en [cpanel-site/README.md](../cpanel-site/README.md). Deben probarse en cPanel antes de publicarlos. Esta variante evita la dependencia abierta de ALIAS/API DNS del paso 4 anterior; ese paso solo corresponde a alojar **también la landing** en ludaisca.
+Arquitectura publicada el 2026-10-02: `colibly.com` está alojado en el cPanel de Neubox y `app.colibly.com` en ludaisca. Con esta distribución el A raíz sigue en `65.99.252.96` y no necesita seguir la IP residencial; el MX y el correo permanecen en Neubox. El CNAME explícito de `app.colibly.com` apunta a `ludaisca.ddns.net`. La landing PHP independiente está en [cpanel-site/README.md](../cpanel-site/README.md). Esta variante evita la dependencia de ALIAS/API DNS para el ápice.
 
-La landing en Neubox puede permanecer visible si ludaisca deja de responder, pero el producto y sus webhooks no. Si la app en ludaisca es una contingencia de una producción activa en Contabo, siguen siendo necesarios respaldo/restauración, secretos e aislamiento de datos descritos arriba. El formulario PHP no depende de la app y envía solicitudes al buzón de Neubox.
+La landing en Neubox puede permanecer visible si ludaisca deja de responder, pero el producto y sus webhooks no. Producción y DEV comparten el servidor físico, aunque mantienen stacks, datos, secretos y volúmenes separados. Siguen siendo necesarios respaldo/restauración externos y monitoreo de energía, ISP, IP dinámica, almacenamiento y certificados. El formulario PHP no depende de la app y envía solicitudes al buzón de Neubox.
 
-## Pendientes antes de ejecutar cambios externos
+## Estado y pendientes después del despliegue
 
-- [ ] Contratar y validar VPS Contabo; registrar IP, región, sistema y coste real sin publicar secretos en el repositorio.
-- [ ] Para el plan B elegido, comprobar PHP, HTTPS, `.htaccess` y entrega real de `mail()` en Neubox; no se necesita automatizar el A raíz. Confirmar IP de correo y enrutamiento si se cambia al plan A.
+- [x] Publicar PHP 8.2 y HTTPS en Neubox; verificar landing, legales, `robots.txt` y `llms.txt`.
+- [x] Publicar la aplicación en Coolify/ludaisca; verificar TLS y `/api/health` con PostgreSQL y Redis sanos.
+- [x] Verificar DNS público de landing, aplicación, MX, SPF, DKIM y DMARC. El propietario confirma el funcionamiento de los buzones.
+- [x] Probar el formulario PHP de punta a punta y el SMTP transaccional de la aplicación; ambos fueron confirmados por el propietario el 2026-10-02.
+- [x] Rotar la contraseña de la base expuesta durante el despliegue y revocar el token temporal de la API de Coolify.
 - [ ] Preparar y restaurar backups; decidir si producción empieza limpia o necesita alguna migración puntual.
-- [ ] Verificar disponibilidad de Coolify en ludaisca, acceso SSH al VPS y capacidad del LV de Podman para el plan B.
-- [ ] Ejecutar las pruebas de aceptación; **después** mover DNS web y actualizar integraciones externas.
+- [ ] Vigilar IP dinámica, disponibilidad externa y capacidad del host; configurar alertas.
+- [ ] Contratar y validar Contabo solo si se decide migrar a una IP estática; registrar IP, región, sistema y coste real sin publicar secretos.
+- [ ] Ejecutar la prueba funcional completa de aceptación antes de invitar clientes.
 
-No se ha modificado DNS, Coolify, el correo ni el entorno DEV al redactar este documento.
+El despliegue público y el DNS descritos arriba estaban activos y se verificaron externamente el 2026-10-02. El entorno DEV continúa separado y no debe borrarse.

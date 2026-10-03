@@ -1,8 +1,8 @@
 # Landing beta y separación de dominios
 
-Preparado en DEV. No se ha desplegado en el servidor público.
+Desplegado públicamente el 2 de octubre de 2026 con la arquitectura separada: la copia PHP/cPanel sirve `https://colibly.com` y la aplicación de Coolify en ludaisca sirve `https://app.colibly.com`.
 
-El plan B elegido después es servir **una copia independiente** de esta landing desde cPanel/Neubox en `colibly.com`, dejando `app.colibly.com` en ludaisca. Archivos y pasos: [cpanel-site/README.md](../cpanel-site/README.md). La separación de dominios descrita abajo corresponde solo a la opción en que ambos hostnames llegan al mismo Next.js; no aplica automáticamente a la copia PHP.
+La arquitectura activa sirve **una copia independiente** desde cPanel/Neubox en `colibly.com`, dejando `app.colibly.com` en ludaisca. Archivos y operación: [cpanel-site/README.md](../cpanel-site/README.md). La separación descrita abajo corresponde a la alternativa en que ambos hostnames llegan al mismo Next.js; no es la configuración pública actual.
 
 ## Opción Next.js con ambos dominios en el mismo servicio
 
@@ -18,7 +18,7 @@ En esta opción, las páginas de aplicación solicitadas en el dominio público 
 
 En DEV, sin ambas URL configuradas, `/` conserva la landing anterior y `/beta` muestra la nueva para poder compararlas. También se conserva `/producto`.
 
-## Configuración para un futuro despliegue con ambos dominios en Next.js
+## Configuración alternativa con ambos dominios en Next.js
 
 1. DNS: `colibly.com` y `app.colibly.com` deben resolver hacia el servicio público correcto. Comprobar el registro del dominio raíz y la propagación antes de activar el sitio; la consulta del 1 de octubre todavía muestra destinos diferentes.
 2. En Coolify o el proxy que publique el contenedor, asociar **ambos FQDN al mismo servicio `app`** con TLS para ambos. El servicio sigue exponiendo el puerto interno 5000; no añadir un puerto fijo al compose de producción.
@@ -27,7 +27,7 @@ En DEV, sin ambas URL configuradas, `/` conserva la landing anterior y `/beta` m
 5. Si se usa Google Sheets, registrar `https://app.colibly.com/api/integrations/google-sheets/callback` como URL de retorno. Las URL de webhooks de Meta y de otros canales también pertenecen a `app.colibly.com`.
 6. Revisar `robots.txt`, sitemap, canonical y la imagen al compartir para ambos hostnames después de configurar HTTPS.
 
-Consulta DNS del 1 de octubre de 2026: `colibly.com` resuelve a `65.99.252.96`; `app.colibly.com` sigue como CNAME de `ludaisca.ddns.net`, que resolvía a `189.171.112.105` ese día. El MX actual apunta a `colibly.com` y `mail.colibly.com` es CNAME del dominio raíz: **mover el A raíz sin separar primero MX y `mail` interrumpiría el correo**. El plan B elegido mantiene el A raíz en Neubox, por lo que no necesita mover MX. Orden de cambios para cada opción: [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
+Consulta DNS del 2 de octubre de 2026: `colibly.com` resuelve a `65.99.252.96`; `app.colibly.com` es CNAME de `ludaisca.ddns.net`, que resolvió a `189.171.112.105`. El MX apunta a `colibly.com` y `mail.colibly.com` termina en el dominio raíz. SPF, DKIM y DMARC están publicados. **Mover el A raíz sin separar primero MX y `mail` interrumpiría el correo.** La arquitectura activa mantiene el A raíz en Neubox y no necesita mover el MX. Orden de una migración futura: [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
 
 ## Alcance de la beta
 

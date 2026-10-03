@@ -1,6 +1,6 @@
 # Landing beta para cPanel
 
-Versión independiente en PHP, HTML, CSS y JavaScript de la landing `/beta` de Next.js. Se publica en `colibly.com`; la aplicación queda en `app.colibly.com` sobre ludaisca. **Preparada en el repositorio; no se ha subido a Neubox.**
+Versión independiente en PHP, HTML, CSS y JavaScript de la landing `/beta` de Next.js. Está publicada desde el 2 de octubre de 2026 en `https://colibly.com`; la aplicación queda en `https://app.colibly.com` sobre ludaisca.
 
 Estado completo para retomar en otra sesión: [docs/CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](../docs/CONTINUIDAD_LANDING_CPANEL_2026-10-01.md).
 
@@ -12,12 +12,12 @@ El `index.php` inicia una sesión para generar un token CSRF. El formulario env�
 
 `assets/` contiene los estilos y un ícono local. El aspecto y el texto reproducen la landing beta del proyecto; se reemplazaron componentes React/Lucide por HTML y CSS. No requiere Node, Next.js ni la base de datos. No incluye el widget de chat ni medición/consentimiento; si se activan posteriormente, actualizar también la política de privacidad. La fuente visual se descarga de Google Fonts; si se desea independencia completa, alojar esas fuentes localmente.
 
-## Antes de publicar
+## Publicación y mantenimiento
 
-1. Dejar el DNS raíz y el MX actuales en Neubox. `app.colibly.com` mantiene su CNAME a `ludaisca.ddns.net`; comprobar HTTPS y `APP_URL=https://app.colibly.com` en el despliegue de la app.
-2. Configurar SSL de `colibly.com` en cPanel y comprobar que la raíz sirve `index.php` por HTTPS. El servidor cPanel debe seguir siendo el destino del A raíz.
-3. Probar una solicitud real desde la landing y verificar recepción en `contacto@colibly.com`. Probar también campos inválidos, reenvío excesivo y la página de confirmación.
-4. Revisar los borradores de `/terminos` y `/privacidad` con asesoría legal. Tienen marcadores pendientes, `noindex` y no se incluyen en el sitemap hasta que estén listos. La prueba es de 30 días en la landing, el registro y los términos (`TRIAL_DAYS`); si cambia, actualizar `terminos.php` a mano.
+1. Conservar el DNS raíz y el MX en Neubox mientras esta arquitectura siga activa. `app.colibly.com` mantiene su CNAME a `ludaisca.ddns.net`; HTTPS y `APP_URL=https://app.colibly.com` están activos.
+2. Mantener SSL de `colibly.com` en cPanel y comprobarlo después de cada renovación. El servidor cPanel debe seguir siendo el destino del A raíz.
+3. El formulario y su entrega a `contacto@colibly.com` fueron validados por el propietario el 2026-10-02. Repetir la prueba después de cambios del hosting o del correo.
+4. `/terminos` y `/privacidad` tienen texto genérico funcional aceptado para la beta. Conservan `noindex` y no se incluyen en el sitemap hasta su revisión profesional. La prueba es de 30 días en la landing, el registro y los términos (`TRIAL_DAYS`); si cambia, actualizar `terminos.php` a mano.
 5. Si cambia la oferta, marca o precios, actualizar tanto esta copia como la landing Next.js. Son dos publicaciones distintas; la versión de cPanel no se sincroniza sola.
 
 ## Prueba local con PHP
