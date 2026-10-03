@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
@@ -30,7 +31,7 @@ const WA_MESSAGE_SELECT = {
   reactionEmoji: true,
   agentReactionEmoji: true,
   agentReactions: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { id: true, emoji: true, status: true, error: true } },
-} as const;
+} satisfies Prisma.WAMessageSelect;
 const CHANNEL_MESSAGE_SELECT = { ...MESSAGE_SELECT, interactivePayload: true, isFromComment: true } as const;
 
 export async function GET(
