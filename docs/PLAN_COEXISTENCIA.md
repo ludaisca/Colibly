@@ -1,6 +1,6 @@
 # Plan técnico: Embedded Signup v4 + WhatsApp Coexistencia
 
-Estado: **análisis terminado, sin código escrito** (2026-10-03). Complementa `docs/PLAN_LANZAMIENTO.md` §4 (trámites de Meta) y la memoria `meta-app-colibly.md`.
+Estado (2026-10-03): **Fase 1 terminada y verificada**; siguiente: Fase 2 (Embedded Signup sin coexistencia). Complementa `docs/PLAN_LANZAMIENTO.md` §4 (trámites de Meta) y la memoria `meta-app-colibly.md`.
 
 ## 1. Objetivo
 
@@ -166,3 +166,20 @@ podman compose -f dev/coexistencia/compose.yml down        # conserva datos; con
 ## 10. Estimación gruesa
 
 F1 ~medio día; F2 ~1 día; F3 ~2 días; F4 ~1 día; F5 ~1 día con número real. Dependen de la aprobación de App Review para probar con terceros.
+
+## 11. Registro de avance
+
+### Fase 1 — hecha (2026-10-03, rama `feat/wa-coexistencia`)
+- Migración `20261003061634_meta_platform_app_embedded_signup` (aditiva): `PlatformSettings.metaAppId`, `metaAppSecret` (cifrado), `metaEmbeddedSignupConfigId`, `metaWebhookVerifyToken` (cifrado); enum `WAConnectionType` y `WAAccount.connectionType` (default `MANUAL`).
+- `/plataforma` → Configuración: sección "App de Meta de la plataforma"; API `GET/PATCH /api/plataforma/configuracion` con los campos nuevos (los secretos solo exponen `has…`).
+- `lib/meta/platform-app.ts`: `validateWhatsAppWebhookSignature` (cuentas `EMBEDDED_SIGNUP` → secreto de plataforma; `MANUAL` → secreto de la cuenta), `verifyTokenMatches`, `getMetaPlatformApp`. El webhook y su GET usan estas funciones.
+- `lib/meta/graph.ts`: `GRAPH_API_VERSION = "v25.0"` solo para código nuevo; los clientes existentes siguen en v21.0 (migrarlos es un cambio aparte).
+- Verificado en el stack aislado: `tsc` limpio, 233 pruebas (17 nuevas), eslint sin errores en lo tocado.
+
+### Hallazgos de la Fase 1
+- La imagen `colibly-app:latest` está desactualizada respecto a `package.json` (faltan `@heroui/react`, `@base-ui/react`, `@xyflow/react`, `react-resizable-panels`). En el stack aislado hubo que ejecutar `npm install` dentro del contenedor (con la caché en el volumen). La misma imagen es la que usa Coolify solo si se reconstruye: **reconstruirla antes del próximo despliegue**.
+- `npm run lint` falla con 3 errores `no-require-imports` en `dev/telegram-webhook/connect-dev.cjs` (trabajo previo del usuario). Pendiente: excluir `dev/**` de eslint o convertir el archivo.
+- Quedó pendiente de decisión: dónde generar/guardar el PIN de registro para números nuevos (Fase 2).
+
+### Siguiente (Fase 2)
+Componente "Conectar WhatsApp" (SDK de Facebook), `POST /api/whatsapp/embedded-signup/complete`, intercambio de código por token, suscripción de la WABA, registro del número (solo sin coexistencia) y creación de `WAAccount` con `connectionType = EMBEDDED_SIGNUP` + `frame-src` en la CSP.
