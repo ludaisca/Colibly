@@ -97,6 +97,27 @@ model WAAccount {
   name              String
   channel           WAChannel       @default(META_CLOUD)
   connectionType    WAConnectionType @default(MANUAL) @map("connection_type")
+  // Coexistencia: el número sigue activo en la app WhatsApp Business del
+  // teléfono además de Cloud API (Embedded Signup con featureType
+  // whatsapp_business_app_onboarding).
+  coexistence            Boolean                 @default(false)
+  syncStatus             WACoexistenceSyncStatus @default(NONE) @map("sync_status")
+  syncDeadlineAt         DateTime?               @map("sync_deadline_at")
+  syncProgress           Int?                    @map("sync_progress")
+  // { contacts?: request_id, history?: request_id } de POST /smb_app_data.
+  syncRequestIds         Json?                   @map("sync_request_ids")
+  syncError              String?                 @map("sync_error")
+  businessAppOnboardedAt DateTime?               @map("business_app_onboarded_at")
+  // Token de negocio de Embedded Signup (WAAccount.accessToken): cuándo vence y
+  // cuándo se avisó, para no repetir el aviso en cada tick.
+  tokenExpiresAt         DateTime?               @map("token_expires_at")
+  tokenAlertedAt         DateTime?               @map("token_alerted_at")
+  // PIN de 6 dígitos con el que se registró el número en Cloud API (cifrado).
+  twoStepPin             String?                 @map("two_step_pin")
+  disconnectedReason     String?                 @map("disconnected_reason")
+  // Id de Meta de quien autorizó la app, si se pudo obtener: sirve para casar
+  // los callbacks de desautorización/eliminación de datos con la cuenta.
+  metaUserId             String?                 @map("meta_user_id")
   phoneNumber       String?
   phoneNumberId     String?
   wabaId            String?
@@ -145,6 +166,8 @@ model WAAccount {
   @@unique([userId, name])
   @@index([phoneNumberId])
   @@index([organizationId])
+  @@index([syncStatus, syncDeadlineAt])
+  @@index([metaUserId])
   @@map("wa_accounts")
 }
 
@@ -225,6 +248,30 @@ model ContactCustomFieldValue {
   @@unique([contactId, definitionId])
   @@index([definitionId])
   @@map("contact_custom_field_values")
+}
+
+// Estado de la sincronización inicial de una cuenta conectada por coexistencia
+// (contactos + historial de la app WhatsApp Business). Meta da 24 h desde el
+// alta para pedirla; cada petición (contactos, historial) solo puede hacerse
+// una vez por conexión.
+enum WACoexistenceSyncStatus {
+  NONE
+  PENDING
+  CONTACTS_REQUESTED
+  HISTORY_REQUESTED
+  COMPLETED
+  HISTORY_DECLINED
+  EXPIRED
+  FAILED
+}
+
+// De dónde salió un mensaje de WAMessage: API = enviado/recibido por Cloud API
+// (lo normal), BUSINESS_APP_ECHO = lo escribió el negocio en la app del
+// teléfono (smb_message_echoes), HISTORY = importado del historial de la app.
+enum WAMessageOrigin {
+  API
+  BUSINESS_APP_ECHO
+  HISTORY
 }
 
 // Cómo se conectó la cuenta: MANUAL = el cliente pegó credenciales de SU app de
@@ -527,6 +574,9 @@ model WALeadScore {
 model WAMessage {
   id                 String           @id @default(cuid())
   wamid              String?
+  // API = Cloud API; BUSINESS_APP_ECHO = escrito en la app del teléfono del
+  // negocio (coexistencia); HISTORY = importado del historial de esa app.
+  origin             WAMessageOrigin  @default(API)
   // Contexto de respuesta de WhatsApp: el id externo del mensaje citado.
   replyToWamid       String?
   // Una conversación individual tiene un lead; la reacción vigente de ese
@@ -1710,6 +1760,9 @@ model Organization {
   // activa desde /plataforma (lib/channel-flags.ts). WhatsApp no tiene flag,
   // siempre disponible. Default false: una organización nueva solo tiene
   // WhatsApp hasta que se le habilite algo más.
+  // Coexistencia de WhatsApp (conectar el número de la app WhatsApp Business):
+  // bandera por organización durante la beta, apagada por defecto.
+  whatsappCoexistenceEnabled Boolean       @default(false) @map("whatsapp_coexistence_enabled")
   channelTelegramEnabled  Boolean          @default(false) @map("channel_telegram_enabled")
   channelMessengerEnabled Boolean          @default(false) @map("channel_messenger_enabled")
   channelInstagramEnabled Boolean          @default(false) @map("channel_instagram_enabled")
@@ -1815,6 +1868,24 @@ model StripeEvent {
 // booleano "configurado"). Lo que NO vive aquí (DATABASE_URL, REDIS_URL,
 // AUTH_SECRET, ENCRYPTION_KEY, APP_URL, PLATFORM_ADMIN_EMAILS) es
 // infraestructura de arranque y se queda en env — ver AGENTS.md.
+// Solicitudes de eliminación de datos que Meta manda al callback firmado
+// (/api/meta/data-deletion). Meta pide devolver un código de confirmación y una
+// URL pública donde el usuario consulta el estado.
+model MetaDataDeletionRequest {
+  id               String    @id @default(cuid())
+  confirmationCode String    @unique @map("confirmation_code")
+  metaUserId       String    @map("meta_user_id")
+  // RECEIVED = recibida, COMPLETED = se borraron los datos de las cuentas que
+  // coinciden, NO_DATA = no había cuentas asociadas a ese usuario.
+  status           String    @default("RECEIVED")
+  accountsDeleted  Int       @default(0) @map("accounts_deleted")
+  receivedAt       DateTime  @default(now()) @map("received_at")
+  completedAt      DateTime? @map("completed_at")
+
+  @@index([metaUserId])
+  @@map("meta_data_deletion_requests")
+}
+
 model PlatformSettings {
   id String @id @default("platform")
 
