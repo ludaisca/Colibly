@@ -1,6 +1,6 @@
 # Plan técnico: Embedded Signup v4 + WhatsApp Coexistencia
 
-Estado (2026-10-03): **Fase 1 terminada y verificada**; siguiente: Fase 2 (Embedded Signup sin coexistencia). Complementa `docs/PLAN_LANZAMIENTO.md` §4 (trámites de Meta) y la memoria `meta-app-colibly.md`.
+Estado (2026-10-03): **Fases 1 a 4 implementadas y verificadas** con pruebas unitarias y 85 comprobaciones de punta a punta contra un Meta simulado. Falta la Fase 5: probar con Meta real (ver §13 y §14). Complementa `docs/PLAN_LANZAMIENTO.md` §4 (trámites de Meta) y la memoria `meta-app-colibly.md`.
 
 ## 1. Objetivo
 
@@ -181,5 +181,32 @@ F1 ~medio día; F2 ~1 día; F3 ~2 días; F4 ~1 día; F5 ~1 día con número real
 - `npm run lint` falla con 3 errores `no-require-imports` en `dev/telegram-webhook/connect-dev.cjs` (trabajo previo del usuario). Pendiente: excluir `dev/**` de eslint o convertir el archivo.
 - Quedó pendiente de decisión: dónde generar/guardar el PIN de registro para números nuevos (Fase 2).
 
-### Siguiente (Fase 2)
-Componente "Conectar WhatsApp" (SDK de Facebook), `POST /api/whatsapp/embedded-signup/complete`, intercambio de código por token, suscripción de la WABA, registro del número (solo sin coexistencia) y creación de `WAAccount` con `connectionType = EMBEDDED_SIGNUP` + `frame-src` en la CSP.
+### Fases 2 a 4 — hechas (2026-10-03)
+- **Alta con un clic** (F2): `Conectar WhatsApp` (`cuentas/_conectar-whatsapp.tsx`), `GET /api/whatsapp/embedded-signup/config`, `POST …/complete`, `completeEmbeddedSignup()` con dependencias inyectables, CSP con `frame-src` de Facebook, detalle de la cuenta con estado de conexión y de sincronización.
+- **Coexistencia** (F3): webhooks `smb_message_echoes`, `history`, `smb_app_state_sync`; cola `coexistence-sync` (lotes de historial/contactos y job de sincronización idempotente); ingesta silenciosa y por lotes (3 000 mensajes: 56 s → 11 s); el eco cuenta como intervención humana para el bot; bandera `whatsappCoexistenceEnabled` por organización en `/plataforma`.
+- **Ciclo de vida** (F4): `PARTNER_REMOVED` / `ACCOUNT_OFFBOARDED` / `ACCOUNT_RECONNECTED`; `coexistence-tick` cada 15 min (reintenta o vence sincronizaciones, avisa del token por vencer); callbacks `signed_request` de desautorización y eliminación de datos con página pública de estado y salvaguarda `MANUAL_REVIEW`.
+- **Verificación**: `tsc` limpio, `npm run lint` limpio (se excluyó `dev/**`), 307 pruebas, build de producción de la etapa `builder`, y `dev/coexistencia/pruebas/` (85 comprobaciones).
+- **Decisiones del usuario aplicadas**: contactos importados sin bloquear por el límite del plan; ecos aparte de las métricas de agentes (no se estampa `firstResponseAt`); se invita a compartir historial (texto en el modal); bandera por organización apagada por defecto.
+
+## 12. Cambios de comportamiento a conocer
+- `WAAccount.appSecret` ya puede ser nulo en una cuenta **sana** (las `EMBEDDED_SIGNUP` usan el secreto de plataforma): no tratarlo como "falta".
+- Dos migraciones nuevas, ambas aditivas: `20261003061634_meta_platform_app_embedded_signup` y `20261003062447_coexistence_sync_and_origin`. **Respaldar la base de producción antes de desplegarlas** (regla del proyecto).
+- La imagen local `colibly-app:latest` está atrasada respecto de `package.json`; Coolify construye desde el `Dockerfile` y no se ve afectado.
+
+## 13. Puesta en marcha (manual, en este orden)
+1. **Respaldo** de la base de producción y despliegue de la rama (las migraciones corren en el arranque).
+2. `/plataforma` → Configuración → "App de Meta de la plataforma": **App ID** `3423949611118312`, **ID de configuración** `1676025620523858`, **App Secret** (se copia de Meta → Configuración de la app → Básica; no pasa por el chat) y un **token de verificación** inventado (≥ 8 caracteres).
+3. Meta → app Colibly → WhatsApp → Configuración: **URL de devolución de llamada** `https://app.colibly.com/api/whatsapp/webhook` + el token del paso 2; suscribir los campos `messages`, `account_update`, `history`, `smb_app_state_sync`, `smb_message_echoes`, `phone_number_quality_update`, `user_preferences`, `message_template_status_update`.
+4. Meta → Inicio de sesión para empresas → Configurar: **URL de cancelar autorización** `https://app.colibly.com/api/meta/deauthorize` y **URL de eliminación de datos** `https://app.colibly.com/api/meta/data-deletion`. Después, en Configuración básica de la app, cambiar "Eliminación de datos de usuario" a la misma URL de callback.
+5. `/plataforma` → organización piloto → encender "Coexistencia de WhatsApp".
+6. Entrar con un usuario que tenga rol de administrador, desarrollador o evaluador de la app (la app aún no está aprobada para terceros) y conectar el número piloto: debe ser un número de la app **WhatsApp Business** ≥ 2.24.17, abierta en el teléfono durante la conexión.
+7. Tras aprobarse la App Review, publicar la app y repetir con un cliente real.
+
+## 14. Por verificar con Meta real (no se puede simular)
+1. Que el `user_id` de `debug_token` sea el mismo que llega en el `signed_request` de los callbacks (de eso depende que el borrado automático encuentre la cuenta; si no, quedará en `NO_DATA`/`MANUAL_REVIEW` y habrá que atender a mano).
+2. Cómo se renueva el token de negocio de 60 días: la documentación no lo dice. Si no hay renovación, evaluar una configuración de Login for Business con token **sin vencimiento** (el código ya avisa y marca `ERROR` al vencer).
+3. Si una app **sin publicar** recibe los webhooks reales de coexistencia (el panel de Meta advierte que solo manda pruebas).
+4. Países admitidos para coexistencia (la documentación remite a una lista; el piloto es de México) y el comportamiento de `52…` vs `521…` en ecos e historial (el código acepta ambas formas).
+5. Forma exacta de los webhooks de medios del historial (se asume que traen el mismo `wamid` con el contenido).
+6. Límites de envío en coexistencia (Meta documenta 20 mensajes/s fijos) frente a las campañas de Colibly.
+7. Revisión legal: la política de privacidad debe mencionar la sincronización de historial y de ecos.
