@@ -96,6 +96,7 @@ model WAAccount {
   organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name              String
   channel           WAChannel       @default(META_CLOUD)
+  connectionType    WAConnectionType @default(MANUAL) @map("connection_type")
   phoneNumber       String?
   phoneNumberId     String?
   wabaId            String?
@@ -224,6 +225,14 @@ model ContactCustomFieldValue {
   @@unique([contactId, definitionId])
   @@index([definitionId])
   @@map("contact_custom_field_values")
+}
+
+// Cómo se conectó la cuenta: MANUAL = el cliente pegó credenciales de SU app de
+// Meta (appSecret propio); EMBEDDED_SIGNUP = alta con Embedded Signup sobre la
+// app de plataforma (el webhook se firma con PlatformSettings.metaAppSecret).
+enum WAConnectionType {
+  MANUAL
+  EMBEDDED_SIGNUP
 }
 
 enum WAChannel {
@@ -1830,6 +1839,15 @@ model PlatformSettings {
   // Captcha (lib/turnstile.ts)
   turnstileSiteKey   String? @map("turnstile_site_key")
   turnstileSecretKey String? @map("turnstile_secret_key") // cifrado
+
+  // App de Meta de la plataforma (Embedded Signup y coexistencia de WhatsApp;
+  // lib/meta/platform-app.ts). El App Secret firma los webhooks de las cuentas
+  // EMBEDDED_SIGNUP y los callbacks signed_request; el token de verificación es
+  // el del GET de suscripción del webhook de la app.
+  metaAppId                  String? @map("meta_app_id")
+  metaAppSecret              String? @map("meta_app_secret") // cifrado
+  metaEmbeddedSignupConfigId String? @map("meta_embedded_signup_config_id")
+  metaWebhookVerifyToken     String? @map("meta_webhook_verify_token") // cifrado
 
   // Medición del sitio público (lib/analytics/)
   metaPixelId          String? @map("meta_pixel_id")

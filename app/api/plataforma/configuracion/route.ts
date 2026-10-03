@@ -11,6 +11,10 @@ import { publicErrorMessage } from "@/lib/api-errors";
 
 const secretString = z.string().min(1).nullable().optional();
 const plainString = z.string().min(1).nullable().optional();
+// IDs de Meta: numéricos (App ID, ID de configuración de Embedded Signup).
+const metaNumericId = z.string().regex(/^\d{5,25}$/, "Debe ser un ID numérico de Meta").nullable().optional();
+// Token de verificación del webhook: lo inventa el operador y se pega en Meta.
+const verifyToken = z.string().min(8, "Mínimo 8 caracteres").max(200).nullable().optional();
 
 const updateSchema = z.object({
   opencodeApiKey: secretString,
@@ -27,6 +31,10 @@ const updateSchema = z.object({
   emailFrom: plainString,
   turnstileSiteKey: plainString,
   turnstileSecretKey: secretString,
+  metaAppId: metaNumericId,
+  metaAppSecret: secretString,
+  metaEmbeddedSignupConfigId: metaNumericId,
+  metaWebhookVerifyToken: verifyToken,
   metaPixelId: plainString,
   metaCapiAccessToken: secretString,
   gaMeasurementId: plainString,
@@ -55,6 +63,10 @@ export async function GET() {
     emailFrom: s.emailFrom,
     turnstileSiteKey: s.turnstileSiteKey,
     hasTurnstileSecretKey: !!s.turnstileSecretKey,
+    metaAppId: s.metaAppId,
+    hasMetaAppSecret: !!s.metaAppSecret,
+    metaEmbeddedSignupConfigId: s.metaEmbeddedSignupConfigId,
+    hasMetaWebhookVerifyToken: !!s.metaWebhookVerifyToken,
     metaPixelId: s.metaPixelId,
     hasMetaCapiAccessToken: !!s.metaCapiAccessToken,
     gaMeasurementId: s.gaMeasurementId,

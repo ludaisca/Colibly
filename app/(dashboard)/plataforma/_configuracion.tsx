@@ -27,6 +27,10 @@ interface ConfigResponse {
   emailFrom: string | null;
   turnstileSiteKey: string | null;
   hasTurnstileSecretKey: boolean;
+  metaAppId: string | null;
+  hasMetaAppSecret: boolean;
+  metaEmbeddedSignupConfigId: string | null;
+  hasMetaWebhookVerifyToken: boolean;
   metaPixelId: string | null;
   hasMetaCapiAccessToken: boolean;
   gaMeasurementId: string | null;
@@ -34,7 +38,7 @@ interface ConfigResponse {
   googleAdsSignupLabel: string | null;
 }
 
-const SECRET_FIELDS = ["opencodeApiKey", "googleApiKey", "stripeSecretKey", "stripeWebhookSecret", "smtpPass", "turnstileSecretKey", "metaCapiAccessToken"] as const;
+const SECRET_FIELDS = ["opencodeApiKey", "googleApiKey", "stripeSecretKey", "stripeWebhookSecret", "smtpPass", "turnstileSecretKey", "metaCapiAccessToken", "metaAppSecret", "metaWebhookVerifyToken"] as const;
 type SecretField = (typeof SECRET_FIELDS)[number];
 
 // Campo cifrado: nunca se prefila con el valor real. Vacío + no "Quitar" = no
@@ -106,6 +110,8 @@ export function PlataformaConfiguracion() {
     smtpUser: "",
     emailFrom: "",
     turnstileSiteKey: "",
+    metaAppId: "",
+    metaEmbeddedSignupConfigId: "",
     metaPixelId: "",
     gaMeasurementId: "",
     googleAdsId: "",
@@ -129,6 +135,8 @@ export function PlataformaConfiguracion() {
         smtpUser: json.smtpUser ?? "",
         emailFrom: json.emailFrom ?? "",
         turnstileSiteKey: json.turnstileSiteKey ?? "",
+        metaAppId: json.metaAppId ?? "",
+        metaEmbeddedSignupConfigId: json.metaEmbeddedSignupConfigId ?? "",
         metaPixelId: json.metaPixelId ?? "",
         gaMeasurementId: json.gaMeasurementId ?? "",
         googleAdsId: json.googleAdsId ?? "",
@@ -169,6 +177,8 @@ export function PlataformaConfiguracion() {
       payload.smtpUser = plain.smtpUser.trim() || null;
       payload.emailFrom = plain.emailFrom.trim() || null;
       payload.turnstileSiteKey = plain.turnstileSiteKey.trim() || null;
+      payload.metaAppId = plain.metaAppId.trim() || null;
+      payload.metaEmbeddedSignupConfigId = plain.metaEmbeddedSignupConfigId.trim() || null;
       payload.metaPixelId = plain.metaPixelId.trim() || null;
       payload.gaMeasurementId = plain.gaMeasurementId.trim() || null;
       payload.googleAdsId = plain.googleAdsId.trim() || null;
@@ -298,6 +308,38 @@ export function PlataformaConfiguracion() {
           onChange={(v) => setSecrets((s) => ({ ...s, turnstileSecretKey: v }))}
           cleared={cleared.turnstileSecretKey}
           onToggleClear={() => toggleClear("turnstileSecretKey")}
+        />
+      </Card>
+
+      <Card as="section" className="space-y-4">
+        <SectionHeader eyebrow="WhatsApp" title="App de Meta de la plataforma (Embedded Signup)" />
+        <Banner tone="info">
+          Datos de la app de Meta de Colibly. Con ellos los clientes conectan su WhatsApp con un botón, sin copiar tokens. El App Secret
+          firma los webhooks de esas cuentas; nunca se vuelve a mostrar.
+        </Banner>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="App ID" hint="Panel de Meta → Configuración de la app → Básica.">
+            {(id) => <Input id={id} value={plain.metaAppId} inputMode="numeric" onChange={(e) => setPlain((p) => ({ ...p, metaAppId: e.target.value }))} />}
+          </FormField>
+          <FormField label="ID de configuración de Embedded Signup" hint="Inicio de sesión para empresas → Configuraciones.">
+            {(id) => <Input id={id} value={plain.metaEmbeddedSignupConfigId} inputMode="numeric" onChange={(e) => setPlain((p) => ({ ...p, metaEmbeddedSignupConfigId: e.target.value }))} />}
+          </FormField>
+        </div>
+        <SecretField
+          label="App Secret"
+          hasValue={data.hasMetaAppSecret}
+          value={secrets.metaAppSecret}
+          onChange={(v) => setSecrets((s) => ({ ...s, metaAppSecret: v }))}
+          cleared={cleared.metaAppSecret}
+          onToggleClear={() => toggleClear("metaAppSecret")}
+        />
+        <SecretField
+          label="Token de verificación del webhook"
+          hasValue={data.hasMetaWebhookVerifyToken}
+          value={secrets.metaWebhookVerifyToken}
+          onChange={(v) => setSecrets((s) => ({ ...s, metaWebhookVerifyToken: v }))}
+          cleared={cleared.metaWebhookVerifyToken}
+          onToggleClear={() => toggleClear("metaWebhookVerifyToken")}
         />
       </Card>
 

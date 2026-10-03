@@ -23,6 +23,10 @@ export interface PlatformSettings {
   emailFrom: string | null;
   turnstileSiteKey: string | null;
   turnstileSecretKey: string | null;
+  metaAppId: string | null;
+  metaAppSecret: string | null;
+  metaEmbeddedSignupConfigId: string | null;
+  metaWebhookVerifyToken: string | null;
   metaPixelId: string | null;
   metaCapiAccessToken: string | null;
   gaMeasurementId: string | null;
@@ -51,6 +55,10 @@ async function loadSettings(): Promise<PlatformSettings> {
     emailFrom: row?.emailFrom ?? null,
     turnstileSiteKey: row?.turnstileSiteKey ?? null,
     turnstileSecretKey: decryptOrNull(row?.turnstileSecretKey),
+    metaAppId: row?.metaAppId ?? null,
+    metaAppSecret: decryptOrNull(row?.metaAppSecret),
+    metaEmbeddedSignupConfigId: row?.metaEmbeddedSignupConfigId ?? null,
+    metaWebhookVerifyToken: decryptOrNull(row?.metaWebhookVerifyToken),
     metaPixelId: row?.metaPixelId ?? null,
     metaCapiAccessToken: decryptOrNull(row?.metaCapiAccessToken),
     gaMeasurementId: row?.gaMeasurementId ?? null,
@@ -87,6 +95,8 @@ const ENCRYPTED_FIELDS = new Set<keyof PlatformSettings>([
   "smtpPass",
   "turnstileSecretKey",
   "metaCapiAccessToken",
+  "metaAppSecret",
+  "metaWebhookVerifyToken",
 ]);
 
 export async function updatePlatformSettings(input: PlatformSettingsInput, updatedByEmail: string): Promise<void> {
