@@ -6,6 +6,8 @@ import type { NextConfig } from "next";
 // bloqueaba los scripts y los beacons aunque los IDs estuvieran configurados.
 // Los IDs se leen en runtime; los orígenes son fijos, por eso viven aquí.
 const META = ["https://connect.facebook.net", "https://www.facebook.com"];
+// Diálogo de Embedded Signup (WhatsApp) que abre el SDK de Facebook.
+const META_FRAMES = ["https://www.facebook.com", "https://web.facebook.com"];
 const GOOGLE_SCRIPT = ["https://*.googletagmanager.com", "https://www.googleadservices.com", "https://googleads.g.doubleclick.net"];
 const GOOGLE_BEACON = [
   "https://*.google-analytics.com",
@@ -25,7 +27,7 @@ const CSP = [
   `img-src 'self' data: blob: ${[...META, ...GOOGLE_BEACON].join(" ")}`,
   "font-src 'self'",
   `connect-src 'self' ${[...META, ...GOOGLE_BEACON].join(" ")}`,
-  `frame-src ${TURNSTILE} https://td.doubleclick.net https://www.googletagmanager.com`,
+  `frame-src ${TURNSTILE} ${META_FRAMES.join(" ")} https://td.doubleclick.net https://www.googletagmanager.com`,
 ].join("; ");
 
 const nextConfig: NextConfig = {

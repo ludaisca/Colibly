@@ -16,6 +16,7 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { CuentaFormModal } from "./_form";
+import { ConectarWhatsAppModal } from "./_conectar-whatsapp";
 
 interface WaAccount {
   id: string;
@@ -29,6 +30,8 @@ interface WaAccount {
   errorMessage: string | null;
   lastActivity: string | null;
   hasAppSecret: boolean;
+  connectionType: "MANUAL" | "EMBEDDED_SIGNUP";
+  coexistence: boolean;
   createdAt: string;
   updatedAt: string;
   _count: { chats: number };
@@ -61,6 +64,7 @@ function CuentasView() {
   const [statusFilter, setStatusFilter] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(searchParams.get("nueva") === "1");
+  const [connectOpen, setConnectOpen] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -117,7 +121,8 @@ function CuentasView() {
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>
               Actualizar
             </Button>
-            <Button icon={Plus} size="sm" onClick={() => setFormOpen(true)}>Agregar número</Button>
+            <Button variant="secondary" icon={Plus} size="sm" onClick={() => setFormOpen(true)}>Conexión manual</Button>
+            <Button icon={Plus} size="sm" onClick={() => setConnectOpen(true)}>Conectar WhatsApp</Button>
           </>
         }
       />
@@ -190,6 +195,7 @@ function CuentasView() {
                   <>
                     <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
                     {!a.hasAppSecret && <Badge tone="danger" size="sm">Sin App Secret</Badge>}
+                    {a.coexistence && <Badge tone="neutral" size="sm">App WhatsApp Business</Badge>}
                   </>
                 }
                 subtitle={
@@ -224,6 +230,7 @@ function CuentasView() {
         onConfirm={handleDelete}
       />
 
+      <ConectarWhatsAppModal open={connectOpen} onClose={() => setConnectOpen(false)} onConnected={fetchAccounts} />
       <CuentaFormModal
         open={formOpen}
         onClose={() => {

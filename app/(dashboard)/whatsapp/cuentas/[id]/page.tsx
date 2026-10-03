@@ -15,6 +15,7 @@ import { Switch } from "@/app/components/ui/switch";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { DetailPage, DetailRow } from "@/app/components/ui/detail-page";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
+import { ConexionCard } from "./_conexion";
 import { useToast } from "@/app/components/ui/toast";
 
 interface AccountDetail {
@@ -33,6 +34,14 @@ interface AccountDetail {
   messagingTier: string | null;
   qualityUpdatedAt: string | null;
   hasAppSecret: boolean;
+  usesPlatformApp: boolean;
+  coexistence: boolean;
+  syncStatus: string;
+  syncProgress: number | null;
+  syncDeadlineAt: string | null;
+  syncError: string | null;
+  tokenExpiresAt: string | null;
+  disconnectedReason: string | null;
   webhookUrl: string;
   createdAt: string;
   updatedAt: string;
@@ -404,6 +413,7 @@ export default function CuentaDetailPage() {
       )}
 
       <div className="space-y-8">
+        <ConexionCard initial={account} />
         <section className="space-y-4">
           <SectionHeader title="Información de la cuenta" />
           <dl className="space-y-4">
@@ -458,12 +468,14 @@ export default function CuentaDetailPage() {
                 </div>
               ) : (
                 <dd className="flex items-center gap-2 text-sm">
-                  {account.hasAppSecret ? (
+                  {account.usesPlatformApp ? (
+                    <Badge tone="neutral" size="sm">La gestiona Colibly</Badge>
+                  ) : account.hasAppSecret ? (
                     <Badge tone="success" size="sm">Configurado</Badge>
                   ) : (
                     <Badge tone="danger" size="sm">Falta</Badge>
                   )}
-                  {canManage && <button
+                  {canManage && !account.usesPlatformApp && <button
                     onClick={() => setEditingAppSecret(true)}
                     className="text-muted-darker transition-colors hover:text-foreground"
                     aria-label={account.hasAppSecret ? "Reemplazar App Secret" : "Agregar App Secret"}

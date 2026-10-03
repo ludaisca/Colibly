@@ -122,6 +122,9 @@ export async function GET(req: Request) {
         errorMessage: true,
         lastActivity: true,
         appSecret: true,
+        connectionType: true,
+        coexistence: true,
+        syncStatus: true,
         createdAt: true,
         updatedAt: true,
         user: { select: { id: true, name: true, email: true } },
@@ -136,7 +139,7 @@ export async function GET(req: Request) {
     // sin importar qué proveedor de Meta sea internamente.
     // appSecret se reduce a un booleano: nunca sale el valor (ni cifrado).
     return NextResponse.json(
-      accounts.map(({ appSecret, ...a }) => ({ ...a, hasAppSecret: !!appSecret, channel: "WHATSAPP" as const }))
+      accounts.map(({ appSecret, ...a }) => ({ ...a, hasAppSecret: a.connectionType === "EMBEDDED_SIGNUP" || !!appSecret, channel: "WHATSAPP" as const }))
     );
   } catch (error) {
     const message =

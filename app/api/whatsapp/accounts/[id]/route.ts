@@ -47,6 +47,14 @@ export async function GET(
         messagingTier: true,
         qualityUpdatedAt: true,
         appSecret: true,
+        connectionType: true,
+        coexistence: true,
+        syncStatus: true,
+        syncProgress: true,
+        syncDeadlineAt: true,
+        syncError: true,
+        tokenExpiresAt: true,
+        disconnectedReason: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { chats: true, templates: true } },
@@ -62,8 +70,11 @@ export async function GET(
 
     // Nunca se devuelve el secreto (ni cifrado) — solo si está configurado,
     // para que la UI avise que sin él el webhook descarta todo.
+    // Las cuentas de Embedded Signup se firman con el App Secret de la
+    // plataforma: no tienen secreto propio y no deben marcarse como "sin secreto".
     const { appSecret, ...rest } = account;
-    return NextResponse.json({ ...rest, hasAppSecret: !!appSecret, webhookUrl: whatsappWebhookUrl(req.url) });
+    const usesPlatformApp = account.connectionType === "EMBEDDED_SIGNUP";
+    return NextResponse.json({ ...rest, usesPlatformApp, hasAppSecret: usesPlatformApp || !!appSecret, webhookUrl: whatsappWebhookUrl(req.url) });
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");
@@ -155,13 +166,14 @@ export async function PATCH(
         lastActivity: true,
         autoAssignEnabled: true,
         appSecret: true,
+        connectionType: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
     const { appSecret: storedSecret, ...updatedRest } = updated;
-    return NextResponse.json({ ...updatedRest, hasAppSecret: !!storedSecret });
+    return NextResponse.json({ ...updatedRest, hasAppSecret: updated.connectionType === "EMBEDDED_SIGNUP" || !!storedSecret });
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");
