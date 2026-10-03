@@ -15,6 +15,9 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("grant_credits"), credits: z.number().int().min(1).max(MAX_BONUS_CREDITS) }),
   z.object({ action: z.literal("suspend") }),
   z.object({ action: z.literal("reactivate") }),
+  // Coexistencia de WhatsApp (conectar el número de la app WhatsApp Business):
+  // bandera por organización durante la beta, apagada por defecto.
+  z.object({ action: z.literal("set_whatsapp_coexistence"), enabled: z.boolean() }),
   z.object({
     action: z.literal("set_channels"),
     telegram: z.boolean(),
@@ -87,6 +90,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         await prisma.organization.update({ where: { id }, data: { status: statusAfterSuspension(org, now) } });
       }
       for (const m of org.members) invalidateUserSessionCache(m.id);
+    } else if (input.action === "set_whatsapp_coexistence") {
+      await prisma.organization.update({ where: { id }, data: { whatsappCoexistenceEnabled: input.enabled } });
     } else {
       // set_channels: feature por organización, no toca facturación ni sesiones.
       await prisma.organization.update({
@@ -112,6 +117,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         channelMessengerEnabled: true,
         channelInstagramEnabled: true,
         channelWebchatEnabled: true,
+        whatsappCoexistenceEnabled: true,
       },
     });
     return NextResponse.json({ organization: updated });

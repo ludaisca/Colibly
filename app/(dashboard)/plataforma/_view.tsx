@@ -59,6 +59,7 @@ export interface PlatformOrgRow {
   members: number;
   channels: number;
   channelFlags: { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean };
+  whatsappCoexistence: boolean;
 }
 
 const n = (v: number) => v.toLocaleString("es-MX");
@@ -301,6 +302,27 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
                 />
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 border-t border-border pt-5">
+          <div>
+            <p className="text-sm font-medium">WhatsApp: número de la app WhatsApp Business</p>
+            <p className="text-xs text-muted-darker">
+              Permite conectar el número que el negocio ya usa en la app WhatsApp Business (coexistencia): sigue contestando desde su
+              teléfono y todo se ve en Colibly. Apagarlo no desconecta las cuentas que ya lo usan.
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">
+            <span className="text-sm">Coexistencia de WhatsApp</span>
+            <Switch
+              label="Habilitar coexistencia de WhatsApp"
+              checked={org.whatsappCoexistence}
+              disabled={!!busy}
+              onCheckedChange={(checked) =>
+                act({ action: "set_whatsapp_coexistence", enabled: checked }, `Coexistencia ${checked ? "habilitada" : "deshabilitada"}`)
+              }
+            />
           </div>
         </div>
 

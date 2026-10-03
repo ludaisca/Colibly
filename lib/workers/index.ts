@@ -20,7 +20,8 @@ import type { DomainEvent } from "@/lib/events/types";
 import { handleDomainEvent as handleAutomationEvent } from "@/lib/automations/dispatch";
 import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
 import { processBillingTick } from "@/lib/billing/tick";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue } from "@/lib/queue";
+import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -139,13 +140,38 @@ export function startWorkers() {
     await processBillingTick();
   }, { connection, concurrency: 1 });
 
+  // Coexistencia de WhatsApp. Concurrencia 1: los lotes de historial de una
+  // misma cuenta se procesan en orden aproximado de llegada.
+  const coexistenceSyncWorker = new Worker("coexistence-sync", async (job) => {
+    if (job.name === "sync") {
+      await runCoexistenceSync(job.data.accountId as string);
+    } else if (job.name === "history-chunk") {
+      await processHistoryChunk(job.data as HistoryChunkJob);
+    } else if (job.name === "state-sync") {
+      await processStateSyncChunk(job.data.accountId as string, job.data.contacts as SerializedContact[]);
+    }
+  }, { connection, concurrency: 1 });
+  coexistenceSyncWorker.on("failed", (job, err) => {
+    // Al agotar reintentos solo se registra el error: el tick sigue intentando
+    // hasta el límite de 24 h de Meta.
+    if (job?.name === "sync" && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      markSyncFailed(job.data.accountId as string, err.message).catch(() => {});
+    }
+  });
+
+  const coexistenceTickWorker = new Worker("coexistence-tick", async () => {
+    await processCoexistenceTick(async (accountId) => {
+      await coexistenceSyncQueue.add("sync", { accountId }, { jobId: `coexistence-sync-${accountId}-${Date.now()}` });
+    });
+  }, { connection, concurrency: 1 });
+
   // Una entrega HTTP por job; los reintentos (backoff largo) los maneja
   // BullMQ, el registro de cada intento vive en WebhookDelivery.
   const webhookDeliveryWorker = new Worker("webhook-deliveries", async (job) => {
     await processWebhookDelivery(job);
   }, { connection, concurrency: 5 });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker);
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker);
 
   mediaCleanupQueue
     .add(
@@ -247,6 +273,11 @@ export function startWorkers() {
   billingTickQueue
     .add("tick", {}, { jobId: "billing-tick", repeat: { pattern: "7 * * * *" } })
     .catch((err) => console.error("[workers] No se pudo programar billing-tick:", err));
+
+  // Coexistencia: vigilancia cada 15 min (minuto 3, lejos de otros ticks).
+  coexistenceTickQueue
+    .add("tick", {}, { jobId: "coexistence-tick", repeat: { pattern: "3,18,33,48 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar coexistence-tick:", err));
 
   console.log("[workers] BullMQ workers started");
 }

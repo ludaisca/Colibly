@@ -58,7 +58,15 @@ export async function getBotControlState(ref: BotChatRef, now = new Date()): Pro
   const since = chat.botResumedAt && chat.botResumedAt > cutoff ? chat.botResumedAt : cutoff;
   const lastHuman = "waChatId" in ref
     ? await prisma.wAMessage.findFirst({
-        where: { chatId: ref.waChatId, direction: "OUTBOUND", senderId: { not: null }, createdAt: { gt: since } },
+        // Un humano = un agente de Colibly (senderId) O el dueño escribiendo desde
+        // la app WhatsApp Business de su teléfono (eco de coexistencia). El
+        // historial importado (origin HISTORY) no cuenta: es pasado.
+        where: {
+          chatId: ref.waChatId,
+          direction: "OUTBOUND",
+          OR: [{ senderId: { not: null } }, { origin: "BUSINESS_APP_ECHO" }],
+          createdAt: { gt: since },
+        },
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       })

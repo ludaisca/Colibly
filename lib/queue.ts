@@ -70,6 +70,18 @@ export const automationRunQueue = new Queue("automation-run", {
 // Respaldo cada minuto: esperas vencidas cuyo job diferido se perdió y
 // timeouts de "esperar respuesta".
 export const automationTickQueue = new Queue("automation-tick", { connection, defaultJobOptions });
+// Coexistencia de WhatsApp: pedir a Meta la sincronización (contactos e
+// historial) dentro de las 24 h del alta y procesar los lotes de historial /
+// contactos que llegan por webhook (pueden ser miles de mensajes, se encolan en
+// vez de procesarse dentro de la petición de Meta). 5 intentos: cada petición a
+// Meta solo se puede hacer una vez, el reintento retoma donde quedó.
+export const coexistenceSyncQueue = new Queue("coexistence-sync", {
+  connection,
+  defaultJobOptions: { ...defaultJobOptions, attempts: 5, backoff: { type: "exponential" as const, delay: 5000 } },
+});
+// Vigilancia de coexistencia cada 15 min: sincronizaciones por vencer, token de
+// negocio por vencer.
+export const coexistenceTickQueue = new Queue("coexistence-tick", { connection, defaultJobOptions });
 // Facturación cada hora: pruebas y gracias vencidas → solo lectura, avisos.
 export const billingTickQueue = new Queue("billing-tick", { connection, defaultJobOptions });
 // Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a

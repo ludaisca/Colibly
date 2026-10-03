@@ -5,8 +5,11 @@ import type { RecipientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
 import { rateLimit } from "@/lib/rate-limit";
+import { getMediaInfo, getMessageBody } from "@/lib/whatsapp/message-content";
 import { validateWhatsAppWebhookSignature, verifyTokenMatches } from "@/lib/meta/platform-app";
 import { getPlatformSettings } from "@/lib/platform-settings";
+import { COEXISTENCE_FIELDS, handleCoexistenceChange, type CoexistenceField } from "@/lib/whatsapp/coexistence/webhook";
+import { applyConnectionLifecycle } from "@/lib/whatsapp/coexistence/lifecycle";
 
 interface WebhookMessage {
   from: string;
@@ -85,6 +88,8 @@ interface AccountUpdateValue {
   phone_number?: string;
   event?: string;
   ban_info?: { waba_ban_state?: string; waba_ban_date?: string };
+  // Coexistencia: motivo de una desconexión (PARTNER_REMOVED).
+  disconnection_info?: { reason?: string; initiated_by?: string };
 }
 
 // Payload para el campo `user_preferences` — opt-out/opt-in nativo de WhatsApp
@@ -96,50 +101,6 @@ interface UserPreferencesValue {
     category?: string; // "marketing_messages"
     value?: string; // "stop" | "resume"
   }>;
-}
-
-function getMessageBody(msg: WebhookMessage): string {
-  if (msg.text) return msg.text.body;
-  if (msg.image?.caption) return msg.image.caption;
-  if (msg.video?.caption) return msg.video.caption;
-  if (msg.document?.caption) return msg.document.caption;
-  if (msg.interactive?.button_reply?.title) return msg.interactive.button_reply.title;
-  if (msg.interactive?.list_reply?.title) return msg.interactive.list_reply.title;
-  if (msg.button) return msg.button.text;
-  return `[${msg.type}]`;
-}
-
-function getMediaInfo(msg: WebhookMessage): {
-  mediaId: string | null;
-  mimeType: string | null;
-  filename: string | null;
-  caption: string | null;
-} {
-  if (msg.image) return {
-    mediaId: msg.image.id,
-    mimeType: msg.image.mime_type ?? null,
-    filename: null,
-    caption: msg.image.caption ?? null,
-  };
-  if (msg.video) return {
-    mediaId: msg.video.id,
-    mimeType: msg.video.mime_type ?? null,
-    filename: null,
-    caption: msg.video.caption ?? null,
-  };
-  if (msg.audio) return {
-    mediaId: msg.audio.id,
-    mimeType: msg.audio.mime_type ?? null,
-    filename: null,
-    caption: null,
-  };
-  if (msg.document) return {
-    mediaId: msg.document.id,
-    mimeType: msg.document.mime_type ?? null,
-    filename: msg.document.filename ?? null,
-    caption: msg.document.caption ?? null,
-  };
-  return { mediaId: null, mimeType: null, filename: null, caption: null };
 }
 
 // sent < delivered < read — Meta no garantiza el orden de entrega de los
@@ -330,6 +291,9 @@ async function applyAccountUpdate(wabaId: string | undefined, value: AccountUpda
   const account = await resolveAccountByWabaAndPhone(wabaId, value.phone_number);
   if (!account) return;
 
+  // Desconexión / cambio de teléfono / reconexión de una cuenta de coexistencia.
+  if (await applyConnectionLifecycle(account, value)) return;
+
   const eventName = value.event ?? "UPDATE";
   const isRestriction = !!value.ban_info || /ban|disable|restrict|flag/i.test(eventName);
 
@@ -480,6 +444,11 @@ export async function POST(req: Request) {
               await applyUserPreferences(value);
             }
           }
+          continue;
+        }
+
+        if (field && COEXISTENCE_FIELDS.includes(field)) {
+          await handleCoexistenceChange({ field: field as CoexistenceField, value: change.value, rawBody, signature });
           continue;
         }
 

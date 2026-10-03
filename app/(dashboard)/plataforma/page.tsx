@@ -61,6 +61,7 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
         channelMessengerEnabled: true,
         channelInstagramEnabled: true,
         channelWebchatEnabled: true,
+        whatsappCoexistenceEnabled: true,
         owner: { select: { name: true, email: true, emailVerifiedAt: true } },
         _count: { select: { members: true, waAccounts: true, channelAccounts: true } },
       },
@@ -103,6 +104,7 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
       ownerVerified: !!o.owner?.emailVerifiedAt,
       members: o._count.members,
       channels: o._count.waAccounts + o._count.channelAccounts,
+      whatsappCoexistence: o.whatsappCoexistenceEnabled,
       channelFlags: {
         telegram: o.channelTelegramEnabled,
         messenger: o.channelMessengerEnabled,
