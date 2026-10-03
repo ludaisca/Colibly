@@ -19,32 +19,45 @@ export async function runCoexistenceSync(accountId: string, now = new Date()): P
   });
   if (!account || !account.coexistence || account.status !== "CONNECTED" || !account.phoneNumberId || !account.accessToken) return "skipped";
 
-  const action = nextSyncAction(account.syncStatus, account.syncDeadlineAt, now);
-  if (action === "none") return "skipped";
-  if (action === "expire") {
-    await expireSync(account);
-    return "expired";
-  }
-
   const token = decrypt(account.accessToken);
   const ids = (account.syncRequestIds ?? {}) as { contacts?: string | null; history?: string | null };
+  let status = account.syncStatus;
+  let last: "contacts" | "history" | "expired" | "skipped" = "skipped";
 
-  if (action === "contacts") {
-    const requestId = await requestSmbAppData(account.phoneNumberId, token, "smb_app_state_sync");
-    // Condición sobre el estado anterior: si otro job ya avanzó, no se pisa.
-    await prisma.wAAccount.updateMany({
-      where: { id: account.id, syncStatus: "PENDING" },
-      data: { syncStatus: "CONTACTS_REQUESTED", syncRequestIds: { ...ids, contacts: requestId }, syncError: null },
-    });
-    return "contacts";
+  // Contactos y, enseguida, historial en el mismo job: cada paso se guarda justo
+  // después de pedirlo, así un reintento retoma donde quedó sin repetir lo que
+  // Meta ya aceptó (solo permite cada petición una vez por conexión).
+  for (let step = 0; step < 2; step++) {
+    const action = nextSyncAction(status, account.syncDeadlineAt, now);
+    if (action === "none") break;
+    if (action === "expire") {
+      await expireSync(account);
+      return "expired";
+    }
+
+    if (action === "contacts") {
+      const requestId = await requestSmbAppData(account.phoneNumberId, token, "smb_app_state_sync");
+      ids.contacts = requestId;
+      // Condición sobre el estado anterior: si otro job ya avanzó, no se pisa.
+      const moved = await prisma.wAAccount.updateMany({
+        where: { id: account.id, syncStatus: "PENDING" },
+        data: { syncStatus: "CONTACTS_REQUESTED", syncRequestIds: { ...ids }, syncError: null },
+      });
+      if (moved.count === 0) break;
+      status = "CONTACTS_REQUESTED";
+      last = "contacts";
+    } else {
+      const requestId = await requestSmbAppData(account.phoneNumberId, token, "history");
+      ids.history = requestId;
+      await prisma.wAAccount.updateMany({
+        where: { id: account.id, syncStatus: "CONTACTS_REQUESTED" },
+        data: { syncStatus: "HISTORY_REQUESTED", syncProgress: 0, syncRequestIds: { ...ids }, syncError: null },
+      });
+      status = "HISTORY_REQUESTED";
+      last = "history";
+    }
   }
-
-  const requestId = await requestSmbAppData(account.phoneNumberId, token, "history");
-  await prisma.wAAccount.updateMany({
-    where: { id: account.id, syncStatus: "CONTACTS_REQUESTED" },
-    data: { syncStatus: "HISTORY_REQUESTED", syncProgress: 0, syncRequestIds: { ...ids, history: requestId }, syncError: null },
-  });
-  return "history";
+  return last;
 }
 
 async function expireSync(account: { id: string; organizationId: string; name: string }): Promise<void> {

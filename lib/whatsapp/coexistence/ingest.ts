@@ -60,64 +60,102 @@ export async function ingestBusinessAppMessages(
 ): Promise<BusinessIngestResult> {
   const result: BusinessIngestResult = { created: 0, updated: 0, skipped: 0 };
   const cache: ChatCache = new Map();
-  const touched = new Map<string, { lastMessage: string; lastMessageAt: Date }>();
 
+  // Agrupa por conversación para guardar por lotes: un historial grande
+  // (decenas de miles de mensajes) no puede costar varias consultas por mensaje.
+  const byChat = new Map<string, NormalizedBusinessMessage[]>();
   for (const msg of messages) {
     const chat = await resolveChat(accountId, msg.userPhone, cache);
+    const list = byChat.get(chat.chatId);
+    if (list) list.push(msg);
+    else byChat.set(chat.chatId, [msg]);
+  }
+  const lastAtByChat = new Map(Array.from(cache.values()).map((c) => [c.chatId, c.lastMessageAt] as const));
 
-    const existing = await prisma.wAMessage.findFirst({
-      where: { chatId: chat.chatId, wamid: msg.wamid },
-      select: { id: true, messageType: true },
+  const touched = new Map<string, { lastMessage: string; lastMessageAt: Date }>();
+
+  for (const [chatId, list] of byChat) {
+    const existing = await prisma.wAMessage.findMany({
+      where: { chatId, wamid: { in: list.map((m) => m.wamid) } },
+      select: { id: true, wamid: true, messageType: true },
     });
-    if (existing) {
-      // El historial manda los medios en un webhook aparte: el mensaje ya existe
-      // como `media_placeholder` y ahora llega con su contenido.
-      if (existing.messageType === "media_placeholder" && msg.type !== "media_placeholder") {
-        await prisma.wAMessage.update({
-          where: { id: existing.id },
-          data: { messageType: msg.type, body: msg.body, caption: msg.caption, mediaId: msg.mediaId, mimeType: msg.mimeType, filename: msg.filename },
-        });
-        if (msg.mediaId) await enqueueMediaDownload(existing.id, accountId, msg.mediaId);
-        result.updated++;
-      } else {
-        result.skipped++;
+    const existingByWamid = new Map(existing.map((e) => [e.wamid as string, e]));
+
+    const fresh: NormalizedBusinessMessage[] = [];
+    const seen = new Set<string>();
+    for (const msg of list) {
+      const prev = existingByWamid.get(msg.wamid);
+      if (prev) {
+        // El historial manda los medios en un webhook aparte: el mensaje ya existe
+        // como `media_placeholder` y ahora llega con su contenido.
+        if (prev.messageType === "media_placeholder" && msg.type !== "media_placeholder") {
+          await prisma.wAMessage.update({
+            where: { id: prev.id },
+            data: { messageType: msg.type, body: msg.body, caption: msg.caption, mediaId: msg.mediaId, mimeType: msg.mimeType, filename: msg.filename },
+          });
+          if (msg.mediaId) await enqueueMediaDownload(prev.id, accountId, msg.mediaId);
+          result.updated++;
+        } else {
+          result.skipped++;
+        }
+        continue;
       }
-      continue;
+      // Duplicado dentro del mismo lote.
+      if (seen.has(msg.wamid)) {
+        result.skipped++;
+        continue;
+      }
+      seen.add(msg.wamid);
+      fresh.push(msg);
     }
 
-    try {
-      const created = await prisma.wAMessage.create({
-        data: {
-          wamid: msg.wamid,
-          chatId: chat.chatId,
-          direction: msg.direction,
-          origin,
-          messageType: msg.type,
-          body: msg.body,
-          caption: msg.caption,
-          mediaId: msg.mediaId,
-          mimeType: msg.mimeType,
-          filename: msg.filename,
-          status: mapHistoryStatus(msg.historyStatus),
-          timestamp: msg.timestamp,
-        },
-        select: { id: true },
-      });
-      result.created++;
-      if (msg.mediaId && msg.type !== "text") await enqueueMediaDownload(created.id, accountId, msg.mediaId);
+    const row = (m: NormalizedBusinessMessage) => ({
+      wamid: m.wamid,
+      chatId,
+      direction: m.direction,
+      origin,
+      messageType: m.type,
+      body: m.body,
+      caption: m.caption,
+      mediaId: m.mediaId,
+      mimeType: m.mimeType,
+      filename: m.filename,
+      status: mapHistoryStatus(m.historyStatus),
+      timestamp: m.timestamp,
+    });
+    const needsDownload = (m: NormalizedBusinessMessage) => !!m.mediaId && m.type !== "text";
 
-      const prev = touched.get(chat.chatId);
-      const newest = Math.max(chat.lastMessageAt?.getTime() ?? 0, prev?.lastMessageAt.getTime() ?? 0);
-      if (msg.timestamp.getTime() > newest) touched.set(chat.chatId, { lastMessage: msg.body.slice(0, 500), lastMessageAt: msg.timestamp });
-    } catch (err) {
-      // Carrera con una entrega duplicada: @@unique([chatId, wamid]).
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") result.skipped++;
-      else throw err;
+    // Sin medio: un solo INSERT por lote. Con medio: uno a uno, porque hace falta
+    // el id del mensaje para encolar la descarga.
+    const plain = fresh.filter((m) => !needsDownload(m));
+    if (plain.length > 0) {
+      const inserted = await prisma.wAMessage.createMany({ data: plain.map(row), skipDuplicates: true });
+      result.created += inserted.count;
+      // skipDuplicates cubre la carrera con una entrega duplicada del webhook.
+      result.skipped += plain.length - inserted.count;
+    }
+    for (const msg of fresh.filter(needsDownload)) {
+      try {
+        const created = await prisma.wAMessage.create({ data: row(msg), select: { id: true } });
+        result.created++;
+        await enqueueMediaDownload(created.id, accountId, msg.mediaId as string);
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") result.skipped++;
+        else throw err;
+      }
+    }
+
+    // Última actividad del chat solo si lo importado es más reciente que lo que
+    // ya había (el historial es antiguo; un eco es la actividad más nueva).
+    let newest = lastAtByChat.get(chatId)?.getTime() ?? 0;
+    for (const msg of fresh) {
+      if (msg.timestamp.getTime() > newest) {
+        newest = msg.timestamp.getTime();
+        touched.set(chatId, { lastMessage: msg.body.slice(0, 500), lastMessageAt: msg.timestamp });
+      }
     }
   }
 
-  // Última actividad del chat solo si lo importado es más reciente que lo que
-  // ya había (el historial es antiguo; un eco es la actividad más nueva).
   for (const [chatId, last] of touched) {
     await prisma.wAChat.update({ where: { id: chatId }, data: { lastMessage: last.lastMessage, lastMessageAt: last.lastMessageAt } });
   }
