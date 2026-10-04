@@ -35,7 +35,7 @@ export function describeS3Error(err: unknown): string {
   if (name === "NoSuchBucket" || name === "NotFound" || status === 404) return "El bucket no existe (revisa el nombre).";
   if (name === "InvalidAccessKeyId") return "El Access Key ID no es válido para este almacenamiento.";
   if (name === "SignatureDoesNotMatch") return "El Secret Access Key no coincide con el Access Key ID.";
-  if (name === "AccessDenied" || status === 403) return "Acceso denegado: la clave no tiene permiso de lectura y escritura sobre ese bucket.";
+  if (name === "AccessDenied" || status === 403) return "Acceso denegado: la clave es válida, pero no tiene permiso de lectura y escritura sobre ese bucket. En R2 revisa que el token sea «Object Read & Write» y que, si lo limitaste a un bucket, sea exactamente el que escribiste aquí.";
   if (name === "ENOTFOUND" || e.code === "ENOTFOUND") return "No se encontró el servidor del endpoint (revisa la URL).";
   if (name === "ECONNREFUSED" || e.code === "ECONNREFUSED") return "El endpoint rechazó la conexión.";
   if (name === "ETIMEDOUT" || e.code === "ETIMEDOUT" || name === "TimeoutError") return "El endpoint no respondió a tiempo.";
