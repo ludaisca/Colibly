@@ -6,6 +6,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 
 | Documento | Para qué |
 |---|---|
+| [CONTINUIDAD_2026-10-04.md](CONTINUIDAD_2026-10-04.md) | **Empieza aquí**: estado, pendientes en orden y cómo retomar (coexistencia, respaldos, ramas). |
 | [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) | Plan maestro: decisiones, marca, dominio, legal, Meta, Stripe. |
 | [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md) | Estado y pasos siguientes de la landing beta y `cpanel-site/`. |
 | [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md) | Plan A (Contabo) y plan B (ludaisca), DNS, correo. |

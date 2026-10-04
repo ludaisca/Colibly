@@ -181,6 +181,9 @@ F1 ~medio día; F2 ~1 día; F3 ~2 días; F4 ~1 día; F5 ~1 día con número real
 - `npm run lint` falla con 3 errores `no-require-imports` en `dev/telegram-webhook/connect-dev.cjs` (trabajo previo del usuario). Pendiente: excluir `dev/**` de eslint o convertir el archivo.
 - Quedó pendiente de decisión: dónde generar/guardar el PIN de registro para números nuevos (Fase 2).
 
+### Estado a 2026-10-04
+Mezclado en `main` (PR #2). Las ramas `feat/wa-coexistencia` y el worktree se retiraron. Sin desplegar a producción; falta la Fase 5 (Meta real). Punto de retoma: [CONTINUIDAD_2026-10-04.md](CONTINUIDAD_2026-10-04.md).
+
 ### Fases 2 a 4 — hechas (2026-10-03)
 - **Alta con un clic** (F2): `Conectar WhatsApp` (`cuentas/_conectar-whatsapp.tsx`), `GET /api/whatsapp/embedded-signup/config`, `POST …/complete`, `completeEmbeddedSignup()` con dependencias inyectables, CSP con `frame-src` de Facebook, detalle de la cuenta con estado de conexión y de sincronización.
 - **Coexistencia** (F3): webhooks `smb_message_echoes`, `history`, `smb_app_state_sync`; cola `coexistence-sync` (lotes de historial/contactos y job de sincronización idempotente); ingesta silenciosa y por lotes (3 000 mensajes: 56 s → 11 s); el eco cuenta como intervención humana para el bot; bandera `whatsappCoexistenceEnabled` por organización en `/plataforma`.
