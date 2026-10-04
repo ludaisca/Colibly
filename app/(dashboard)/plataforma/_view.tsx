@@ -22,11 +22,12 @@ import { ORG_STATUS_BADGE, OrgStatusBadge } from "@/app/components/billing/org-s
 import { PLANS } from "@/lib/billing/plans";
 import { BRAND_NAME } from "@/lib/brand";
 import { PlataformaConfiguracion } from "./_configuracion";
+import { PlataformaRespaldos } from "./_respaldos";
 import { HeroTabs } from "@/app/components/ui/hero-tabs";
 
-const TABS = ["organizaciones", "configuracion"] as const;
+const TABS = ["organizaciones", "configuracion", "respaldos"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = { organizaciones: "Organizaciones", configuracion: "Configuración" };
+const TAB_LABEL: Record<Tab, string> = { organizaciones: "Organizaciones", configuracion: "Configuración", respaldos: "Respaldos" };
 
 export interface PlatformSummary {
   total: number;
@@ -149,6 +150,8 @@ export function PlatformView({
       <HeroTabs items={TABS.map((id) => ({ id, label: TAB_LABEL[id] }))} value={tab} onChange={setTab} label="Secciones de Plataforma">
       {tab === "configuracion" ? (
         <PlataformaConfiguracion />
+      ) : tab === "respaldos" ? (
+        <PlataformaRespaldos />
       ) : (
         <>
           <KpiStrip

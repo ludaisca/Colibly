@@ -43,7 +43,7 @@ type SecretField = (typeof SECRET_FIELDS)[number];
 
 // Campo cifrado: nunca se prefila con el valor real. Vacío + no "Quitar" = no
 // se toca; "Quitar" fuerza a null; escribir algo lo reemplaza.
-function SecretField({
+export function SecretField({
   label,
   hint,
   hasValue,
