@@ -22,13 +22,15 @@ export function describeS3Error(err: unknown): string {
   const name = e.name ?? e.code ?? "";
   const status = e.$metadata?.httpStatusCode;
 
-  if (name === "NoSuchBucket") return "El bucket no existe (revisa el nombre).";
+  // HEAD no trae cuerpo: el SDK solo dice "NotFound" cuando el bucket (o la carpeta) no existe.
+  if (name === "NoSuchBucket" || name === "NotFound" || status === 404) return "El bucket no existe (revisa el nombre).";
   if (name === "InvalidAccessKeyId") return "El Access Key ID no es válido para este almacenamiento.";
   if (name === "SignatureDoesNotMatch") return "El Secret Access Key no coincide con el Access Key ID.";
   if (name === "AccessDenied" || status === 403) return "Acceso denegado: la clave no tiene permiso de lectura y escritura sobre ese bucket.";
   if (name === "ENOTFOUND" || e.code === "ENOTFOUND") return "No se encontró el servidor del endpoint (revisa la URL).";
   if (name === "ECONNREFUSED" || e.code === "ECONNREFUSED") return "El endpoint rechazó la conexión.";
   if (name === "ETIMEDOUT" || e.code === "ETIMEDOUT" || name === "TimeoutError") return "El endpoint no respondió a tiempo.";
+  if (name === "AuthorizationHeaderMalformed" || name === "IllegalLocationConstraintException") return "La región no corresponde a este almacenamiento (en R2 usa «auto»; en AWS, la región del bucket).";
   if (name === "PermanentRedirect" || status === 301) return "La región o el endpoint no corresponden a ese bucket.";
   const detail = (e.message ?? "").slice(0, 200);
   return `No se pudo usar el almacenamiento${name ? ` (${name})` : ""}${detail ? `: ${detail}` : ""}`;

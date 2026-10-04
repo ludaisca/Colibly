@@ -91,10 +91,12 @@ describe("redactSecrets", () => {
 describe("describeS3Error", () => {
   it("traduce los errores típicos", () => {
     expect(describeS3Error({ name: "NoSuchBucket" })).toMatch(/bucket no existe/);
+    expect(describeS3Error({ name: "NotFound", $metadata: { httpStatusCode: 404 } })).toMatch(/bucket no existe/);
     expect(describeS3Error({ name: "InvalidAccessKeyId" })).toMatch(/Access Key ID/);
     expect(describeS3Error({ name: "SignatureDoesNotMatch" })).toMatch(/Secret/);
     expect(describeS3Error({ $metadata: { httpStatusCode: 403 } })).toMatch(/permiso/);
     expect(describeS3Error({ code: "ENOTFOUND" })).toMatch(/endpoint/);
+    expect(describeS3Error({ name: "AuthorizationHeaderMalformed" })).toMatch(/región/);
   });
   it("incluye el detalle de lo desconocido, acotado", () => {
     expect(describeS3Error({ name: "Rara", message: "x".repeat(500) }).length).toBeLessThan(260);

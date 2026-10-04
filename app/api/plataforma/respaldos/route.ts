@@ -116,6 +116,7 @@ export async function PATCH(req: Request) {
 
   // No se puede activar el respaldo con la configuración incompleta.
   if (input.backupEnabled) {
+    invalidatePlatformSettingsCache(); // validar contra lo guardado de verdad, no contra el caché de 30 s
     const current = await getPlatformSettings();
     const merged = { ...current, ...Object.fromEntries(Object.entries(normalized).filter(([, v]) => v !== undefined)) };
     const resolved = resolveBackupConfig(merged as typeof current);
@@ -151,8 +152,11 @@ export async function POST(req: Request) {
   }
 
   await reapStaleBackupRuns();
-  if (await prisma.platformBackupRun.findFirst({ where: { status: "RUNNING" }, select: { id: true } })) {
-    return NextResponse.json({ error: "Ya hay un respaldo en curso" }, { status: 409 });
+  // En curso (fila RUNNING) o ya pedido y esperando turno en la cola: evita que un
+  // doble clic encole dos respaldos seguidos.
+  const queued = (await platformBackupQueue.getJobs(["waiting", "active", "delayed", "prioritized"])).some((job) => job.name === "run");
+  if (queued || (await prisma.platformBackupRun.findFirst({ where: { status: "RUNNING" }, select: { id: true } }))) {
+    return NextResponse.json({ error: "Ya hay un respaldo en curso o en cola" }, { status: 409 });
   }
   await platformBackupQueue.add("run", { triggeredBy: admin.email }, { jobId: `platform-backup-run-${Date.now()}` });
   console.log(`[plataforma] ${admin.email} → pidió un respaldo manual`);
