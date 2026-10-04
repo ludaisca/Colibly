@@ -67,6 +67,17 @@ Después:
 
 **Simulacro recomendado**: cada cierto tiempo restaura el dump en una base de prueba (los pasos 1–3 con otro nombre de base) y compara conteos. Un respaldo que nunca se probó restaurar no es un respaldo.
 
+## Monitoreo: que te avise si algo se cae o los respaldos se detienen
+
+Dos direcciones públicas, pensadas para un monitor **externo al servidor** (UptimeRobot, Better Stack…; el servidor está en una conexión residencial, así que un monitor en la misma máquina no avisa cuando es la máquina la que cae):
+
+| Monitor | URL | Alerta cuando |
+|---|---|---|
+| La aplicación | `https://app.colibly.com/api/health` | no responde 200 (base de datos o Redis caídos, o el sitio inaccesible) |
+| Los respaldos | `https://app.colibly.com/api/health/respaldos` | no responde 200: último respaldo correcto con más de 36 h, nunca hubo uno, o la función está apagada |
+
+`/api/health/respaldos` devuelve solo `{"respaldos":"ok" | "stale" | "never" | "disabled"}` (sin fechas ni tamaños). Va aparte de `/api/health` a propósito: ese es el healthcheck del contenedor en `docker-compose.yml`, y un respaldo atrasado no debe hacer que Coolify dé la app por caída. Crear los monitores requiere una cuenta del servicio: se hace a mano, con intervalo de 5 min y aviso por correo.
+
 ## Operación y límites
 
 - Requiere `pg_dump` 16 en la imagen de la app (`postgresql16-client` en la etapa `base` del `Dockerfile`; misma versión mayor que el servidor). Si algún día se sube PostgreSQL a 17, hay que subir también el cliente.
