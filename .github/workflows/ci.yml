@@ -24,7 +24,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
+      # tsconfig.tsbuildinfo no se versiona: sin esa caché incremental, tsc supera el
+      # heap por defecto de ~2 GB del runner y aborta con "heap out of memory".
       - run: npx tsc --noEmit
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
       - run: npm run lint
       - run: npm test
 
