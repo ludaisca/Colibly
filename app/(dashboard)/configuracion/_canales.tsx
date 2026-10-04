@@ -43,7 +43,7 @@ export function CanalesSection() {
           <div key={key} className="flex items-center justify-between gap-3 py-3 text-sm">
             <span>{label}</span>
             <Badge tone={flags?.[key] ? "success" : "neutral"} size="sm">
-              {flags ? flags[key] ? "Disponible" : "Por solicitud" : "Cargando…"}
+              {flags ? flags[key] ? "Disponible" : "Por solicitud" : error ? "No disponible" : "Cargando…"}
             </Badge>
           </div>
         ))}

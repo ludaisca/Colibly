@@ -40,7 +40,8 @@ export function Builder(props: BuilderProps) {
     const target = canvas?.querySelector<HTMLElement>(`[data-node-id="${props.selectedId ?? "trigger"}"]`);
     if (!canvas || !target) return;
     const offset = target.offsetLeft + target.offsetWidth / 2 - canvas.clientWidth / 2;
-    canvas.scrollTo({ left: Math.max(0, offset), behavior: "smooth" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    canvas.scrollTo({ left: Math.max(0, offset), behavior: reduceMotion ? "auto" : "smooth" });
   }, [props.selectedId]);
 
   return (
@@ -49,6 +50,7 @@ export function Builder(props: BuilderProps) {
         <button
           type="button"
           data-node-id="trigger"
+          aria-pressed={props.selectedId === "trigger"}
           onClick={() => props.onSelect("trigger")}
           className={cn(
             "flex w-[280px] items-center gap-3 rounded-xl border bg-surface p-3 text-left shadow-sm transition-shadow hover:shadow-md",
@@ -78,7 +80,7 @@ function StepList(props: BuilderProps & { listId: string; steps: Step[] }) {
       {steps.map((step, i) => (
         <Fragment key={step.id}>
           <Connector>
-            <AddButton {...props} listId={listId} index={i} allowTerminal={false} />
+            <AddButton {...props} listId={listId} index={i} allowTerminal={false} after={afterLabel(steps, i, listId)} />
           </Connector>
           <StepCard
             step={step}
@@ -95,11 +97,18 @@ function StepList(props: BuilderProps & { listId: string; steps: Step[] }) {
       {canAppend && (
         <>
           <Connector />
-          <AddButton {...props} listId={listId} index={steps.length} allowTerminal prominent={steps.length === 0} />
+          <AddButton {...props} listId={listId} index={steps.length} allowTerminal prominent={steps.length === 0} after={afterLabel(steps, steps.length, listId)} />
         </>
       )}
     </div>
   );
+}
+
+// Dónde cae el paso nuevo, para el nombre accesible de cada "+" (todos se
+// llamaban igual: "Agregar paso").
+function afterLabel(steps: Step[], index: number, listId: string): string {
+  if (index > 0) return `después de ${STEP_META[steps[index - 1].type].label}`;
+  return listId === ROOT ? "después del disparador" : "al inicio de la rama";
 }
 
 function Branches(props: BuilderProps & { step: Step; branches: Branch[] }) {
@@ -119,7 +128,7 @@ function Branches(props: BuilderProps & { step: Step; branches: Branch[] }) {
             {b.label}
           </span>
           <StepList {...props} listId={b.id} steps={b.steps} />
-          {b.steps.length === 0 && <p className="mt-1 text-[11px] text-muted-darker">Sin pasos: aquí termina</p>}
+          {b.steps.length === 0 && <p className="mt-1 text-xs text-muted-darker">Sin pasos: aquí termina</p>}
         </div>
       ))}
     </div>
@@ -134,16 +143,17 @@ function Connector({ children }: { children?: React.ReactNode }) {
   );
 }
 
-function AddButton(props: BuilderProps & { listId: string; index: number; allowTerminal: boolean; prominent?: boolean }) {
+function AddButton(props: BuilderProps & { listId: string; index: number; allowTerminal: boolean; prominent?: boolean; after: string }) {
   return (
     <button
       type="button"
       onClick={() => props.onRequestAdd({ listId: props.listId, index: props.index, allowTerminal: props.allowTerminal })}
       className={cn(
         "flex items-center justify-center border bg-surface text-muted shadow-sm transition-colors hover:border-accent-strong hover:text-accent-ink",
-        props.prominent ? "h-9 gap-1.5 rounded-[12px] px-3 text-xs font-medium" : "h-6 w-6 rounded-full"
+        // El "+" pequeño amplía su zona táctil con un pseudo-elemento: no mueve el layout.
+        props.prominent ? "h-9 gap-1.5 rounded-[12px] px-3 text-xs font-medium" : "relative h-6 w-6 rounded-full before:absolute before:-inset-2.5"
       )}
-      aria-label="Agregar paso"
+      aria-label={`Agregar paso ${props.after}`}
     >
       <Plus size={props.prominent ? 14 : 13} />
       {props.prominent && "Agregar paso"}
@@ -230,6 +240,7 @@ function StepCard({
       <button
         type="button"
         data-node-id={step.id}
+        aria-pressed={selected}
         onClick={onSelect}
         className={cn(
           "flex w-[280px] items-start gap-3 rounded-xl border bg-surface p-3 text-left shadow-sm transition-shadow hover:shadow-md",
@@ -244,11 +255,12 @@ function StepCard({
         <IssueMark issues={issues} />
       </button>
       {(canUp || canDown) && (
-        <div className="absolute -right-8 top-1/2 flex -translate-y-1/2 flex-col opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-          <button type="button" disabled={!canUp} onClick={() => onMove(-1)} className="rounded p-0.5 text-muted hover:text-foreground disabled:opacity-30" aria-label="Subir paso">
+        // Solo se esconde donde hay hover real: en táctil siempre se ve.
+        <div className="absolute -right-8 top-1/2 flex -translate-y-1/2 flex-col transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100">
+          <button type="button" disabled={!canUp} onClick={() => onMove(-1)} className="flex h-8 w-8 items-center justify-center rounded text-muted hover:text-foreground disabled:opacity-30" aria-label="Subir paso">
             <ChevronUp size={16} />
           </button>
-          <button type="button" disabled={!canDown} onClick={() => onMove(1)} className="rounded p-0.5 text-muted hover:text-foreground disabled:opacity-30" aria-label="Bajar paso">
+          <button type="button" disabled={!canDown} onClick={() => onMove(1)} className="flex h-8 w-8 items-center justify-center rounded text-muted hover:text-foreground disabled:opacity-30" aria-label="Bajar paso">
             <ChevronDown size={16} />
           </button>
         </div>
@@ -262,7 +274,12 @@ function IssueMark({ issues }: { issues: ValidationIssue[] }) {
   const error = issues.some((i) => i.level === "error");
   const Icon = error ? XCircle : AlertTriangle;
   return (
-    <span title={issues.map((i) => i.message).join("\n")} className={cn("shrink-0", error ? "text-danger" : "text-warning")}>
+    <span
+      role="img"
+      aria-label={`${error ? "Error" : "Aviso"}: ${issues.map((i) => i.message).join(". ")}`}
+      title={issues.map((i) => i.message).join("\n")}
+      className={cn("shrink-0", error ? "text-danger" : "text-warning")}
+    >
       <Icon size={16} />
     </span>
   );

@@ -9,7 +9,6 @@ import { Textarea } from "@/app/components/ui/textarea";
 import { Switch } from "@/app/components/ui/switch";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
-import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 
 interface CustomFieldDefinition {
@@ -66,7 +65,8 @@ export function CustomFieldFormModal({ open, onClose, accountId, channel, initia
     if (open) resetForm();
   }, [open, resetForm]);
 
-  async function handleSubmit() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     const newErrors: Record<string, string> = {};
     if (!isEditing && !key.trim()) newErrors.key = "Requerida";
     else if (!isEditing && !/^[a-z0-9_]+$/.test(key.trim())) newErrors.key = "Solo minúsculas, números y guion bajo";
@@ -119,13 +119,11 @@ export function CustomFieldFormModal({ open, onClose, accountId, channel, initia
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? <Spinner /> : isEditing ? "Actualizar" : "Crear"}
-          </Button>
+          <Button type="submit" form="campo-personalizado-form" loading={saving}>{isEditing ? "Actualizar" : "Crear"}</Button>
         </>
       }
     >
-      <div className="space-y-4">
+      <form id="campo-personalizado-form" onSubmit={handleSubmit} className="space-y-4">
         {error && <Banner tone="danger">{error}</Banner>}
 
         <FormField
@@ -179,9 +177,9 @@ export function CustomFieldFormModal({ open, onClose, accountId, channel, initia
             <p className="text-sm font-medium text-foreground">Obligatorio</p>
             <p className="text-xs text-muted-darker">Se marca como pendiente en la ficha del contacto si falta</p>
           </div>
-          <Switch checked={required} onCheckedChange={setRequired} />
+          <Switch checked={required} onCheckedChange={setRequired} label="Obligatorio" />
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }

@@ -31,3 +31,11 @@ npm-debug.log*
 
 # Playwright MCP screenshots
 .playwright-mcp
+
+# Impeccable: conserve la integración y las críticas, no los binarios ni capturas locales
+.agents/skills/impeccable/scripts/bin/
+.impeccable/hook.cache.json
+.impeccable/preview-*.png
+.impeccable/review-screens/
+.impeccable/qa-visual.cjs
+.claude/settings.local.json

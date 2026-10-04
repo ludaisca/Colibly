@@ -190,7 +190,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
               <p className="text-sm font-medium">Activo</p>
               <p className="text-xs text-muted-darker">Solo los calificadores activos aparecen para elegir al calificar un chat.</p>
             </div>
-            <Switch checked={isActive} onCheckedChange={setIsActive} />
+            <Switch checked={isActive} onCheckedChange={setIsActive} label="Calificador activo" />
           </div>
 
           <div className="space-y-3 rounded-lg border border-border p-3">
@@ -201,7 +201,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
                   Vuelve a calificar los chats abiertos/pendientes con mensajes nuevos, de forma periódica, sin intervención manual.
                 </p>
               </div>
-              <Switch checked={scheduleEnabled} onCheckedChange={setScheduleEnabled} />
+              <Switch checked={scheduleEnabled} onCheckedChange={setScheduleEnabled} label="Ejecución automática" />
             </div>
             {scheduleEnabled && (
               <>
@@ -237,7 +237,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
                 </FormField>
               </>
             )}
-            <p className="text-[11px] text-muted-darker">
+            <p className="text-xs text-muted-darker">
               Cada calificación usa un crédito de IA de tu plan: si se acaban, las ejecuciones automáticas se omiten hasta el siguiente periodo.
             </p>
           </div>

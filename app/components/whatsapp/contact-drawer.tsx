@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, CalendarClock, X } from "lucide-react";
 import { Drawer } from "@base-ui/react/drawer";
 import { Banner } from "@/app/components/ui/banner";
+import { FormField } from "@/app/components/ui/form-field";
 import { Select } from "@/app/components/ui/select";
 import { MultiSelect } from "@/app/components/ui/multi-select";
 import { Textarea } from "@/app/components/ui/textarea";
@@ -123,6 +124,8 @@ export function ContactDrawer({
 
   async function handleLeadStatusChange(leadStatus: string) {
     if (!contact) return;
+    // Se conserva el valor anterior para volver a él si el servidor rechaza el cambio.
+    const previousStatus = contact.leadStatus;
     setContact({ ...contact, leadStatus });
     try {
       const res = await fetch(`/api/whatsapp/contacts/${contactId}`, {
@@ -133,6 +136,7 @@ export function ContactDrawer({
       if (!res.ok) throw new Error();
       onUpdated();
     } catch {
+      setContact((prev) => (prev ? { ...prev, leadStatus: previousStatus } : prev));
       toastError("Error al actualizar el estado");
     }
   }
@@ -262,28 +266,34 @@ export function ContactDrawer({
             </Banner>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-muted-darker mb-1.5">Estado de lead</label>
-            <Select value={contact.leadStatus} onChange={(e) => handleLeadStatusChange(e.target.value)}>
-              {LEAD_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
-          </div>
+          <FormField label="Estado de lead">
+            {(id) => (
+              <Select id={id} value={contact.leadStatus} onChange={(e) => handleLeadStatusChange(e.target.value)}>
+                {LEAD_STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Select>
+            )}
+          </FormField>
 
           <div>
-            <label className="block text-xs font-medium text-muted-darker mb-1.5">Etiquetas</label>
-            <MultiSelect
-              options={allTags.map((t) => ({ value: t.id, label: t.name }))}
-              value={contact.tags.map((t) => t.tag.id)}
-              onChange={handleTagsChange}
-              placeholder="Sin etiquetas"
-            />
+            <FormField label="Etiquetas">
+              {(id) => (
+                <MultiSelect
+                  id={id}
+                  options={allTags.map((t) => ({ value: t.id, label: t.name }))}
+                  value={contact.tags.map((t) => t.tag.id)}
+                  onChange={handleTagsChange}
+                  placeholder="Sin etiquetas"
+                />
+              )}
+            </FormField>
             <div className="flex gap-2 mt-2">
               <Input
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
                 placeholder="Nueva etiqueta..."
+                aria-label="Nueva etiqueta"
                 className="flex-1"
               />
               <Button size="sm" variant="secondary" icon={Plus} onClick={handleCreateTag}>
@@ -294,18 +304,15 @@ export function ContactDrawer({
 
           {customFieldDefs.length > 0 && (
             <div>
-              <label className="block text-xs font-medium text-muted-darker mb-1.5">Campos personalizados</label>
+              <h3 className="text-sm font-medium text-foreground mb-1.5">Campos personalizados</h3>
               <div className="space-y-3">
                 {customFieldDefs.map((def) => {
                   const value = customFieldValues[def.id] ?? "";
                   return (
-                    <div key={def.id}>
-                      <label className="block text-xs text-muted-darker mb-1">
-                        {def.label}
-                        {def.required && <span className="ml-1 text-danger" aria-hidden="true">*</span>}
-                      </label>
-                      {def.type === "SELECT" ? (
+                    <FormField key={def.id} label={def.label} required={def.required}>
+                      {(id) => def.type === "SELECT" ? (
                         <Select
+                          id={id}
                           value={value}
                           onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
                           placeholder="Sin seleccionar"
@@ -314,6 +321,7 @@ export function ContactDrawer({
                         </Select>
                       ) : def.type === "BOOLEAN" ? (
                         <Select
+                          id={id}
                           value={value}
                           onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
                         >
@@ -323,12 +331,13 @@ export function ContactDrawer({
                         </Select>
                       ) : (
                         <Input
+                          id={id}
                           type={def.type === "NUMBER" ? "number" : def.type === "DATE" ? "date" : "text"}
                           value={value}
                           onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
                         />
                       )}
-                    </div>
+                    </FormField>
                   );
                 })}
                 <Button size="sm" variant="secondary" onClick={handleSaveCustomFields} disabled={savingFields}>
@@ -339,7 +348,7 @@ export function ContactDrawer({
           )}
 
           <div>
-            <label className="block text-xs font-medium text-muted-darker mb-1.5">Próxima cita</label>
+            <h3 className="text-sm font-medium text-foreground mb-1.5">Próxima cita</h3>
             {nextAppointment ? (
               <div className="rounded-lg border border-border bg-surface-light p-3">
                 <div className="flex items-start gap-2.5">
@@ -377,14 +386,18 @@ export function ContactDrawer({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-darker mb-1.5">Notas internas</label>
             <div className="space-y-2 mb-3">
-              <Textarea
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Agregar una nota..."
-                rows={3}
-              />
+              <FormField label="Notas internas">
+                {(id) => (
+                  <Textarea
+                    id={id}
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    placeholder="Agregar una nota..."
+                    rows={3}
+                  />
+                )}
+              </FormField>
               <Button size="sm" onClick={handleAddNote} disabled={savingNote || !newNote.trim()}>
                 {savingNote ? "Guardando..." : "Agregar nota"}
               </Button>

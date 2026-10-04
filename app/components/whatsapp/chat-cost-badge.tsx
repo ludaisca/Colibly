@@ -71,13 +71,13 @@ export function ChatCostBadge({ chatId, showEmpty = false }: { chatId: string; s
         <div className="flex items-center justify-between">
           <div>
             <p className="text-lg font-semibold">{formatCost(data.totalCost)}</p>
-            <p className="text-[11px] text-muted-darker">
+            <p className="text-xs text-muted-darker">
               {data.totalTokens.toLocaleString()} tokens · {data.interactions} interacción{data.interactions === 1 ? "" : "es"}
             </p>
           </div>
         </div>
 
-        <p className="text-[11px] text-muted-darker">
+        <p className="text-xs text-muted-darker">
           Costo estimado de IA atribuible a esta conversación (respuestas del bot, calificaciones de lead y pasos de IA de automatizaciones). No incluye el costo de mensajes API de WhatsApp.
         </p>
 
@@ -94,7 +94,7 @@ export function ChatCostBadge({ chatId, showEmpty = false }: { chatId: string; s
                 )}
                 <div className="min-w-0">
                   <p className="truncate text-foreground">{entry.name}</p>
-                  <p className="text-[10px] text-muted-darker">
+                  <p className="text-xs text-muted-darker">
                     {new Date(entry.createdAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })} · {entry.totalTokens} tok
                   </p>
                 </div>

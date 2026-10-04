@@ -7,7 +7,7 @@ export default function EstadisticasLoading() {
       <PageHeader title="Estadísticas" description="Métricas globales de uso de la plataforma." />
 
       {/* Franja KPI */}
-      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="space-y-2 rounded-xl border border-border bg-surface p-5 shadow-sm">
             <Skeleton className="h-3 w-16" />

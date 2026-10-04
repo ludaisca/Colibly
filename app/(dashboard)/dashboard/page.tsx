@@ -59,6 +59,7 @@ export default async function DashboardPage() {
     botsActive,
     campaignsTotal,
     campaignsCompleted,
+    onboarding,
   ] = await Promise.all([
     countTotalAccounts(accountIds, userId),
     countConnectedAccounts(accountIds, userId),
@@ -67,7 +68,7 @@ export default async function DashboardPage() {
     prisma.conversation.aggregate({ where: { channelAccountId: { in: channelAccountIds } }, _sum: { unreadCount: true } }),
     prisma.wAChat.findMany({
       where: { accountId: { in: accountIds } },
-      orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
+      orderBy: [{ unreadCount: "desc" }, { lastMessageAt: { sort: "desc", nulls: "last" } }],
       take: 8,
       select: {
         id: true,
@@ -76,16 +77,17 @@ export default async function DashboardPage() {
         remoteJid: true,
         lastMessage: true,
         lastMessageAt: true,
+        unreadCount: true,
         account: { select: { name: true } },
       },
     }),
     prisma.conversation.findMany({
       where: { channelAccountId: { in: channelAccountIds } },
-      orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
+      orderBy: [{ unreadCount: "desc" }, { lastMessageAt: { sort: "desc", nulls: "last" } }],
       take: 8,
       select: {
         id: true, channelAccountId: true, name: true, externalId: true,
-        lastMessage: true, lastMessageAt: true,
+        lastMessage: true, lastMessageAt: true, unreadCount: true,
         channelAccount: { select: { name: true, channel: true } },
       },
     }),
@@ -97,6 +99,8 @@ export default async function DashboardPage() {
     countActiveBots(userId),
     countCampaigns(userId),
     countCompletedCampaigns(userId),
+    // Primeros pasos: solo admins (son quienes pueden hacerlos) y mientras falte alguno.
+    session.user.role === "admin" ? getOnboardingSteps(userId) : Promise.resolve([]),
   ]);
 
   const unreadCount = (unreadAgg._sum.unreadCount ?? 0) + (channelUnreadAgg._sum.unreadCount ?? 0);
@@ -107,6 +111,7 @@ export default async function DashboardPage() {
     name: c.name ?? c.remoteJid ?? "Desconocido",
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
+    unreadCount: c.unreadCount,
     accountName: c.account?.name ?? "—",
   })).concat(recentChannelChats.map((c) => ({
     id: c.id,
@@ -114,8 +119,9 @@ export default async function DashboardPage() {
     name: c.name ?? c.externalId ?? "Desconocido",
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
+    unreadCount: c.unreadCount,
     accountName: c.channelAccount.name,
-  }))).sort((a, b) => (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)).slice(0, 8);
+  }))).sort((a, b) => Number(b.unreadCount > 0) - Number(a.unreadCount > 0) || (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)).slice(0, 8);
 
   const showAccountBadge = accountsTotal > 1;
   const channelTypes = new Set(channelAccounts.map((account) => account.channel));
@@ -156,17 +162,15 @@ export default async function DashboardPage() {
 
   const needsSetup = accountsTotal === 0;
   const needsAttention = !needsSetup && unreadCount > 0;
-  // Primeros pasos: solo admins (son quienes pueden hacerlos) y mientras falte alguno.
-  const onboarding = session.user.role === "admin" ? await getOnboardingSteps(userId) : [];
   const showOnboarding = onboarding.some((step) => !step.done);
 
   return (
     <div className="space-y-8">
       <div className="animate-fade-in-up">
-        <PageHeader title="Panel" description="Resumen de la actividad de tus canales" />
+        <PageHeader title="Tu bandeja de trabajo" description="Conversaciones y próximos pasos de tu negocio" />
       </div>
 
-      {showOnboarding && (
+      {showOnboarding && needsSetup && (
         <div className="animate-fade-in-up animation-delay-100">
           <OnboardingChecklist steps={onboarding} />
         </div>
@@ -176,7 +180,7 @@ export default async function DashboardPage() {
           un mensaje verde de "todo en orden" daría una señal equivocada. */}
       <div
         className={cn(
-          "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-4 rounded-xl px-6 py-5 shadow-sm",
+          "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-4 rounded-xl px-5 py-4",
           needsSetup ? "bg-info-bg" : needsAttention ? "bg-warning-bg" : "bg-success-bg"
         )}
       >
@@ -200,10 +204,13 @@ export default async function DashboardPage() {
             </p>
           </div>
         </div>
-      </div>
-
-      <div className="animate-fade-in-up animation-delay-200">
-        <KpiStrip items={kpis} />
+        <Link
+          href={needsSetup ? "/whatsapp/cuentas?nueva=1" : "/whatsapp/chat"}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground underline underline-offset-4 hover:text-accent-ink"
+        >
+          {needsSetup ? "Conectar WhatsApp" : "Abrir bandeja"}
+          <ArrowRight size={15} aria-hidden />
+        </Link>
       </div>
 
       <Workbench>
@@ -211,8 +218,8 @@ export default async function DashboardPage() {
           <section className="animate-fade-in-up animation-delay-300 rounded-xl border border-border bg-surface shadow-sm">
             <div className="flex items-baseline justify-between gap-3 px-5 py-4">
               <SectionHeader
-                eyebrow="Actividad"
-                title="Chats recientes"
+                eyebrow="Conversaciones"
+                title={unreadCount > 0 ? "Por atender" : "Chats recientes"}
                 action={
                   chatsTotal > 0 ? (
                     <Link
@@ -247,9 +254,12 @@ export default async function DashboardPage() {
                       <p className="truncate text-xs text-muted-darker">{chat.lastMessage ?? "—"}</p>
                     </div>
                     <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-1 sm:ml-auto sm:shrink-0 sm:flex-col sm:items-end">
-                      <span className="text-[11px] font-medium tabular-nums text-muted-darker">
+                      <span className="text-xs font-medium tabular-nums text-muted-darker">
                         {formatTime(chat.lastMessageAt)}
                       </span>
+                      {chat.unreadCount > 0 && (
+                        <Badge tone="warning" size="sm">{chat.unreadCount} sin leer</Badge>
+                      )}
                       {showAccountBadge && (
                         <Badge tone="neutral" size="sm">{chat.accountName}</Badge>
                       )}
@@ -304,6 +314,16 @@ export default async function DashboardPage() {
           </section>
         </WorkbenchAside>
       </Workbench>
+
+      <div className="animate-fade-in-up animation-delay-200">
+        <KpiStrip items={kpis} size="compact" />
+      </div>
+
+      {showOnboarding && !needsSetup && (
+        <div className="animate-fade-in-up animation-delay-300">
+          <OnboardingChecklist steps={onboarding} />
+        </div>
+      )}
     </div>
   );
 }

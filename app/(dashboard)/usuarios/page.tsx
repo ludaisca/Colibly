@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
-import { Spinner } from "@/app/components/ui/spinner";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
@@ -189,7 +188,11 @@ export default function UsersPage() {
         }
       />
 
-      {invitationLoadError && <Banner tone="danger">{invitationLoadError} <button type="button" onClick={fetchInvitations} className="underline">Reintentar</button></Banner>}
+      {invitationLoadError && (
+        <Banner tone="danger" action={<Button variant="link" onClick={fetchInvitations}>Reintentar</Button>}>
+          {invitationLoadError}
+        </Banner>
+      )}
 
       {invitations.length > 0 && (
         <section className="space-y-3">
@@ -209,10 +212,10 @@ export default function UsersPage() {
                   subtitle={`Vence el ${new Date(inv.expiresAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}${inv.invitedBy ? ` · la envió ${inv.invitedBy.name ?? inv.invitedBy.email}` : ""}`}
                 />
                 <span className="flex shrink-0 items-center justify-end gap-1 border-t border-border pt-2 sm:border-0 sm:pt-0">
-                  <Button variant="ghost" size="sm" icon={RotateCw} disabled={invitationBusy === inv.id} onClick={() => resendInvitation(inv)}>
+                  <Button variant="ghost" size="sm" icon={RotateCw} disabled={invitationBusy === inv.id} onClick={() => resendInvitation(inv)} aria-label={`Reenviar invitación a ${inv.email}`}>
                     Reenviar
                   </Button>
-                  <Button variant="ghost" size="sm" icon={X} disabled={invitationBusy === inv.id} onClick={() => revokeInvitation(inv)} className="text-danger">
+                  <Button variant="ghost" size="sm" icon={X} disabled={invitationBusy === inv.id} onClick={() => revokeInvitation(inv)} aria-label={`Revocar invitación de ${inv.email}`} className="text-danger">
                     Revocar
                   </Button>
                 </span>
@@ -265,10 +268,12 @@ export default function UsersPage() {
                 size="sm"
                 icon={nextRoleIcon(u.role)}
                 onClick={() => toggleRole(u.id, u.role)}
-                disabled={togglingId === u.id || !!u.disabledAt}
+                loading={togglingId === u.id}
+                disabled={!!u.disabledAt}
+                aria-label={`Hacer ${nextRoleLabel(u.role)} a ${u.name ?? u.email}`}
                 className={u.role === "admin" ? "text-warning" : "text-muted-darker"}
               >
-                {togglingId === u.id ? <Spinner /> : `Hacer ${nextRoleLabel(u.role)}`}
+                {`Hacer ${nextRoleLabel(u.role)}`}
               </Button>
               {u.disabledAt ? (
                 <Button
@@ -277,6 +282,7 @@ export default function UsersPage() {
                   icon={UserCheck}
                   onClick={() => setDisabled(u, false)}
                   disabled={togglingId === u.id}
+                  aria-label={`Reactivar a ${u.name ?? u.email}`}
                   className="text-success"
                 >
                   Reactivar
@@ -288,6 +294,7 @@ export default function UsersPage() {
                   icon={UserX}
                   onClick={() => setConfirmDisable(u)}
                   disabled={togglingId === u.id}
+                  aria-label={`Desactivar a ${u.name ?? u.email}`}
                   className="text-danger"
                 >
                   Desactivar

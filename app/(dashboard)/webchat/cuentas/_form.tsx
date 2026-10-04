@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Copy, Check } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
@@ -107,11 +107,26 @@ export function WebchatCuentaFormModal({ open, onClose, editId = null, onSaved }
     ? `<script src="${typeof window !== "undefined" ? window.location.origin : ""}/api/webchat/${snippetAccountId}/widget.js" async></script>`
     : "";
 
-  function copySnippet() {
-    navigator.clipboard.writeText(snippet).then(() => {
+  const snippetRef = useRef<HTMLPreElement>(null);
+
+  async function copySnippet() {
+    try {
+      await navigator.clipboard.writeText(snippet);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    } catch {
+      // Sin permiso del portapapeles o contexto no seguro: se deja el script
+      // seleccionado para que Ctrl+C funcione.
+      const el = snippetRef.current;
+      if (el) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+      toastError("No se pudo copiar automáticamente. El script quedó seleccionado: presiona Ctrl+C.");
+    }
   }
 
   // Tras crear (o al reabrir una ya existente), se muestra el snippet en vez
@@ -149,7 +164,7 @@ export function WebchatCuentaFormModal({ open, onClose, editId = null, onSaved }
             Copia este script y pégalo antes de <code>&lt;/body&gt;</code> en tu sitio web. Solo funcionará desde los dominios que autorizaste.
           </p>
           <div className="relative">
-            <pre className="rounded-lg bg-surface-light border border-border p-3 text-xs overflow-x-auto">{snippet}</pre>
+            <pre ref={snippetRef} className="rounded-lg bg-surface-light border border-border p-3 text-xs overflow-x-auto">{snippet}</pre>
             <Button
               variant="secondary"
               size="sm"
@@ -159,6 +174,7 @@ export function WebchatCuentaFormModal({ open, onClose, editId = null, onSaved }
             >
               {copied ? "Copiado" : "Copiar"}
             </Button>
+            <span role="status" aria-live="polite" className="sr-only">{copied ? "Copiado" : ""}</span>
           </div>
         </div>
       ) : (

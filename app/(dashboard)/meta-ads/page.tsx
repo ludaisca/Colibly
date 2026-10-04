@@ -130,6 +130,7 @@ export default function MetaAdsPage() {
 
       <div className="space-y-4">
         <Input
+          aria-label="Buscar cuentas"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por nombre o Page ID..."
@@ -155,7 +156,7 @@ export default function MetaAdsPage() {
               <DropdownItem icon={Settings2} onClick={() => openEdit(a)}>
                 Editar
               </DropdownItem>
-              <DropdownItem icon={Trash2} onClick={() => setDeleteId(a.id)}>
+              <DropdownItem icon={Trash2} danger onClick={() => setDeleteId(a.id)}>
                 Eliminar
               </DropdownItem>
             </>

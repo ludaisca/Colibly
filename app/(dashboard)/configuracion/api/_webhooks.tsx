@@ -64,8 +64,9 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
 
   async function sendTest(w: WebhookRow) {
     try {
-      await call(`/api/configuracion/webhooks/${w.id}/test`, { method: "POST" }, "Evento de prueba enviado — revisa las entregas");
-      setTimeout(() => router.push(`/configuracion/api/webhooks/${w.id}/entregas`), 1200);
+      // Sin navegación automática: arrebatar la pantalla a los 1,2 s desorienta.
+      // El resultado está en "Ver entregas" (menú de la fila o clic en la fila).
+      await call(`/api/configuracion/webhooks/${w.id}/test`, { method: "POST" }, "Evento de prueba enviado. Ve el resultado en “Ver entregas”.");
     } catch (err) {
       toastError(err instanceof Error ? err.message : "No se pudo enviar la prueba");
     }

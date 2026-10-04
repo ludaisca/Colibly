@@ -46,6 +46,12 @@ const MEDIA_UPLOAD_ENDPOINT: Record<Channel, string> = {
   WEBCHAT: "/api/webchat/media-not-supported",
 };
 
+// "smooth" solo si la persona no pidió reducir el movimiento (se llama dentro
+// de efectos, así que window siempre existe).
+function scrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+}
+
 interface ChatWorkspaceProps {
   initialAccounts: AccountOption[];
   initialAccountId?: string;
@@ -103,6 +109,13 @@ export function ChatWorkspace({
   // Sugerencia de respuesta rápida resaltada — navegable con ↑/↓, se inserta
   // con Enter o Tab.
   const [cannedIndex, setCannedIndex] = useState(0);
+  // Texto de la región viva (sr-only): avisos de mensajes nuevos y de acciones
+  // sobre el chat. Nunca se pone aria-live sobre la lista de mensajes.
+  const [announcement, setAnnouncement] = useState("");
+  const announce = useCallback((text: string) => {
+    // Un mismo texto seguido no se vuelve a leer: se alterna un espacio fino.
+    setAnnouncement((prev) => (prev === text ? `${text}\u00A0` : text));
+  }, []);
 
   // Media attachments state
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -115,6 +128,13 @@ export function ChatWorkspace({
   const messageDraftsRef = useRef<Map<string, string>>(new Map());
   const activeChatIdRef = useRef(selectedChatId);
   useEffect(() => { activeChatIdRef.current = selectedChatId; }, [selectedChatId]);
+  // Espejos en ref para que el poll/refresco no dependan de estado que cambia
+  // en cada tick (recrearían el intervalo de 5s).
+  const chatsLengthRef = useRef(0);
+  const messagesRef = useRef<Message[]>([]);
+  // Chat cuyo historial ya terminó de cargar: antes de eso el poll no anuncia.
+  const loadedChatIdRef = useRef<string | null>(null);
+  const leadNameRef = useRef("el lead");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   // scrollHeight previo a un prepend de historial — permite restaurar la
@@ -198,16 +218,16 @@ export function ChatWorkspace({
 
   const refreshChats = useCallback(async () => {
     try {
-      const pageSize = Math.min(Math.max(chats.length, CHATS_PAGE_SIZE), 100);
+      const pageSize = Math.min(Math.max(chatsLengthRef.current, CHATS_PAGE_SIZE), 100);
       const { items, total } = await fetchChatsPage(firstPagePerChannel, pageSize);
       setChats(items);
       setChatsTotal(total);
       setChatsError(null);
     } catch (error) {
-      if (chats.length === 0) setChatsError(error instanceof Error ? error.message : "Error al cargar chats");
+      if (chatsLengthRef.current === 0) setChatsError(error instanceof Error ? error.message : "Error al cargar chats");
       else toastError("Error al actualizar chats");
     }
-  }, [chats.length, fetchChatsPage, firstPagePerChannel, toastError]);
+  }, [fetchChatsPage, firstPagePerChannel, toastError]);
 
   const retryChats = useCallback(async () => {
     setLoadingChats(true);
@@ -358,6 +378,10 @@ export function ChatWorkspace({
   // mutation site only needs to update one place instead of keeping two in sync.
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
 
+  useEffect(() => { chatsLengthRef.current = chats.length; }, [chats.length]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { leadNameRef.current = selectedChat?.name || selectedChat?.remoteJid || "el lead"; }, [selectedChat?.name, selectedChat?.remoteJid]);
+
   // Los enlaces desde Panel, Contactos y notificaciones pueden apuntar a un
   // chat anterior a la primera página. Se recupera por id dentro de la cuenta
   // autorizada y se incorpora a la lista para abrir también su hilo.
@@ -419,6 +443,7 @@ export function ChatWorkspace({
         const data = await res.json();
         if (controller.signal.aborted) return;
         if (Array.isArray(data)) {
+          loadedChatIdRef.current = selectedChatId;
           setMessages(data);
           setHasOlderMessages(data.length >= 50);
         }
@@ -468,7 +493,7 @@ export function ChatWorkspace({
     }
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     if (distanceFromBottom < 200) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior() });
     }
   }, [messages]);
 
@@ -483,6 +508,22 @@ export function ChatWorkspace({
         const data = (await res.json()) as Message[];
         if (controller.signal.aborted) return; // efecto ya limpiado
         if (Array.isArray(data) && data.length > 0) {
+          // Aviso para lectores de pantalla: solo mensajes entrantes nuevos del
+          // chat abierto, y nunca antes de que termine la carga inicial.
+          if (loadedChatIdRef.current === selectedChatId) {
+            const known = new Set(messagesRef.current.map((m) => m.id));
+            const fresh = data.filter((m) => !known.has(m.id) && m.direction === "INBOUND");
+            if (fresh.length > 0) {
+              const last = fresh[fresh.length - 1];
+              const raw = last.body || last.caption || `[${last.messageType}]`;
+              const preview = raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
+              announce(
+                fresh.length === 1
+                  ? `Nuevo mensaje de ${leadNameRef.current}: ${preview}`
+                  : `${fresh.length} mensajes nuevos de ${leadNameRef.current}. Último: ${preview}`
+              );
+            }
+          }
           let anyChange = false;
           setMessages((prev) => {
             // Merge en lugar de reemplazo: el reemplazo total descartaba el
@@ -523,7 +564,7 @@ export function ChatWorkspace({
       clearInterval(interval);
       controller.abort();
     };
-  }, [selectedChatId, refreshChats]);
+  }, [selectedChatId, refreshChats, announce]);
 
   const clearAttachment = useCallback(() => {
     setAttachment(null);
@@ -765,6 +806,7 @@ export function ChatWorkspace({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al cambiar estado");
       setChats((prev) => prev.map((c) => (c.id === selectedChatId ? { ...c, status: data.status } : c)));
+      announce(newStatus === "RESOLVED" ? "Chat resuelto" : newStatus === "OPEN" ? "Chat reabierto" : "Chat marcado como pendiente");
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al cambiar estado");
     }
@@ -866,11 +908,12 @@ export function ChatWorkspace({
               onCloseChat={handleCloseChat}
               onOpenContactDrawer={() => setContactDrawerOpen(true)}
               onStatusChange={handleStatusChange}
-              onAssigned={(assignee) =>
+              onAssigned={(assignee) => {
                 setChats((prev) => prev.map((c) =>
                   c.id === selectedChatId ? { ...c, assignedTo: assignee, assignedToId: assignee?.id ?? null } : c
-                ))
-              }
+                ));
+                announce(assignee ? `Chat asignado a ${assignee.name ?? "un compañero"}` : "Chat sin asignar");
+              }}
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
               onReply={setReplyTo}
@@ -924,6 +967,7 @@ export function ChatWorkspace({
 
   return (
     <div className="flex flex-1 min-h-0">
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</div>
       <ChatAccountRail accounts={accountOptions} selectedAccountId={accountFilter} onSelect={setAccountFilter} unreadByAccount={unreadByAccount} />
       {resizable ? <Group orientation="horizontal" className="h-full min-w-0 flex-1">
         <Panel id="conversations" defaultSize="32%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>

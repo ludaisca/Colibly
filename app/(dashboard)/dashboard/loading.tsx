@@ -4,7 +4,7 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 export default function DashboardLoading() {
   return (
     <div className="space-y-8">
-      <PageHeader title="Panel" description="Resumen de tu actividad en WhatsApp y Telegram" />
+      <PageHeader title="Tu bandeja de trabajo" description="Conversaciones y próximos pasos de tu negocio" />
 
       {/* Estado del sistema */}
       <div className="flex items-center gap-3.5 rounded-xl border border-border bg-surface px-6 py-5 shadow-sm">
@@ -13,17 +13,6 @@ export default function DashboardLoading() {
           <Skeleton className="h-4 w-40" />
           <Skeleton className="h-3 w-64" />
         </div>
-      </div>
-
-      {/* Franja KPI */}
-      <div className="grid gap-3.5 grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="space-y-2 rounded-xl border border-border bg-surface p-5 shadow-sm">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-3 w-14" />
-          </div>
-        ))}
       </div>
 
       <div className="grid gap-10 lg:grid-cols-3">
@@ -61,6 +50,16 @@ export default function DashboardLoading() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="grid gap-3.5 grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="space-y-2 rounded-xl border border-border bg-surface p-5 shadow-sm">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+        ))}
       </div>
     </div>
   );

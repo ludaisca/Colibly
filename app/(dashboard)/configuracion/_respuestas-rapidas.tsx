@@ -125,6 +125,7 @@ export function RespuestasRapidasSection() {
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
               placeholder="Seleccionar cuenta"
+              aria-label="Cuenta"
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -166,7 +167,7 @@ export function RespuestasRapidasSection() {
               <DropdownItem icon={Pencil} onClick={() => { setEditing(r); setModalOpen(true); }}>
                 Editar
               </DropdownItem>
-              <DropdownItem icon={Trash2} onClick={() => setDeleteId(r.id)}>
+              <DropdownItem icon={Trash2} danger onClick={() => setDeleteId(r.id)}>
                 Eliminar
               </DropdownItem>
             </>

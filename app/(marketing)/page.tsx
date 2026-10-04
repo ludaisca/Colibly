@@ -23,15 +23,15 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
-import { PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
+import { GRACE_DAYS, PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
 import { planFeatures } from "@/lib/billing/plan-features";
 import { HeroDemo } from "./_hero-demo";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { siteUrl } from "@/lib/app-url";
 
 const TITLE = `${BRAND_NAME} — ${BRAND_TAGLINE}`;
-const DESCRIPTION = `Atiende WhatsApp con bots de IA, automatizaciones y seguimiento de leads. Instagram, Messenger, Telegram y chat web disponibles por habilitación. Desde 5 USD al mes, ${TRIAL_DAYS} días gratis.`;
 const MIN_PRICE = Math.min(...PLAN_LIST.map((p) => p.priceUsd));
+const DESCRIPTION = `Atiende WhatsApp con bots de IA, automatizaciones y seguimiento de leads. Instagram, Messenger, Telegram y chat web disponibles por habilitación. Desde ${MIN_PRICE} USD al mes, ${TRIAL_DAYS} días gratis.`;
 // Un solo texto para la acción principal en toda la página (el header usa la versión corta).
 const CTA = `Prueba ${TRIAL_DAYS} días gratis`;
 
@@ -141,7 +141,7 @@ const FAQ = [
   },
   {
     q: "¿Qué pasa si se me olvida pagar?",
-    a: "Tienes 7 días de gracia con todo funcionando. Después la cuenta queda en solo lectura: ves tus datos y los mensajes de tus clientes se siguen recibiendo, pero no se envían respuestas hasta que se actualiza el pago.",
+    a: `Tienes ${GRACE_DAYS} días de gracia con todo funcionando. Después la cuenta queda en solo lectura: ves tus datos y los mensajes de tus clientes se siguen recibiendo, pero no se envían respuestas hasta que se actualiza el pago.`,
   },
   {
     q: "¿Mis datos están seguros?",
@@ -218,10 +218,10 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          <div className="relative min-w-0 rounded-xl border border-accent-muted bg-accent-subtle/60 p-3 shadow-sm sm:p-5">
+          <div className="relative min-w-0 rounded-xl border border-accent-muted bg-accent-subtle p-3 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3 px-1 text-xs font-medium text-accent-ink">
               <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-accent-strong" /> Una conversación, de principio a fin</span>
-              <span className="hidden sm:inline">Ejemplo ilustrativo</span>
+              <span className="shrink-0">Ejemplo ilustrativo</span>
             </div>
             <HeroDemo />
           </div>
@@ -243,7 +243,7 @@ export default function LandingPage() {
 
       <section aria-labelledby="como-funciona" className="mx-auto max-w-6xl px-4 pt-20 md:px-6">
         <p className="text-eyebrow font-medium uppercase tracking-wider text-muted">Cómo funciona</p>
-        <h2 id="como-funciona" className="reveal mt-2 max-w-2xl font-display text-3xl font-semibold tracking-tight">
+        <h2 id="como-funciona" className="reveal mt-2 scroll-mt-24 max-w-2xl font-display text-3xl font-semibold tracking-tight">
           Empieza a atender con IA hoy mismo
         </h2>
         <ol className="steps-track relative mt-10 grid gap-5 md:grid-cols-3">
@@ -272,7 +272,7 @@ export default function LandingPage() {
         </h2>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map(({ icon: Icon, title, text }, i) => (
-            <article key={title} className={cn("reveal group flex flex-col rounded-xl border border-border bg-surface p-5 shadow-sm transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-md", i < 2 && "lg:col-span-2 lg:min-h-72", i === 0 && "border-accent-muted bg-accent-subtle/50")}>
+            <article key={title} className={cn("reveal group flex flex-col rounded-xl border border-border bg-surface p-5 shadow-sm transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-md", i < 2 && "lg:col-span-2 lg:min-h-72", i === 0 && "border-accent-muted bg-accent-subtle")}>
               <span className="text-xs font-semibold uppercase tracking-wider text-muted">{i < 3 ? "Atiende" : "Convierte"} · 0{i + 1}</span>
               <span
                 className={cn(
@@ -376,7 +376,7 @@ export default function LandingPage() {
           {FAQ.map(({ q, a }) => (
             <details key={q} className="group" data-track="faq">
               {/* El relleno va en el summary para que toda la fila sea tocable. */}
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 font-medium transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-strong">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden justify-between gap-4 px-5 py-3 font-medium transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-strong">
                 {q}
                 <span className="text-muted transition-transform group-open:rotate-45" aria-hidden>+</span>
               </summary>

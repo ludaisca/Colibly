@@ -101,8 +101,9 @@ export function ChatListPanel({
             <button
               type="button"
               onClick={() => onAccountFilterChange("")}
+              aria-pressed={accountFilter === ""}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-[12px] border px-3 py-1.5 text-xs font-semibold transition-colors",
+                "flex min-h-11 shrink-0 items-center gap-1.5 rounded-[12px] border px-3 py-1.5 text-xs font-semibold transition-colors",
                 accountFilter === ""
                   ? "border-accent-strong bg-accent text-on-accent"
                   : "border-border bg-surface text-muted hover:bg-surface-light"
@@ -115,8 +116,9 @@ export function ChatListPanel({
                 key={acc.id}
                 type="button"
                 onClick={() => onAccountFilterChange(acc.id)}
+                aria-pressed={accountFilter === acc.id}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-[12px] border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
+                  "flex min-h-11 shrink-0 items-center gap-1.5 rounded-[12px] border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
                   accountFilter === acc.id
                     ? "border-accent-strong bg-accent text-on-accent"
                     : "border-border bg-surface text-muted hover:bg-surface-light"
@@ -134,14 +136,14 @@ export function ChatListPanel({
           onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
           <Combobox.InputGroup className="flex h-10 items-center gap-2 rounded-[12px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
             <Search size={16} className="shrink-0 text-muted-darker" />
-            <Combobox.Input aria-label="Buscar chat" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
+            <Combobox.Input aria-label="Buscar chat" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-base sm:text-sm text-foreground outline-none placeholder:text-muted-darker" />
           </Combobox.InputGroup>
           <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
             <Combobox.Popup className="max-h-72 overflow-y-auto rounded-[12px] border border-border bg-surface p-1.5 shadow-lg">
               <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
               <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
                 <span className="truncate font-medium">{item.chat.name ?? item.chat.remoteJid}</span>
-                <span className="truncate text-[11px] text-muted">{item.chat.account.name} · {item.chat.remoteJid}</span>
+                <span className="truncate text-xs text-muted">{item.chat.account.name} · {item.chat.remoteJid}</span>
               </Combobox.Item>}</Combobox.List>
             </Combobox.Popup>
           </Combobox.Positioner></Combobox.Portal>
@@ -226,13 +228,14 @@ export function ChatListPanel({
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         {chat.lastMessageAt && (
-                          <span className="text-[10px] text-muted-darker">
+                          <span className="text-xs text-muted-darker">
                             {formatTime(chat.lastMessageAt)}
                           </span>
                         )}
                         {chat.unreadCount > 0 && (
                           <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-accent text-on-accent text-[10px] font-bold">
-                            {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+                            <span aria-hidden="true">{chat.unreadCount > 99 ? "99+" : chat.unreadCount}</span>
+                            <span className="sr-only">{chat.unreadCount > 99 ? "Más de 99" : chat.unreadCount} mensajes sin leer</span>
                           </span>
                         )}
                       </div>

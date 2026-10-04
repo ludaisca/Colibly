@@ -40,7 +40,7 @@ function VerifyEmail() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Confirmar correo</CardTitle>
+          <CardTitle as="h1">Confirmar correo</CardTitle>
         </CardHeader>
         <CardBody className="space-y-4">
           {state.status === "loading" && (

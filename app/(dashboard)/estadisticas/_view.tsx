@@ -8,6 +8,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { Card } from "@/app/components/ui/card";
+import { Progress } from "@/app/components/ui/progress";
 import { Workbench, WorkbenchMain, WorkbenchAside } from "@/app/components/ui/workbench";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
@@ -61,7 +62,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       key: "interactions",
       header: "Interacciones",
       headerClassName: "text-right",
-      cellClassName: "text-right font-mono text-xs",
+      cellClassName: "text-right tabular-nums text-xs",
       render: (b) => b.interactions,
     },
     {
@@ -69,7 +70,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       header: "Costo",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (b) => <span className="font-mono text-xs">{formatCost(b.totalCost)}</span>,
+      render: (b) => <span className="tabular-nums text-xs">{formatCost(b.totalCost)}</span>,
     },
   ], [canManageBots]);
 
@@ -79,21 +80,21 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       key: "resolvedCount",
       header: "Resueltos",
       headerClassName: "text-right",
-      cellClassName: "text-right font-mono text-xs",
+      cellClassName: "text-right tabular-nums text-xs",
       render: (a) => a.resolvedCount,
     },
     {
       key: "avgFirstResponseMinutes",
       header: "1ra respuesta (prom.)",
       headerClassName: "text-right",
-      cellClassName: "text-right font-mono text-xs",
+      cellClassName: "text-right tabular-nums text-xs",
       render: (a) => (a.avgFirstResponseMinutes != null ? `${a.avgFirstResponseMinutes} min` : "—"),
     },
     {
       key: "avgResolutionMinutes",
       header: "Resolución (prom.)",
       headerClassName: "text-right",
-      cellClassName: "text-right font-mono text-xs",
+      cellClassName: "text-right tabular-nums text-xs",
       render: (a) => (a.avgResolutionMinutes != null ? `${a.avgResolutionMinutes} min` : "—"),
     },
   ], []);
@@ -109,22 +110,22 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       header: "Origen",
       render: (r) => <Badge tone={CAMPAIGN_ORIGIN_BADGE[r.origin]} size="sm">{CAMPAIGN_ORIGIN_LABEL[r.origin]}</Badge>,
     },
-    { key: "sent", header: "Enviados", headerClassName: "text-right", cellClassName: "text-right font-mono text-xs", render: (r) => r.sent, hideBelow: "md" },
-    { key: "delivered", header: "Entregados", headerClassName: "text-right", cellClassName: "text-right font-mono text-xs", render: (r) => r.delivered, hideBelow: "sm" },
-    { key: "read", header: "Leídos", headerClassName: "text-right", cellClassName: "text-right font-mono text-xs", render: (r) => r.read },
-    { key: "failed", header: "Fallidos", headerClassName: "text-right", cellClassName: "text-right font-mono text-xs", render: (r) => r.failed, hideBelow: "md" },
+    { key: "sent", header: "Enviados", headerClassName: "text-right", cellClassName: "text-right tabular-nums text-xs", render: (r) => r.sent, hideBelow: "md" },
+    { key: "delivered", header: "Entregados", headerClassName: "text-right", cellClassName: "text-right tabular-nums text-xs", render: (r) => r.delivered, hideBelow: "sm" },
+    { key: "read", header: "Leídos", headerClassName: "text-right", cellClassName: "text-right tabular-nums text-xs", render: (r) => r.read },
+    { key: "failed", header: "Fallidos", headerClassName: "text-right", cellClassName: "text-right tabular-nums text-xs", render: (r) => r.failed, hideBelow: "md" },
     {
       key: "deliveryRate",
       header: "Tasa entrega",
       headerClassName: "text-right",
-      cellClassName: "text-right font-mono text-xs",
+      cellClassName: "text-right tabular-nums text-xs",
       render: (r) => (r.deliveryRate != null ? `${r.deliveryRate}%` : "—"),
     },
     {
       key: "readRate",
       header: "Tasa lectura",
       headerClassName: "text-right",
-      cellClassName: "text-right font-mono text-xs",
+      cellClassName: "text-right tabular-nums text-xs",
       render: (r) => (r.readRate != null ? `${r.readRate}%` : "—"),
     },
   ], []);
@@ -261,32 +262,22 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
             <SectionHeader eyebrow="Inteligencia artificial" title="Inversión en IA" />
             <div className="mt-3 space-y-4">
               <div>
-                <p className="font-mono text-hero font-semibold tracking-tight">{formatCost(stats.totalCost)}</p>
+                <p className="font-display text-hero font-semibold tracking-tight tabular-nums">{formatCost(stats.totalCost)}</p>
                 <p className="text-xs text-muted">costo estimado histórico</p>
               </div>
               <div className="flex items-baseline gap-2">
                 <Zap size={13} className="text-info shrink-0 self-center" />
-                <span className="font-mono text-sm font-medium">{stats.totalTokens.toLocaleString("es-MX")}</span>
+                <span className="tabular-nums text-sm font-medium">{stats.totalTokens.toLocaleString("es-MX")}</span>
                 <span className="text-xs text-muted">tokens consumidos</span>
               </div>
 
               {stats.aiCredits.limit != null && creditsPct != null && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs text-muted-darker">Créditos de IA del mes</p>
-                    <p className="text-xs font-medium tabular-nums">
-                      {stats.aiCredits.used.toLocaleString("es-MX")} / {stats.aiCredits.limit.toLocaleString("es-MX")}
-                    </p>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-surface">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        stats.aiCredits.used >= stats.aiCredits.limit ? "bg-danger" : creditsPct >= 80 ? "bg-warning" : "bg-accent"
-                      }`}
-                      style={{ width: `${creditsPct}%` }}
-                    />
-                  </div>
-                </div>
+                <Progress
+                  value={Math.round(creditsPct)}
+                  tone={stats.aiCredits.used >= stats.aiCredits.limit ? "danger" : creditsPct >= 80 ? "warning" : "accent"}
+                  label="Créditos de IA del mes"
+                  valueText={`${stats.aiCredits.used.toLocaleString("es-MX")} de ${stats.aiCredits.limit.toLocaleString("es-MX")}`}
+                />
               )}
             </div>
           </Card>

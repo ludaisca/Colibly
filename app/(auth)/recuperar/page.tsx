@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Mail } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardBody, CardFooter } from "@/app/components/ui/card";
@@ -17,6 +17,7 @@ export default function ForgotPasswordPage() {
   const [serverError, setServerError] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,6 +26,7 @@ export default function ForgotPasswordPage() {
     const parsed = forgotPasswordSchema.safeParse({ email });
     if (!parsed.success) {
       setFieldError(parsed.error.issues[0].message);
+      requestAnimationFrame(() => emailRef.current?.focus());
       return;
     }
     setLoading(true);
@@ -51,7 +53,7 @@ export default function ForgotPasswordPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recuperar contraseña</CardTitle>
+          <CardTitle as="h1">Recuperar contraseña</CardTitle>
         </CardHeader>
         <CardBody>
           {sent ? (
@@ -71,9 +73,11 @@ export default function ForgotPasswordPage() {
               </p>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <FormField label="Email" required error={fieldError}>
-                  {(id) => (
+                  {(id, describedBy) => (
                     <Input
+                      ref={emailRef}
                       id={id}
+                      aria-describedby={describedBy}
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}

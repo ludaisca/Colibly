@@ -24,8 +24,11 @@ $website = trim((string)($_POST['website'] ?? ''));
 if ($website !== '') reply(201, '', true);
 if (mb_strlen($name) < 2 || mb_strlen($name) > 80 || mb_strlen($business) < 2 || mb_strlen($business) > 100) reply(400, 'Revisa tu nombre y el nombre del negocio.');
 if (mb_strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strpbrk($email, "\r\n") !== false) reply(400, 'Escribe un correo válido.');
-if (mb_strlen($phone) < 8 || mb_strlen($phone) > 30 || !preg_match('/^[+()0-9 .-]+$/', $phone)) reply(400, 'Escribe un WhatsApp de contacto válido.');
-if (mb_strlen($description) > 400 || ($_POST['privacyAccepted'] ?? '') !== '1') reply(400, 'Revisa la descripción y acepta el aviso de privacidad.');
+// Cuenta dígitos, no caracteres (igual que lib/beta-application.ts): "(55) 12" mide 8 pero no es un teléfono.
+$phoneDigits = (int)preg_match_all('/\d/', $phone);
+if (mb_strlen($phone) > 30 || !preg_match('/^[+()0-9 .-]+$/', $phone) || $phoneDigits < 8 || $phoneDigits > 15) reply(400, 'Revisa el número de WhatsApp: incluye la lada, por ejemplo 55 1234 5678.');
+if (mb_strlen($description) > 400) reply(400, 'Usa 400 caracteres o menos en la descripción.');
+if (($_POST['privacyAccepted'] ?? '') !== '1') reply(400, 'Marca la casilla de aceptación para enviar tu solicitud.');
 
 // Límite compartido entre sesiones: 3 solicitudes por IP y hora. Los archivos
 // van al directorio temporal del servidor, nunca al directorio público.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -8,6 +8,7 @@ import {
   useDroppable,
   type DragStartEvent,
   type DragEndEvent,
+  type Announcements,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -55,7 +56,7 @@ function Column({
         <h3 className="text-sm font-semibold text-foreground">
           {STAGE_LABEL[stage]}
         </h3>
-        <span className="ml-auto rounded-full bg-surface-light px-2 py-0.5 text-xs font-mono tabular-nums text-muted">
+        <span className="ml-auto rounded-full bg-surface-light px-2 py-0.5 text-xs tabular-nums text-muted">
           {contacts.length}
         </span>
       </div>
@@ -66,7 +67,7 @@ function Column({
           "flex flex-1 flex-col gap-3 rounded-xl border p-3 transition-colors min-h-[200px]",
           STAGE_COLOR_BORDER[stage],
           STAGE_COLOR_BG[stage],
-          isOver && "ring-2 ring-accent-muted border-accent-muted"
+          isOver && "ring-2 ring-accent-strong border-accent-strong"
         )}
       >
         {contacts.length === 0 && (
@@ -90,6 +91,10 @@ export function PipelineBoard({ initialData }: PipelineBoardProps) {
   const [activeCard, setActiveCard] = useState<LeadCardData | null>(null);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [stageInView, setStageInView] = useState<LeadStatus>(() => PIPELINE_STAGES.find((stage) => initialData[stage]?.length > 0) ?? PIPELINE_STAGES[0]);
+  // Texto de la región viva (sr-only) y tarjeta cuyo selector debe recuperar el
+  // foco tras moverla con él (la tarjeta se remonta en otra columna).
+  const [statusMessage, setStatusMessage] = useState("");
+  const focusAfterMoveRef = useRef<string | null>(null);
   const [prevInitialData, setPrevInitialData] = useState(initialData);
   if (initialData !== prevInitialData) {
     setPrevInitialData(initialData);
@@ -101,7 +106,17 @@ export function PipelineBoard({ initialData }: PipelineBoardProps) {
     useSensor(KeyboardSensor)
   );
 
-  const moveCard = useCallback(async (id: string, targetStage: LeadStatus) => {
+  useEffect(() => {
+    const id = focusAfterMoveRef.current;
+    if (!id) return;
+    const select = document.querySelector<HTMLSelectElement>(`select[data-stage-select="${CSS.escape(id)}"]`);
+    if (select) {
+      focusAfterMoveRef.current = null;
+      select.focus();
+    }
+  }, [boardData, stageInView]);
+
+  const moveCard = useCallback(async (id: string, targetStage: LeadStatus, viaSelect = false) => {
     const sourceStage = PIPELINE_STAGES.find((stage) => boardData[stage]?.some((c) => c.id === id));
     if (!sourceStage || sourceStage === targetStage) return;
     const card = boardData[sourceStage].find((c) => c.id === id)!;
@@ -111,6 +126,7 @@ export function PipelineBoard({ initialData }: PipelineBoardProps) {
       [targetStage]: [...current[targetStage], { ...card, leadStatus: targetStage }],
     }));
     setStageInView(targetStage);
+    if (viaSelect) focusAfterMoveRef.current = id;
     try {
       const response = await fetch(`/api/whatsapp/contacts/${id}`, {
         method: "PATCH",
@@ -118,6 +134,7 @@ export function PipelineBoard({ initialData }: PipelineBoardProps) {
         body: JSON.stringify({ leadStatus: targetStage }),
       });
       if (!response.ok) throw new Error();
+      if (viaSelect) setStatusMessage(`${card.name ?? card.remoteJid} movido a ${STAGE_LABEL[targetStage]}`);
       router.refresh();
     } catch {
       setBoardData((current) => ({
@@ -126,9 +143,51 @@ export function PipelineBoard({ initialData }: PipelineBoardProps) {
         [sourceStage]: [...current[sourceStage], card],
       }));
       setStageInView(sourceStage);
+      if (viaSelect) focusAfterMoveRef.current = id;
       toastError("No se pudo guardar la nueva etapa");
     }
   }, [boardData, router, toastError]);
+
+  // Anuncios de dnd-kit en español: nombre del lead y etapa, no ids internos.
+  const accessibility = useMemo(() => {
+    const leadName = (id: string | number) => {
+      for (const stage of PIPELINE_STAGES) {
+        const card = boardData[stage]?.find((c) => c.id === String(id));
+        if (card) return { name: card.name ?? card.remoteJid, stage };
+      }
+      return { name: "Lead", stage: null as LeadStatus | null };
+    };
+    const stageOf = (overId: string | number | undefined) => {
+      const stage = overId?.toString().replace("column-", "") as LeadStatus | undefined;
+      return stage && PIPELINE_STAGES.includes(stage) ? STAGE_LABEL[stage] : null;
+    };
+    const announcements: Announcements = {
+      onDragStart({ active }) {
+        const { name, stage } = leadName(active.id);
+        return `Levantaste a ${name}${stage ? `, que está en ${STAGE_LABEL[stage]}` : ""}.`;
+      },
+      onDragOver({ active, over }) {
+        const { name } = leadName(active.id);
+        const label = stageOf(over?.id);
+        return label ? `${name} está sobre la columna ${label}.` : `${name} ya no está sobre ninguna columna.`;
+      },
+      onDragEnd({ active, over }) {
+        const { name } = leadName(active.id);
+        const label = stageOf(over?.id);
+        return label ? `${name} se soltó en ${label}.` : `${name} se soltó fuera de las columnas y no se movió.`;
+      },
+      onDragCancel({ active }) {
+        const { name, stage } = leadName(active.id);
+        return `Se canceló el movimiento. ${name} sigue${stage ? ` en ${STAGE_LABEL[stage]}` : ""}.`;
+      },
+    };
+    return {
+      announcements,
+      screenReaderInstructions: {
+        draggable: "Para mover una tarjeta, presiona Espacio o Enter, usa las flechas para llevarla a otra columna y presiona Espacio o Enter para soltarla. Escape cancela. También puedes cambiar la etapa con el selector de la tarjeta.",
+      },
+    };
+  }, [boardData]);
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -161,18 +220,20 @@ export function PipelineBoard({ initialData }: PipelineBoardProps) {
       // desajuste de hidratación.
       id="pipeline-board"
       sensors={sensors}
+      accessibility={accessibility}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      <div role="status" aria-live="polite" className="sr-only">{statusMessage}</div>
       <div className="mb-3 flex items-center gap-3 sm:hidden">
         <label htmlFor="pipeline-stage" className="text-sm font-medium">Ir a etapa</label>
         <Select id="pipeline-stage" value={stageInView} onChange={(event) => setStageInView(event.target.value as LeadStatus)} className="min-w-0 flex-1">
           {PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{STAGE_LABEL[stage]} ({boardData[stage]?.length ?? 0})</option>)}
         </Select>
       </div>
-      <div className="flex gap-4 overflow-hidden pb-4 sm:overflow-x-auto">
+      <div className="flex max-w-full min-w-0 gap-4 overflow-hidden pb-4 sm:overflow-x-auto">
         {PIPELINE_STAGES.map((stage) => (
-          <Column key={stage} stage={stage} contacts={boardData[stage] ?? []} visibleOnMobile={stage === stageInView} onOpen={setSelectedContactId} onStageChange={(id, targetStage) => void moveCard(id, targetStage)} />
+          <Column key={stage} stage={stage} contacts={boardData[stage] ?? []} visibleOnMobile={stage === stageInView} onOpen={setSelectedContactId} onStageChange={(id, targetStage) => void moveCard(id, targetStage, true)} />
         ))}
       </div>
 

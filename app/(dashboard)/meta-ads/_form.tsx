@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Copy, Check, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -9,7 +9,7 @@ import { Textarea } from "@/app/components/ui/textarea";
 import { FormField } from "@/app/components/ui/form-field";
 import { Select } from "@/app/components/ui/select";
 import { Banner } from "@/app/components/ui/banner";
-import { Spinner } from "@/app/components/ui/spinner";
+import { SecretField } from "@/app/components/integrations/secret-field";
 
 interface WaAccountOption {
   id: string;
@@ -54,7 +54,6 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
   const [verifyToken, setVerifyToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState<"webhook" | "token" | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -78,17 +77,10 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
     setErrors({});
     setApiError("");
     setVerifyToken(null);
-    setCopied(null);
   }, [initialData]);
 
   function getWebhookUrl() {
     return typeof window !== "undefined" ? `${window.location.origin}${WEBHOOK_PATH}` : WEBHOOK_PATH;
-  }
-
-  async function handleCopy(text: string, which: "webhook" | "token") {
-    await navigator.clipboard.writeText(text);
-    setCopied(which);
-    setTimeout(() => setCopied(null), 2000);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -160,46 +152,13 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
         open={open}
         onClose={handleClose}
         title="Cuenta de Meta Ads conectada"
-        description="Copia estos valores en la configuración del webhook `leadgen` de tu Página en Meta for Developers. El verify token no se puede volver a mostrar."
+        description="Copia estos valores en la configuración del webhook leadgen de tu Página en Meta for Developers. El verify token no se puede volver a mostrar."
         size="md"
         footer={<Button onClick={handleClose}>Listo</Button>}
       >
         <div className="space-y-4">
-          <div>
-            <p className="text-xs font-medium text-muted-darker uppercase tracking-wider mb-1.5">URL del webhook</p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <code className="min-w-0 flex-1 bg-surface px-3 py-2 rounded-xl text-xs font-mono break-all">
-                {getWebhookUrl()}
-              </code>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={copied === "webhook" ? Check : Copy}
-                onClick={() => handleCopy(getWebhookUrl(), "webhook")}
-              >
-                {copied === "webhook" ? "Copiado" : "Copiar"}
-              </Button>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-medium text-muted-darker uppercase tracking-wider mb-1.5">Verify token</p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <code className="min-w-0 flex-1 bg-surface px-3 py-2 rounded-xl text-xs font-mono break-all">
-                {verifyToken}
-              </code>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={copied === "token" ? Check : Copy}
-                onClick={() => handleCopy(verifyToken, "token")}
-              >
-                {copied === "token" ? "Copiado" : "Copiar"}
-              </Button>
-            </div>
-          </div>
+          <SecretField label="URL del webhook" value={getWebhookUrl()} />
+          <SecretField label="Verify token" value={verifyToken} />
 
           <div className="flex items-start gap-3 p-3 rounded-lg bg-info-bg border border-info-border">
             <Info size={18} className="text-info shrink-0 mt-0.5" />
@@ -224,13 +183,13 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
       footer={
         <>
           <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? <Spinner /> : isEdit ? "Guardar cambios" : "Conectar cuenta"}
+          <Button type="submit" form="meta-ads-form" loading={saving}>
+            {isEdit ? "Guardar cambios" : "Conectar cuenta"}
           </Button>
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form id="meta-ads-form" onSubmit={handleSubmit} className="space-y-5">
         {apiError && <Banner tone="danger">{apiError}</Banner>}
 
         <FormField label="Nombre" required error={errors.name} hint="Un nombre descriptivo para identificar esta Página/Business">
@@ -244,7 +203,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
             </FormField>
 
             <FormField label="Token de la Página" required error={errors.pageAccessToken} hint="Page access token con permiso leads_retrieval">
-              {(id) => <Textarea id={id} value={pageAccessToken} onChange={(e) => setPageAccessToken(e.target.value)} placeholder="EAA..." rows={3} />}
+              {(id) => <Textarea id={id} value={pageAccessToken} onChange={(e) => setPageAccessToken(e.target.value)} placeholder="EAA..." rows={3} error={errors.pageAccessToken} />}
             </FormField>
           </>
         )}
@@ -284,7 +243,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
         <FormField label="Access token de Conversions API" error={errors.capiAccessToken} hint={isEdit ? initialData?.hasCapiAccessToken ? "Configurado. Déjalo vacío para conservarlo." : "Sin configurar." : "Token con permiso sobre el dataset"}>
           {(id) => (
             <div className="space-y-2">
-              <Textarea id={id} value={capiAccessToken} onChange={(e) => setCapiAccessToken(e.target.value)} placeholder={clearCapiToken ? "Se quitará al guardar" : "EAA..."} rows={2} disabled={clearCapiToken} />
+              <Textarea id={id} value={capiAccessToken} onChange={(e) => setCapiAccessToken(e.target.value)} placeholder={clearCapiToken ? "Se quitará al guardar" : "EAA..."} rows={2} disabled={clearCapiToken} error={errors.capiAccessToken} />
               {isEdit && initialData?.hasCapiAccessToken && (
                 <Button type="button" size="sm" variant="secondary" onClick={() => { setClearCapiToken((v) => !v); setCapiAccessToken(""); }}>
                   {clearCapiToken ? "Deshacer" : "Quitar token"}

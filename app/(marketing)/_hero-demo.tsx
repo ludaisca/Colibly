@@ -148,7 +148,7 @@ export function HeroDemo() {
   const [focused, setFocused] = useState(false);
   const [inView, setInView] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
-  const touchX = useRef<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const baseId = useId();
 
   const scenario = SCENARIOS[active];
@@ -233,7 +233,7 @@ export function HeroDemo() {
                   tabIndex={i === active ? 0 : -1}
                   onClick={() => goTo(i)}
                   className={cn(
-                    "relative min-h-9 flex-1 whitespace-nowrap rounded-lg px-2.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
+                    "relative min-h-11 flex-1 whitespace-nowrap rounded-lg px-2.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
                     i === active ? "text-foreground" : "text-muted hover:text-foreground"
                   )}
                 >
@@ -263,13 +263,16 @@ export function HeroDemo() {
             aria-roledescription="demostración"
             // Mientras se reproduce no se anuncia cada mensaje; en pausa sí.
             aria-live={playing ? "off" : "polite"}
-            className="rounded-xl border border-border bg-surface p-4 shadow-lg"
-            onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+            // touch-pan-y: el scroll vertical sigue siendo del navegador, solo el gesto horizontal cambia de escenario.
+            className="touch-pan-y rounded-xl border border-border bg-surface p-4 shadow-lg"
+            onTouchStart={(e) => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
             onTouchEnd={(e) => {
-              if (touchX.current === null) return;
-              const dx = e.changedTouches[0].clientX - touchX.current;
-              touchX.current = null;
-              if (Math.abs(dx) > 50) goTo(active + (dx < 0 ? 1 : -1));
+              const start = touchStart.current;
+              touchStart.current = null;
+              if (!start) return;
+              const dx = e.changedTouches[0].clientX - start.x;
+              const dy = e.changedTouches[0].clientY - start.y;
+              if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) goTo(active + (dx < 0 ? 1 : -1));
             }}
           >
             <AnimatePresence mode="wait" initial={false}>

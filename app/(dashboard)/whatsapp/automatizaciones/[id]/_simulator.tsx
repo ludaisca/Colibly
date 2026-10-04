@@ -91,15 +91,15 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
     endRef.current?.scrollIntoView({ block: "nearest" });
   }, [entries]);
 
+  const lastBot = [...entries].reverse().find((e) => e.kind === "bot");
+  const waitingReply = status === "waiting_reply";
+
   const reply = (value: string, replyId: string | null = null) => {
-    if (!value.trim() || !state) return;
+    if (!value.trim() || !state || busy || !waitingReply) return;
     const withoutStatus = entries.filter((e) => e.kind !== "status");
     step({ kind: "reply", text: value, replyId }, state, facts, [...withoutStatus, { kind: "client", text: value }]);
     setText("");
   };
-
-  const lastBot = [...entries].reverse().find((e) => e.kind === "bot");
-  const waitingReply = status === "waiting_reply";
 
   return (
     <div className="flex h-full flex-col">
@@ -114,10 +114,10 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
         </Button>
       </div>
 
-      <div className="min-h-[320px] flex-1 space-y-2 overflow-y-auto rounded-xl border border-border bg-surface-light/40 p-3">
+      <div role="log" aria-label="Conversación simulada" aria-live="polite" className="min-h-[320px] flex-1 space-y-2 overflow-y-auto rounded-xl border border-border bg-surface-light/40 p-3">
         {entries.map((e, i) =>
           e.kind === "effect" || e.kind === "status" ? (
-            <p key={i} className={cn("text-center text-[11px]", e.kind === "status" ? "font-medium text-accent-ink" : "text-muted")}>
+            <p key={i} className={cn("text-center text-xs", e.kind === "status" ? "font-medium text-accent-ink" : "text-muted")}>
               {e.kind === "effect" ? `⚙ ${e.text}` : e.text}
             </p>
           ) : (
@@ -165,7 +165,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
           reply(text);
         }}
       >
-        <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={waitingReply ? "Responde como el cliente…" : "La automatización no espera respuesta"} disabled={!waitingReply || busy} aria-label="Respuesta del cliente" className="flex-1" />
+        <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={waitingReply ? "Responde como el cliente…" : "La automatización no espera respuesta"} readOnly={!waitingReply || busy} aria-busy={busy} aria-label="Respuesta del cliente" className="flex-1" inputClassName={!waitingReply ? "opacity-60" : undefined} />
         <Button type="submit" icon={Send} disabled={!waitingReply || busy || !text.trim()} aria-label="Enviar" />
       </form>
       <div className="mt-2 flex flex-wrap gap-2">
@@ -180,7 +180,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
           </Button>
         )}
       </div>
-      {facts.tags.length > 0 && <p className="mt-2 text-[11px] text-muted">Etiquetas simuladas: {facts.tags.join(", ")}</p>}
+      {facts.tags.length > 0 && <p className="mt-2 text-xs text-muted">Etiquetas simuladas: {facts.tags.join(", ")}</p>}
     </div>
   );
 }

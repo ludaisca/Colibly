@@ -32,12 +32,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
     },
   });
 
+  // Los conteos de canales y la facturación dependen solo del usuario y no
+  // entre sí: se piden en paralelo.
+  const [channelCounts, org] = user
+    ? await Promise.all([
+        prisma.channelAccount.groupBy({ by: ["channel"], where: { organizationId: user.organizationId }, _count: true }),
+        getOrgBilling(user.organizationId),
+      ])
+    : [[], null];
   // Un canal se ve en el nav si el operador lo habilitó, o si la organización
   // ya tiene cuentas ahí (desactivar el flag después no le esconde lo que ya
   // tenía conectado — ver lib/channel-flags.ts).
-  const channelCounts = user
-    ? await prisma.channelAccount.groupBy({ by: ["channel"], where: { organizationId: user.organizationId }, _count: true })
-    : [];
   const hasAccount = (channel: string) => channelCounts.some((c) => c.channel === channel && c._count > 0);
   const channels = {
     telegram: !!user?.organization.channelTelegramEnabled || hasAccount("TELEGRAM"),
@@ -51,7 +56,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // funciona. El aviso informativo de prueba vigente no se muestra: la
   // pantalla del plan ya lo dice.
   const isAdmin = session.user.role === "admin";
-  const org = user ? await getOrgBilling(user.organizationId) : null;
   const notice = org ? billingNotice(org, new Date()) : null;
   const showNotice = notice && notice.tone !== "info" && (isAdmin || notice.tone === "danger");
 

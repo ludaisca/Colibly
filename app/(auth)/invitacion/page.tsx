@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -34,6 +34,8 @@ function AcceptInvitation() {
   const [errors, setErrors] = useState<{ name?: string; password?: string }>({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -53,7 +55,12 @@ function AcceptInvitation() {
     if (name.trim().length < 2) next.name = "El nombre debe tener al menos 2 caracteres";
     if (password.length < 8) next.password = "La contraseña debe tener al menos 8 caracteres";
     setErrors(next);
-    if (Object.keys(next).length || !invitation) return;
+    if (Object.keys(next).length) {
+      const firstInvalid = next.name ? nameRef : passwordRef;
+      requestAnimationFrame(() => firstInvalid.current?.focus());
+      return;
+    }
+    if (!invitation) return;
 
     setLoading(true);
     try {
@@ -80,7 +87,7 @@ function AcceptInvitation() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{invitation ? `Únete a ${invitation.organizationName}` : "Invitación"}</CardTitle>
+          <CardTitle as="h1">{invitation ? `Únete a ${invitation.organizationName}` : "Invitación"}</CardTitle>
         </CardHeader>
         <CardBody>
           {loadError ? (
@@ -103,15 +110,25 @@ function AcceptInvitation() {
               )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <FormField label="Tu nombre" required error={errors.name}>
-                  {(id) => (
-                    <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" error={errors.name} />
+                  {(id, describedBy) => (
+                    <Input
+                      ref={nameRef}
+                      id={id}
+                      aria-describedby={describedBy}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      autoComplete="name"
+                      error={errors.name}
+                    />
                   )}
                 </FormField>
                 <FormField label="Crea tu contraseña" required error={errors.password} hint="Mínimo 8 caracteres">
-                  {(id) => (
+                  {(id, describedBy) => (
                     <>
                       <PasswordInput
+                        ref={passwordRef}
                         id={id}
+                        aria-describedby={describedBy}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         autoComplete="new-password"

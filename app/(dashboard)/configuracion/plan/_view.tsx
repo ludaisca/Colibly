@@ -137,7 +137,16 @@ export function PlanView({ data }: { data: PlanViewData }) {
                     {u.max !== null ? ` / ${u.max.toLocaleString("es-MX")}` : " · sin límite"}
                   </p>
                 </div>
-                {u.max !== null && <Progress value={pct} tone={tone} className="mt-3" />}
+                {u.max !== null && (
+                  <Progress
+                    value={pct}
+                    tone={tone}
+                    label={u.label}
+                    valueText={`${u.used.toLocaleString("es-MX")} de ${u.max.toLocaleString("es-MX")}`}
+                    className="mt-3"
+                  />
+                )}
+                {u.max !== null && pct >= 100 && <p className="mt-2 text-xs font-medium text-danger">Límite alcanzado</p>}
                 {u.hint && <p className="mt-2 text-xs text-muted-darker">{u.hint}</p>}
               </div>
             );
@@ -172,6 +181,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                     {planFeatures(plan).map((f) => (
                       <li key={f.text} className={cn("flex items-start gap-2", !f.included && "text-muted-darker line-through")}>
                         {f.included ? <Check size={16} className="mt-0.5 shrink-0 text-accent-ink" /> : <X size={16} className="mt-0.5 shrink-0" />}
+                        <span className="sr-only">{f.included ? "Incluido: " : "No incluido: "}</span>
                         {f.text}
                       </li>
                     ))}

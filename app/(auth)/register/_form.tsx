@@ -100,7 +100,7 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
 
       <Card>
         <CardHeader>
-          <CardTitle>Crear cuenta</CardTitle>
+          <CardTitle as="h1">Crear cuenta</CardTitle>
         </CardHeader>
         <CardBody>
           {serverError && (
@@ -200,8 +200,14 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
             </Button>
             <p className="text-center text-xs text-muted-darker">
               Al crear tu cuenta aceptas los{" "}
-              <Link href="/terminos" className="text-accent-ink underline underline-offset-2">Términos y condiciones</Link> y el{" "}
-              <Link href="/privacidad" className="text-accent-ink underline underline-offset-2">Aviso de privacidad</Link>.
+              <Link href="/terminos" target="_blank" rel="noopener noreferrer" className="text-accent-ink underline underline-offset-2">
+                Términos y condiciones<span className="sr-only"> (se abre en una pestaña nueva)</span>
+              </Link>{" "}
+              y el{" "}
+              <Link href="/privacidad" target="_blank" rel="noopener noreferrer" className="text-accent-ink underline underline-offset-2">
+                Aviso de privacidad<span className="sr-only"> (se abre en una pestaña nueva)</span>
+              </Link>
+              .
             </p>
           </form>
         </CardBody>

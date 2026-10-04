@@ -239,14 +239,14 @@ export default function BotDetailPage() {
       header: "Tokens",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (u) => <span className="font-mono text-xs">{u.totalTokens.toLocaleString()}</span>,
+      render: (u) => <span className="tabular-nums text-xs">{u.totalTokens.toLocaleString()}</span>,
     },
     {
       key: "estimatedCost",
       header: "Costo",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (u) => <span className="font-mono text-xs">${u.estimatedCost.toFixed(4)}</span>,
+      render: (u) => <span className="tabular-nums text-xs">${u.estimatedCost.toFixed(4)}</span>,
     },
   ], []);
 
@@ -377,7 +377,7 @@ export default function BotDetailPage() {
               {testTurns.length === 0 && <p className="py-16 text-center text-sm text-muted">Escribe un mensaje para iniciar la conversación.</p>}
               {testTurns.map((turn, index) => (
                 <div key={index} className={`flex ${turn.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-sm ${turn.role === "user" ? "bg-accent text-white" : "border border-border bg-surface-light text-foreground"}`}>
+                  <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-sm ${turn.role === "user" ? "bg-accent text-on-accent" : "border border-border bg-surface-light text-foreground"}`}>
                     {turn.content}
                   </div>
                 </div>

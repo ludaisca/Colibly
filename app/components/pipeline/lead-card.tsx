@@ -32,12 +32,6 @@ function formatTime(ts: string | null): string {
   return `Hace ${d}d`;
 }
 
-function scoreTone(score: number): "danger" | "warning" | "success" {
-  if (score < 40) return "danger";
-  if (score < 70) return "warning";
-  return "success";
-}
-
 // Etiquetas actuales del calificador (lib/whatsapp/lead-scoring.ts) más las
 // del esquema viejo frio/tibio/caliente, que siguen en scores antiguos.
 function scoreLabelClass(label: string): string {
@@ -79,7 +73,7 @@ export function LeadCard({ data, onOpen, onStageChange }: {
       style={style}
       className={cn(
         "group rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow",
-        isDragging && "shadow-lg opacity-80 z-50 ring-2 ring-accent-muted"
+        isDragging && "shadow-lg opacity-80 z-50 ring-2 ring-accent-strong"
       )}
     >
       <div className="flex items-start gap-3">
@@ -93,13 +87,13 @@ export function LeadCard({ data, onOpen, onStageChange }: {
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-semibold">{displayName}</p>
             {data.unreadCount > 0 && (
-              <span className="shrink-0 h-2 w-2 rounded-full bg-danger animate-pulse-live" />
+              <span role="img" aria-label="Mensajes sin leer" className="shrink-0 h-2 w-2 rounded-full bg-danger animate-pulse-live" />
             )}
           </div>
 
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-darker">
             {data.channel === "WHATSAPP" ? <Phone size={10} className="shrink-0" /> : <MessageCircle size={10} className="shrink-0" />}
-            <span className="truncate font-mono tabular-nums" title={data.remoteJid}>
+            <span className="truncate tabular-nums" title={data.remoteJid}>
               {data.channel === "WHATSAPP" ? phoneShort : `${channelLabel} · ${data.remoteJid}`}
             </span>
             <span className="text-muted">·</span>
@@ -126,7 +120,7 @@ export function LeadCard({ data, onOpen, onStageChange }: {
         <button
           type="button"
           aria-label={`Mover ${displayName}`}
-          className="mt-0.5 shrink-0 cursor-grab rounded p-1 text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
+          className="mt-0.5 shrink-0 cursor-grab touch-none rounded p-1 text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
           {...attributes}
           {...listeners}
         ><GripVertical size={16} /></button>
@@ -134,20 +128,20 @@ export function LeadCard({ data, onOpen, onStageChange }: {
 
       {data.bestScore && (
         <div className="mt-3 flex items-center gap-2">
-          <div className="h-1.5 flex-1 rounded-full bg-surface-light overflow-hidden">
+          {/* Una sola tonalidad: el significado lo lleva la etiqueta y el número,
+              no el color de la barra (antes "frío" podía verse verde). */}
+          <div aria-hidden="true" className="h-1.5 flex-1 rounded-full bg-surface-light overflow-hidden">
             <div
-              className={cn(
-                "h-full rounded-full transition-all",
-                scoreTone(data.bestScore.score) === "danger" && "bg-danger",
-                scoreTone(data.bestScore.score) === "warning" && "bg-warning",
-                scoreTone(data.bestScore.score) === "success" && "bg-success"
-              )}
+              className="h-full rounded-full bg-accent transition-all"
               style={{ width: `${data.bestScore.score}%` }}
             />
           </div>
+          <span className="shrink-0 text-xs tabular-nums text-muted-darker">
+            <span className="sr-only">Puntaje </span>{data.bestScore.score}
+          </span>
           <span
             className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold",
+              "shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold",
               scoreLabelClass(data.bestScore.label)
             )}
           >
@@ -157,15 +151,16 @@ export function LeadCard({ data, onOpen, onStageChange }: {
       )}
       {onOpen && (
         <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-          <button type="button" onClick={() => onOpen(data.id)} className="text-xs font-semibold text-accent-ink hover:underline">
+          <button type="button" onClick={() => onOpen(data.id)} className="inline-flex min-h-11 items-center text-xs font-semibold text-accent-ink hover:underline sm:min-h-0">
             Ver contacto
           </button>
           {onStageChange && (
             <select
               aria-label={`Etapa de ${displayName}`}
+              data-stage-select={data.id}
               value={data.leadStatus}
               onChange={(event) => onStageChange(data.id, event.target.value as LeadStatus)}
-              className="ml-auto max-w-36 rounded border border-border bg-surface px-2 py-1 text-xs text-foreground"
+              className="ml-auto min-h-11 max-w-36 rounded border border-control-border bg-surface px-2 py-1 text-base text-foreground sm:min-h-0 sm:text-xs"
             >
               {PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{STAGE_LABEL[stage]}</option>)}
             </select>

@@ -57,9 +57,11 @@ function SidebarContent({
   brand = BRAND_NAME,
   collapsed,
   onClose,
+  navLabel = "Navegación principal",
 }: Pick<AppShellProps, "nav" | "accent" | "bottomActions" | "brand"> & {
   logoArea?: React.ReactNode;
   collapsed?: boolean;
+  navLabel?: string;
   onClose?: () => void;
 }) {
   const pathname = usePathname();
@@ -76,6 +78,7 @@ function SidebarContent({
           href={item.href}
           onClick={onClose}
           title={collapsed ? item.label : undefined}
+          aria-label={collapsed ? item.label : undefined}
           aria-current={active ? "page" : undefined}
           className={cn(
             "flex items-center text-sm font-medium transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
@@ -87,7 +90,7 @@ function SidebarContent({
               : "rounded-[12px] text-muted hover:bg-surface-light hover:text-foreground"
           )}
         >
-          <Icon size={18} className="shrink-0" />
+          <Icon size={18} aria-hidden="true" className="shrink-0" />
           {!collapsed && item.label}
         </Link>
       </li>
@@ -109,7 +112,7 @@ function SidebarContent({
         )}
       </div>
 
-      <nav className={cn("scrollbar-thin flex-1 overflow-y-auto w-full", collapsed ? "px-1" : "px-3")}>
+      <nav aria-label={navLabel} className={cn("scrollbar-thin flex-1 overflow-y-auto w-full", collapsed ? "px-1" : "px-3")}>
         <div className="flex flex-col gap-5 w-full">
           {nav.map((groupOrItem, index) => {
             const isGroup = "items" in groupOrItem;
@@ -146,6 +149,8 @@ function SidebarContent({
       )}>
         {!collapsed && bottomActions}
         <button
+          type="button"
+          aria-label="Cerrar sesión"
           // redirect: false + navegación relativa: la URL absoluta que arma el
           // servidor usa el origen interno del contenedor (0.0.0.0:5000) y
           // mandaba al usuario fuera de la app tras cerrar sesión.
@@ -162,7 +167,7 @@ function SidebarContent({
             collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 w-full px-3 py-2.5"
           )}
         >
-          <LogOut size={18} />
+          <LogOut size={18} aria-hidden="true" />
           {!collapsed && "Cerrar sesión"}
         </button>
       </div>
@@ -221,8 +226,9 @@ export function AppShell({
         <RouteProgressBar />
       </Suspense>
       <aside
+        id="app-sidebar"
         className={cn(
-          "hidden md:flex border-r border-border/60 bg-background flex-col shrink-0 transition-all duration-200",
+          "hidden md:flex border-r border-border/60 bg-background flex-col shrink-0 transition-[width] duration-200",
           collapsed ? "w-16" : "w-60 lg:w-64"
         )}
       >
@@ -244,6 +250,7 @@ export function AppShell({
           logoArea={logoArea}
           brand={brand}
           onClose={() => setDrawerOpen(false)}
+          navLabel="Menú de navegación"
         />
       </Drawer>
 
@@ -253,21 +260,28 @@ export function AppShell({
             header completo, el contenido de <main> (posterior en el DOM) pinta
             encima de los menús de usuario/notificaciones y les roba los clicks. */}
         <header className="relative z-40 flex shrink-0 items-center gap-2 bg-background/80 px-3 py-3 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6">
+          {/* Área táctil de 44x44 con margen negativo: el layout del header no cambia. */}
           <button
+            type="button"
             onClick={() => setDrawerOpen(true)}
-            className="md:hidden text-foreground hover:text-muted transition-colors"
+            className="md:hidden -m-2.5 grid size-11 place-items-center rounded-lg text-foreground hover:text-muted transition-colors"
             aria-label="Abrir menú"
+            aria-haspopup="dialog"
+            aria-expanded={drawerOpen}
           >
-            <Menu size={22} />
+            <Menu size={22} aria-hidden="true" />
           </button>
 
           {collapsible && (
             <button
+              type="button"
               onClick={toggleCollapsed}
-              className="hidden md:flex text-muted-darker hover:text-foreground transition-colors p-1 rounded-md"
+              className="hidden md:grid -m-2.5 size-11 place-items-center rounded-lg text-muted-darker hover:text-foreground transition-colors"
               aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+              aria-expanded={!collapsed}
+              aria-controls="app-sidebar"
             >
-              {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              {collapsed ? <ChevronRight size={18} aria-hidden="true" /> : <ChevronLeft size={18} aria-hidden="true" />}
             </button>
           )}
 
@@ -297,7 +311,7 @@ export function AppShell({
           id="contenido-principal"
           tabIndex={-1}
           className={cn(
-            "flex-1 animate-fade-in",
+            "min-w-0 flex-1 animate-fade-in",
             fullBleed ? "flex flex-col min-h-0 overflow-hidden" : "p-4 md:p-6 lg:p-8"
           )}
         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, UserRound, Zap, CircleOff, Handshake, Play, ChevronDown } from "lucide-react";
 import { Dropdown, DropdownButton, DropdownItem } from "@/app/components/ui/dropdown";
 import { useToast } from "@/app/components/ui/toast";
@@ -32,11 +32,21 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
   const [data, setData] = useState<ModeData | null>(null);
   const [open, setOpen] = useState(false);
   const [resuming, setResuming] = useState(false);
+  // Aviso local para lectores de pantalla cuando el modo cambia por el poll
+  // (p. ej. un humano toma el chat y la IA se pausa). No suena en la carga
+  // inicial ni al devolver el chat al bot (ya hay toast).
+  const [modeNotice, setModeNotice] = useState("");
+  const prevModeRef = useRef<ModeData["mode"] | null>(null);
 
   const load = useCallback(async () => {
     try {
       const response = await fetch(`/api/whatsapp/chats/${chatId}/bot-mode`, { cache: "no-store" });
-      if (response.ok) setData(await response.json());
+      if (response.ok) {
+        const next: ModeData = await response.json();
+        setData(next);
+        if (prevModeRef.current && prevModeRef.current !== next.mode) setModeNotice(`Atención del chat: ${MODE[next.mode].label}`);
+        prevModeRef.current = next.mode;
+      }
     } catch {
       // El siguiente poll reintenta; no interrumpir el chat con toasts.
     }
@@ -57,6 +67,7 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "No se pudo devolver el chat al bot");
       setData(body);
+      prevModeRef.current = body.mode;
       setOpen(false);
       success("El bot responderá al próximo mensaje del lead");
     } catch (error) {
@@ -73,6 +84,8 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
   const compactLabel = { AI: "IA activa", HUMAN: "Atención manual", AUTOMATION: "Automatización", HANDOFF: "Derivado a humano", OFF: "IA inactiva" }[data.mode];
   const iconTone = { AI: "text-success", HUMAN: "text-warning", AUTOMATION: "text-accent-ink", HANDOFF: "text-warning", OFF: "text-muted-darker" }[data.mode];
   return (
+    <>
+    <span role="status" aria-live="polite" className="sr-only">{modeNotice}</span>
     <Dropdown
       open={open}
       onOpenChange={setOpen}
@@ -95,5 +108,6 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
         )}
       </div>
     </Dropdown>
+    </>
   );
 }

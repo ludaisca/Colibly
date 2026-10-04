@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Save } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -58,7 +59,9 @@ export default function IASettingsPage() {
   const [hourEnd, setHourEnd] = useState(20);
   const [savingHours, setSavingHours] = useState(false);
   const [recoveryEnabled, setRecoveryEnabled] = useState(false);
-  const [recoveryFirstHours, setRecoveryFirstHours] = useState(2);
+  // Las horas se editan como texto: con number, borrar el campo lo convertía en 0
+  // en cada pulsación. Se valida al guardar.
+  const [recoveryFirstHours, setRecoveryFirstHours] = useState("2");
   const [recoverySecondHours, setRecoverySecondHours] = useState("12");
   const [savingRecovery, setSavingRecovery] = useState(false);
 
@@ -72,7 +75,7 @@ export default function IASettingsPage() {
         setHourStart(d.businessHourStart);
         setHourEnd(d.businessHourEnd);
         setRecoveryEnabled(d.leadRecoveryEnabled);
-        setRecoveryFirstHours(d.leadRecoveryFirstMessageHours);
+        setRecoveryFirstHours(String(d.leadRecoveryFirstMessageHours));
         setRecoverySecondHours(d.leadRecoverySecondMessageHours != null ? String(d.leadRecoverySecondMessageHours) : "");
       })
       .catch(() => toastError("Error al cargar la configuración"))
@@ -103,12 +106,17 @@ export default function IASettingsPage() {
   }
 
   async function handleSaveRecovery() {
+    const firstHours = Number(recoveryFirstHours);
+    if (!recoveryFirstHours.trim() || !Number.isInteger(firstHours) || firstHours < 1 || firstHours > 168) {
+      toastError("Las horas del mensaje 1 deben ser un número entero entre 1 y 168");
+      return;
+    }
     setSavingRecovery(true);
     try {
       await patch(
         {
           leadRecoveryEnabled: recoveryEnabled,
-          leadRecoveryFirstMessageHours: recoveryFirstHours,
+          leadRecoveryFirstMessageHours: firstHours,
           leadRecoverySecondMessageHours: recoverySecondHours.trim() ? Number(recoverySecondHours) : null,
         },
         "Recuperación de leads guardada"
@@ -124,6 +132,14 @@ export default function IASettingsPage() {
 
   const credits = settings?.aiCredits;
   const pct = credits?.limit ? Math.round((credits.used / credits.limit) * 100) : 0;
+  const hoursDirty =
+    !!settings &&
+    (timezone !== settings.timezone || hourStart !== settings.businessHourStart || hourEnd !== settings.businessHourEnd);
+  const recoveryDirty =
+    !!settings &&
+    (recoveryEnabled !== settings.leadRecoveryEnabled ||
+      recoveryFirstHours !== String(settings.leadRecoveryFirstMessageHours) ||
+      recoverySecondHours !== (settings.leadRecoverySecondMessageHours != null ? String(settings.leadRecoverySecondMessageHours) : ""));
   const timezones = TIMEZONES.includes(timezone) ? TIMEZONES : [timezone, ...TIMEZONES];
 
   return (
@@ -145,12 +161,21 @@ export default function IASettingsPage() {
               </p>
             </div>
             {credits.limit !== null && (
-              <Progress value={pct} tone={pct >= 100 ? "danger" : pct >= 80 ? "warning" : "accent"} className="mt-3" />
+              <Progress
+                value={pct}
+                tone={pct >= 100 ? "danger" : pct >= 80 ? "warning" : "accent"}
+                label="Créditos de IA del mes"
+                valueText={`${credits.used.toLocaleString("es-MX")} de ${credits.limit.toLocaleString("es-MX")}`}
+                className="mt-3"
+              />
+            )}
+            {credits.limit !== null && pct >= 100 && (
+              <p className="mt-2 text-xs font-medium text-danger">Límite alcanzado</p>
             )}
             <p className="mt-2 text-xs text-muted-darker">
               1 crédito = 1 respuesta de bot, sugerencia, calificación, mensaje de recuperación o paso de IA. Al agotarse,
               los bots dejan de responder hasta el siguiente periodo.{" "}
-              <a href="/configuracion/plan" className="text-accent-ink underline underline-offset-2">Ver mi plan</a>
+              <Link href="/configuracion/plan" className="text-accent-ink underline underline-offset-2">Ver mi plan</Link>
             </p>
           </div>
         )}
@@ -191,9 +216,12 @@ export default function IASettingsPage() {
             )}
           </FormField>
         </div>
-        <Button size="sm" variant="secondary" icon={Save} loading={savingHours} onClick={handleSaveHours}>
-          Guardar horario
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button size="sm" variant="secondary" icon={Save} loading={savingHours} onClick={handleSaveHours}>
+            Guardar horario
+          </Button>
+          {hoursDirty && <p role="status" className="text-xs font-medium text-warning">Cambios sin guardar</p>}
+        </div>
       </Card>
 
       <Card as="section" className="space-y-5">
@@ -214,7 +242,7 @@ export default function IASettingsPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField label="Horas de silencio para el mensaje 1" hint="Desde el último mensaje del lead">
                 {(id) => (
-                  <Input id={id} type="number" min="1" max="168" value={recoveryFirstHours} onChange={(e) => setRecoveryFirstHours(Number(e.target.value))} />
+                  <Input id={id} type="number" min="1" max="168" value={recoveryFirstHours} onChange={(e) => setRecoveryFirstHours(e.target.value)} />
                 )}
               </FormField>
               <FormField label="Horas de silencio para el mensaje 2" hint="Vacío = solo se manda 1 mensaje">
@@ -223,7 +251,7 @@ export default function IASettingsPage() {
                 )}
               </FormField>
             </div>
-            {(recoveryFirstHours >= 24 || Number(recoverySecondHours) >= 24) && (
+            {(Number(recoveryFirstHours) >= 24 || Number(recoverySecondHours) >= 24) && (
               <Banner tone="warning">
                 En WhatsApp solo se puede escribir texto libre dentro de las 24 h posteriores al último mensaje del lead:
                 los mensajes configurados a 24 h o más no se enviarán a chats de WhatsApp (sí a Telegram, Messenger e
@@ -233,9 +261,12 @@ export default function IASettingsPage() {
           </>
         )}
 
-        <Button size="sm" variant="secondary" icon={Save} loading={savingRecovery} onClick={handleSaveRecovery}>
-          Guardar recuperación de leads
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button size="sm" variant="secondary" icon={Save} loading={savingRecovery} onClick={handleSaveRecovery}>
+            Guardar recuperación de leads
+          </Button>
+          {recoveryDirty && <p role="status" className="text-xs font-medium text-warning">Cambios sin guardar: la recuperación no se activa hasta guardar</p>}
+        </div>
       </Card>
     </DetailPage>
   );

@@ -7,7 +7,6 @@ import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
-import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 
 interface CannedResponse {
@@ -51,7 +50,8 @@ export function CannedResponseFormModal({ open, onClose, accountId, channel, ini
     onClose();
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     const newErrors: Record<string, string> = {};
     if (!shortcut.trim()) newErrors.shortcut = "Requerido";
     else if (/\s/.test(shortcut.trim())) newErrors.shortcut = "Sin espacios";
@@ -99,13 +99,11 @@ export function CannedResponseFormModal({ open, onClose, accountId, channel, ini
       footer={
         <>
           <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? <Spinner /> : isEditing ? "Actualizar" : "Crear"}
-          </Button>
+          <Button type="submit" form="respuesta-rapida-form" loading={saving}>{isEditing ? "Actualizar" : "Crear"}</Button>
         </>
       }
     >
-      <div className="space-y-4">
+      <form id="respuesta-rapida-form" onSubmit={handleSubmit} className="space-y-4">
         {error && <Banner tone="danger">{error}</Banner>}
 
         <FormField label="Atajo" required error={errors.shortcut} hint="Se usa escribiendo / seguido del atajo en el chat, ej: /gracias">
@@ -132,7 +130,7 @@ export function CannedResponseFormModal({ open, onClose, accountId, channel, ini
             />
           )}
         </FormField>
-      </div>
+      </form>
     </Modal>
   );
 }

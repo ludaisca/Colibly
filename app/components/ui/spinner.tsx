@@ -13,7 +13,7 @@ interface SpinnerProps {
 
 export function Spinner({ size = "md", label = "Cargando…", className }: SpinnerProps) {
   return (
-    <span className={cn("inline-flex items-center gap-2 text-muted-darker", className)}>
+    <span role="status" className={cn("inline-flex items-center gap-2 text-muted-darker", className)}>
       <Loader2 size={SIZE[size]} className="animate-spin" aria-hidden="true" />
       {label && <span className="sr-only">{label}</span>}
     </span>

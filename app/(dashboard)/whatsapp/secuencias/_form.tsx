@@ -279,12 +279,12 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
               <p className="text-sm font-medium text-foreground">Detener si el contacto responde</p>
               <p className="text-xs text-muted-darker">Evita seguir mandando pasos guionados a alguien ya en conversación activa</p>
             </div>
-            <Switch checked={exitOnReply} onCheckedChange={setExitOnReply} />
+            <Switch checked={exitOnReply} onCheckedChange={setExitOnReply} label="Detener si el contacto responde" />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
             <p className="text-sm font-medium text-foreground">Activa</p>
-            <Switch checked={active} onCheckedChange={setActive} />
+            <Switch checked={active} onCheckedChange={setActive} label="Secuencia activa" />
           </div>
 
           <div className="space-y-2">

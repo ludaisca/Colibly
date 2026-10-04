@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, CreditCard, Send } from "lucide-react";
+import { CheckCircle2, Send } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
@@ -166,16 +166,15 @@ export function BetaApplicationForm() {
       <div className="rounded-[20px] border border-success-border bg-success-bg p-7 text-center shadow-sm sm:p-10" role="status">
         <CheckCircle2 className="mx-auto text-success" size={40} aria-hidden />
         <h2 ref={successRef} tabIndex={-1} className="mt-4 font-display text-2xl font-semibold text-foreground focus:outline-none">Recibimos tu solicitud</h2>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">Revisaremos si la beta encaja con tu negocio y te escribiremos a <span className="font-medium text-foreground">{email.trim()}</span> para dar el siguiente paso.</p>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">Revisaremos si la beta encaja con tu negocio y te responderemos por correo a <span className="font-medium text-foreground">{email.trim()}</span>. Si necesitas añadir algo, escríbenos a <a href={`mailto:${BRAND_CONTACT_EMAIL}`} className="font-medium text-accent-ink underline">{BRAND_CONTACT_EMAIL}</a>.</p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} noValidate className="rounded-[20px] border border-border bg-surface p-5 shadow-lg sm:p-7">
+    <form onSubmit={submit} noValidate className="rounded-[20px] bg-surface p-5 shadow-lg sm:p-7">
       <div className="mb-6">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-ink">Solicitud de acceso</p>
-        <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">Cuéntanos de tu negocio</h2>
+        <h3 className="font-display text-2xl font-semibold text-foreground">Cuéntanos de tu negocio</h3>
         <p className="mt-2 text-sm text-muted">Son datos de contacto y una pregunta opcional. La configuración la vemos contigo después.</p>
       </div>
       {serverError && (
@@ -194,11 +193,11 @@ export function BetaApplicationForm() {
         <FormField label="Correo donde te escribimos" required error={errors.email}>
           {(id, describedBy) => <Input ref={emailRef} id={id} aria-describedby={describedBy} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={254} placeholder="ana@negocio.com" error={errors.email} inputClassName="max-sm:text-base" {...fieldProps("email", email)} />}
         </FormField>
-        <FormField label="WhatsApp de contacto" required error={errors.phone} hint="Incluye la lada (10 dígitos en México).">
+        <FormField label="WhatsApp de contacto" required error={errors.phone} hint="Incluye la lada; acepta números de 8 a 15 dígitos.">
           {(id, describedBy) => <Input ref={phoneRef} id={id} aria-describedby={describedBy} type="tel" inputMode="tel" autoComplete="tel" maxLength={30} placeholder="+52 55 1234 5678" error={errors.phone} inputClassName="max-sm:text-base" {...fieldProps("phone", phone)} />}
         </FormField>
       </div>
-      <FormField label="¿Cómo atiendes hoy los mensajes de tus clientes?" hint={`Opcional. Con una frase basta · ${description.length}/${DESCRIPTION_MAX}`} error={errors.description} className="mt-4">
+      <FormField label="¿Cómo atiendes hoy los mensajes de tus clientes?" hint="Opcional. Con una frase basta." error={errors.description} className="mt-4">
         {(id, describedBy) => <Textarea ref={descriptionRef} id={id} aria-describedby={describedBy} maxLength={DESCRIPTION_MAX} placeholder="Somos dos personas y atendemos desde un solo celular…" error={errors.description} className="max-sm:[&_textarea]:text-base" {...fieldProps("description", description)} />}
       </FormField>
       <div className="absolute -left-[10000px]" aria-hidden="true">
@@ -215,7 +214,6 @@ export function BetaApplicationForm() {
       <Button type="submit" size="lg" fullWidth loading={submitting} icon={Send} className="mt-6" data-track="cta" data-track-location="beta_formulario">
         {submitting ? "Enviando solicitud…" : "Solicitar acceso a la beta"}
       </Button>
-      <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted"><CreditCard size={13} aria-hidden /> Sin tarjeta ni compromiso de pago</p>
     </form>
   );
 }

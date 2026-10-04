@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, RotateCcw } from "lucide-react";
+import { ChevronRight, RefreshCw, RotateCcw } from "lucide-react";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { Card } from "@/app/components/ui/card";
 import { Banner } from "@/app/components/ui/banner";
@@ -82,7 +82,11 @@ export function WebhookDeliveriesView({ webhook }: { webhook: { id: string; name
       actions={<Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Actualizar</Button>}
     >
       <Card as="section" padding="lg">
-      {loadError && <Banner tone="danger">{loadError} <button type="button" onClick={load} className="underline">Reintentar</button></Banner>}
+      {loadError && (
+        <Banner tone="danger" action={<Button variant="link" onClick={load}>Reintentar</Button>}>
+          {loadError}
+        </Banner>
+      )}
       {loading && items.length === 0 ? (
         <div className="flex justify-center py-10"><Spinner /></div>
       ) : items.length === 0 ? (
@@ -91,8 +95,9 @@ export function WebhookDeliveriesView({ webhook }: { webhook: { id: string; name
         <ul className="divide-y divide-border">
           {items.map((d) => (
             <li key={d.id} className="py-3">
-              <details>
+              <details className="group">
                 <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2">
+                  <ChevronRight size={14} aria-hidden className="shrink-0 text-muted-darker transition-transform group-open:rotate-90" />
                   <Badge size="sm" tone={STATUS[d.status].tone}>{STATUS[d.status].label}</Badge>
                   <span className="font-mono text-xs text-foreground">{d.eventType}</span>
                   <span className="text-xs text-muted">
@@ -102,7 +107,7 @@ export function WebhookDeliveriesView({ webhook }: { webhook: { id: string; name
                   <span className="ml-auto text-xs text-muted tabular-nums">{formatDateTime(d.createdAt)}</span>
                 </summary>
                 {d.error && <p className="mt-2 text-xs text-danger break-words">{d.error}</p>}
-                <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-surface p-3 text-xs">
+                <pre tabIndex={0} aria-label="Cuerpo enviado" className="mt-2 max-h-64 overflow-auto rounded-lg bg-surface-light p-3 text-xs">
                   {JSON.stringify(d.payload, null, 2)}
                 </pre>
               </details>

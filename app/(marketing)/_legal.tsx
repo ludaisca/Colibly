@@ -5,20 +5,14 @@ import { BRAND_CONTACT_EMAIL } from "@/lib/brand";
 // los datos entre corchetes y el contenido deben revisarse con un abogado
 // antes de abrir el registro al público.
 
-// Datos de la empresa pendientes: mientras sigan así, la página muestra el
-// aviso de borrador y los marcadores resaltados.
+// Datos de la empresa; la página muestra siempre el aviso de versión provisional.
 export const LEGAL = {
   company: "Colibly",
-  address: "el que se indique escribiendo a contacto@colibly.com",
   // Buzón del dominio de la marca: debe existir antes del lanzamiento.
   email: BRAND_CONTACT_EMAIL,
   jurisdiction: "los Estados Unidos Mexicanos",
   updatedAt: "4 de octubre de 2026",
 };
-
-export function Blank({ children }: { children: React.ReactNode }) {
-  return <mark className="rounded bg-warning-bg px-1 text-warning">{children}</mark>;
-}
 
 export function LegalPage({ title, children }: { title: string; children: React.ReactNode }) {
   return (

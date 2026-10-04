@@ -278,7 +278,7 @@ export default function NewCampaignPage() {
     {
       key: "phoneNumber",
       header: "Teléfono",
-      render: (r) => <span className="font-mono text-xs">{r.phoneNumber}</span>,
+      render: (r) => <span className="tabular-nums text-xs">{r.phoneNumber}</span>,
     },
     {
       key: "contactName",
@@ -671,7 +671,7 @@ export default function NewCampaignPage() {
                             return (
                               <div className="space-y-1 min-w-0">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="font-mono text-sm font-medium truncate">{r.phoneNumber}</span>
+                                  <span className="tabular-nums text-sm font-medium truncate">{r.phoneNumber}</span>
                                   {status.render(r)}
                                 </div>
                                 {r.contactName && <div className="text-xs text-muted-darker truncate">{r.contactName}</div>}

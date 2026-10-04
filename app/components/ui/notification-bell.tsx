@@ -125,14 +125,16 @@ export function NotificationBell() {
       open={open}
       onOpenChange={setOpen}
       align="right"
+      menuLabel="Notificaciones"
       trigger={
         <button
+          type="button"
           className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground"
-          aria-label="Notificaciones"
+          aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount > 99 ? "más de 99" : unreadCount} sin leer` : "Notificaciones"}
         >
-          <Bell size={18} />
+          <Bell size={18} aria-hidden="true" />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">
+            <span aria-hidden="true" className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
@@ -144,6 +146,7 @@ export function NotificationBell() {
           <span className="text-xs font-semibold text-muted-darker uppercase tracking-wider">Notificaciones</span>
           {unreadCount > 0 && (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); handleMarkAllRead(); }}
               className="text-xs text-accent-ink hover:underline"
             >
@@ -160,13 +163,14 @@ export function NotificationBell() {
               return (
                 <button
                   key={item.id}
+                  type="button"
                   onClick={() => handleItemClick(item)}
                   className={cn(
                     "w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-surface-light",
                     !item.read && "bg-accent-subtle"
                   )}
                 >
-                  <Icon size={16} className="text-muted-darker shrink-0 mt-0.5" />
+                  <Icon size={16} aria-hidden="true" className="text-muted-darker shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <p className={cn("truncate", !item.read && "font-semibold text-foreground")}>
                       {item.title}

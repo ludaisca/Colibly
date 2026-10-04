@@ -33,7 +33,8 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
     onClose();
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError("");
     setEmailError("");
     const parsed = invitationSchema.safeParse({ email, role });
@@ -72,19 +73,20 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
           <Button variant="secondary" onClick={handleClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} loading={saving}>
+          <Button type="submit" form="invitar-form" loading={saving}>
             Enviar invitación
           </Button>
         </>
       }
     >
-      <div className="space-y-4">
+      <form id="invitar-form" onSubmit={handleSubmit} className="space-y-4">
         {error && <Banner tone="danger">{error}</Banner>}
         <FormField label="Email" required error={emailError}>
           {(id) => (
             <Input
               id={id}
               type="email"
+              autoComplete="off"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="persona@tuempresa.com"
@@ -101,7 +103,7 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
             </Select>
           )}
         </FormField>
-      </div>
+      </form>
     </Modal>
   );
 }

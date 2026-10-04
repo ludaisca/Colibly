@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "cpanel-site/assets/site.css"
+        ],
+        "createdAt": "2026-10-04T22:48:14.789Z",
+        "reason": "Agent: border-right forms a 2px chevron in FAQ summaries, not a card accent"
+      }
+    ]
+  }
+}

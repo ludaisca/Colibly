@@ -216,64 +216,68 @@ export default function SettingsPage() {
 
       <Card as="section" className="space-y-4">
         <SectionHeader title="Cuenta" />
-        <FormField label="Nombre">
-          {(id) => (
-            <Input
-              id={id}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-            />
-          )}
-        </FormField>
-        <Button size="sm" icon={User} onClick={handleSaveName} loading={savingName}>Guardar nombre</Button>
+        <form onSubmit={(e) => { e.preventDefault(); handleSaveName(); }} className="space-y-4">
+          <FormField label="Nombre">
+            {(id) => (
+              <Input
+                id={id}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            )}
+          </FormField>
+          <Button type="submit" size="sm" icon={User} loading={savingName}>Guardar nombre</Button>
+        </form>
       </Card>
 
       <Card as="section" className="space-y-4">
         <SectionHeader title="Cambiar contraseña" />
-        {passwordError && <Banner tone="danger">{passwordError}</Banner>}
+        <form onSubmit={(e) => { e.preventDefault(); handleSavePassword(); }} className="space-y-4">
+          {passwordError && <Banner tone="danger">{passwordError}</Banner>}
 
-        <FormField label="Contraseña actual" required>
-          {(id) => (
-            <PasswordInput
-              id={id}
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-          )}
-        </FormField>
-
-        <FormField label="Nueva contraseña" required>
-          {(id) => (
-            <>
+          <FormField label="Contraseña actual" required>
+            {(id) => (
               <PasswordInput
                 id={id}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+            )}
+          </FormField>
+
+          <FormField label="Nueva contraseña" required>
+            {(id) => (
+              <>
+                <PasswordInput
+                  id={id}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                  autoComplete="new-password"
+                />
+                <PasswordStrength password={newPassword} />
+              </>
+            )}
+          </FormField>
+
+          <FormField label="Confirmar nueva contraseña" required>
+            {(id) => (
+              <PasswordInput
+                id={id}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repite la contraseña"
                 autoComplete="new-password"
               />
-              <PasswordStrength password={newPassword} />
-            </>
-          )}
-        </FormField>
+            )}
+          </FormField>
 
-        <FormField label="Confirmar nueva contraseña" required>
-          {(id) => (
-            <PasswordInput
-              id={id}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Repite la contraseña"
-              autoComplete="new-password"
-            />
-          )}
-        </FormField>
-
-        <Button size="sm" icon={Lock} onClick={handleSavePassword} loading={saving}>
-          Cambiar contraseña
-        </Button>
+          <Button type="submit" size="sm" icon={Lock} loading={saving}>
+            Cambiar contraseña
+          </Button>
+        </form>
       </Card>
 
       {isAdmin && (
@@ -323,7 +327,11 @@ export default function SettingsPage() {
         <p className="text-sm text-muted">
           Sincroniza automáticamente tus leads calificados y resultados de campaña a una hoja de Google, cada 15 minutos.
         </p>
-        {googleStatusError && <Banner tone="danger">{googleStatusError} <button type="button" onClick={fetchGoogleStatus} className="underline">Reintentar</button></Banner>}
+        {googleStatusError && (
+          <Banner tone="danger" action={<Button variant="link" onClick={fetchGoogleStatus}>Reintentar</Button>}>
+            {googleStatusError}
+          </Banner>
+        )}
 
         {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && (
           <Button

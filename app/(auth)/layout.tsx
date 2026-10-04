@@ -7,7 +7,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   await connection();
   const analytics = await getAnalyticsConfig();
   return (
-    <div
+    <main
       className="min-h-dvh flex items-center justify-center bg-background p-4"
       style={{
         backgroundImage:
@@ -18,6 +18,6 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
         {children}
       </div>
       {analytics && <Analytics config={analytics} />}
-    </div>
+    </main>
   );
 }

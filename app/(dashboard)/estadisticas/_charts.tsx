@@ -39,7 +39,7 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
-const TICK_STYLE = { fontSize: 11, fill: "var(--muted-darker)" };
+const TICK_STYLE = { fontSize: 12, fill: "var(--muted-darker)" };
 
 function ChartTooltip({
   active,
@@ -60,7 +60,7 @@ function ChartTooltip({
           {formatLabel ? formatLabel(String(label)) : label}
         </p>
       )}
-      {sublabel && <p className="mb-1 font-mono text-[11px] text-muted-darker">{sublabel}</p>}
+      {sublabel && <p className="mb-1 text-xs tabular-nums text-muted-darker">{sublabel}</p>}
       <div className={sublabel ? "space-y-1" : "mt-1 space-y-1"}>
         {payload.map((entry, i) => (
           <div key={`${entry.dataKey}-${i}`} className="flex items-center gap-2 text-xs">
@@ -185,7 +185,7 @@ export function HorizontalBarChart({
           <YAxis
             type="category"
             dataKey="label"
-            width={104}
+            width={112}
             tick={TICK_STYLE}
             axisLine={false}
             tickLine={false}
@@ -199,7 +199,7 @@ export function HorizontalBarChart({
             radius={[0, 6, 6, 0]}
             isAnimationActive={!reducedMotion}
             maxBarSize={18}
-            label={{ position: "right", fill: "var(--muted-darker)", fontSize: 11 }}
+            label={{ position: "right", fill: "var(--muted-darker)", fontSize: 12 }}
           />
         </BarChart>
       </ResponsiveContainer>
@@ -235,7 +235,7 @@ export function DeliveryComparisonChart({ data }: { data: Estadisticas["campaign
           <XAxis dataKey="origin" tick={TICK_STYLE} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
           <YAxis allowDecimals={false} tick={TICK_STYLE} axisLine={false} tickLine={false} width={40} />
           <Tooltip cursor={{ fill: "var(--surface-light)" }} content={(props) => <ChartTooltip {...props} />} />
-          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "var(--muted-darker)" }} />
+          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "var(--muted-darker)" }} />
           <Bar dataKey="Enviados" fill="var(--muted-darker)" radius={[4, 4, 0, 0]} isAnimationActive={!reducedMotion} maxBarSize={28} />
           <Bar dataKey="Entregados" fill="var(--success)" radius={[4, 4, 0, 0]} isAnimationActive={!reducedMotion} maxBarSize={28} />
           <Bar dataKey="Leídos" fill="var(--info)" radius={[4, 4, 0, 0]} isAnimationActive={!reducedMotion} maxBarSize={28} />

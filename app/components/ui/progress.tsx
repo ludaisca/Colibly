@@ -3,6 +3,8 @@ import { cn } from "./cn";
 interface ProgressProps {
   value: number;
   label?: string;
+  /** Texto legible del valor para lectores de pantalla (p. ej. "3 de 5 pasos"). */
+  valueText?: string;
   tone?: "accent" | "warning" | "danger";
   className?: string;
 }
@@ -13,7 +15,7 @@ const BAR: Record<NonNullable<ProgressProps["tone"]>, string> = {
   danger: "bg-danger",
 };
 
-export function Progress({ value, label, tone = "accent", className }: ProgressProps) {
+export function Progress({ value, label, valueText, tone = "accent", className }: ProgressProps) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <div className={cn("w-full space-y-1", className)}>
@@ -28,6 +30,7 @@ export function Progress({ value, label, tone = "accent", className }: ProgressP
         role="progressbar"
         aria-label={label ?? "Progreso"}
         aria-valuenow={clamped}
+        aria-valuetext={valueText}
         aria-valuemin={0}
         aria-valuemax={100}
       >

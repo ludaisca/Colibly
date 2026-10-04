@@ -67,6 +67,14 @@
   --muted:         var(--ink-600);
   --muted-darker:  var(--ink-600);   /* texto secundario pequeño y placeholders legibles */
 
+  /* Borde de controles de formulario (inputs, selects, checkbox sin marcar,
+     pista del switch apagado): ≥ 3:1 contra surface y surface-light
+     (WCAG 1.4.11). --border queda para divisores decorativos. */
+  --control-border: #7F7993;
+
+  /* Velo de modales, drawers y paleta de comandos. */
+  --scrim: rgb(17 13 31 / 60%);
+
   --accent:        var(--violet-600);
   --accent-hover:  var(--violet-700);
   --on-accent:     var(--ink-0);
@@ -143,7 +151,9 @@
   --border:        #3A3357;
 
   --muted:         #B1ABC7;
-  --muted-darker:  #8A84A3;
+  --muted-darker:  #9690AE;
+  --control-border: #7A7494;
+  --scrim: rgb(0 0 0 / 62%);
 
   --accent:        #6A50F5;
   --accent-hover:  #5A3FE3;
@@ -218,6 +228,7 @@
   --color-border:       var(--border);
   --color-muted:        var(--muted);
   --color-muted-darker: var(--muted-darker);
+  --color-control-border: var(--control-border);
 
   --color-accent:        var(--accent);
   --color-accent-hover:  var(--accent-hover);
@@ -334,7 +345,12 @@
    ───────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
-  color-scheme: dark;
+}
+
+/* :not(.dark) porque este bloque va después de .dark { … } y con la misma
+   especificidad lo pisaría. */
+:root:not(.dark) {
+  color-scheme: light;
 }
 
 .light,
@@ -351,7 +367,6 @@ body {
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -363,6 +378,22 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /* El kill de arriba deja los indicadores de carga congelados: spinner y
+     skeletons conservan un latido de opacidad lento, sin desplazamiento. */
+  .animate-spin,
+  .animate-pulse,
+  [class*="animate-[shimmer"] {
+    animation-name: reduced-pulse !important;
+    animation-duration: 1.6s !important;
+    animation-timing-function: ease-in-out !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+@keyframes reduced-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
 }
 
 /* ─────────────────────────────────────────────────
@@ -449,25 +480,18 @@ body {
 .animate-slide-down  { animation: slide-down  var(--dur) var(--ease) both; }
 .animate-pulse-live  { animation: pulse-live  2.4s var(--ease) infinite; }
 
-/* Movimiento corto para contenido que aparece en el inbox. La selección del
-   chat usa una barra que se despliega sin mover las filas de la lista. */
+/* Movimiento corto para contenido que aparece en el inbox. La fila
+   seleccionada se distingue por fondo + contorno interior (sin franja
+   lateral); el hover usa surface-light para que no se confunda con ella. */
 @keyframes chat-disclosure-enter {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .chat-disclosure-enter { animation: chat-disclosure-enter 180ms var(--ease) both; }
-.chat-list-row { position: relative; }
-.chat-list-row::before {
-  content: "";
-  position: absolute;
-  inset: 8px auto 8px 0;
-  width: 3px;
-  border-radius: 3px;
-  background: var(--accent-strong);
-  transform: scaleY(0);
-  transition: transform 180ms var(--ease);
+.chat-list-row[aria-current="true"] {
+  background: var(--accent-subtle);
+  box-shadow: inset 0 0 0 1px var(--accent-muted);
 }
-.chat-list-row[aria-current="true"]::before { transform: scaleY(1); }
 
 .animation-delay-100 { animation-delay: 100ms; }
 .animation-delay-200 { animation-delay: 200ms; }

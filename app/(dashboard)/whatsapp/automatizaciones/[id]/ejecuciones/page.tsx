@@ -181,7 +181,7 @@ export default function AutomationRunsPage() {
                   <li key={l.id} className="relative">
                     <span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${OUTCOME_DOT[l.outcome] ?? "bg-muted"}`} />
                     <p className="text-sm text-foreground">{l.detail}</p>
-                    <p className="text-[11px] text-muted tabular-nums">{formatWhen(l.at)}</p>
+                    <p className="text-xs text-muted tabular-nums">{formatWhen(l.at)}</p>
                   </li>
                 ))}
               </ol>

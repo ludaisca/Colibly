@@ -117,6 +117,7 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
       >
         <div className="p-3 w-64 space-y-2">
           <MultiSelect
+            ariaLabel="Etiquetas de la conversación"
             options={allTags.map((t) => ({ value: t.id, label: t.name }))}
             value={chatTags.map((t) => t.id)}
             onChange={handleTagsChange}
@@ -127,9 +128,10 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
               placeholder="Nueva etiqueta..."
+              aria-label="Nueva etiqueta"
               className="flex-1"
             />
-            <Button size="sm" variant="secondary" icon={Plus} onClick={handleCreateTag} />
+            <Button size="sm" variant="secondary" icon={Plus} onClick={handleCreateTag} aria-label="Crear etiqueta" title="Crear etiqueta" />
           </div>
         </div>
       </Dropdown>

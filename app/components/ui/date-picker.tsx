@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useId } from "react";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "./cn";
 
@@ -39,6 +39,15 @@ function formatDate(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+function toISO(y: number, m: number, d: number): string {
+  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+// "15 de marzo de 2026" — nombre accesible de cada día del calendario.
+function longDate(y: number, m: number, d: number): string {
+  return `${d} de ${MONTHS[m].toLowerCase()} de ${y}`;
+}
+
 function parseDisplay(display: string): string | null {
   const match = display.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return null;
@@ -59,6 +68,7 @@ export function DatePicker({
   ariaLabel,
   className,
 }: DatePickerProps) {
+  const panelId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -93,27 +103,48 @@ export function DatePicker({
   useEffect(() => {
     if (!open) return;
     function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      // Si el foco estaba en el calendario, vuelve al campo.
+      if (panelRef.current?.contains(document.activeElement)) inputRef.current?.focus();
     }
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
+  const outOfRange = useCallback(
+    (iso: string) => (!!min && iso < min) || (!!max && iso > max),
+    [min, max]
+  );
+
   const applyDate = useCallback(
     (y: number, m: number, d: number) => {
-      const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const iso = toISO(y, m, d);
+      if (outOfRange(iso)) return;
       setDisplay(formatDate(iso));
       onChange?.(iso);
       setOpen(false);
+      inputRef.current?.focus();
     },
-    [onChange]
+    [onChange, outOfRange]
   );
 
   const handleInputBlur = () => {
     const parsed = parseDisplay(display);
-    if (parsed) {
-      onChange?.(parsed);
+    if (!parsed) return;
+    if (outOfRange(parsed)) {
+      // Fecha tecleada fuera de min/max: se ignora y el campo vuelve al valor guardado.
+      setDisplay(formatDate(value));
+      return;
     }
+    onChange?.(parsed);
+  };
+
+  const openPanel = () => {
+    if (disabled) return;
+    const left = inputRef.current?.getBoundingClientRect().left ?? 0;
+    setPanelOffset(Math.max(8 - left, Math.min(0, window.innerWidth - left - 288)));
+    setOpen(true);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,13 +158,14 @@ export function DatePicker({
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const todayISO = today.toISOString().split("T")[0];
+  // Fecha local, no UTC: toISOString() marca "mañana" por la tarde-noche al oeste de Greenwich.
+  const todayISO = toISO(today.getFullYear(), today.getMonth(), today.getDate());
   const selectedISO = parseDisplay(display);
 
   return (
     <div className={cn("relative", className)}>
       <div className="relative">
-        <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker pointer-events-none" />
+        <Calendar size={16} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker pointer-events-none" />
         <input
           ref={inputRef}
           id={id}
@@ -141,22 +173,29 @@ export function DatePicker({
           type="text"
           value={display}
           onChange={handleInputChange}
-          onFocus={() => {
-            if (disabled) return;
-            const left = inputRef.current?.getBoundingClientRect().left ?? 0;
-            setPanelOffset(Math.max(8 - left, Math.min(0, window.innerWidth - left - 288)));
-            setOpen(true);
+          // No se abre al recibir el foco con Tab (atraparía a quien solo pasa
+          // por el campo): se abre al hacer clic, con Enter o con ↓.
+          onClick={openPanel}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown" || (e.key === "Enter" && !open)) {
+              e.preventDefault();
+              openPanel();
+            }
           }}
+          role="combobox"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={open ? panelId : undefined}
           onBlur={handleInputBlur}
           placeholder={placeholder}
           disabled={disabled}
           min={min}
           max={max}
           className={cn(
-            "w-full h-10 rounded-lg border bg-surface-light px-4 pl-10 pr-8 text-sm text-foreground",
+            "w-full h-10 rounded-lg border bg-surface-light px-4 pl-10 pr-8 text-base sm:text-sm text-foreground",
             "placeholder:text-muted-darker outline-none transition-colors",
             "focus:border-accent-strong focus:ring-1 focus:ring-accent-muted",
-            error ? "border-danger-border" : "border-border",
+            error ? "border-danger-border" : "border-control-border",
             disabled && "opacity-50 cursor-not-allowed"
           )}
         />
@@ -167,7 +206,7 @@ export function DatePicker({
             onClick={() => { setDisplay(""); onChange?.(""); }}
             className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-darker hover:text-foreground"
           >
-            <X size={14} />
+            <X size={14} aria-hidden="true" />
           </button>
         )}
       </div>
@@ -177,6 +216,9 @@ export function DatePicker({
       {open && (
         <div
           ref={panelRef}
+          id={panelId}
+          role="dialog"
+          aria-label="Elegir fecha"
           style={{ left: panelOffset }}
           className={cn(
             "absolute z-50 mt-1.5 rounded-xl border border-border bg-surface shadow-lg p-3 w-[280px]",
@@ -193,7 +235,7 @@ export function DatePicker({
               }}
               className="p-1 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={16} aria-hidden="true" />
             </button>
             <span className="text-sm font-medium text-foreground">
               {MONTHS[viewMonth]} {viewYear}
@@ -207,7 +249,7 @@ export function DatePicker({
               }}
               className="p-1 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={16} aria-hidden="true" />
             </button>
           </div>
 
@@ -222,21 +264,25 @@ export function DatePicker({
           <div className="grid grid-cols-7 gap-0.5">
             {cells.map((day, i) => {
               if (day === null) return <div key={`e-${i}`} />;
-              const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const iso = toISO(viewYear, viewMonth, day);
               const isToday = iso === todayISO;
               const isSelected = iso === selectedISO;
+              const isOut = outOfRange(iso);
 
               return (
                 <button
                   key={i}
                   type="button"
+                  disabled={isOut}
+                  aria-label={longDate(viewYear, viewMonth, day)}
+                  aria-pressed={isSelected}
                   onClick={() => applyDate(viewYear, viewMonth, day)}
                   className={cn(
                     "h-8 w-full rounded-md text-xs font-medium transition-colors",
-                    "hover:bg-surface-light",
+                    isOut ? "cursor-not-allowed text-muted-darker line-through opacity-50" : "hover:bg-surface-light",
                     isSelected && "bg-accent text-on-accent hover:bg-accent-hover",
                     isToday && !isSelected && "border border-accent-strong text-accent-ink",
-                    !isSelected && !isToday && "text-foreground"
+                    !isSelected && !isToday && !isOut && "text-foreground"
                   )}
                 >
                   {day}
@@ -247,10 +293,11 @@ export function DatePicker({
 
           <button
             type="button"
+            disabled={outOfRange(todayISO)}
             onClick={() => {
               applyDate(today.getFullYear(), today.getMonth(), today.getDate());
             }}
-            className="mt-3 w-full text-xs text-accent-ink hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-surface-light"
+            className="mt-3 disabled:cursor-not-allowed disabled:opacity-50 w-full text-xs text-accent-ink hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-surface-light"
           >
             Hoy
           </button>

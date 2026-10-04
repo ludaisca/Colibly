@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useTheme } from "next-themes";
 import { CalendarRange } from "lucide-react";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { Card, CardHeader, CardTitle, CardBody } from "@/app/components/ui/card";
@@ -12,7 +11,6 @@ import { DatePicker } from "@/app/components/ui/date-picker";
 import { Button } from "@/app/components/ui/button";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
 import { Table, type TableColumn } from "@/app/components/ui/table";
-import { useHasMounted } from "@/app/hooks/use-has-mounted";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
   PENDING: { label: "Pendiente", tone: "warning" },
@@ -22,15 +20,16 @@ const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" 
   DISABLED: { label: "Deshabilitada", tone: "neutral" },
 };
 
-// Validated categorical slots 1-4 (blue/green/magenta/yellow) from the dataviz palette —
-// checked with scripts/validate_palette.js against this app's actual chart surfaces
-// (#f0f3ef light, #1a2420 dark): all pass. Not app semantic tokens (accent/success/etc.)
-// because those are reserved for status meaning, not series identity.
+// Las series leen los tokens semánticos (info/success/accent-2/warning): cada tema
+// ya los redefine y todos superan 3:1 contra --surface, --surface-light y
+// --background en claro y en oscuro (medido: mínimo 5.1:1). La paleta anterior
+// eran hex pensados para las superficies del tema "Girasol"; sobre las del tema
+// Colibrí el rosa y el amarillo de claro quedaban por debajo de 3:1.
 const SERIES = [
-  { key: "sent", label: "Enviados", light: "#2a78d6", dark: "#3987e5" },
-  { key: "delivered", label: "Entregados", light: "#008300", dark: "#008300" },
-  { key: "read", label: "Leídos", light: "#e87ba4", dark: "#d55181" },
-  { key: "clicked", label: "Clics", light: "#eda100", dark: "#c98500" },
+  { key: "sent", label: "Enviados", color: "var(--info)" },
+  { key: "delivered", label: "Entregados", color: "var(--success)" },
+  { key: "read", label: "Leídos", color: "var(--accent-2)" },
+  { key: "clicked", label: "Clics", color: "var(--warning)" },
 ] as const;
 
 type SeriesKey = (typeof SERIES)[number]["key"];
@@ -86,15 +85,22 @@ function formatDayLabel(iso: string): string {
 }
 
 function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
-  const { theme } = useTheme();
-  const mounted = useHasMounted();
-  const isDark = mounted && theme === "dark";
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // El viewBox sigue el ancho real del contenedor: así el SVG no se estira
+  // (antes preserveAspectRatio="none" deformaba textos y círculos).
+  const [width, setWidth] = useState(640);
+  const hasPoints = points.length > 0;
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(280, Math.round(entry.contentRect.width))));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasPoints]);
 
-  const width = 640;
   const height = 240;
-  const padding = { top: 12, right: 12, bottom: 24, left: 34 };
+  const padding = { top: 12, right: 12, bottom: 26, left: 40 };
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
 
@@ -142,7 +148,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
       <div className="flex flex-wrap gap-4 mb-3">
         {SERIES.map((s) => (
           <div key={s.key} className="flex items-center gap-1.5 text-xs text-muted">
-            <span className="inline-block w-3 h-0.5 rounded-full" style={{ backgroundColor: isDark ? s.dark : s.light }} />
+            <span className="inline-block w-3 h-0.5 rounded-full" style={{ backgroundColor: s.color }} />
             {s.label}
           </div>
         ))}
@@ -154,7 +160,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
         onPointerMove={handleMove}
         onPointerLeave={() => setHoverIndex(null)}
       >
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-56" preserveAspectRatio="none" role="img" aria-label="Métricas diarias de la plantilla">
+        <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block max-w-full" role="img" aria-label="Métricas diarias de la plantilla">
           {/* gridlines — hairline, recessive */}
           {yTicks.map((t) => (
             <line
@@ -168,13 +174,13 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
             />
           ))}
           {yTicks.map((t) => (
-            <text key={`label-${t}`} x={padding.left - 6} y={yFor(t)} textAnchor="end" dominantBaseline="middle" fontSize={10} fill="var(--muted-darker)">
+            <text key={`label-${t}`} x={padding.left - 6} y={yFor(t)} textAnchor="end" dominantBaseline="middle" fontSize={12} fill="var(--muted-darker)">
               {Math.round(t)}
             </text>
           ))}
           {points.map((p, i) =>
             i % labelStep === 0 ? (
-              <text key={p.date} x={xFor(i)} y={height - 6} textAnchor="middle" fontSize={10} fill="var(--muted-darker)">
+              <text key={p.date} x={xFor(i)} y={height - 6} textAnchor="middle" fontSize={12} fill="var(--muted-darker)">
                 {formatDayLabel(p.date)}
               </text>
             ) : null
@@ -193,7 +199,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
           )}
 
           {SERIES.map((s) => (
-            <path key={s.key} d={pathFor(s.key)} fill="none" stroke={isDark ? s.dark : s.light} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <path key={s.key} d={pathFor(s.key)} fill="none" stroke={s.color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           ))}
 
           {/* end-dots with direct labels — endpoint only, not every point */}
@@ -201,7 +207,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
             const last = points[points.length - 1];
             return (
               <g key={`end-${s.key}`}>
-                <circle cx={xFor(points.length - 1)} cy={yFor(last[s.key])} r={4} fill={isDark ? s.dark : s.light} stroke="var(--surface)" strokeWidth={2} />
+                <circle cx={xFor(points.length - 1)} cy={yFor(last[s.key])} r={4} fill={s.color} stroke="var(--surface)" strokeWidth={2} />
               </g>
             );
           })}
@@ -214,7 +220,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
                 cx={xFor(hoverIndex)}
                 cy={yFor(hovered![s.key])}
                 r={4}
-                fill={isDark ? s.dark : s.light}
+                fill={s.color}
                 stroke="var(--surface)"
                 strokeWidth={2}
               />
@@ -230,7 +236,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
             {SERIES.map((s) => (
               <div key={s.key} className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-1.5 text-muted">
-                  <span className="inline-block w-2.5 h-0.5 rounded-full" style={{ backgroundColor: isDark ? s.dark : s.light }} />
+                  <span className="inline-block w-2.5 h-0.5 rounded-full" style={{ backgroundColor: s.color }} />
                   {s.label}
                 </span>
                 <span className="font-semibold text-foreground tabular-nums">{hovered[s.key]}</span>

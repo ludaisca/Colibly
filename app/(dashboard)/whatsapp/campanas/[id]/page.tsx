@@ -145,7 +145,7 @@ export default function CampaignDetailPage() {
   }
 
   const recipientColumns: TableColumn<Recipient>[] = useMemo(() => [
-    { key: "phoneNumber", header: "Número", render: (r) => <span className="font-mono text-xs">{r.phoneNumber}</span> },
+    { key: "phoneNumber", header: "Número", render: (r) => <span className="tabular-nums text-xs">{r.phoneNumber}</span> },
     { key: "contactName", header: "Nombre", render: (r) => <span className="text-xs">{r.contactName || "—"}</span>, hideBelow: "sm" },
     {
       key: "status",
@@ -243,7 +243,7 @@ export default function CampaignDetailPage() {
               return (
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-sm truncate">{r.phoneNumber}</span>
+                    <span className="tabular-nums text-sm truncate">{r.phoneNumber}</span>
                     {status.render(r)}
                   </div>
                   {r.contactName && <div className="text-xs text-muted-darker truncate">{r.contactName}</div>}

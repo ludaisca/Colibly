@@ -71,6 +71,7 @@ export function SecretField({
           <Input
             id={id}
             type="password"
+            autoComplete="new-password"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={cleared ? "Se quitará al guardar" : hasValue ? "•••••••• (configurado)" : "Sin configurar"}

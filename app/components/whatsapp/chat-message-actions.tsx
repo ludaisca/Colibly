@@ -12,7 +12,7 @@ export function ChatMessageActions({ message, onReply, onReaction }: { message: 
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const { error: toastError, success } = useToast();
-  const actionClass = "rounded-xl p-2 text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50";
+  const actionClass = "rounded-xl p-2.5 text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50";
   const latest = message.agentReactions?.[0];
   const current = latest && ["accepted", "pending"].includes(latest.status) ? latest.emoji : message.agentReactionEmoji;
 
@@ -42,7 +42,7 @@ export function ChatMessageActions({ message, onReply, onReaction }: { message: 
   }
 
   return (
-    <div className="mb-2 flex shrink-0 flex-col items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+    <div className="mb-2 flex shrink-0 flex-col items-center opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
       <button type="button" onClick={() => onReply?.(message)} className={actionClass} aria-label="Responder a este mensaje" title="Responder"><Reply size={15} /></button>
       {canReactToMessage(message.timestamp) && message.status !== "failed" && (
         <Dropdown portal open={open} onOpenChange={setOpen} closeOnSelect={false} trigger={<button type="button" className={actionClass} aria-expanded={open} aria-label="Reaccionar al mensaje" title="Reaccionar"><Smile size={15} /></button>}>

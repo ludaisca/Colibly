@@ -10,13 +10,12 @@ const PAD: Record<Padding, string> = {
   lg:   "p-6",
 };
 
-interface CardProps {
+interface CardProps extends Omit<React.HTMLAttributes<HTMLElement>, "className" | "children"> {
   padding?: Padding;
   interactive?: boolean;
   className?: string;
   children: React.ReactNode;
   as?: React.ElementType;
-  [key: string]: unknown;
 }
 
 export function Card({ padding = "md", interactive = false, className, children, as: Tag = "div", ...rest }: CardProps) {
@@ -43,11 +42,20 @@ export function CardHeader({ className, children }: { className?: string; childr
   );
 }
 
-export function CardTitle({ className, children }: { className?: string; children: React.ReactNode }) {
+export function CardTitle({
+  className,
+  children,
+  as: Tag = "h3",
+}: {
+  className?: string;
+  children: React.ReactNode;
+  /** Nivel de encabezado: h3 por defecto; las páginas que lo usan como título principal pasan "h1". */
+  as?: "h1" | "h2" | "h3" | "h4";
+}) {
   return (
-    <h3 className={cn("text-base font-semibold tracking-tight text-foreground", className)}>
+    <Tag className={cn("text-base font-semibold tracking-tight text-foreground", className)}>
       {children}
-    </h3>
+    </Tag>
   );
 }
 

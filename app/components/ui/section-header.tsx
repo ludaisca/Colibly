@@ -2,7 +2,7 @@ import { cn } from "./cn";
 
 // Encabezado de sección del layout workbench — sustituye a los cards con borde
 // como separador visual: la jerarquía la da la tipografía (eyebrow uppercase +
-// título en Fraunces), no una caja. Server-safe, sin iconos como props.
+// título en la fuente display (Bricolage Grotesque)), no una caja. Server-safe, sin iconos como props.
 
 interface SectionHeaderProps {
   title: string;

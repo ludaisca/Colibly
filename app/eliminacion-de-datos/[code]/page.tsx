@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { BRAND_CONTACT_EMAIL, BRAND_NAME } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
+// Las fechas se muestran siempre en hora de México, sin depender de la zona del servidor.
+const DATE_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "long", timeZone: "America/Mexico_City" };
 export const metadata = { title: "Solicitud de eliminación de datos", robots: { index: false } };
 
 const STATUS: Record<string, string> = {
@@ -29,8 +31,8 @@ export default async function DataDeletionStatusPage({ params }: { params: Promi
       <p className="text-sm text-muted-darker">Código de confirmación: <span className="font-mono">{code}</span></p>
       <p>{STATUS[request.status] ?? request.status}</p>
       <p className="text-sm text-muted-darker">
-        Recibida el {request.receivedAt.toLocaleDateString("es-MX", { dateStyle: "long" })}
-        {request.completedAt ? ` · terminada el ${request.completedAt.toLocaleDateString("es-MX", { dateStyle: "long" })}` : ""}.
+        Recibida el {request.receivedAt.toLocaleDateString("es-MX", DATE_FORMAT)}
+        {request.completedAt ? ` · terminada el ${request.completedAt.toLocaleDateString("es-MX", DATE_FORMAT)}` : ""}.
       </p>
       <p className="text-sm text-muted-darker">
         ¿Dudas? Escribe a <a className="text-accent-ink underline" href={`mailto:${BRAND_CONTACT_EMAIL}`}>{BRAND_CONTACT_EMAIL}</a> ({BRAND_NAME}).

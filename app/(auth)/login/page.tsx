@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -18,13 +18,17 @@ import { loginSchema } from "@/lib/validations";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl");
+  // Solo se respeta una ruta relativa del mismo sitio: "//evil.com" o "/\evil.com" serían una redirección abierta.
+  const rawCallback = searchParams.get("callbackUrl");
+  const callbackUrl = rawCallback && /^\/(?![/\\])/.test(rawCallback) ? rawCallback : null;
   const notice = searchParams.get("reset") === "1" ? "Listo, tu contraseña cambió. Inicia sesión con la nueva." : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,6 +42,8 @@ function LoginForm() {
         fieldErrors[i.path[0] as string] = i.message;
       });
       setErrors(fieldErrors);
+      const firstInvalid = fieldErrors.email ? emailRef : fieldErrors.password ? passwordRef : null;
+      if (firstInvalid) requestAnimationFrame(() => firstInvalid.current?.focus());
       return;
     }
 
@@ -66,7 +72,7 @@ function LoginForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Iniciar sesión</CardTitle>
+          <CardTitle as="h1">Iniciar sesión</CardTitle>
         </CardHeader>
         <CardBody>
           {serverError ? (
@@ -80,9 +86,11 @@ function LoginForm() {
           ) : null}
           <form onSubmit={handleSubmit} className="space-y-4">
             <FormField label="Email" required error={errors.email}>
-              {(id) => (
+              {(id, describedBy) => (
                 <Input
+                  ref={emailRef}
                   id={id}
+                  aria-describedby={describedBy}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -94,9 +102,11 @@ function LoginForm() {
             </FormField>
 
             <FormField label="Contraseña" required error={errors.password}>
-              {(id) => (
+              {(id, describedBy) => (
                 <Input
+                  ref={passwordRef}
                   id={id}
+                  aria-describedby={describedBy}
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

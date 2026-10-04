@@ -1,45 +1,38 @@
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { OnboardingStep } from "@/lib/onboarding";
 import { SectionHeader } from "./section-header";
 import { Progress } from "./progress";
-import { cn } from "./cn";
 
 // Checklist de primeros pasos del panel (server-safe). El panel lo muestra
 // mientras quede algún paso pendiente.
 export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
   const done = steps.filter((s) => s.done).length;
+  const pending = steps.filter((step) => !step.done);
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+    <section className="rounded-2xl border border-border bg-surface p-5">
       <SectionHeader
-        eyebrow="Primeros pasos"
-        title="Deja lista tu cuenta"
+        title="Termina de preparar tu espacio"
         action={<span className="text-sm tabular-nums text-muted">{done} de {steps.length}</span>}
       />
       <Progress value={(done / steps.length) * 100} className="mt-3" />
-      <ol className="mt-4 divide-y divide-border">
-        {steps.map((step) => {
+      <ol className="mt-2 divide-y divide-border">
+        {pending.map((step) => {
           const body = (
             <>
-              <span
-                className={cn(
-                  "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs",
-                  step.done ? "border-accent-strong bg-accent text-on-accent" : "border-border text-muted"
-                )}
-                aria-hidden
-              >
-                {step.done ? <Check size={14} /> : null}
-              </span>
+              <span className="mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-accent-strong" aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className={cn("block text-sm font-medium", step.done && "text-muted line-through")}>{step.title}</span>
-                {!step.done && <span className="block text-xs text-muted-darker">{step.description}</span>}
+                <span className="block text-sm font-medium">
+                  {step.title}
+                </span>
+                <span className="block text-xs text-muted-darker">{step.description}</span>
               </span>
-              {!step.done && step.href && <ArrowRight size={16} className="mt-1 shrink-0 text-accent-ink" aria-hidden />}
+              {step.href && <ArrowRight size={16} className="mt-1 shrink-0 text-accent-ink" aria-hidden />}
             </>
           );
           return (
             <li key={step.key}>
-              {!step.done && step.href ? (
+              {step.href ? (
                 <Link href={step.href} className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-3 hover:bg-surface-light">
                   {body}
                 </Link>

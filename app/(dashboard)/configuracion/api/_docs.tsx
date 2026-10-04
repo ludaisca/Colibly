@@ -19,7 +19,11 @@ function useOrigin(): string {
 }
 
 function Code({ children }: { children: string }) {
-  return <pre className="overflow-x-auto rounded-xl bg-surface-light p-3 text-xs leading-relaxed">{children}</pre>;
+  return (
+    <pre tabIndex={0} aria-label="Ejemplo de código" className="overflow-x-auto rounded-xl bg-surface-light p-3 text-xs leading-relaxed">
+      {children}
+    </pre>
+  );
 }
 
 const VERIFY_SNIPPET = `// Node.js (Express) — verifica X-Colibly-Signature antes de confiar en el cuerpo.

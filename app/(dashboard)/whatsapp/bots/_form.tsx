@@ -247,7 +247,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
                 <p className="text-sm font-medium">Base de conocimiento (RAG)</p>
                 <p className="text-xs text-muted-darker">El bot buscará en documentos antes de responder</p>
               </div>
-              <Switch checked={ragEnabled} onCheckedChange={setRagEnabled} />
+              <Switch checked={ragEnabled} onCheckedChange={setRagEnabled} label="Base de conocimiento (RAG)" />
             </div>
 
             <div className="flex items-center justify-between py-2">
@@ -255,7 +255,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
                 <p className="text-sm font-medium">Humanizar respuestas</p>
                 <p className="text-xs text-muted-darker">Divide respuestas largas en varios mensajes con un pequeño retraso entre cada uno, para que se sienta menos automático</p>
               </div>
-              <Switch checked={humanizeEnabled} onCheckedChange={setHumanizeEnabled} />
+              <Switch checked={humanizeEnabled} onCheckedChange={setHumanizeEnabled} label="Humanizar respuestas" />
             </div>
 
             {accounts.find((a) => a.id === accountId)?.channel === "WHATSAPP" && (
@@ -264,7 +264,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
                   <p className="text-sm font-medium">Agendar citas automáticamente</p>
                   <p className="text-xs text-muted-darker">Cuando el lead confirma fecha y hora en la conversación, el bot crea la cita solo — se avisa al agente asignado, sin pasos manuales. Solo disponible para cuentas de WhatsApp.</p>
                 </div>
-                <Switch checked={appointmentSchedulingEnabled} onCheckedChange={setAppointmentSchedulingEnabled} />
+                <Switch checked={appointmentSchedulingEnabled} onCheckedChange={setAppointmentSchedulingEnabled} label="Agendar citas automáticamente" />
               </div>
             )}
           </div>

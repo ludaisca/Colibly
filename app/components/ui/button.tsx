@@ -66,7 +66,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const content = (
       <>
         {loading
-          ? <Loader2 size={16} className="animate-spin shrink-0" />
+          ? <Loader2 size={16} aria-hidden="true" className="animate-spin shrink-0" />
           : Icon && <Icon size={16} className="shrink-0" />}
         {children}
         {!loading && IconRight && <IconRight size={16} className="shrink-0" />}
@@ -108,6 +108,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || loading}
+        aria-busy={loading || undefined}
         className={base}
         {...props}
       >

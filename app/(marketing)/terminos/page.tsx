@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BRAND_NAME } from "@/lib/brand";
 import { GRACE_DAYS, PLAN_LIST, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_DAYS } from "@/lib/billing/plans";
 import { LEGAL, LegalPage } from "../_legal";
@@ -64,7 +65,7 @@ export default function TermsPage() {
       <h2>7. Datos del Cliente</h2>
       <p>
         Las conversaciones, contactos y demás información que el Cliente carga o recibe en el Servicio le pertenecen. Los
-        tratamos solo para prestar el Servicio, como se describe en el <a href="/privacidad" className="text-accent-ink underline underline-offset-2">Aviso de privacidad</a>.
+        tratamos solo para prestar el Servicio, como se describe en el <Link href="/privacidad" className="text-accent-ink underline underline-offset-2">Aviso de privacidad</Link>.
         El Cliente es responsable de haber obtenido los permisos necesarios de sus propios clientes para tratar sus datos.
       </p>
 

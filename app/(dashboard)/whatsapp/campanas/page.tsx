@@ -172,7 +172,7 @@ function CampaignsTab() {
                           style={{ width: `${progress}%` }}
                         />
                       </span>
-                      <span className="font-mono">{progress}%</span>
+                      <span className="tabular-nums">{progress}%</span>
                     </span>
                   ) : undefined
                 }
@@ -333,7 +333,7 @@ function AutomationTab() {
                 </>
               }
               meta={
-                <span className="font-mono">
+                <span className="tabular-nums">
                   {s.lastRunAt
                     ? `${new Date(s.lastRunAt).toLocaleString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} · ${s.lastImportedCount} enviado(s)`
                     : "Aún no ha corrido"}
@@ -342,6 +342,7 @@ function AutomationTab() {
             />
             <span className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Switch
+                label={`Activar fuente ${s.sheetName}`}
                 checked={s.enabled}
                 onCheckedChange={() => handleToggle(s)}
                 disabled={togglingId === s.id}

@@ -100,7 +100,7 @@ export function AutomationChip({ chatId, showEmpty = false }: { chatId: string; 
         {data.runs.map((run) => (
           <div key={run.id} className="px-3.5 py-2">
             <p className="truncate text-sm font-medium text-foreground">{run.automation.name}</p>
-            <p className="text-[11px] text-muted-darker">
+            <p className="text-xs text-muted-darker">
               {STATUS_TEXT[run.status] ?? run.status}
               {run.step ? ` · ${run.step}` : ""}
             </p>

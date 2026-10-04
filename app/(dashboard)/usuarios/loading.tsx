@@ -4,7 +4,7 @@ export default function UsuariosLoading() {
   return (
     <ListPageSkeleton
       title="Usuarios"
-      description="Gestión de usuarios y roles del sistema."
+      description="Tu equipo y sus roles en este espacio."
       rows={5}
     />
   );

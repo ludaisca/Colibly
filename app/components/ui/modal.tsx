@@ -74,7 +74,7 @@ export function Modal({
         isOpen={open}
         onOpenChange={requestClose}
         isDismissable={false}
-        isKeyboardDismissDisabled
+        isKeyboardDismissDisabled={persistent}
         className="colibly-modal-backdrop"
       >
         <AlertDialog.Container className="colibly-modal-container">

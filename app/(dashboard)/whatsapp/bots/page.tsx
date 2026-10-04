@@ -146,7 +146,7 @@ export default function BotsPage() {
                 </>
               }
               meta={
-                <span className="font-mono">{bot._count.conversations} conv.</span>
+                <span className="tabular-nums">{bot._count.conversations} conv.</span>
               }
             />
             <span

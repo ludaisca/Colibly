@@ -21,10 +21,8 @@ import {
   Zap,
   Globe,
   Building2,
+  Crosshair,
 } from "lucide-react";
-// Meta (feedback loop de calificación de leads) usa el mismo ícono que
-// Difusión WhatsApp para no introducir un cuarto ícono de "anuncios" — la
-// etiqueta ya distingue el propósito.
 import { AppShell, type NavItem, type NavGroup } from "@/app/components/ui/app-shell";
 import { NotificationBell } from "@/app/components/ui/notification-bell";
 
@@ -66,7 +64,7 @@ export function DashboardShell({
         {
           title: "Ajustes",
           items: [
-            { href: "/configuracion",      label: "Configuración",   icon: Settings, exact: true },
+            { href: "/configuracion",      label: "Configuración",   icon: Settings },
           ],
         },
       ]
@@ -117,7 +115,7 @@ export function DashboardShell({
             // Admin-only: credenciales de negocio sensibles (mandan datos
             // reales al ad account en producción), sin equivalente de
             // WAAccountShare — mismo criterio que Bots IA/Usuarios.
-            ...(isAdmin ? [{ href: "/meta-ads" as const, label: "Meta Ads", icon: Megaphone as React.ElementType }] : []),
+            ...(isAdmin ? [{ href: "/meta-ads" as const, label: "Meta Ads", icon: Crosshair as React.ElementType }] : []),
           ],
         },
         {
@@ -126,7 +124,7 @@ export function DashboardShell({
             ...(isAdmin
               ? [{ href: "/usuarios" as const,  label: "Usuarios",         icon: Users as React.ElementType, exact: true }]
               : []),
-            { href: "/configuracion",           label: "Configuración",    icon: Settings, exact: true },
+            { href: "/configuracion",           label: "Configuración",    icon: Settings },
           ],
         },
       ];

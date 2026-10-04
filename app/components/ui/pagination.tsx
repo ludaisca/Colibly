@@ -28,7 +28,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
   }
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <nav aria-label="Paginación" className={cn("flex items-center gap-2", className)}>
       <button
         type="button"
         aria-label="Página anterior"
@@ -36,7 +36,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
         disabled={currentPage === 1}
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={14} aria-hidden="true" />
         <span className="hidden sm:inline">Anterior</span>
       </button>
 
@@ -49,6 +49,9 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
           ) : (
             <button
               key={page}
+              type="button"
+              aria-label={`Página ${page}`}
+              aria-current={page === currentPage ? "page" : undefined}
               onClick={() => onPageChange(page as number)}
               className={cn(
                 "min-w-[36px] px-3 py-2 rounded-lg text-sm font-medium transition-colors",
@@ -71,8 +74,8 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         <span className="hidden sm:inline">Siguiente</span>
-        <ChevronRight size={14} />
+        <ChevronRight size={14} aria-hidden="true" />
       </button>
-    </div>
+    </nav>
   );
 }

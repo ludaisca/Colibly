@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useId, useRef } from "react";
 import { Send, Paperclip, X, FileAudio, Video, FileText, ListChecks, Plus, Reply } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -82,6 +82,7 @@ export function ChatComposer({
   interactiveDisabled = false,
 }: ChatComposerProps) {
   const messageInputRef = useRef<HTMLInputElement>(null);
+  const cannedListId = useId();
   const supportsAttachments = channel !== "WEBCHAT";
   const supportsButtons = channel === "WHATSAPP";
   const supportsSuggestions = channel === "WHATSAPP" || channel === "TELEGRAM";
@@ -105,23 +106,34 @@ export function ChatComposer({
       {replyTo && (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
           <Reply size={16} className="shrink-0 text-accent-ink" />
-          <div className="min-w-0 flex-1 border-l-2 border-accent-strong pl-2 text-xs">
+          <blockquote className="min-w-0 flex-1 text-xs">
             <p className="font-semibold text-accent-ink">Respondiendo a {replyTo.direction === "OUTBOUND" ? "tu mensaje" : leadName}</p>
             <p className="truncate text-muted-darker">{replyTo.body || replyTo.caption || `[${replyTo.messageType}]`}</p>
-          </div>
+          </blockquote>
           <button type="button" onClick={onCancelReply} className="rounded-lg p-1 text-muted-darker hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent" aria-label="Cancelar respuesta citada"><X size={16} /></button>
         </div>
       )}
       {cannedSuggestions.length > 0 && (
-        <div className="chat-disclosure-enter absolute bottom-full left-4 right-4 mb-1.5 rounded-lg border border-border bg-surface shadow-lg overflow-hidden z-20">
+        <div
+          id={cannedListId}
+          role="listbox"
+          aria-label="Respuestas rápidas"
+          className="chat-disclosure-enter absolute bottom-full left-4 right-4 mb-1.5 rounded-lg border border-border bg-surface shadow-lg overflow-hidden z-20"
+        >
           {cannedSuggestions.map((c, i) => (
             <button
               key={c.id}
+              id={`${cannedListId}-opt-${i}`}
               type="button"
+              role="option"
+              aria-selected={i === cannedIndex}
+              tabIndex={-1}
+              // El foco se queda en el input: un clic no debe robárselo.
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onInsertCanned(c.content)}
               onMouseEnter={() => onCannedIndexChange(i)}
               className={`w-full text-left px-3 py-2 text-sm transition-colors border-b border-border last:border-b-0 ${
-                i === cannedIndex ? "bg-surface-light" : "hover:bg-surface-light"
+                i === cannedIndex ? "bg-accent-subtle" : "hover:bg-accent-subtle"
               }`}
             >
               <span className="font-semibold text-accent-ink">/{c.shortcut}</span>
@@ -145,7 +157,7 @@ export function ChatComposer({
           )}
           <div className="flex-1 min-w-0">
             <p className="text-xs truncate">{attachment.name}</p>
-            <p className="text-[11px] text-muted-darker">{(attachment.size / 1024).toFixed(0)} KB</p>
+            <p className="text-xs text-muted-darker">{(attachment.size / 1024).toFixed(0)} KB</p>
           </div>
           <button
             type="button"
@@ -153,6 +165,7 @@ export function ChatComposer({
             className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
             disabled={sending}
             title="Quitar adjunto"
+            aria-label="Quitar adjunto"
           >
             <X size={16} />
           </button>
@@ -170,6 +183,7 @@ export function ChatComposer({
               onClick={toggleButtons}
               className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
               title="Cerrar y quitar botones"
+              aria-label="Cerrar y quitar botones"
             >
               <X size={14} />
             </button>
@@ -194,7 +208,7 @@ export function ChatComposer({
                   }
                 }}
                 placeholder={`Botón ${i + 1}`}
-                className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted"
+                className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-base sm:text-sm placeholder:text-muted-darker focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-strong"
               />
               <button
                 type="button"
@@ -227,13 +241,13 @@ export function ChatComposer({
         accept="image/*,audio/*,video/*,application/pdf,text/plain"
         className="hidden"
       />
-      <div className="flex flex-wrap items-center gap-2" aria-label="Herramientas del mensaje">
+      <div role="group" className="flex flex-wrap items-center gap-2" aria-label="Herramientas del mensaje">
         {supportsAttachments && (
           <button
             type="button"
             onClick={onPickFile}
             disabled={sending || attachmentsDisabled}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl sm:min-h-0 sm:h-9 border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong"
             title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar archivo"}
           >
             <Paperclip size={16} className="text-accent-ink" />
@@ -245,7 +259,7 @@ export function ChatComposer({
             type="button"
             onClick={toggleButtons}
             disabled={sending || interactiveDisabled}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong data-[active=true]:border-accent-strong data-[active=true]:bg-accent-subtle"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl sm:min-h-0 sm:h-9 border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong data-[active=true]:border-accent-strong data-[active=true]:bg-accent-subtle"
             title={interactiveDisabled ? "Quita el archivo adjunto para usar botones" : buttonsPanelOpen ? "Cerrar y quitar botones" : "Añadir botones de respuesta rápida"}
             aria-expanded={buttonsPanelOpen}
             data-active={buttonsPanelOpen}
@@ -262,6 +276,13 @@ export function ChatComposer({
           ref={messageInputRef}
           value={newMessage}
           aria-label="Mensaje"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+          aria-expanded={cannedSuggestions.length > 0}
+          aria-controls={cannedSuggestions.length > 0 ? cannedListId : undefined}
+          aria-activedescendant={cannedSuggestions.length > 0 ? `${cannedListId}-opt-${Math.min(cannedIndex, cannedSuggestions.length - 1)}` : undefined}
+          aria-busy={sending}
           onChange={(e) => { onMessageChange(e.target.value); onCannedIndexChange(0); }}
           onKeyDown={(e) => {
             if (cannedSuggestions.length > 0) {
@@ -296,8 +317,10 @@ export function ChatComposer({
                 ? "Añadir comentario (opcional)..."
                 : "Escribe un mensaje... (usa /atajo para respuestas rápidas)"
           }
-          className="min-w-0 flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted transition-colors"
-          disabled={sending}
+          className="min-w-0 flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-base sm:text-sm placeholder:text-muted-darker focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-strong transition-colors"
+          // readOnly (no disabled): un input deshabilitado suelta el foco al
+          // enviar y el teclado/lector de pantalla quedaba en <body>.
+          readOnly={sending}
         />
         <Button
           type="submit"

@@ -44,7 +44,7 @@ const MESSAGE_STATUS_LABEL: Record<string, string> = {
   delivered: "Entregado", read: "Leído",
 };
 
-function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: PreviewMedia) => void }) {
+function MediaContent({ msg, onPreview, leadName, hasCaption }: { msg: Message; onPreview: (media: PreviewMedia) => void; leadName: string; hasCaption: boolean }) {
   const mediaSrc = msg.localPreviewUrl ?? (msg.mediaUrl ? mediaEndpointFor(msg.id) : null);
 
   if (msg.messageType === "image" || msg.messageType === "sticker") {
@@ -61,11 +61,12 @@ function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: Pre
         type="button"
         onClick={() => onPreview({ type: "image", src: mediaSrc, filename: msg.filename, mimeType: msg.mimeType })}
         className="block cursor-zoom-in"
+        aria-label={msg.messageType === "sticker" ? "Ampliar sticker" : "Ampliar imagen"}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- proxied media, runtime URL */}
         <img
           src={mediaSrc}
-          alt={msg.caption ?? "imagen"}
+          alt={msg.messageType === "sticker" ? "Sticker" : hasCaption ? "" : "Imagen"}
           className={msg.messageType === "sticker" ? "h-36 w-36 max-w-full object-contain sm:h-44 sm:w-44" : "max-w-full max-h-72 rounded-lg object-cover"}
           loading="lazy"
         />
@@ -84,12 +85,13 @@ function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: Pre
     }
     return (
       <div className="flex items-center gap-1.5">
-        <audio controls src={mediaSrc} className="w-full max-w-xs" />
+        <audio controls src={mediaSrc} className="w-full max-w-xs" aria-label={`Audio de ${msg.direction === "INBOUND" ? leadName : "tu equipo"}, ${formatBubbleTime(msg.timestamp)}`} />
         <a
           href={mediaSrc}
           download={msg.filename ?? undefined}
           className="text-muted-darker hover:text-foreground shrink-0"
           title="Descargar audio"
+          aria-label="Descargar audio"
         >
           <Download size={14} />
         </a>
@@ -114,6 +116,7 @@ function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: Pre
           onClick={() => onPreview({ type: "video", src: mediaSrc, filename: msg.filename, mimeType: msg.mimeType })}
           className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white hover:bg-black/70"
           title="Ver en grande"
+          aria-label="Ver video en grande"
         >
           <Maximize2 size={14} />
         </button>
@@ -186,24 +189,24 @@ function MessageBubble({
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
-          <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${isInbound ? "text-muted-darker" : "text-foreground/65"}`}>
-            <MessageSquare size={10} />
+          <div className={`mb-1 flex items-center gap-1 text-xs font-medium ${isInbound ? "text-muted-darker" : "text-foreground/65"}`}>
+            <MessageSquare size={12} />
             <span>Desde un comentario</span>
           </div>
         )}
         {msg.replyToWamid && (
-          <div className="mb-2 max-w-full border-l-2 border-accent-strong bg-background/50 px-2.5 py-1.5 rounded-r-lg text-xs">
-            <span className="block font-semibold text-accent-ink">{msg.replyTo?.direction === "OUTBOUND" ? "Tú" : msg.replyTo?.direction === "INBOUND" ? leadName : "Mensaje citado"}</span>
+          <blockquote className="mb-2 max-w-full rounded-lg bg-background/50 px-2.5 py-1.5 text-xs">
+            <span className="flex items-center gap-1 font-semibold text-accent-ink"><CornerUpLeft size={12} aria-hidden="true" className="shrink-0" />{msg.replyTo?.direction === "OUTBOUND" ? "Tú" : msg.replyTo?.direction === "INBOUND" ? leadName : "Mensaje citado"}</span>
             <span className="block truncate text-muted-darker">{msg.replyTo ? (msg.replyTo.body || msg.replyTo.caption || `[${msg.replyTo.messageType}]`) : "Mensaje anterior"}</span>
-          </div>
+          </blockquote>
         )}
         {hasMedia && (
           <div className="mb-1 space-y-1">
-            <MediaContent msg={msg} onPreview={onPreview} />
+            <MediaContent msg={msg} onPreview={onPreview} leadName={leadName} hasCaption={!!caption} />
             {caption && <p className="whitespace-pre-wrap break-words">{caption}</p>}
           </div>
         )}
-        {!hasMedia && msg.body}
+        {!hasMedia && msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
         {buttons && buttons.length > 0 && (
           // Un mensaje interactivo siempre es OUTBOUND (lo arma el agente), y
@@ -225,12 +228,12 @@ function MessageBubble({
             <button
               type="button"
               onClick={() => onRetry?.(msg)}
-              className="flex items-center gap-1 text-[10px] font-medium text-danger hover:underline mr-1"
+              className="flex items-center gap-1 text-xs font-medium text-danger hover:underline mr-1"
             >
-              <RotateCw size={10} /> Reintentar
+              <RotateCw size={12} /> Reintentar
             </button>
           )}
-          <span className="text-[10px]">{formatBubbleTime(msg.timestamp)}</span>
+          <span className="text-xs">{formatBubbleTime(msg.timestamp)}</span>
           {!isInbound && msg.status && (
             <AnimatePresence initial={false} mode="wait">
               <motion.span key={msg.status} className="text-[10px]" role="img" aria-label={MESSAGE_STATUS_LABEL[msg.status] ?? msg.status}
@@ -249,7 +252,7 @@ function MessageBubble({
         </div>
         {(msg.reactionEmoji || ownEmoji || reactionPending || reactionFailed) && <div className="mt-1 flex flex-wrap justify-end gap-1" aria-live="polite">
           {msg.reactionEmoji && <span className="rounded-xl border border-border bg-surface px-1.5 py-0.5 text-sm leading-none shadow-sm" aria-label={`${leadName} reaccionó con ${msg.reactionEmoji}`} title={`Reacción de ${leadName}`}>{msg.reactionEmoji}</span>}
-          {(ownEmoji || reactionPending) && <span className="inline-flex items-center gap-1 rounded-xl border border-accent-muted bg-surface px-1.5 py-0.5 text-xs" title={reactionPending ? "Reacción enviada a WhatsApp; pendiente de confirmación" : "Reacción del equipo"}>{ownEmoji || "Quitar reacción"} <span className="text-[10px] text-muted-darker">Equipo</span>{reactionPending && <Clock size={10} />}</span>}
+          {(ownEmoji || reactionPending) && <span className="inline-flex items-center gap-1 rounded-xl border border-accent-muted bg-surface px-1.5 py-0.5 text-xs" title={reactionPending ? "Reacción enviada a WhatsApp; pendiente de confirmación" : "Reacción del equipo"}>{ownEmoji || "Quitar reacción"} <span className="text-xs text-muted-darker">Equipo</span>{reactionPending && <Clock size={10} />}</span>}
           {reactionFailed && <span role="status" className="text-xs text-danger" title={latestReaction.error ?? "WhatsApp rechazó la reacción"}>No se pudo actualizar la reacción</span>}
         </div>}
       </div>
@@ -371,7 +374,7 @@ export function ChatThreadPanel({
                   >
                     {showDivider && (
                       <div className="flex justify-center my-3">
-                        <span className="text-[11px] font-medium text-muted-darker bg-surface border border-border px-2.5 py-1 rounded-full">
+                        <span className="text-xs font-medium text-muted-darker bg-surface border border-border px-2.5 py-1 rounded-full">
                           {formatDayDivider(msg.timestamp)}
                         </span>
                       </div>

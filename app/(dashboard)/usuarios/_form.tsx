@@ -7,7 +7,6 @@ import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
-import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 
 interface Props {
@@ -43,7 +42,8 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
     onClose();
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     const errors: Record<string, string> = {};
     if (!name.trim()) errors.name = "Requerido";
     if (!email.trim()) errors.email = "Requerido";
@@ -91,13 +91,13 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
           <Button variant="secondary" onClick={handleClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? <Spinner /> : "Crear"}
+          <Button type="submit" form="usuario-form" loading={saving}>
+            Crear
           </Button>
         </>
       }
     >
-      <div className="space-y-4">
+      <form id="usuario-form" onSubmit={handleSubmit} className="space-y-4">
         {error && <Banner tone="danger">{error}</Banner>}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -117,6 +117,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
               <Input
                 id={id}
                 type="email"
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="usuario@email.com"
@@ -131,6 +132,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
               <Input
                 id={id}
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Mínimo 8 caracteres"
@@ -160,7 +162,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
             />
           )}
         </FormField>
-      </div>
+      </form>
     </Modal>
   );
 }

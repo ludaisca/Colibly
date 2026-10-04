@@ -45,6 +45,12 @@ const TONE_STYLE: Record<ToastTone, { bg: string; border: string; text: string; 
   info:    { bg: "bg-info-bg",    border: "border-info-border",    text: "text-info",    Icon: Info },
 };
 
+// Sin duración explícita, el tiempo en pantalla crece con el largo del mensaje
+// (mínimo 4 s) para que se alcance a leer.
+function defaultDuration(message: string): number {
+  return Math.max(4000, 2000 + message.length * 50);
+}
+
 function ToastItem({
   toast,
   onDismiss,
@@ -54,24 +60,53 @@ function ToastItem({
 }) {
   const [exiting, setExiting] = useState(false);
   const { border, text, Icon } = TONE_STYLE[toast.tone];
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const total = toast.duration ?? defaultDuration(toast.message);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const remainingRef = useRef(total);
+  const startedAtRef = useRef(0);
+  const hoveredRef = useRef(false);
+  const focusedRef = useRef(false);
 
   const dismiss = useCallback(() => {
     setExiting(true);
-    timerRef.current = setTimeout(() => onDismiss(toast.id), 300);
+    exitTimerRef.current = setTimeout(() => onDismiss(toast.id), 300);
   }, [onDismiss, toast.id]);
 
+  const start = useCallback(() => {
+    if (total === 0 || dismissTimerRef.current) return;
+    startedAtRef.current = Date.now();
+    dismissTimerRef.current = setTimeout(dismiss, Math.max(remainingRef.current, 0));
+  }, [dismiss, total]);
+
+  // Pausar con el puntero encima o el foco dentro: descuenta lo ya transcurrido
+  // para retomar con el tiempo que faltaba.
+  const pause = useCallback(() => {
+    if (!dismissTimerRef.current) return;
+    clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = null;
+    remainingRef.current -= Date.now() - startedAtRef.current;
+  }, []);
+
   useEffect(() => {
-    const duration = toast.duration ?? 4000;
-    if (duration === 0) return;
-    timerRef.current = setTimeout(dismiss, duration);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [dismiss, toast.duration]);
+    start();
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    };
+  }, [start]);
 
   return (
     <div
-      role="status"
-      aria-live={toast.tone === "danger" ? "assertive" : "polite"}
+      role={toast.tone === "danger" ? "alert" : "status"}
+      onMouseEnter={() => { hoveredRef.current = true; pause(); }}
+      onMouseLeave={() => { hoveredRef.current = false; if (!focusedRef.current && !exiting) start(); }}
+      onFocus={() => { focusedRef.current = true; pause(); }}
+      onBlur={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+        focusedRef.current = false;
+        if (!hoveredRef.current && !exiting) start();
+      }}
       className={cn(
         "flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md",
         "bg-surface",
@@ -80,14 +115,16 @@ function ToastItem({
         "w-full"
       )}
     >
-      <Icon size={16} className={cn("mt-0.5 shrink-0", text)} />
+      <Icon size={16} aria-hidden="true" className={cn("mt-0.5 shrink-0", text)} />
       <p className="flex-1 text-foreground">{toast.message}</p>
+      {/* Área de 24x24 con icono de 14: el margen negativo conserva el layout. */}
       <button
+        type="button"
         onClick={dismiss}
-        aria-label="Cerrar"
-        className="text-muted-darker hover:text-foreground transition-colors mt-0.5 shrink-0"
+        aria-label="Cerrar notificación"
+        className="-my-1 -mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-darker transition-colors hover:text-foreground"
       >
-        <X size={14} />
+        <X size={14} aria-hidden="true" />
       </button>
     </div>
   );
@@ -116,9 +153,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {mounted && toasts.length > 0 && createPortal(
+      {/* El contenedor existe siempre: una región viva que aparece junto con su
+          primer mensaje no siempre se anuncia. data-react-aria-top-layer evita
+          que un modal de React Aria lo oculte (aria-hidden) mientras está abierto. */}
+      {mounted && createPortal(
         <div
-          aria-live="polite"
+          data-react-aria-top-layer="true"
           className={cn(
             "fixed z-[60] flex flex-col gap-2 pointer-events-none",
             "bottom-4 left-4 right-4 md:left-auto md:right-4 md:top-4 md:bottom-auto md:w-80 md:max-w-sm"

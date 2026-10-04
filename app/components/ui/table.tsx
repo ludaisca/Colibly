@@ -36,6 +36,10 @@ interface TableProps<T> {
   emptyAction?: React.ReactNode;
   onRowClick?: (row: T) => void;
   rowActions?: (row: T) => React.ReactNode;
+  /** Nombre de la fila para el botón de acciones ("Acciones de {nombre}"). */
+  rowLabel?: (row: T) => string | undefined;
+  /** Nombre accesible de la tabla (caption oculto + etiqueta de la región). */
+  caption?: string;
   sort?: TableSort;
   onSortChange?: (key: string) => void;
   mobileCard?: (row: T) => React.ReactNode;
@@ -47,6 +51,14 @@ const HIDE_BELOW_CLASS: Record<"sm" | "md", string> = {
   sm: "hidden sm:table-cell",
   md: "hidden md:table-cell",
 };
+
+// Enter/Espacio activan la fila solo si el foco está en la fila misma: un
+// botón, enlace o campo anidado conserva su propio comportamiento.
+function rowKeyActivate(e: React.KeyboardEvent<HTMLElement>, activate: () => void) {
+  if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+  e.preventDefault();
+  activate();
+}
 
 export function Table<T>({
   columns,
@@ -61,6 +73,8 @@ export function Table<T>({
   emptyAction,
   onRowClick,
   rowActions,
+  rowLabel,
+  caption,
   sort,
   onSortChange,
   mobileCard,
@@ -95,13 +109,15 @@ export function Table<T>({
 
   return (
     <div className={className}>
-      <div className="-mx-5 hidden overflow-x-auto sm:block" role="region" aria-label="Tabla desplazable horizontalmente" tabIndex={0}>
+      <div className="-mx-5 hidden overflow-x-auto sm:block" role="region" aria-label={caption ?? "Tabla desplazable horizontalmente"} tabIndex={0}>
         <table className="w-full text-sm">
+          {caption && <caption className="sr-only">{caption}</caption>}
           <thead>
             <tr className="border-y border-border">
               {columns.map((col) => (
                 <th
                   key={col.key}
+                  scope="col"
                   aria-sort={col.sortable && onSortChange
                     ? sort?.key === col.key ? sort.direction === "asc" ? "ascending" : "descending" : "none"
                     : undefined}
@@ -124,7 +140,7 @@ export function Table<T>({
                 </th>
               ))}
               {rowActions && (
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-darker uppercase tracking-wider w-12"><span className="sr-only">Acciones</span></th>
+                <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-muted-darker uppercase tracking-wider w-12"><span className="sr-only">Acciones</span></th>
               )}
             </tr>
           </thead>
@@ -132,7 +148,14 @@ export function Table<T>({
             {rows.map((row) => (
               <tr
                 key={rowKey(row)}
-                className={cn("hover:bg-surface-light/40 transition-colors", onRowClick && "cursor-pointer")}
+                // Sin role=button: en una <tr> rompería la semántica de tabla; solo
+                // se vuelve enfocable y activable con Enter/Espacio.
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={onRowClick ? (e) => rowKeyActivate(e, () => onRowClick(row)) : undefined}
+                className={cn(
+                  "hover:bg-surface-light/40 transition-colors",
+                  onRowClick && "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-strong"
+                )}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((col) => (
@@ -152,8 +175,8 @@ export function Table<T>({
                     <Dropdown
                       align="right"
                       trigger={
-                        <button type="button" aria-label="Acciones" className="p-1.5 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
-                          <MoreVertical size={14} />
+                        <button type="button" aria-label={rowLabel?.(row) ? `Acciones de ${rowLabel(row)}` : "Acciones"} className="p-1.5 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
+                          <MoreVertical size={14} aria-hidden="true" />
                         </button>
                       }
                     >
@@ -173,8 +196,11 @@ export function Table<T>({
             key={rowKey(row)}
             className={cn(
               "px-5 py-4 flex items-start justify-between gap-3 hover:bg-surface-light/20 transition-colors",
-              onRowClick && "cursor-pointer"
+              onRowClick && "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-strong"
             )}
+            tabIndex={onRowClick ? 0 : undefined}
+            role={onRowClick ? "button" : undefined}
+            onKeyDown={onRowClick ? (e) => rowKeyActivate(e, () => onRowClick(row)) : undefined}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
           >
             <div className="min-w-0 flex-1">
@@ -185,8 +211,8 @@ export function Table<T>({
                 <Dropdown
                   align="right"
                   trigger={
-                    <button type="button" aria-label="Acciones" className="p-1.5 rounded-md border border-border bg-surface hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
-                      <MoreVertical size={14} />
+                    <button type="button" aria-label={rowLabel?.(row) ? `Acciones de ${rowLabel(row)}` : "Acciones"} className="p-1.5 rounded-md border border-border bg-surface hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
+                      <MoreVertical size={14} aria-hidden="true" />
                     </button>
                   }
                 >

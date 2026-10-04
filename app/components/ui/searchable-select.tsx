@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useId } from "react";
 import { ChevronDown, Search, Check } from "lucide-react";
 import { cn } from "./cn";
 
@@ -45,8 +45,11 @@ export function SearchableSelect({
   // Índice resaltado para navegación con ↑/↓ + Enter — -1 = ninguno.
   const [highlight, setHighlight] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const optionId = (i: number) => `${listId}-opt-${i}`;
 
   const selected = options.find((o) => o.value === value) ?? null;
 
@@ -92,39 +95,54 @@ export function SearchableSelect({
     if (open) searchRef.current?.focus();
   }, [open]);
 
-  function select(opt: SearchableSelectOption) {
-    if (opt.disabled) return;
-    onChange(opt.value);
+  function close(returnFocus: boolean) {
     setOpen(false);
     setQuery("");
     setHighlight(-1);
+    if (returnFocus) triggerRef.current?.focus();
+  }
+
+  function select(opt: SearchableSelectOption) {
+    if (opt.disabled) return;
+    onChange(opt.value);
+    close(true);
+  }
+
+  // Salta a la primera/última opción habilitada (Home/End).
+  function jumpHighlight(edge: "first" | "last") {
+    const indexes = visibleOptions.map((o, i) => (o.disabled ? -1 : i)).filter((i) => i >= 0);
+    if (indexes.length === 0) return;
+    setHighlight(edge === "first" ? indexes[0] : indexes[indexes.length - 1]);
   }
 
   return (
     <div className={cn("relative", className)} ref={ref}>
-      <div
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-disabled={disabled}
+      {/* Combobox de solo selección: un <button> real, así el <label htmlFor>
+          del FormField le da nombre, y role=combobox hace que el lector anuncie
+          también la opción elegida (su contenido). */}
+      <button
+        ref={triggerRef}
+        type="button"
+        role="combobox"
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-invalid={error ? true : undefined}
         id={id}
-        onClick={() => !disabled && setOpen(!open)}
+        onClick={() => setOpen(!open)}
         onKeyDown={(e) => {
-          if (disabled) return;
-          if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
             e.preventDefault();
-            setOpen(!open || e.key === "ArrowDown");
-          } else if (e.key === "Escape") {
-            setOpen(false);
-            setQuery("");
-            setHighlight(-1);
+            setOpen(true);
+          } else if (e.key === "Escape" && open) {
+            close(false);
           }
         }}
         className={cn(
-          "w-full flex items-center gap-2 rounded-lg border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 sm:py-2.5 text-sm text-left transition-colors cursor-pointer relative",
+          "w-full flex items-center gap-2 rounded-lg border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 sm:py-2.5 text-base sm:text-sm text-left transition-colors cursor-pointer relative",
           "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
-          error ? "border-danger-border" : "border-border",
+          error ? "border-danger-border" : "border-control-border",
           disabled && "opacity-50 cursor-not-allowed"
         )}
       >
@@ -133,12 +151,13 @@ export function SearchableSelect({
         </span>
         <ChevronDown
           size={16}
+          aria-hidden="true"
           className={cn(
             "absolute right-3 top-1/2 -translate-y-1/2 text-muted-darker pointer-events-none transition-transform",
             open && "rotate-180"
           )}
         />
-      </div>
+      </button>
 
       {error && showErrorMessage && (
         <p className="mt-1.5 text-xs text-danger" role="alert">
@@ -149,24 +168,35 @@ export function SearchableSelect({
       {open && (
         <div className="absolute z-50 mt-1.5 w-full rounded-xl border border-border bg-surface shadow-lg animate-fade-in overflow-hidden">
           <div className="relative border-b border-border">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker" />
+            <Search size={14} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker" />
             <input
               ref={searchRef}
               type="text"
+              role="combobox"
+              aria-label={searchPlaceholder}
+              aria-expanded="true"
+              aria-autocomplete="list"
+              aria-controls={listId}
+              aria-activedescendant={highlight >= 0 ? optionId(highlight) : undefined}
               value={query}
               onChange={(e) => { setQuery(e.target.value); setHighlight(-1); }}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   e.stopPropagation();
-                  setOpen(false);
-                  setQuery("");
-                  setHighlight(-1);
+                  close(true);
+                } else if (e.key === "Tab") {
+                  // El foco vuelve al disparador antes de que Tab lo mueva: sigue
+                  // al siguiente campo del formulario en vez de perderse.
+                  close(true);
                 } else if (e.key === "ArrowDown") {
                   e.preventDefault();
                   moveHighlight(1);
                 } else if (e.key === "ArrowUp") {
                   e.preventDefault();
                   moveHighlight(-1);
+                } else if ((e.key === "Home" || e.key === "End") && query === "") {
+                  e.preventDefault();
+                  jumpHighlight(e.key === "Home" ? "first" : "last");
                 } else if (e.key === "Enter") {
                   e.preventDefault();
                   const opt = visibleOptions[highlight];
@@ -174,10 +204,18 @@ export function SearchableSelect({
                 }
               }}
               placeholder={searchPlaceholder}
-              className="w-full bg-transparent pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-darker focus:outline-none"
+              className="w-full bg-transparent pl-9 pr-3 py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-darker focus:outline-none"
             />
           </div>
-          <div ref={listRef} role="listbox" className="max-h-56 overflow-y-auto py-1">
+          <div
+            ref={listRef}
+            id={listId}
+            role="listbox"
+            aria-label="Opciones"
+            // Mantiene el foco en el campo de búsqueda al pulsar una opción.
+            onMouseDown={(e) => e.preventDefault()}
+            className="max-h-56 overflow-y-auto py-1"
+          >
             {visibleOptions.length === 0 ? (
               <p className="px-3.5 py-2.5 text-sm text-muted-darker">Sin resultados</p>
             ) : (
@@ -187,7 +225,9 @@ export function SearchableSelect({
                 return (
                   <button
                     key={opt.value}
+                    id={optionId(i)}
                     type="button"
+                    tabIndex={-1}
                     role="option"
                     aria-selected={isSelected}
                     aria-disabled={opt.disabled}
@@ -207,7 +247,7 @@ export function SearchableSelect({
                     )}
                   >
                     <span className="flex-1 truncate">{opt.label}</span>
-                    {isSelected && <Check size={14} className="shrink-0" />}
+                    {isSelected && <Check size={14} aria-hidden="true" className="shrink-0" />}
                   </button>
                 );
               })

@@ -324,7 +324,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
           <div className="border border-border rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Cabecera (opcional)</span>
-              <Switch checked={headerEnabled} onCheckedChange={setHeaderEnabled} />
+              <Switch checked={headerEnabled} onCheckedChange={setHeaderEnabled} label="Cabecera (opcional)" />
             </div>
             {headerEnabled && (
               <>
@@ -491,7 +491,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
         <Card as="aside" className="min-w-0 lg:sticky lg:top-6">
           <p className="text-xs font-semibold text-muted-darker uppercase tracking-wider mb-3">Vista previa</p>
           <TemplatePreview components={previewComponents} headerImagePreview={headerPreviewUrl} />
-          <p className="text-[10px] text-muted-darker mt-2 text-center">
+          <p className="text-xs text-muted-darker mt-2 text-center">
             La revisión de Meta puede tomar hasta 24 horas. Aparecerá como &quot;Pendiente&quot; hasta que sea aprobada.
           </p>
         </Card>

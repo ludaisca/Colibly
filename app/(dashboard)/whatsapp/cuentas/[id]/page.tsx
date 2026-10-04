@@ -290,9 +290,13 @@ export default function CuentaDetailPage() {
   }
 
   async function handleCopy(text: string) {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toastError("No se pudo copiar automáticamente. Selecciona el texto y presiona Ctrl+C.");
+    }
   }
 
   function startEditAppId() {
@@ -417,7 +421,7 @@ export default function CuentaDetailPage() {
         <section className="space-y-4">
           <SectionHeader title="Información de la cuenta" />
           <dl className="space-y-4">
-            <DetailRow label="Número" value={<span className="font-mono">{account.phoneNumber ?? "—"}</span>} />
+            <DetailRow label="Número" value={<span className="tabular-nums">{account.phoneNumber ?? "—"}</span>} />
             <DetailRow label="Phone Number ID" value={<span className="font-mono">{account.phoneNumberId}</span>} />
             <DetailRow label="WABA ID" value={<span className="font-mono">{account.wabaId ?? "—"}</span>} />
             <div className="flex items-center justify-between gap-3 border-b border-border pb-3">

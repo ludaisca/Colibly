@@ -193,7 +193,7 @@ function MessengerCuentasView() {
                 meta={
                   <>
                     <span>{a._count.conversations} chats</span>
-                    <span className="font-mono">
+                    <span className="tabular-nums">
                       {a.lastActivity
                         ? new Date(a.lastActivity).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
                         : "—"}

@@ -27,11 +27,11 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
           type={visible ? "text" : "password"}
           aria-invalid={!!error}
           className={cn(
-            "w-full rounded-lg border bg-surface-light py-2.5 text-sm text-foreground",
+            "w-full rounded-lg border bg-surface-light py-2.5 text-base sm:text-sm text-foreground",
             "transition-colors placeholder:text-muted-darker",
             "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
             showIcon ? "pl-9 pr-10" : "px-4 pr-10",
-            error ? "border-danger-border" : "border-border"
+            error ? "border-danger-border" : "border-control-border"
           )}
           {...props}
         />
@@ -40,9 +40,9 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
           aria-pressed={visible}
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-darker hover:text-muted transition-colors"
+          className="absolute right-0.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-muted-darker hover:text-muted transition-colors"
         >
-          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+          {visible ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
         </button>
         {error && showErrorMessage && (
           <p className="mt-1.5 text-xs text-danger" role="alert">

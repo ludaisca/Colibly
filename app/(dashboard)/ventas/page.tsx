@@ -115,7 +115,7 @@ export default async function VentasPage() {
     total > 0 ? Math.round((customerCount / total) * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6 overflow-x-clip">
       <PageHeader
         title="Pipeline"
         description={`${total} leads · ${conversionPct}% conversión a cliente`}

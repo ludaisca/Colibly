@@ -529,7 +529,7 @@ function LeadsTab() {
                   <span className="truncate">{r.scorer.name}</span>
                 </div>
                 <p className="text-xs text-muted-darker line-clamp-2">{r.summary}</p>
-                <p className="text-[11px] text-muted-darker">
+                <p className="text-xs text-muted-darker">
                   {new Date(r.updatedAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}
                 </p>
               </div>

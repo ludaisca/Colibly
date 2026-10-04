@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { KeyRound } from "lucide-react";
@@ -21,6 +21,8 @@ function ResetPasswordForm() {
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,7 +31,11 @@ function ResetPasswordForm() {
     if (password.length < 8) next.password = "La contraseña debe tener al menos 8 caracteres";
     if (confirm !== password) next.confirm = "Las contraseñas no coinciden";
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) {
+      const firstInvalid = next.password ? passwordRef : confirmRef;
+      requestAnimationFrame(() => firstInvalid.current?.focus());
+      return;
+    }
 
     setLoading(true);
     try {
@@ -54,7 +60,7 @@ function ResetPasswordForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Nueva contraseña</CardTitle>
+          <CardTitle as="h1">Nueva contraseña</CardTitle>
         </CardHeader>
         <CardBody>
           {!token ? (
@@ -68,10 +74,12 @@ function ResetPasswordForm() {
               )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <FormField label="Contraseña nueva" required error={errors.password} hint="Mínimo 8 caracteres">
-                  {(id) => (
+                  {(id, describedBy) => (
                     <>
                       <PasswordInput
+                        ref={passwordRef}
                         id={id}
+                        aria-describedby={describedBy}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         autoComplete="new-password"
@@ -82,9 +90,11 @@ function ResetPasswordForm() {
                   )}
                 </FormField>
                 <FormField label="Repite la contraseña" required error={errors.confirm}>
-                  {(id) => (
+                  {(id, describedBy) => (
                     <PasswordInput
+                      ref={confirmRef}
                       id={id}
+                      aria-describedby={describedBy}
                       value={confirm}
                       onChange={(e) => setConfirm(e.target.value)}
                       autoComplete="new-password"
