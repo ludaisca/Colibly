@@ -1,5 +1,6 @@
 FROM node:22-alpine AS base
-RUN apk add --no-cache openssl libc6-compat
+# postgresql16-client: pg_dump del respaldo diario (lib/backups); misma versión mayor que el servidor (pgvector/pgvector:pg16).
+RUN apk add --no-cache openssl libc6-compat postgresql16-client
 WORKDIR /app
 
 FROM base AS dev

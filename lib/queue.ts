@@ -83,6 +83,10 @@ export const coexistenceSyncQueue = new Queue("coexistence-sync", {
 // negocio por vencer.
 export const coexistenceTickQueue = new Queue("coexistence-tick", { connection, defaultJobOptions });
 // Facturación cada hora: pruebas y gracias vencidas → solo lectura, avisos.
+// Respaldo de la plataforma: "tick" repetible (¿toca el programado?) y "run" manual.
+// Sin reintentos de BullMQ: el tick reintenta con su propia lógica (lib/backups/schedule.ts).
+export const platformBackupQueue = new Queue("platform-backup", { connection, defaultJobOptions: { ...defaultJobOptions, attempts: 1 } });
+
 export const billingTickQueue = new Queue("billing-tick", { connection, defaultJobOptions });
 // Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a
 // propósito: el receptor suele estar caído por minutos, no por segundos

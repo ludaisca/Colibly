@@ -44,6 +44,14 @@ services:
       interval: 5s
       retries: 10
 
+  # Almacenamiento S3 local para probar los respaldos de /plataforma (solo red
+  # interna del stack, sin puertos publicados). endpoint: http://s3:9000
+  s3:
+    image: ghcr.io/versity/versitygw:latest
+    command: ["--port", ":9000", "--access", "colibly-dev-access", "--secret", "colibly-dev-secret-key", "posix", "/data"]
+    volumes:
+      - s3data:/data:z
+
   app:
     image: docker.io/library/colibly-app:latest
     pull_policy: never
@@ -72,3 +80,4 @@ services:
 volumes:
   pgdata:
   media_data:
+  s3data:

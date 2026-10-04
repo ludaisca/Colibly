@@ -21,7 +21,8 @@ import { handleDomainEvent as handleAutomationEvent } from "@/lib/automations/di
 import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
 import { processBillingTick } from "@/lib/billing/tick";
 import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue } from "@/lib/queue";
+import { processBackupTick, runBackup, BackupAlreadyRunningError } from "@/lib/backups/runner";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -165,13 +166,25 @@ export function startWorkers() {
     });
   }, { connection, concurrency: 1 });
 
+  // Respaldo de la plataforma. Concurrencia 1: nunca dos respaldos a la vez.
+  const platformBackupWorker = new Worker("platform-backup", async (job) => {
+    if (job.name === "tick") {
+      await processBackupTick();
+    } else if (job.name === "run") {
+      await runBackup({ trigger: "MANUAL", triggeredBy: job.data.triggeredBy as string | undefined }).catch((err) => {
+        // Ya quedó registrado en PlatformBackupRun; el operador lo ve en la pestaña.
+        if (!(err instanceof BackupAlreadyRunningError)) return;
+      });
+    }
+  }, { connection, concurrency: 1 });
+
   // Una entrega HTTP por job; los reintentos (backoff largo) los maneja
   // BullMQ, el registro de cada intento vive en WebhookDelivery.
   const webhookDeliveryWorker = new Worker("webhook-deliveries", async (job) => {
     await processWebhookDelivery(job);
   }, { connection, concurrency: 5 });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker);
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker);
 
   mediaCleanupQueue
     .add(
@@ -278,6 +291,11 @@ export function startWorkers() {
   coexistenceTickQueue
     .add("tick", {}, { jobId: "coexistence-tick", repeat: { pattern: "3,18,33,48 * * * *" } })
     .catch((err) => console.error("[workers] No se pudo programar coexistence-tick:", err));
+
+  // Respaldo diario: vigilancia cada 15 min (minuto 11); la hora real la decide la configuración.
+  platformBackupQueue
+    .add("tick", {}, { jobId: "platform-backup-tick", repeat: { pattern: "11,26,41,56 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar platform-backup:", err));
 
   console.log("[workers] BullMQ workers started");
 }

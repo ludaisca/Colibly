@@ -1927,8 +1927,49 @@ model PlatformSettings {
   googleAdsId          String? @map("google_ads_id")
   googleAdsSignupLabel String? @map("google_ads_signup_label")
 
+  // Respaldo diario a un almacenamiento compatible con S3 (AWS S3, Cloudflare
+  // R2, MinIO, Backblaze…; lib/backups/). Sobrescribe el respaldo anterior.
+  // backupEndpoint vacío = AWS; con endpoint se usa direccionamiento por ruta.
+  backupEnabled         Boolean @default(false) @map("backup_enabled")
+  backupEndpoint        String? @map("backup_endpoint")
+  backupRegion          String? @map("backup_region")
+  backupBucket          String? @map("backup_bucket")
+  backupPrefix          String? @map("backup_prefix")
+  backupAccessKeyId     String? @map("backup_access_key_id") // cifrado
+  backupSecretAccessKey String? @map("backup_secret_access_key") // cifrado
+  backupHour            Int     @default(3) @map("backup_hour") // hora de Ciudad de México
+  backupIncludeMedia    Boolean @default(false) @map("backup_include_media")
+
   updatedAt      DateTime @updatedAt @map("updated_at")
   updatedByEmail String?  @map("updated_by_email")
 
   @@map("platform_settings")
+}
+
+enum PlatformBackupStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum PlatformBackupTrigger {
+  SCHEDULED
+  MANUAL
+}
+
+// Historial de respaldos de la plataforma (no por organización). Se conservan
+// 90 días; el respaldo en sí vive en el almacenamiento externo.
+model PlatformBackupRun {
+  id           String                @id @default(cuid())
+  trigger      PlatformBackupTrigger
+  status       PlatformBackupStatus  @default(RUNNING)
+  startedAt    DateTime              @default(now()) @map("started_at")
+  finishedAt   DateTime?             @map("finished_at")
+  dbBytes      BigInt?               @map("db_bytes")
+  mediaBytes   BigInt?               @map("media_bytes")
+  error        String?               @db.Text
+  triggeredBy  String?               @map("triggered_by") // correo del operador (manual)
+
+  @@index([startedAt])
+  @@map("platform_backup_runs")
 }
