@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>De los usuarios del Servicio:</strong> nombre, correo electrónico, contraseña (guardada solo de forma cifrada e irreversible), nombre del negocio y datos de uso de la cuenta.</li>
         <li><strong>De facturación:</strong> los datos de pago los recaba y guarda Stripe; nosotros solo conocemos el estado de la suscripción y los datos de la factura.</li>
-        <li><strong>De los clientes de nuestros Clientes:</strong> nombres, números o identificadores de mensajería, mensajes, archivos y notas que el Cliente recibe o registra en el Servicio. Respecto de estos datos, {BRAND_NAME} actúa como encargado: los trata por cuenta y siguiendo las instrucciones del Cliente, que es su responsable.</li>
+        <li><strong>De los clientes de nuestros Clientes:</strong> nombres, números o identificadores de mensajería, mensajes, archivos y notas que el Cliente recibe o registra en el Servicio. Respecto de estos datos, {BRAND_NAME} actúa como encargado: los trata por cuenta y siguiendo las instrucciones del Cliente, que es su responsable. Si el Cliente conecta un número de WhatsApp que también usa en la app WhatsApp Business (coexistencia) y lo autoriza en el proceso de conexión de Meta, importamos los contactos y el historial de conversaciones que Meta nos entrega, y seguimos recibiendo los mensajes que envía desde esa app, para mostrarlos en el Servicio.</li>
       </ul>
 
       <h2>2. Para qué los usamos</h2>
@@ -41,6 +41,7 @@ export default function PrivacyPage() {
         <li>Proveedores de inteligencia artificial (OpenCode y/o Google), que procesan el texto necesario para generar cada respuesta.</li>
         <li>Stripe, para procesar los pagos.</li>
         <li>Meta y Google, para medir nuestros anuncios, solo si aceptas las cookies de medición (ver sección 7).</li>
+        <li>Proveedores de almacenamiento en la nube, donde guardamos copias de seguridad de la base de datos del Servicio para poder recuperarlo ante una falla.</li>
         <li>Proveedores de infraestructura y de envío de correo. Algunos de estos proveedores tratan datos fuera de México, por ejemplo en Estados Unidos; al usar {BRAND_NAME} aceptas estas transferencias, necesarias para prestar el Servicio.</li>
       </ul>
       <p>
@@ -55,7 +56,8 @@ export default function PrivacyPage() {
         {RETENTION_DAYS_AFTER_TRIAL} días y después los eliminamos. En ambos casos, salvo lo que la ley nos obligue a
         conservar (por ejemplo, información fiscal). El Cliente puede descargar o eliminar sus datos en cualquier momento
         desde su cuenta. Los archivos multimedia de las conversaciones se eliminan periódicamente según la configuración del
-        Servicio.
+        Servicio. Las copias de seguridad se sobrescriben a diario: un dato eliminado puede permanecer en la copia más
+        reciente hasta que esta se actualice, normalmente en un plazo de pocos días.
       </p>
 
       <h2>5. Cómo los protegemos</h2>
