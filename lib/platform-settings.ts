@@ -32,6 +32,15 @@ export interface PlatformSettings {
   gaMeasurementId: string | null;
   googleAdsId: string | null;
   googleAdsSignupLabel: string | null;
+  backupEnabled: boolean;
+  backupEndpoint: string | null;
+  backupRegion: string | null;
+  backupBucket: string | null;
+  backupPrefix: string | null;
+  backupAccessKeyId: string | null;
+  backupSecretAccessKey: string | null;
+  backupHour: number;
+  backupIncludeMedia: boolean;
 }
 
 function decryptOrNull(value: string | null | undefined): string | null {
@@ -64,6 +73,15 @@ async function loadSettings(): Promise<PlatformSettings> {
     gaMeasurementId: row?.gaMeasurementId ?? null,
     googleAdsId: row?.googleAdsId ?? null,
     googleAdsSignupLabel: row?.googleAdsSignupLabel ?? null,
+    backupEnabled: row?.backupEnabled ?? false,
+    backupEndpoint: row?.backupEndpoint ?? null,
+    backupRegion: row?.backupRegion ?? null,
+    backupBucket: row?.backupBucket ?? null,
+    backupPrefix: row?.backupPrefix ?? null,
+    backupAccessKeyId: decryptOrNull(row?.backupAccessKeyId),
+    backupSecretAccessKey: decryptOrNull(row?.backupSecretAccessKey),
+    backupHour: row?.backupHour ?? 3,
+    backupIncludeMedia: row?.backupIncludeMedia ?? false,
   };
 }
 
@@ -97,6 +115,8 @@ const ENCRYPTED_FIELDS = new Set<keyof PlatformSettings>([
   "metaCapiAccessToken",
   "metaAppSecret",
   "metaWebhookVerifyToken",
+  "backupAccessKeyId",
+  "backupSecretAccessKey",
 ]);
 
 export async function updatePlatformSettings(input: PlatformSettingsInput, updatedByEmail: string): Promise<void> {
