@@ -298,6 +298,7 @@ export function PlataformaRespaldos() {
           </FormField>
           <SecretField
             label="Access Key ID"
+            hint="R2: «ID de clave de acceso», 32 caracteres."
             hasValue={data.config.hasAccessKeyId}
             value={accessKeyId}
             onChange={(v) => {
@@ -313,6 +314,7 @@ export function PlataformaRespaldos() {
           />
           <SecretField
             label="Secret Access Key"
+            hint="R2: «Clave de acceso secreta», 64 caracteres. No es el token de API (cfat_…)."
             hasValue={data.config.hasSecretAccessKey}
             value={secretAccessKey}
             onChange={(v) => {

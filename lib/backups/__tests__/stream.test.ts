@@ -94,9 +94,12 @@ describe("describeS3Error", () => {
     expect(describeS3Error({ name: "NotFound", $metadata: { httpStatusCode: 404 } })).toMatch(/bucket no existe/);
     expect(describeS3Error({ name: "InvalidAccessKeyId" })).toMatch(/Access Key ID/);
     expect(describeS3Error({ name: "SignatureDoesNotMatch" })).toMatch(/Secret/);
-    expect(describeS3Error({ $metadata: { httpStatusCode: 403 } })).toMatch(/permiso/);
+    expect(describeS3Error({ $metadata: { httpStatusCode: 403 } })).toMatch(/permiso.*Object Read & Write/);
     expect(describeS3Error({ code: "ENOTFOUND" })).toMatch(/endpoint/);
     expect(describeS3Error({ name: "AuthorizationHeaderMalformed" })).toMatch(/región/);
+    // Caso real: Secret pegado en el campo del Access Key ID.
+    expect(describeS3Error({ name: "InvalidArgument", message: "Credential access key has length 64, should be 32", $metadata: { httpStatusCode: 400 } })).toMatch(/32 caracteres.*cfat_/);
+    expect(describeS3Error({ name: "UnknownError", $metadata: { httpStatusCode: 400 } })).toMatch(/mal pegado/);
   });
   it("incluye el detalle de lo desconocido, acotado", () => {
     expect(describeS3Error({ name: "Rara", message: "x".repeat(500) }).length).toBeLessThan(260);
