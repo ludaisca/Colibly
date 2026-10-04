@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { EmbedContentRequest } from "@google/generative-ai";
+import { AI_REQUEST_TIMEOUT_MS } from "@/lib/http-timeouts";
 import type {
   AICompletionParams,
   AICompletionResponse,
@@ -60,10 +61,13 @@ export function createGoogleClient(apiKey: string) {
     // runs its string->Content formatting on this value; if passed to
     // startChat() instead it silently overrides the formatted value with the
     // raw, unformatted one and the REST API rejects it.
-    const model = genAI.getGenerativeModel({
-      model: params.model,
-      systemInstruction: systemText,
-    });
+    const model = genAI.getGenerativeModel(
+      {
+        model: params.model,
+        systemInstruction: systemText,
+      },
+      { timeout: AI_REQUEST_TIMEOUT_MS }
+    );
 
     const nonSystem = params.messages.filter((m) => m.role !== "system");
 
@@ -90,7 +94,9 @@ export function createGoogleClient(apiKey: string) {
     const chat = model.startChat({
       history: trimmedHistory,
       generationConfig: {
-        temperature: params.temperature ?? 0.7,
+        // Gemini 3.8 ya no acepta parámetros de muestreo heredados; la
+        // temperatura del bot sigue guardada para otros proveedores/modelos.
+        ...(params.model.startsWith("gemini-3.") ? {} : { temperature: params.temperature ?? 0.7 }),
         maxOutputTokens: params.maxTokens ?? 1024,
       },
     });
@@ -104,10 +110,11 @@ export function createGoogleClient(apiKey: string) {
       usage: result.response.usageMetadata
         ? {
             promptTokens: result.response.usageMetadata.promptTokenCount,
-            completionTokens:
-              result.response.usageMetadata.candidatesTokenCount ??
+            // Gemini 3 factura los tokens de razonamiento como salida. El
+            // total menos el prompt los incluye; candidatesTokenCount solo no.
+            completionTokens: Math.max(0,
               result.response.usageMetadata.totalTokenCount -
-                result.response.usageMetadata.promptTokenCount,
+              result.response.usageMetadata.promptTokenCount),
           }
         : undefined,
     };
@@ -115,7 +122,7 @@ export function createGoogleClient(apiKey: string) {
 
   async function generateEmbeddings(params: AIEmbeddingParams): Promise<AIEmbeddingResponse> {
     const inputs = Array.isArray(params.input) ? params.input : [params.input];
-    const model = genAI.getGenerativeModel({ model: params.model });
+    const model = genAI.getGenerativeModel({ model: params.model }, { timeout: AI_REQUEST_TIMEOUT_MS });
 
     const embeddings: number[][] = [];
 

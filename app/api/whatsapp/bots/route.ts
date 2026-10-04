@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { botSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
+import { pickCuratedModel } from "@/lib/ai/platform";
 
 export async function POST(req: Request) {
   try {
@@ -28,8 +31,6 @@ export async function POST(req: Request) {
       name,
       waAccountId,
       channelAccountId,
-      provider,
-      model,
       systemPrompt,
       temperature,
       maxTokens,
@@ -39,6 +40,11 @@ export async function POST(req: Request) {
       humanizeEnabled,
       appointmentSchedulingEnabled,
     } = parsed.data;
+
+    // La plataforma asigna el proveedor/modelo — el cliente nunca elige (puede
+    // recibir imágenes por WhatsApp/Telegram, por eso needsVision: true).
+    const picked = await pickCuratedModel(true);
+    if (!picked) return NextResponse.json({ error: "La IA no está disponible en este momento. Escríbenos si el problema continúa." }, { status: 503 });
 
     if (waAccountId) {
       // getUserAccountIds (propias + compartidas vía WAAccountShare), no
@@ -54,7 +60,7 @@ export async function POST(req: Request) {
 
     if (channelAccountId) {
       const channelAccount = await prisma.channelAccount.findFirst({
-        where: { id: channelAccountId, userId: session.user.id },
+        where: { id: channelAccountId, ...(await orgWhere(session.user.id)) },
         select: { id: true },
       });
       if (!channelAccount) {
@@ -62,20 +68,15 @@ export async function POST(req: Request) {
       }
     }
 
-    await prisma.appSettings.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id },
-      update: {},
-    });
-
     const bot = await prisma.wABot.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         waAccountId: waAccountId ?? null,
         channelAccountId: channelAccountId ?? null,
         name,
-        provider,
-        model,
+        provider: picked.provider,
+        model: picked.model,
         systemPrompt,
         temperature: temperature ?? 0.7,
         maxTokens: maxTokens ?? 1024,
@@ -88,8 +89,6 @@ export async function POST(req: Request) {
       select: {
         id: true,
         name: true,
-        provider: true,
-        model: true,
         systemPrompt: true,
         temperature: true,
         maxTokens: true,
@@ -108,7 +107,7 @@ export async function POST(req: Request) {
     return NextResponse.json(bot, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -126,7 +125,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const waAccountId = searchParams.get("waAccountId");
 
-    const where: Record<string, unknown> = { userId: session.user.id };
+    const where: Record<string, unknown> = { ...(await orgWhere(session.user.id)) };
     if (waAccountId) where.waAccountId = waAccountId;
 
     const bots = await prisma.wABot.findMany({
@@ -134,8 +133,6 @@ export async function GET(req: Request) {
       select: {
         id: true,
         name: true,
-        provider: true,
-        model: true,
         systemPrompt: true,
         temperature: true,
         maxTokens: true,
@@ -154,7 +151,7 @@ export async function GET(req: Request) {
           select: { id: true, name: true, phoneNumber: true },
         },
         channelAccount: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, channel: true },
         },
         _count: { select: { conversations: true, knowledgeBots: true } },
       },
@@ -164,7 +161,7 @@ export async function GET(req: Request) {
     return NextResponse.json(bots);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

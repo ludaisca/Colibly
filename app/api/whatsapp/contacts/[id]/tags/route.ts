@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
-import { enrollContactInTrigger } from "@/lib/sequences";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { afterContactTagAdded } from "@/lib/contacts/side-effects";
+import { tagBelongsTo } from "@/lib/tags";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 async function getOwnedContact(userId: string, contactId: string) {
-  const accountIds = await getUserAccountIds(userId);
+  const [accountIds, channelAccountIds] = await Promise.all([getUserAccountIds(userId), getUserChannelAccountIds(userId)]);
   return prisma.contact.findFirst({
-    where: { id: contactId, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId } }] },
+    where: { id: contactId, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
   });
 }
 
@@ -34,26 +36,26 @@ export async function POST(
     }
 
     const tag = await prisma.tag.findUnique({ where: { id: tagId } });
-    if (!tag) {
+    // La etiqueta debe ser de la misma cuenta que el contacto.
+    if (!tag || !tagBelongsTo(tag, { waAccountId: contact.accountId, channelAccountId: contact.channelAccountId })) {
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 
-    await prisma.contactTag.upsert({
+    const alreadyTagged = await prisma.contactTag.findUnique({
       where: { contactId_tagId: { contactId: id, tagId } },
-      create: { contactId: id, tagId },
-      update: {},
+      select: { tagId: true },
     });
-
-    // Trigger de secuencias (roadmap P3-a) — no bloquea la respuesta si falla,
-    // el tag ya quedó agregado independientemente de esto.
-    await enrollContactInTrigger("TAG_ADDED", tagId, id).catch((err) =>
-      console.error("[contacts/tags] enrollContactInTrigger falló:", err)
-    );
+    if (!alreadyTagged) {
+      await prisma.contactTag.create({ data: { contactId: id, tagId } });
+      // Secuencias + evento de dominio. Solo si la etiqueta es nueva: volver a
+      // "agregar" una que ya tenía no es un hecho nuevo que disparar.
+      await afterContactTagAdded(id, tag);
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -85,7 +87,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

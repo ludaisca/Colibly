@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { routingRuleSchema } from "@/lib/validations";
 import { getEligibleAssignees } from "@/lib/chat-assignees";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
 
 // Roadmap P3-d — reglas de enrutamiento de auto-asignación
 // (WAAccountRoutingRule). Mismo alcance que el toggle autoAssignEnabled del
@@ -22,7 +25,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const account = await prisma.wAAccount.findFirst({ where: { id, userId: session.user.id } });
+    const account = await prisma.wAAccount.findFirst({ where: { id, ...(await accountManageWhere(session.user.id)) } });
     if (!account) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
@@ -61,7 +64,7 @@ export async function GET(
       eligibleAssignees,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -75,9 +78,11 @@ export async function POST(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { id } = await params;
-    const account = await prisma.wAAccount.findFirst({ where: { id, userId: session.user.id } });
+    const account = await prisma.wAAccount.findFirst({ where: { id, ...(await accountManageWhere(session.user.id)) } });
     if (!account) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
@@ -100,7 +105,7 @@ export async function POST(
 
     if (conditionType === "TAG") {
       const tag = await prisma.tag.findUnique({ where: { id: conditionValue } });
-      if (!tag) {
+      if (!tag || tag.waAccountId !== id) {
         return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
       }
     } else if (conditionType === "LEAD_ORIGIN") {
@@ -138,7 +143,7 @@ export async function POST(
 
     return NextResponse.json(rule, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

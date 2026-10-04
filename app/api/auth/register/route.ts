@@ -1,78 +1,66 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
+import { createOrganizationWithOwner } from "@/lib/organizations";
+import { sendVerificationEmail } from "@/lib/auth-emails";
+import { sendMetaSignupEvent } from "@/lib/analytics/meta-capi";
+import { appUrl } from "@/lib/app-url";
+import { verifyTurnstile } from "@/lib/turnstile";
 
+// Registro público (SaaS): cada registro crea un cliente nuevo — su
+// organización en prueba gratis y su usuario dueño. Los demás miembros de un
+// equipo entran por invitación de su admin, nunca por aquí.
 export async function POST(req: Request) {
   try {
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
 
-    const { allowed } = await rateLimit(`register:${ip}`, 5, 60);
-    if (!allowed) {
-      return NextResponse.json(
-        { error: "Demasiados intentos. Intenta de nuevo en un minuto." },
-        { status: 429 }
-      );
+    // Por IP (ráfagas) y global por hora (un script creando cuentas en masa).
+    const [perIp, global] = await Promise.all([rateLimit(`register:${ip}`, 5, 60), rateLimit("register:global", 300, 3600)]);
+    if (!perIp.allowed || !global.allowed) {
+      return NextResponse.json({ error: "Demasiados intentos. Intenta de nuevo en un minuto." }, { status: 429 });
     }
-    const body = await req.json();
+
+    const body = await req.json().catch(() => null);
+    // Captcha (si está configurado) antes de tocar la base o hashear nada.
+    if (!(await verifyTurnstile(body?.turnstileToken, forwarded ? ip : null))) {
+      return NextResponse.json({ error: "No pudimos confirmar que no eres un robot. Vuelve a marcar la verificación e intenta de nuevo." }, { status: 400 });
+    }
+
     const parsed = registerSchema.safeParse(body);
-
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0].message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
-
-    const { name, email, password } = parsed.data;
-
-    // El check de registro deshabilitado va ANTES que el de email existente —
-    // al revés, el endpoint confirmaba qué emails existen (enumeración) incluso
-    // con el registro cerrado.
-    const config = await prisma.systemConfig.upsert({
-      where: { id: "default" },
-      create: { id: "default" },
-      update: {},
-    });
-
-    if (!config.allowRegistration) {
-      return NextResponse.json(
-        { error: "El registro de usuarios está deshabilitado." },
-        { status: 403 }
-      );
-    }
+    const { name, email, password, businessName } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return NextResponse.json(
-        { error: "Este email ya está registrado." },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "Este email ya está registrado. Inicia sesión o recupera tu contraseña." }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
-
-    await prisma.$transaction(async (tx) => {
-      const userCount = await tx.user.count();
-      const role = userCount === 0 ? "admin" : "user";
-
-      return tx.user.create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-          role,
-        },
-      });
-    });
+    // Serializable: dos registros simultáneos con el mismo email no deben
+    // dejar una organización huérfana (el unique de email aborta uno).
+    const { owner } = await prisma.$transaction(
+      (tx) => createOrganizationWithOwner(tx, { businessName, name, email, hashedPassword }),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+    after(() => sendVerificationEmail(owner));
+    // Solo llega si el visitante aceptó cookies (lo manda la página de registro).
+    const analyticsEventId = req.headers.get("x-analytics-event-id");
+    if (analyticsEventId && /^[\w-]{8,64}$/.test(analyticsEventId)) {
+      after(() => sendMetaSignupEvent(req, { eventId: analyticsEventId, email, sourceUrl: appUrl("/register") }));
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "Error interno del servidor." },
-      { status: 500 }
-    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2034" || error.code === "P2002")) {
+      return NextResponse.json({ error: "Este email ya está registrado. Inicia sesión o recupera tu contraseña." }, { status: 409 });
+    }
+    console.error("[register]", error);
+    return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 });
   }
 }

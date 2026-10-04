@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { scoreChatWithScorer } from "@/lib/whatsapp/lead-scoring";
-import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
+import { hasAiCredits } from "@/lib/ai/credits";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import type { WALeadScorerBot } from "@prisma/client";
+import { isOrgWritable } from "@/lib/billing/gates";
 
 // Scheduled runs are unattended, so keep each tick's blast radius bounded:
 // only chats still "active" (OPEN/PENDING) and only ones that have new
@@ -32,8 +33,12 @@ export async function processLeadScoringTick() {
 }
 
 async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
-  if (await isMonthlyBudgetExceeded(scorer.userId, now)) {
-    console.log(`[lead-scoring] Presupuesto mensual de IA superado, se omite el calificador ${scorer.id} en este ciclo`);
+  // Solo lectura: la calificación automática no gasta IA.
+  if (!(await isOrgWritable(scorer.organizationId))) return;
+  // Cada calificación reserva su crédito (scoreChatWithScorer); esto solo
+  // evita recorrer el lote si ya no queda ninguno.
+  if (!(await hasAiCredits(scorer.organizationId, now))) {
+    console.log(`[lead-scoring] Sin créditos de IA, se omite el calificador ${scorer.id} en este ciclo`);
     return;
   }
 
@@ -45,12 +50,7 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     ? eligibleAccountIds.filter((id) => scorer.scheduleAccountIds.includes(id))
     : eligibleAccountIds;
 
-  if (scopedAccountIds.length === 0) {
-    await prisma.wALeadScorerBot.update({ where: { id: scorer.id }, data: { lastRunAt: now } });
-    return;
-  }
-
-  const candidates = await prisma.wAChat.findMany({
+  const candidates = scopedAccountIds.length > 0 ? await prisma.wAChat.findMany({
     where: {
       accountId: { in: scopedAccountIds },
       status: { in: ["OPEN", "PENDING"] },
@@ -69,7 +69,7 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     },
     orderBy: { lastMessageAt: "desc" },
     take: CANDIDATE_POOL,
-  });
+  }) : [];
 
   const dueChats = candidates
     .filter((c) => {
@@ -78,12 +78,10 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     })
     .slice(0, BATCH_SIZE_PER_SCORER);
 
-  let scoredAny = false;
 
   for (const chat of dueChats) {
     try {
       await scoreChatWithScorer(chat.id, scorer, "WHATSAPP");
-      scoredAny = true;
     } catch (err) {
       console.error(`[lead-scoring] Error calificando chat ${chat.id} con el calificador ${scorer.id}:`, err);
     }
@@ -144,16 +142,12 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     for (const conversation of tgDueConversations) {
       try {
         await scoreChatWithScorer(conversation.id, scorer, "TELEGRAM");
-        scoredAny = true;
       } catch (err) {
         console.error(`[lead-scoring] Error calificando conversación ${conversation.id} con el calificador ${scorer.id}:`, err);
       }
     }
   }
 
-  if (scoredAny) {
-    await checkBudgetAlert(scorer.userId, now);
-  }
 
   await prisma.wALeadScorerBot.update({
     where: { id: scorer.id },

@@ -1,28 +1,15 @@
-"use client";
-
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { ChatWorkspace } from "@/app/components/whatsapp/chat-workspace";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { getChatAccountOptions } from "@/lib/chat-account-options";
 import { Spinner } from "@/app/components/ui/spinner";
+import { ChatPageView } from "./_view";
 
-function ChatPageContent() {
-  const searchParams = useSearchParams();
-  const accountId = searchParams.get("accountId") || undefined;
-  const campaignId = searchParams.get("campaignId") || undefined;
-  const hasReplied = searchParams.get("hasReplied");
-  const search = searchParams.get("search") || undefined;
+export default async function ChatPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  const initialAccounts = await getChatAccountOptions(session.user.id);
 
-  return (
-    <ChatWorkspace
-      initialAccountId={accountId}
-      initialCampaignId={campaignId}
-      initialHasReplied={hasReplied === "yes" || hasReplied === "no" ? hasReplied : ""}
-      initialSearch={search}
-    />
-  );
-}
-
-export default function ChatPage() {
   return (
     <Suspense
       fallback={
@@ -31,7 +18,7 @@ export default function ChatPage() {
         </div>
       }
     >
-      <ChatPageContent />
+      <ChatPageView initialAccounts={initialAccounts} />
     </Suspense>
   );
 }

@@ -29,6 +29,7 @@ interface EntityListProps<T> {
   rowActions?: (row: T) => React.ReactNode;
   skeletonCount?: number;
   className?: string;
+  rowClassName?: string;
 }
 
 export function EntityList<T>({
@@ -46,19 +47,20 @@ export function EntityList<T>({
   rowActions,
   skeletonCount = 8,
   className,
+  rowClassName,
 }: EntityListProps<T>) {
-  if (error) {
-    return <ListErrorState message={error} onRetry={onRetry ?? (() => {})} className={className} />;
-  }
-
   if (loading) {
     return (
-      <div className={cn("divide-y divide-border rounded-xl border border-border bg-surface px-4", className)}>
+      <div className={cn("divide-y divide-border rounded-xl border border-border bg-surface px-4", className)} role="status" aria-label="Cargando datos">
         {Array.from({ length: skeletonCount }).map((_, i) => (
           <SkeletonRow key={i} cols={3} />
         ))}
       </div>
     );
+  }
+
+  if (error) {
+    return <ListErrorState message={error} onRetry={onRetry} className={className} />;
   }
 
   if (rows.length === 0) {
@@ -81,6 +83,7 @@ export function EntityList<T>({
           onClick={onRowClick ? () => onRowClick(row) : undefined}
           className={cn(
             "group relative flex items-center gap-3 px-4 py-3 transition-colors",
+            rowClassName,
             onRowClick && "cursor-pointer hover:bg-surface-light/60"
           )}
         >
@@ -95,7 +98,7 @@ export function EntityList<T>({
               <Dropdown
                 align="right"
                 trigger={
-                  <button className="rounded-md p-1.5 text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground">
+                  <button type="button" aria-label="Acciones" className="rounded-md p-1.5 text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground">
                     <MoreVertical size={15} />
                   </button>
                 }

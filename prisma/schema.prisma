@@ -8,12 +8,30 @@ datasource db {
 }
 
 model User {
-  id           String  @id @default(cuid())
-  name         String?
-  email        String  @unique
-  password     String?
-  role         String  @default("user")
-  maxOpenChats Int?
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  password       String?
+  role           String    @default("user")
+  maxOpenChats   Int?
+  // Usuario desactivado por un admin: no puede iniciar sesión, su sesión
+  // vigente se invalida en la siguiente revalidación (lib/auth.ts) y deja de
+  // recibir chats por auto-asignación.
+  disabledAt     DateTime? @map("disabled_at")
+  // Se incrementa para invalidar todas las sesiones JWT ya emitidas del
+  // usuario (al desactivarlo) — el token guarda la versión con la que se firmó.
+  sessionVersion Int       @default(0) @map("session_version")
+  // Espacio de trabajo al que pertenece (un usuario = una organización). role
+  // es el rol DENTRO de esta organización.
+  organizationId String       @map("organization_id")
+  organization   Organization @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: Cascade)
+  ownedOrganization Organization? @relation("OrganizationOwner")
+  // Correo confirmado (enlace de verificación, restablecer contraseña o
+  // aceptar una invitación lo prueban). Sin verificar se puede entrar, pero no
+  // conectar canales ni pagar.
+  emailVerifiedAt   DateTime?     @map("email_verified_at")
+  authTokens        AuthToken[]   @relation("AuthTokenUser")
+  sentInvitations   AuthToken[]   @relation("AuthTokenInviter")
 
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
@@ -21,7 +39,6 @@ model User {
   waCampaigns           WACampaign[]
   waBots                WABot[]
   leadScorerBots        WALeadScorerBot[]
-  appSettings           AppSettings?
   googleAccount         GoogleAccount?
   sharedAccounts        WAAccountShare[]
   notes                 WANote[]
@@ -38,45 +55,16 @@ model User {
   appointmentsCreated   WAAppointment[]        @relation("WAAppointmentCreatedBy")
   routingRuleTargets    WAAccountRoutingRule[]
   sequences             WASequence[]
+  apiKeys               ApiKey[]
+  webhookEndpoints      WebhookEndpoint[]
+  automations           Automation[]
+  automationVersions    AutomationVersion[]
 
+  @@index([organizationId])
   @@map("users")
 }
 
-model SystemConfig {
-  id                String   @id @default("default")
-  allowRegistration Boolean  @default(true)
-  businessName      String?
-  updatedAt         DateTime @updatedAt @map("updated_at")
-
-  @@map("system_config")
-}
-
-model AppSettings {
-  id               String  @id @default(cuid())
-  userId           String  @unique
-  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  openrouterApiKey String?
-  googleApiKey     String?
-  defaultProvider  String  @default("openrouter")
-  defaultModel     String  @default("google/gemini-2.5-flash")
-  monthlyBudgetUsd Float?
-  budgetAlertMonth String?
-
-  // Recuperación de leads: config global por usuario, aplica a todas sus
-  // cuentas de WhatsApp. secondMessageHours null = solo se manda 1 mensaje.
-  leadRecoveryEnabled            Boolean @default(false)
-  leadRecoveryFirstMessageHours  Int     @default(2)
-  leadRecoverySecondMessageHours Int?    @default(12)
-  leadRecoveryBusinessHourStart  Int     @default(8)
-  leadRecoveryBusinessHourEnd    Int     @default(20)
-  leadRecoveryTimezone           String  @default("America/Mexico_City")
-
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("app_settings")
-}
-
-// Conexión OAuth por usuario a Google (Sheets). A diferencia de WAAccount/AppSettings
+// Conexión OAuth por usuario a Google (Sheets). A diferencia de WAAccount
 // (secretos estáticos que no expiran), accessToken/refreshToken son un par OAuth que
 // se refresca en runtime — ver lib/google/sheets-client.ts. Ambos se guardan cifrados
 // con lib/crypto.ts, igual que los demás secretos del proyecto.
@@ -104,8 +92,32 @@ model WAAccount {
   id                String          @id @default(cuid())
   userId            String
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId    String          @map("organization_id")
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name              String
   channel           WAChannel       @default(META_CLOUD)
+  connectionType    WAConnectionType @default(MANUAL) @map("connection_type")
+  // Coexistencia: el número sigue activo en la app WhatsApp Business del
+  // teléfono además de Cloud API (Embedded Signup con featureType
+  // whatsapp_business_app_onboarding).
+  coexistence            Boolean                 @default(false)
+  syncStatus             WACoexistenceSyncStatus @default(NONE) @map("sync_status")
+  syncDeadlineAt         DateTime?               @map("sync_deadline_at")
+  syncProgress           Int?                    @map("sync_progress")
+  // { contacts?: request_id, history?: request_id } de POST /smb_app_data.
+  syncRequestIds         Json?                   @map("sync_request_ids")
+  syncError              String?                 @map("sync_error")
+  businessAppOnboardedAt DateTime?               @map("business_app_onboarded_at")
+  // Token de negocio de Embedded Signup (WAAccount.accessToken): cuándo vence y
+  // cuándo se avisó, para no repetir el aviso en cada tick.
+  tokenExpiresAt         DateTime?               @map("token_expires_at")
+  tokenAlertedAt         DateTime?               @map("token_alerted_at")
+  // PIN de 6 dígitos con el que se registró el número en Cloud API (cifrado).
+  twoStepPin             String?                 @map("two_step_pin")
+  disconnectedReason     String?                 @map("disconnected_reason")
+  // Id de Meta de quien autorizó la app, si se pudo obtener: sirve para casar
+  // los callbacks de desautorización/eliminación de datos con la cuenta.
+  metaUserId             String?                 @map("meta_user_id")
   phoneNumber       String?
   phoneNumberId     String?
   wabaId            String?
@@ -140,6 +152,7 @@ model WAAccount {
   contacts   Contact[]
 
   cannedResponses        CannedResponse[]
+  tags                   Tag[]
   leadSheetSources       LeadSheetSource[]
   // Cuentas de Meta Ads (Instant Forms) que entregan sus leads bajo este
   // número — ver MetaAdsAccount.waAccountId.
@@ -147,10 +160,14 @@ model WAAccount {
   customFieldDefinitions ContactCustomFieldDefinition[]
   routingRules           WAAccountRoutingRule[]
   sequences              WASequence[]
+  automations            Automation[]
 
   @@unique([phoneNumberId])
   @@unique([userId, name])
   @@index([phoneNumberId])
+  @@index([organizationId])
+  @@index([syncStatus, syncDeadlineAt])
+  @@index([metaUserId])
   @@map("wa_accounts")
 }
 
@@ -233,6 +250,38 @@ model ContactCustomFieldValue {
   @@map("contact_custom_field_values")
 }
 
+// Estado de la sincronización inicial de una cuenta conectada por coexistencia
+// (contactos + historial de la app WhatsApp Business). Meta da 24 h desde el
+// alta para pedirla; cada petición (contactos, historial) solo puede hacerse
+// una vez por conexión.
+enum WACoexistenceSyncStatus {
+  NONE
+  PENDING
+  CONTACTS_REQUESTED
+  HISTORY_REQUESTED
+  COMPLETED
+  HISTORY_DECLINED
+  EXPIRED
+  FAILED
+}
+
+// De dónde salió un mensaje de WAMessage: API = enviado/recibido por Cloud API
+// (lo normal), BUSINESS_APP_ECHO = lo escribió el negocio en la app del
+// teléfono (smb_message_echoes), HISTORY = importado del historial de la app.
+enum WAMessageOrigin {
+  API
+  BUSINESS_APP_ECHO
+  HISTORY
+}
+
+// Cómo se conectó la cuenta: MANUAL = el cliente pegó credenciales de SU app de
+// Meta (appSecret propio); EMBEDDED_SIGNUP = alta con Embedded Signup sobre la
+// app de plataforma (el webhook se firma con PlatformSettings.metaAppSecret).
+enum WAConnectionType {
+  MANUAL
+  EMBEDDED_SIGNUP
+}
+
 enum WAChannel {
   META_CLOUD
 }
@@ -284,6 +333,8 @@ model ChannelAccount {
   id                String          @id @default(cuid())
   userId            String
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId    String          @map("organization_id")
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   channel           Channel
   name              String
   status            WaAccountStatus @default(PENDING)
@@ -314,15 +365,18 @@ model ChannelAccount {
   contacts               Contact[]
   bots                   WABot[]
   cannedResponses        CannedResponse[]
+  tags                   Tag[]
   sharedWith             ChannelAccountShare[]
   customFieldDefinitions ContactCustomFieldDefinition[]
   sequences              WASequence[]
+  automations            Automation[]
 
   @@unique([userId, name])
   // findUnique determinístico en el webhook compartido de Messenger/
   // Instagram: si dos ChannelAccount terminaran apuntando a la misma
   // Página, esto lo rechaza en vez de ocultar la colisión con un findFirst.
   @@unique([channel, externalAccountId])
+  @@index([organizationId])
   @@map("channel_accounts")
 }
 
@@ -355,11 +409,13 @@ model Conversation {
   assignedTo       User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   resolvedAt       DateTime?
   firstResponseAt  DateTime?
+  botResumedAt     DateTime?
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
   messages         ChannelMessage[]
   botConversations WABotConversation[]
+  automationRuns   AutomationRun[]
 
   @@unique([channelAccountId, externalId])
   @@index([assignedToId])
@@ -391,6 +447,9 @@ model ChannelMessage {
   // significados tiene. Necesario para decidir el mecanismo de envío de la
   // primera respuesta: ver sendMetaChannelReply() en chats/[chatId]/send.
   isFromComment     Boolean          @default(false) @map("is_from_comment")
+  // Botones/lista enviados (OUTBOUND) o la opción elegida (INBOUND:
+  // { replyId }) — paridad con WAMessage.interactivePayload.
+  interactivePayload Json?          @map("interactive_payload")
   timestamp         DateTime
   createdAt         DateTime         @default(now()) @map("created_at")
 
@@ -416,11 +475,13 @@ model WAChat {
   status          ChatStatus @default(OPEN)
   resolvedAt      DateTime?
   firstResponseAt DateTime?
+  botResumedAt    DateTime?
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
   messages         WAMessage[]
   botConversations WABotConversation[]
+  automationRuns   AutomationRun[]
   chatTags         ChatTag[]
   leadScores       WALeadScore[]
   recoveryAttempts WALeadRecoveryAttempt[]
@@ -436,6 +497,8 @@ model WALeadScorerBot {
   id                        String    @id @default(cuid())
   userId                    String
   user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name                      String
   provider                  String
   model                     String
@@ -457,6 +520,7 @@ model WALeadScorerBot {
   usage  WALeadScorerUsage[]
 
   @@unique([userId, name])
+  @@index([organizationId])
   @@map("wa_lead_scorer_bots")
 }
 
@@ -510,6 +574,17 @@ model WALeadScore {
 model WAMessage {
   id                 String           @id @default(cuid())
   wamid              String?
+  // API = Cloud API; BUSINESS_APP_ECHO = escrito en la app del teléfono del
+  // negocio (coexistencia); HISTORY = importado del historial de esa app.
+  origin             WAMessageOrigin  @default(API)
+  // Contexto de respuesta de WhatsApp: el id externo del mensaje citado.
+  replyToWamid       String?
+  // Una conversación individual tiene un lead; la reacción vigente de ese
+  // lead se muestra sobre el mensaje original, no como mensaje independiente.
+  reactionEmoji      String?
+  reactionAt         DateTime?
+  agentReactionEmoji String?
+  agentReactions     WAReaction[]
   chatId             String
   chat               WAChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
   direction          MessageDirection
@@ -550,6 +625,7 @@ model WAMessage {
 
   @@unique([chatId, wamid])
   @@index([wamid])
+  @@index([chatId, replyToWamid])
   @@index([chatId, timestamp])
   @@index([chatId, direction])
   @@index([campaignId])
@@ -566,6 +642,37 @@ enum MessageDirection {
 // callado — attemptNumber (1 o 2) + createdAt permiten calcular en qué etapa
 // va un chat sin tener que resetear nada manualmente cuando el lead responde:
 // solo se cuentan los intentos con createdAt posterior al último INBOUND.
+model WAReaction {
+  id        String @id @default(cuid())
+  messageId String
+  message   WAMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  emoji     String
+  wamid     String? @unique
+  status    String @default("pending")
+  error     String?
+  senderId  String
+  createdAt DateTime @default(now())
+
+  @@index([messageId, createdAt])
+  @@map("wa_reactions")
+}
+
+model WASticker {
+  id             String @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  data           Bytes
+  sha256         String
+  animated       Boolean @default(false)
+  favorite       Boolean @default(false)
+  lastUsedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, sha256])
+  @@map("wa_stickers")
+}
+
 model WALeadRecoveryAttempt {
   id               String     @id @default(cuid())
   chatId           String?
@@ -614,13 +721,15 @@ model WATemplate {
 
 // Fuente de leads externa (hoja de Google Sheets, típicamente alimentada por la
 // sincronización nativa de Facebook Lead Ads → Sheets). A diferencia de GoogleAccount
-// (una hoja por usuario, la que SundayCRM crea para exportar), spreadsheetId aquí es una hoja
+// (una hoja por usuario, la que la app crea para exportar), spreadsheetId aquí es una hoja
 // arbitraria del usuario — la misma conexión OAuth (lib/google/sheets-client.ts) sirve
-// para leerla porque el scope otorgado no está restringido a los archivos creados por SundayCRM.
+// para leerla porque el scope otorgado no está restringido a los archivos creados por la app.
 model LeadSheetSource {
   id                String     @id @default(cuid())
   userId            String
   user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId       String
   waAccount         WAAccount  @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
   waTemplateId      String
@@ -648,6 +757,7 @@ model LeadSheetSource {
 
   @@index([userId])
   @@index([waAccountId])
+  @@index([organizationId])
   @@map("lead_sheet_sources")
 }
 
@@ -679,6 +789,8 @@ model WACampaign {
   id             String         @id @default(cuid())
   userId         String
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId    String
   waAccount      WAAccount      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
   waTemplateId   String
@@ -706,6 +818,7 @@ model WACampaign {
 
   @@index([userId])
   @@index([waAccountId])
+  @@index([organizationId])
   @@map("wa_campaigns")
 }
 
@@ -748,6 +861,8 @@ model WABot {
   id                           String          @id @default(cuid())
   userId                       String
   user                         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId                  String?
   waAccount                    WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
   // Mutuamente excluyente con waAccountId a nivel de aplicación — un bot sirve
@@ -780,6 +895,7 @@ model WABot {
   usage         WABotUsage[]
 
   @@unique([userId, name])
+  @@index([organizationId])
   @@map("wa_bots")
 }
 
@@ -923,6 +1039,7 @@ model Contact {
   metaConversionEvents MetaConversionEvent[]
   customFieldValues    ContactCustomFieldValue[]
   sequenceEnrollments  WASequenceEnrollment[]
+  automationRuns       AutomationRun[]
 
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
@@ -967,6 +1084,8 @@ model MetaAdsAccount {
   id              String             @id @default(cuid())
   userId          String
   user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name            String
   // Id de la Página de Facebook que recibe leadgen — clave para resolver a
   // qué MetaAdsAccount pertenece cada notificación del webhook `leadgen`.
@@ -1000,6 +1119,7 @@ model MetaAdsAccount {
   conversionEvents MetaConversionEvent[]
 
   @@unique([userId, name])
+  @@index([organizationId])
   @@map("meta_ads_accounts")
 }
 
@@ -1031,14 +1151,25 @@ model MetaConversionEvent {
 }
 
 model Tag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  color     String   @default("accent")
-  createdAt DateTime @default(now()) @map("created_at")
+  id               String          @id @default(cuid())
+  // Alcance por cuenta — exactamente uno de los dos (a nivel de aplicación),
+  // mismo patrón que CannedResponse. Hasta 2026-09-16 el catálogo era global
+  // con `name @unique`: cualquier usuario veía las etiquetas (y los nombres de
+  // campañas, vía "Campaña: X") de todos los demás clientes, y un nombre usado
+  // por una empresa quedaba bloqueado para las demás.
+  waAccountId      String?
+  waAccount        WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId String?
+  channelAccount   ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  name             String
+  color            String          @default("accent")
+  createdAt        DateTime        @default(now()) @map("created_at")
 
   contacts ContactTag[]
   chats    ChatTag[]
 
+  @@unique([waAccountId, name])
+  @@unique([channelAccountId, name])
   @@map("tags")
 }
 
@@ -1211,6 +1342,14 @@ enum SequenceEnrollmentStatus {
   // exitOnReply estaba activo — se detuvo antes de mandar el siguiente paso.
   EXITED_REPLY
   CANCELLED
+  // El envío del paso actual falló SEQUENCE_MAX_SEND_ATTEMPTS veces seguidas
+  // (token inválido, número bloqueado, bot de Telegram removido...) — antes se
+  // reintentaba cada 5 minutos para siempre.
+  FAILED
+  // WhatsApp: el paso no se pudo enviar por la ventana de 24h de Meta y ya no
+  // puede reabrirse (exitOnReply: la única forma de reabrirla es que el lead
+  // responda, lo que detiene la secuencia) o se agotó el plazo de espera.
+  EXPIRED
 }
 
 model WASequence {
@@ -1237,6 +1376,8 @@ model WASequence {
 
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -1245,6 +1386,7 @@ model WASequence {
 
   @@index([waAccountId, triggerType, active])
   @@index([channelAccountId, triggerType, active])
+  @@index([organizationId])
   @@map("wa_sequences")
 }
 
@@ -1279,6 +1421,10 @@ model WASequenceEnrollment {
   // exitOnReply usa para buscar un INBOUND posterior; null antes de mandar
   // el primer paso (en ese caso se compara contra enrolledAt).
   lastStepSentAt DateTime?                @map("last_step_sent_at")
+  // Intentos fallidos consecutivos de envío del paso actual — vuelve a 0 al
+  // enviar un paso. Al llegar al máximo la inscripción pasa a FAILED.
+  sendAttempts   Int                      @default(0) @map("send_attempts")
+  lastError      String?                  @map("last_error") @db.Text
   enrolledAt     DateTime                 @default(now()) @map("enrolled_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
 
@@ -1307,6 +1453,10 @@ enum NotificationType {
   // APPOINTMENT_REMINDER (que avisa de una cita YA agendada, sin importar
   // quién la creó, cerca de su hora).
   APPOINTMENT_PROPOSED
+  // Una integración saliente (webhook) se desactivó sola tras fallar seguido.
+  INTEGRATION_ERROR
+  // Prueba por vencer, pago fallido, solo lectura, límite del plan alcanzado.
+  BILLING
 }
 
 model Notification {
@@ -1322,4 +1472,463 @@ model Notification {
 
   @@index([userId, read, createdAt])
   @@map("notifications")
+}
+
+// ─── API pública, webhooks salientes ────────────────────────────────────────
+// API key de la API pública (/api/v1) y del servidor MCP. Solo un admin las
+// crea; la key actúa con el alcance de su dueño (getUserAccountIds +
+// getUserChannelAccountIds), opcionalmente recortado a `accountIds`/
+// `channelAccountIds`. El secreto nunca se guarda: solo su sha256 (hashToken),
+// y se muestra una única vez al crearla — mismo criterio que verifyTokenHash.
+model ApiKey {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name              String
+  // Primeros caracteres visibles ("sk_live_ab12") para reconocerla en la lista.
+  prefix            String
+  keyHash           String    @unique @map("key_hash")
+  scopes            String[]  @default([])
+  // Vacíos = todas las cuentas a las que el dueño tiene acceso.
+  accountIds        String[]  @default([]) @map("account_ids")
+  channelAccountIds String[]  @default([]) @map("channel_account_ids")
+  lastUsedAt        DateTime? @map("last_used_at")
+  expiresAt         DateTime? @map("expires_at")
+  revokedAt         DateTime? @map("revoked_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([organizationId])
+  @@map("api_keys")
+}
+
+// Destino de webhooks salientes: cada evento de dominio (lib/events) que
+// coincide con `events` y el alcance de cuentas se entrega firmado con HMAC
+// (X-Colibly-Signature) por la cola webhook-deliveries.
+model WebhookEndpoint {
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                String
+  url                 String
+  // Secreto de firma, cifrado con lib/crypto.ts (se muestra al crearlo y se
+  // puede rotar, nunca se devuelve en claro después).
+  secret              String
+  events              String[]  @default([])
+  accountIds          String[]  @default([]) @map("account_ids")
+  channelAccountIds   String[]  @default([]) @map("channel_account_ids")
+  active              Boolean   @default(true)
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  // Se desactiva solo tras WEBHOOK_MAX_CONSECUTIVE_FAILURES fallos seguidos.
+  disabledAt          DateTime? @map("disabled_at")
+  lastDeliveryAt      DateTime? @map("last_delivery_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  deliveries WebhookDelivery[]
+
+  @@index([userId, active])
+  @@index([organizationId])
+  @@map("webhook_endpoints")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model WebhookDelivery {
+  id           String                @id @default(cuid())
+  endpointId   String                @map("endpoint_id")
+  endpoint     WebhookEndpoint       @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  eventId      String                @map("event_id")
+  eventType    String                @map("event_type")
+  payload      Json
+  status       WebhookDeliveryStatus @default(PENDING)
+  attempts     Int                   @default(0)
+  responseCode Int?                  @map("response_code")
+  error        String?               @db.Text
+  createdAt    DateTime              @default(now()) @map("created_at")
+  deliveredAt  DateTime?             @map("delivered_at")
+
+  @@unique([endpointId, eventId])
+  @@index([endpointId, createdAt])
+  @@index([createdAt])
+  @@map("webhook_deliveries")
+}
+
+// ─── Automatizaciones (motor único: flujos con botones, reglas y secuencias) ──
+// El grafo es un árbol JSON (lib/automations/types.ts). Se edita en
+// draftGraph; publicar crea una AutomationVersion inmutable y las ejecuciones
+// quedan fijadas a su versión — editar nunca rompe una ejecución en curso.
+enum AutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model Automation {
+  id                 String           @id @default(cuid())
+  // Mutuamente excluyentes a nivel de aplicación — mismo patrón que WASequence.
+  waAccountId        String?          @map("wa_account_id")
+  waAccount          WAAccount?       @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId   String?          @map("channel_account_id")
+  channelAccount     ChannelAccount?  @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  status             AutomationStatus @default(DRAFT)
+  draftGraph         Json             @map("draft_graph")
+  // Desnormalizados de la versión publicada para filtrar por índice al
+  // evaluar disparadores (no hay que abrir el JSON de cada automatización).
+  triggerType        String?          @map("trigger_type")
+  triggerConfig      Json?            @map("trigger_config")
+  conversational     Boolean          @default(false)
+  publishedVersionId String?          @unique @map("published_version_id")
+  publishedVersion   AutomationVersion? @relation("PublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  // { exitOnReply, allowReentry } — ver lib/automations/settings.ts
+  settings           Json             @default("{}")
+  createdById        String           @map("created_by_id")
+  createdBy          User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  versions AutomationVersion[] @relation("AutomationVersions")
+  runs     AutomationRun[]
+  aiUsage  AutomationAiUsage[]
+
+  @@index([waAccountId, status, triggerType])
+  @@index([channelAccountId, status, triggerType])
+  @@index([organizationId])
+  @@map("automations")
+}
+
+model AutomationVersion {
+  id            String     @id @default(cuid())
+  automationId  String     @map("automation_id")
+  automation    Automation @relation("AutomationVersions", fields: [automationId], references: [id], onDelete: Cascade)
+  version       Int
+  graph         Json
+  publishedAt   DateTime   @default(now()) @map("published_at")
+  publishedById String     @map("published_by_id")
+  publishedBy   User       @relation(fields: [publishedById], references: [id], onDelete: Cascade)
+
+  publishedOf Automation?     @relation("PublishedVersion")
+  runs        AutomationRun[]
+
+  @@unique([automationId, version])
+  @@map("automation_versions")
+}
+
+enum AutomationRunStatus {
+  ACTIVE // encolada o avanzando ahora
+  WAITING_DELAY
+  WAITING_REPLY
+  PAUSED_BY_AGENT // un humano respondió en el chat
+  HANDED_OFF // terminó pasando la conversación a un humano
+  HANDED_TO_BOT // terminó cediendo la conversación al bot IA
+  COMPLETED
+  EXITED_REPLY // el contacto respondió y la automatización sale al responder
+  EXPIRED // ventana de 24 h cerrada sin plantilla de respaldo
+  FAILED
+  CANCELLED
+}
+
+model AutomationRun {
+  id             String              @id @default(cuid())
+  automationId   String              @map("automation_id")
+  automation     Automation          @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  versionId      String              @map("version_id")
+  version        AutomationVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  contactId      String              @map("contact_id")
+  contact        Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  waChatId       String?             @map("wa_chat_id")
+  waChat         WAChat?             @relation(fields: [waChatId], references: [id], onDelete: Cascade)
+  conversationId String?             @map("conversation_id")
+  conversation   Conversation?       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  status         AutomationRunStatus @default(ACTIVE)
+  conversational Boolean             @default(false)
+  // RunState del ejecutor: paso actual, variables y espera pendiente.
+  currentNodeId  String?             @map("current_node_id")
+  vars           Json                @default("{}")
+  waiting        Json?
+  // Entrada pendiente de procesar (respuesta del cliente / timeout) — la
+  // escribe quien reanuda la ejecución y la consume el worker.
+  pendingInput   Json?               @map("pending_input")
+  // Se incrementa cada vez que llega una entrada nueva. El worker lo lee al
+  // empezar a avanzar: si cambió al terminar, llegó otra respuesta mientras
+  // avanzaba y no se borra pendingInput (se vuelve a encolar).
+  inputSeq       Int                 @default(0) @map("input_seq")
+  nextRunAt      DateTime?           @map("next_run_at")
+  // Candado de avance: un solo worker a la vez por ejecución.
+  lockedAt       DateTime?           @map("locked_at")
+  attempts       Int                 @default(0)
+  lastError      String?             @map("last_error") @db.Text
+  startedAt      DateTime            @default(now()) @map("started_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  endedAt        DateTime?           @map("ended_at")
+
+  logs    AutomationRunLog[]
+  aiUsage AutomationAiUsage[]
+
+  @@index([status, nextRunAt])
+  @@index([waChatId, status])
+  @@index([conversationId, status])
+  @@index([automationId, contactId, status])
+  @@index([contactId, startedAt])
+  @@map("automation_runs")
+}
+
+model AutomationRunLog {
+  id       String        @id @default(cuid())
+  runId    String        @map("run_id")
+  run      AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  nodeId   String?       @map("node_id")
+  nodeType String        @map("node_type")
+  outcome  String
+  detail   String        @db.Text
+  at       DateTime      @default(now())
+
+  @@index([runId, at])
+  @@map("automation_run_logs")
+}
+
+// Consumo de IA de los pasos ai_classify / ai_extract / emparejado con IA.
+// userId = dueño de la cuenta (quien paga): lib/ai/budget.ts lo suma al
+// presupuesto mensual igual que WABotUsage/WALeadScorerUsage.
+model AutomationAiUsage {
+  id               String         @id @default(cuid())
+  automationId     String         @map("automation_id")
+  automation       Automation     @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  runId            String?        @map("run_id")
+  run              AutomationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  userId           String         @map("user_id")
+  waChatId         String?        @map("wa_chat_id")
+  conversationId   String?        @map("conversation_id")
+  model            String
+  promptTokens     Int            @map("prompt_tokens")
+  completionTokens Int            @map("completion_tokens")
+  totalTokens      Int            @map("total_tokens")
+  estimatedCost    Float          @map("estimated_cost")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([waChatId])
+  @@index([conversationId])
+  @@map("automation_ai_usage")
+}
+
+// ─── SaaS: espacios de trabajo ──────────────────────────────────────────────
+// Un cliente = una Organization. Todo recurso de negocio cuelga de una (las
+// entidades de primer nivel llevan organizationId; chats, contactos, mensajes y
+// etiquetas la heredan de su cuenta). Plan, estado de suscripción y créditos de
+// IA viven aquí — ver lib/billing y lib/tenancy.ts.
+enum PlanId {
+  BASIC
+  PRO
+}
+
+enum OrganizationStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE // pago fallido: funciona con aviso durante la gracia
+  READ_ONLY // prueba vencida o gracia agotada: ve todo, no envía
+  CANCELED
+  SUSPENDED // suspendida por la plataforma: no puede entrar
+}
+
+model Organization {
+  id                   String             @id @default(cuid())
+  name                 String
+  // Dueño: admin que no se puede degradar ni desactivar (antes, "el primer
+  // usuario registrado").
+  ownerId              String?            @unique @map("owner_id")
+  owner                User?              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  plan                 PlanId             @default(PRO)
+  status               OrganizationStatus @default(TRIALING)
+  // Organizaciones de la casa (la instalación original, demos): sin cobro ni
+  // candados de facturación.
+  isInternal           Boolean            @default(false) @map("is_internal")
+  // Canales adicionales como feature por organización — el operador los
+  // activa desde /plataforma (lib/channel-flags.ts). WhatsApp no tiene flag,
+  // siempre disponible. Default false: una organización nueva solo tiene
+  // WhatsApp hasta que se le habilite algo más.
+  // Coexistencia de WhatsApp (conectar el número de la app WhatsApp Business):
+  // bandera por organización durante la beta, apagada por defecto.
+  whatsappCoexistenceEnabled Boolean       @default(false) @map("whatsapp_coexistence_enabled")
+  channelTelegramEnabled  Boolean          @default(false) @map("channel_telegram_enabled")
+  channelMessengerEnabled Boolean          @default(false) @map("channel_messenger_enabled")
+  channelInstagramEnabled Boolean          @default(false) @map("channel_instagram_enabled")
+  channelWebchatEnabled   Boolean          @default(false) @map("channel_webchat_enabled")
+  trialEndsAt          DateTime?          @map("trial_ends_at")
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  graceEndsAt          DateTime?          @map("grace_ends_at")
+  stripeCustomerId     String?            @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  // El cliente canceló desde el portal: sigue activa hasta currentPeriodEnd.
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  // Cuándo pasó a CANCELED — la purga de datos corre RETENTION_DAYS_AFTER_CANCEL después.
+  canceledAt           DateTime?          @map("canceled_at")
+  // Último aviso de facturación enviado (clave del aviso + fecha), para no
+  // repetir el mismo correo/notificación en cada tick.
+  lastBillingNotice    String?            @map("last_billing_notice")
+  aiCreditsUsed        Int                @default(0) @map("ai_credits_used")
+  // Créditos extra del periodo actual dados por la plataforma (/plataforma);
+  // se reinician a 0 junto con el consumo.
+  aiCreditsBonus       Int                @default(0) @map("ai_credits_bonus")
+  aiCreditsPeriodStart DateTime           @default(now()) @map("ai_credits_period_start")
+  // Último umbral de créditos avisado en el periodo (0, 80 o 100).
+  aiCreditsAlertLevel  Int                @default(0) @map("ai_credits_alert_level")
+
+  // Operación de la organización (antes vivían por usuario en AppSettings):
+  // zona horaria y horario laboral (recuperación de leads, citas del bot,
+  // importación de hojas) y la recuperación automática de leads.
+  timezone                       String  @default("America/Mexico_City")
+  businessHourStart              Int     @default(8) @map("business_hour_start")
+  businessHourEnd                Int     @default(20) @map("business_hour_end")
+  leadRecoveryEnabled            Boolean @default(false) @map("lead_recovery_enabled")
+  leadRecoveryFirstMessageHours  Int     @default(2) @map("lead_recovery_first_message_hours")
+  // null = solo se manda 1 mensaje.
+  leadRecoverySecondMessageHours Int?    @default(12) @map("lead_recovery_second_message_hours")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  members          User[]            @relation("OrganizationMembers")
+  waAccounts       WAAccount[]
+  stickers         WASticker[]
+  channelAccounts  ChannelAccount[]
+  bots             WABot[]
+  leadScorers      WALeadScorerBot[]
+  metaAdsAccounts  MetaAdsAccount[]
+  apiKeys          ApiKey[]
+  webhookEndpoints WebhookEndpoint[]
+  automations      Automation[]
+  sequences        WASequence[]
+  campaigns        WACampaign[]
+  leadSheetSources LeadSheetSource[]
+  authTokens       AuthToken[]
+
+  @@index([status])
+  @@map("organizations")
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  INVITE
+}
+
+// Enlaces de un solo uso enviados por correo. Solo se guarda el hash del token
+// (sha256): una fuga de la base no permite usar enlaces vigentes.
+// INVITE no tiene userId (el invitado aún no existe): lleva organizationId,
+// email y el rol con el que entrará.
+model AuthToken {
+  id             String        @id @default(cuid())
+  type           AuthTokenType
+  tokenHash      String        @unique @map("token_hash")
+  email          String
+  userId         String?       @map("user_id")
+  user           User?         @relation("AuthTokenUser", fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?       @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String?
+  invitedById    String?       @map("invited_by_id")
+  invitedBy      User?         @relation("AuthTokenInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  expiresAt      DateTime      @map("expires_at")
+  usedAt         DateTime?     @map("used_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([userId, type])
+  @@index([organizationId, type])
+  @@map("auth_tokens")
+}
+
+// Eventos del webhook de Stripe ya procesados (idempotencia por event.id:
+// Stripe reintenta y puede entregar el mismo evento más de una vez).
+model StripeEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("stripe_events")
+}
+
+// Configuración de negocio de la plataforma (IA, Stripe, SMTP, Turnstile,
+// medición), editable desde /plataforma en vez de variables de entorno. Fila
+// única con id fijo "platform" — ver lib/platform-settings.ts, el único punto
+// que la lee/escribe. Los campos marcados "cifrado" pasan por lib/crypto.ts
+// antes de guardarse; nunca se re-exponen en texto plano vía la API (solo un
+// booleano "configurado"). Lo que NO vive aquí (DATABASE_URL, REDIS_URL,
+// AUTH_SECRET, ENCRYPTION_KEY, APP_URL, PLATFORM_ADMIN_EMAILS) es
+// infraestructura de arranque y se queda en env — ver AGENTS.md.
+// Solicitudes de eliminación de datos que Meta manda al callback firmado
+// (/api/meta/data-deletion). Meta pide devolver un código de confirmación y una
+// URL pública donde el usuario consulta el estado.
+model MetaDataDeletionRequest {
+  id               String    @id @default(cuid())
+  confirmationCode String    @unique @map("confirmation_code")
+  metaUserId       String    @map("meta_user_id")
+  // RECEIVED = recibida, COMPLETED = se borraron los datos de las cuentas que
+  // coinciden, NO_DATA = no había cuentas asociadas a ese usuario.
+  status           String    @default("RECEIVED")
+  accountsDeleted  Int       @default(0) @map("accounts_deleted")
+  receivedAt       DateTime  @default(now()) @map("received_at")
+  completedAt      DateTime? @map("completed_at")
+
+  @@index([metaUserId])
+  @@map("meta_data_deletion_requests")
+}
+
+model PlatformSettings {
+  id String @id @default("platform")
+
+  // IA (lib/ai/platform.ts)
+  opencodeApiKey String? @map("opencode_api_key") // cifrado
+  googleApiKey   String? @map("google_api_key") // cifrado
+
+  // Stripe (lib/billing/stripe.ts)
+  stripeSecretKey     String? @map("stripe_secret_key") // cifrado
+  stripeWebhookSecret String? @map("stripe_webhook_secret") // cifrado
+  stripePriceBasic    String? @map("stripe_price_basic")
+  stripePricePro      String? @map("stripe_price_pro")
+
+  // SMTP (lib/email/mailer.ts)
+  smtpHost   String?  @map("smtp_host")
+  smtpPort   Int?     @map("smtp_port")
+  smtpSecure Boolean  @default(false) @map("smtp_secure")
+  smtpUser   String?  @map("smtp_user")
+  smtpPass   String?  @map("smtp_pass") // cifrado
+  emailFrom  String?  @map("email_from")
+
+  // Captcha (lib/turnstile.ts)
+  turnstileSiteKey   String? @map("turnstile_site_key")
+  turnstileSecretKey String? @map("turnstile_secret_key") // cifrado
+
+  // App de Meta de la plataforma (Embedded Signup y coexistencia de WhatsApp;
+  // lib/meta/platform-app.ts). El App Secret firma los webhooks de las cuentas
+  // EMBEDDED_SIGNUP y los callbacks signed_request; el token de verificación es
+  // el del GET de suscripción del webhook de la app.
+  metaAppId                  String? @map("meta_app_id")
+  metaAppSecret              String? @map("meta_app_secret") // cifrado
+  metaEmbeddedSignupConfigId String? @map("meta_embedded_signup_config_id")
+  metaWebhookVerifyToken     String? @map("meta_webhook_verify_token") // cifrado
+
+  // Medición del sitio público (lib/analytics/)
+  metaPixelId          String? @map("meta_pixel_id")
+  metaCapiAccessToken  String? @map("meta_capi_access_token") // cifrado
+  gaMeasurementId      String? @map("ga_measurement_id")
+  googleAdsId          String? @map("google_ads_id")
+  googleAdsSignupLabel String? @map("google_ads_signup_label")
+
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  updatedByEmail String?  @map("updated_by_email")
+
+  @@map("platform_settings")
 }

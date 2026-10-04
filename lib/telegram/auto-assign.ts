@@ -1,33 +1,41 @@
 import { prisma } from "@/lib/prisma";
+import { getEligibleChannelAssignees } from "@/lib/chat-assignees";
 
-// Versión simplificada de lib/whatsapp/auto-assign.ts: ChannelAccount no tiene
-// un mecanismo de compartir (no existe ChannelAccountShare todavía), así que el
-// único candidato posible es el dueño de la cuenta — igual respeta
-// maxOpenChats en vez de asignar ciegamente.
+// Equivalente de lib/whatsapp/auto-assign.ts para ChannelAccount (Telegram,
+// Messenger, Instagram, Web), sin reglas de enrutamiento: asigna al candidato
+// elegible (dueño + ChannelAccountShare, sin desactivados) con menos
+// conversaciones OPEN/PENDING en la cuenta, respetando maxOpenChats.
 export async function autoAssignConversation(channelAccountId: string, conversationId: string): Promise<string | null> {
   const account = await prisma.channelAccount.findUnique({
     where: { id: channelAccountId },
-    select: { autoAssignEnabled: true, userId: true },
+    select: { autoAssignEnabled: true },
   });
   if (!account?.autoAssignEnabled) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: account.userId },
-    select: { maxOpenChats: true },
-  });
-  if (!user) return null;
+  const candidates = await getEligibleChannelAssignees(channelAccountId);
+  if (candidates.length === 0) return null;
+  const candidateIds = candidates.map((c) => c.id);
 
-  if (user.maxOpenChats !== null) {
-    const openCount = await prisma.conversation.count({
-      where: { channelAccountId, assignedToId: account.userId, status: { in: ["OPEN", "PENDING"] } },
-    });
-    if (openCount >= user.maxOpenChats) return null;
+  const [users, openCounts] = await Promise.all([
+    prisma.user.findMany({ where: { id: { in: candidateIds } }, select: { id: true, maxOpenChats: true } }),
+    prisma.conversation.groupBy({
+      by: ["assignedToId"],
+      where: { channelAccountId, assignedToId: { in: candidateIds }, status: { in: ["OPEN", "PENDING"] } },
+      _count: { _all: true },
+    }),
+  ]);
+  const maxByUser = new Map(users.map((u) => [u.id, u.maxOpenChats]));
+  const loadByUser = new Map(openCounts.map((c) => [c.assignedToId as string, c._count._all]));
+
+  let best: { id: string; load: number } | null = null;
+  for (const id of candidateIds) {
+    const load = loadByUser.get(id) ?? 0;
+    const max = maxByUser.get(id) ?? null;
+    if (max !== null && load >= max) continue;
+    if (!best || load < best.load) best = { id, load };
   }
+  if (!best) return null;
 
-  await prisma.conversation.update({
-    where: { id: conversationId },
-    data: { assignedToId: account.userId },
-  });
-
-  return account.userId;
+  await prisma.conversation.update({ where: { id: conversationId }, data: { assignedToId: best.id } });
+  return best.id;
 }

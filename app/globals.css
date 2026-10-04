@@ -1,62 +1,106 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
-   BASE TOKENS
-   Redisño 2026-07 "fresco y cercano": paleta corporativa-amigable pensada
-   para un equipo de marketing (visual, no técnico) — reemplaza el acento
-   berry y el registro editorial-serif del rediseño anterior.
-   Tema único por ahora (sin variante oscura definida todavía — pendiente
-   de una siguiente iteración): .light usa los mismos valores que :root
-   intencionalmente, así el toggle de tema no produce un dark mode a medio
-   diseñar mientras migramos el resto de módulos.
+   TOKENS — paleta "Colibrí" de Colibly (2026-09-27): violeta colibrí como
+   acento, rubí (la garganta del colibrí) como acento de apoyo y neutros con
+   un tinte violeta. Reemplaza a la paleta "Girasol" de SunflowCRM.
+   Dos capas:
+   1. Primitivos (--violet-*, --ruby-*, --ink-*, estados): solo se usan aquí
+      dentro, nunca desde componentes.
+   2. Semánticos (--accent, --surface, --muted…): lo único que consumen los
+      componentes vía las utilidades de Tailwind (@theme inline, abajo).
+   El acento conserva sus cuatro usos separados (vienen de cuando el amarillo
+   no servía como texto; con el violeta casi coinciden, pero los componentes
+   ya dependen de esos nombres):
+     accent        relleno (botón principal, switch, barras) con texto --on-accent
+     accent-strong bordes, anillos de foco y trazos de gráficas (≥ 3:1)
+     accent-ink    texto e iconos en color de marca (≥ 4.5:1)
+     accent-subtle / accent-muted  fondos suaves y bordes decorativos
+   El rubí brillante (--ruby-500) no pasa como texto: solo rellenos
+   decorativos; como texto se usa --ruby-700 (--accent-2).
+   Los mismos valores en hex para lo que no lee CSS (correos, imágenes,
+   widget de chat web): lib/brand-colors.ts — cambiarlos juntos.
+   lib/design/__tests__/contrast.test.ts verifica los pares texto/fondo.
+   Temas: `:root, .theme-light` es el claro; .dark (abajo) remapea solo los
+   semánticos.
    ───────────────────────────────────────────────── */
 :root {
-  --background:    #fafbfa;
-  --foreground:    #1a2421;
-  --surface:       #ffffff;
-  --surface-light: #f2f7f5;
-  --border:        #e3e8e5;
+  /* ── Primitivos ── */
+  --violet-50:  #F5F2FF;
+  --violet-100: #EEE9FE;
+  --violet-200: #D9CFFC;
+  --violet-300: #B7A6FF;
+  --violet-400: #9B85FF;
+  --violet-600: #5B34E6;
+  --violet-700: #4A26C9;
+  --violet-800: #3A1CA8;
 
-  /* Text */
-  --muted:         #5b6b64;
-  --muted-darker:  #8fa098;
+  --ruby-50:  #FFE4EB;
+  --ruby-500: #FF4F7B;
+  --ruby-700: #C21E4C;
+  --ruby-800: #A3173F;
 
-  /* Brand — teal fresco como acento principal; violeta suave como acento de
-     apoyo (usado en detalles secundarios, no en estados/CTAs primarios). */
-  --accent:        #00B88D;
-  --accent-hover:  #009973;
-  --on-accent:     #ffffff;
+  --ink-0:   #FFFFFF;
+  --ink-25:  #F8F6FC;
+  --ink-50:  #F1EEF8;
+  --ink-100: #E7E2F3;
+  --ink-400: #8C86A0;
+  --ink-600: #5F5A73;
+  --ink-950: #17132B;
 
-  --accent-2:       #6C5CE7;
-  --accent-2-hover: #5847C9;
-  --accent-2-bg:    rgba(108, 92, 231, 0.10);
+  --green-700: #17663F;  --green-50:  #E3F4EA;  --green-200: #B9E0C9;
+  --orange-700:#9A4307;  --orange-50: #FDEFE3;  --orange-200:#F6CBA8;
+  --red-700:   #B42318;  --red-50:    #FBE6E3;  --red-200:   #F1B9B3;
+  --blue-700:  #1D5FBF;  --blue-50:   #E6EEFA;  --blue-200:  #B8CDEE;
+}
 
-  /* Semantic — deliberadamente separados en hue del accent teal (antes el
-     success también era teal y colisionaba visualmente con el acento). */
-  --success:       #2f8f45;
-  --success-bg:    rgba(63, 166, 83, 0.13);
-  --success-border:rgba(63, 166, 83, 0.32);
+/* ── Semánticos (tema claro) ──
+   También en .theme-light: un contenedor con esa clase vuelve a la paleta
+   clara aunque <html> tenga .dark (la landing es siempre clara). */
+:root, .theme-light {
+  --background:    var(--ink-25);
+  --foreground:    var(--ink-950);
+  --surface:       var(--ink-0);
+  --surface-light: var(--ink-50);
+  --border:        var(--ink-100);
 
-  --warning:       #b5790f;
-  --warning-bg:    rgba(216, 154, 31, 0.14);
-  --warning-border:rgba(216, 154, 31, 0.32);
+  --muted:         var(--ink-600);
+  --muted-darker:  var(--ink-600);   /* texto secundario pequeño y placeholders legibles */
 
-  --danger:        #d1483c;
-  --danger-bg:     rgba(228, 87, 74, 0.12);
-  --danger-border: rgba(228, 87, 74, 0.3);
+  --accent:        var(--violet-600);
+  --accent-hover:  var(--violet-700);
+  --on-accent:     var(--ink-0);
+  --accent-strong: var(--violet-600);
+  --accent-ink:    var(--violet-700);
+  --accent-subtle: var(--violet-100);
+  --accent-muted:  var(--violet-200);
 
-  --info:          #3b7ddb;
-  --info-bg:       rgba(59, 125, 219, 0.12);
-  --info-border:   rgba(59, 125, 219, 0.3);
+  /* Acento de apoyo: rubí (iconos secundarios, destacados). No es CTA. */
+  --accent-2:       var(--ruby-700);
+  --accent-2-hover: var(--ruby-800);
+  --accent-2-bg:    var(--ruby-50);
 
-  /* Elevation — sombras suaves multicapa, apropiadas para tarjetas sobre
-     fondo claro (antes calibradas para superficies oscuras). */
-  --shadow-sm: 0 1px 2px rgba(20, 30, 25, 0.05);
-  --shadow-md: 0 10px 28px rgba(20, 30, 25, 0.08), 0 2px 6px rgba(20, 30, 25, 0.05);
-  --shadow-lg: 0 20px 48px rgba(20, 30, 25, 0.12), 0 4px 10px rgba(20, 30, 25, 0.06);
+  /* Estados. */
+  --success:        var(--green-700);
+  --success-bg:     var(--green-50);
+  --success-border: var(--green-200);
+  --warning:        var(--orange-700);
+  --warning-bg:     var(--orange-50);
+  --warning-border: var(--orange-200);
+  --danger:         var(--red-700);
+  --danger-bg:      var(--red-50);
+  --danger-border:  var(--red-200);
+  --info:           var(--blue-700);
+  --info-bg:        var(--blue-50);
+  --info-border:    var(--blue-200);
+
+  /* Elevation — sombras suaves con tinte de la tinta violeta. */
+  --shadow-sm: 0 1px 2px rgba(23, 19, 43, 0.05);
+  --shadow-md: 0 10px 28px rgba(23, 19, 43, 0.08), 0 2px 6px rgba(23, 19, 43, 0.05);
+  --shadow-lg: 0 20px 48px rgba(23, 19, 43, 0.12), 0 4px 10px rgba(23, 19, 43, 0.06);
 
   /* Focus */
-  --ring:      var(--accent);
+  --ring:        var(--accent-strong);
   --ring-offset: var(--background);
 
   /* Radius */
@@ -65,12 +109,10 @@
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
 
-  /* Hue por entidad (cuentas WhatsApp/Telegram) — lightness/chroma fijos por
-     tema, solo varía el hue. El set original ya esquivaba ~180° (donde vivía
-     el viejo success teal) y ~300-25° (donde vivía el viejo accent berry);
-     esa franja ~180° ahora protege al nuevo accent teal casi sin cambios.
-     Solo asignar vía HUE_CLASS de lib/…/hue.ts — nunca interpolar "hue-N". */
-  --entity: oklch(0.78 0.11 60); /* fallback si falta la clase hue-N */
+  /* Hue por entidad (cuentas) — lightness/chroma fijos, solo varía el hue.
+     Solo asignar vía HUE_CLASS de app/components/ui/hue.ts — nunca
+     interpolar "hue-N". */
+  --entity: oklch(0.52 0.12 60); /* fallback si falta la clase hue-N */
 
   /* Durations */
   --dur-fast: 120ms;
@@ -79,72 +121,81 @@
   --ease:     cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ─────────────────────────────────────────────────
-   LIGHT TOKENS — mismos valores que :root, ver nota arriba.
-   ───────────────────────────────────────────────── */
-.light {
+.light,
+.theme-light {
   color-scheme: light;
-
-  --background:    #fafbfa;
-  --foreground:    #1a2421;
-  --surface:       #ffffff;
-  --surface-light: #f2f7f5;
-  --border:        #e3e8e5;
-  --muted:         #5b6b64;
-  --muted-darker:  #8fa098;
-
-  --accent:        #00B88D;
-  --accent-hover:  #009973;
-  --on-accent:     #ffffff;
-
-  --accent-2:       #6C5CE7;
-  --accent-2-hover: #5847C9;
-  --accent-2-bg:    rgba(108, 92, 231, 0.10);
-
-  --success:        #2f8f45;
-  --success-bg:     rgba(63, 166, 83, 0.13);
-  --success-border: rgba(63, 166, 83, 0.32);
-
-  --warning:        #b5790f;
-  --warning-bg:     rgba(216, 154, 31, 0.14);
-  --warning-border: rgba(216, 154, 31, 0.32);
-
-  --danger:         #d1483c;
-  --danger-bg:      rgba(228, 87, 74, 0.12);
-  --danger-border:  rgba(228, 87, 74, 0.3);
-
-  --info:           #3b7ddb;
-  --info-bg:        rgba(59, 125, 219, 0.12);
-  --info-border:    rgba(59, 125, 219, 0.3);
-
-  --shadow-sm: 0 1px 2px rgba(20, 30, 25, 0.05);
-  --shadow-md: 0 10px 28px rgba(20, 30, 25, 0.08), 0 2px 6px rgba(20, 30, 25, 0.05);
-  --shadow-lg: 0 20px 48px rgba(20, 30, 25, 0.12), 0 4px 10px rgba(20, 30, 25, 0.06);
-
-  --ring:       var(--accent);
-  --ring-offset: var(--background);
 }
 
 /* ─────────────────────────────────────────────────
-   HUE POR ENTIDAD — 8 clases, dark (default) + light
+   TEMA OSCURO — solo remapea la capa semántica (next-themes pone .dark en
+   <html>). Fondo "noche" violeta casi negro; el acento de relleno se aclara un
+   poco pero conserva texto blanco encima, y los tonos de texto/borde se
+   aclaran para leerse sobre fondo oscuro. Los pares se verifican en
+   contrast.test.ts.
    ───────────────────────────────────────────────── */
-.hue-0 { --entity: oklch(0.78 0.11 25);  }
-.hue-1 { --entity: oklch(0.80 0.11 60);  }
-.hue-2 { --entity: oklch(0.82 0.10 95);  }
-.hue-3 { --entity: oklch(0.78 0.10 200); }
-.hue-4 { --entity: oklch(0.77 0.10 225); }
-.hue-5 { --entity: oklch(0.76 0.11 250); }
-.hue-6 { --entity: oklch(0.76 0.11 275); }
-.hue-7 { --entity: oklch(0.77 0.11 300); }
+.dark {
+  color-scheme: dark;
 
-.light .hue-0 { --entity: oklch(0.50 0.13 25);  }
-.light .hue-1 { --entity: oklch(0.52 0.12 60);  }
-.light .hue-2 { --entity: oklch(0.53 0.11 95);  }
-.light .hue-3 { --entity: oklch(0.50 0.10 200); }
-.light .hue-4 { --entity: oklch(0.49 0.10 225); }
-.light .hue-5 { --entity: oklch(0.48 0.11 250); }
-.light .hue-6 { --entity: oklch(0.48 0.11 275); }
-.light .hue-7 { --entity: oklch(0.49 0.11 300); }
+  --background:    #100D1F;
+  --foreground:    #F2F0F8;
+  --surface:       #1B1731;
+  --surface-light: #25203F;
+  --border:        #3A3357;
+
+  --muted:         #B1ABC7;
+  --muted-darker:  #8A84A3;
+
+  --accent:        #6A50F5;
+  --accent-hover:  #5A3FE3;
+  --on-accent:     #FFFFFF;
+  --accent-strong: #9B85FF;
+  --accent-ink:    #B7A6FF;
+  --accent-subtle: #241C48;
+  --accent-muted:  #3A2F72;
+
+  --accent-2:       #FF7A9A;
+  --accent-2-hover: #FF96AE;
+  --accent-2-bg:    #3A1E2B;
+
+  --success:        #74CC8F;
+  --success-bg:     #18301F;
+  --success-border: #2D5638;
+  --warning:        #FBA35E;
+  --warning-bg:     #362213;
+  --warning-border: #6A3D19;
+  --danger:         #F58C80;
+  --danger-bg:      #3A1C19;
+  --danger-border:  #6E302A;
+  --info:           #86B2F2;
+  --info-bg:        #162840;
+  --info-border:    #2D4D7C;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.40), 0 2px 6px rgba(0, 0, 0, 0.30);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.50), 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* ─────────────────────────────────────────────────
+   HUE POR ENTIDAD — 8 clases; en .dark suben de luminosidad para leerse
+   sobre fondo oscuro
+   ───────────────────────────────────────────────── */
+.hue-0 { --entity: oklch(0.44 0.13 25);  }
+.hue-1 { --entity: oklch(0.44 0.12 60);  }
+.hue-2 { --entity: oklch(0.44 0.11 95);  }
+.hue-3 { --entity: oklch(0.44 0.10 200); }
+.hue-4 { --entity: oklch(0.44 0.10 225); }
+.hue-5 { --entity: oklch(0.44 0.11 250); }
+.hue-6 { --entity: oklch(0.44 0.11 275); }
+.hue-7 { --entity: oklch(0.44 0.11 300); }
+
+.dark .hue-0 { --entity: oklch(0.84 0.11 25); --entity-bg: color-mix(in oklab, var(--entity) 12%, var(--surface)); }
+.dark .hue-1 { --entity: oklch(0.80 0.11 60);  }
+.dark .hue-2 { --entity: oklch(0.82 0.10 95);  }
+.dark .hue-3 { --entity: oklch(0.78 0.10 200); }
+.dark .hue-4 { --entity: oklch(0.77 0.10 225); }
+.dark .hue-5 { --entity: oklch(0.76 0.11 250); }
+.dark .hue-6 { --entity: oklch(0.76 0.11 275); }
+.dark .hue-7 { --entity: oklch(0.77 0.11 300); }
 
 /* Mezclado contra --surface (opaco), no "transparent": a 14% sobre
    transparent el relleno quedaba casi invisible en algunos hues sobre el
@@ -168,9 +219,13 @@
   --color-muted:        var(--muted);
   --color-muted-darker: var(--muted-darker);
 
-  --color-accent:       var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-on-accent:    var(--on-accent);
+  --color-accent:        var(--accent);
+  --color-accent-hover:  var(--accent-hover);
+  --color-on-accent:     var(--on-accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink:    var(--accent-ink);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-muted:  var(--accent-muted);
 
   --color-accent-2:       var(--accent-2);
   --color-accent-2-hover: var(--accent-2-hover);
@@ -282,7 +337,8 @@ html {
   color-scheme: dark;
 }
 
-.light {
+.light,
+.theme-light {
   color-scheme: light;
 }
 
@@ -393,7 +449,68 @@ body {
 .animate-slide-down  { animation: slide-down  var(--dur) var(--ease) both; }
 .animate-pulse-live  { animation: pulse-live  2.4s var(--ease) infinite; }
 
+/* Movimiento corto para contenido que aparece en el inbox. La selección del
+   chat usa una barra que se despliega sin mover las filas de la lista. */
+@keyframes chat-disclosure-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chat-disclosure-enter { animation: chat-disclosure-enter 180ms var(--ease) both; }
+.chat-list-row { position: relative; }
+.chat-list-row::before {
+  content: "";
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent-strong);
+  transform: scaleY(0);
+  transition: transform 180ms var(--ease);
+}
+.chat-list-row[aria-current="true"]::before { transform: scaleY(1); }
+
 .animation-delay-100 { animation-delay: 100ms; }
 .animation-delay-200 { animation-delay: 200ms; }
 .animation-delay-300 { animation-delay: 300ms; }
 .animation-delay-400 { animation-delay: 400ms; }
+
+/* ─────────────────────────────────────────────────
+   SITIO PÚBLICO — movimiento
+   Solo transform/opacity (se animan en el compositor). Todo es decorativo:
+   sin soporte o con "reducir movimiento" el contenido se ve completo y quieto.
+   ───────────────────────────────────────────────── */
+
+/* Puntos de "escribiendo…" de la demo del hero (_hero-demo.tsx). */
+@keyframes typing-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+  40%           { transform: translateY(-3px); opacity: 1; }
+}
+.typing-dot { animation: typing-dot 1s ease-in-out infinite; }
+
+/* Revelado al entrar en pantalla, ligado al scroll (sin JS). Firefox aún no
+   soporta animation-timeline: ahí simplemente no hay efecto (mejora
+   progresiva, sin polyfill). Úsese en bloques cortos (tarjetas, encabezados),
+   no en secciones más altas que la pantalla. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    @keyframes reveal-up {
+      from { opacity: 0; translate: 0 1.5rem; }
+    }
+    .reveal {
+      animation: reveal-up auto linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+
+    /* Línea de "Cómo funciona": se llena conforme la lista cruza la pantalla. */
+    @keyframes steps-fill {
+      from { scale: 0 1; }
+    }
+    .steps-track { view-timeline: --steps block; }
+    .steps-fill {
+      animation: steps-fill auto linear both;
+      animation-timeline: --steps;
+      animation-range: entry 40% cover 55%;
+    }
+  }
+}

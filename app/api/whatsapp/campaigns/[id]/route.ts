@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   req: Request,
@@ -71,7 +73,7 @@ export async function GET(
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -85,6 +87,8 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { id } = await params;
 
@@ -112,7 +116,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

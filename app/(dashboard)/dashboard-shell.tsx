@@ -1,6 +1,5 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   Settings,
@@ -19,7 +18,9 @@ import {
   Camera,
   CalendarClock,
   Workflow,
+  Zap,
   Globe,
+  Building2,
 } from "lucide-react";
 // Meta (feedback loop de calificación de leads) usa el mismo ícono que
 // Difusión WhatsApp para no introducir un cuarto ícono de "anuncios" — la
@@ -30,12 +31,25 @@ import { NotificationBell } from "@/app/components/ui/notification-bell";
 export function DashboardShell({
   children,
   businessName,
+  role,
+  initialUser,
+  topBanner,
+  platformAdmin = false,
+  channels,
 }: {
   children: React.ReactNode;
   businessName?: string | null;
+  role: string;
+  initialUser: { name?: string | null; email?: string | null };
+  topBanner?: React.ReactNode;
+  // Operador de la plataforma (PLATFORM_ADMIN_EMAILS): ve el grupo "Plataforma".
+  platformAdmin?: boolean;
+  // Canales adicionales a WhatsApp, como feature por organización — el
+  // operador los activa desde /plataforma (ver lib/channel-flags.ts). Un
+  // canal sin habilitar no aparece en el nav (a menos que la organización ya
+  // tuviera cuentas ahí).
+  channels?: { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean };
 }) {
-  const { data: session } = useSession();
-  const role = session?.user?.role;
   const isAdmin = role === "admin";
   const isEjecutivo = role === "ejecutivo";
 
@@ -76,6 +90,7 @@ export function DashboardShell({
           items: [
             ...(isAdmin ? [{ href: "/whatsapp/bots" as const, label: "Bots IA", icon: Bot as React.ElementType }] : []),
             { href: "/whatsapp/calificadores",  label: "Calificadores de Leads", icon: Target },
+            { href: "/whatsapp/automatizaciones", label: "Automatizaciones",    icon: Zap },
             { href: "/whatsapp/secuencias",     label: "Secuencias",            icon: Workflow },
           ],
         },
@@ -92,10 +107,13 @@ export function DashboardShell({
           title: "Canales",
           items: [
             { href: "/whatsapp/cuentas",        label: "Cuentas WhatsApp", icon: Phone },
-            { href: "/messenger/cuentas",       label: "Cuentas Messenger", icon: MessageCircle },
-            { href: "/instagram/cuentas",       label: "Cuentas Instagram", icon: Camera },
-            { href: "/telegram/cuentas",        label: "Cuentas Telegram", icon: Send },
-            { href: "/webchat/cuentas",         label: "Cuentas Web",     icon: Globe },
+            // Los demás canales son una feature por organización que activa
+            // el operador desde /plataforma — sin habilitar (y sin cuentas ya
+            // conectadas ahí) ni aparecen en el menú.
+            ...(channels?.messenger ? [{ href: "/messenger/cuentas" as const, label: "Cuentas Messenger", icon: MessageCircle as React.ElementType }] : []),
+            ...(channels?.instagram ? [{ href: "/instagram/cuentas" as const, label: "Cuentas Instagram", icon: Camera as React.ElementType }] : []),
+            ...(channels?.telegram ? [{ href: "/telegram/cuentas" as const, label: "Cuentas Telegram", icon: Send as React.ElementType }] : []),
+            ...(channels?.webchat ? [{ href: "/webchat/cuentas" as const, label: "Cuentas Web", icon: Globe as React.ElementType }] : []),
             // Admin-only: credenciales de negocio sensibles (mandan datos
             // reales al ad account en producción), sin equivalente de
             // WAAccountShare — mismo criterio que Bots IA/Usuarios.
@@ -113,8 +131,12 @@ export function DashboardShell({
         },
       ];
 
+  if (platformAdmin) {
+    NAV.push({ title: "Plataforma", items: [{ href: "/plataforma", label: "Organizaciones", icon: Building2 }] });
+  }
+
   return (
-    <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />}>
+    <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
       {children}
     </AppShell>
   );

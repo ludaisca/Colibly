@@ -1,21 +1,35 @@
 import { prisma } from "@/lib/prisma";
 
-// Combines WABotUsage (chat-reply bots), WALeadScorerUsage (lead scorer
-// runs, including scheduled ones) and WALeadRecoveryAttempt (reactivation
-// messages) so the monthly budget reflects total AI spend for the user, not
-// just some of the three usage sources.
-export async function getMonthlyAiCost(userId: string, monthStart: Date): Promise<number> {
-  const [botUsage, scorerUsage, recoveryUsage] = await Promise.all([
+// Costo estimado de la IA de una organización (lo que le cuesta a la
+// plataforma, no lo que paga el cliente — el cliente consume créditos, ver
+// lib/ai/credits.ts). Suma las cuatro fuentes de uso: respuestas de bots
+// (WABotUsage), calificaciones (WALeadScorerUsage), mensajes de recuperación
+// (WALeadRecoveryAttempt) y pasos de IA de automatizaciones (AutomationAiUsage).
+export async function getOrgAiCost(organizationId: string, since: Date): Promise<number> {
+  const [botUsage, scorerUsage, recoveryUsage, automationUsage] = await Promise.all([
     prisma.wABotUsage.aggregate({
-      where: { bot: { userId }, createdAt: { gte: monthStart } },
+      where: { bot: { organizationId }, createdAt: { gte: since } },
       _sum: { estimatedCost: true },
     }),
     prisma.wALeadScorerUsage.aggregate({
-      where: { scorer: { userId }, createdAt: { gte: monthStart } },
+      where: { scorer: { organizationId }, createdAt: { gte: since } },
       _sum: { estimatedCost: true },
     }),
-    prisma.wALeadRecoveryAttempt.aggregate({
-      where: { chat: { account: { userId } }, createdAt: { gte: monthStart } },
+    // Los intentos de Telegram/Messenger/Instagram guardan conversationId sin
+    // relación declarada: se filtran por los ids de las conversaciones.
+    prisma.conversation
+      .findMany({ where: { channelAccount: { organizationId } }, select: { id: true } })
+      .then((convs) =>
+        prisma.wALeadRecoveryAttempt.aggregate({
+          where: {
+            OR: [{ chat: { account: { organizationId } } }, { conversationId: { in: convs.map((c) => c.id) } }],
+            createdAt: { gte: since },
+          },
+          _sum: { estimatedCost: true },
+        })
+      ),
+    prisma.automationAiUsage.aggregate({
+      where: { automation: { organizationId }, createdAt: { gte: since } },
       _sum: { estimatedCost: true },
     }),
   ]);
@@ -23,43 +37,7 @@ export async function getMonthlyAiCost(userId: string, monthStart: Date): Promis
   return (
     (botUsage._sum.estimatedCost ?? 0) +
     (scorerUsage._sum.estimatedCost ?? 0) +
-    (recoveryUsage._sum.estimatedCost ?? 0)
+    (recoveryUsage._sum.estimatedCost ?? 0) +
+    (automationUsage._sum.estimatedCost ?? 0)
   );
-}
-
-export async function isMonthlyBudgetExceeded(userId: string, now: Date): Promise<boolean> {
-  const settings = await prisma.appSettings.findUnique({ where: { userId } });
-  if (!settings?.monthlyBudgetUsd) return false;
-
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlyCost = await getMonthlyAiCost(userId, monthStart);
-  return monthlyCost >= settings.monthlyBudgetUsd;
-}
-
-export async function checkBudgetAlert(userId: string, now: Date) {
-  const settings = await prisma.appSettings.findUnique({ where: { userId } });
-  if (!settings?.monthlyBudgetUsd) return;
-
-  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  if (settings.budgetAlertMonth === monthKey) return;
-
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlyCost = await getMonthlyAiCost(userId, monthStart);
-
-  if (monthlyCost < settings.monthlyBudgetUsd) return;
-
-  await prisma.appSettings.update({
-    where: { userId },
-    data: { budgetAlertMonth: monthKey },
-  });
-
-  await prisma.notification.create({
-    data: {
-      userId,
-      type: "BUDGET_EXCEEDED",
-      title: "Presupuesto mensual de IA superado",
-      body: `Costo estimado este mes: $${monthlyCost.toFixed(2)} (límite: $${settings.monthlyBudgetUsd.toFixed(2)})`,
-      link: "/configuracion/ia",
-    },
-  });
 }

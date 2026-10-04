@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Send, Trash2, Users } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -13,6 +13,7 @@ import { Table, type TableColumn } from "@/app/components/ui/table";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { DetailPage } from "@/app/components/ui/detail-page";
+import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { useToast } from "@/app/components/ui/toast";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "info" | "danger" | "neutral" }> = {
@@ -61,6 +62,7 @@ interface Recipient {
 
 export default function CampaignDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const { success, error: toastError } = useToast();
   const id = params.id as string;
 
@@ -71,19 +73,24 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchCampaign = useCallback(async (p = 1, opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
       const res = await fetch(`/api/whatsapp/campaigns/${id}?page=${p}&limit=50`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error ?? "No se pudo cargar la campaña");
       const { recipients: recips, recipientsPagination, ...camp } = data;
       setCampaign(camp);
       setRecipients(recips || []);
       setTotalPages(recipientsPagination?.totalPages || 1);
+      setLoadError(null);
     } catch (err) {
-      toastError(err instanceof Error ? err.message : "Error");
+      const message = err instanceof Error ? err.message : "Error al cargar la campaña";
+      if (opts?.silent) toastError(message);
+      else setLoadError(message);
     } finally {
       if (!opts?.silent) setLoading(false);
     }
@@ -97,7 +104,10 @@ export default function CampaignDetailPage() {
   // page refresh. Stops as soon as the campaign leaves SENDING.
   useEffect(() => {
     if (campaign?.status !== "SENDING") return;
-    const interval = setInterval(() => fetchCampaign(page, { silent: true }), 2000);
+    const interval = setInterval(() => {
+      // Sin consultas cada 2s con la pestaña oculta.
+      if (document.visibilityState !== "hidden") fetchCampaign(page, { silent: true });
+    }, 2000);
     return () => clearInterval(interval);
   }, [campaign?.status, fetchCampaign, page]);
 
@@ -113,6 +123,24 @@ export default function CampaignDetailPage() {
       toastError(err instanceof Error ? err.message : "Error");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/whatsapp/campaigns/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "No se pudo eliminar la campaña");
+      }
+      success("Campaña eliminada");
+      setDeleteOpen(false);
+      router.replace("/whatsapp/campanas");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo eliminar la campaña");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -136,6 +164,7 @@ export default function CampaignDetailPage() {
   ], []);
 
   if (loading) return <div className="flex items-center justify-center py-16"><Spinner /></div>;
+  if (loadError) return <ListErrorState message={loadError} onRetry={() => fetchCampaign(page)} />;
   if (!campaign) return <Banner tone="danger" title="Campaña no encontrada">La campaña solicitada no existe.</Banner>;
 
   const statusBadge = STATUS_BADGE[campaign.status] ?? { label: campaign.status, tone: "neutral" as const };
@@ -203,6 +232,7 @@ export default function CampaignDetailPage() {
         <section className="space-y-4">
           <SectionHeader title={`Destinatarios (${campaign.recipientCount})`} />
           <Table
+            className="rounded-xl border border-border bg-surface p-5 shadow-sm"
             columns={recipientColumns}
             rows={recipients}
             rowKey={(r) => r.id}
@@ -233,15 +263,12 @@ export default function CampaignDetailPage() {
       <ConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
+        loading={deleting}
         title="Eliminar campaña"
         description="Solo se pueden eliminar campañas en borrador."
         confirmLabel="Eliminar"
         tone="danger"
-        onConfirm={async () => {
-          await fetch(`/api/whatsapp/campaigns/${id}`, { method: "DELETE" });
-          success("Campaña eliminada");
-          setDeleteOpen(false);
-        }}
+        onConfirm={handleDelete}
       />
     </DetailPage>
   );

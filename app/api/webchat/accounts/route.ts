@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { webchatAccountSchema } from "@/lib/validations";
 import { encrypt } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
+import { assertChannelEnabled } from "@/lib/channel-flags";
 
 // Mismo criterio de rol que Telegram/Messenger/Instagram — "ejecutivo" tiene
 // /webchat/cuentas bloqueado en proxy.ts, este 403 cierra el acceso directo
@@ -14,6 +19,7 @@ function isForbiddenRole(role: string | undefined): boolean {
 
 const ACCOUNT_SELECT = {
   id: true,
+  userId: true,
   name: true,
   channel: true,
   status: true,
@@ -34,6 +40,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
+    const organizationId = await requireOrgId(session.user.id);
+    const channelDisabled = await assertChannelEnabled(organizationId, "WEBCHAT");
+    if (channelDisabled) return channelDisabled;
+
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {
       return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
@@ -52,6 +64,7 @@ export async function POST(req: Request) {
     const account = await prisma.channelAccount.create({
       data: {
         userId: session.user.id,
+        organizationId,
         channel: "WEBCHAT",
         name,
         credentials: encrypt(JSON.stringify({ allowedOrigins })),
@@ -63,7 +76,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(account, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -78,14 +91,15 @@ export async function GET() {
     }
 
     const accounts = await prisma.channelAccount.findMany({
-      where: { userId: session.user.id, channel: "WEBCHAT" },
+      // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
+      where: { channel: "WEBCHAT", id: { in: await getUserChannelAccountIds(session.user.id) } },
       select: ACCOUNT_SELECT,
       orderBy: { updatedAt: "desc" },
     });
 
     return NextResponse.json(accounts);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

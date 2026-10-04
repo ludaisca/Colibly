@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { getMonthlyAiCost } from "@/lib/ai/budget";
+import { getOrgAiCost } from "@/lib/ai/budget";
+import { getOrgBilling } from "@/lib/billing/gates";
+import { aiCreditLimit } from "@/lib/billing/state";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { orgWhere } from "@/lib/tenancy";
 import {
   countActiveBots,
   countBots,
@@ -51,11 +54,6 @@ function utcInstantForLocalMidnight(year: number, month: number, day: number, ti
   return new Date(naiveUTCMidnight.getTime() - tzOffsetMinutes(naiveUTCMidnight, timeZone) * 60000);
 }
 
-function startOfDayInTz(date: Date, timeZone: string = STATS_TZ): Date {
-  const [y, m, d] = dateKeyInTz(date, timeZone).split("-").map(Number);
-  return utcInstantForLocalMidnight(y, m, d, timeZone);
-}
-
 export interface Estadisticas {
   accounts: number;
   chats: number;
@@ -79,6 +77,7 @@ export interface Estadisticas {
     id: string;
     name: string;
     phoneNumber: string | null;
+    channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
     chats: number;
   }>;
   agentPerformance: Array<{
@@ -89,7 +88,8 @@ export interface Estadisticas {
     avgResolutionMinutes: number | null;
   }>;
   monthlyCost: number;
-  monthlyBudgetUsd: number | null;
+  // Créditos de IA del periodo (lib/ai/credits.ts); limit null = sin límite.
+  aiCredits: { used: number; limit: number | null };
   // Estado de entrega de mensajes de campaña, separado por origen — campañas
   // masivas (WACampaign, WACampaignRecipient) vs. automatizaciones de leads de
   // Facebook (LeadSheetSource, LeadSheetImportedRow). Ver lib/whatsapp/export-columns.ts
@@ -141,12 +141,13 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
   const channelAccountIds = await getUserChannelAccountIds(userId);
 
   const now = new Date();
-  const today = startOfDayInTz(now);
-  const chartStart = new Date(today.getTime() - 13 * 86400000);
+  const [chartYear, chartMonth, chartDay] = dateKeyInTz(now).split("-").map(Number);
+  const chartStart = utcInstantForLocalMidnight(chartYear, chartMonth, chartDay - 13);
   const [todayYear, todayMonth] = dateKeyInTz(now).split("-").map(Number);
   const monthStart = utcInstantForLocalMidnight(todayYear, todayMonth, 1);
 
   const accountWhere = { id: { in: accountIds } };
+  const org = await orgWhere(userId);
 
   const [
     accounts,
@@ -158,6 +159,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     scorerUsage,
     recoveryUsage,
     recentMessages,
+    recentChannelMessages,
     activeBots,
     campaignsCompleted,
     botsList,
@@ -166,8 +168,9 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     accountsList,
     chatCountsByAccount,
     monthlyCost,
-    appSettings,
+    orgBilling,
     assignedChats,
+    assignedChannelChats,
     campaignsForMessageStats,
     leadSheetSources,
     leadSheetStatusGroups,
@@ -179,15 +182,15 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     countBots(userId),
     countCampaigns(userId),
     prisma.wABotUsage.aggregate({
-      where: { bot: { userId } },
+      where: { bot: org },
       _sum: { totalTokens: true, estimatedCost: true },
     }),
     prisma.wALeadScorerUsage.aggregate({
-      where: { scorer: { userId } },
+      where: { scorer: org },
       _sum: { totalTokens: true, estimatedCost: true },
     }),
     prisma.wALeadRecoveryAttempt.aggregate({
-      where: { chat: { account: { userId } } },
+      where: { chat: { account: org } },
       _sum: { totalTokens: true, estimatedCost: true },
     }),
     prisma.wAMessage.findMany({
@@ -197,25 +200,31 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
       },
       select: { createdAt: true },
       orderBy: { createdAt: "desc" },
-      take: 5000,
+    }),
+    prisma.channelMessage.findMany({
+      where: {
+        createdAt: { gte: chartStart },
+        conversation: { channelAccountId: { in: channelAccountIds } },
+      },
+      select: { createdAt: true },
     }),
     countActiveBots(userId),
     countCompletedCampaigns(userId),
     prisma.wABot.findMany({
-      where: { userId },
+      where: org,
       select: { id: true, name: true, status: true },
     }),
     prisma.wABotUsage.groupBy({
       by: ["botId"],
-      where: { bot: { userId } },
+      where: { bot: org },
       _sum: { totalTokens: true, estimatedCost: true },
       _count: { _all: true },
     }),
-    // Las cuentas de Telegram se agregan a la misma lista (phoneNumber null)
+    // Las cuentas de otros canales se agregan a la misma lista (phoneNumber null)
     // para que el desglose por cuenta no las omita — ver accountBreakdown.
     prisma.channelAccount.findMany({
-      where: { userId },
-      select: { id: true, name: true, _count: { select: { conversations: true } } },
+      where: { id: { in: channelAccountIds } },
+      select: { id: true, name: true, channel: true, _count: { select: { conversations: true } } },
     }),
     prisma.wAAccount.findMany({
       where: accountWhere,
@@ -228,8 +237,8 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     }),
     // Misma función que usan bot-worker/lead-scoring/lead-recovery para decidir
     // pausar el gasto — así el % de presupuesto mostrado nunca diverge del real.
-    getMonthlyAiCost(userId, monthStart),
-    prisma.appSettings.findUnique({ where: { userId }, select: { monthlyBudgetUsd: true } }),
+    getOrgAiCost(org.organizationId, monthStart),
+    getOrgBilling(org.organizationId),
     prisma.wAChat.findMany({
       where: {
         assignedToId: { not: null },
@@ -242,6 +251,13 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
         createdAt: true,
         firstResponseAt: true,
         resolvedAt: true,
+      },
+    }),
+    prisma.conversation.findMany({
+      where: { assignedToId: { not: null }, channelAccountId: { in: channelAccountIds } },
+      select: {
+        assignedToId: true, assignedTo: { select: { name: true } },
+        status: true, createdAt: true, firstResponseAt: true, resolvedAt: true,
       },
     }),
     // Contadores ya vienen agregados en WACampaign (sentCount/deliveredCount/...),
@@ -291,14 +307,15 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     : [];
 
   const dailyMap: Record<string, number> = {};
-  for (const m of recentMessages) {
+  for (const m of [...recentMessages, ...recentChannelMessages]) {
     const date = dateKeyInTz(m.createdAt);
     dailyMap[date] = (dailyMap[date] || 0) + 1;
   }
 
-  const dailyMessages = Object.entries(dailyMap)
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const dailyMessages = Array.from({ length: 14 }, (_, index) => {
+    const date = new Date(Date.UTC(chartYear, chartMonth - 1, chartDay - 13 + index)).toISOString().slice(0, 10);
+    return { date, count: dailyMap[date] ?? 0 };
+  });
 
   const botBreakdown = botsList
     .map((b) => {
@@ -319,12 +336,14 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
       id: a.id,
       name: a.name,
       phoneNumber: a.phoneNumber,
+      channel: "WHATSAPP" as const,
       chats: chatCountsByAccount.find((c) => c.accountId === a.id)?._count._all ?? 0,
     })),
     ...channelAccountsList.map((a) => ({
       id: a.id,
       name: a.name,
       phoneNumber: null,
+      channel: a.channel,
       chats: a._count.conversations,
     })),
   ].sort((a, b) => b.chats - a.chats);
@@ -335,7 +354,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     responseTimes: number[];
     resolutionTimes: number[];
   }>();
-  for (const c of assignedChats) {
+  for (const c of [...assignedChats, ...assignedChannelChats]) {
     const id = c.assignedToId!;
     if (!agentMap.has(id)) {
       agentMap.set(id, { userName: c.assignedTo?.name ?? null, resolvedCount: 0, responseTimes: [], resolutionTimes: [] });
@@ -486,7 +505,10 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     accountBreakdown,
     agentPerformance,
     monthlyCost: Math.round(monthlyCost * 10000) / 10000,
-    monthlyBudgetUsd: appSettings?.monthlyBudgetUsd ?? null,
+    aiCredits: {
+      used: orgBilling?.aiCreditsUsed ?? 0,
+      limit: orgBilling && Number.isFinite(aiCreditLimit(orgBilling)) ? aiCreditLimit(orgBilling) : null,
+    },
     campaignMessagesByOrigin,
     campaignMessageBreakdown,
     qualifiedChats,

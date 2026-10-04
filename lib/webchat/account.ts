@@ -34,7 +34,16 @@ export function corsHeaders(origin: string): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
   };
+}
+
+// El token de sesión viaja en `Authorization: Bearer` — en la query string
+// quedaba registrado en logs de acceso y proxies. Se acepta todavía en el body
+// o la query para copias del widget ya cargadas en pestañas abiertas.
+export function readWebchatToken(req: Request, fallback: string | null): string | null {
+  const header = req.headers.get("authorization");
+  if (header?.startsWith("Bearer ")) return header.slice(7).trim() || null;
+  return fallback;
 }

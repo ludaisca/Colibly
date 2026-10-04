@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { sequenceSchema } from "@/lib/validations";
+import { forbidRoles } from "@/lib/roles";
+import { tagBelongsTo } from "@/lib/tags";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
 
 // Roadmap P3-a — secuencias de automatización lineales. Recurso plano (no
 // nested bajo /accounts/[id], a diferencia de routing-rules) porque, igual
@@ -63,9 +67,21 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(sequences);
+    // Inscripciones que se detuvieron sin completarse (envío fallido o fuera de
+    // la ventana de 24h de WhatsApp) — la lista las señala para que no pasen
+    // desapercibidas.
+    const problems = sequences.length > 0
+      ? await prisma.wASequenceEnrollment.groupBy({
+          by: ["sequenceId"],
+          where: { sequenceId: { in: sequences.map((s) => s.id) }, status: { in: ["FAILED", "EXPIRED"] } },
+          _count: { _all: true },
+        })
+      : [];
+    const problemsBySequence = new Map(problems.map((p) => [p.sequenceId, p._count._all]));
+
+    return NextResponse.json(sequences.map((s) => ({ ...s, stoppedEnrollments: problemsBySequence.get(s.id) ?? 0 })));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -76,6 +92,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const body = await req.json();
     const parsed = sequenceSchema.safeParse(body);
@@ -84,8 +102,8 @@ export async function POST(req: Request) {
     }
     const { waAccountId, channelAccountId, steps, ...data } = parsed.data;
 
-    if (!waAccountId && !channelAccountId) {
-      return NextResponse.json({ error: "Selecciona una cuenta" }, { status: 400 });
+    if (!!waAccountId === !!channelAccountId) {
+      return NextResponse.json({ error: "Selecciona exactamente una cuenta" }, { status: 400 });
     }
 
     if (waAccountId) {
@@ -112,7 +130,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Selecciona una etiqueta" }, { status: 400 });
       }
       const tag = await prisma.tag.findUnique({ where: { id: data.triggerValue } });
-      if (!tag) {
+      if (!tag || !tagBelongsTo(tag, { waAccountId, channelAccountId })) {
         return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
       }
     } else if (data.triggerType === "LEAD_STATUS_CHANGED") {
@@ -124,6 +142,7 @@ export async function POST(req: Request) {
     const sequence = await prisma.wASequence.create({
       data: {
         ...data,
+        organizationId: await requireOrgId(session.user.id),
         waAccountId: waAccountId ?? null,
         channelAccountId: channelAccountId ?? null,
         triggerValue: data.triggerType === "APPOINTMENT_COMPLETED" ? null : data.triggerValue,
@@ -135,7 +154,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(sequence, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

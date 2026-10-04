@@ -4,12 +4,13 @@ const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
 };
 
+// Sin `timeout`: BullMQ 5 no tiene esa opción (se ignoraba en silencio). El
+// límite de tiempo real vive en cada llamada HTTP — ver lib/http-timeouts.ts.
 const defaultJobOptions = {
   removeOnComplete: { count: 100 },
   removeOnFail: { count: 50 },
   attempts: 3,
   backoff: { type: "exponential" as const, delay: 1000 },
-  timeout: 60_000,
 };
 
 const mediaDownloadJobOptions = {
@@ -17,7 +18,6 @@ const mediaDownloadJobOptions = {
   removeOnFail: { count: 50 },
   attempts: 5,
   backoff: { type: "exponential" as const, delay: 2000 },
-  timeout: 90_000,
 };
 
 export const botQueue = new Queue("bot-messages", { connection, defaultJobOptions });
@@ -41,7 +41,6 @@ const metaConversionsJobOptions = {
   removeOnFail: { count: 50 },
   attempts: 5,
   backoff: { type: "exponential" as const, delay: 2000 },
-  timeout: 30_000,
 };
 export const metaConversionsQueue = new Queue("meta-conversions", {
   connection,
@@ -49,3 +48,52 @@ export const metaConversionsQueue = new Queue("meta-conversions", {
 });
 export const appointmentReminderQueue = new Queue("appointment-reminders", { connection, defaultJobOptions });
 export const sequenceQueue = new Queue("sequence-tick", { connection, defaultJobOptions });
+// Tick de campañas programadas en su propia cola: en campaign-send (concurrencia
+// 1) quedaba esperando detrás de cualquier campaña en envío, y una campaña de
+// miles de destinatarios retrasaba todas las programadas hasta terminar.
+export const campaignScheduleQueue = new Queue("campaign-schedule-tick", { connection, defaultJobOptions });
+
+// Bus de eventos de dominio (lib/events): un job por evento; el worker lo
+// reparte a los webhooks que coinciden (y a automatizaciones en la fase 2).
+export const domainEventQueue = new Queue("domain-events", {
+  connection,
+  defaultJobOptions: { ...defaultJobOptions, removeOnComplete: { count: 500 } },
+});
+// Motor de automatizaciones: un job por avance de ejecución ({ runId }), con
+// delay para las esperas de tiempo. Sin reintentos de BullMQ: los fallos de
+// envío los maneja el runner (backoff propio en la ejecución) y un error
+// inesperado deja la ejecución FAILED con su mensaje.
+export const automationRunQueue = new Queue("automation-run", {
+  connection,
+  defaultJobOptions: { removeOnComplete: { count: 500 }, removeOnFail: { count: 200 }, attempts: 1 },
+});
+// Respaldo cada minuto: esperas vencidas cuyo job diferido se perdió y
+// timeouts de "esperar respuesta".
+export const automationTickQueue = new Queue("automation-tick", { connection, defaultJobOptions });
+// Coexistencia de WhatsApp: pedir a Meta la sincronización (contactos e
+// historial) dentro de las 24 h del alta y procesar los lotes de historial /
+// contactos que llegan por webhook (pueden ser miles de mensajes, se encolan en
+// vez de procesarse dentro de la petición de Meta). 5 intentos: cada petición a
+// Meta solo se puede hacer una vez, el reintento retoma donde quedó.
+export const coexistenceSyncQueue = new Queue("coexistence-sync", {
+  connection,
+  defaultJobOptions: { ...defaultJobOptions, attempts: 5, backoff: { type: "exponential" as const, delay: 5000 } },
+});
+// Vigilancia de coexistencia cada 15 min: sincronizaciones por vencer, token de
+// negocio por vencer.
+export const coexistenceTickQueue = new Queue("coexistence-tick", { connection, defaultJobOptions });
+// Facturación cada hora: pruebas y gracias vencidas → solo lectura, avisos.
+export const billingTickQueue = new Queue("billing-tick", { connection, defaultJobOptions });
+// Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a
+// propósito: el receptor suele estar caído por minutos, no por segundos
+// (30s, 1m, 2m, 4m, 8m, 16m ≈ 31 min en total).
+export const WEBHOOK_DELIVERY_ATTEMPTS = 6;
+export const webhookDeliveryQueue = new Queue("webhook-deliveries", {
+  connection,
+  defaultJobOptions: {
+    removeOnComplete: { count: 200 },
+    removeOnFail: { count: 200 },
+    attempts: WEBHOOK_DELIVERY_ATTEMPTS,
+    backoff: { type: "exponential" as const, delay: 30_000 },
+  },
+});

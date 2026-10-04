@@ -67,18 +67,18 @@ export function Table<T>({
   skeletonRows = 5,
   className,
 }: TableProps<T>) {
-  if (error) {
-    return <ListErrorState message={error} onRetry={onRetry ?? (() => {})} className={className} />;
-  }
-
   if (loading) {
     return (
-      <div className={cn("divide-y divide-border", className)}>
+      <div className={cn("divide-y divide-border", className)} role="status" aria-label="Cargando datos">
         {Array.from({ length: skeletonRows }).map((_, i) => (
           <SkeletonRow key={i} cols={columns.length} />
         ))}
       </div>
     );
+  }
+
+  if (error) {
+    return <ListErrorState message={error} onRetry={onRetry} className={className} />;
   }
 
   if (rows.length === 0) {
@@ -95,31 +95,36 @@ export function Table<T>({
 
   return (
     <div className={className}>
-      <div className="hidden sm:block overflow-x-auto -mx-5">
+      <div className="-mx-5 hidden overflow-x-auto sm:block" role="region" aria-label="Tabla desplazable horizontalmente" tabIndex={0}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-y border-border">
               {columns.map((col) => (
                 <th
                   key={col.key}
+                  aria-sort={col.sortable && onSortChange
+                    ? sort?.key === col.key ? sort.direction === "asc" ? "ascending" : "descending" : "none"
+                    : undefined}
                   className={cn(
                     "px-4 py-2.5 text-left text-xs font-medium text-muted-darker uppercase tracking-wider first:pl-5",
                     col.hideBelow && HIDE_BELOW_CLASS[col.hideBelow],
-                    col.sortable && "cursor-pointer select-none hover:text-foreground",
                     col.headerClassName
                   )}
-                  onClick={col.sortable && onSortChange ? () => onSortChange(col.key) : undefined}
                 >
-                  <span className="inline-flex items-center gap-1">
-                    {col.header}
-                    {col.sortable && sort?.key === col.key && (
-                      sort.direction === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />
-                    )}
-                  </span>
+                  {col.sortable && onSortChange ? (
+                    <button
+                      type="button"
+                      onClick={() => onSortChange(col.key)}
+                      className="inline-flex items-center gap-1 rounded-sm text-left hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+                    >
+                      {col.header}
+                      {sort?.key === col.key && (sort.direction === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                    </button>
+                  ) : <span className="inline-flex items-center gap-1">{col.header}</span>}
                 </th>
               ))}
               {rowActions && (
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-darker uppercase tracking-wider w-12" />
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-darker uppercase tracking-wider w-12"><span className="sr-only">Acciones</span></th>
               )}
             </tr>
           </thead>
@@ -147,7 +152,7 @@ export function Table<T>({
                     <Dropdown
                       align="right"
                       trigger={
-                        <button className="p-1 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
+                        <button type="button" aria-label="Acciones" className="p-1.5 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
                           <MoreVertical size={14} />
                         </button>
                       }
@@ -180,7 +185,7 @@ export function Table<T>({
                 <Dropdown
                   align="right"
                   trigger={
-                    <button className="p-1.5 rounded-md border border-border bg-surface hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
+                    <button type="button" aria-label="Acciones" className="p-1.5 rounded-md border border-border bg-surface hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
                       <MoreVertical size={14} />
                     </button>
                   }

@@ -2,18 +2,18 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Plus, RefreshCw, MessageSquareText } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
-import { TemplateFormModal } from "./_form";
-import { TemplateMetricsModal } from "@/app/components/whatsapp/template-metrics-modal";
 
 interface Account { id: string; name: string; channel: string; wabaId: string | null; status: string; }
 
@@ -36,33 +36,48 @@ const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" 
   REJECTED: { label: "Rechazada", tone: "danger" },
   PAUSED: { label: "Pausada", tone: "neutral" },
   DISABLED: { label: "Deshabilitada", tone: "neutral" },
+  DELETED: { label: "Ya no está en Meta", tone: "danger" },
 };
 
 function TemplatesContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedId = searchParams.get("accountId");
   const { success, error: toastError } = useToast();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(true);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [metricsTemplateId, setMetricsTemplateId] = useState<string | null>(null);
+
+  const fetchAccounts = useCallback(async () => {
+    setAccountsLoading(true);
+    setAccountsError(null);
+    try {
+      const res = await fetch("/api/whatsapp/accounts");
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) throw new Error(data.error ?? "Error al cargar cuentas");
+      const available = data.filter((account: Account) => account.channel === "WHATSAPP");
+      setAccounts(available);
+      setSelectedAccountId(preselectedId && available.some((account: Account) => account.id === preselectedId)
+        ? preselectedId : available.length === 1 ? available[0].id : "");
+    } catch (error) {
+      setAccounts([]);
+      setSelectedAccountId("");
+      setAccountsError(error instanceof Error ? error.message : "Error al cargar cuentas");
+    } finally {
+      setAccountsLoading(false);
+    }
+  }, [preselectedId]);
 
   useEffect(() => {
-    fetch("/api/whatsapp/accounts")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) {
-          setAccounts(d.filter((a: Account) => a.channel === "META_CLOUD"));
-          if (preselectedId) setSelectedAccountId(preselectedId);
-        }
-      })
-      .catch(() => toastError("Error al cargar cuentas"));
-  }, [preselectedId, toastError]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial; fetchAccounts también se usa para reintentar
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   const fetchTemplates = useCallback(async () => {
     if (!selectedAccountId) {
@@ -123,6 +138,7 @@ function TemplatesContent() {
       <div className="flex items-end gap-3 flex-wrap">
         <div className="w-64">
           <Select
+            aria-label="Cuenta de WhatsApp"
             value={selectedAccountId}
             onChange={(e) => setSelectedAccountId(e.target.value)}
             placeholder="Seleccionar cuenta"
@@ -146,7 +162,7 @@ function TemplatesContent() {
         <Button
           size="sm"
           icon={Plus}
-          onClick={() => setModalOpen(true)}
+          href={`/whatsapp/plantillas/nueva?accountId=${encodeURIComponent(selectedAccountId)}`}
           disabled={!selectedAccountId || missingWabaId}
         >
           Crear plantilla
@@ -159,11 +175,15 @@ function TemplatesContent() {
         </p>
       )}
 
-      {!selectedAccountId ? (
+      {accountsLoading ? (
+        <div className="flex items-center justify-center py-16"><Spinner /></div>
+      ) : accountsError ? (
+        <ListErrorState message={accountsError} onRetry={fetchAccounts} />
+      ) : !selectedAccountId ? (
         <EmptyState
           icon={MessageSquareText}
           title="Selecciona una cuenta"
-          description="Elige una cuenta WhatsApp para ver sus plantillas."
+          description={accounts.length === 0 ? "Conecta una cuenta WhatsApp para gestionar sus plantillas." : "Elige una cuenta WhatsApp para ver sus plantillas."}
         />
       ) : (
         <EntityList
@@ -175,7 +195,7 @@ function TemplatesContent() {
           emptyIcon={MessageSquareText}
           emptyTitle="Sin plantillas"
           emptyDescription="No hay plantillas en esta cuenta. Sincroniza desde Meta o crea una nueva."
-          onRowClick={(t) => setMetricsTemplateId(t.id)}
+          onRowClick={(t) => router.push(`/whatsapp/plantillas/${t.id}`)}
           renderRow={(t) => {
             const badge = STATUS_BADGE[t.status] ?? { label: t.status, tone: "neutral" as const };
             return (
@@ -189,7 +209,7 @@ function TemplatesContent() {
                     <span className="font-mono">
                       {new Date(t.syncedAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </span>
-                    <span className="text-accent">Ver métricas →</span>
+                    <span className="text-accent-ink">Ver métricas →</span>
                   </>
                 }
               />
@@ -198,15 +218,6 @@ function TemplatesContent() {
         />
       )}
 
-      <TemplateFormModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        accounts={accounts.filter((a) => !!a.wabaId)}
-        defaultAccountId={selectedAccountId}
-        onCreated={fetchTemplates}
-      />
-
-      <TemplateMetricsModal templateId={metricsTemplateId} onClose={() => setMetricsTemplateId(null)} />
     </div>
   );
 }

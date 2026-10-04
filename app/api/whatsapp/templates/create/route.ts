@@ -5,6 +5,8 @@ import { decrypt } from "@/lib/crypto";
 import { templateCreateSchema } from "@/lib/validations";
 import { createTemplate } from "@/lib/whatsapp/templates";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST(req: Request) {
   try {
@@ -12,6 +14,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const body = await req.json();
     const parsed = templateCreateSchema.safeParse(body);
@@ -89,7 +93,7 @@ export async function POST(req: Request) {
     return NextResponse.json(template, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -7,6 +7,7 @@ interface CheckboxProps {
   checked?: boolean;
   onChange?: (checked: boolean) => void;
   label?: string;
+  ariaLabel?: string;
   description?: string;
   disabled?: boolean;
   id?: string;
@@ -18,6 +19,7 @@ export function Checkbox({
   checked = false,
   onChange,
   label,
+  ariaLabel,
   description,
   disabled,
   id,
@@ -29,14 +31,15 @@ export function Checkbox({
       <div className="relative mt-0.5">
         <input
           type="checkbox"
+          aria-label={ariaLabel}
           id={id}
           checked={checked}
           onChange={(e) => onChange?.(e.target.checked)}
           disabled={disabled}
           className={cn(
             "peer h-4 w-4 shrink-0 rounded border border-border bg-surface-light",
-            "checked:bg-accent checked:border-accent",
-            "focus:outline-none focus:ring-2 focus:ring-accent/30 focus:ring-offset-1 focus:ring-offset-background",
+            "checked:bg-accent checked:border-accent-strong",
+            "focus:outline-none focus:ring-2 focus:ring-accent-muted focus:ring-offset-1 focus:ring-offset-background",
             disabled && "opacity-50 cursor-not-allowed",
             error && "border-danger-border",
             "appearance-none cursor-pointer transition-colors"

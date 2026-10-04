@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { DollarSign, Bot, Sparkles } from "lucide-react";
+import { DollarSign, Bot, Sparkles, Zap } from "lucide-react";
 import { Dropdown, DropdownButton } from "@/app/components/ui/dropdown";
 import { Badge } from "@/app/components/ui/badge";
 
 interface UsageEntry {
-  source: "bot" | "scorer";
+  source: "bot" | "scorer" | "automation";
   name: string;
   model: string;
   promptTokens: number;
@@ -30,7 +30,7 @@ function formatCost(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
-export function ChatCostBadge({ chatId }: { chatId: string }) {
+export function ChatCostBadge({ chatId, showEmpty = false }: { chatId: string; showEmpty?: boolean }) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<UsageData | null>(null);
 
@@ -49,13 +49,16 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
     fetchUsage();
   }, [fetchUsage]);
 
-  if (!data || data.interactions === 0) return null;
+  if (!data) return showEmpty ? <p className="text-xs text-muted-darker">Consumo no disponible todavía.</p> : null;
+  if (data.interactions === 0) return showEmpty ? <p className="text-xs text-muted-darker">Sin consumo registrado en este chat.</p> : null;
 
   return (
     <Dropdown
       open={open}
       onOpenChange={setOpen}
       align="right"
+      portal
+      closeOnSelect={false}
       trigger={
         <DropdownButton
           label={`${formatCost(data.totalCost)} IA`}
@@ -64,7 +67,7 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
         />
       }
     >
-      <div className="p-3 w-80 space-y-3 max-h-[70vh] overflow-y-auto">
+      <div className="p-3 w-[min(20rem,calc(100vw-2rem))] space-y-3 max-h-[70vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-lg font-semibold">{formatCost(data.totalCost)}</p>
@@ -75,7 +78,7 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
         </div>
 
         <p className="text-[11px] text-muted-darker">
-          Costo estimado de IA atribuible a esta conversación (respuestas del bot + calificaciones de lead). No incluye el costo de mensajes API de WhatsApp.
+          Costo estimado de IA atribuible a esta conversación (respuestas del bot, calificaciones de lead y pasos de IA de automatizaciones). No incluye el costo de mensajes API de WhatsApp.
         </p>
 
         <div className="space-y-1.5 pt-2 border-t border-border">
@@ -83,7 +86,9 @@ export function ChatCostBadge({ chatId }: { chatId: string }) {
             <div key={i} className="flex items-start justify-between gap-2 text-xs">
               <div className="flex items-start gap-1.5 min-w-0">
                 {entry.source === "bot" ? (
-                  <Bot size={12} className="text-accent shrink-0 mt-0.5" />
+                  <Bot size={12} className="text-accent-ink shrink-0 mt-0.5" />
+                ) : entry.source === "automation" ? (
+                  <Zap size={12} className="text-info shrink-0 mt-0.5" />
                 ) : (
                   <Sparkles size={12} className="text-warning shrink-0 mt-0.5" />
                 )}

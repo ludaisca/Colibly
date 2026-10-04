@@ -49,6 +49,9 @@ export async function importNewLeadsForSource(
   source: SourceWithRelations,
   opts: ImportOptions = {}
 ): Promise<ImportResult> {
+  if (!opts.seedOnly && source.waTemplate.status !== "APPROVED") {
+    throw new Error("La plantilla de esta fuente ya no está aprobada en Meta");
+  }
   const sheets = await getGoogleSheetsClientForUser(source.userId);
   if (!sheets) {
     throw new Error("La cuenta de Google no está conectada o fue deshabilitada");
@@ -142,9 +145,10 @@ export async function importNewLeadsForSource(
     }
   }
 
+  const leadAdsTagName = `Lead Ads: ${source.name}`;
   const leadAdsTag = await prisma.tag.upsert({
-    where: { name: `Lead Ads: ${source.name}` },
-    create: { name: `Lead Ads: ${source.name}` },
+    where: { waAccountId_name: { waAccountId: source.waAccountId, name: leadAdsTagName } },
+    create: { waAccountId: source.waAccountId, name: leadAdsTagName },
     update: {},
   });
 

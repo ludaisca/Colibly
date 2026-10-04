@@ -1,7 +1,9 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { GripVertical, Phone, Clock } from "lucide-react";
+import { labelText } from "@/lib/whatsapp/export-columns";
+import { GripVertical, Phone, Clock, MessageCircle } from "lucide-react";
+import { PIPELINE_STAGES, STAGE_LABEL } from "@/lib/pipeline/stages";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
@@ -13,6 +15,7 @@ export interface LeadCardData {
   remoteJid: string;
   leadStatus: LeadStatus;
   accountId: string | null;
+  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
   tags: { tag: { id: string; name: string; color: string } }[];
   bestScore: { score: number; label: string } | null;
   lastMessageAt: string | null;
@@ -35,18 +38,28 @@ function scoreTone(score: number): "danger" | "warning" | "success" {
   return "success";
 }
 
+// Etiquetas actuales del calificador (lib/whatsapp/lead-scoring.ts) más las
+// del esquema viejo frio/tibio/caliente, que siguen en scores antiguos.
 function scoreLabelClass(label: string): string {
   const l = label.toLowerCase();
+  if (l === "prioridad_alta" || l === "caliente") return "bg-danger-bg text-danger";
+  if (l === "oportunidad") return "bg-success-bg text-success";
+  if (l === "interesado" || l === "tibio") return "bg-warning-bg text-warning";
   if (l === "frio") return "bg-info-bg text-info";
-  if (l === "tibio") return "bg-warning-bg text-warning";
-  if (l === "caliente") return "bg-danger-bg text-danger";
   return "bg-surface-light text-muted";
 }
 
-export function LeadCard({ data }: { data: LeadCardData }) {
+export function LeadCard({ data, onOpen, onStageChange }: {
+  data: LeadCardData;
+  onOpen?: (id: string) => void;
+  onStageChange?: (id: string, stage: LeadStatus) => void;
+}) {
   const displayName = data.name ?? data.remoteJid ?? "Desconocido";
   const phoneShort =
     data.remoteJid?.replace(/@.*$/, "").slice(-10) ?? "";
+  const channelLabel = data.channel === "WEBCHAT"
+    ? "Chat web"
+    : data.channel.charAt(0) + data.channel.slice(1).toLowerCase();
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -65,11 +78,9 @@ export function LeadCard({ data }: { data: LeadCardData }) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow cursor-grab active:cursor-grabbing",
-        isDragging && "shadow-lg opacity-80 z-50 ring-2 ring-accent/30"
+        "group rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow",
+        isDragging && "shadow-lg opacity-80 z-50 ring-2 ring-accent-muted"
       )}
-      {...attributes}
-      {...listeners}
     >
       <div className="flex items-start gap-3">
         <EntityAvatar
@@ -87,8 +98,10 @@ export function LeadCard({ data }: { data: LeadCardData }) {
           </div>
 
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-darker">
-            <Phone size={10} className="shrink-0" />
-            <span className="font-mono tabular-nums">{phoneShort}</span>
+            {data.channel === "WHATSAPP" ? <Phone size={10} className="shrink-0" /> : <MessageCircle size={10} className="shrink-0" />}
+            <span className="truncate font-mono tabular-nums" title={data.remoteJid}>
+              {data.channel === "WHATSAPP" ? phoneShort : `${channelLabel} · ${data.remoteJid}`}
+            </span>
             <span className="text-muted">·</span>
             <Clock size={10} className="shrink-0" />
             <span>{formatTime(data.lastMessageAt)}</span>
@@ -110,10 +123,13 @@ export function LeadCard({ data }: { data: LeadCardData }) {
           )}
         </div>
 
-        <GripVertical
-          size={14}
-          className="shrink-0 text-muted opacity-0 group-hover:opacity-100 transition-opacity mt-1"
-        />
+        <button
+          type="button"
+          aria-label={`Mover ${displayName}`}
+          className="mt-0.5 shrink-0 cursor-grab rounded p-1 text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        ><GripVertical size={16} /></button>
       </div>
 
       {data.bestScore && (
@@ -131,12 +147,29 @@ export function LeadCard({ data }: { data: LeadCardData }) {
           </div>
           <span
             className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
+              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold",
               scoreLabelClass(data.bestScore.label)
             )}
           >
-            {data.bestScore.label}
+            {labelText(data.bestScore.label)}
           </span>
+        </div>
+      )}
+      {onOpen && (
+        <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+          <button type="button" onClick={() => onOpen(data.id)} className="text-xs font-semibold text-accent-ink hover:underline">
+            Ver contacto
+          </button>
+          {onStageChange && (
+            <select
+              aria-label={`Etapa de ${displayName}`}
+              value={data.leadStatus}
+              onChange={(event) => onStageChange(data.id, event.target.value as LeadStatus)}
+              className="ml-auto max-w-36 rounded border border-border bg-surface px-2 py-1 text-xs text-foreground"
+            >
+              {PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{STAGE_LABEL[stage]}</option>)}
+            </select>
+          )}
         </div>
       )}
     </div>

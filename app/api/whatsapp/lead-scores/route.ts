@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { CHAT_ATTRIBUTION_MESSAGE_QUERY, resolveChatAttribution } from "@/lib/whatsapp/chat-attribution";
 import type { LeadScoreRow } from "@/lib/whatsapp/export-columns";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 const TAKE = 500;
 
@@ -87,11 +88,18 @@ export async function GET() {
         })
       : [];
 
-    const tgRows: LeadScoreRow[] = tgScores.flatMap(({ conversationId, ...score }) => {
-      const conversation = conversationId ? tgConversationById.get(conversationId) : undefined;
+    const tgRows: LeadScoreRow[] = tgScores.flatMap((s) => {
+      const conversation = s.conversationId ? tgConversationById.get(s.conversationId) : undefined;
       if (!conversation) return [];
       return [{
-        ...score,
+        id: s.id,
+        score: s.score,
+        label: s.label,
+        summary: s.summary,
+        reasons: s.reasons,
+        details: s.details as LeadScoreRow["details"],
+        updatedAt: s.updatedAt.toISOString(),
+        scorer: s.scorer,
         campaign: null,
         channel: "TELEGRAM" as const,
         chat: {
@@ -112,7 +120,7 @@ export async function GET() {
 
     return NextResponse.json(rows);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

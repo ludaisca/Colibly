@@ -1,50 +1,63 @@
 import { prisma } from "@/lib/prisma";
-import { sendRecoveryMessage, isWithinBusinessHours } from "@/lib/whatsapp/lead-recovery";
+import { sendRecoveryMessage, isWithinBusinessHours, isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramRecoveryMessage } from "@/lib/telegram/lead-recovery";
 import { sendMetaChannelRecoveryMessage } from "@/lib/meta-messaging/lead-recovery";
-import { checkBudgetAlert, isMonthlyBudgetExceeded } from "@/lib/ai/budget";
-import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
-import type { AppSettings, WABot, WAAccount, ChannelAccount } from "@prisma/client";
+import { hasAiCredits, reserveAiCredit } from "@/lib/ai/credits";
+import type { Organization, WABot, WAAccount, ChannelAccount } from "@prisma/client";
+import { isOrgWritable } from "@/lib/billing/gates";
 
 // Scheduled runs are unattended, so keep each tick's blast radius bounded —
 // same reasoning as lead-scoring-worker.ts's CANDIDATE_POOL/BATCH_SIZE.
 const CANDIDATE_POOL = 200;
 const BATCH_SIZE = 20;
+const HOUR_MS = 3_600_000;
+
+// Rango de `lastMessageAt` que vale la pena revisar. Antes el pool eran los
+// 200 chats más RECIENTES: en una cuenta con más de 200 chats activos, los
+// silencios viejos — justo los que hay que recuperar — nunca entraban. Ahora
+// se excluye la actividad de la última hora (unidad mínima configurable) y lo
+// demasiado viejo, y se recorre del silencio más antiguo al más nuevo.
+function candidateWindow(now: Date, maxAgeHours: number) {
+  return { lte: new Date(now.getTime() - HOUR_MS), gte: new Date(now.getTime() - maxAgeHours * HOUR_MS) };
+}
 
 export async function processLeadRecoveryTick() {
   const now = new Date();
 
-  const settingsList = await prisma.appSettings.findMany({
-    where: { leadRecoveryEnabled: true },
+  // La configuración es de la organización (una sola pasada por empresa, no
+  // una por cada admin que la hubiera activado).
+  const orgs = await prisma.organization.findMany({
+    where: { leadRecoveryEnabled: true, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
   });
 
-  for (const settings of settingsList) {
+  for (const org of orgs) {
     try {
-      await runRecoveryForUser(settings, now);
+      await runRecoveryForOrg(org, now);
     } catch (err) {
-      console.error(`[lead-recovery] Error ejecutando recuperación para usuario ${settings.userId}:`, err);
+      console.error(`[lead-recovery] Error ejecutando recuperación para la organización ${org.id}:`, err);
     }
   }
 }
 
-async function runRecoveryForUser(settings: AppSettings, now: Date) {
-  if (await isMonthlyBudgetExceeded(settings.userId, now)) {
-    console.log(`[lead-recovery] Presupuesto mensual de IA superado, se omite la recuperación para el usuario ${settings.userId} en este ciclo`);
+async function runRecoveryForOrg(settings: Organization, now: Date) {
+  if (!(await isOrgWritable(settings.id))) return;
+  if (!(await hasAiCredits(settings.id, now))) {
+    console.log(`[lead-recovery] Sin créditos de IA, se omite la recuperación de la organización ${settings.id} en este ciclo`);
     return;
   }
 
   if (
     !isWithinBusinessHours(now, {
-      timezone: settings.leadRecoveryTimezone,
-      startHour: settings.leadRecoveryBusinessHourStart,
-      endHour: settings.leadRecoveryBusinessHourEnd,
+      timezone: settings.timezone,
+      startHour: settings.businessHourStart,
+      endHour: settings.businessHourEnd,
     })
   ) {
     return; // fuera de horario — se reintenta en el próximo tick
   }
 
-  const accountIds = await getUserAccountIds(settings.userId);
-  if (accountIds.length === 0) return;
+  const accountIds = (await prisma.wAAccount.findMany({ where: { organizationId: settings.id }, select: { id: true } })).map((a) => a.id);
+  if (accountIds.length === 0 && !(await prisma.channelAccount.count({ where: { organizationId: settings.id } }))) return;
 
   const candidates = await prisma.wAChat.findMany({
     where: {
@@ -53,6 +66,10 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       // Debe haber habido conversación real — un chat que solo recibió una
       // campaña y nunca contestó no es un lead "abandonado", nunca se enganchó.
       messages: { some: { direction: "INBOUND" } },
+      // WhatsApp: pasadas 24h del último mensaje ya no se puede escribir texto
+      // libre (lastMessageAt ≥ último INBOUND, así que esto no deja fuera a nadie
+      // que todavía esté dentro de la ventana).
+      lastMessageAt: candidateWindow(now, 24),
     },
     select: {
       id: true,
@@ -60,7 +77,7 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       remoteJid: true,
       messages: { orderBy: { timestamp: "desc" }, take: 1, select: { direction: true } },
     },
-    orderBy: { lastMessageAt: "desc" },
+    orderBy: { lastMessageAt: "asc" },
     take: CANDIDATE_POOL,
   });
 
@@ -68,7 +85,8 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
 
   const botCache = new Map<string, (WABot & { waAccount: WAAccount | null }) | null>();
   let sentCount = 0;
-  let sentAny = false;
+  // Un crédito por mensaje generado; al agotarse, el tick termina para esta organización.
+  let outOfCredits = false;
 
   for (const chat of silentChats) {
     if (sentCount >= BATCH_SIZE) break;
@@ -79,6 +97,10 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       select: { timestamp: true },
     });
     if (!lastInbound) continue;
+    // Fuera de la ventana de 24h de Meta no se puede enviar texto libre — antes
+    // se intentaba igual y sendRecoveryMessage() lanzaba, dejando un error en
+    // el log cada 15 min por cada chat así.
+    if (!isWithinServiceWindow(lastInbound.timestamp, now)) continue;
 
     const hoursSilent = (now.getTime() - lastInbound.timestamp.getTime()) / 3_600_000;
 
@@ -108,9 +130,12 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
     const bot = botCache.get(chat.accountId);
     if (!bot) continue; // sin bot activo en esa cuenta, no hay con qué generar el mensaje
 
+    if (!(await reserveAiCredit(settings.id, now))) {
+      outOfCredits = true;
+      break;
+    }
     try {
       await sendRecoveryMessage(chat, bot, attemptNumber, lastInbound.timestamp, now);
-      sentAny = true;
       sentCount++;
     } catch (err) {
       console.error(`[lead-recovery] Error enviando reactivación al chat ${chat.id}:`, err instanceof Error ? err.message : err);
@@ -126,13 +151,19 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
   // ChannelAccount de Messenger/Instagram (credentials sin `botToken`) hacía
   // fallar el envío en silencio y la recuperación nunca ocurría para esos dos
   // canales (ver lib/meta-messaging/lead-recovery.ts).
-  const channelAccountIds = await getUserChannelAccountIds(settings.userId);
-  if (channelAccountIds.length > 0) {
+  const channelAccountIds = (await prisma.channelAccount.findMany({ where: { organizationId: settings.id }, select: { id: true } })).map((a) => a.id);
+  if (channelAccountIds.length > 0 && !outOfCredits) {
     const channelCandidates = await prisma.conversation.findMany({
       where: {
         channelAccountId: { in: channelAccountIds },
         status: { in: ["OPEN", "PENDING"] },
         messages: { some: { direction: "INBOUND" } },
+        // Sin ventana de 24h en estos canales, pero tampoco tiene sentido
+        // "recuperar" silencios de semanas: hasta 48h después del último intento.
+        lastMessageAt: candidateWindow(
+          now,
+          (settings.leadRecoverySecondMessageHours ?? settings.leadRecoveryFirstMessageHours) + 48
+        ),
       },
       select: {
         id: true,
@@ -140,7 +171,7 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
         externalId: true,
         messages: { orderBy: { timestamp: "desc" }, take: 1, select: { direction: true } },
       },
-      orderBy: { lastMessageAt: "desc" },
+      orderBy: { lastMessageAt: "asc" },
       take: CANDIDATE_POOL,
     });
 
@@ -185,21 +216,17 @@ async function runRecoveryForUser(settings: AppSettings, now: Date) {
       const channelBot = channelBotCache.get(conv.channelAccountId);
       if (!channelBot?.channelAccount) continue;
 
+      if (!(await reserveAiCredit(settings.id, now))) break;
       try {
         if (channelBot.channelAccount.channel === "TELEGRAM") {
           await sendTelegramRecoveryMessage(conv, channelBot, attemptNumber, now);
         } else {
           await sendMetaChannelRecoveryMessage(conv, channelBot, attemptNumber, now);
         }
-        sentAny = true;
         sentCount++;
       } catch (err) {
         console.error(`[lead-recovery] Error enviando reactivación a la conversación ${conv.id}:`, err instanceof Error ? err.message : err);
       }
     }
-  }
-
-  if (sentAny) {
-    await checkBudgetAlert(settings.userId, now);
   }
 }

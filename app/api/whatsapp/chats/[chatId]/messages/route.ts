@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 const MESSAGE_SELECT = {
   id: true,
@@ -18,12 +20,19 @@ const MESSAGE_SELECT = {
   timestamp: true,
 } as const;
 
-// ChannelMessage (Telegram/Messenger/Instagram) no tiene interactivePayload
-// — columna exclusiva de WAMessage, ver "Mensajes interactivos" en AGENTS.md.
-const WA_MESSAGE_SELECT = { ...MESSAGE_SELECT, interactivePayload: true } as const;
-// isFromComment (roadmap P3-c) es exclusivo de ChannelMessage — WAMessage no
-// tiene esta columna, por eso vive en su propio select en vez del base.
-const CHANNEL_MESSAGE_SELECT = { ...MESSAGE_SELECT, isFromComment: true } as const;
+// interactivePayload (botones/lista enviados, u opción elegida) existe en
+// ambas tablas desde las automatizaciones. isFromComment (roadmap P3-c) es
+// exclusivo de ChannelMessage.
+const WA_MESSAGE_SELECT = {
+  ...MESSAGE_SELECT,
+  interactivePayload: true,
+  wamid: true,
+  replyToWamid: true,
+  reactionEmoji: true,
+  agentReactionEmoji: true,
+  agentReactions: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { id: true, emoji: true, status: true, error: true } },
+} satisfies Prisma.WAMessageSelect;
+const CHANNEL_MESSAGE_SELECT = { ...MESSAGE_SELECT, interactivePayload: true, isFromComment: true } as const;
 
 export async function GET(
   req: Request,
@@ -65,7 +74,7 @@ export async function GET(
     }
 
     const messages = await prisma.wAMessage.findMany({
-      where: { chatId, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
+      where: { chatId, messageType: { not: "reaction" }, ...(beforeDate ? { timestamp: { lt: beforeDate } } : {}) },
       select: WA_MESSAGE_SELECT,
       orderBy: { timestamp: "desc" },
       take: limit,
@@ -76,10 +85,21 @@ export async function GET(
       data: { unreadCount: 0 },
     });
 
-    return NextResponse.json(messages.reverse());
+    const quotedIds = [...new Set(messages.map((message) => message.replyToWamid).filter((id): id is string => !!id))];
+    const quoted = quotedIds.length
+      ? await prisma.wAMessage.findMany({
+          where: { chatId, wamid: { in: quotedIds } },
+          select: { wamid: true, id: true, direction: true, body: true, caption: true, messageType: true },
+        })
+      : [];
+    const quotedByWamid = new Map(quoted.map((message) => [message.wamid, message]));
+    return NextResponse.json(messages.reverse().map((message) => ({
+      ...message,
+      replyTo: message.replyToWamid ? quotedByWamid.get(message.replyToWamid) ?? null : null,
+    })));
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

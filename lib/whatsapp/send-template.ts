@@ -1,5 +1,7 @@
 import { decrypt } from "@/lib/crypto";
 import type { WAAccount } from "@prisma/client";
+import { httpTimeout } from "@/lib/http-timeouts";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 export interface SendTemplateParams {
   to: string;
@@ -21,6 +23,7 @@ export async function sendTemplateMessage(
   account: WAAccount,
   params: SendTemplateParams
 ): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   if (!account.accessToken || !account.phoneNumberId) {
     throw new Error("La cuenta de WhatsApp no tiene accessToken/phoneNumberId configurados");
   }
@@ -82,12 +85,12 @@ export async function sendTemplateMessage(
     body: JSON.stringify(body),
   };
 
-  let res = await fetch(url, requestInit);
+  let res = await fetch(url, { ...requestInit, signal: httpTimeout() });
 
   if (res.status === 429) {
     const retryAfter = Number(res.headers.get("Retry-After") || "5");
     await new Promise((r) => setTimeout(r, retryAfter * 1000));
-    res = await fetch(url, requestInit);
+    res = await fetch(url, { ...requestInit, signal: httpTimeout() });
   }
 
   if (!res.ok) {

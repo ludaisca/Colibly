@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { generateEmbedding } from "@/lib/ai/embeddings";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import type { AIProvider } from "@/lib/ai/types";
 
 const CHUNK_SIZE = 800;
@@ -30,7 +30,7 @@ function chunkText(text: string): string[] {
 export async function processRagJob(job: RagJob) {
   const { title, content, botIds, provider, userId, sourceName } = job;
 
-  const apiKey = await getUserApiKey(userId, provider);
+  const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     await notifyIndexFailure(userId, botIds[0], title, "No hay API key configurada para el proveedor de este bot.");
     return;

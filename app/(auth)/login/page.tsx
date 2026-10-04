@@ -19,6 +19,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
+  const notice = searchParams.get("reset") === "1" ? "Listo, tu contraseña cambió. Inicia sesión con la nueva." : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -60,7 +61,7 @@ function LoginForm() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex justify-center">
-        <Logo href="/" brand="SundayCRM" size="lg" />
+        <Logo href="/" size="lg" />
       </div>
 
       <Card>
@@ -68,11 +69,15 @@ function LoginForm() {
           <CardTitle>Iniciar sesión</CardTitle>
         </CardHeader>
         <CardBody>
-          {serverError && (
+          {serverError ? (
             <Banner tone="danger" className="mb-4">
               {serverError}
             </Banner>
-          )}
+          ) : notice ? (
+            <Banner tone="success" className="mb-4">
+              {notice}
+            </Banner>
+          ) : null}
           <form onSubmit={handleSubmit} className="space-y-4">
             <FormField label="Email" required error={errors.email}>
               {(id) => (
@@ -102,6 +107,12 @@ function LoginForm() {
               )}
             </FormField>
 
+            <div className="flex justify-end -mt-1">
+              <Link href="/recuperar" className="text-sm text-accent-ink underline underline-offset-2">
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+
             <Button type="submit" fullWidth loading={loading} icon={LogIn}>
               Ingresar
             </Button>
@@ -110,7 +121,7 @@ function LoginForm() {
         <CardFooter>
           <p className="text-sm text-muted-darker">
             ¿No tienes cuenta?{" "}
-            <Link href="/register" className="text-accent hover:underline">
+            <Link href="/register" className="text-accent-ink underline underline-offset-2">
               Regístrate
             </Link>
           </p>

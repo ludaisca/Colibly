@@ -1,0 +1,109 @@
+import Link from "next/link";
+import Script from "next/script";
+import { connection } from "next/server";
+import { Logo } from "@/app/components/ui/logo";
+import { Button } from "@/app/components/ui/button";
+import { Analytics, CookiePreferencesButton } from "@/app/components/analytics/analytics";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { getAnalyticsConfig } from "@/lib/analytics/config";
+import { LEGAL } from "./_legal";
+import { MobileNav } from "./_mobile-nav";
+import { appUrl } from "@/lib/app-url";
+
+// 44 px de alto para tocar con el dedo; en escritorio vuelve a su altura de texto.
+const FOOTER_LINK = "inline-flex min-h-11 items-center hover:text-foreground md:min-h-0";
+
+const FOOTER_COLUMNS = [
+  { title: "Beta", links: [{ href: "/", label: "Conocer la beta" }, { href: "/#solicitar", label: "Solicitar acceso" }, { href: "/#preguntas", label: "Preguntas frecuentes" }] },
+  { title: "Legal", links: [{ href: "/terminos", label: "Términos y condiciones" }, { href: "/privacidad", label: "Aviso de privacidad" }] },
+];
+
+// Nuestro propio widget de chat web en la landing (una cuenta WEBCHAT de la
+// organización de Colibly, con el dominio público en sus orígenes
+// permitidos). Solo ids con forma de cuid: el valor va dentro de una URL.
+function landingWebchatAccountId(): string | null {
+  const id = process.env.LANDING_WEBCHAT_ACCOUNT_ID?.trim();
+  return id && /^[a-z0-9]{20,40}$/i.test(id) ? id : null;
+}
+
+// El contacto se muestra cuando los datos legales dejan de ser marcadores.
+const contactEmail = LEGAL.email.startsWith("[") ? null : LEGAL.email;
+
+// Sitio público: landing, términos y privacidad. Sin sesión ni shell del panel.
+// Siempre en tema claro: .theme-light restablece los tokens claros aunque el
+// visitante haya elegido el oscuro en el panel (next-themes pone .dark en <html>).
+export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
+  // Los ids de medición viven en PlatformSettings y se leen por petición.
+  // Evita consultar PostgreSQL al prerenderizar el build aislado.
+  await connection();
+  const analytics = await getAnalyticsConfig();
+  const webchatId = landingWebchatAccountId();
+
+  return (
+    <div className="theme-light min-h-dvh bg-background text-foreground">
+      <a
+        href="#contenido-principal"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100001] focus:rounded-[12px] focus:bg-surface focus:px-4 focus:py-3 focus:text-foreground focus:shadow-lg"
+      >
+        Saltar al contenido principal
+      </a>
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-sm">
+        <div className="relative mx-auto flex max-w-6xl items-center gap-2 px-4 py-2 md:gap-4 md:px-6">
+          <Logo href="/" />
+          <nav className="ml-auto hidden items-center gap-6 text-sm text-muted md:flex" aria-label="Secciones">
+            <Link href="/#como-funciona" className="hover:text-foreground">Cómo funciona</Link>
+            <Link href="/#incluye" className="hover:text-foreground">La beta</Link>
+            <Link href="/#preguntas" className="hover:text-foreground">Preguntas</Link>
+          </nav>
+          <div className="ml-auto flex items-center gap-2 md:ml-0">
+            {/* En móvil "Entrar" vive en el menú para que quepan logo, botón y menú en 360 px. */}
+            <span className="hidden md:block">
+              <Button href={appUrl("/login")} variant="ghost">Entrar</Button>
+            </span>
+            <Button href="/#solicitar" data-track="cta" data-track-location="header">Solicitar beta</Button>
+            <MobileNav loginHref={appUrl("/login")} />
+          </div>
+        </div>
+      </header>
+
+      <main id="contenido-principal" tabIndex={-1} className="scroll-mt-20">{children}</main>
+
+      <footer className="border-t border-border/60">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted md:grid-cols-[1.4fr_repeat(3,1fr)] md:px-6">
+          <div className="space-y-3">
+            <Logo href="/" />
+            <p className="max-w-xs">{BRAND_TAGLINE}.</p>
+            {contactEmail && (
+              <p>
+                Escríbenos: <a href={`mailto:${contactEmail}`} className="font-medium text-foreground hover:underline">{contactEmail}</a>
+              </p>
+            )}
+          </div>
+          {FOOTER_COLUMNS.map((col) => (
+            <nav key={col.title} aria-label={col.title}>
+              <p className="mb-2 font-semibold text-foreground">{col.title}</p>
+              <ul className="flex flex-col md:gap-2">
+                {col.links.map((l) => (
+                  <li key={l.href}><Link href={l.href} className={FOOTER_LINK}>{l.label}</Link></li>
+                ))}
+                {col.title === "Legal" && analytics && (
+                  <li><CookiePreferencesButton className={`${FOOTER_LINK} cursor-pointer`} /></li>
+                )}
+              </ul>
+            </nav>
+          ))}
+          <nav aria-label="Cuenta">
+            <p className="mb-2 font-semibold text-foreground">Cuenta</p>
+            <a href={appUrl("/login")} className={FOOTER_LINK}>Entrar al producto</a>
+          </nav>
+        </div>
+        <div className="border-t border-border/60">
+          <p className="mx-auto max-w-6xl px-4 py-4 text-xs text-muted md:px-6">© {new Date().getFullYear()} {BRAND_NAME}</p>
+        </div>
+      </footer>
+
+      {analytics && <Analytics config={analytics} />}
+      {webchatId && <Script src={`/api/webchat/${webchatId}/widget.js`} strategy="lazyOnload" />}
+    </div>
+  );
+}

@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { dispatchInboundMessage } from "@/lib/automations/dispatch";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -42,6 +45,7 @@ export interface NormalizedInboundMessage {
   // (interactive.button_reply.id / list_reply.id) — el título ya viaja en
   // `body`, esto es solo para correlacionar qué opción se tocó.
   interactiveReplyId?: string | null;
+  replyToWamid?: string | null;
   // Presente solo en el primer mensaje de un chat que vino de un anuncio
   // click-to-WhatsApp. Meta lo manda en cada mensaje de ese chat, pero solo
   // importa para atribución en el create del Contact (first-touch) — ver
@@ -126,6 +130,14 @@ export async function ingestInboundMessage(
     },
   });
 
+  // Un cliente que vuelve a escribir en un chat RESUELTO lo reabre — antes
+  // quedaba RESOLVED y fuera de la calificación programada, la recuperación de
+  // leads (ambas filtran OPEN/PENDING) y las métricas de resolución. PENDING no
+  // se toca: puede significar otra cosa para el equipo.
+  if (chat.status === "RESOLVED") {
+    await prisma.wAChat.update({ where: { id: chat.id }, data: { status: "OPEN", resolvedAt: null } });
+  }
+
   let createdMessage;
   try {
     createdMessage = await prisma.wAMessage.create({
@@ -142,6 +154,7 @@ export async function ingestInboundMessage(
         filename: msg.filename ?? null,
         bytesSize: msg.bytesSize ?? null,
         interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
+        replyToWamid: msg.replyToWamid ?? null,
         referral: msg.referral ? (msg.referral as Prisma.InputJsonValue) : undefined,
         timestamp: msg.timestamp,
       },
@@ -170,8 +183,34 @@ export async function ingestInboundMessage(
   }
 
   let assignedToId = chat.assignedToId;
+  const autoAssigned = !assignedToId;
   if (!assignedToId) {
     assignedToId = await autoAssignChat(accountId, chat.id);
+  }
+
+  // Eventos de dominio (webhooks salientes). emitDomainEvent solo encola y
+  // nunca lanza, así que no puede tumbar la ingesta.
+  const refs = {
+    account: { kind: "whatsapp" as const, id: accountId },
+    chat: { kind: "whatsapp" as const, id: chat.id },
+    contactId: contactRecord.id,
+  };
+  if (!existingContact) {
+    await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: contactRecord.leadOrigin, source: "inbound" } }, msg.timestamp);
+    if (contactRecord.leadOrigin === "CTWA") {
+      await emitDomainEvent({ type: "lead.ad_captured", ...refs, data: { origin: "CTWA", adId: contactRecord.adId } }, msg.timestamp);
+    }
+  }
+  await emitDomainEvent(
+    {
+      type: "message.received",
+      ...refs,
+      data: { messageId: createdMessage.id, messageType: msg.type, text: msg.body || null, interactiveReplyId: msg.interactiveReplyId ?? null },
+    },
+    msg.timestamp
+  );
+  if (autoAssigned && assignedToId) {
+    await emitDomainEvent({ type: "conversation.assigned", ...refs, data: { assignedToId, auto: true } });
   }
 
   if (assignedToId) {
@@ -191,14 +230,36 @@ export async function ingestInboundMessage(
     data: { lastActivity: new Date() },
   });
 
-  const activeBots = await prisma.wABot.findMany({
-    where: { waAccountId: accountId, isActive: true, status: "ACTIVE" },
-    select: { id: true },
+  // Un solo bot responde por cuenta (la API ya no permite activar un segundo;
+  // el orderBy cubre cuentas que quedaron con varios activos de antes). El
+  // retraso agrupa ráfagas: si llega otro mensaje en esos segundos, este job
+  // se descarta y responde el del mensaje más reciente (ver lib/bots/guards.ts).
+  // Automatizaciones antes que el bot: una que esté esperando respuesta en
+  // este chat, o que arranque con este mensaje, lo toma y el bot calla. Un
+  // fallo del motor nunca debe dejar al lead sin respuesta del bot.
+  const { suppressBot } = await dispatchInboundMessage({
+    account: refs.account,
+    chat: refs.chat,
+    contactId: contactRecord.id,
+    text: msg.body,
+    replyId: msg.interactiveReplyId ?? null,
+    isFirstMessage: !existingChat,
+  }).catch((err) => {
+    console.error("[ingest] dispatchInboundMessage falló:", err);
+    return { suppressBot: false };
   });
 
-  for (const bot of activeBots) {
+  const activeBot = suppressBot
+    ? null
+    : await prisma.wABot.findFirst({
+        where: { waAccountId: accountId, isActive: true, status: "ACTIVE" },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
+
+  if (activeBot) {
     await botQueue.add("process-message", {
-      botId: bot.id,
+      botId: activeBot.id,
       waChatId: chat.id,
       incomingMessage: msg.body,
       messageId: createdMessage.id,
@@ -208,7 +269,7 @@ export async function ingestInboundMessage(
       mimeType: msg.mimeType ?? null,
       caption: msg.caption ?? null,
       filename: msg.filename ?? null,
-    });
+    }, { delay: BOT_REPLY_DEBOUNCE_MS });
   }
 
   return { messageId: createdMessage.id, chatId: chat.id };

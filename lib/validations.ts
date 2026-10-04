@@ -1,21 +1,23 @@
 import { z } from "zod";
 
+// Email normalizado (trim + minúsculas) ANTES de validar el formato — lib/auth.ts
+// busca al usuario con el email en minúsculas, así que cualquier alta que lo
+// guarde tal cual lo tecleó ("Luis@Empresa.com") deja a esa persona sin poder
+// iniciar sesión nunca. Usar este campo en todo schema que cree o busque usuarios.
+export const emailField = z.string().trim().toLowerCase().email("Email inválido");
+
 export const loginSchema = z.object({
-  email: z.string().email("Email inválido"),
+  email: emailField,
   password: z.string().min(1, "La contraseña es requerida"),
 });
 
+// Alta de un cliente nuevo: crea su organización (prueba gratis) y su usuario
+// dueño — ver lib/organizations.ts.
 export const registerSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: z.string().email("Email inválido"),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-});
-
-export const onboardingSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: z.string().email("Email inválido"),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-  businessName: z.string().min(2, "El nombre del negocio debe tener al menos 2 caracteres"),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+  email: emailField,
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(200),
+  businessName: z.string().trim().min(2, "El nombre del negocio debe tener al menos 2 caracteres").max(100),
 });
 
 export const changePasswordSchema = z.object({
@@ -28,8 +30,27 @@ export const changePasswordSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+const newPasswordField = z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(200);
+
+export const forgotPasswordSchema = z.object({ email: emailField });
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Enlace inválido").max(200),
+  password: newPasswordField,
+});
+
+export const invitationSchema = z.object({
+  email: emailField,
+  role: z.enum(["admin", "user", "ejecutivo"], { message: "Rol inválido" }),
+});
+
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1, "Enlace inválido").max(200),
+  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+  password: newPasswordField,
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
-export type OnboardingInput = z.infer<typeof onboardingSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 export const telegramAccountSchema = z.object({
@@ -46,14 +67,17 @@ export const waAccountSchema = z.object({
   wabaId: z.string().regex(/^\d+$/, "Debe ser un ID numérico").optional().or(z.literal("")),
   appId: z.string().regex(/^\d+$/, "Debe ser un ID numérico").optional().or(z.literal("")),
   verifyToken: z.string().min(6, "El verify token debe tener al menos 6 caracteres").optional().or(z.literal("")),
-  appSecret: z.string().optional().or(z.literal("")),
+  // Obligatorio: el webhook descarta todo payload cuya firma no valida, y sin
+  // secreto la firma nunca valida — una cuenta sin él no recibe ni un mensaje.
+  appSecret: z.string({ error: "El App Secret es requerido" }).trim().min(1, "El App Secret es requerido"),
 });
 
 export const waAccountUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   accessToken: z.string().min(1).optional(),
   verifyToken: z.string().min(6).optional(),
-  appSecret: z.string().optional(),
+  // Se puede reemplazar, nunca vaciar (ver waAccountSchema).
+  appSecret: z.string().trim().min(1, "El App Secret no puede quedar vacío").optional(),
   wabaId: z.string().optional(),
   appId: z.string().optional(),
 });
@@ -62,10 +86,9 @@ export const metaAdsAccountSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
   pageId: z.string().min(1, "El Page ID es requerido").regex(/^\d+$/, "Debe ser un ID numérico"),
   pageAccessToken: z.string().min(1, "El token de la página es requerido"),
-  // Opcional a nivel de schema (mismo criterio que WAAccount.appSecret) pero
-  // sin él ningún leadgen se ingiere — validateMetaWebhookSignature rechaza
-  // el payload si no hay secreto configurado. Ver hint en el form.
-  appSecret: z.string().optional().or(z.literal("")),
+  // Obligatorio por la misma razón que WAAccount.appSecret: sin él
+  // validateMetaWebhookSignature rechaza todo leadgen.
+  appSecret: z.string({ error: "El App Secret es requerido" }).trim().min(1, "El App Secret es requerido"),
   verifyToken: z.string().min(6, "El verify token debe tener al menos 6 caracteres").optional().or(z.literal("")),
   datasetId: z.string().optional().or(z.literal("")),
   capiAccessToken: z.string().optional().or(z.literal("")),
@@ -76,7 +99,7 @@ export const metaAdsAccountSchema = z.object({
 export const metaAdsAccountUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   pageAccessToken: z.string().min(1).optional(),
-  appSecret: z.string().optional(),
+  appSecret: z.string().trim().min(1, "El App Secret no puede quedar vacío").optional(),
   verifyToken: z.string().min(6).optional(),
   datasetId: z.string().optional(),
   capiAccessToken: z.string().optional(),
@@ -89,7 +112,8 @@ export type MetaAdsAccountInput = z.infer<typeof metaAdsAccountSchema>;
 export type MetaAdsAccountUpdateInput = z.infer<typeof metaAdsAccountUpdateSchema>;
 
 export const sendMessageSchema = z.object({
-  type: z.enum(["text", "image", "audio", "video", "document", "interactive"]),
+  type: z.enum(["text", "image", "audio", "video", "document", "interactive", "sticker"]),
+  stickerId: z.string().min(1).optional(),
   // 4096 es el límite de WhatsApp para texto libre — mejor un 400 claro aquí
   // que un error opaco de la Graph API.
   body: z.string().max(4096, "El mensaje supera el límite de 4096 caracteres de WhatsApp").optional(),
@@ -99,6 +123,7 @@ export const sendMessageSchema = z.object({
   filename: z.string().optional(),
   localMediaPath: z.string().nullable().optional(),
   bytesSize: z.number().optional(),
+  replyToMessageId: z.string().min(1).optional(),
   // Solo el título viaja desde el cliente — el id del botón (btn_1, btn_2...)
   // se genera en la ruta de envío, nunca se confía en lo que mande el cliente.
   buttons: z
@@ -109,6 +134,7 @@ export const sendMessageSchema = z.object({
 }).refine(
   (d) => {
     if (d.type === "text") return !!d.body;
+    if (d.type === "sticker") return !!d.stickerId && !d.body && !d.caption;
     if (d.type === "interactive") return !!d.body && !!d.buttons && d.buttons.length > 0;
     return !!d.mediaId || !!d.localMediaPath;
   },
@@ -196,12 +222,12 @@ export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export const botSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
   // waAccountId y channelAccountId son mutuamente excluyentes: un bot atiende
-  // una cuenta de WhatsApp o una de un canal adicional (Telegram), nunca las
+  // una cuenta de WhatsApp o una de un canal adicional, nunca las
   // dos — el pipeline de entrada las resuelve por separado.
   waAccountId: z.string().min(1).optional().nullable(),
   channelAccountId: z.string().min(1).optional().nullable(),
-  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }),
-  model: z.string().min(1, "El modelo es requerido"),
+  // provider/model NO vienen del cliente — la plataforma los asigna sola
+  // (lib/ai/platform.ts:pickCuratedModel()), el cliente nunca elige ni sabe cuál usa.
   systemPrompt: z.string().min(1, "El prompt del sistema es requerido"),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8192).optional(),
@@ -215,7 +241,7 @@ export const botSchema = z.object({
   appointmentSchedulingEnabled: z.boolean().optional(),
 }).refine(
   (d) => !(d.waAccountId && d.channelAccountId),
-  { message: "Un bot no puede atender una cuenta de WhatsApp y una de Telegram a la vez", path: ["channelAccountId"] }
+  { message: "Un bot no puede atender dos cuentas a la vez", path: ["channelAccountId"] }
 );
 
 // .partial() no existe en un ZodEffects (lo que devuelve .refine), así que el
@@ -224,8 +250,6 @@ export const botUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   waAccountId: z.string().min(1).optional().nullable(),
   channelAccountId: z.string().min(1).optional().nullable(),
-  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }).optional(),
-  model: z.string().min(1).optional(),
   systemPrompt: z.string().min(1).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().min(1).max(8192).optional(),
@@ -236,15 +260,14 @@ export const botUpdateSchema = z.object({
   appointmentSchedulingEnabled: z.boolean().optional(),
 }).refine(
   (d) => !(d.waAccountId && d.channelAccountId),
-  { message: "Un bot no puede atender una cuenta de WhatsApp y una de Telegram a la vez", path: ["channelAccountId"] }
+  { message: "Un bot no puede atender dos cuentas a la vez", path: ["channelAccountId"] }
 );
 
 export const LEAD_SCORER_SCHEDULE_INTERVALS = [15, 30, 60, 180, 360, 720, 1440] as const;
 
 export const leadScorerBotSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
-  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }),
-  model: z.string().min(1, "El modelo es requerido"),
+  // provider/model los asigna la plataforma sola, ver botSchema arriba.
   systemPrompt: z.string().min(1, "El prompt es requerido"),
   isActive: z.boolean().optional(),
   scheduleEnabled: z.boolean().optional(),
@@ -264,8 +287,6 @@ export const leadScorerBotSchema = z.object({
 
 export const leadScorerBotUpdateSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100).optional(),
-  provider: z.enum(["openrouter", "google"], { message: "Proveedor inválido" }).optional(),
-  model: z.string().min(1, "El modelo es requerido").optional(),
   systemPrompt: z.string().min(1, "El prompt es requerido").optional(),
   isActive: z.boolean().optional(),
   scheduleEnabled: z.boolean().optional(),
@@ -396,8 +417,14 @@ export const sequenceUpdateSchema = z.object({
 });
 
 export const tagSchema = z.object({
-  name: z.string().min(1, "El nombre es requerido").max(50),
+  name: z.string().trim().min(1, "El nombre es requerido").max(50),
   color: z.string().max(30).optional(),
+  // Alcance de la etiqueta: una cuenta explícita, o el contacto/chat desde el
+  // que se crea (la cuenta se resuelve en el servidor) — ver lib/tags.ts.
+  waAccountId: z.string().min(1).optional(),
+  channelAccountId: z.string().min(1).optional(),
+  contactId: z.string().min(1).optional(),
+  chatId: z.string().min(1).optional(),
 });
 
 export const cannedResponseSchema = z.object({
@@ -502,3 +529,37 @@ export type AppointmentInput = z.infer<typeof appointmentSchema>;
 export type ContactCustomFieldDefinitionInput = z.infer<typeof contactCustomFieldDefinitionSchema>;
 export type ContactCustomFieldDefinitionUpdateInput = z.infer<typeof contactCustomFieldDefinitionUpdateSchema>;
 export type AppointmentUpdateInput = z.infer<typeof appointmentUpdateSchema>;
+
+const isValidTimeZone = (tz: string) => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// PATCH /api/configuracion/ia — configuración operativa de la organización
+// (horario, zona horaria, recuperación de leads). La IA la provee la
+// plataforma: aquí ya no hay keys, proveedor ni presupuesto.
+export const orgAiSettingsUpdateSchema = z
+  .object({
+    timezone: z.string().refine(isValidTimeZone, "Zona horaria inválida").optional(),
+    businessHourStart: z.number().int().min(0).max(23).optional(),
+    businessHourEnd: z.number().int().min(1).max(24).optional(),
+    leadRecoveryEnabled: z.boolean().optional(),
+    leadRecoveryFirstMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").optional(),
+    leadRecoverySecondMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").nullable().optional(),
+  })
+  .refine(
+    (d) =>
+      d.leadRecoveryFirstMessageHours === undefined ||
+      d.leadRecoverySecondMessageHours === undefined ||
+      d.leadRecoverySecondMessageHours === null ||
+      d.leadRecoverySecondMessageHours > d.leadRecoveryFirstMessageHours,
+    { message: "El mensaje 2 debe esperar más horas que el mensaje 1", path: ["leadRecoverySecondMessageHours"] }
+  )
+  .refine((d) => d.businessHourStart === undefined || d.businessHourEnd === undefined || d.businessHourEnd > d.businessHourStart, {
+    message: "La hora de cierre debe ser posterior a la de apertura",
+    path: ["businessHourEnd"],
+  });

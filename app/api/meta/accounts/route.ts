@@ -6,6 +6,9 @@ import { metaAdsAccountSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
 
 // CRUD admin-only: MetaAdsAccount es config de negocio sensible (credenciales
 // que mandan datos reales a un ad account en producción), no una cuenta
@@ -19,6 +22,9 @@ export async function POST(req: Request) {
     if (session.user.role !== "admin") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
+
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
 
     const { allowed } = await rateLimit(`meta-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {
@@ -37,7 +43,7 @@ export async function POST(req: Request) {
     await validatePageToken(pageId, pageAccessToken);
 
     if (waAccountId) {
-      const waAccount = await prisma.wAAccount.findFirst({ where: { id: waAccountId, userId: session.user.id } });
+      const waAccount = await prisma.wAAccount.findFirst({ where: { id: waAccountId, ...(await orgWhere(session.user.id)) } });
       if (!waAccount) {
         return NextResponse.json({ error: "Cuenta de WhatsApp no encontrada" }, { status: 400 });
       }
@@ -49,10 +55,11 @@ export async function POST(req: Request) {
     const account = await prisma.metaAdsAccount.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         name,
         pageId,
         pageAccessToken: encrypt(pageAccessToken),
-        appSecret: appSecret ? encrypt(appSecret) : null,
+        appSecret: encrypt(appSecret),
         verifyTokenHash: verifyHash,
         datasetId: datasetId || null,
         capiAccessToken: capiAccessToken ? encrypt(capiAccessToken) : null,
@@ -75,7 +82,7 @@ export async function POST(req: Request) {
     // donde el llamador ve el valor en claro, para copiarlo al webhook de Meta.
     return NextResponse.json({ ...account, verifyToken: resolvedVerifyToken }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     const status = message.includes("Token validation failed") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -98,7 +105,7 @@ export async function GET() {
     }
 
     const accounts = await prisma.metaAdsAccount.findMany({
-      where: { userId: session.user.id },
+      where: { ...(await orgWhere(session.user.id)) },
       select: {
         id: true,
         name: true,
@@ -109,6 +116,8 @@ export async function GET() {
         datasetId: true,
         waAccountId: true,
         waAccount: { select: { id: true, name: true } },
+        appSecret: true,
+        capiAccessToken: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { contacts: true } },
@@ -118,7 +127,7 @@ export async function GET() {
 
     const driftCutoff = new Date(Date.now() - DRIFT_DAYS * 24 * 60 * 60 * 1000);
     const withDrift = await Promise.all(
-      accounts.map(async (account) => {
+      accounts.map(async ({ appSecret, capiAccessToken, ...account }) => {
         const driftCount = await prisma.contact.count({
           where: {
             metaAdsAccountId: account.id,
@@ -127,13 +136,14 @@ export async function GET() {
             createdAt: { lt: driftCutoff },
           },
         });
-        return { ...account, driftCount };
+        // Solo el booleano — el secreto nunca sale de la API.
+        return { ...account, hasAppSecret: !!appSecret, hasCapiAccessToken: !!capiAccessToken, driftCount };
       })
     );
 
     return NextResponse.json(withDrift);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -3,6 +3,27 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { leadScorerBotSchema } from "@/lib/validations";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere, requireOrgId } from "@/lib/tenancy";
+import { pickCuratedModel } from "@/lib/ai/platform";
+
+// El cliente nunca ve ni elige provider/model — se omiten de toda respuesta.
+const SELECT_SCORER = {
+  id: true,
+  userId: true,
+  organizationId: true,
+  name: true,
+  systemPrompt: true,
+  isActive: true,
+  scheduleEnabled: true,
+  scheduleIntervalMinutes: true,
+  scheduleAccountIds: true,
+  scheduleChannelAccountIds: true,
+  lastRunAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 export async function POST(req: Request) {
   try {
@@ -10,6 +31,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["user"]);
+    if (denied) return denied;
 
     const body = await req.json();
     const parsed = leadScorerBotSchema.safeParse(body);
@@ -21,7 +44,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const { name, provider, model, systemPrompt, isActive, scheduleEnabled, scheduleIntervalMinutes, scheduleAccountIds, scheduleChannelAccountIds } = parsed.data;
+    const { name, systemPrompt, isActive, scheduleEnabled, scheduleIntervalMinutes, scheduleAccountIds, scheduleChannelAccountIds } = parsed.data;
+
+    // La plataforma asigna el proveedor/modelo — un calificador solo analiza
+    // texto (transcripciones), no necesita un modelo con visión.
+    const picked = await pickCuratedModel(false);
+    if (!picked) return NextResponse.json({ error: "La IA no está disponible en este momento. Escríbenos si el problema continúa." }, { status: 503 });
 
     let validAccountIds: string[] = [];
     if (scheduleAccountIds && scheduleAccountIds.length > 0) {
@@ -43,18 +71,13 @@ export async function POST(req: Request) {
       validChannelAccountIds = scheduleChannelAccountIds;
     }
 
-    await prisma.appSettings.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id },
-      update: {},
-    });
-
     const scorer = await prisma.wALeadScorerBot.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         name,
-        provider,
-        model,
+        provider: picked.provider,
+        model: picked.model,
         systemPrompt,
         isActive: isActive ?? true,
         scheduleEnabled: scheduleEnabled ?? false,
@@ -62,6 +85,7 @@ export async function POST(req: Request) {
         scheduleAccountIds: validAccountIds,
         scheduleChannelAccountIds: validChannelAccountIds,
       },
+      select: SELECT_SCORER,
     });
 
     return NextResponse.json(scorer, { status: 201 });
@@ -70,7 +94,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Ya tienes un calificador con ese nombre" }, { status: 409 });
     }
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -83,14 +107,15 @@ export async function GET() {
     }
 
     const scorers = await prisma.wALeadScorerBot.findMany({
-      where: { userId: session.user.id },
+      where: { ...(await orgWhere(session.user.id)) },
       orderBy: { updatedAt: "desc" },
+      select: SELECT_SCORER,
     });
 
     return NextResponse.json(scorers);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

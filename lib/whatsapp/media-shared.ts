@@ -55,3 +55,13 @@ export function isDocumentMime(mimeType: string | null | undefined): boolean {
 export function mediaEndpointFor(messageId: string): string {
   return `/api/whatsapp/messages/${encodeURIComponent(messageId)}/media`;
 }
+
+// Tipos que el navegador puede mostrar inline desde el dominio de la app sin
+// ejecutar nada. SVG, HTML y cualquier otro tipo se sirven como descarga: un
+// image/svg+xml abierto directamente ejecutaría scripts con la sesión del
+// usuario (la CSP de la app permite 'unsafe-inline').
+const INLINE_SAFE_MIME = /^(image\/(jpeg|png|gif|webp|avif|heic|heif)|audio\/[\w.+-]+|video\/[\w.+-]+)$/;
+
+export function isInlineSafeMime(mimeType: string | null | undefined): boolean {
+  return !!mimeType && INLINE_SAFE_MIME.test(mimeType.toLowerCase().split(";")[0].trim());
+}

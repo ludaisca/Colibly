@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { contactUpdateSchema } from "@/lib/validations";
-import { metaConversionsQueue } from "@/lib/queue";
-import { enrollContactInTrigger } from "@/lib/sequences";
+import { afterLeadStatusChanged } from "@/lib/contacts/side-effects";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   _req: Request,
@@ -17,10 +17,13 @@ export async function GET(
     }
 
     const { id } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
+    const [accountIds, channelAccountIds] = await Promise.all([
+      getUserAccountIds(session.user.id),
+      getUserChannelAccountIds(session.user.id),
+    ]);
 
     const contact = await prisma.contact.findFirst({
-      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId: session.user.id } }] },
+      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
       select: {
         id: true,
         accountId: true,
@@ -43,7 +46,7 @@ export async function GET(
     return NextResponse.json(contact);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -59,10 +62,13 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const accountIds = await getUserAccountIds(session.user.id);
+    const [accountIds, channelAccountIds] = await Promise.all([
+      getUserAccountIds(session.user.id),
+      getUserChannelAccountIds(session.user.id),
+    ]);
 
     const existing = await prisma.contact.findFirst({
-      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId: session.user.id } }] },
+      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
     });
     if (!existing) {
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
@@ -90,40 +96,16 @@ export async function PATCH(
       },
     });
 
-    // Feedback loop de calificación hacia Meta Ads: solo si leadStatus
-    // realmente cambió y el contacto viene de un anuncio (no ORGANIC). La
-    // resolución de la MetaAdsAccount (incluyendo el chequeo de status
-    // CONNECTED) vive enteramente en sendLeadConversionEvent — para CTWA se
-    // resuelve dinámicamente por waAccountId, no hay un campo aquí que
-    // consultar de antemano. jobId determinístico como segunda capa de
-    // dedupe junto al @@unique([contactId, leadStatus]) de MetaConversionEvent.
-    if (
-      parsed.data.leadStatus &&
-      parsed.data.leadStatus !== existing.leadStatus &&
-      existing.leadOrigin !== "ORGANIC"
-    ) {
-      await metaConversionsQueue
-        .add(
-          "send-event",
-          { contactId: id, leadStatus: parsed.data.leadStatus },
-          { jobId: `meta-conversion-${id}-${parsed.data.leadStatus}` }
-        )
-        .catch((err) => console.error("[contacts] meta-conversions enqueue failed:", err));
-    }
-
-    // Trigger de secuencias (roadmap P3-a) — independiente del feedback loop
-    // de Meta Ads de arriba, corre para cualquier leadStatus nuevo sin
-    // importar leadOrigin.
-    if (parsed.data.leadStatus && parsed.data.leadStatus !== existing.leadStatus) {
-      await enrollContactInTrigger("LEAD_STATUS_CHANGED", parsed.data.leadStatus, id).catch((err) =>
-        console.error("[contacts] enrollContactInTrigger falló:", err)
-      );
+    // Meta Ads (CAPI), secuencias y evento de dominio — compartido con la API
+    // pública y las automatizaciones.
+    if (parsed.data.leadStatus) {
+      await afterLeadStatusChanged(existing, existing.leadStatus, parsed.data.leadStatus);
     }
 
     return NextResponse.json(updated);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

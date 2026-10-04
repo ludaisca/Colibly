@@ -6,6 +6,7 @@ import { decrypt } from "@/lib/crypto";
 import { validateMetaWebhookSignature } from "@/lib/meta/webhook-signature";
 import { normalizePhone } from "@/lib/phone";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { emitDomainEvent } from "@/lib/events/emit";
 
 // Webhook de Meta para el campo `leadgen` (Instant Forms) de una Página de
 // Facebook/Instagram. A diferencia del webhook de mensajes de WhatsApp, la
@@ -78,13 +79,23 @@ export async function POST(req: Request) {
   try {
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
-    const { allowed } = await rateLimit(`meta-leadgen-webhook:${ip}`, 300, 60);
+    // Límite alto a propósito: todo el tráfico legítimo de Meta llega desde
+    // pocas IPs y compartido por todas las cuentas (una campaña de 1,000
+    // mensajes genera ~3,000 callbacks de estado). La autenticación real es la
+    // firma HMAC de cada payload.
+    const { allowed } = await rateLimit(`meta-leadgen-webhook:${ip}`, 3000, 60);
     if (!allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     const rawBody = await req.text();
-    const body = JSON.parse(rawBody);
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      // Malformado: reintentar no lo arregla.
+      return NextResponse.json({ success: true });
+    }
     const signature = req.headers.get("x-hub-signature-256");
 
     if (body.object !== "page") {
@@ -107,8 +118,15 @@ export async function POST(req: Request) {
         const account = await prisma.metaAdsAccount.findFirst({ where: { pageId } });
         if (!account) continue;
 
+        if (!account.appSecret) {
+          console.warn(`[meta-leadgen] MetaAdsAccount ${account.id} sin App Secret — se descarta leadgen_id ${value.leadgen_id}`);
+          continue;
+        }
         const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
-        if (!sigValid) continue;
+        if (!sigValid) {
+          console.warn(`[meta-leadgen] Firma inválida para MetaAdsAccount ${account.id} — se descarta leadgen_id ${value.leadgen_id}`);
+          continue;
+        }
 
         if (!account.waAccountId) {
           console.warn(
@@ -143,7 +161,7 @@ export async function POST(req: Request) {
         // setean en el create, mismo principio que la atribución CTWA en
         // lib/whatsapp/ingest-message.ts — un segundo lead del mismo teléfono
         // no debe pisar el origen ya registrado.
-        await prisma.contact.upsert({
+        const contact = await prisma.contact.upsert({
           where: { accountId_remoteJid: { accountId: account.waAccountId, remoteJid: phone } },
           create: {
             accountId: account.waAccountId,
@@ -155,16 +173,27 @@ export async function POST(req: Request) {
             metaAdsAccountId: account.id,
           },
           update: nameShouldUpdate ? { name: fullName! } : {},
+          select: { id: true, chat: { select: { id: true } } },
         });
+
+        if (!existingContact) {
+          const refs = {
+            account: { kind: "whatsapp" as const, id: account.waAccountId },
+            chat: contact.chat ? { kind: "whatsapp" as const, id: contact.chat.id } : null,
+            contactId: contact.id,
+          };
+          await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: "INSTANT_FORM", source: "lead_ads" } });
+          await emitDomainEvent({ type: "lead.ad_captured", ...refs, data: { origin: "INSTANT_FORM", adId: value.ad_id ?? null } });
+        }
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[meta-leadgen webhook] Error:", error);
-    // Igual que el webhook de WhatsApp: siempre 200, para no darle a un
-    // atacante una señal de qué payload es inválido ni causar reintentos
-    // infinitos de Meta.
-    return NextResponse.json({ success: true });
+    // 500 para que Meta reintente — antes siempre 200 y el lead se perdía si
+    // fallaba la DB o la consulta a la Graph API. El upsert del Contact hace
+    // seguro el reintento.
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

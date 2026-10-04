@@ -14,7 +14,8 @@ import { Pagination } from "@/app/components/ui/pagination";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
 import { Modal } from "@/app/components/ui/modal";
-import { DatePicker } from "@/app/components/ui/date-picker";
+import { HeroDateRange } from "@/app/components/ui/hero-date-range";
+import { HeroTabs } from "@/app/components/ui/hero-tabs";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { RadioGroup } from "@/app/components/ui/radio";
 import { useToast } from "@/app/components/ui/toast";
@@ -25,19 +26,12 @@ import { LeadScorerFormModal } from "./_form";
 interface LeadScorerBot {
   id: string;
   name: string;
-  provider: string;
-  model: string;
   systemPrompt: string;
   isActive: boolean;
   scheduleEnabled: boolean;
   scheduleIntervalMinutes: number | null;
   updatedAt: string;
 }
-
-const PROVIDER_BADGE: Record<string, { label: string; tone: "accent" | "info" }> = {
-  openrouter: { label: "OpenRouter", tone: "accent" },
-  google: { label: "Gemini", tone: "info" },
-};
 
 const INTERVAL_LABEL: Record<number, string> = {
   15: "15 min",
@@ -79,7 +73,7 @@ export default function CalificadoresPage() {
   const { data: session } = useSession();
   // El rol "user" solo puede ver leads ya calificados, no crear/editar/programar
   // calificadores — esa pestaña ni siquiera se ofrece como opción.
-  const canManageScorers = session?.user?.role !== "user";
+  const canManageScorers = !!session?.user && session.user.role !== "user";
   const [tab, setTab] = useState<Tab>("calificadores");
 
   return (
@@ -89,23 +83,16 @@ export default function CalificadoresPage() {
         description="Crea agentes de IA que analizan una conversación y la califican con tu propio criterio — cada uno con su prompt libre, para el negocio que vendas."
       />
 
-      {canManageScorers && (
-        <div className="flex gap-1 border-b border-border">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-foreground"
-              }`}
-            >
-              {t === "calificadores" ? "Calificadores" : "Leads calificados"}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {canManageScorers && tab === "calificadores" ? <CalificadoresTab /> : <LeadsTab />}
+      {canManageScorers ? (
+        <HeroTabs
+          items={TABS.map((id) => ({ id, label: id === "calificadores" ? "Calificadores" : "Leads calificados" }))}
+          value={tab}
+          onChange={setTab}
+          label="Secciones de calificadores"
+        >
+          {tab === "calificadores" ? <CalificadoresTab /> : <LeadsTab />}
+        </HeroTabs>
+      ) : <LeadsTab />}
     </div>
   );
 }
@@ -182,19 +169,6 @@ function CalificadoresTab() {
       render: (r) => <span className="text-sm font-medium text-foreground">{r.name}</span>,
     },
     {
-      key: "provider",
-      header: "Proveedor / Modelo",
-      render: (r) => {
-        const provider = PROVIDER_BADGE[r.provider] ?? { label: r.provider, tone: "info" as const };
-        return (
-          <div className="flex items-center gap-2">
-            <Badge tone={provider.tone} size="sm">{provider.label}</Badge>
-            <span className="text-xs text-muted-darker">{r.model}</span>
-          </div>
-        );
-      },
-    },
-    {
       key: "prompt",
       header: "Prompt",
       render: (r) => <span className="text-sm text-muted-darker line-clamp-1">{r.systemPrompt}</span>,
@@ -216,6 +190,7 @@ function CalificadoresTab() {
       header: "Activo",
       render: (r) => (
         <Switch
+          label={`Activar ${r.name}`}
           checked={r.isActive}
           onCheckedChange={() => handleToggle(r)}
           disabled={togglingId === r.id}
@@ -233,6 +208,7 @@ function CalificadoresTab() {
       </div>
 
       <Table
+        className="rounded-xl border border-border bg-surface p-5 shadow-sm"
         columns={columns}
         rows={items}
         rowKey={(r) => r.id}
@@ -243,7 +219,6 @@ function CalificadoresTab() {
         emptyTitle="Sin calificadores"
         emptyDescription="Crea tu primer calificador para empezar a calificar leads desde los chats."
         mobileCard={(r) => {
-          const provider = columns.find((c) => c.key === "provider")!;
           const schedule = columns.find((c) => c.key === "schedule")!;
           const active = columns.find((c) => c.key === "isActive")!;
           return (
@@ -252,7 +227,6 @@ function CalificadoresTab() {
                 <span className="text-sm font-medium text-foreground truncate">{r.name}</span>
                 <div onClick={(e) => e.stopPropagation()}>{active.render(r)}</div>
               </div>
-              {provider.render(r)}
               {schedule.render(r)}
             </div>
           );
@@ -298,7 +272,7 @@ function LeadsTab() {
   const [labelFilter, setLabelFilter] = useState("all");
   const [accountFilter, setAccountFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState(() => isoDaysAgo(30));
-  const [dateTo, setDateTo] = useState("");
+  const [dateTo, setDateTo] = useState(() => isoDaysAgo(0));
   const [detailId, setDetailId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -407,11 +381,11 @@ function LeadsTab() {
     {
       key: "select",
       header: (
-        <Checkbox checked={allFilteredSelected} onChange={toggleSelectAll} />
+        <Checkbox checked={allFilteredSelected} onChange={toggleSelectAll} ariaLabel="Seleccionar todos los leads" />
       ),
       render: (r) => (
         <div onClick={(e) => e.stopPropagation()}>
-          <Checkbox checked={selectedIds.has(r.id)} onChange={() => toggleSelected(r.id)} />
+          <Checkbox checked={selectedIds.has(r.id)} onChange={() => toggleSelected(r.id)} ariaLabel={`Seleccionar ${r.chat.name || r.chat.identifier}`} />
         </div>
       ),
     },
@@ -421,17 +395,17 @@ function LeadsTab() {
       render: (r) => (
         <Link
           href={`/whatsapp/chat/${r.chat.accountId}/${r.chat.id}`}
-          className="font-medium hover:text-accent transition-colors"
+          className="font-medium hover:text-accent-ink transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
-          {r.chat.name || r.chat.remoteJid.split("@")[0]}
+          {r.chat.name || r.chat.identifier.split("@")[0]}
         </Link>
       ),
     },
     {
       key: "phone",
       header: "Teléfono",
-      render: (r) => <span className="text-xs text-muted-darker">{r.chat.remoteJid.split("@")[0]}</span>,
+      render: (r) => <span className="text-xs text-muted-darker">{r.chat.identifier.split("@")[0]}</span>,
     },
     {
       key: "account",
@@ -441,7 +415,7 @@ function LeadsTab() {
     {
       key: "label",
       header: "Calificación",
-      render: (r) => <Badge tone={labelTone(r.label)} size="sm">{labelText(r.label)} · {r.score}/100</Badge>,
+      render: (r) => <Badge tone={labelTone(r.label)} size="sm" className="whitespace-nowrap">{labelText(r.label)} · {r.score}/100</Badge>,
     },
     {
       key: "scorer",
@@ -476,16 +450,16 @@ function LeadsTab() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <div className="w-56">
-          <Select value={scorerFilter} onChange={(e) => setScorerFilter(e.target.value)}>
+        <div className="w-full sm:w-56">
+          <Select aria-label="Filtrar por calificador" value={scorerFilter} onChange={(e) => setScorerFilter(e.target.value)}>
             <option value="all">Todos los calificadores</option>
             {scorers.map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}
           </Select>
         </div>
-        <div className="w-48">
-          <Select value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)}>
+        <div className="w-full sm:w-48">
+          <Select aria-label="Filtrar por calificación" value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)}>
             <option value="all">Todas las calificaciones</option>
             <option value="prioridad_alta">Prioridad alta</option>
             <option value="oportunidad">Oportunidad</option>
@@ -494,20 +468,19 @@ function LeadsTab() {
             <option value="descartado">Descartado</option>
           </Select>
         </div>
-        <div className="w-56">
-          <Select value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
+        <div className="w-full sm:w-56">
+          <Select aria-label="Filtrar por cuenta" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
             <option value="all">Todas las cuentas</option>
             {accounts.map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}
           </Select>
         </div>
-        <div className="w-36">
-          <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="Desde" max={dateTo || undefined} />
-        </div>
-        <div className="w-36">
-          <DatePicker value={dateTo} onChange={setDateTo} placeholder="Hasta" min={dateFrom || undefined} />
-        </div>
+        <HeroDateRange
+          value={{ start: dateFrom, end: dateTo }}
+          onChange={({ start, end }) => { setDateFrom(start); setDateTo(end); }}
+          label="Periodo de calificación"
+        />
         <Button
           variant="secondary"
           size="sm"
@@ -525,6 +498,7 @@ function LeadsTab() {
       )}
 
       <Table
+        className="rounded-xl border border-border bg-surface p-5 shadow-sm"
         columns={columns}
         rows={pageRows}
         rowKey={(r) => r.id}
@@ -540,15 +514,15 @@ function LeadsTab() {
           return (
             <div className="flex items-start gap-3 min-w-0 w-full">
               <div onClick={(e) => e.stopPropagation()} className="pt-0.5 shrink-0">
-                <Checkbox checked={selectedIds.has(r.id)} onChange={() => toggleSelected(r.id)} />
+                <Checkbox checked={selectedIds.has(r.id)} onChange={() => toggleSelected(r.id)} ariaLabel={`Seleccionar ${r.chat.name || r.chat.identifier}`} />
               </div>
               <div className="space-y-1 min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-sm truncate">{r.chat.name || r.chat.remoteJid.split("@")[0]}</span>
+                  <span className="font-medium text-sm truncate">{r.chat.name || r.chat.identifier.split("@")[0]}</span>
                   {label.render(r)}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-darker">
-                  <span>{r.chat.remoteJid.split("@")[0]}</span>
+                  <span>{r.chat.identifier.split("@")[0]}</span>
                   <span>·</span>
                   <span className="truncate">{r.chat.account.name}</span>
                   <span>·</span>
@@ -572,7 +546,7 @@ function LeadsTab() {
       <Modal
         open={!!detailRow}
         onClose={() => setDetailId(null)}
-        title={detailRow ? (detailRow.chat.name || detailRow.chat.remoteJid.split("@")[0]) : undefined}
+        title={detailRow ? (detailRow.chat.name || detailRow.chat.identifier.split("@")[0]) : undefined}
         size="lg"
       >
         {detailRow && (
@@ -583,14 +557,14 @@ function LeadsTab() {
                 {new Date(detailRow.updatedAt).toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" })}
               </span>
             </div>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-muted-darker">Cuenta</dt>
                 <dd>{detailRow.chat.account.name}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-darker">Teléfono</dt>
-                <dd>{detailRow.chat.remoteJid.split("@")[0]}</dd>
+                <dd>{detailRow.chat.identifier.split("@")[0]}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-darker">Calificador</dt>
@@ -663,7 +637,7 @@ function LeadsTab() {
             )}
             {detailRow.details && detailRow.details.proximos_pasos.length > 0 && (
               <div>
-                <p className="text-xs text-accent mb-1">Próximos pasos sugeridos</p>
+                <p className="text-xs text-accent-ink mb-1">Próximos pasos sugeridos</p>
                 <ul className="text-sm text-foreground list-disc pl-4 space-y-1">
                   {detailRow.details.proximos_pasos.map((s, i) => (
                     <li key={i}>{s}</li>
@@ -673,7 +647,7 @@ function LeadsTab() {
             )}
             <Link
               href={`/whatsapp/chat/${detailRow.chat.accountId}/${detailRow.chat.id}`}
-              className="inline-flex text-sm text-accent hover:underline"
+              className="inline-flex text-sm text-accent-ink hover:underline"
             >
               Ir al chat →
             </Link>
@@ -728,7 +702,7 @@ function LeadsTab() {
                     ? new Set()
                     : new Set(EXPORT_COLUMNS.map((c) => c.key))
                 )}
-                className="text-xs text-accent hover:underline"
+                className="text-xs text-accent-ink hover:underline"
               >
                 {exportColumns.size === EXPORT_COLUMNS.length ? "Ninguna" : "Todas"}
               </button>

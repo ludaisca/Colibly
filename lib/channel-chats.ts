@@ -1,23 +1,25 @@
 import type { Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 
 // Lógica compartida por GET /api/{telegram,messenger,instagram}/chats —
 // mismo shape de respuesta que GET /api/whatsapp/chats (paginado, {items,
 // total, page, pageSize}) para que chat-workspace.tsx pueda mezclar todas
-// las fuentes sin normalizar formatos distintos. Sin WAAccountShare
-// equivalente todavía — se filtra directo por channelAccount.userId.
+// las fuentes sin normalizar formatos distintos. Alcance: cuentas propias +
+// compartidas (ChannelAccountShare), igual que getUserAccountIds() en WhatsApp.
 export type ChannelChatsResult =
   | { ok: true; paginate: boolean; data: unknown }
   | { ok: false; status: number; error: string };
 
 export async function listChannelChats(userId: string, channel: Channel, searchParams: URLSearchParams): Promise<ChannelChatsResult> {
   const accountId = searchParams.get("accountId");
+  const channelAccountIds = await getUserChannelAccountIds(userId);
 
   if (accountId) {
     // channel es obligatorio en este where — sin él, pasarle el accountId de
     // una cuenta de OTRO canal del mismo usuario devolvería 200 en vez de 404.
     const owned = await prisma.channelAccount.findFirst({
-      where: { id: accountId, userId, channel },
+      where: { id: accountId, channel, AND: [{ id: { in: channelAccountIds } }] },
       select: { id: true },
     });
     if (!owned) {
@@ -26,9 +28,11 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
   }
 
   const where: Record<string, unknown> = {
-    channelAccount: { userId, channel },
-    ...(accountId ? { channelAccountId: accountId } : {}),
+    channelAccountId: accountId ? accountId : { in: channelAccountIds },
+    channelAccount: { channel },
   };
+  const chatId = searchParams.get("chatId");
+  if (chatId) where.id = chatId;
 
   const search = searchParams.get("search")?.trim();
   if (search) {

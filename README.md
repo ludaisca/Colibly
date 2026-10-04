@@ -1,76 +1,65 @@
-# SundayCRM
+# Colibly
 
-> CRM multi-tenant y multi-canal en evolución. Hoy el canal principal es WhatsApp con Telegram ya integrado como segundo canal — ver [`docs/FORK_PLAN.md`](docs/FORK_PLAN.md) para la hoja de ruta de las fases de multi-tenancy y abstracción de canal.
+> Dominio: [colibly.com](https://colibly.com). Antes SunflowCRM y SundayCRM; hoy todo se llama Colibly (repo, carpeta, contenedores, base de datos). Paleta "Colibrí" (violeta y rubí); el logo actual es una "C" provisional mientras se define el definitivo (ver [`docs/PLAN_LANZAMIENTO.md`](docs/PLAN_LANZAMIENTO.md)). El proyecto sigue en desarrollo.
 
-CRM de WhatsApp Business construido sobre la API oficial de Meta (Cloud API): bandeja de chats en tiempo real, bots de IA multimodales, calificación automática de leads, campañas masivas por plantilla, recuperación de leads abandonados y sincronización con Google Sheets — todo con control de acceso por rol y soporte multi-cuenta/multi-número.
+CRM conversacional multi-tenant y de pago (SaaS) para negocios que venden por mensaje: una bandeja para WhatsApp, Instagram, Messenger, Telegram y el chat de la web, con bots de IA, automatizaciones, campañas y calificación de leads.
 
-## Funcionalidad principal
+## Funcionalidad
 
-- **Chats**: bandeja estilo inbox con filtros (cuenta, campaña, respondido/no respondido), asignación de agentes, notas por contacto, etiquetas, respuestas rápidas (`/atajo`), adjuntos multimedia (imagen/audio/video/documento/sticker) con proxy seguro de medios.
-- **Bots de IA**: respuestas automáticas multimodales (OpenRouter o Google Gemini), con RAG sobre una base de conocimiento propia (pgvector), humanización de respuestas (envío fraccionado con delay simulado) y presupuesto mensual de gasto en IA.
-- **Calificadores de leads**: un bot de IA aparte audita cada conversación y la puntúa (0–100) en un embudo de 5 fases, con ejecución manual o programada, detección de spam/venta inversa, y exportación a CSV o a una hoja de Google sincronizada automáticamente.
-- **Recuperación de leads**: reengancha automáticamente conversaciones "en visto" dentro de la ventana de 24h de WhatsApp, respetando horario laboral configurado por el usuario.
-- **Campañas**: envío masivo por plantilla aprobada de Meta, con importación de destinatarios por CSV, variables por destinatario, programación y métricas de entrega/lectura.
-- **Plantillas**: creación y sincronización con la API de plantillas de Meta, incluyendo headers con media vía la Resumable Upload API.
-- **Multi-cuenta**: cada número de WhatsApp (`WAAccount`) es independiente (su propia app de Meta, credenciales y webhook), con la opción de compartir una cuenta entre usuarios.
-- **Roles**: `admin`, `user` y `ejecutivo`, cada uno con su propia navegación y permisos aplicados tanto en middleware como en cada endpoint.
-- **Google Sheets**: conexión OAuth por usuario que mantiene una hoja actualizada con leads calificados y resultados de campaña.
+- **Bandeja multicanal**: WhatsApp (API oficial de Meta, Cloud API), Messenger, Instagram, Telegram y un widget de chat para la web del cliente. Asignación de agentes (manual, automática o por reglas), etiquetas, notas, respuestas rápidas, adjuntos con proxy seguro de medios.
+- **Bots de IA**: respuestas multimodales con RAG sobre una base de conocimiento propia (pgvector), agendado de citas desde la conversación y humanización de respuestas. La IA la provee la plataforma: cada plan incluye créditos mensuales.
+- **Automatizaciones**: un solo motor para chatbots de botones, reglas evento → acción y seguimientos, en todos los canales, con versiones publicadas y modo de prueba.
+- **Campañas y plantillas** de WhatsApp (Meta), con segmentación por etiqueta, variables por destinatario y métricas.
+- **CRM**: contactos con campos personalizados, pipeline Kanban, citas con recordatorios, calificadores de leads por IA, recuperación de leads en visto, feedback a Meta Ads (Conversions API).
+- **Integraciones**: API pública v1 con API keys, webhooks salientes firmados, Google Sheets.
+- **SaaS**: organizaciones aisladas entre sí, planes Básico y Pro con límites, cobro con Stripe, prueba de 30 días, exportar y eliminar datos, purga automática de cuentas canceladas o sin pago, panel del operador (`/plataforma`).
+- **Roles**: `admin`, `user` y `ejecutivo`, aplicados en la navegación, en `proxy.ts` y en cada endpoint.
 
 ## Stack
 
-- [Next.js 16](https://nextjs.org) (App Router, Turbopack) + [Tailwind CSS v4](https://tailwindcss.com)
-- [NextAuth v5](https://authjs.dev) (Credentials + JWT)
-- [Prisma 5](https://www.prisma.io) sobre PostgreSQL + [pgvector](https://github.com/pgvector/pgvector)
-- [Redis](https://redis.io) + [BullMQ](https://docs.bullmq.io) para colas de trabajo asíncronas
-- React 19, `openai` SDK (OpenRouter), `@google/generative-ai`, `googleapis`
+Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS v4 · NextAuth v5 (Credentials + JWT) · Prisma 5 sobre PostgreSQL + pgvector · Redis + BullMQ · OpenCode Go (`openai` SDK) y Google Gemini · Stripe · Vitest.
 
 ## Desarrollo
 
-Todo corre en Docker — no se instalan dependencias ni bases de datos en el host.
+Todo corre en contenedores: no se instalan dependencias ni bases de datos en el host. Los archivos de compose funcionan con `docker compose` y con `podman compose`; en el servidor compartido de desarrollo se usa **Podman** (el Docker de ese servidor es el de producción).
 
 ```bash
-cp .env.example .env        # completa las variables (ver abajo)
-docker compose up --build   # app + postgres + redis, hot reload en :3002
+cp .env.example .env                      # completa las variables (comentadas en el archivo)
+podman compose up --build                 # app + postgres + redis + mailpit, hot reload en http://localhost:15100
 ```
 
-Comandos útiles dentro del contenedor:
+Comandos habituales:
 
 ```bash
-docker compose exec app npx tsc --noEmit     # type check
-docker compose exec app npm run lint         # eslint
-docker compose exec app npm run build        # build de producción (ver nota abajo)
-docker compose exec app npx prisma db push   # aplicar cambios de schema.prisma
-docker compose restart app                   # requerido tras un db push
+podman compose exec app npx tsc --noEmit                        # type check
+podman compose exec app npm run lint                            # eslint
+podman compose exec app npm test                                # tests (vitest, lógica pura en lib/**/__tests__)
+podman compose exec app sh scripts/new-migration.sh <nombre>    # tras cambiar schema.prisma: crea y aplica la migración
+podman compose restart app                                      # tras una migración o un cambio en código de workers
 ```
 
-No hay suite de tests automatizada — la verificación es `tsc --noEmit` + `lint` + `build`, más pruebas manuales en el navegador.
+- **Nunca `prisma db push` ni `prisma migrate dev`**: el primero puede borrar columnas con datos y el segundo ofrece reiniciar la base. Los cambios de esquema van siempre con `scripts/new-migration.sh`.
+- Los correos de desarrollo (verificación, invitaciones, recuperar contraseña) no salen de la máquina: llegan a Mailpit, en http://localhost:18025.
+- Abre la app como `localhost` o `ludaisca` (por Tailscale), no como `127.0.0.1`: el servidor de desarrollo de Next bloquea otros orígenes y la página no se hidrata.
+- Build de producción: `podman build --target builder -t localhost/colibly-buildcheck:tmp . && podman rmi localhost/colibly-buildcheck:tmp && podman image prune -f` (`npm run build` dentro del contenedor de desarrollo falla por `NODE_ENV=development`).
+
+El CI (`.github/workflows/ci.yml`) corre tsc, lint, tests y el build de producción en cada PR y push a `main`.
 
 ### Variables de entorno
 
-| Variable | Descripción |
-|---|---|
-| `DATABASE_URL` | conexión a PostgreSQL |
-| `REDIS_URL` | conexión a Redis |
-| `AUTH_SECRET` | secreto de NextAuth (`openssl rand -base64 32`) |
-| `DB_PASSWORD` | password del PostgreSQL del compose de producción — **obligatoria**, `docker compose up` aborta si falta |
-| `ENCRYPTION_KEY` | clave AES-256 para credenciales cifradas en DB (`openssl rand -hex 32`) |
-| `NEXT_PUBLIC_APP_URL` | URL pública de la app |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_OAUTH_REDIRECT_URI` | credenciales OAuth para la sincronización con Google Sheets (opcional) |
-| `MEDIA_ROOT` | directorio de medios descargados (default `/app/media`) |
-| `MEDIA_RETENTION_DAYS` | días antes de purgar medios viejos (default 90, `0` desactiva) |
+La lista de infraestructura está en [`.env.example`](.env.example). Las imprescindibles son `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `DB_PASSWORD` (producción) y `APP_URL`. SMTP, las claves de IA (OpenCode Go y Google), Stripe, Turnstile y la medición del sitio se configuran desde `/plataforma` → **Configuración** y se guardan cifradas en `PlatformSettings`. Para habilitar `/plataforma`, configura `PLATFORM_ADMIN_EMAILS` en el entorno. Google Sheets usa las credenciales OAuth de entorno. El RAG necesita además una clave de Google para generar embeddings, incluso si las respuestas del bot usan OpenCode.
 
-Las credenciales de cada número de WhatsApp (token de acceso, App Secret, etc.) y las API keys de IA se configuran desde la propia app, no por variable de entorno — quedan cifradas en la base de datos.
+Toda variable nueva de infraestructura debe agregarse también a la lista `app.environment` de `docker-compose.yml`, o no llega a producción. Las claves de negocio se agregan a `PlatformSettings`, no a Compose.
 
 ## Arquitectura
 
-- `app/` — rutas de Next.js App Router: `(auth)` (login/registro), `(dashboard)` (la app autenticada) y `api/` (endpoints REST).
-- `lib/` — lógica de dominio agrupada por área: `ai/` (proveedores de IA, RAG, presupuesto), `whatsapp/` (ingesta de mensajes, envío, plantillas, calificación de leads, recuperación), `google/` (OAuth y sincronización con Sheets), `workers/` (procesadores de las colas BullMQ), más utilidades transversales (`crypto.ts`, `rate-limit.ts`, `shared-accounts.ts`).
-- `prisma/` — schema y utilidades SQL (índice vectorial de pgvector).
-- `docker/` — inicialización de PostgreSQL (extensión pgvector).
-- `scripts/` — script de arranque de producción (`migrate deploy`/`db push` + servidor).
+- `app/`: rutas del App Router. `(marketing)` (landing y páginas legales), `(auth)` (registro, login, verificación, invitaciones), `(dashboard)` (la app) y `api/` (endpoints internos, webhooks de los canales y la API pública `v1`).
+- `lib/`: lógica de dominio por área (`whatsapp/`, `telegram/`, `meta-messaging/`, `webchat/`, `automations/`, `billing/`, `ai/`, `workers/`, `api/`, `webhooks/`, `org-data/`…) y utilidades transversales (`tenancy.ts`, `shared-accounts.ts`, `crypto.ts`, `rate-limit.ts`).
+- `prisma/`: esquema, migraciones y SQL del índice vectorial.
+- `proxy.ts`: el middleware de Next 16 (protección de rutas por rol y bloqueo de escrituras en cuentas de solo lectura).
 
-Para el detalle de convenciones, gotchas y decisiones de arquitectura, ver [`AGENTS.md`](./AGENTS.md).
+Las convenciones, decisiones de arquitectura y trampas conocidas están en [`AGENTS.md`](AGENTS.md) (detalle) y [`CLAUDE.md`](CLAUDE.md) (reglas esenciales). Planes, auditorías y estado del lanzamiento: índice en [`docs/README.md`](docs/README.md).
 
 ## Despliegue
 
-Pensado para desplegarse vía [Coolify](https://coolify.io) u otra plataforma compatible con `docker-compose.yml`. El servicio de la app corre sin puerto fijo expuesto (`expose: 5000`) — el proxy de la plataforma (ej. Traefik) enruta por dominio.
+Pensado para Coolify u otra plataforma compatible con `docker-compose.yml`. El servicio de la app no publica puerto fijo (`expose: 5000`): el proxy de la plataforma enruta por dominio. Al arrancar, `scripts/startup.sh` aplica las migraciones (`migrate deploy`) antes de levantar el servidor.

@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { scoreChatWithScorer, LeadScoringError } from "@/lib/whatsapp/lead-scoring";
+import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Dueño de la cuenta del chat, no session.user.id — un usuario con acceso
 // vía cuenta compartida ve/usa los calificadores del dueño de la cuenta.
@@ -52,7 +54,7 @@ export async function GET(
 
     return NextResponse.json(scores);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -65,6 +67,12 @@ export async function POST(
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    // Cada llamada gasta IA: límite por usuario además del tope mensual de
+    // presupuesto (que al agotarse también apaga los bots legítimos).
+    const { allowed } = await rateLimit(`ai-score:${session.user.id}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas solicitudes de IA, espera un momento" }, { status: 429 });
     }
 
     const { chatId } = await params;
@@ -104,7 +112,7 @@ export async function POST(
       throw err;
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

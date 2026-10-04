@@ -6,6 +6,13 @@ import { waAccountSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validateToken } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
+import { checkPlanLimit } from "@/lib/billing/gates";
+import { getUserAccountIds } from "@/lib/shared-accounts";
+import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +20,13 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
+
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
+    const overLimit = await checkPlanLimit(await requireOrgId(session.user.id), "channels");
+    if (overLimit) return overLimit;
 
     const { allowed } = await rateLimit(`account-create:${session.user.id}`, 10, 60);
     if (!allowed) {
@@ -30,6 +44,9 @@ export async function POST(req: Request) {
     const { name, phoneNumberId, accessToken, wabaId, appId, verifyToken, appSecret } =
       parsed.data;
 
+    // Validar el origen antes de crear la cuenta: el verify token solo se
+    // devuelve una vez y debe mostrarse junto a una URL utilizable.
+    const webhookUrl = whatsappWebhookUrl(req.url);
     const validateResult = await validateToken(phoneNumberId, accessToken);
 
     const encryptedToken = encrypt(accessToken);
@@ -39,6 +56,7 @@ export async function POST(req: Request) {
     const account = await prisma.wAAccount.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         name,
         phoneNumberId,
         accessToken: encryptedToken,
@@ -46,7 +64,7 @@ export async function POST(req: Request) {
         phoneNumber: validateResult.displayPhoneNumber,
         wabaId: wabaId || validateResult.id,
         appId: appId || null,
-        appSecret: appSecret ? encrypt(appSecret) : null,
+        appSecret: encrypt(appSecret),
         status: "CONNECTED",
         lastActivity: new Date(),
       },
@@ -64,10 +82,10 @@ export async function POST(req: Request) {
 
     // verifyToken is only ever stored hashed — this is the one response where the
     // caller can see the plaintext value, since it must be copied into Meta's webhook config.
-    return NextResponse.json({ ...account, verifyToken: resolvedVerifyToken }, { status: 201 });
+    return NextResponse.json({ ...account, verifyToken: resolvedVerifyToken, webhookUrl }, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     const status = message.includes("Token validation failed") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -83,18 +101,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
 
-    const userId = session.user.id;
-
-    const sharedIds = await prisma.wAAccountShare.findMany({
-      where: { userId },
-      select: { waAccountId: true },
-    });
-
     const where: Record<string, unknown> = {
-      OR: [
-        { userId },
-        ...(sharedIds.length > 0 ? [{ id: { in: sharedIds.map((s) => s.waAccountId) } }] : []),
-      ],
+      id: { in: await getUserAccountIds(session.user.id) },
     };
     if (statusFilter) {
       where.status = statusFilter;
@@ -113,6 +121,10 @@ export async function GET(req: Request) {
         status: true,
         errorMessage: true,
         lastActivity: true,
+        appSecret: true,
+        connectionType: true,
+        coexistence: true,
+        syncStatus: true,
         createdAt: true,
         updatedAt: true,
         user: { select: { id: true, name: true, email: true } },
@@ -125,10 +137,13 @@ export async function GET(req: Request) {
     // sobreescribe con el discriminador de UI "WHATSAPP" para que
     // chat-workspace.tsx pueda mezclar esta lista con /api/telegram/accounts
     // sin importar qué proveedor de Meta sea internamente.
-    return NextResponse.json(accounts.map((a) => ({ ...a, channel: "WHATSAPP" as const })));
+    // appSecret se reduce a un booleano: nunca sale el valor (ni cifrado).
+    return NextResponse.json(
+      accounts.map(({ appSecret, ...a }) => ({ ...a, hasAppSecret: a.connectionType === "EMBEDDED_SIGNUP" || !!appSecret, channel: "WHATSAPP" as const }))
+    );
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

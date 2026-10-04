@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Type, Plus, X, Upload } from "lucide-react";
-import { Modal } from "@/app/components/ui/modal";
+import { DetailPage } from "@/app/components/ui/detail-page";
+import { Card } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
@@ -52,14 +54,12 @@ interface ButtonDef {
 }
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
   accounts: Account[];
   defaultAccountId?: string;
-  onCreated: () => void;
 }
 
-export function TemplateFormModal({ open, onClose, accounts, defaultAccountId = "", onCreated }: Props) {
+export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
+  const router = useRouter();
   const { success, error: toastError } = useToast();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const headerFileInputRef = useRef<HTMLInputElement>(null);
@@ -100,13 +100,10 @@ export function TemplateFormModal({ open, onClose, accounts, defaultAccountId = 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resets on close, header cleanup is intentionally not a dependency
   }, [defaultAccountId]);
 
-  // Modal stays mounted (see Modal's `visible` pattern) so waAccountId's initial
-  // useState value goes stale if the page's selected account changes between opens.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-sync stale defaultAccountId on the open transition
-    if (open) setWaAccountId(defaultAccountId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-sync on the open transition
-  }, [open]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- la navegación puede cambiar la cuenta preseleccionada
+    setWaAccountId(defaultAccountId);
+  }, [defaultAccountId]);
 
   function handleHeaderFormatChange(format: typeof headerFormat) {
     setHeaderFormat(format);
@@ -270,8 +267,7 @@ export function TemplateFormModal({ open, onClose, accounts, defaultAccountId = 
 
       success(`Plantilla "${data.name}" creada y enviada a revisión`);
       resetForm();
-      onClose();
-      onCreated();
+      router.push(`/whatsapp/plantillas?accountId=${encodeURIComponent(waAccountId)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear plantilla");
     } finally {
@@ -280,35 +276,16 @@ export function TemplateFormModal({ open, onClose, accounts, defaultAccountId = 
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={() => { resetForm(); onClose(); }}
+    <DetailPage
+      backHref="/whatsapp/plantillas"
+      backLabel="Volver a plantillas"
       title="Nueva plantilla de marketing"
       description="Crea una plantilla que será enviada a revisión por Meta."
-      size="xl"
-      className="max-w-3xl"
-      footer={
-        <>
-          <Button variant="secondary" onClick={() => { resetForm(); onClose(); }}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={
-              saving ||
-              !name.trim() ||
-              !body.trim() ||
-              (bodyVariableCount > 0 && bodyExamples.some((v) => !v.trim()))
-            }
-          >
-            {saving ? <Spinner /> : "Crear y enviar a revisión"}
-          </Button>
-        </>
-      }
+      maxWidth="max-w-6xl"
     >
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
         {/* FORM */}
-        <div className="flex-1 space-y-5 min-w-0">
+        <Card as="section" className="min-w-0 space-y-5">
           {error && <Banner tone="danger">{error}</Banner>}
 
           <FormField label="Cuenta" required>
@@ -321,7 +298,7 @@ export function TemplateFormModal({ open, onClose, accounts, defaultAccountId = 
             )}
           </FormField>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <FormField label="Nombre" required hint="Ej: promo_junio_2026">
               {(id) => (
                 <Input
@@ -461,11 +438,11 @@ export function TemplateFormModal({ open, onClose, accounts, defaultAccountId = 
             {buttons.length > 0 && (
               <div className="space-y-2">
                 {buttons.map((btn, idx) => (
-                  <div key={idx} className="flex gap-2 items-start">
+                  <div key={idx} className="flex flex-wrap gap-2 items-start">
                     <Select
                       value={btn.type}
                       onChange={(e) => updateButton(idx, "type", e.target.value)}
-                      className="w-28 shrink-0"
+                      className="w-full sm:w-32 sm:shrink-0"
                     >
                       <option value="QUICK_REPLY">Respuesta</option>
                       <option value="URL">URL</option>
@@ -475,14 +452,14 @@ export function TemplateFormModal({ open, onClose, accounts, defaultAccountId = 
                       onChange={(e) => updateButton(idx, "text", e.target.value)}
                       placeholder="Texto del botón"
                       maxLength={25}
-                      className="flex-1"
+                      className="min-w-40 flex-1"
                     />
                     {btn.type === "URL" && (
                       <Input
                         value={btn.url ?? ""}
                         onChange={(e) => updateButton(idx, "url", e.target.value)}
                         placeholder="https://..."
-                        className="flex-1"
+                        className="min-w-40 flex-1"
                       />
                     )}
                     <Button
@@ -508,17 +485,26 @@ export function TemplateFormModal({ open, onClose, accounts, defaultAccountId = 
               Agregar botón
             </Button>
           </div>
-        </div>
+        </Card>
 
         {/* PREVIEW */}
-        <div className="lg:w-72 shrink-0">
+        <Card as="aside" className="min-w-0 lg:sticky lg:top-6">
           <p className="text-xs font-semibold text-muted-darker uppercase tracking-wider mb-3">Vista previa</p>
           <TemplatePreview components={previewComponents} headerImagePreview={headerPreviewUrl} />
           <p className="text-[10px] text-muted-darker mt-2 text-center">
             La revisión de Meta puede tomar hasta 24 horas. Aparecerá como &quot;Pendiente&quot; hasta que sea aprobada.
           </p>
-        </div>
+        </Card>
       </div>
-    </Modal>
+      <div className="flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:justify-end">
+        <Button variant="secondary" href="/whatsapp/plantillas">Cancelar</Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={saving || !name.trim() || !body.trim() || (bodyVariableCount > 0 && bodyExamples.some((v) => !v.trim()))}
+        >
+          {saving ? <Spinner /> : "Crear y enviar a revisión"}
+        </Button>
+      </div>
+    </DetailPage>
   );
 }

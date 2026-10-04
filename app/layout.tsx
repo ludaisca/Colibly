@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { headers } from "next/headers";
+import { appUrl, siteUrl } from "@/lib/app-url";
+import { requestHost } from "@/lib/request-host";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Providers } from "./providers";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 
 const bricolage = Bricolage_Grotesque({
   variable: "--font-display",
@@ -16,18 +21,21 @@ const hankenGrotesk = Hanken_Grotesk({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "SundayCRM — Dashboard",
-  description: "SundayCRM — CRM multi-canal de WhatsApp y Telegram: bandeja de chats, bots de IA, calificación de leads, campañas y sincronización con Google Sheets.",
-  icons: {
-    icon: [
-      {
-        url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%2300B88D"/><text x="16" y="22" font-family="Georgia,serif" font-size="19" font-weight="700" text-anchor="middle" fill="%23ffffff">S</text></svg>',
-        type: "image/svg+xml",
-      },
-    ],
-  },
-};
+// El dominio de cada petición se conoce en runtime. metadataBase usa SITE_URL
+// para la web y APP_URL para el producto; Next resuelve con él las imágenes y
+// otras URLs relativas de los metadatos.
+export async function generateMetadata(): Promise<Metadata> {
+  await connection();
+  const host = requestHost(await headers());
+  const siteHost = process.env.SITE_URL ? new URL(process.env.SITE_URL).hostname.toLowerCase() : null;
+  const appHost = process.env.APP_URL ? new URL(process.env.APP_URL).hostname.toLowerCase() : null;
+  return {
+    metadataBase: new URL(siteHost && host === siteHost ? siteUrl("/") : appUrl("/")),
+    title: { default: BRAND_NAME, template: `%s · ${BRAND_NAME}` },
+    description: `${BRAND_NAME} — ${BRAND_TAGLINE}: WhatsApp, Instagram, Messenger, Telegram y tu web en una sola bandeja, con bots de IA y automatizaciones.`,
+    ...(appHost && siteHost && appHost !== siteHost && host === appHost ? { robots: { index: false, follow: false } } : {}),
+  };
+}
 
 export default function RootLayout({
   children,
@@ -37,6 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      data-scroll-behavior="smooth"
       className={`${bricolage.variable} ${hankenGrotesk.variable} antialiased`}
       suppressHydrationWarning
     >

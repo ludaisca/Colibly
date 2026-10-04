@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { contactCustomFieldValuesSchema } from "@/lib/validations";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 async function getOwnedContact(userId: string, contactId: string) {
-  const accountIds = await getUserAccountIds(userId);
+  const [accountIds, channelAccountIds] = await Promise.all([getUserAccountIds(userId), getUserChannelAccountIds(userId)]);
   return prisma.contact.findFirst({
-    where: { id: contactId, OR: [{ accountId: { in: accountIds } }, { channelAccount: { userId } }] },
+    where: { id: contactId, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
     select: { id: true, accountId: true, channelAccountId: true },
   });
 }
@@ -49,7 +50,7 @@ export async function GET(
       values: Object.fromEntries(values.map((v) => [v.definitionId, v.value])),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -116,7 +117,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

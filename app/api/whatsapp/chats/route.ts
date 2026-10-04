@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { CHAT_ATTRIBUTION_MESSAGE_QUERY, resolveChatAttribution } from "@/lib/whatsapp/chat-attribution";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(req: Request) {
   try {
@@ -23,6 +24,8 @@ export async function GET(req: Request) {
     const where: Record<string, unknown> = {
       accountId: accountId ? accountId : { in: accountIds },
     };
+    const chatId = searchParams.get("chatId");
+    if (chatId) where.id = chatId;
 
     // Búsqueda server-side: con la lista paginada, filtrar solo lo ya cargado
     // en el cliente hacía imposible encontrar chats antiguos.
@@ -115,7 +118,7 @@ export async function GET(req: Request) {
     return NextResponse.json(chats);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

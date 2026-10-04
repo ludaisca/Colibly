@@ -6,6 +6,7 @@ import { getMediaUrl } from "@/lib/whatsapp";
 import { decrypt } from "@/lib/crypto";
 
 import { mimeTypeToExtension } from "@/lib/whatsapp/media-shared";
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
 
 const MEDIA_ROOT = process.env.MEDIA_ROOT || "/app/media";
 
@@ -18,6 +19,7 @@ export {
   isVideoMime,
   isDocumentMime,
   mediaEndpointFor,
+  isInlineSafeMime,
 } from "@/lib/whatsapp/media-shared";
 
 async function ensureAccountDir(accountId: string): Promise<string> {
@@ -70,7 +72,7 @@ export async function saveMediaFromMeta(
   // Meta's lookaside.fbsbx.com download URL isn't a public pre-signed link — it still
   // requires the same Bearer token used to resolve it, or the byte download 401s even
   // though the metadata lookup above (same token) succeeded.
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS), });
   if (!res.ok) {
     throw new Error(`Descarga de medio Meta fallida (HTTP ${res.status})`);
   }
@@ -97,7 +99,23 @@ export function resolveAbsolutePath(relativePath: string): string {
   return path.join(MEDIA_ROOT, safe);
 }
 
+// Borra la carpeta de media de una cuenta (WAAccount o ChannelAccount): todo lo
+// de la cuenta vive en `<accountId>/`. El id se valida estricto — uno vacío o con
+// separadores apuntaría a MEDIA_ROOT entero o fuera de él.
+export async function removeAccountMedia(accountId: string): Promise<void> {
+  if (!/^[A-Za-z0-9_-]+$/.test(accountId)) throw new Error(`Id de cuenta inválido para borrar media: "${accountId}"`);
+  await fs.rm(path.join(MEDIA_ROOT, accountId), { recursive: true, force: true });
+}
+
 export function mediaReadStream(relativePath: string) {
   const abs = resolveAbsolutePath(relativePath);
   return createReadStream(abs);
+}
+
+// `localMediaPath` llega del cliente (lo devolvió la subida previa). Debe estar
+// dentro de la carpeta de la cuenta del chat: resolveAbsolutePath() ya impide
+// salir de MEDIA_ROOT, pero no apuntar a un archivo de OTRA cuenta.
+export function isAccountMediaPath(relativePath: string, accountId: string): boolean {
+  const normalized = path.posix.normalize(relativePath);
+  return !path.posix.isAbsolute(normalized) && !normalized.split("/").includes("..") && normalized.startsWith(`${accountId}/`);
 }

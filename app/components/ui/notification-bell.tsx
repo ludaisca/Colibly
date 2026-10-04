@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, CalendarClock } from "lucide-react";
+import { Bell, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, CalendarClock, CalendarPlus, Plug, CreditCard } from "lucide-react";
+import type { NotificationType } from "@prisma/client";
 import { Dropdown } from "./dropdown";
 import { cn } from "./cn";
 
 interface NotificationItem {
   id: string;
-  type: "CHAT_MESSAGE" | "CAMPAIGN_COMPLETED" | "CAMPAIGN_FAILED" | "BOT_ERROR" | "BUDGET_EXCEEDED" | "ACCOUNT_STATUS" | "APPOINTMENT_REMINDER";
+  type: NotificationType;
   title: string;
   body: string | null;
   link: string | null;
@@ -24,6 +25,9 @@ const TYPE_ICON: Record<NotificationItem["type"], React.ElementType> = {
   BUDGET_EXCEEDED: DollarSign,
   ACCOUNT_STATUS: Phone,
   APPOINTMENT_REMINDER: CalendarClock,
+  APPOINTMENT_PROPOSED: CalendarPlus,
+  INTEGRATION_ERROR: Plug,
+  BILLING: CreditCard,
 };
 
 function formatRelative(iso: string): string {
@@ -80,9 +84,20 @@ export function NotificationBell() {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  // Con la pestaña oculta no se consulta (cada pestaña abierta de cada agente
+  // sumaba carga sin beneficio); al volver a ella se refresca de inmediato.
   useEffect(() => {
-    const interval = setInterval(fetchNotifications, 25000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "hidden") fetchNotifications();
+    }, 25000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [fetchNotifications]);
 
   async function handleItemClick(item: NotificationItem) {
@@ -130,7 +145,7 @@ export function NotificationBell() {
           {unreadCount > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); handleMarkAllRead(); }}
-              className="text-xs text-accent hover:underline"
+              className="text-xs text-accent-ink hover:underline"
             >
               Marcar todo como leído
             </button>
@@ -148,7 +163,7 @@ export function NotificationBell() {
                   onClick={() => handleItemClick(item)}
                   className={cn(
                     "w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-surface-light",
-                    !item.read && "bg-accent/5"
+                    !item.read && "bg-accent-subtle"
                   )}
                 >
                   <Icon size={16} className="text-muted-darker shrink-0 mt-0.5" />

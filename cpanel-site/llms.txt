@@ -1,0 +1,19 @@
+# Colibly
+
+> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Está en beta privada para los primeros 10 negocios: 30 días sin costo y sin tarjeta, con configuración acompañada.
+
+Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colibly.com.
+
+## Qué hace
+- Bandeja compartida: todo el equipo atiende desde un mismo lugar y sabe qué conversación necesita respuesta.
+- Respuestas con tu información: un asistente de IA prepara respuestas con los servicios, precios y preguntas frecuentes del negocio. El equipo puede atender directamente y pausar el asistente cuando quiera.
+- Seguimiento: cada cliente queda con su conversación asignada para retomar oportunidades.
+
+## Beta privada
+- Primeros 10 negocios; 30 días sin costo, sin tarjeta y sin cobro automático.
+- Incluye una cuenta de WhatsApp conectada con guía, hasta tres personas del equipo, un asistente de IA preparado con la información del negocio, y una sesión inicial con dos revisiones durante el mes.
+- Los 30 días empiezan cuando la cuenta está lista para usarse. Meta puede cobrar algunos mensajes de WhatsApp; esos cargos son independientes de Colibly.
+
+## Páginas
+- [Inicio y solicitud de acceso](https://colibly.com/): descripción, beta, preguntas frecuentes y formulario.
+- [Términos](https://colibly.com/terminos) y [Privacidad](https://colibly.com/privacidad): borradores en revisión.

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getEligibleAssignees } from "@/lib/chat-assignees";
+import { getEligibleAssignees, getEligibleChannelAssignees } from "@/lib/chat-assignees";
 import { resolveChatChannel } from "@/lib/chat-resolver";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   _req: Request,
@@ -21,14 +22,12 @@ export async function GET(
     }
 
     if (resolved.channel !== "WHATSAPP") {
-      // Sin WAAccountShare equivalente todavía — el único elegible es el
-      // dueño de la cuenta (Telegram/Messenger/Instagram, todos sobre
-      // ChannelAccount).
+      // Dueño de la cuenta + usuarios con ChannelAccountShare (activos).
       const conversation = await prisma.conversation.findUnique({
         where: { id: chatId },
-        select: { channelAccount: { select: { user: { select: { id: true, name: true, email: true } } } } },
+        select: { channelAccountId: true },
       });
-      return NextResponse.json(conversation ? [conversation.channelAccount.user] : []);
+      return NextResponse.json(conversation ? await getEligibleChannelAssignees(conversation.channelAccountId) : []);
     }
 
     const chat = await prisma.wAChat.findFirst({
@@ -45,7 +44,7 @@ export async function GET(
     return NextResponse.json(assignees);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

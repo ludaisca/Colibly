@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
 import { ingestChannelMessage } from "@/lib/telegram/ingest-message";
+import { answerCallbackQuery } from "@/lib/telegram";
 
 // Telegram identifica la cuenta por la URL del webhook misma (no manda un id
 // de cuenta reutilizable en el payload, a diferencia de Meta) — por eso la
@@ -54,8 +56,19 @@ interface TelegramMessagePayload {
   sticker?: { file_id: string };
 }
 
+// Toque de un botón del teclado inline (automatizaciones / API).
+interface TelegramCallbackQuery {
+  id: string;
+  from: TelegramFrom;
+  data?: string;
+  message?: TelegramMessagePayload & {
+    reply_markup?: { inline_keyboard?: { text: string; callback_data?: string }[][] };
+  };
+}
+
 interface TelegramUpdate {
   update_id: number;
+  callback_query?: TelegramCallbackQuery;
   message?: TelegramMessagePayload;
 }
 
@@ -102,14 +115,24 @@ function extractMessageInfo(msg: TelegramMessagePayload): ExtractedMessageInfo {
   return { type: "text", body: msg.text ?? "", mediaId: null, mimeType: null, filename: null, caption: null };
 }
 
+function secretMatches(received: string | null, expected: string): boolean {
+  if (!received) return false;
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export async function POST(req: Request, { params }: { params: Promise<{ accountId: string }> }) {
   try {
     const { accountId } = await params;
+    const forwarded = req.headers.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
 
-    // El límite va antes de la consulta y el descifrado: la URL del webhook es
-    // pública, así que sin esto cualquiera podía forzar un query + AES por
-    // request con solo golpear el endpoint con un secreto inválido.
-    const { allowed } = await rateLimit(`telegram-webhook:${accountId}`, 120, 60);
+    // Límite general alto (el tráfico legítimo de todos los bots llega desde
+    // pocas IPs de Telegram). Antes el límite era 120/min POR CUENTA: un
+    // tercero mandando basura a la URL de un bot agotaba el cupo del tráfico
+    // real. El límite estricto aplica solo a intentos con secreto inválido.
+    const { allowed } = await rateLimit(`telegram-webhook:${ip}`, 3000, 60);
     if (!allowed) {
       return NextResponse.json({ error: "Demasiadas solicitudes" }, { status: 429 });
     }
@@ -122,21 +145,51 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
 
-    const { webhookSecret } = JSON.parse(decrypt(account.credentials)) as {
+    const { webhookSecret, botToken } = JSON.parse(decrypt(account.credentials)) as {
       botToken: string;
       webhookSecret: string;
     };
-    const receivedSecret = req.headers.get("x-telegram-bot-api-secret-token");
-    if (receivedSecret !== webhookSecret) {
-      return NextResponse.json({ error: "Firma inválida" }, { status: 401 });
+    if (!secretMatches(req.headers.get("x-telegram-bot-api-secret-token"), webhookSecret)) {
+      const failures = await rateLimit(`telegram-webhook-bad-secret:${ip}`, 30, 60);
+      return NextResponse.json({ error: "Firma inválida" }, { status: failures.allowed ? 401 : 429 });
     }
 
-    const update = (await req.json()) as TelegramUpdate;
+    let update: TelegramUpdate;
+    try {
+      update = (await req.json()) as TelegramUpdate;
+    } catch {
+      // Malformado: reintentar no lo arregla.
+      return NextResponse.json({ ok: true });
+    }
+    // Toque de un botón inline: se ingiere como un mensaje de texto con el
+    // título del botón (lo que el cliente "dijo") + interactiveReplyId, igual
+    // que una respuesta a botones de WhatsApp.
+    const cb = update.callback_query;
+    if (cb?.data && cb.message) {
+      await answerCallbackQuery(botToken, cb.id).catch((err) =>
+        console.warn("[telegram webhook] answerCallbackQuery falló:", err instanceof Error ? err.message : err)
+      );
+      const title =
+        cb.message.reply_markup?.inline_keyboard?.flat().find((b) => b.callback_data === cb.data)?.text ?? cb.data;
+      await ingestChannelMessage(accountId, "TELEGRAM", {
+        externalId: String(cb.message.chat.id),
+        // callback_query.id es único por toque: dedupe de reintentos del webhook.
+        externalMessageId: `cb_${cb.id}`,
+        timestamp: new Date(),
+        type: "text",
+        body: title,
+        contactName: cb.from.first_name || cb.from.username || String(cb.message.chat.id),
+        isGroup: cb.message.chat.type !== "private",
+        interactiveReplyId: cb.data,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     const msg = update.message;
     if (!msg) {
-      // Otros tipos de update (edited_message, callback_query, my_chat_member,
-      // etc.) llegan a la misma URL y se ignoran — mismo criterio que el
-      // webhook de Meta con change.field desconocidos.
+      // Otros tipos de update (edited_message, my_chat_member, etc.) llegan a
+      // la misma URL y se ignoran — mismo criterio que el webhook de Meta con
+      // change.field desconocidos.
       return NextResponse.json({ ok: true });
     }
 
@@ -160,9 +213,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[telegram webhook] error:", error);
-    // Telegram reintenta con backoff si no responde 200 — devolver 200 igual
-    // ante un error de parseo evita una tormenta de reintentos que nunca se
-    // resolvería sola.
-    return NextResponse.json({ ok: true });
+    // Error procesando un update válido (DB/Redis caídos...): 500 para que
+    // Telegram reintente con backoff — antes se respondía 200 y el mensaje se
+    // perdía. El dedup por (conversación, message_id) hace seguro el reintento.
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }

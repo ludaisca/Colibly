@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
+import { isOrgWritable } from "@/lib/billing/gates";
 
 // Roadmap P3-a — motor de secuencias lineales (ver comentario de
 // SequenceTriggerType en schema.prisma para el porqué de "sin ramas"). Dos
@@ -12,10 +13,15 @@ import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 // processSequenceTick() (el tick de BullMQ, lib/workers/sequence-worker.ts).
 
 const CANDIDATE_POOL = 200; // mismo bound que lead-recovery/appointment-reminders
-// Un paso bloqueado por la ventana de 24h de Meta (o sin ningún inbound
-// todavía) no aborta la inscripción — se reintenta en la próxima hora, igual
-// de silencioso que lead-recovery cuando no hay plantilla de reactivación.
+// Un paso bloqueado por la ventana de 24h de Meta se reintenta cada hora
+// mientras la ventana pueda reabrirse (exitOnReply apagado), hasta este plazo.
 const WHATSAPP_WINDOW_RETRY_MINUTES = 60;
+const WHATSAPP_WINDOW_MAX_WAIT_MS = 7 * 24 * 60 * 60_000;
+// Envío fallido (token inválido, número bloqueado, bot removido...): backoff
+// 15 min → 30 min → 1 h → 2 h y, al quinto fallo seguido, FAILED. Antes el
+// paso se reintentaba cada 5 minutos para siempre.
+export const SEQUENCE_MAX_SEND_ATTEMPTS = 5;
+const SEND_RETRY_BASE_MINUTES = 15;
 
 function renderStepMessage(message: string, contact: { name: string | null; realName: string | null }): string {
   const displayName = contact.realName ?? contact.name ?? "";
@@ -152,12 +158,27 @@ async function processSingleEnrollment(enrollment: EnrollmentWithRelations, now:
   // Ventana de servicio de 24h de Meta — solo aplica a WhatsApp (Telegram no
   // impone esta restricción, ver AGENTS.md "Lead recovery"). Sin ningún
   // inbound registrado, o fuera de la ventana, no hay forma de mandar texto
-  // libre sin violar la política — se reintenta más tarde en vez de forzar
-  // el envío o abortar la inscripción completa.
+  // libre sin violar la política.
   if (isWhatsapp && (!lastInbound || !isWithinServiceWindow(lastInbound.timestamp, now))) {
-    console.warn(
-      `[sequences] Paso ${step.order} de "${sequence.name}" bloqueado por la ventana de 24h de Meta (inscripción ${enrollment.id}) — reintenta en ${WHATSAPP_WINDOW_RETRY_MINUTES} min`
-    );
+    const waitingSince = enrollment.lastStepSentAt ?? enrollment.enrolledAt;
+    const waitedTooLong = now.getTime() - waitingSince.getTime() > WHATSAPP_WINDOW_MAX_WAIT_MS;
+    // Con exitOnReply la ventana solo se reabre si el lead responde — y eso
+    // detiene la secuencia (arriba). Este paso ya nunca podrá enviarse: antes
+    // la inscripción quedaba ACTIVE para siempre, reintentando cada hora.
+    if (sequence.exitOnReply || waitedTooLong) {
+      console.warn(
+        `[sequences] Paso ${step.order} de "${sequence.name}" fuera de la ventana de 24h de WhatsApp sin posibilidad de reabrirse — inscripción ${enrollment.id} EXPIRED`
+      );
+      await prisma.wASequenceEnrollment.update({
+        where: { id: enrollment.id },
+        data: {
+          status: "EXPIRED",
+          nextRunAt: null,
+          lastError: "Fuera de la ventana de 24 h de WhatsApp: el mensaje libre solo se puede enviar dentro de las 24 h posteriores al último mensaje del cliente.",
+        },
+      });
+      return;
+    }
     await prisma.wASequenceEnrollment.update({
       where: { id: enrollment.id },
       data: { nextRunAt: new Date(now.getTime() + WHATSAPP_WINDOW_RETRY_MINUTES * 60_000) },
@@ -167,45 +188,38 @@ async function processSingleEnrollment(enrollment: EnrollmentWithRelations, now:
 
   const body = renderStepMessage(step.message, contact);
 
-  if (isWhatsapp) {
-    const waAccount = sequence.waAccount!;
-    const sendResult = await sendWhatsAppMessage(waAccount, { to: contact.remoteJid, type: "text", body });
-    const message = await prisma.wAMessage.create({
-      data: {
-        wamid: sendResult.wamid ?? undefined,
-        chatId: chatId!,
-        direction: "OUTBOUND",
-        messageType: "text",
-        body,
-        status: "sent",
-        timestamp: now,
-      },
+  let externalId: string | null;
+  try {
+    if (isWhatsapp) {
+      const sendResult = await sendWhatsAppMessage(sequence.waAccount!, { to: contact.remoteJid, type: "text", body });
+      externalId = sendResult.wamid ?? null;
+    } else {
+      const sendResult = await sendTelegramMessage(sequence.channelAccount!, { to: contact.remoteJid, body });
+      externalId = sendResult.externalMessageId;
+    }
+  } catch (err) {
+    const attempts = enrollment.sendAttempts + 1;
+    const lastError = (err instanceof Error ? err.message : String(err)).slice(0, 1000);
+    const failed = attempts >= SEQUENCE_MAX_SEND_ATTEMPTS;
+    console.error(
+      `[sequences] Falló el envío del paso ${step.order} de "${sequence.name}" (inscripción ${enrollment.id}, intento ${attempts}/${SEQUENCE_MAX_SEND_ATTEMPTS})${failed ? " — FAILED" : ""}:`,
+      lastError
+    );
+    await prisma.wASequenceEnrollment.update({
+      where: { id: enrollment.id },
+      data: failed
+        ? { status: "FAILED", nextRunAt: null, sendAttempts: attempts, lastError }
+        : {
+            sendAttempts: attempts,
+            lastError,
+            nextRunAt: new Date(now.getTime() + SEND_RETRY_BASE_MINUTES * 2 ** (attempts - 1) * 60_000),
+          },
     });
-    await prisma.wAChat.update({
-      where: { id: chatId! },
-      data: { lastMessage: body.slice(0, 500), lastMessageAt: now },
-    });
-    void message;
-  } else {
-    const channelAccount = sequence.channelAccount!;
-    const sendResult = await sendTelegramMessage(channelAccount, { to: contact.remoteJid, body });
-    await prisma.channelMessage.create({
-      data: {
-        externalMessageId: sendResult.externalMessageId,
-        conversationId: conversationId!,
-        direction: "OUTBOUND",
-        messageType: "text",
-        body,
-        status: "sent",
-        timestamp: now,
-      },
-    });
-    await prisma.conversation.update({
-      where: { id: conversationId! },
-      data: { lastMessage: body.slice(0, 500), lastMessageAt: now },
-    });
+    return;
   }
 
+  // El mensaje ya salió: la inscripción avanza ANTES de registrar el mensaje,
+  // para que un error al guardarlo no deje el paso pendiente y se reenvíe.
   const nextStep = steps[enrollment.currentStep + 1];
   await prisma.wASequenceEnrollment.update({
     where: { id: enrollment.id },
@@ -213,10 +227,28 @@ async function processSingleEnrollment(enrollment: EnrollmentWithRelations, now:
       ? {
           currentStep: enrollment.currentStep + 1,
           lastStepSentAt: now,
+          sendAttempts: 0,
+          lastError: null,
           nextRunAt: new Date(now.getTime() + nextStep.delayMinutes * 60_000),
         }
-      : { currentStep: enrollment.currentStep + 1, lastStepSentAt: now, status: "COMPLETED", nextRunAt: null },
+      : { currentStep: enrollment.currentStep + 1, lastStepSentAt: now, sendAttempts: 0, lastError: null, status: "COMPLETED", nextRunAt: null },
   });
+
+  try {
+    if (isWhatsapp) {
+      await prisma.wAMessage.create({
+        data: { wamid: externalId ?? undefined, chatId: chatId!, direction: "OUTBOUND", messageType: "text", body, status: "sent", timestamp: now },
+      });
+      await prisma.wAChat.update({ where: { id: chatId! }, data: { lastMessage: body.slice(0, 500), lastMessageAt: now } });
+    } else {
+      await prisma.channelMessage.create({
+        data: { externalMessageId: externalId, conversationId: conversationId!, direction: "OUTBOUND", messageType: "text", body, status: "sent", timestamp: now },
+      });
+      await prisma.conversation.update({ where: { id: conversationId! }, data: { lastMessage: body.slice(0, 500), lastMessageAt: now } });
+    }
+  } catch (err) {
+    console.error(`[sequences] Paso ${step.order} enviado pero no se pudo registrar el mensaje (inscripción ${enrollment.id}):`, err instanceof Error ? err.message : err);
+  }
 }
 
 // Tick de BullMQ (lib/workers/sequence-worker.ts) — procesa las inscripciones
@@ -226,7 +258,12 @@ async function processSingleEnrollment(enrollment: EnrollmentWithRelations, now:
 export async function processSequenceTick(): Promise<void> {
   const now = new Date();
   const enrollments = await prisma.wASequenceEnrollment.findMany({
-    where: { status: "ACTIVE", nextRunAt: { lte: now } },
+    // Solo organizaciones que pueden enviar: las de solo lectura esperan (sus
+    // inscripciones siguen ACTIVE y retoman al reactivar el plan).
+    where: { status: "ACTIVE", nextRunAt: { lte: now }, sequence: { organization: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } } } },
+    // Las más atrasadas primero — sin orden, un bloque de inscripciones que
+    // fallaban siempre acaparaba el lote y las demás nunca se procesaban.
+    orderBy: { nextRunAt: "asc" },
     take: CANDIDATE_POOL,
     include: {
       sequence: { include: { steps: true, waAccount: true, channelAccount: true } },
@@ -235,6 +272,7 @@ export async function processSequenceTick(): Promise<void> {
   });
 
   for (const enrollment of enrollments) {
+    if (!(await isOrgWritable(enrollment.sequence.organizationId))) continue;
     try {
       await processSingleEnrollment(enrollment, now);
     } catch (err) {

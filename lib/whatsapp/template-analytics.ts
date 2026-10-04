@@ -1,3 +1,5 @@
+import { httpTimeout } from "@/lib/http-timeouts";
+
 const GRAPH_API = "https://graph.facebook.com/v21.0";
 
 export interface TemplateAnalyticsPoint {
@@ -76,6 +78,7 @@ export async function getTemplateAnalytics(
   for (let page = 0; url && page < MAX_PAGES; page++) {
     const res: Response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: httpTimeout(),
     });
 
     const json = (await res.json().catch(() => ({}))) as MetaTemplateAnalyticsResponse;

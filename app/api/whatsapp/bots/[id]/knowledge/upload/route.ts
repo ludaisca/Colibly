@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ragQueue } from "@/lib/queue";
-import { getUserApiKey } from "@/lib/ai/settings";
+import { getPlatformApiKey } from "@/lib/ai/platform";
 import type { AIProvider } from "@/lib/ai/types";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -28,7 +30,7 @@ export async function POST(
     const { id } = await params;
 
     const bot = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!bot) {
@@ -63,7 +65,7 @@ export async function POST(
 
     const provider = bot.provider as AIProvider;
 
-    const apiKey = await getUserApiKey(session.user.id, provider);
+    const apiKey = await getPlatformApiKey(provider);
     if (!apiKey) {
       return NextResponse.json(
         { error: "No hay API key configurada para el proveedor de este bot" },
@@ -80,7 +82,7 @@ export async function POST(
     const resolvedBotIds = await Promise.all(
       botIds.map(async (bid) => {
         const b = await prisma.wABot.findFirst({
-          where: { id: bid, userId: session.user.id },
+          where: { id: bid, ...(await orgWhere(session.user.id)) },
         });
         return b ? b.id : null;
       })
@@ -104,7 +106,7 @@ export async function POST(
       message: "Documento encolado para indexación",
     }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

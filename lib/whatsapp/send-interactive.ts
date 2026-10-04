@@ -1,5 +1,7 @@
 import { decrypt } from "@/lib/crypto";
 import type { WAAccount } from "@prisma/client";
+import { httpTimeout } from "@/lib/http-timeouts";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 export interface InteractiveButton {
   id: string; // generado por el caller (btn_1, btn_2...), nunca confiado del cliente
@@ -10,15 +12,51 @@ export interface SendInteractiveParams {
   to: string;
   body: string;
   buttons: InteractiveButton[]; // 1-3, límite de Meta para reply buttons
+  replyToWamid?: string;
 }
 
-// Único lugar que construye un payload type:"interactive" (reply buttons) para
-// la Graph API — mensajes de lista y botones generados por el bot de IA
-// quedan fuera de alcance por ahora (ver AGENTS.md "Mensajes interactivos").
+// Único lugar que construye un payload type:"interactive" para la Graph API:
+// botones de respuesta (máx. 3) y listas (máx. 10 filas). Los usan el
+// composer del inbox, la API pública y las automatizaciones.
 export async function sendInteractiveMessage(
   account: WAAccount,
   params: SendInteractiveParams
 ): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
+  return postInteractive(account, params.to, {
+    type: "button",
+    body: { text: params.body },
+    action: {
+      buttons: params.buttons.map((b) => ({ type: "reply", reply: { id: b.id, title: b.title } })),
+    },
+  }, params.replyToWamid);
+}
+
+export interface SendListParams {
+  to: string;
+  body: string;
+  buttonLabel: string; // texto del botón que abre la lista (máx. 20)
+  rows: { id: string; title: string; description?: string }[]; // 1-10
+}
+
+export async function sendInteractiveList(account: WAAccount, params: SendListParams): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
+  return postInteractive(account, params.to, {
+    type: "list",
+    body: { text: params.body },
+    action: {
+      button: params.buttonLabel,
+      sections: [
+        {
+          title: params.buttonLabel.slice(0, 24),
+          rows: params.rows.map((r) => ({ id: r.id, title: r.title, ...(r.description ? { description: r.description } : {}) })),
+        },
+      ],
+    },
+  });
+}
+
+async function postInteractive(account: WAAccount, to: string, interactive: Record<string, unknown>, replyToWamid?: string): Promise<{ wamid: string | null }> {
   if (!account.accessToken || !account.phoneNumberId) {
     throw new Error("La cuenta de WhatsApp no tiene accessToken/phoneNumberId configurados");
   }
@@ -28,18 +66,10 @@ export async function sendInteractiveMessage(
   const body = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
-    to: params.to,
+    to,
     type: "interactive",
-    interactive: {
-      type: "button",
-      body: { text: params.body },
-      action: {
-        buttons: params.buttons.map((b) => ({
-          type: "reply",
-          reply: { id: b.id, title: b.title },
-        })),
-      },
-    },
+    interactive,
+    ...(replyToWamid ? { context: { message_id: replyToWamid } } : {}),
   };
 
   const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
@@ -52,12 +82,12 @@ export async function sendInteractiveMessage(
     body: JSON.stringify(body),
   };
 
-  let res = await fetch(url, requestInit);
+  let res = await fetch(url, { ...requestInit, signal: httpTimeout() });
 
   if (res.status === 429) {
     const retryAfter = Number(res.headers.get("Retry-After") || "5");
     await new Promise((r) => setTimeout(r, retryAfter * 1000));
-    res = await fetch(url, requestInit);
+    res = await fetch(url, { ...requestInit, signal: httpTimeout() });
   }
 
   if (!res.ok) {

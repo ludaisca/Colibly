@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { cn } from "./cn";
 
@@ -11,6 +12,8 @@ interface DropdownProps {
   className?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  portal?: boolean;
+  closeOnSelect?: boolean;
 }
 
 export function Dropdown({
@@ -20,9 +23,13 @@ export function Dropdown({
   className,
   open: controlledOpen,
   onOpenChange,
+  portal = false,
+  closeOnSelect = true,
 }: DropdownProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [portalPosition, setPortalPosition] = useState<{ top: number; left: number } | null>(null);
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
@@ -42,11 +49,42 @@ export function Dropdown({
 
   const toggle = useCallback(() => setOpen(!isOpen), [isOpen, setOpen]);
   const close = useCallback(() => setOpen(false), [setOpen]);
+  const triggerIsNativeControl = React.isValidElement(trigger) && (trigger.type === "button" || trigger.type === "a");
+
+  const updatePortalPosition = useCallback(() => {
+    if (!portal || !ref.current || !menuRef.current) return;
+    const anchor = ref.current.getBoundingClientRect();
+    const menu = menuRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const left = Math.max(8, Math.min(
+      align === "right" ? anchor.right - menu.width : anchor.left,
+      window.innerWidth - menu.width - 8
+    ));
+    const below = anchor.bottom + 6;
+    const above = anchor.top - menu.height - 6;
+    const openAbove = below + menu.height > viewportHeight - 8 && anchor.top > viewportHeight - anchor.bottom;
+    const top = Math.max(8, Math.min(openAbove ? above : below, viewportHeight - menu.height - 8));
+    setPortalPosition((previous) => previous?.top === top && previous.left === left ? previous : { top, left });
+  }, [align, portal]);
+
+  useLayoutEffect(() => {
+    if (!visible || !portal) return;
+    updatePortalPosition();
+    const observer = new ResizeObserver(updatePortalPosition);
+    if (menuRef.current) observer.observe(menuRef.current);
+    window.addEventListener("resize", updatePortalPosition);
+    window.addEventListener("scroll", updatePortalPosition, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updatePortalPosition);
+      window.removeEventListener("scroll", updatePortalPosition, true);
+    };
+  }, [visible, portal, updatePortalPosition]);
 
   useEffect(() => {
     if (!isOpen) return;
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (ref.current && !ref.current.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) {
         close();
       }
     }
@@ -63,30 +101,35 @@ export function Dropdown({
     return () => document.removeEventListener("keydown", handler);
   }, [isOpen, close]);
 
+  const menu = visible && (
+    <div
+      ref={menuRef}
+      className={cn(
+        "z-[70] mt-1.5 min-w-[180px] rounded-xl border border-border bg-surface shadow-lg py-1",
+        portal ? "fixed max-h-[calc(100dvh-16px)] max-w-[calc(100vw-16px)] overflow-y-auto" : "absolute",
+        isOpen ? "animate-scale-in" : "animate-scale-out",
+        !portal && (align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left")
+      )}
+      style={portal ? { top: portalPosition?.top ?? 0, left: portalPosition?.left ?? 0, visibility: portalPosition ? "visible" : "hidden", marginTop: 0 } : undefined}
+      onClick={closeOnSelect ? close : undefined}
+      onAnimationEnd={handleAnimationEnd}
+    >
+      {children}
+    </div>
+  );
+
   return (
     <div ref={ref} className={cn("relative inline-block", className)}>
       <div
-        role="button"
-        tabIndex={0}
+        role={triggerIsNativeControl ? undefined : "button"}
+        tabIndex={triggerIsNativeControl ? undefined : 0}
         onClick={toggle}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
+        onKeyDown={triggerIsNativeControl ? undefined : (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
         className="cursor-pointer"
       >
         {trigger}
       </div>
-      {visible && (
-        <div
-          className={cn(
-            "absolute z-50 mt-1.5 min-w-[180px] rounded-xl border border-border bg-surface shadow-lg py-1",
-            isOpen ? "animate-scale-in" : "animate-scale-out",
-            align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"
-          )}
-          onClick={close}
-          onAnimationEnd={handleAnimationEnd}
-        >
-          {children}
-        </div>
-      )}
+      {portal && typeof document !== "undefined" ? createPortal(menu, document.body) : menu}
     </div>
   );
 }

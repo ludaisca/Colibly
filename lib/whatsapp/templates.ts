@@ -1,4 +1,5 @@
 import type { TemplateCreateInput } from "@/lib/validations";
+import { httpTimeout } from "@/lib/http-timeouts";
 
 const GRAPH_API = "https://graph.facebook.com/v21.0";
 
@@ -91,6 +92,7 @@ export async function createTemplate(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal: httpTimeout(),
   });
 
   const json = (await res.json().catch(() => ({}))) as {

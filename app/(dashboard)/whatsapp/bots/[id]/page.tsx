@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Trash2, Power, PowerOff, Send, Upload, X } from "lucide-react";
+import { Trash2, Power, PowerOff, Send, Upload, X, RotateCcw } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Input } from "@/app/components/ui/input";
@@ -10,6 +10,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Spinner } from "@/app/components/ui/spinner";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Banner } from "@/app/components/ui/banner";
+import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
@@ -20,8 +21,6 @@ import { BotFormModal } from "../_form";
 interface BotDetail {
   id: string;
   name: string;
-  provider: string;
-  model: string;
   systemPrompt: string;
   temperature: number;
   maxTokens: number;
@@ -35,6 +34,7 @@ interface BotDetail {
   createdAt: string;
   updatedAt: string;
   waAccount: { id: string; name: string; phoneNumber: string | null } | null;
+  channelAccount: { id: string; name: string; channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" } | null;
   _count: { conversations: number; knowledgeBots: number };
 }
 
@@ -53,6 +53,8 @@ interface UsageData {
   recent: Array<{ totalTokens: number; estimatedCost: number; createdAt: string }>;
 }
 
+type TestTurn = { role: "user" | "assistant"; content: string };
+
 const TABS = [
   { id: "config", label: "Configuración" },
   { id: "knowledge", label: "Conocimiento" },
@@ -69,12 +71,14 @@ export default function BotDetailPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("config");
   const [bot, setBot] = useState<BotDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   const [knowledge, setKnowledge] = useState<KnowledgeDoc[]>([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
   const [docTitle, setDocTitle] = useState("");
   const [uploading, setUploading] = useState(false);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
@@ -82,37 +86,45 @@ export default function BotDetailPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [testMessage, setTestMessage] = useState("");
-  const [testResponse, setTestResponse] = useState("");
+  const [testTurns, setTestTurns] = useState<TestTurn[]>([]);
   const [testing, setTesting] = useState(false);
+  const testEndRef = useRef<HTMLDivElement>(null);
 
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
+  const [usageError, setUsageError] = useState<string | null>(null);
 
   const fetchBot = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch(`/api/whatsapp/bots/${id}`);
       const data = await res.json();
-      if (res.ok) setBot(data);
-    } catch { toastError("Error al cargar"); } finally { setLoading(false); }
-  }, [id, toastError]);
+      if (!res.ok) throw new Error(data.error ?? "Error al cargar el bot");
+      setBot(data);
+    } catch (err) { setLoadError(err instanceof Error ? err.message : "Error al cargar el bot"); } finally { setLoading(false); }
+  }, [id]);
 
   const fetchKnowledge = useCallback(async () => {
     setKnowledgeLoading(true);
+    setKnowledgeError(null);
     try {
       const res = await fetch(`/api/whatsapp/bots/${id}/knowledge`);
       const data = await res.json();
-      if (Array.isArray(data)) setKnowledge(data);
-    } catch { /* */ } finally { setKnowledgeLoading(false); }
+      if (!res.ok || !Array.isArray(data)) throw new Error(data.error ?? "Error al cargar documentos");
+      setKnowledge(data);
+    } catch (err) { setKnowledgeError(err instanceof Error ? err.message : "Error al cargar documentos"); } finally { setKnowledgeLoading(false); }
   }, [id]);
 
   const fetchUsage = useCallback(async () => {
     setUsageLoading(true);
+    setUsageError(null);
     try {
       const res = await fetch(`/api/whatsapp/bots/${id}/usage`);
       const data = await res.json();
-      if (res.ok) setUsageData(data);
-    } catch { /* */ } finally { setUsageLoading(false); }
+      if (!res.ok) throw new Error(data.error ?? "Error al cargar uso");
+      setUsageData(data);
+    } catch (err) { setUsageError(err instanceof Error ? err.message : "Error al cargar uso"); } finally { setUsageLoading(false); }
   }, [id]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchBot also used for manual refresh
@@ -121,6 +133,7 @@ export default function BotDetailPage() {
   useEffect(() => { if (tab === "knowledge") fetchKnowledge(); }, [tab, fetchKnowledge]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-tab-switch
   useEffect(() => { if (tab === "uso") fetchUsage(); }, [tab, fetchUsage]);
+  useEffect(() => { if (tab === "test") testEndRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [tab, testTurns, testing]);
 
   async function handleToggle() {
     setToggling(true);
@@ -190,19 +203,23 @@ export default function BotDetailPage() {
   }
 
   async function handleTest() {
-    if (!testMessage.trim()) return;
+    const message = testMessage.trim();
+    if (!message || testing) return;
     setTesting(true);
-    setTestResponse("");
+    setTestMessage("");
+    setTestTurns((prev) => [...prev, { role: "user", content: message }]);
     try {
       const res = await fetch(`/api/whatsapp/bots/${id}/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: testMessage }),
+        body: JSON.stringify({ message, history: testTurns.slice(-100) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setTestResponse(data.response);
+      setTestTurns((prev) => [...prev, { role: "assistant", content: data.response }]);
     } catch (err) {
+      setTestTurns((prev) => prev.slice(0, -1));
+      setTestMessage(message);
       toastError(err instanceof Error ? err.message : "Error en el test");
     } finally { setTesting(false); }
   }
@@ -234,6 +251,7 @@ export default function BotDetailPage() {
   ], []);
 
   if (loading) return <div className="flex items-center justify-center py-16"><Spinner /></div>;
+  if (loadError) return <ListErrorState message={loadError} onRetry={fetchBot} />;
   if (!bot) return <Banner tone="danger" title="Bot no encontrado">El bot solicitado no existe.</Banner>;
 
   return (
@@ -241,7 +259,7 @@ export default function BotDetailPage() {
       backHref="/whatsapp/bots"
       backLabel="Volver a bots"
       title={bot.name}
-      description={`${bot.waAccount?.name ?? "Sin cuenta (solo pruebas)"} · ${bot.provider === "openrouter" ? "OpenRouter" : "Gemini"} · ${bot.model}`}
+      description={bot.waAccount?.name ?? bot.channelAccount?.name ?? "Sin cuenta (solo pruebas)"}
       maxWidth="max-w-3xl"
       tabs={TABS as unknown as { id: string; label: string }[]}
       activeTab={tab}
@@ -264,7 +282,7 @@ export default function BotDetailPage() {
     >
       {bot.status === "ERROR" && (
         <Banner tone="danger" title="Este bot dejó de responder por un error">
-          Quedó marcado en estado de error tras un fallo (API key inválida, error del proveedor, etc.) y no procesará mensajes nuevos aunque esté &quot;Activo&quot;. Pausa y vuelve a activarlo para reintentar.
+          Quedó marcado en estado de error tras un fallo (error del proveedor de IA, etc.) y no procesará mensajes nuevos aunque esté &quot;Activo&quot;. Pausa y vuelve a activarlo para reintentar.
         </Banner>
       )}
 
@@ -284,6 +302,7 @@ export default function BotDetailPage() {
 
       {tab === "knowledge" && (
         <div className="space-y-8">
+          {knowledgeError && <Banner tone="danger">{knowledgeError} <button onClick={fetchKnowledge} className="underline">Reintentar</button></Banner>}
           <section className="space-y-4">
             <SectionHeader title="Subir documento" />
             <div className="space-y-3">
@@ -338,20 +357,42 @@ export default function BotDetailPage() {
       {tab === "test" && (
         <section className="space-y-4">
           <SectionHeader title="Probar el bot" />
-          <FormField label="Mensaje de prueba">
-            {(id) => (
-              <Textarea id={id} value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Escribe un mensaje para probar..." rows={3} />
-            )}
-          </FormField>
-          <Button icon={Send} size="sm" onClick={handleTest} disabled={testing || !testMessage.trim()}>
-            {testing ? <Spinner /> : "Enviar"}
-          </Button>
-          {testResponse && (
-            <div className="rounded-lg border border-border bg-surface p-4">
-              <p className="mb-2 text-xs font-medium text-muted-darker">Respuesta:</p>
-              <p className="whitespace-pre-wrap text-sm">{testResponse}</p>
-            </div>
+          {!bot.waAccountId && !bot.channelAccount && (
+            <Banner tone="warning" title="Este bot aún no responde en chats">
+              Asígnale una cuenta desde Editar y actívalo. La prueba de abajo consulta la IA aunque no tenga una cuenta vinculada.
+            </Banner>
           )}
+          {(bot.waAccountId || bot.channelAccount) && !bot.isActive && (
+            <Banner tone="warning" title="Este bot está pausado">
+              Actívalo para que responda a los mensajes de la cuenta vinculada.
+            </Banner>
+          )}
+          <p className="text-xs text-muted">Conversación de prueba con la memoria y el conocimiento configurados. No envía mensajes al canal ni comprueba el webhook. Cada respuesta usa un crédito de IA.</p>
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+              <span className="text-sm font-medium">Conversación de prueba</span>
+              <Button icon={RotateCcw} variant="ghost" size="sm" onClick={() => { setTestTurns([]); setTestMessage(""); }} disabled={testing || testTurns.length === 0}>Nueva conversación</Button>
+            </div>
+            <div className="max-h-[min(55vh,28rem)] min-h-64 space-y-3 overflow-y-auto p-4" role="log" aria-label="Mensajes de prueba" aria-live="polite">
+              {testTurns.length === 0 && <p className="py-16 text-center text-sm text-muted">Escribe un mensaje para iniciar la conversación.</p>}
+              {testTurns.map((turn, index) => (
+                <div key={index} className={`flex ${turn.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-sm ${turn.role === "user" ? "bg-accent text-white" : "border border-border bg-surface-light text-foreground"}`}>
+                    {turn.content}
+                  </div>
+                </div>
+              ))}
+              {testing && <div className="flex justify-start"><div className="rounded-xl border border-border bg-surface-light px-4 py-3" aria-label="El bot está respondiendo"><Spinner /></div></div>}
+              <div ref={testEndRef} />
+            </div>
+            <form className="flex items-end gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); handleTest(); }}>
+              <div className="min-w-0 flex-1">
+                <label htmlFor="bot-test-message" className="sr-only">Mensaje de prueba</label>
+                <Textarea id="bot-test-message" value={testMessage} maxLength={4000} onChange={(event) => setTestMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); handleTest(); } }} placeholder="Escribe un mensaje…" rows={2} className="min-h-16 resize-none" />
+              </div>
+              <Button type="submit" icon={Send} size="sm" disabled={testing || !testMessage.trim()} aria-label="Enviar mensaje de prueba">Enviar</Button>
+            </form>
+          </div>
         </section>
       )}
 
@@ -369,10 +410,13 @@ export default function BotDetailPage() {
           <section className="space-y-4">
             <SectionHeader title={`Últimas interacciones (${usageData?.total.interactions ?? 0} total)`} />
             <Table
+              className="rounded-xl border border-border bg-surface p-5 shadow-sm"
               columns={usageColumns}
               rows={usageData?.recent ?? []}
               rowKey={(u) => `${u.createdAt}-${u.totalTokens}-${u.estimatedCost}`}
               loading={usageLoading}
+              error={usageError}
+              onRetry={fetchUsage}
               emptyIcon={Send}
               emptyTitle="Sin datos de uso aún"
             />

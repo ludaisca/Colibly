@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { botUpdateSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { findOtherActiveBot } from "@/lib/bots/guards";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
+import { modelChoiceError, pickCuratedModel } from "@/lib/ai/platform";
 
 export async function GET(
   _req: Request,
@@ -20,12 +24,10 @@ export async function GET(
     const { id } = await params;
 
     const bot = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
       select: {
         id: true,
         name: true,
-        provider: true,
-        model: true,
         systemPrompt: true,
         temperature: true,
         maxTokens: true,
@@ -43,6 +45,7 @@ export async function GET(
         waAccount: {
           select: { id: true, name: true, phoneNumber: true },
         },
+        channelAccount: { select: { id: true, name: true, channel: true } },
         _count: { select: { conversations: true, knowledgeBots: true } },
       },
     });
@@ -54,7 +57,7 @@ export async function GET(
     return NextResponse.json(bot);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -75,7 +78,7 @@ export async function PATCH(
     const { id } = await params;
 
     const existing = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!existing) {
@@ -95,6 +98,18 @@ export async function PATCH(
     const data: Record<string, unknown> = {};
     const fields = parsed.data;
 
+    // El cliente nunca envía provider/model — si el que ya tiene guardado dejó
+    // de ser válido (el operador apagó ese proveedor en /plataforma), se
+    // reasigna sola en silencio en vez de bloquear la edición con un error que
+    // el cliente no podría resolver.
+    if (await modelChoiceError(existing.provider, existing.model)) {
+      const picked = await pickCuratedModel(true);
+      if (picked) {
+        data.provider = picked.provider;
+        data.model = picked.model;
+      }
+    }
+
     if (fields.name) data.name = fields.name;
     if (fields.waAccountId !== undefined) {
       if (fields.waAccountId) {
@@ -112,7 +127,7 @@ export async function PATCH(
     if (fields.channelAccountId !== undefined) {
       if (fields.channelAccountId) {
         const channelAccount = await prisma.channelAccount.findFirst({
-          where: { id: fields.channelAccountId, userId: session.user.id },
+          where: { id: fields.channelAccountId, ...(await orgWhere(session.user.id)) },
           select: { id: true },
         });
         if (!channelAccount) {
@@ -122,8 +137,20 @@ export async function PATCH(
       data.channelAccountId = fields.channelAccountId || null;
       if (fields.channelAccountId) data.waAccountId = null;
     }
-    if (fields.provider) data.provider = fields.provider;
-    if (fields.model) data.model = fields.model;
+    // Mover un bot ACTIVO a una cuenta que ya tiene otro bot activo dejaría dos
+    // respondiendo al mismo mensaje — mismo criterio que el toggle.
+    if (existing.isActive && (fields.waAccountId || fields.channelAccountId)) {
+      const other = await findOtherActiveBot(existing.id, {
+        waAccountId: fields.waAccountId || null,
+        channelAccountId: fields.waAccountId ? null : fields.channelAccountId || null,
+      });
+      if (other) {
+        return NextResponse.json(
+          { error: `Esa cuenta ya tiene un bot activo ("${other.name}"). Desactiva uno de los dos primero.` },
+          { status: 409 }
+        );
+      }
+    }
     if (fields.systemPrompt) data.systemPrompt = fields.systemPrompt;
     if (fields.temperature !== undefined) data.temperature = fields.temperature;
     if (fields.maxTokens !== undefined) data.maxTokens = fields.maxTokens;
@@ -139,8 +166,6 @@ export async function PATCH(
       select: {
         id: true,
         name: true,
-        provider: true,
-        model: true,
         systemPrompt: true,
         temperature: true,
         maxTokens: true,
@@ -161,7 +186,7 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -182,7 +207,7 @@ export async function DELETE(
     const { id } = await params;
 
     const existing = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!existing) {
@@ -194,7 +219,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

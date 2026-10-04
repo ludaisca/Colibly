@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { leadSheetSourceUpdateSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -38,7 +40,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json({ ...source, rowCounts, recentRows });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -49,6 +51,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
     const { id } = await params;
 
     const body = await req.json();
@@ -62,6 +66,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!existing) {
       return NextResponse.json({ error: "Fuente no encontrada" }, { status: 404 });
     }
+    if (parsed.data.enabled === true) {
+      const template = await prisma.wATemplate.findUnique({
+        where: { id: existing.waTemplateId }, select: { status: true },
+      });
+      if (template?.status !== "APPROVED") {
+        return NextResponse.json({ error: "La plantilla ya no está aprobada. Sincroniza Meta antes de reactivar la fuente." }, { status: 400 });
+      }
+    }
 
     const updated = await prisma.leadSheetSource.update({
       where: { id },
@@ -70,7 +82,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     return NextResponse.json(updated);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -81,6 +93,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
     const { id } = await params;
 
     const accountIds = await getUserAccountIds(session.user.id);
@@ -93,7 +107,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

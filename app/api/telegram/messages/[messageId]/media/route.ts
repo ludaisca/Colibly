@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { resolveAbsolutePath, mediaReadStream } from "@/lib/whatsapp/media-store";
+import { resolveAbsolutePath, mediaReadStream, isInlineSafeMime } from "@/lib/whatsapp/media-store";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(
   _req: Request,
@@ -16,7 +18,7 @@ export async function GET(
     const { messageId } = await params;
 
     const message = await prisma.channelMessage.findFirst({
-      where: { id: messageId, conversation: { channelAccount: { userId: session.user.id } } },
+      where: { id: messageId, conversation: { channelAccountId: { in: await getUserChannelAccountIds(session.user.id) } } },
       select: {
         id: true,
         mediaUrl: true,
@@ -48,10 +50,11 @@ export async function GET(
     headers.set("Content-Length", String(stat.size));
     headers.set("Cache-Control", "private, max-age=3600");
 
+    // Inline solo imagen/audio/video de tipos seguros (nunca SVG/HTML); la CSP
+    // `sandbox` de estas rutas vive en next.config.ts (la CSP global la pisaría).
     const isInline =
-      message.messageType === "image" ||
-      message.messageType === "audio" ||
-      message.messageType === "video";
+      (message.messageType === "image" || message.messageType === "audio" || message.messageType === "video") &&
+      isInlineSafeMime(message.mimeType);
 
     if (!isInline && message.filename) {
       headers.set(
@@ -64,7 +67,7 @@ export async function GET(
 
     return new Response(stream as unknown as ReadableStream, { headers });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

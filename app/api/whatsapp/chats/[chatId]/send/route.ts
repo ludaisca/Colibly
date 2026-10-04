@@ -8,8 +8,17 @@ import { sendTelegramMessage, sendTelegramMedia } from "@/lib/telegram/send";
 import { sendMetaChannelText, sendMetaChannelMedia, sendMetaChannelPrivateReply } from "@/lib/meta-messaging/send";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { rateLimit } from "@/lib/rate-limit";
-import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
+import { resolveAbsolutePath, isAccountMediaPath } from "@/lib/whatsapp/media-store";
 import fs from "fs/promises";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForChat } from "@/lib/events/refs";
+import { pauseConversationalRuns } from "@/lib/automations/dispatch";
+import { uploadMedia } from "@/lib/whatsapp";
+import { decrypt } from "@/lib/crypto";
+import { saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 export async function POST(
   req: Request,
@@ -64,10 +73,38 @@ export async function POST(
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { type, body: textBody, mediaId, caption, mimeType, filename, localMediaPath, bytesSize, buttons } = parsed.data;
+    const { type, body: textBody, caption, buttons, replyToMessageId, stickerId } = parsed.data;
+    let { mediaId, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+    if (localMediaPath && !isAccountMediaPath(localMediaPath, chat.accountId)) {
+      return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
+    }
 
     let result: { wamid: string | null };
     let interactivePayload: { buttons: { id: string; title: string }[] } | undefined;
+    const replyTarget = replyToMessageId
+      ? await prisma.wAMessage.findFirst({
+          where: { id: replyToMessageId, chatId: chat.id, wamid: { not: null } },
+          select: { wamid: true },
+        })
+      : null;
+    if (replyToMessageId && !replyTarget?.wamid) {
+      return NextResponse.json({ error: "El mensaje citado ya no está disponible para responder" }, { status: 400 });
+    }
+
+    if (type === "sticker") {
+      const sticker = await prisma.wASticker.findFirst({ where: { id: stickerId, organizationId: chat.account.organizationId } });
+      if (!sticker) return NextResponse.json({ error: "Sticker no encontrado en tu organización" }, { status: 404 });
+      await assertOrgCanSend(chat.account.organizationId);
+      if (!chat.account.phoneNumberId || !chat.account.accessToken) return NextResponse.json({ error: "La cuenta de WhatsApp no está conectada" }, { status: 400 });
+      const buffer = Buffer.from(sticker.data);
+      const uploaded = await uploadMedia(chat.account.phoneNumberId, decrypt(chat.account.accessToken), buffer, "sticker.webp", "image/webp");
+      const stored = await saveMediaFromBuffer(chat.accountId, buffer, "image/webp");
+      mediaId = uploaded.id;
+      localMediaPath = stored.relativePath;
+      mimeType = "image/webp";
+      filename = "sticker.webp";
+      bytesSize = buffer.length;
+    }
 
     if (type === "interactive") {
       const idButtons = buttons!.map((b, i) => ({ id: `btn_${i + 1}`, title: b.title }));
@@ -75,6 +112,7 @@ export async function POST(
         to: chat.remoteJid,
         body: textBody!,
         buttons: idButtons,
+        replyToWamid: replyTarget?.wamid ?? undefined,
       });
       interactivePayload = { buttons: idButtons };
     } else {
@@ -87,6 +125,7 @@ export async function POST(
         mimeType,
         filename,
         localMediaPath,
+        replyToWamid: replyTarget?.wamid ?? undefined,
       });
     }
 
@@ -107,6 +146,7 @@ export async function POST(
         filename,
         bytesSize,
         interactivePayload,
+        replyToWamid: replyTarget?.wamid ?? null,
         status: "sent",
         senderId: session.user.id,
         timestamp: now,
@@ -127,17 +167,21 @@ export async function POST(
       data: { lastActivity: now },
     });
 
+    await emitAgentMessageSent(chat.id, newMessage, session.user.id);
+
+    if (type === "sticker" && stickerId) await prisma.wASticker.updateMany({ where: { id: stickerId, organizationId: chat.account.organizationId }, data: { lastUsedAt: now } });
+
     return NextResponse.json(newMessage);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 async function sendTelegramReply(req: Request, chatId: string, userId: string) {
   const conversation = await prisma.conversation.findFirst({
-    where: { id: chatId, channelAccount: { userId } },
+    where: { id: chatId, channelAccountId: { in: await getUserChannelAccountIds(userId) } },
     include: { channelAccount: true },
   });
   if (!conversation) {
@@ -153,6 +197,9 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
   }
 
   const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+  if (localMediaPath && !isAccountMediaPath(localMediaPath, conversation.channelAccountId)) {
+    return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
+  }
 
   let externalMessageId: string | null;
   let mediaId: string | null = null;
@@ -213,6 +260,8 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
     data: { lastActivity: now },
   });
 
+  await emitAgentMessageSent(conversation.id, newMessage, userId);
+
   return NextResponse.json(newMessage);
 }
 
@@ -222,7 +271,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
 // persistir el ChannelMessage OUTBOUND. MVP solo texto (sin medios).
 async function sendWebchatReply(req: Request, chatId: string, userId: string) {
   const conversation = await prisma.conversation.findFirst({
-    where: { id: chatId, channelAccount: { userId } },
+    where: { id: chatId, channelAccountId: { in: await getUserChannelAccountIds(userId) } },
     include: { channelAccount: true },
   });
   if (!conversation) {
@@ -265,6 +314,8 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
     data: { lastActivity: now },
   });
 
+  await emitAgentMessageSent(conversation.id, newMessage, userId);
+
   return NextResponse.json(newMessage);
 }
 
@@ -275,7 +326,7 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
 // distintos que de otro modo colisionarían con el mismo userId.
 async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Request, chatId: string, userId: string) {
   const conversation = await prisma.conversation.findFirst({
-    where: { id: chatId, channelAccount: { userId, channel } },
+    where: { id: chatId, channelAccountId: { in: await getUserChannelAccountIds(userId) }, channelAccount: { channel } },
     include: { channelAccount: true },
   });
   if (!conversation) {
@@ -291,6 +342,9 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
   }
 
   const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+  if (localMediaPath && !isAccountMediaPath(localMediaPath, conversation.channelAccountId)) {
+    return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
+  }
 
   let externalMessageId: string | null;
   let attachmentId: string | null = null;
@@ -371,5 +425,27 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
     data: { lastActivity: now },
   });
 
+  await emitAgentMessageSent(conversation.id, newMessage, userId);
+
   return NextResponse.json(newMessage);
+}
+
+// Evento de dominio de un envío manual — común a las 4 ramas de canal.
+async function emitAgentMessageSent(
+  chatId: string,
+  message: { id: string; messageType: string; body: string | null },
+  userId: string
+) {
+  const refs = await eventRefsForChat(chatId);
+  if (!refs) return;
+  // Un humano tomó la conversación: las automatizaciones conversacionales de
+  // este chat se pausan (se reanudan desde el chip del chat).
+  if (refs.chat) {
+    await pauseConversationalRuns(refs.chat).catch((err) => console.error("[send] pauseConversationalRuns falló:", err));
+  }
+  await emitDomainEvent({
+    type: "message.sent",
+    ...refs,
+    data: { messageId: message.id, messageType: message.messageType, text: message.body, source: "agent", senderId: userId },
+  });
 }

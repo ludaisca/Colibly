@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { DropdownItem } from "@/app/components/ui/dropdown";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SectionHeader } from "@/app/components/ui/section-header";
+import { Card } from "@/app/components/ui/card";
 import { useToast } from "@/app/components/ui/toast";
 import { CustomFieldFormModal } from "./_campos-personalizados-form";
 
@@ -132,7 +133,7 @@ export function CamposPersonalizadosSection() {
   ], []);
 
   return (
-    <section className="space-y-4">
+    <Card as="section" className="space-y-4">
       <SectionHeader title="Campos personalizados" />
       <p className="text-sm text-muted">
         Campos adicionales que se agregan a la ficha de cada contacto (útil para verticales como spas, clínicas o escuelas).
@@ -212,6 +213,6 @@ export function CamposPersonalizadosSection() {
         tone="danger"
         onConfirm={handleDelete}
       />
-    </section>
+    </Card>
   );
 }

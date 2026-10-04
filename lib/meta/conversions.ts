@@ -1,3 +1,5 @@
+import { httpTimeout } from "@/lib/http-timeouts";
+
 // Cliente de la Conversions API para el feedback loop de calificación de
 // leads. El schema exacto del payload no está 100% confirmado por
 // documentación pública (ver plan de Fase 1) — se valida empíricamente con
@@ -62,6 +64,7 @@ export async function sendConversionEvent({
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: httpTimeout(),
   });
 
   const responseBody = await res.json().catch(() => ({}));

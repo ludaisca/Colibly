@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { syncGoogleSheetsForUser } from "@/lib/google/sheets-sync";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST() {
   const session = await auth();
@@ -23,7 +24,7 @@ export async function POST() {
   try {
     await syncGoogleSheetsForUser(session.user.id);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error al sincronizar con Google Sheets";
+    const message = publicErrorMessage(err, "Error al sincronizar con Google Sheets");
     await prisma.googleAccount.update({
       where: { userId: session.user.id },
       data: { lastSyncError: message.slice(0, 500) },

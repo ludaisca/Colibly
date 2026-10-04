@@ -5,6 +5,8 @@ import { decrypt } from "@/lib/crypto";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { rateLimit } from "@/lib/rate-limit";
 import { uploadTemplateHeaderMedia } from "@/lib/whatsapp/resumable-upload";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST(req: Request) {
   try {
@@ -12,6 +14,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const rl = await rateLimit(`template-media-upload:${session.user.id}`, 20, 60);
     if (!rl.allowed) {
@@ -62,7 +66,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ handle });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

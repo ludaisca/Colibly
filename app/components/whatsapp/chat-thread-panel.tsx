@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
-  ArrowLeft,
   MessageSquare,
   Check,
   CheckCheck,
@@ -17,33 +16,33 @@ import {
   Maximize2,
   CornerUpLeft,
 } from "lucide-react";
-import { Badge } from "@/app/components/ui/badge";
+import { ChatMessageActions } from "./chat-message-actions";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Modal } from "@/app/components/ui/modal";
-import { EntityAvatar } from "@/app/components/ui/avatar";
-import { ChatAssigneePicker } from "@/app/components/whatsapp/chat-assignee-picker";
-import { ChatTagPicker } from "@/app/components/whatsapp/chat-tag-picker";
-import { LeadScoreBadge } from "@/app/components/whatsapp/lead-score-badge";
-import { ChatCostBadge } from "@/app/components/whatsapp/chat-cost-badge";
+import { ChatConversationHeader } from "./chat-conversation-header";
 import { ChatBubblesSkeleton } from "@/app/components/whatsapp/chat-skeletons";
 import { mediaEndpointFor } from "@/lib/whatsapp/media-shared";
 import {
-  STATUS_BADGE,
-  accountTone,
   formatBubbleTime,
   formatDayDivider,
   formatBytes,
   type ChatItem,
   type ChatStatus,
   type Message,
+  type AgentReaction,
   type PreviewMedia,
 } from "./chat-shared";
 
 // Header del hilo + área de mensajes — extraído de chat-workspace.tsx sin
 // tocar el merge por id del polling ni el scroll (ambos se quedan en el
 // orquestador, que sigue siendo dueño de `messages`/los refs de scroll).
+
+const MESSAGE_STATUS_LABEL: Record<string, string> = {
+  sending: "Enviando", failed: "No enviado", sent: "Enviado",
+  delivered: "Entregado", read: "Leído",
+};
 
 function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: PreviewMedia) => void }) {
   const mediaSrc = msg.localPreviewUrl ?? (msg.mediaUrl ? mediaEndpointFor(msg.id) : null);
@@ -67,7 +66,7 @@ function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: Pre
         <img
           src={mediaSrc}
           alt={msg.caption ?? "imagen"}
-          className="max-w-full max-h-72 rounded-lg object-cover"
+          className={msg.messageType === "sticker" ? "h-36 w-36 max-w-full object-contain sm:h-44 sm:w-44" : "max-w-full max-h-72 rounded-lg object-cover"}
           loading="lazy"
         />
       </button>
@@ -151,30 +150,51 @@ function MessageBubble({
   msg,
   onPreview,
   onRetry,
+  onReply,
+  onReaction,
+  canReply,
+  leadName,
+  reduceMotion,
 }: {
   msg: Message;
   onPreview: (media: PreviewMedia) => void;
   onRetry?: (msg: Message) => void;
+  onReply?: (msg: Message) => void;
+  onReaction: (id: string, reaction: AgentReaction) => void;
+  canReply: boolean;
+  leadName: string;
+  reduceMotion: boolean;
 }) {
   const isInbound = msg.direction === "INBOUND";
   const hasMedia = msg.messageType !== "text" && (msg.mediaUrl || msg.mediaId || msg.localPreviewUrl);
   const caption = msg.caption ?? (hasMedia && msg.body && msg.body !== `[${msg.messageType}]` ? msg.body : null);
   const isFailed = msg.status === "failed";
   const buttons = msg.messageType === "interactive" ? msg.interactivePayload?.buttons : undefined;
+  const latestReaction = msg.agentReactions?.[0];
+  const reactionPending = latestReaction && ["pending", "accepted"].includes(latestReaction.status);
+  const ownEmoji = reactionPending ? latestReaction.emoji : msg.agentReactionEmoji;
+  const reactionFailed = latestReaction?.status === "failed";
 
   return (
-    <div className={`flex ${isInbound ? "justify-start" : "justify-end"}`}>
+    <div className={`group flex items-end gap-1.5 ${isInbound ? "justify-start" : "justify-end"}`}>
+      {!isInbound && canReply && <ChatMessageActions message={msg} onReply={onReply} onReaction={onReaction} />}
       <div
-        className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
-          isInbound
+        className={`relative max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
+          msg.messageType === "sticker" ? "rounded-xl bg-transparent text-foreground" : isInbound
             ? "rounded-2xl rounded-tl-sm bg-surface text-foreground"
-            : "rounded-2xl rounded-tr-sm bg-accent text-on-accent"
+            : "rounded-2xl rounded-tr-sm bg-accent-muted text-foreground"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
-          <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${isInbound ? "text-muted-darker" : "text-on-accent/70"}`}>
+          <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${isInbound ? "text-muted-darker" : "text-foreground/65"}`}>
             <MessageSquare size={10} />
             <span>Desde un comentario</span>
+          </div>
+        )}
+        {msg.replyToWamid && (
+          <div className="mb-2 max-w-full border-l-2 border-accent-strong bg-background/50 px-2.5 py-1.5 rounded-r-lg text-xs">
+            <span className="block font-semibold text-accent-ink">{msg.replyTo?.direction === "OUTBOUND" ? "Tú" : msg.replyTo?.direction === "INBOUND" ? leadName : "Mensaje citado"}</span>
+            <span className="block truncate text-muted-darker">{msg.replyTo ? (msg.replyTo.body || msg.replyTo.caption || `[${msg.replyTo.messageType}]`) : "Mensaje anterior"}</span>
           </div>
         )}
         {hasMedia && (
@@ -187,10 +207,9 @@ function MessageBubble({
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
         {buttons && buttons.length > 0 && (
           // Un mensaje interactivo siempre es OUTBOUND (lo arma el agente), y
-          // esta burbuja ya es bg-accent/text-on-accent (ver arriba) — por
-          // eso el divisor/texto usan tonos on-accent, no los tokens neutros
-          // que usaría una burbuja inbound.
-          <div className="mt-2 pt-2 border-t border-on-accent/25 space-y-1">
+          // esta burbuja ya es bg-accent-muted/text-foreground (ver arriba) — por
+          // eso el divisor usa foreground con opacidad, que funciona en ambos temas.
+          <div className="mt-2 pt-2 border-t border-foreground/20 space-y-1">
             {buttons.map((b) => (
               <div key={b.id} className="flex items-center justify-center gap-1.5 text-xs py-1">
                 <CornerUpLeft size={12} />
@@ -200,7 +219,7 @@ function MessageBubble({
           </div>
         )}
         <div className={`flex items-center justify-end gap-1 mt-1 ${
-          isInbound ? "text-muted-darker" : "text-on-accent/70"
+          isInbound ? "text-muted-darker" : "text-foreground/65"
         }`}>
           {isFailed && (
             <button
@@ -213,16 +232,28 @@ function MessageBubble({
           )}
           <span className="text-[10px]">{formatBubbleTime(msg.timestamp)}</span>
           {!isInbound && msg.status && (
-            <span className="text-[10px]">
-              {msg.status === "sending" && <Clock size={10} />}
-              {msg.status === "failed" && <AlertCircle size={10} className="text-danger" />}
-              {msg.status === "sent" && <Check size={10} />}
-              {msg.status === "delivered" && <CheckCheck size={10} />}
-              {msg.status === "read" && <CheckCheck size={10} className="text-info" />}
-            </span>
+            <AnimatePresence initial={false} mode="wait">
+              <motion.span key={msg.status} className="text-[10px]" role="img" aria-label={MESSAGE_STATUS_LABEL[msg.status] ?? msg.status}
+                initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={reduceMotion ? undefined : { opacity: 0, scale: 0.8 }}
+                transition={{ duration: reduceMotion ? 0 : 0.12 }}>
+                {msg.status === "sending" && <Clock size={10} />}
+                {msg.status === "failed" && <AlertCircle size={10} className="text-danger" />}
+                {msg.status === "sent" && <Check size={10} />}
+                {msg.status === "delivered" && <CheckCheck size={10} />}
+                {msg.status === "read" && <CheckCheck size={10} className="text-info" />}
+              </motion.span>
+            </AnimatePresence>
           )}
         </div>
+        {(msg.reactionEmoji || ownEmoji || reactionPending || reactionFailed) && <div className="mt-1 flex flex-wrap justify-end gap-1" aria-live="polite">
+          {msg.reactionEmoji && <span className="rounded-xl border border-border bg-surface px-1.5 py-0.5 text-sm leading-none shadow-sm" aria-label={`${leadName} reaccionó con ${msg.reactionEmoji}`} title={`Reacción de ${leadName}`}>{msg.reactionEmoji}</span>}
+          {(ownEmoji || reactionPending) && <span className="inline-flex items-center gap-1 rounded-xl border border-accent-muted bg-surface px-1.5 py-0.5 text-xs" title={reactionPending ? "Reacción enviada a WhatsApp; pendiente de confirmación" : "Reacción del equipo"}>{ownEmoji || "Quitar reacción"} <span className="text-[10px] text-muted-darker">Equipo</span>{reactionPending && <Clock size={10} />}</span>}
+          {reactionFailed && <span role="status" className="text-xs text-danger" title={latestReaction.error ?? "WhatsApp rechazó la reacción"}>No se pudo actualizar la reacción</span>}
+        </div>}
       </div>
+      {isInbound && canReply && <ChatMessageActions message={msg} onReply={onReply} onReaction={onReaction} />}
     </div>
   );
 }
@@ -267,10 +298,12 @@ interface ChatThreadPanelProps {
   onLoadOlder: () => void;
   onCloseChat: () => void;
   onOpenContactDrawer: () => void;
-  onStatusChange: (status: ChatStatus) => void;
+  onStatusChange: (status: ChatStatus) => void | Promise<void>;
   onAssigned: (assignee: { id: string; name: string | null } | null) => void;
   onPreview: (media: PreviewMedia) => void;
   onRetry: (msg: Message) => void;
+  onReply: (msg: Message) => void;
+  onReaction: (id: string, reaction: AgentReaction) => void;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -288,84 +321,25 @@ export function ChatThreadPanel({
   onAssigned,
   onPreview,
   onRetry,
+  onReply,
+  onReaction,
   messagesContainerRef,
   messagesEndRef,
 }: ChatThreadPanelProps) {
-  // CSS ya neutraliza animate-* globalmente (globals.css), pero motion no
-  // corre por CSS — se apaga a mano la transición de entrada/salida de
-  // burbujas cuando el usuario prefiere menos movimiento.
+  // Motion no responde a las reglas CSS de reduced-motion: se ajusta aquí.
   const shouldReduceMotion = useReducedMotion();
 
   return (
     <>
-      <div className="flex items-center justify-between gap-x-3 gap-y-2 flex-wrap px-4 py-3 border-b border-border bg-surface shrink-0">
-        {/* Identidad: nombre/cuenta truncan antes de ceder espacio a los
-            controles de la derecha. Ambos grupos son items independientes de
-            este row — si no caben lado a lado, flex-wrap los apila en dos
-            líneas en vez de aplastarlos (pantallas angostas / mobile). */}
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={onCloseChat}
-            className="md:hidden text-muted-darker hover:text-foreground transition-colors shrink-0"
-            aria-label="Volver a la lista de chats"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          {/* Mismo EntityAvatar (id=accountId, mismo hue) que ya usan la fila
-              de la lista y el rail — coherencia visual entre las 3 vistas del
-              chat. Si hay contacto asociado, el propio avatar es el disparador
-              para abrir su ficha (mismo gesto que WhatsApp Web). */}
-          {selectedChat.contactId ? (
-            <button
-              onClick={onOpenContactDrawer}
-              className="shrink-0"
-              title="Ver contacto"
-              aria-label="Ver contacto"
-            >
-              <EntityAvatar id={selectedChat.accountId} name={selectedChat.name ?? selectedChat.remoteJid} size="sm" />
-            </button>
-          ) : (
-            <EntityAvatar id={selectedChat.accountId} name={selectedChat.name ?? selectedChat.remoteJid} size="sm" className="shrink-0" />
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold truncate">
-                {selectedChat.name ?? selectedChat.remoteJid}
-              </p>
-              <Badge tone={accountTone(selectedChat.accountId)} size="sm" className="shrink-0">
-                {selectedChat.account.name}
-              </Badge>
-            </div>
-            {selectedChat.account.phoneNumber && (
-              <p className="text-[11px] text-muted-darker truncate">
-                {selectedChat.account.phoneNumber}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Controles de la conversación, alineados a la derecha */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <select
-            value={selectedChat.status}
-            onChange={(e) => onStatusChange(e.target.value as ChatStatus)}
-            className="text-xs font-medium rounded-md border border-border bg-surface-light px-2 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
-            title="Estado de la conversación"
-          >
-            {(Object.keys(STATUS_BADGE) as ChatStatus[]).map((s) => (
-              <option key={s} value={s}>{STATUS_BADGE[s].label}</option>
-            ))}
-          </select>
-          <ChatTagPicker key={selectedChat.id} chatId={selectedChat.id} />
-          <LeadScoreBadge key={`score-${selectedChat.id}`} chatId={selectedChat.id} />
-          <ChatCostBadge key={`cost-${selectedChat.id}`} chatId={selectedChat.id} />
-          <ChatAssigneePicker
-            chatId={selectedChat.id}
-            assignedTo={selectedChat.assignedTo}
-            onAssigned={onAssigned}
-          />
-        </div>
-      </div>
+      <ChatConversationHeader
+        key={selectedChat.id}
+        chat={selectedChat}
+        refreshKey={messages.at(-1)?.id ?? ""}
+        onCloseChat={onCloseChat}
+        onOpenContactDrawer={onOpenContactDrawer}
+        onStatusChange={onStatusChange}
+        onAssigned={onAssigned}
+      />
 
       <div ref={messagesContainerRef} className="scrollbar-thin flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {loadingMessages ? (
@@ -389,11 +363,11 @@ export function ChatThreadPanel({
                 const showDivider = !prev || new Date(prev.timestamp).toDateString() !== new Date(msg.timestamp).toDateString();
                 return (
                   <motion.div
-                    key={msg.id}
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
-                    transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: [0.4, 0, 0.2, 1] }}
+                    key={msg.motionKey ?? msg.id}
+                    initial={shouldReduceMotion || !msg.animateOnMount ? false : { opacity: 0, x: msg.direction === "INBOUND" ? -12 : 12, y: 4, scale: 0.985 }}
+                    animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                    exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.98 }}
+                    transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
                   >
                     {showDivider && (
                       <div className="flex justify-center my-3">
@@ -402,7 +376,7 @@ export function ChatThreadPanel({
                         </span>
                       </div>
                     )}
-                    <MessageBubble msg={msg} onPreview={onPreview} onRetry={onRetry} />
+                    <MessageBubble msg={msg} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={selectedChat.channel === "WHATSAPP" && !!msg.wamid} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} />
                   </motion.div>
                 );
               })}

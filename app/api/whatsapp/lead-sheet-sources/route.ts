@@ -7,6 +7,9 @@ import { getGoogleSheetsClientForUser } from "@/lib/google/sheets-client";
 import { readSheetValues } from "@/lib/google/sheets-read";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import { importNewLeadsForSource } from "@/lib/google/lead-sheet-import";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
 
 export async function GET() {
   try {
@@ -28,7 +31,7 @@ export async function GET() {
 
     return NextResponse.json(sources);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -39,6 +42,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const body = await req.json();
     const parsed = leadSheetSourceSchema.safeParse(body);
@@ -94,6 +99,7 @@ export async function POST(req: Request) {
     const created = await prisma.leadSheetSource.create({
       data: {
         userId: session.user.id,
+        organizationId: await requireOrgId(session.user.id),
         waAccountId,
         waTemplateId,
         name,
@@ -132,7 +138,7 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getContactScopeIds, canAssignToContact } from "@/lib/appointments";
 import { appointmentSchema } from "@/lib/validations";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForContact } from "@/lib/events/refs";
 
 const TAKE = 500;
 
@@ -36,6 +39,8 @@ export async function GET(req: Request) {
     const upcoming = searchParams.get("upcoming") === "true";
     const limitParam = Number(searchParams.get("limit"));
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, TAKE) : TAKE;
+    const pageParam = searchParams.get("page");
+    const page = Math.max(1, Number(pageParam) || 1);
 
     // ejecutivo solo ve/agenda lo suyo — mismo criterio defensa-en-profundidad
     // que el resto de la API (nav oculto + proxy.ts + 403/scoping aquí). Se
@@ -61,6 +66,7 @@ export async function GET(req: Request) {
         notes: true,
         scheduledAt: true,
         durationMinutes: true,
+        reminderMinutesBefore: true,
         status: true,
         source: true,
         cancelReason: true,
@@ -69,13 +75,14 @@ export async function GET(req: Request) {
         assignedTo: { select: { id: true, name: true, email: true } },
         createdBy: { select: { id: true, name: true } },
       },
-      orderBy: { scheduledAt: "asc" },
+      orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+      ...(pageParam ? { skip: (page - 1) * limit } : {}),
       take: limit,
     });
 
     return NextResponse.json(appointments);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -131,6 +138,7 @@ export async function POST(req: Request) {
         notes: true,
         scheduledAt: true,
         durationMinutes: true,
+        reminderMinutesBefore: true,
         status: true,
         source: true,
         cancelReason: true,
@@ -141,9 +149,18 @@ export async function POST(req: Request) {
       },
     });
 
+    const refs = await eventRefsForContact(contact.id);
+    if (refs) {
+      await emitDomainEvent({
+        type: "appointment.created",
+        ...refs,
+        data: { appointmentId: appointment.id, title: appointment.title, scheduledAt: appointment.scheduledAt.toISOString(), source: "MANUAL" },
+      });
+    }
+
     return NextResponse.json(appointment, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

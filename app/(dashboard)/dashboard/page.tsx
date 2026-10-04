@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { MessageCircle, Plus, Settings, ArrowRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import {
   countActiveBots,
   countBots,
@@ -21,6 +21,8 @@ import { IconBox } from "@/app/components/ui/icon-box";
 import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { cn } from "@/app/components/ui/cn";
+import { OnboardingChecklist } from "@/app/components/ui/onboarding-checklist";
+import { getOnboardingSteps } from "@/lib/onboarding";
 
 function formatTime(ts: Date | null): string {
   if (!ts) return "—";
@@ -40,14 +42,19 @@ export default async function DashboardPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const accountIds = await getUserAccountIds(userId);
+  const [accountIds, channelAccountIds] = await Promise.all([
+    getUserAccountIds(userId), getUserChannelAccountIds(userId),
+  ]);
 
   const [
     accountsTotal,
     accountsConnected,
     chatsTotal,
     unreadAgg,
+    channelUnreadAgg,
     recentChats,
+    recentChannelChats,
+    channelAccounts,
     botsTotal,
     botsActive,
     campaignsTotal,
@@ -57,6 +64,7 @@ export default async function DashboardPage() {
     countConnectedAccounts(accountIds, userId),
     countChats(accountIds, userId),
     prisma.wAChat.aggregate({ where: { accountId: { in: accountIds } }, _sum: { unreadCount: true } }),
+    prisma.conversation.aggregate({ where: { channelAccountId: { in: channelAccountIds } }, _sum: { unreadCount: true } }),
     prisma.wAChat.findMany({
       where: { accountId: { in: accountIds } },
       orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
@@ -71,13 +79,27 @@ export default async function DashboardPage() {
         account: { select: { name: true } },
       },
     }),
+    prisma.conversation.findMany({
+      where: { channelAccountId: { in: channelAccountIds } },
+      orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
+      take: 8,
+      select: {
+        id: true, channelAccountId: true, name: true, externalId: true,
+        lastMessage: true, lastMessageAt: true,
+        channelAccount: { select: { name: true, channel: true } },
+      },
+    }),
+    prisma.channelAccount.findMany({
+      where: { id: { in: channelAccountIds } },
+      select: { channel: true },
+    }),
     countBots(userId),
     countActiveBots(userId),
     countCampaigns(userId),
     countCompletedCampaigns(userId),
   ]);
 
-  const unreadCount = unreadAgg._sum.unreadCount ?? 0;
+  const unreadCount = (unreadAgg._sum.unreadCount ?? 0) + (channelUnreadAgg._sum.unreadCount ?? 0);
 
   const chats = recentChats.map((c) => ({
     id: c.id,
@@ -86,16 +108,29 @@ export default async function DashboardPage() {
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
     accountName: c.account?.name ?? "—",
-  }));
+  })).concat(recentChannelChats.map((c) => ({
+    id: c.id,
+    accountId: c.channelAccountId,
+    name: c.name ?? c.externalId ?? "Desconocido",
+    lastMessage: c.lastMessage,
+    lastMessageAt: c.lastMessageAt,
+    accountName: c.channelAccount.name,
+  }))).sort((a, b) => (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)).slice(0, 8);
 
   const showAccountBadge = accountsTotal > 1;
+  const channelTypes = new Set(channelAccounts.map((account) => account.channel));
+  const accountsHref = accountIds.length > 0 && channelAccounts.length === 0
+    ? "/whatsapp/cuentas"
+    : accountIds.length === 0 && channelTypes.size === 1
+      ? `/${channelAccounts[0].channel.toLowerCase()}/cuentas`
+      : undefined;
 
   const kpis: KpiItem[] = [
     {
       label: "Cuentas",
       value: accountsTotal === 0 ? "0" : `${accountsConnected}/${accountsTotal}`,
       hint: accountsTotal === 0 ? "Conecta tu primer número" : "conectadas",
-      href: "/whatsapp/cuentas",
+      href: accountsHref,
     },
     {
       label: "Chats activos",
@@ -109,7 +144,7 @@ export default async function DashboardPage() {
       label: "Bots IA",
       value: botsTotal === 0 ? "0" : `${botsActive}/${botsTotal}`,
       hint: "activos",
-      href: "/whatsapp/bots",
+      href: session.user.role === "admin" ? "/whatsapp/bots" : undefined,
     },
     {
       label: "Campañas",
@@ -119,42 +154,52 @@ export default async function DashboardPage() {
     },
   ];
 
-  const needsAttention = unreadCount > 0;
+  const needsSetup = accountsTotal === 0;
+  const needsAttention = !needsSetup && unreadCount > 0;
+  // Primeros pasos: solo admins (son quienes pueden hacerlos) y mientras falte alguno.
+  const onboarding = session.user.role === "admin" ? await getOnboardingSteps(userId) : [];
+  const showOnboarding = onboarding.some((step) => !step.done);
 
   return (
     <div className="space-y-8">
       <div className="animate-fade-in-up">
-        <PageHeader title="Panel" description="Resumen de tu actividad en WhatsApp y Telegram" />
+        <PageHeader title="Panel" description="Resumen de la actividad de tus canales" />
       </div>
 
-      {/* Estado del sistema — la única métrica que responde "¿todo bien?"
-          antes que la fila de KPIs, así el usuario no tiene que sumar cifras
-          para saber si necesita actuar. */}
+      {showOnboarding && (
+        <div className="animate-fade-in-up animation-delay-100">
+          <OnboardingChecklist steps={onboarding} />
+        </div>
+      )}
+
+      {/* Estado de la bandeja antes de los KPIs: al iniciar sin canales,
+          un mensaje verde de "todo en orden" daría una señal equivocada. */}
       <div
         className={cn(
           "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-4 rounded-xl px-6 py-5 shadow-sm",
-          needsAttention ? "bg-warning-bg" : "bg-success-bg"
+          needsSetup ? "bg-info-bg" : needsAttention ? "bg-warning-bg" : "bg-success-bg"
         )}
       >
         <div className="flex items-center gap-3.5">
           <span
             className={cn(
-              "h-2.5 w-2.5 shrink-0 rounded-full animate-pulse-live",
-              needsAttention ? "bg-warning" : "bg-success"
+              "h-2.5 w-2.5 shrink-0 rounded-full",
+              needsSetup ? "bg-info" : needsAttention ? "bg-warning animate-pulse-live" : "bg-success"
             )}
           />
           <div>
-            <p className={cn("font-display text-lg font-bold", needsAttention ? "text-warning" : "text-success")}>
-              {needsAttention ? "Necesita tu atención" : "Todo en orden"}
+            <p className={cn("font-display text-lg font-bold", needsSetup ? "text-info" : needsAttention ? "text-warning" : "text-success")}>
+              {needsSetup ? "Prepara tu bandeja" : needsAttention ? "Necesita tu atención" : "Todo en orden"}
             </p>
             <p className="mt-0.5 text-sm text-muted">
-              {needsAttention
+              {needsSetup
+                ? "Conecta WhatsApp para empezar a recibir conversaciones."
+                : needsAttention
                 ? `${unreadCount} mensaje${unreadCount === 1 ? "" : "s"} sin leer en tu bandeja.`
                 : "Sin mensajes sin leer en este momento."}
             </p>
           </div>
         </div>
-        <span className="text-xs font-medium text-muted-darker">Actualizado ahora</span>
       </div>
 
       <div className="animate-fade-in-up animation-delay-200">
@@ -172,7 +217,7 @@ export default async function DashboardPage() {
                   chatsTotal > 0 ? (
                     <Link
                       href="/whatsapp/chat"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent-hover"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-accent-ink hover:text-foreground"
                     >
                       Ver bandeja <ArrowRight size={12} />
                     </Link>
@@ -185,7 +230,7 @@ export default async function DashboardPage() {
               <div className="px-5 py-10 text-center">
                 <p className="text-sm text-muted-darker">No hay conversaciones aún.</p>
                 <p className="text-xs text-muted mt-1">
-                  Conecta un número de WhatsApp para empezar a recibir mensajes.
+                  Conecta un canal para empezar a recibir mensajes.
                 </p>
               </div>
             ) : (
@@ -194,14 +239,14 @@ export default async function DashboardPage() {
                   <Link
                     key={chat.id}
                     href={`/whatsapp/chat/${chat.accountId}/${chat.id}`}
-                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-light"
+                    className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-5 py-3 transition-colors hover:bg-surface-light sm:flex sm:items-center sm:gap-3"
                   >
-                    <EntityAvatar id={chat.accountId} name={chat.name} size="sm" />
+                    <div className="row-span-2 sm:row-span-1"><EntityAvatar id={chat.accountId} name={chat.name} size="sm" /></div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{chat.name}</p>
                       <p className="truncate text-xs text-muted-darker">{chat.lastMessage ?? "—"}</p>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
+                    <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-1 sm:ml-auto sm:shrink-0 sm:flex-col sm:items-end">
                       <span className="text-[11px] font-medium tabular-nums text-muted-darker">
                         {formatTime(chat.lastMessageAt)}
                       </span>

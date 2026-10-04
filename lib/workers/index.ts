@@ -14,7 +14,14 @@ import { processLeadSheetImportTick } from "./lead-sheet-worker";
 import { processMetaConversionsJob } from "./meta-conversions-worker";
 import { processAppointmentReminderTick } from "./appointment-reminder-worker";
 import { processSequenceTickJob } from "./sequence-worker";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue } from "@/lib/queue";
+import { fanOutToWebhooks } from "@/lib/webhooks/fanout";
+import { processWebhookDelivery } from "@/lib/webhooks/deliver";
+import type { DomainEvent } from "@/lib/events/types";
+import { handleDomainEvent as handleAutomationEvent } from "@/lib/automations/dispatch";
+import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
+import { processBillingTick } from "@/lib/billing/tick";
+import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -51,14 +58,19 @@ export function startWorkers() {
   }, { connection, concurrency: 3 });
 
   const campaignWorker = new Worker("campaign-send", async (job) => {
-    // La misma cola lleva los envíos ("send") y el tick repetible que reclama
-    // campañas SCHEDULED vencidas ("scheduled-tick") — concurrency 1 garantiza
-    // que el tick nunca corre en paralelo con un envío en curso.
+    // Un "scheduled-tick" viejo que haya quedado en esta cola (antes el tick
+    // vivía aquí) se procesa igual: el reclamo de campañas es atómico
+    // (updateMany condicionado a SCHEDULED), así que correr en ambas colas no
+    // duplica envíos.
     if (job.name === "scheduled-tick") {
       await processScheduledCampaignsTick();
       return;
     }
     await processCampaignJob(job.data);
+  }, { connection, concurrency: 1 });
+
+  const campaignScheduleWorker = new Worker("campaign-schedule-tick", async () => {
+    await processScheduledCampaignsTick();
   }, { connection, concurrency: 1 });
 
   const ragWorker = new Worker("rag-index", async (job) => {
@@ -108,7 +120,58 @@ export function startWorkers() {
     await processSequenceTickJob();
   }, { connection, concurrency: 1 });
 
-  workers.push(botWorker, campaignWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker);
+  // Bus de eventos de dominio (lib/events) — reparte cada evento a los
+  // webhooks salientes que coinciden.
+  const domainEventWorker = new Worker("domain-events", async (job) => {
+    const event = job.data as DomainEvent;
+    await fanOutToWebhooks(event);
+    await handleAutomationEvent(event);
+  }, { connection, concurrency: 5 });
+
+  // Motor de automatizaciones: avances de ejecución y tick de respaldo.
+  const automationRunWorker = new Worker("automation-run", async (job) => {
+    await wakeRun(job.data.runId as string);
+  }, { connection, concurrency: 5 });
+  const automationTickWorker = new Worker("automation-tick", async () => {
+    await processAutomationTick();
+  }, { connection, concurrency: 1 });
+
+  const billingTickWorker = new Worker("billing-tick", async () => {
+    await processBillingTick();
+  }, { connection, concurrency: 1 });
+
+  // Coexistencia de WhatsApp. Concurrencia 1: los lotes de historial de una
+  // misma cuenta se procesan en orden aproximado de llegada.
+  const coexistenceSyncWorker = new Worker("coexistence-sync", async (job) => {
+    if (job.name === "sync") {
+      await runCoexistenceSync(job.data.accountId as string);
+    } else if (job.name === "history-chunk") {
+      await processHistoryChunk(job.data as HistoryChunkJob);
+    } else if (job.name === "state-sync") {
+      await processStateSyncChunk(job.data.accountId as string, job.data.contacts as SerializedContact[]);
+    }
+  }, { connection, concurrency: 1 });
+  coexistenceSyncWorker.on("failed", (job, err) => {
+    // Al agotar reintentos solo se registra el error: el tick sigue intentando
+    // hasta el límite de 24 h de Meta.
+    if (job?.name === "sync" && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      markSyncFailed(job.data.accountId as string, err.message).catch(() => {});
+    }
+  });
+
+  const coexistenceTickWorker = new Worker("coexistence-tick", async () => {
+    await processCoexistenceTick(async (accountId) => {
+      await coexistenceSyncQueue.add("sync", { accountId }, { jobId: `coexistence-sync-${accountId}-${Date.now()}` });
+    });
+  }, { connection, concurrency: 1 });
+
+  // Una entrega HTTP por job; los reintentos (backoff largo) los maneja
+  // BullMQ, el registro de cada intento vive en WebhookDelivery.
+  const webhookDeliveryWorker = new Worker("webhook-deliveries", async (job) => {
+    await processWebhookDelivery(job);
+  }, { connection, concurrency: 5 });
+
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker);
 
   mediaCleanupQueue
     .add(
@@ -131,13 +194,17 @@ export function startWorkers() {
 
   // Las campañas programadas se agendan a minuto exacto en la UI — un tick
   // por minuto es la resolución mínima para honrar esa promesa.
-  campaignQueue
+  campaignScheduleQueue
     .add(
       "scheduled-tick",
       {},
       { jobId: "campaign-scheduled-tick", repeat: { pattern: "* * * * *" } }
     )
     .catch((err) => console.error("[workers] No se pudo programar campaign-scheduled-tick:", err));
+  // Quita el repetible que vivía en campaign-send antes de separar las colas.
+  campaignQueue
+    .removeRepeatable("scheduled-tick", { pattern: "* * * * *" }, "campaign-scheduled-tick")
+    .catch((err) => console.error("[workers] No se pudo quitar el tick viejo de campaign-send:", err));
 
   // Umbrales en horas (mínimo configurable: horas enteras) — un tick cada 15
   // minutos da resolución de sobra sin sondear Redis de más.
@@ -191,6 +258,26 @@ export function startWorkers() {
       { jobId: "sequence-tick", repeat: { pattern: "*/5 * * * *" } }
     )
     .catch((err) => console.error("[workers] No se pudo programar sequence-tick:", err));
+
+  // Esperas de "esperar respuesta" y respaldo de esperas de tiempo: minuto a
+  // minuto, la resolución mínima que el editor permite configurar.
+  automationTickQueue
+    .add(
+      "tick",
+      {},
+      { jobId: "automation-tick", repeat: { pattern: "* * * * *" } }
+    )
+    .catch((err) => console.error("[workers] No se pudo programar automation-tick:", err));
+
+  // Facturación: al minuto 7 de cada hora (lejos de los ticks de :00).
+  billingTickQueue
+    .add("tick", {}, { jobId: "billing-tick", repeat: { pattern: "7 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar billing-tick:", err));
+
+  // Coexistencia: vigilancia cada 15 min (minuto 3, lejos de otros ticks).
+  coexistenceTickQueue
+    .add("tick", {}, { jobId: "coexistence-tick", repeat: { pattern: "3,18,33,48 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar coexistence-tick:", err));
 
   console.log("[workers] BullMQ workers started");
 }

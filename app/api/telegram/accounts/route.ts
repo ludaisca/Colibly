@@ -6,6 +6,12 @@ import { telegramAccountSchema } from "@/lib/validations";
 import { encrypt } from "@/lib/crypto";
 import { getMe, setWebhook } from "@/lib/telegram";
 import { rateLimit } from "@/lib/rate-limit";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
+import { checkPlanLimit } from "@/lib/billing/gates";
+import { assertChannelEnabled } from "@/lib/channel-flags";
 
 // El rol "ejecutivo" tiene /telegram/cuentas bloqueado en proxy.ts — este 403
 // cierra el acceso directo a la API (defensa en profundidad, mismo patrón que
@@ -24,6 +30,14 @@ export async function POST(req: Request) {
     if (isForbiddenRole(session.user.role)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
+
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
+    const organizationId = await requireOrgId(session.user.id);
+    const channelDisabled = await assertChannelEnabled(organizationId, "TELEGRAM");
+    if (channelDisabled) return channelDisabled;
+    const overLimit = await checkPlanLimit(organizationId, "channels");
+    if (overLimit) return overLimit;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {
@@ -45,6 +59,7 @@ export async function POST(req: Request) {
     const account = await prisma.channelAccount.create({
       data: {
         userId: session.user.id,
+        organizationId,
         channel: "TELEGRAM",
         name,
         credentials,
@@ -53,9 +68,15 @@ export async function POST(req: Request) {
       select: { id: true, name: true, channel: true, status: true, createdAt: true },
     });
 
-    const origin = new URL(req.url).origin;
+    // DEV puede recibir el webhook a través de un túnel HTTPS que solo publica
+    // esta ruta, mientras la interfaz sigue accesible en localhost:15100.
+    const origin = process.env.TELEGRAM_WEBHOOK_BASE_URL || new URL(req.url).origin;
     try {
-      await setWebhook(botToken, `${origin}/api/telegram/webhook/${account.id}`, webhookSecret);
+      const webhookUrl = new URL(`/api/telegram/webhook/${account.id}`, origin);
+      if (webhookUrl.protocol !== "https:") {
+        throw new Error("Telegram requiere una URL pública HTTPS para el webhook");
+      }
+      await setWebhook(botToken, webhookUrl.toString(), webhookSecret);
       const connected = await prisma.channelAccount.update({
         where: { id: account.id },
         data: { status: "CONNECTED", lastActivity: new Date() },
@@ -71,7 +92,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Bot validado pero falló la conexión del webhook: ${message}` }, { status: 502 });
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -88,9 +109,11 @@ export async function GET() {
     }
 
     const accounts = await prisma.channelAccount.findMany({
-      where: { userId: session.user.id, channel: "TELEGRAM" },
+      // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
+      where: { channel: "TELEGRAM", id: { in: await getUserChannelAccountIds(session.user.id) } },
       select: {
         id: true,
+        userId: true,
         name: true,
         channel: true,
         status: true,
@@ -105,7 +128,7 @@ export async function GET() {
 
     return NextResponse.json(accounts);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

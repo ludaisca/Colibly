@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { BRAND_COLORS as C } from "@/lib/brand-colors";
 
 // Roadmap P3-f — script embebible del widget, servido como JS plano (no un
 // bundle de Next/React: el sitio del cliente es un dominio arbitrario de
@@ -37,35 +38,59 @@ function buildWidgetScript(accountId: string): string {
   return `(function () {
   var ACCOUNT_ID = ${JSON.stringify(accountId)};
   var API_BASE = ${JSON.stringify(new URL(`/api/webchat/${accountId}`, getPublicBaseUrl()).toString())};
-  var STORAGE_KEY = "sundaycrm_webchat_visitor_" + ACCOUNT_ID;
+  // Solo se guarda el TOKEN firmado: el visitorId lo asigna el servidor y
+  // viaja dentro del token (antes el widget inventaba el id y cualquiera que lo
+  // conociera podía abrir la conversación de otra persona).
+  var TOKEN_KEY = "colibly_webchat_token_" + ACCOUNT_ID;
+  // Clave de antes del cambio de nombre: se lee una vez y se migra, para no
+  // cortar la conversación de quien ya la tenía guardada.
+  var LEGACY_TOKEN_KEY = "sundaycrm_webchat_token_" + ACCOUNT_ID;
   var POLL_MS = 4000;
 
-  function getVisitorId() {
-    var id = localStorage.getItem(STORAGE_KEY);
-    if (!id) {
-      id = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
-      localStorage.setItem(STORAGE_KEY, id);
-    }
-    return id;
+  function readStoredToken() {
+    try {
+      var token = localStorage.getItem(TOKEN_KEY);
+      if (!token) {
+        token = localStorage.getItem(LEGACY_TOKEN_KEY);
+        if (token) { localStorage.setItem(TOKEN_KEY, token); localStorage.removeItem(LEGACY_TOKEN_KEY); }
+      }
+      return token;
+    } catch (e) { return null; }
+  }
+  function storeToken(value) {
+    try { if (value) localStorage.setItem(TOKEN_KEY, value); } catch (e) {}
   }
 
-  var visitorId = getVisitorId();
   var token = null;
+  var tokenRequest = null;
   var lastTimestamp = null;
   var pollTimer = null;
 
-  function getToken() {
-    if (token) return Promise.resolve(token);
-    return fetch(API_BASE + "/session", {
+  // Pide (o renueva con el token guardado) la sesión. Un token vencido sigue
+  // sirviendo para renovar, así el visitante conserva su conversación.
+  function getToken(forceRenew) {
+    if (token && !forceRenew) return Promise.resolve(token);
+    if (tokenRequest) return tokenRequest;
+    var stored = forceRenew ? (token || readStoredToken()) : readStoredToken();
+    tokenRequest = fetch(API_BASE + "/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visitorId: visitorId }),
+      body: JSON.stringify(stored ? { renewToken: stored } : {}),
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         token = data.token || null;
+        storeToken(token);
         return token;
-      });
+      })
+      .finally(function () { tokenRequest = null; });
+    return tokenRequest;
+  }
+
+  function authHeaders(extra) {
+    var headers = extra || {};
+    if (token) headers.Authorization = "Bearer " + token;
+    return headers;
   }
 
   function renderMessage(container, msg) {
@@ -82,22 +107,63 @@ function buildWidgetScript(accountId: string): string {
     bubble.style.whiteSpace = "pre-wrap";
     bubble.style.wordBreak = "break-word";
     if (msg.direction === "OUTBOUND") {
-      bubble.style.background = "#00B88D";
-      bubble.style.color = "#fff";
+      bubble.style.background = "${C.accent}";
+      bubble.style.color = "${C.onAccent}";
     } else {
-      bubble.style.background = "#f2f7f5";
-      bubble.style.color = "#111";
+      bubble.style.background = "${C.surfaceLight}";
+      bubble.style.color = "${C.ink}";
     }
     bubble.textContent = msg.body || "";
     row.appendChild(bubble);
     container.appendChild(row);
+
+    // Opciones de un mensaje con botones/lista: se tocan una vez; al tocar
+    // se manda el título como texto + replyId para que la automatización
+    // sepa qué opción fue.
+    var options = msg.direction === "OUTBOUND" && msg.interactivePayload && msg.interactivePayload.buttons;
+    if (options && options.length) {
+      var group = document.createElement("div");
+      group.style.display = "flex";
+      group.style.flexWrap = "wrap";
+      group.style.justifyContent = "flex-end";
+      group.style.gap = "6px";
+      group.style.margin = "2px 0 8px";
+      options.forEach(function (opt) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = opt.title;
+        b.style.border = "1px solid ${C.accent}";
+        b.style.background = "#fff";
+        b.style.color = "${C.accentInk}";
+        b.style.borderRadius = "999px";
+        b.style.padding = "6px 12px";
+        b.style.fontSize = "12px";
+        b.style.cursor = "pointer";
+        b.onclick = function () {
+          Array.prototype.forEach.call(group.querySelectorAll("button"), function (x) {
+            x.disabled = true;
+            x.style.opacity = x === b ? "1" : "0.4";
+            x.style.cursor = "default";
+          });
+          sendMessage(opt.title, container, opt.id);
+        };
+        group.appendChild(b);
+      });
+      container.appendChild(group);
+    }
   }
 
   function poll(messagesEl) {
     if (!token) return;
-    var url = API_BASE + "/messages?token=" + encodeURIComponent(token) + (lastTimestamp ? "&since=" + encodeURIComponent(lastTimestamp) : "");
-    fetch(url)
-      .then(function (r) { return r.json(); })
+    var url = API_BASE + "/messages" + (lastTimestamp ? "?since=" + encodeURIComponent(lastTimestamp) : "");
+    fetch(url, { headers: authHeaders() })
+      .then(function (r) {
+        // Sesión vencida (pestaña abierta más de 24h): renovar y seguir.
+        if (r.status === 401 || r.status === 403) {
+          return getToken(true).then(function () { return { messages: [] }; });
+        }
+        return r.json();
+      })
       .then(function (data) {
         var msgs = data.messages || [];
         if (msgs.length === 0) return;
@@ -111,18 +177,20 @@ function buildWidgetScript(accountId: string): string {
       .catch(function () {});
   }
 
-  function sendMessage(text, messagesEl) {
+  function sendMessage(text, messagesEl, replyId) {
     getToken().then(function (tok) {
       if (!tok) return;
-      var clientMessageId = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      var clientMessageId = window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID()
+        : "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
       // Sin render optimista a propósito: el próximo poll (disparado de
       // inmediato abajo, no se espera el intervalo de 4s) va a traer este
       // mismo mensaje ya confirmado por el servidor — mostrarlo dos veces
       // (una optimista, otra al llegar por poll) duplicaba la burbuja.
       fetch(API_BASE + "/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: tok, text: text, clientMessageId: clientMessageId }),
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ text: text, clientMessageId: clientMessageId, replyId: replyId || null }),
       })
         .then(function () { poll(messagesEl); })
         .catch(function () {});
@@ -138,8 +206,8 @@ function buildWidgetScript(accountId: string): string {
     bubble.style.width = "56px";
     bubble.style.height = "56px";
     bubble.style.borderRadius = "50%";
-    bubble.style.background = "#00B88D";
-    bubble.style.color = "#fff";
+    bubble.style.background = "${C.accent}";
+    bubble.style.color = "${C.onAccent}";
     bubble.style.border = "none";
     bubble.style.cursor = "pointer";
     bubble.style.boxShadow = "0 4px 14px rgba(0,0,0,0.2)";
@@ -163,8 +231,8 @@ function buildWidgetScript(accountId: string): string {
     panel.style.fontFamily = "system-ui, -apple-system, sans-serif";
 
     var header = document.createElement("div");
-    header.style.background = "#00B88D";
-    header.style.color = "#fff";
+    header.style.background = "${C.accent}";
+    header.style.color = "${C.onAccent}";
     header.style.padding = "12px 16px";
     header.style.fontSize = "14px";
     header.style.fontWeight = "600";
@@ -179,7 +247,7 @@ function buildWidgetScript(accountId: string): string {
 
     var form = document.createElement("form");
     form.style.display = "flex";
-    form.style.borderTop = "1px solid #eee";
+    form.style.borderTop = "1px solid ${C.border}";
     var input = document.createElement("input");
     input.type = "text";
     input.placeholder = "Escribe un mensaje...";
@@ -192,8 +260,8 @@ function buildWidgetScript(accountId: string): string {
     sendBtn.type = "submit";
     sendBtn.textContent = "Enviar";
     sendBtn.style.border = "none";
-    sendBtn.style.background = "#00B88D";
-    sendBtn.style.color = "#fff";
+    sendBtn.style.background = "${C.accent}";
+    sendBtn.style.color = "${C.onAccent}";
     sendBtn.style.padding = "0 16px";
     sendBtn.style.cursor = "pointer";
     sendBtn.style.fontSize = "13px";
@@ -234,5 +302,5 @@ function buildWidgetScript(accountId: string): string {
 }
 
 function getPublicBaseUrl(): string {
-  return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:15100";
+  return process.env.APP_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:15100";
 }

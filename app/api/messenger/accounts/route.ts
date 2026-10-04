@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { messengerAccountSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { createMetaChannelAccount } from "@/lib/meta-messaging/account-crud";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { requireVerifiedEmail } from "@/lib/auth-emails";
+import { checkPlanLimit } from "@/lib/billing/gates";
+import { requireOrgId } from "@/lib/tenancy";
+import { assertChannelEnabled } from "@/lib/channel-flags";
 
 // Mismo criterio de rol que /api/telegram/accounts: "ejecutivo" tiene
 // /messenger/cuentas bloqueado en proxy.ts, este 403 cierra la API directa.
@@ -20,6 +26,14 @@ export async function POST(req: Request) {
     if (isForbiddenRole(session.user.role)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
+
+    const unverified = await requireVerifiedEmail(session.user.id);
+    if (unverified) return unverified;
+    const organizationId = await requireOrgId(session.user.id);
+    const channelDisabled = await assertChannelEnabled(organizationId, "MESSENGER");
+    if (channelDisabled) return channelDisabled;
+    const overLimit = await checkPlanLimit(organizationId, "channels");
+    if (overLimit) return overLimit;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {
@@ -42,7 +56,7 @@ export async function POST(req: Request) {
     // donde el llamador lo ve en claro, para copiarlo al webhook de Meta.
     return NextResponse.json({ ...account, verifyToken }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -57,9 +71,11 @@ export async function GET() {
     }
 
     const accounts = await prisma.channelAccount.findMany({
-      where: { userId: session.user.id, channel: "MESSENGER" },
+      // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
+      where: { channel: "MESSENGER", id: { in: await getUserChannelAccountIds(session.user.id) } },
       select: {
         id: true,
+        userId: true,
         name: true,
         channel: true,
         status: true,
@@ -74,7 +90,7 @@ export async function GET() {
 
     return NextResponse.json(accounts);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

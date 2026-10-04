@@ -91,7 +91,7 @@ function RailButton({
         // ring-offset (no padding en el botón) para que el aro de selección
         // no pegue directo al borde del avatar y se note como un halo propio.
         active
-          ? "ring-2 ring-accent ring-offset-2 ring-offset-background"
+          ? "ring-2 ring-accent-strong ring-offset-2 ring-offset-background"
           : "opacity-80 hover:opacity-100"
       )}
     >
@@ -104,17 +104,17 @@ function RailButton({
       {/* WhatsApp es el canal por defecto/mayoritario y no necesita
           distinguirse a sí mismo — los otros 3 llevan marca de canal. */}
       {channel === "TELEGRAM" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-on-accent ring-2 ring-background">
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-surface ring-2 ring-background">
           <Send size={9} />
         </span>
       )}
       {channel === "MESSENGER" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent-2 text-on-accent ring-2 ring-background">
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent-2 text-surface ring-2 ring-background">
           <MessageCircle size={9} />
         </span>
       )}
       {channel === "INSTAGRAM" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-on-accent ring-2 ring-background">
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-surface ring-2 ring-background">
           <Camera size={9} />
         </span>
       )}

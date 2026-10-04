@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { sequenceUpdateSchema } from "@/lib/validations";
+import { forbidRoles } from "@/lib/roles";
+import { tagBelongsTo } from "@/lib/tags";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 async function getOwnedSequence(userId: string, sequenceId: string) {
   const [accountIds, channelAccountIds] = await Promise.all([
@@ -40,7 +43,7 @@ export async function GET(
 
     return NextResponse.json(sequence);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -54,6 +57,8 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { id } = await params;
     const existing = await getOwnedSequence(session.user.id, id);
@@ -68,26 +73,38 @@ export async function PATCH(
     }
     const { steps, ...data } = parsed.data;
 
-    if (data.triggerType === "TAG_ADDED" && data.triggerValue) {
-      const tag = await prisma.tag.findUnique({ where: { id: data.triggerValue } });
-      if (!tag) {
+    const triggerType = data.triggerType ?? existing.triggerType;
+    const triggerValue = data.triggerValue !== undefined ? data.triggerValue : existing.triggerValue;
+    if (triggerType === "TAG_ADDED") {
+      if (!triggerValue) return NextResponse.json({ error: "Selecciona una etiqueta" }, { status: 400 });
+      const tag = await prisma.tag.findUnique({ where: { id: triggerValue } });
+      if (!tag || !tagBelongsTo(tag, existing)) {
         return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
       }
+    } else if (triggerType === "LEAD_STATUS_CHANGED" &&
+      (!triggerValue || !["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"].includes(triggerValue))) {
+      return NextResponse.json({ error: "Estado de lead inválido" }, { status: 400 });
     }
 
-    // Reemplazo total de los pasos en vez de un diff — más simple y seguro
-    // dado que no tienen identidad propia fuera del orden. Advertencia: si
-    // la secuencia tiene inscripciones ACTIVE en curso, cambiar el número/
-    // orden de pasos puede corromber lo que su `currentStep` apunta a
-    // significar — se recomienda desactivar (`active: false`) antes de
-    // editar pasos de una secuencia con inscripciones en curso; no se
-    // bloquea la edición para mantener esta primera versión simple.
+    // currentStep apunta al índice del paso: no se puede sustituir la lista
+    // mientras haya inscripciones activas sin cambiar el significado del índice.
+    let replaceSteps = false;
+    if (steps) {
+      const currentSteps = await prisma.wASequenceStep.findMany({
+        where: { sequenceId: id }, orderBy: { order: "asc" },
+        select: { delayMinutes: true, message: true },
+      });
+      replaceSteps = JSON.stringify(currentSteps) !== JSON.stringify(steps);
+      if (replaceSteps && await prisma.wASequenceEnrollment.count({ where: { sequenceId: id, status: "ACTIVE" } }) > 0) {
+        return NextResponse.json({ error: "Hay inscripciones en curso. Espera a que terminen antes de cambiar los pasos." }, { status: 409 });
+      }
+    }
     const sequence = await prisma.wASequence.update({
       where: { id },
       data: {
         ...data,
-        triggerValue: data.triggerType === "APPOINTMENT_COMPLETED" ? null : data.triggerValue,
-        ...(steps
+        triggerValue: triggerType === "APPOINTMENT_COMPLETED" ? null : triggerValue,
+        ...(replaceSteps && steps
           ? {
               steps: {
                 deleteMany: {},
@@ -101,7 +118,7 @@ export async function PATCH(
 
     return NextResponse.json(sequence);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -115,6 +132,8 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { id } = await params;
     const existing = await getOwnedSequence(session.user.id, id);
@@ -125,7 +144,7 @@ export async function DELETE(
     await prisma.wASequence.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

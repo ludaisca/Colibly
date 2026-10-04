@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X, ArrowLeft, Plus } from "lucide-react";
+import { Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X, ArrowLeft, Plus, KeyRound } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -14,6 +14,8 @@ import { Banner } from "@/app/components/ui/banner";
 import { Switch } from "@/app/components/ui/switch";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { DetailPage, DetailRow } from "@/app/components/ui/detail-page";
+import { ListErrorState } from "@/app/components/ui/list-error-state";
+import { ConexionCard } from "./_conexion";
 import { useToast } from "@/app/components/ui/toast";
 
 interface AccountDetail {
@@ -31,6 +33,16 @@ interface AccountDetail {
   qualityRating: string | null;
   messagingTier: string | null;
   qualityUpdatedAt: string | null;
+  hasAppSecret: boolean;
+  usesPlatformApp: boolean;
+  coexistence: boolean;
+  syncStatus: string;
+  syncProgress: number | null;
+  syncDeadlineAt: string | null;
+  syncError: string | null;
+  tokenExpiresAt: string | null;
+  disconnectedReason: string | null;
+  webhookUrl: string;
   createdAt: string;
   updatedAt: string;
   _count: { chats: number; templates: number };
@@ -53,8 +65,6 @@ function qualityTone(rating: string): "success" | "warning" | "danger" | "neutra
   if (r.includes("GREEN") || r.includes("UNFLAG") || r.includes("UPGRADE")) return "success";
   return "neutral";
 }
-
-const WEBHOOK_PATH = "/api/whatsapp/webhook";
 
 interface UserOption {
   id: string;
@@ -108,13 +118,18 @@ export default function CuentaDetailPage() {
   const id = params.id as string;
 
   const [account, setAccount] = useState<AccountDetail | null>(null);
+  const canManage = isAdmin || (!!account && account.userId === session?.user?.id);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editingAppId, setEditingAppId] = useState(false);
   const [appIdDraft, setAppIdDraft] = useState("");
   const [savingAppId, setSavingAppId] = useState(false);
+  const [editingAppSecret, setEditingAppSecret] = useState(false);
+  const [appSecretDraft, setAppSecretDraft] = useState("");
+  const [savingAppSecret, setSavingAppSecret] = useState(false);
 
   const [sharedUsers, setSharedUsers] = useState<UserOption[]>([]);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
@@ -131,17 +146,18 @@ export default function CuentaDetailPage() {
 
   const fetchAccount = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch(`/api/whatsapp/accounts/${id}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al cargar");
       setAccount(data);
     } catch (err) {
-      toastError(err instanceof Error ? err.message : "Error al cargar cuenta");
+      setLoadError(err instanceof Error ? err.message : "Error al cargar cuenta");
     } finally {
       setLoading(false);
     }
-  }, [id, toastError]);
+  }, [id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
@@ -181,10 +197,11 @@ export default function CuentaDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, no depende de rol (a diferencia de compartir)
+    if (!canManage) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, gated by account management access
     fetchRoutingRules();
-    fetch("/api/whatsapp/tags").then(r => r.json()).then(d => { if (Array.isArray(d)) setTags(d); }).catch(() => {});
-  }, [fetchRoutingRules]);
+    fetch(`/api/whatsapp/tags?waAccountId=${id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setTags(d); }).catch(() => {});
+  }, [canManage, fetchRoutingRules, id]);
 
   async function handleAddRule() {
     if (!ruleConditionValue || !ruleAssignedToId) {
@@ -272,12 +289,6 @@ export default function CuentaDetailPage() {
     }
   }
 
-  function getWebhookUrl() {
-    return typeof window !== "undefined"
-      ? `${window.location.origin}${WEBHOOK_PATH}`
-      : WEBHOOK_PATH;
-  }
-
   async function handleCopy(text: string) {
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -313,6 +324,31 @@ export default function CuentaDetailPage() {
     }
   }
 
+  async function handleSaveAppSecret() {
+    if (!appSecretDraft.trim()) {
+      toastError("El App Secret no puede quedar vacío");
+      return;
+    }
+    setSavingAppSecret(true);
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appSecret: appSecretDraft.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al guardar");
+      setAccount((prev) => prev && { ...prev, hasAppSecret: data.hasAppSecret });
+      setEditingAppSecret(false);
+      setAppSecretDraft("");
+      success("App Secret actualizado");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al guardar el App Secret");
+    } finally {
+      setSavingAppSecret(false);
+    }
+  }
+
   async function handleToggleAutoAssign(enabled: boolean) {
     if (!account) return;
     setAccount({ ...account, autoAssignEnabled: enabled });
@@ -335,6 +371,10 @@ export default function CuentaDetailPage() {
         <Spinner />
       </div>
     );
+  }
+
+  if (loadError) {
+    return <div className="space-y-4"><ListErrorState message={loadError} onRetry={fetchAccount} /><Button href="/whatsapp/cuentas" icon={ArrowLeft} variant="secondary">Volver</Button></div>;
   }
 
   if (!account) {
@@ -363,7 +403,17 @@ export default function CuentaDetailPage() {
         </Banner>
       )}
 
+      {!account.hasAppSecret && (
+        <Banner tone="danger" title="Esta cuenta no está recibiendo mensajes">
+          Falta el App Secret. Sin él no se puede validar la firma de los webhooks de Meta y se descartan todos los
+          mensajes entrantes y los estados de entrega. {canManage
+            ? <>Agrégalo abajo, en &quot;App Secret&quot;.</>
+            : "Pide al responsable de la cuenta que lo configure."}
+        </Banner>
+      )}
+
       <div className="space-y-8">
+        <ConexionCard initial={account} />
         <section className="space-y-4">
           <SectionHeader title="Información de la cuenta" />
           <dl className="space-y-4">
@@ -390,9 +440,48 @@ export default function CuentaDetailPage() {
               ) : (
                 <dd className="flex items-center gap-2 font-mono text-sm">
                   {account.appId ?? "—"}
-                  <button onClick={startEditAppId} className="text-muted-darker transition-colors hover:text-foreground" aria-label="Editar App ID">
+                  {canManage && <button onClick={startEditAppId} className="text-muted-darker transition-colors hover:text-foreground" aria-label="Editar App ID">
                     <Pencil size={13} />
-                  </button>
+                  </button>}
+                </dd>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+              <dt className="shrink-0 text-sm text-muted-darker">App Secret</dt>
+              {editingAppSecret ? (
+                <div className="flex flex-1 items-center justify-end gap-2">
+                  <Input
+                    type="password"
+                    autoComplete="off"
+                    value={appSecretDraft}
+                    onChange={(e) => setAppSecretDraft(e.target.value)}
+                    placeholder="abc123..."
+                    aria-label="Nuevo App Secret"
+                    className="max-w-[200px] font-mono text-sm"
+                  />
+                  <Button size="sm" onClick={handleSaveAppSecret} disabled={savingAppSecret}>
+                    {savingAppSecret ? <Spinner /> : "Guardar"}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => { setEditingAppSecret(false); setAppSecretDraft(""); }}>
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <dd className="flex items-center gap-2 text-sm">
+                  {account.usesPlatformApp ? (
+                    <Badge tone="neutral" size="sm">La gestiona Colibly</Badge>
+                  ) : account.hasAppSecret ? (
+                    <Badge tone="success" size="sm">Configurado</Badge>
+                  ) : (
+                    <Badge tone="danger" size="sm">Falta</Badge>
+                  )}
+                  {canManage && !account.usesPlatformApp && <button
+                    onClick={() => setEditingAppSecret(true)}
+                    className="text-muted-darker transition-colors hover:text-foreground"
+                    aria-label={account.hasAppSecret ? "Reemplazar App Secret" : "Agregar App Secret"}
+                  >
+                    {account.hasAppSecret ? <Pencil size={13} /> : <KeyRound size={13} />}
+                  </button>}
                 </dd>
               )}
             </div>
@@ -438,20 +527,20 @@ export default function CuentaDetailPage() {
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 break-all rounded-lg bg-surface px-3 py-2 font-mono text-xs">
-              {getWebhookUrl()}
+              {account.webhookUrl}
             </code>
             <Button
               variant="secondary"
               size="sm"
               icon={copied ? Check : Copy}
-              onClick={() => handleCopy(getWebhookUrl())}
+              onClick={() => handleCopy(account.webhookUrl)}
             >
               {copied ? "Copiado" : "Copiar"}
             </Button>
           </div>
         </section>
 
-        <section className="space-y-4">
+        {canManage && <section className="space-y-4">
           <SectionHeader title="Asignación de chats" />
           <div className="flex items-center justify-between py-1">
             <div>
@@ -460,7 +549,7 @@ export default function CuentaDetailPage() {
                 Reparte automáticamente los chats sin asignar entre los agentes con acceso a esta cuenta, según su carga actual.
               </p>
             </div>
-            <Switch checked={account.autoAssignEnabled} onCheckedChange={handleToggleAutoAssign} />
+            <Switch checked={account.autoAssignEnabled} onCheckedChange={handleToggleAutoAssign} label="Auto-asignación de chats nuevos" />
           </div>
 
           {account.autoAssignEnabled && (
@@ -494,6 +583,7 @@ export default function CuentaDetailPage() {
 
               <div className="flex flex-wrap items-end gap-2">
                 <Select
+                  aria-label="Tipo de condición de enrutamiento"
                   value={ruleConditionType}
                   onChange={(e) => { setRuleConditionType(e.target.value as RoutingRule["conditionType"]); setRuleConditionValue(""); }}
                   className="w-40"
@@ -503,7 +593,7 @@ export default function CuentaDetailPage() {
                   <option value="SCORE_LABEL">Calificación de IA</option>
                 </Select>
 
-                <Select value={ruleConditionValue} onChange={(e) => setRuleConditionValue(e.target.value)} className="flex-1 min-w-[140px]">
+                <Select aria-label="Valor de la condición de enrutamiento" value={ruleConditionValue} onChange={(e) => setRuleConditionValue(e.target.value)} className="flex-1 min-w-[140px]">
                   <option value="">Seleccionar valor</option>
                   {ruleConditionType === "TAG" && tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   {ruleConditionType === "LEAD_ORIGIN" && LEAD_ORIGIN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -512,7 +602,7 @@ export default function CuentaDetailPage() {
 
                 <span className="text-xs text-muted-darker">→</span>
 
-                <Select value={ruleAssignedToId} onChange={(e) => setRuleAssignedToId(e.target.value)} className="flex-1 min-w-[160px]">
+                <Select aria-label="Agente destinatario de la regla" value={ruleAssignedToId} onChange={(e) => setRuleAssignedToId(e.target.value)} className="flex-1 min-w-[160px]">
                   <option value="">Asignar a...</option>
                   {routingAssignees.map(u => <option key={u.id} value={u.id}>{u.name ?? u.email}</option>)}
                 </Select>
@@ -523,7 +613,7 @@ export default function CuentaDetailPage() {
               </div>
             </div>
           )}
-        </section>
+        </section>}
 
         {isAdmin && (
           <section className="space-y-4">
@@ -552,7 +642,7 @@ export default function CuentaDetailPage() {
             )}
 
             <div className="flex items-center gap-2">
-              <Select value={shareUserId} onChange={(e) => setShareUserId(e.target.value)} className="flex-1">
+              <Select aria-label="Usuario con quien compartir la cuenta" value={shareUserId} onChange={(e) => setShareUserId(e.target.value)} className="flex-1">
                 <option value="">Seleccionar usuario...</option>
                 {allUsers
                   .filter((u) => u.id !== account.userId && !sharedUsers.some((s) => s.id === u.id))
@@ -575,13 +665,13 @@ export default function CuentaDetailPage() {
           <Button variant="secondary" icon={RefreshCw} onClick={fetchAccount}>
             Actualizar
           </Button>
-          <Button
+          {canManage && <Button
             variant="danger"
             icon={Trash2}
             onClick={() => setDeleteOpen(true)}
           >
             Eliminar
-          </Button>
+          </Button>}
         </div>
       </div>
 

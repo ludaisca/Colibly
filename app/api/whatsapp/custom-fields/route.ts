@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { contactCustomFieldDefinitionSchema } from "@/lib/validations";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // CRUD de definiciones — mismo shape que /api/whatsapp/canned-responses
 // (dual waAccountId/channelAccountId, ?waAccountId=/?channelAccountId= para
@@ -59,7 +60,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(definitions);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -111,7 +112,7 @@ export async function POST(req: Request) {
     ) {
       return NextResponse.json({ error: "Ya existe un campo con esa clave en esta cuenta" }, { status: 409 });
     }
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

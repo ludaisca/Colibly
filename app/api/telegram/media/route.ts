@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { rateLimit } from "@/lib/rate-limit";
 import { saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Mirror de app/api/whatsapp/media/route.ts, pero Telegram no tiene el paso
 // "subir → obtener id" de la Graph API de Meta: aquí solo se persiste una
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
       localMediaPath: stored.relativePath,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

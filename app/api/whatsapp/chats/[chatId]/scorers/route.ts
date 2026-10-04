@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Dueño de la cuenta del chat, no session.user.id — un usuario con acceso
 // vía cuenta compartida ve los calificadores del dueño de la cuenta.
@@ -46,13 +47,13 @@ export async function GET(
 
     const scorers = await prisma.wALeadScorerBot.findMany({
       where: { userId: ownerUserId, isActive: true },
-      select: { id: true, name: true, provider: true, model: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
 
     return NextResponse.json(scorers);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

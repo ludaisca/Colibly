@@ -1,3 +1,5 @@
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+
 const BASE_URL = "https://api.telegram.org";
 
 interface TelegramApiResponse<T> {
@@ -17,6 +19,7 @@ async function callTelegramApi<T>(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload ? JSON.stringify(payload) : undefined,
+    signal: httpTimeout(),
   });
 
   const data = (await res.json()) as TelegramApiResponse<T>;
@@ -62,6 +65,26 @@ export async function sendTextMessage(botToken: string, chatId: string, text: st
   return callTelegramApi<TelegramMessage>(botToken, "sendMessage", { chat_id: chatId, text });
 }
 
+// Opciones como teclado inline (una por fila): el toque llega como
+// callback_query con callback_data = id de la opción (máx. 64 bytes).
+export async function sendKeyboardMessage(
+  botToken: string,
+  chatId: string,
+  text: string,
+  options: { id: string; title: string }[]
+): Promise<TelegramMessage> {
+  return callTelegramApi<TelegramMessage>(botToken, "sendMessage", {
+    chat_id: chatId,
+    text,
+    reply_markup: { inline_keyboard: options.map((o) => [{ text: o.title, callback_data: o.id }]) },
+  });
+}
+
+// Quita el "cargando" del botón en la app de Telegram tras un toque.
+export async function answerCallbackQuery(botToken: string, callbackQueryId: string): Promise<void> {
+  await callTelegramApi<boolean>(botToken, "answerCallbackQuery", { callback_query_id: callbackQueryId });
+}
+
 export type TelegramMediaKind = "photo" | "document" | "audio" | "video";
 
 interface TelegramSentMedia extends TelegramMessage {
@@ -92,7 +115,7 @@ export async function sendMediaMessage(
   formData.append(kind, new Blob([new Uint8Array(buffer)], { type: mimeType }), filename);
   if (caption) formData.append("caption", caption);
 
-  const res = await fetch(url, { method: "POST", body: formData });
+  const res = await fetch(url, { method: "POST", body: formData, signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS), });
   const data = (await res.json()) as TelegramApiResponse<TelegramSentMedia>;
   if (!data.ok || !data.result) {
     throw new Error(data.description ?? `Telegram send${kind} failed (HTTP ${res.status})`);

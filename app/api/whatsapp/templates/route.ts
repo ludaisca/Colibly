@@ -3,19 +3,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 async function syncTemplatesFromMeta(wabaId: string, accessToken: string) {
-  const url = `https://graph.facebook.com/v21.0/${wabaId}/message_templates`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? "Error al sincronizar plantillas");
-  }
-
-  const data = (await res.json()) as {
+  type MetaTemplatesPage = {
     data?: Array<{
       id: string;
       name: string;
@@ -24,9 +16,33 @@ async function syncTemplatesFromMeta(wabaId: string, accessToken: string) {
       status: string;
       components: unknown[];
     }>;
+    paging?: { next?: string; cursors?: { after?: string } };
   };
-
-  return data.data ?? [];
+  const templates: NonNullable<MetaTemplatesPage["data"]> = [];
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+  for (let page = 0; page < 100; page++) {
+    const url = new URL(`https://graph.facebook.com/v21.0/${encodeURIComponent(wabaId)}/message_templates`);
+    url.searchParams.set("limit", "100");
+    if (cursor) url.searchParams.set("after", cursor);
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.error?.message ?? "Error al sincronizar plantillas");
+    }
+    const data = (await res.json()) as MetaTemplatesPage;
+    if (!Array.isArray(data.data)) throw new Error("Meta devolvió una lista de plantillas inválida");
+    templates.push(...data.data);
+    if (!data.paging?.next) return templates;
+    const nextCursor = data.paging.cursors?.after;
+    if (!nextCursor || seenCursors.has(nextCursor)) throw new Error("No se pudo completar la paginación de plantillas de Meta");
+    seenCursors.add(nextCursor);
+    cursor = nextCursor;
+  }
+  throw new Error("Hay demasiadas páginas de plantillas para sincronizar en una sola operación");
 }
 
 export async function GET(req: Request) {
@@ -60,7 +76,7 @@ export async function GET(req: Request) {
     return NextResponse.json(templates);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -71,6 +87,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { waAccountId } = (await req.json()) as { waAccountId: string };
 
@@ -131,12 +149,22 @@ export async function POST(req: Request) {
     }
 
     const syncedIds = metaTemplates.map((t) => t.id);
-    await prisma.wATemplate.deleteMany({
-      where: {
-        waAccountId: account.id,
-        templateId: { notIn: syncedIds },
-      },
+    const missing = await prisma.wATemplate.findMany({
+      where: { waAccountId: account.id, templateId: { notIn: syncedIds }, status: { not: "DELETED" } },
+      select: { id: true },
     });
+    // No borrar: WATemplate es padre de campañas y fuentes de Google Sheets.
+    // Un deleteMany en una sincronización parcial destruiría esos registros.
+    if (missing.length > 0) {
+      const missingIds = missing.map((t) => t.id);
+      await prisma.$transaction([
+        prisma.wATemplate.updateMany({ where: { id: { in: missingIds } }, data: { status: "DELETED" } }),
+        prisma.leadSheetSource.updateMany({
+          where: { waTemplateId: { in: missingIds }, enabled: true },
+          data: { enabled: false, lastError: "La plantilla ya no aparece en Meta. Sincroniza o elige otra plantilla antes de reactivar." },
+        }),
+      ]);
+    }
 
     const templates = await prisma.wATemplate.findMany({
       where: { waAccountId: account.id },
@@ -146,7 +174,7 @@ export async function POST(req: Request) {
     return NextResponse.json(templates);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

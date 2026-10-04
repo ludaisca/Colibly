@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { PIPELINE_STAGES, STAGE_LABEL } from "@/lib/pipeline/stages";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
@@ -19,7 +19,7 @@ export default async function VentasPage() {
     where: {
       OR: [
         { accountId: { in: accountIds } },
-        { channelAccount: { userId: session.user.id } },
+        { channelAccountId: { in: await getUserChannelAccountIds(session.user.id) } },
       ],
     },
     select: {
@@ -28,6 +28,7 @@ export default async function VentasPage() {
       remoteJid: true,
       leadStatus: true,
       accountId: true,
+      channelAccount: { select: { channel: true } },
       tags: {
         select: {
           tag: { select: { id: true, name: true, color: true } },
@@ -72,6 +73,7 @@ export default async function VentasPage() {
       remoteJid: c.remoteJid,
       leadStatus: c.leadStatus,
       accountId: c.accountId,
+      channel: c.accountId ? "WHATSAPP" : c.channelAccount?.channel ?? "WEBCHAT",
       tags: c.tags,
       bestScore: c.chat?.leadScores?.[0] ?? null,
       lastMessageAt,

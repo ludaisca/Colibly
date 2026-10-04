@@ -4,6 +4,10 @@
 // cualquiera de los paneles pueda importarlo sin acoplarse a los demás.
 
 export const CHATS_PAGE_SIZE = 30;
+// Cada cuánto se refresca la lista de conversaciones (nuevos chats de otros
+// leads). Más espaciado que el poll de mensajes del chat abierto (5s): cada
+// tick consulta hasta 5 fuentes, una por canal.
+export const CHATS_LIST_POLL_MS = 15_000;
 
 export type ChatStatus = "OPEN" | "PENDING" | "RESOLVED";
 
@@ -57,8 +61,11 @@ export const HAS_REPLIED_OPTIONS: Array<{ value: "" | "yes" | "no"; label: strin
   { value: "no", label: "Sin respuesta del lead" },
 ];
 
+export interface AgentReaction { id: string; emoji: string; status: string; error: string | null }
+
 export interface Message {
   id: string;
+  wamid?: string | null;
   direction: "INBOUND" | "OUTBOUND";
   messageType: string;
   body: string | null;
@@ -69,7 +76,16 @@ export interface Message {
   filename: string | null;
   bytesSize: number | null;
   status: string | null;
+  replyToWamid?: string | null;
+  replyTo?: { id: string; direction: "INBOUND" | "OUTBOUND"; body: string | null; caption: string | null; messageType: string } | null;
+  reactionEmoji?: string | null;
+  agentReactionEmoji?: string | null;
+  agentReactions?: AgentReaction[];
   timestamp: string;
+  /** Identidad visual estable mientras el envío optimista recibe su id real. */
+  motionKey?: string;
+  /** Solo los mensajes nuevos entran animados; el historial cargado no. */
+  animateOnMount?: boolean;
   /** Solo en mensajes optimistas locales (id "temp-…"): preview del archivo
    *  adjunto antes de que exista un mediaId real servido por el proxy. */
   localPreviewUrl?: string;

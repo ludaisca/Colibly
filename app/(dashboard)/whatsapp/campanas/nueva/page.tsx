@@ -13,6 +13,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { FormField } from "@/app/components/ui/form-field";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { Spinner } from "@/app/components/ui/spinner";
+import { Banner } from "@/app/components/ui/banner";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { useToast } from "@/app/components/ui/toast";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
@@ -32,6 +33,7 @@ const TEMPLATE_STATUS_LABEL: Record<string, string> = {
   REJECTED: "Rechazada",
   PAUSED: "Pausada",
   DISABLED: "Deshabilitada",
+  DELETED: "Ya no está en Meta",
 };
 
 const CSV_PAGE_SIZE = 10;
@@ -45,6 +47,9 @@ export default function NewCampaignPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templateLoadError, setTemplateLoadError] = useState("");
+  const [accountLoadError, setAccountLoadError] = useState("");
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
 
   const [name, setName] = useState("");
   const [waAccountId, setWaAccountId] = useState("");
@@ -86,36 +91,48 @@ export default function NewCampaignPage() {
   const bodyParamCount = templateVars?.bodyParamCount ?? 0;
 
   useEffect(() => {
-    fetch("/api/whatsapp/accounts").then(r => r.json()).then(d => {
+    fetch("/api/whatsapp/accounts").then(async r => {
+      const d = await r.json();
+      if (!r.ok || !Array.isArray(d)) throw new Error(d.error ?? "Error al cargar cuentas");
+      return d;
+    }).then(d => {
       // GET /api/whatsapp/accounts sobreescribe channel a "WHATSAPP" (discriminador de
       // UI para mezclarse con /api/telegram/accounts) — nunca devuelve "META_CLOUD"
       // literal, aunque esa sea la cuenta interna. Filtrar por "META_CLOUD" aquí dejaba
       // el combo de cuentas siempre vacío — bug preexistente desde la integración de
       // Telegram (commit 4ee4e31), encontrado al probar P3-b.
-      if (Array.isArray(d)) setAccounts(d.filter((a: Account) => a.channel === "WHATSAPP"));
-    }).catch(() => toastError("Error al cargar cuentas"));
-  }, [toastError]);
+      const available = d.filter((a: Account) => a.channel === "WHATSAPP");
+      setAccounts(available);
+      if (available.length === 1) setWaAccountId(available[0].id);
+    }).catch((err) => setAccountLoadError(err instanceof Error ? err.message : "Error al cargar cuentas"))
+      .finally(() => setAccountsLoaded(true));
+  }, []);
 
+  // Las etiquetas son por cuenta: se recargan al cambiar de número y se
+  // descarta la selección anterior (pertenecía a otra cuenta).
   useEffect(() => {
-    fetch("/api/whatsapp/tags").then(r => r.json()).then(d => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset al cambiar de cuenta
+    setSelectedTagId("");
+    if (!waAccountId) {
+      setTags([]);
+      return;
+    }
+    fetch(`/api/whatsapp/tags?waAccountId=${waAccountId}`).then(r => r.json()).then(d => {
       if (Array.isArray(d)) setTags(d);
     }).catch(() => toastError("Error al cargar etiquetas"));
-  }, [toastError]);
+  }, [waAccountId, toastError]);
 
   useEffect(() => {
     if (!waAccountId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load templates when account selection changes
     setLoadingTemplates(true);
-    fetch(`/api/whatsapp/templates`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ waAccountId }),
-    })
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setTemplates(d); })
-      .catch(() => toastError("Error al cargar plantillas"))
+    setTemplateLoadError("");
+    fetch(`/api/whatsapp/templates?waAccountId=${encodeURIComponent(waAccountId)}`)
+      .then(async r => { const d = await r.json(); if (!r.ok || !Array.isArray(d)) throw new Error(d.error ?? "Error al cargar plantillas"); return d; })
+      .then(d => setTemplates(d))
+      .catch((err) => setTemplateLoadError(err instanceof Error ? err.message : "Error al cargar plantillas"))
       .finally(() => setLoadingTemplates(false));
-  }, [waAccountId, toastError]);
+  }, [waAccountId]);
 
   // Params, header/button values and any imported CSV are all specific to the
   // previously selected template's shape — switching templates invalidates them.
@@ -400,6 +417,10 @@ export default function NewCampaignPage() {
           <form onSubmit={handleSubmit}>
             <CardBody>
               <div className="space-y-5">
+                {accountLoadError && <Banner tone="danger">{accountLoadError}</Banner>}
+                {accountsLoaded && accounts.length === 0 && !accountLoadError && (
+                  <Banner tone="info">Conecta una <Link href="/whatsapp/cuentas" className="underline">cuenta WhatsApp</Link> antes de crear una campaña.</Banner>
+                )}
                 <FormField label="Nombre de la campaña" required error={errors.name}>
                   {(id) => <Input id={id} value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Promoción Julio 2026" error={errors.name} />}
                 </FormField>
@@ -407,7 +428,7 @@ export default function NewCampaignPage() {
                 <div className="grid gap-5 sm:grid-cols-2">
                   <FormField label="Cuenta WhatsApp" required error={errors.waAccountId}>
                     {(id) => (
-                      <Select id={id} value={waAccountId} onChange={e => { setWaAccountId(e.target.value); handleTemplateChange(""); }} placeholder="Seleccionar" error={errors.waAccountId}>
+                      <Select id={id} value={waAccountId} onChange={e => { setWaAccountId(e.target.value); setTemplates([]); handleTemplateChange(""); }} placeholder="Seleccionar" error={errors.waAccountId}>
                         {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                       </Select>
                     )}
@@ -436,6 +457,10 @@ export default function NewCampaignPage() {
                     )}
                   </FormField>
                 </div>
+                {templateLoadError && <Banner tone="danger">{templateLoadError}</Banner>}
+                {waAccountId && !loadingTemplates && !templateLoadError && !templates.some(t => t.status === "APPROVED") && (
+                  <Banner tone="info">Esta cuenta no tiene plantillas aprobadas. <Link href={`/whatsapp/plantillas?accountId=${encodeURIComponent(waAccountId)}`} className="underline">Revisa o sincroniza sus plantillas</Link> antes de crear una campaña.</Banner>
+                )}
 
                 {templateVars?.header.required && templateVars.header.format === "TEXT" && (
                   <FormField
@@ -521,7 +546,7 @@ export default function NewCampaignPage() {
                     <p className="text-sm font-medium">Enviar ahora</p>
                     <p className="text-xs text-muted-darker">La campaña comenzará a enviarse inmediatamente</p>
                   </div>
-                  <input type="checkbox" checked={sendNow} onChange={e => setSendNow(e.target.checked)} className="h-5 w-5 rounded border-border text-accent focus:ring-accent" />
+                  <input type="checkbox" aria-label="Enviar ahora" checked={sendNow} onChange={e => setSendNow(e.target.checked)} className="h-5 w-5 rounded border-border text-accent-ink focus:ring-accent-strong" />
                 </div>
 
                 {!sendNow && (
@@ -537,12 +562,14 @@ export default function NewCampaignPage() {
                     {recipients.map((r, i) => (
                       <div key={i} className="flex flex-wrap gap-2 items-start">
                         <Input
+                          aria-label={`Teléfono del destinatario ${i + 1}`}
                           value={r.phoneNumber}
                           onChange={e => updateRecipient(i, "phoneNumber", e.target.value)}
                           placeholder="5215551234567"
                           className="flex-1 min-w-[140px]"
                         />
                         <Input
+                          aria-label={`Nombre del destinatario ${i + 1}`}
                           value={r.contactName}
                           onChange={e => updateRecipient(i, "contactName", e.target.value)}
                           placeholder="Nombre (opcional)"
@@ -551,6 +578,7 @@ export default function NewCampaignPage() {
                         {Array.from({ length: bodyParamCount }).map((_, paramIdx) => (
                           <Input
                             key={paramIdx}
+                            aria-label={`Variable ${paramIdx + 1} del destinatario ${i + 1}`}
                             value={r.params[paramIdx] ?? ""}
                             onChange={e => updateRecipientParam(i, paramIdx, e.target.value)}
                             placeholder={`{{${paramIdx + 1}}}`}
@@ -558,7 +586,7 @@ export default function NewCampaignPage() {
                           />
                         ))}
                         {recipients.length > 1 && (
-                          <Button type="button" variant="ghost" size="sm" icon={X} onClick={() => removeRecipient(i)} />
+                          <Button type="button" variant="ghost" size="sm" icon={X} aria-label={`Quitar destinatario ${i + 1}`} onClick={() => removeRecipient(i)} />
                         )}
                       </div>
                     ))}
@@ -594,6 +622,7 @@ export default function NewCampaignPage() {
                       ) : (
                         <div className="flex flex-wrap gap-2 items-center">
                           <Select
+                            aria-label="Etiqueta para cargar contactos"
                             value={selectedTagId}
                             onChange={e => setSelectedTagId(e.target.value)}
                             disabled={!waAccountId}

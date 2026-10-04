@@ -1,24 +1,25 @@
-import { getOpenRouterModelPricing } from "./models";
-import type { ModelPricing } from "./models";
 import type { AIProvider } from "./types";
 
+interface ModelPricing {
+  input: number;
+  output: number;
+}
+
 // Google entries reflect the <=200k-context standard tier from
-// https://ai.google.dev/gemini-api/docs/pricing — Gemini has no pricing API
-// (unlike OpenRouter, see getOpenRouterModelPricing below), so this table has
-// to be kept in sync by hand. Verified 2026-07-15.
-const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  "google/gemini-2.5-flash":      { input: 0.30,  output: 2.50 },
-  "google/gemini-2.5-flash-lite": { input: 0.10,  output: 0.40 },
-  "google/gemini-2.5-pro":        { input: 1.25,  output: 10.00 },
-  "openai/gpt-4o":                { input: 2.50,  output: 10.00 },
-  "openai/gpt-4o-mini":           { input: 0.15,  output: 0.60 },
-  "anthropic/claude-3.5-sonnet":  { input: 3.00,  output: 15.00 },
-  "anthropic/claude-3-haiku":     { input: 0.25,  output: 1.25 },
+// https://ai.google.dev/gemini-api/docs/pricing — Gemini has no pricing API,
+// so this table has to be kept in sync by hand. Verified 2026-09-28.
+//
+// OpenCode Go es una suscripción plana ($10/mes, no cobra por token) — sus
+// modelos quedan en $0 aquí a propósito, para no mostrar un costo por-token
+// engañoso en el dashboard. El gasto real de la suscripción no se prorratea
+// por llamada.
+const MODEL_PRICING: Record<string, ModelPricing> = {
   "gemini-2.5-flash":             { input: 0.30,  output: 2.50 },
   "gemini-2.5-flash-lite":        { input: 0.10,  output: 0.40 },
   "gemini-2.5-pro":               { input: 1.25,  output: 10.00 },
-  "meta-llama/llama-4-maverick":  { input: 0.20,  output: 0.90 },
-  "meta-llama/llama-4-scout":     { input: 0.10,  output: 0.45 },
+  "gemini-3.8-flash":             { input: 0.75,  output: 3.75 },
+  "opencode-go/glm-5.3-flash":              { input: 0, output: 0 },
+  "opencode-go/deepseek-v4-flash-vision-exp": { input: 0, output: 0 },
 };
 
 export async function estimateCost(
@@ -27,16 +28,17 @@ export async function estimateCost(
   completionTokens: number,
   provider?: AIProvider
 ): Promise<number> {
-  let pricing: ModelPricing | undefined = MODEL_PRICING[model];
-
-  if (!pricing && provider === "openrouter") {
-    pricing = (await getOpenRouterModelPricing(model)) ?? undefined;
-  }
+  // Google aplica tarifa introductoria hasta el 31/12/2026. Los registros
+  // históricos ya guardan su costo estimado, así que el cambio solo afecta
+  // llamadas futuras.
+  const pricing: ModelPricing | undefined = model === "gemini-3.8-flash" && Date.now() >= Date.UTC(2027, 0, 1)
+    ? { input: 1.50, output: 7.50 }
+    : MODEL_PRICING[model];
 
   if (!pricing) {
     // Surface this instead of silently logging $0 forever — a model missing
-    // from the static table (or an OpenRouter lookup failure) should be
-    // noticeable, not indistinguishable from "this model is actually free."
+    // from the static table should be noticeable, not indistinguishable from
+    // "this model is actually free."
     console.warn(`[pricing] Sin precio conocido para el modelo "${model}" (provider: ${provider ?? "?"}) — costo registrado como $0`);
     return 0;
   }

@@ -25,7 +25,7 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
   const fetchAll = useCallback(async () => {
     try {
       const [allRes, chatRes] = await Promise.all([
-        fetch("/api/whatsapp/tags"),
+        fetch(`/api/whatsapp/tags?chatId=${chatId}`),
         fetch(`/api/whatsapp/chats/${chatId}/tags`),
       ]);
       const allData = await allRes.json();
@@ -80,7 +80,7 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
       const res = await fetch("/api/whatsapp/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newTagName.trim() }),
+        body: JSON.stringify({ name: newTagName.trim(), chatId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al crear etiqueta");
@@ -103,7 +103,7 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
   }
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {chatTags.map((tag) => (
         <Badge key={tag.id} tone="accent" size="sm">{tag.name}</Badge>
       ))}
@@ -111,6 +111,8 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
         open={open}
         onOpenChange={setOpen}
         align="right"
+        portal
+        closeOnSelect={false}
         trigger={<DropdownButton label="Etiquetas" icon={TagIcon} size="sm" />}
       >
         <div className="p-3 w-64 space-y-2">

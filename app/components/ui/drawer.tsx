@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback, useState } from "react";
-import { createPortal } from "react-dom";
+import React from "react";
+import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import { X } from "lucide-react";
 import { cn } from "./cn";
-import { useHasMounted } from "@/app/hooks/use-has-mounted";
+import "./drawer.css";
 
 type DrawerSide = "left" | "right";
 
@@ -27,122 +27,26 @@ export function Drawer({
   className,
   children,
 }: DrawerProps) {
-  const mounted = useHasMounted();
-  // Must seed from `open`, not false — components that conditionally mount the
-  // Drawer already open (e.g. `{selectedId && <ContactDrawer open .../>}`) never
-  // get an open:false→true transition to react to, so visible would stay stuck
-  // at false and the drawer would never render at all (see Modal's identical fix).
-  const [visible, setVisible] = useState(open);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<Element | null>(null);
-  const titleId = React.useId();
-
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
-    if (open) setVisible(true);
-  }
-
-  useEffect(() => {
-    if (open) {
-      triggerRef.current = document.activeElement;
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (open) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = prev; };
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || !panelRef.current) return;
-    const panel = panelRef.current;
-    const focusable = panel.querySelectorAll<HTMLElement>(
-      'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
-    );
-    if (focusable.length) focusable[0].focus();
-
-    const trap = (e: KeyboardEvent) => {
-      if (e.key !== "Tab" || !focusable.length) return;
-      const first = focusable[0];
-      const last  = focusable[focusable.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-      } else {
-        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
-      }
-    };
-    panel.addEventListener("keydown", trap);
-    return () => panel.removeEventListener("keydown", trap);
-  }, [open, visible]);
-
-  useEffect(() => {
-    if (!open && triggerRef.current) {
-      (triggerRef.current as HTMLElement).focus?.();
-    }
-  }, [open]);
-
-  const handleAnimationEnd = useCallback(() => {
-    if (!open) setVisible(false);
-  }, [open]);
-
-  if (!mounted || !visible) return null;
-
-  const slideIn  = side === "left" ? "animate-slide-in-left"  : "animate-slide-in-right";
-  const slideOut = side === "left" ? "animate-slide-out-left" : "animate-slide-out-right";
-  const position = side === "left" ? "left-0" : "right-0";
-
-  return createPortal(
-    <div className={cn("fixed inset-0 z-50", open ? "animate-fade-in" : "animate-fade-out")} onAnimationEnd={handleAnimationEnd}>
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? titleId : undefined}
-        className={cn(
-          "absolute top-0 bottom-0 bg-surface border-border flex flex-col shadow-lg",
-          side === "left" ? "border-r" : "border-l",
-          position,
-          width,
-          open ? slideIn : slideOut,
-          className
-        )}
-      >
-        {title && (
-          <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
-            <h2 id={titleId} className="text-sm font-semibold text-foreground">{title}</h2>
-            <button
-              onClick={onClose}
-              aria-label="Cerrar"
-              className="text-muted-darker hover:text-foreground transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
-        <div className="flex-1 overflow-y-auto">
-          {children}
-        </div>
-      </div>
-    </div>,
-    document.body
+  return (
+    <BaseDrawer.Root open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }} swipeDirection={side}>
+      <BaseDrawer.Portal>
+        <BaseDrawer.Backdrop className="colibly-drawer-backdrop" />
+        <BaseDrawer.Viewport className={cn("colibly-drawer-viewport", width)} data-side={side}>
+          <BaseDrawer.Popup className={cn("colibly-drawer-popup", className)} data-side={side}>
+            <BaseDrawer.Content className="flex h-full min-h-0 flex-col">
+              {title ? (
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-4">
+                  <BaseDrawer.Title className="min-w-0 truncate text-sm font-semibold text-foreground">{title}</BaseDrawer.Title>
+                  <BaseDrawer.Close aria-label="Cerrar panel" className="colibly-drawer-close"><X size={18} /></BaseDrawer.Close>
+                </div>
+              ) : (
+                <BaseDrawer.Title className="sr-only">{side === "left" ? "Navegación" : "Panel de detalles"}</BaseDrawer.Title>
+              )}
+              <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+            </BaseDrawer.Content>
+          </BaseDrawer.Popup>
+        </BaseDrawer.Viewport>
+      </BaseDrawer.Portal>
+    </BaseDrawer.Root>
   );
 }

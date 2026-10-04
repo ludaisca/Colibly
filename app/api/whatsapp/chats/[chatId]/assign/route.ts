@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getEligibleAssignees } from "@/lib/chat-assignees";
+import { getEligibleAssignees, getEligibleChannelAssignees } from "@/lib/chat-assignees";
 import { resolveChatChannel } from "@/lib/chat-resolver";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForChat } from "@/lib/events/refs";
 
 const ASSIGNEE_SELECT = {
   id: true,
@@ -30,15 +33,14 @@ export async function PATCH(
     const assignedToId: string | null = body?.assignedToId ?? null;
 
     if (resolved.channel !== "WHATSAPP") {
-      // Sin WAAccountShare equivalente todavía — el único elegible es el
-      // dueño de la cuenta (ver lib/telegram/auto-assign.ts, reusado por
-      // Messenger/Instagram).
+      // Dueño de la cuenta + usuarios con ChannelAccountShare (activos).
       if (assignedToId !== null) {
         const conversation = await prisma.conversation.findUnique({
           where: { id: chatId },
-          select: { channelAccount: { select: { userId: true } } },
+          select: { channelAccountId: true },
         });
-        if (conversation?.channelAccount.userId !== assignedToId) {
+        const eligible = conversation ? await getEligibleChannelAssignees(conversation.channelAccountId) : [];
+        if (!eligible.some((u) => u.id === assignedToId)) {
           return NextResponse.json({ error: "Usuario no válido para esta cuenta" }, { status: 400 });
         }
       }
@@ -47,6 +49,7 @@ export async function PATCH(
         data: { assignedToId },
         select: ASSIGNEE_SELECT,
       });
+      await emitAssigned(chatId, assignedToId);
       return NextResponse.json(updated);
     }
 
@@ -70,11 +73,17 @@ export async function PATCH(
       data: { assignedToId },
       select: ASSIGNEE_SELECT,
     });
+    await emitAssigned(chatId, assignedToId);
 
     return NextResponse.json(updated);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+async function emitAssigned(chatId: string, assignedToId: string | null) {
+  const refs = await eventRefsForChat(chatId);
+  if (refs) await emitDomainEvent({ type: "conversation.assigned", ...refs, data: { assignedToId, auto: false } });
 }

@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { autoAssignConversation } from "./auto-assign";
+import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { dispatchInboundMessage } from "@/lib/automations/dispatch";
 
 // Equivalente a lib/whatsapp/ingest-message.ts pero sobre las tablas
 // genéricas ChannelAccount/Conversation/ChannelMessage — mismos pasos
@@ -36,6 +39,9 @@ export interface NormalizedChannelMessage {
   // chats/[chatId]/send). Queda para una iteración futura enseñarle esto al
   // bot-worker si se decide automatizar.
   isFromComment?: boolean;
+  // Id de la opción elegida al tocar un botón (callback_data de Telegram,
+  // quick_reply.payload de Messenger/Instagram, replyId del widget web).
+  interactiveReplyId?: string | null;
 }
 
 export interface IngestChannelResult {
@@ -123,6 +129,12 @@ export async function ingestChannelMessage(
     },
   });
 
+  // Mismo criterio que lib/whatsapp/ingest-message.ts: un mensaje nuevo
+  // reabre una conversación RESUELTA.
+  if (conversation.status === "RESOLVED") {
+    await prisma.conversation.update({ where: { id: conversation.id }, data: { status: "OPEN", resolvedAt: null } });
+  }
+
   let createdMessage;
   try {
     createdMessage = await prisma.channelMessage.create({
@@ -138,6 +150,7 @@ export async function ingestChannelMessage(
         filename: msg.filename ?? null,
         bytesSize: msg.bytesSize ?? null,
         isFromComment: msg.isFromComment ?? false,
+        interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
         timestamp: msg.timestamp,
       },
     });
@@ -164,8 +177,30 @@ export async function ingestChannelMessage(
   }
 
   let assignedToId = conversation.assignedToId;
+  const autoAssigned = !assignedToId;
   if (!assignedToId) {
     assignedToId = await autoAssignConversation(channelAccountId, conversation.id);
+  }
+
+  // Eventos de dominio — mismo criterio que lib/whatsapp/ingest-message.ts.
+  const refs = {
+    account: { kind: "channel" as const, id: channelAccountId, channel },
+    chat: { kind: "channel" as const, id: conversation.id },
+    contactId: contactRecord.id,
+  };
+  if (!existingContact) {
+    await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: contactRecord.leadOrigin, source: "inbound" } }, msg.timestamp);
+  }
+  await emitDomainEvent(
+    {
+      type: "message.received",
+      ...refs,
+      data: { messageId: createdMessage.id, messageType: msg.type, text: msg.body || null, interactiveReplyId: msg.interactiveReplyId ?? null },
+    },
+    msg.timestamp
+  );
+  if (autoAssigned && assignedToId) {
+    await emitDomainEvent({ type: "conversation.assigned", ...refs, data: { assignedToId, auto: true } });
   }
 
   if (assignedToId) {
@@ -189,16 +224,33 @@ export async function ingestChannelMessage(
 
   // Ver comentario de isFromComment arriba — un bot autónomo respondería por
   // el Send API normal, que Meta rechaza sin un hilo ya abierto.
-  const activeBots = msg.isFromComment
-    ? []
-    : await prisma.wABot.findMany({
+  // Un solo bot por cuenta + retraso para agrupar ráfagas — mismo criterio que
+  // lib/whatsapp/ingest-message.ts (ver lib/bots/guards.ts).
+  // Automatizaciones antes que el bot — mismo criterio que la ingesta de
+  // WhatsApp. Un fallo del motor no debe dejar al lead sin bot.
+  const { suppressBot } = await dispatchInboundMessage({
+    account: refs.account,
+    chat: refs.chat,
+    contactId: contactRecord.id,
+    text: msg.body,
+    replyId: msg.interactiveReplyId ?? null,
+    isFirstMessage: !existingConversation,
+  }).catch((err) => {
+    console.error(`[${channel.toLowerCase()} ingest] dispatchInboundMessage falló:`, err);
+    return { suppressBot: false };
+  });
+
+  const activeBot = msg.isFromComment || suppressBot
+    ? null
+    : await prisma.wABot.findFirst({
         where: { channelAccountId, isActive: true, status: "ACTIVE" },
+        orderBy: { updatedAt: "desc" },
         select: { id: true },
       });
 
-  for (const bot of activeBots) {
+  if (activeBot) {
     await botQueue.add("process-message", {
-      botId: bot.id,
+      botId: activeBot.id,
       channel,
       conversationId: conversation.id,
       incomingMessage: msg.body,
@@ -208,7 +260,7 @@ export async function ingestChannelMessage(
       mimeType: msg.mimeType ?? null,
       caption: msg.caption ?? null,
       filename: msg.filename ?? null,
-    });
+    }, { delay: BOT_REPLY_DEBOUNCE_MS });
   }
 
   return { messageId: createdMessage.id, conversationId: conversation.id };

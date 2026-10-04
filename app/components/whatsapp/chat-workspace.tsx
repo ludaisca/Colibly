@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useRouter, usePathname } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -14,6 +15,7 @@ import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import {
   CHATS_PAGE_SIZE,
+  CHATS_LIST_POLL_MS,
   type Channel,
   type ChatItem,
   type ChatStatus,
@@ -45,6 +47,7 @@ const MEDIA_UPLOAD_ENDPOINT: Record<Channel, string> = {
 };
 
 interface ChatWorkspaceProps {
+  initialAccounts: AccountOption[];
   initialAccountId?: string;
   initialChatId?: string;
   initialCampaignId?: string;
@@ -53,6 +56,7 @@ interface ChatWorkspaceProps {
 }
 
 export function ChatWorkspace({
+  initialAccounts,
   initialAccountId,
   initialChatId,
   initialCampaignId,
@@ -62,9 +66,16 @@ export function ChatWorkspace({
   const router = useRouter();
   const pathname = usePathname();
   const { error: toastError } = useToast();
+  const resizable = useSyncExternalStore(
+    (onChange) => { const query = window.matchMedia("(min-width: 1024px)"); query.addEventListener("change", onChange); return () => query.removeEventListener("change", onChange); },
+    () => window.matchMedia("(min-width: 1024px)").matches,
+    () => false
+  );
 
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
+  const [chatsError, setChatsError] = useState<string | null>(null);
+  const [missingChat, setMissingChat] = useState(false);
   const [loadingMoreChats, setLoadingMoreChats] = useState(false);
   const [chatsTotal, setChatsTotal] = useState(0);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
@@ -73,6 +84,7 @@ export function ChatWorkspace({
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [newMessage, setNewMessage] = useState("");
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState(initialSearch || "");
   // La búsqueda va al servidor (la lista está paginada — filtrar solo lo
@@ -82,7 +94,9 @@ export function ChatWorkspace({
   const [campaignFilter, setCampaignFilter] = useState(initialCampaignId || "");
   const [hasRepliedFilter, setHasRepliedFilter] = useState<"" | "yes" | "no">(initialHasReplied || "");
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
-  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const accounts = initialAccounts;
+  // Las cuentas llegan del servidor: un filtro de cuenta ya conoce su canal
+  // antes de pedir chats y no consulta los otros cuatro endpoints por error.
   const [contactDrawerOpen, setContactDrawerOpen] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<PreviewMedia | null>(null);
   const [cannedResponses, setCannedResponses] = useState<CannedResponseItem[]>([]);
@@ -98,6 +112,9 @@ export function ChatWorkspace({
   const [interactiveButtons, setInteractiveButtons] = useState<string[]>([]);
   const [buttonsPanelOpen, setButtonsPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageDraftsRef = useRef<Map<string, string>>(new Map());
+  const activeChatIdRef = useRef(selectedChatId);
+  useEffect(() => { activeChatIdRef.current = selectedChatId; }, [selectedChatId]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   // scrollHeight previo a un prepend de historial — permite restaurar la
@@ -105,7 +122,10 @@ export function ChatWorkspace({
   const prependHeightRef = useRef<number | null>(null);
   // Payload original de cada mensaje optimista, por tempId — permite
   // reintentar un envío fallido sin pedirle al usuario que lo reescriba.
-  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }>>(new Map());
+  const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[]; replyTo: Message | null }>>(new Map());
+  // Se incrementa cada vez que la lista se recarga desde cero (cambio de
+  // filtros): un refresco periódico que salió antes descarta su resultado.
+  const chatsGenerationRef = useRef(0);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -155,7 +175,9 @@ export function ChatWorkspace({
         const skip = (!!selectedAccountChannel && selectedAccountChannel !== source.channel) || (!!campaignFilter && source.channel !== "WHATSAPP");
         if (skip) return { items: [] as ChatItem[], total: 0 };
         const params = buildChannelParams(source.channel, pages[source.channel], pageSize);
-        const data = await fetch(`${source.endpoint}?${params}`).then((r) => r.json());
+        const response = await fetch(`${source.endpoint}?${params}`);
+        const data = await response.json();
+        if (!response.ok || !Array.isArray(data.items)) throw new Error(data.error ?? "Error al cargar chats");
         return { items: Array.isArray(data.items) ? (data.items as ChatItem[]) : [], total: data.total ?? 0 };
       })
     );
@@ -180,10 +202,18 @@ export function ChatWorkspace({
       const { items, total } = await fetchChatsPage(firstPagePerChannel, pageSize);
       setChats(items);
       setChatsTotal(total);
-    } catch {
-      toastError("Error al cargar chats");
+      setChatsError(null);
+    } catch (error) {
+      if (chats.length === 0) setChatsError(error instanceof Error ? error.message : "Error al cargar chats");
+      else toastError("Error al actualizar chats");
     }
   }, [chats.length, fetchChatsPage, firstPagePerChannel, toastError]);
+
+  const retryChats = useCallback(async () => {
+    setLoadingChats(true);
+    await refreshChats();
+    setLoadingChats(false);
+  }, [refreshChats]);
 
   const loadMoreChats = useCallback(async () => {
     setLoadingMoreChats(true);
@@ -272,61 +302,93 @@ export function ChatWorkspace({
       .catch(() => {});
   }, []);
 
-  // Cuentas para el selector — de la API, no derivadas de los chats cargados:
-  // con el filtro de cuenta server-side, los chats en memoria pueden ser de
-  // una sola cuenta y el selector perdería las demás opciones. Se mezclan las
-  // cuentas de los 4 canales en una sola lista — el rail/selector no
-  // distingue el canal, solo pinta id+nombre+color. Solo WhatsApp trae
-  // phoneNumber; los demás canales lo dejan null.
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/whatsapp/accounts").then((r) => r.json()),
-      fetch("/api/telegram/accounts").then((r) => r.json()),
-      fetch("/api/messenger/accounts").then((r) => r.json()),
-      fetch("/api/instagram/accounts").then((r) => r.json()),
-      fetch("/api/webchat/accounts").then((r) => r.json()),
-    ])
-      .then(([wa, tg, ms, ig, wc]) => {
-        const waOptions: AccountOption[] = Array.isArray(wa)
-          ? wa.map((a: { id: string; name: string; phoneNumber: string | null }) => ({
-              id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null, channel: "WHATSAPP",
-            }))
-          : [];
-        const toChannelOptions = (list: unknown, channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT"): AccountOption[] =>
-          Array.isArray(list)
-            ? list.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, phoneNumber: null, channel }))
-            : [];
-        setAccounts([
-          ...waOptions,
-          ...toChannelOptions(tg, "TELEGRAM"),
-          ...toChannelOptions(ms, "MESSENGER"),
-          ...toChannelOptions(ig, "INSTAGRAM"),
-          ...toChannelOptions(wc, "WEBCHAT"),
-        ]);
-      })
-      .catch(() => {});
-  }, []);
-
   // Load initial chats list
   useEffect(() => {
+    const generation = ++chatsGenerationRef.current;
     async function reset() {
       setLoadingChats(true);
+      setChatsError(null);
       try {
         const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
+        if (generation !== chatsGenerationRef.current) return; // filtros cambiaron mientras tanto
         setChats(items);
         setChatsTotal(total);
-      } catch {
-        toastError("Error al cargar chats");
+      } catch (error) {
+        if (generation === chatsGenerationRef.current) {
+          setChats([]);
+          setChatsTotal(0);
+          setChatsError(error instanceof Error ? error.message : "Error al cargar chats");
+        }
       } finally {
-        setLoadingChats(false);
+        if (generation === chatsGenerationRef.current) setLoadingChats(false);
       }
     }
     reset();
-  }, [fetchChatsPage, firstPagePerChannel, toastError]);
+  }, [fetchChatsPage, firstPagePerChannel]);
+
+  // Refresco periódico de la LISTA — antes solo se refrescaba cuando cambiaba
+  // el chat abierto, así que las conversaciones nuevas de otros leads no
+  // aparecían hasta recargar la página. Fusiona la primera página (nuevos y
+  // actualizados arriba) con lo ya cargado en vez de reemplazarlo, para no
+  // perder lo traído con "Cargar más". Se salta con la pestaña oculta.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (document.visibilityState === "hidden") return;
+      const generation = chatsGenerationRef.current;
+      try {
+        const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
+        if (generation !== chatsGenerationRef.current) return;
+        setChats((prev) => {
+          const freshIds = new Set(items.map((c) => c.id));
+          return [...items, ...prev.filter((c) => !freshIds.has(c.id))].sort((a, b) => {
+            const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return bt - at;
+          });
+        });
+        setChatsTotal(total);
+      } catch (err) {
+        console.warn("Falló el refresco de la lista de chats, se reintenta en el próximo tick", err);
+      }
+    }, CHATS_LIST_POLL_MS);
+    return () => clearInterval(interval);
+  }, [fetchChatsPage, firstPagePerChannel]);
 
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
+
+  // Los enlaces desde Panel, Contactos y notificaciones pueden apuntar a un
+  // chat anterior a la primera página. Se recupera por id dentro de la cuenta
+  // autorizada y se incorpora a la lista para abrir también su hilo.
+  useEffect(() => {
+    if (!initialChatId || !initialAccountId || loadingChats || selectedChat) return;
+    const account = accounts.find((a) => a.id === initialAccountId);
+    const source = CHANNEL_SOURCES.find((item) => item.channel === account?.channel);
+    if (!source) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- estado de enlace inválido
+      setMissingChat(true);
+      return;
+    }
+    const controller = new AbortController();
+    const params = new URLSearchParams({ accountId: initialAccountId, chatId: initialChatId, page: "1", pageSize: "1" });
+    fetch(`${source.endpoint}?${params}`, { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? "No se pudo abrir el chat");
+        const chat = Array.isArray(data.items) ? data.items[0] as ChatItem | undefined : undefined;
+        if (!chat) { setMissingChat(true); return; }
+        setMissingChat(false);
+        setChats((current) => current.some((item) => item.id === chat.id) ? current : [chat, ...current]);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          setMissingChat(true);
+          toastError(error.message);
+        }
+      });
+    return () => controller.abort();
+  }, [initialChatId, initialAccountId, loadingChats, selectedChat, accounts, CHANNEL_SOURCES, toastError]);
 
   // Fetch canned responses
   useEffect(() => {
@@ -350,21 +412,24 @@ export function ChatWorkspace({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-chat-change
     setLoadingMessages(true);
 
+    const controller = new AbortController();
     async function load() {
       try {
-        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`);
+        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`, { signal: controller.signal });
         const data = await res.json();
+        if (controller.signal.aborted) return;
         if (Array.isArray(data)) {
           setMessages(data);
           setHasOlderMessages(data.length >= 50);
         }
       } catch {
-        toastError("Error al cargar mensajes");
+        if (!controller.signal.aborted) toastError("Error al cargar mensajes");
       } finally {
-        setLoadingMessages(false);
+        if (!controller.signal.aborted) setLoadingMessages(false);
       }
     }
     load();
+    return () => controller.abort();
   }, [selectedChatId, toastError]);
 
   const loadOlderMessages = useCallback(async () => {
@@ -410,10 +475,13 @@ export function ChatWorkspace({
   // Message polling
   useEffect(() => {
     if (!selectedChatId) return;
+    const controller = new AbortController();
     const interval = setInterval(async () => {
+      if (document.visibilityState === "hidden") return;
       try {
-        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`);
+        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`, { signal: controller.signal });
         const data = (await res.json()) as Message[];
+        if (controller.signal.aborted) return; // efecto ya limpiado
         if (Array.isArray(data) && data.length > 0) {
           let anyChange = false;
           setMessages((prev) => {
@@ -424,14 +492,20 @@ export function ChatWorkspace({
             let changed = false;
             const merged = prev.map((m) => {
               const fresh = byId.get(m.id);
-              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl)) {
+              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl || fresh.reactionEmoji !== m.reactionEmoji || fresh.agentReactionEmoji !== m.agentReactionEmoji || JSON.stringify(fresh.agentReactions) !== JSON.stringify(m.agentReactions) || fresh.replyToWamid !== m.replyToWamid || JSON.stringify(fresh.replyTo) !== JSON.stringify(m.replyTo))) {
                 changed = true;
-                return fresh;
+                return { ...fresh, motionKey: m.motionKey, animateOnMount: false };
               }
               return m;
             });
             const known = new Set(prev.map((m) => m.id));
-            const appended = data.filter((m) => !known.has(m.id));
+            const newMessages = data.filter((m) => !known.has(m.id));
+            const appended = newMessages.map((m, index) => ({
+              ...m,
+              // Al volver a una pestaña puede llegar un lote grande: anima
+              // solo los últimos, no toda la conversación a la vez.
+              animateOnMount: index >= newMessages.length - 3,
+            }));
             if (!changed && appended.length === 0) return prev;
             anyChange = true;
             return [...merged, ...appended];
@@ -439,20 +513,17 @@ export function ChatWorkspace({
           if (anyChange) refreshChats();
         }
       } catch (err) {
+        if (controller.signal.aborted) return;
         // Poll de 5s: un toast por cada blip de red sería spam — el siguiente
         // tick reintenta solo. Se registra para no perder el diagnóstico.
         console.warn("Fallo el poll de mensajes, se reintenta en 5s", err);
       }
     }, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      controller.abort();
+    };
   }, [selectedChatId, refreshChats]);
-
-  // Route updates on selection
-  const handleChatSelect = useCallback((chat: ChatItem) => {
-    setSelectedChatId(chat.id);
-    const qs = buildFilterSearchParams().toString();
-    router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}${qs ? `?${qs}` : ""}`);
-  }, [router, buildFilterSearchParams]);
 
   const clearAttachment = useCallback(() => {
     setAttachment(null);
@@ -462,12 +533,37 @@ export function ChatWorkspace({
     });
   }, []);
 
+  // Cada conversación tiene su propio destino y capacidades de canal. Un
+  // borrador interactivo/adjunto de otra conversación no debe poder enviarse
+  // por accidente al cambiar de chat.
+  const handleChatSelect = useCallback((chat: ChatItem) => {
+    if (chat.id === selectedChatId) return;
+    if (selectedChatId) messageDraftsRef.current.set(selectedChatId, newMessage);
+    setSelectedChatId(chat.id);
+    setNewMessage(messageDraftsRef.current.get(chat.id) ?? "");
+    setReplyTo(null);
+    setCannedResponses([]);
+    setCannedIndex(0);
+    setInteractiveButtons([]);
+    setButtonsPanelOpen(false);
+    clearAttachment();
+    const qs = buildFilterSearchParams().toString();
+    router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}${qs ? `?${qs}` : ""}`);
+  }, [selectedChatId, newMessage, router, buildFilterSearchParams, clearAttachment]);
+
   const handleCloseChat = useCallback(() => {
+    if (selectedChatId) messageDraftsRef.current.set(selectedChatId, newMessage);
     setSelectedChatId(null);
+    setNewMessage("");
+    setReplyTo(null);
+    setCannedResponses([]);
+    setCannedIndex(0);
+    setInteractiveButtons([]);
+    setButtonsPanelOpen(false);
     clearAttachment();
     const qs = buildFilterSearchParams().toString();
     router.push(`/whatsapp/chat${qs ? `?${qs}` : ""}`);
-  }, [router, clearAttachment, buildFilterSearchParams]);
+  }, [selectedChatId, newMessage, router, clearAttachment, buildFilterSearchParams]);
 
   function detectMessageType(file: File): "image" | "audio" | "video" | "document" | "sticker" {
     if (isImageMime(file.type)) return "image";
@@ -489,7 +585,10 @@ export function ChatWorkspace({
       return;
     }
     setAttachment(file);
-    setAttachmentPreview(URL.createObjectURL(file));
+    setAttachmentPreview((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return URL.createObjectURL(file);
+    });
     e.target.value = "";
   }
 
@@ -499,7 +598,7 @@ export function ChatWorkspace({
   // reintentar. Compartido por el submit del composer y por el botón
   // "Reintentar" de una burbuja fallida.
   const performSend = useCallback(
-    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[] }) => {
+    async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[]; replyTo: Message | null }) => {
       if (!selectedChatId || !selectedChat) return;
       try {
         let data;
@@ -511,6 +610,7 @@ export function ChatWorkspace({
               type: "interactive",
               body: opts.text.trim(),
               buttons: opts.buttons.map((title) => ({ title })),
+              replyToMessageId: opts.replyTo?.id,
             }),
           });
           data = await res.json();
@@ -538,6 +638,7 @@ export function ChatWorkspace({
               caption,
               localMediaPath: upData.localMediaPath,
               bytesSize: upData.bytesSize,
+              replyToMessageId: opts.replyTo?.id,
             }),
           });
           data = await res.json();
@@ -546,14 +647,20 @@ export function ChatWorkspace({
           const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "text", body: opts.text.trim() }),
+            body: JSON.stringify({ type: "text", body: opts.text.trim(), replyToMessageId: opts.replyTo?.id }),
           });
           data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "Error al enviar");
         }
         // El id real puede ya estar en pantalla si el poll de 5s lo trajo
         // antes que esta respuesta — se descarta cualquier duplicado.
-        setMessages((prev) => [...prev.filter((m) => m.id !== tempId && m.id !== data.id), data]);
+        setMessages((prev) => {
+          const optimistic = prev.find((m) => m.id === tempId);
+          return [
+            ...prev.filter((m) => m.id !== tempId && m.id !== data.id),
+            { ...data, replyTo: opts.replyTo ? { id: opts.replyTo.id, direction: opts.replyTo.direction, body: opts.replyTo.body, caption: opts.replyTo.caption, messageType: opts.replyTo.messageType } : null, motionKey: optimistic?.motionKey ?? data.id },
+          ];
+        });
         if (opts.filePreviewUrl) URL.revokeObjectURL(opts.filePreviewUrl);
         pendingSendsRef.current.delete(tempId);
         refreshChats();
@@ -567,7 +674,9 @@ export function ChatWorkspace({
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
+    if (sending) return;
     if (!newMessage.trim() && !attachment && interactiveButtons.length === 0) return;
+    if (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((title) => !title.trim()))) return;
     if (!selectedChatId || !selectedChat) return;
 
     const tempId = `temp-${crypto.randomUUID()}`;
@@ -575,9 +684,12 @@ export function ChatWorkspace({
     const file = attachment;
     const filePreviewUrl = file ? attachmentPreview : null;
     const buttons = interactiveButtons;
+    const quotedMessage = selectedChat.channel === "WHATSAPP" ? replyTo : null;
 
     const optimisticMessage: Message = {
       id: tempId,
+      motionKey: tempId,
+      animateOnMount: true,
       direction: "OUTBOUND",
       messageType: buttons.length > 0 ? "interactive" : file ? detectMessageType(file) : "text",
       body: file ? null : text.trim(),
@@ -593,12 +705,16 @@ export function ChatWorkspace({
           ? { buttons: buttons.map((title, i) => ({ id: `btn_${i + 1}`, title })) }
           : undefined,
       status: "sending",
+      replyToWamid: quotedMessage?.wamid ?? null,
+      replyTo: quotedMessage ? { id: quotedMessage.id, direction: quotedMessage.direction, body: quotedMessage.body, caption: quotedMessage.caption, messageType: quotedMessage.messageType } : null,
       timestamp: new Date().toISOString(),
     };
 
-    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl, buttons });
+    pendingSendsRef.current.set(tempId, { text, file, filePreviewUrl, buttons, replyTo: quotedMessage });
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
+    messageDraftsRef.current.delete(selectedChatId);
+    setReplyTo(null);
     // Reset del composer sin revocar el object URL todavía — la burbuja
     // optimista lo sigue usando hasta que el envío se confirme o falle.
     setAttachment(null);
@@ -607,8 +723,25 @@ export function ChatWorkspace({
     setButtonsPanelOpen(false);
 
     setSending(true);
-    await performSend(tempId, { text, file, filePreviewUrl, buttons });
+    await performSend(tempId, { text, file, filePreviewUrl, buttons, replyTo: quotedMessage });
     setSending(false);
+  }
+
+  async function sendSticker(stickerId: string) {
+    if (!selectedChatId || selectedChat?.channel !== "WHATSAPP" || sending) throw new Error("Selecciona una conversación de WhatsApp disponible");
+    const targetChatId = selectedChatId;
+    const quotedMessage = replyTo;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/whatsapp/chats/${targetChatId}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "sticker", stickerId, replyToMessageId: quotedMessage?.id }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo enviar el sticker");
+      if (activeChatIdRef.current === targetChatId) {
+        setMessages((previous) => [...previous.filter((message) => message.id !== data.id), { ...data, animateOnMount: true, replyTo: quotedMessage }]);
+        setReplyTo(null);
+      }
+      refreshChats();
+    } finally { setSending(false); }
   }
 
   const handleRetry = useCallback(
@@ -685,16 +818,9 @@ export function ChatWorkspace({
     setCannedIndex(0);
   }
 
-  return (
-    <div className="flex flex-1 min-h-0">
-      <ChatAccountRail
-        accounts={accountOptions}
-        selectedAccountId={accountFilter}
-        onSelect={setAccountFilter}
-        unreadByAccount={unreadByAccount}
-      />
-
+  const listPane = (
       <ChatListPanel
+        resizable={resizable}
         selectedChatId={selectedChatId}
         onChatSelect={handleChatSelect}
         accountOptions={accountOptions}
@@ -708,21 +834,24 @@ export function ChatWorkspace({
         hasRepliedFilter={hasRepliedFilter}
         onHasRepliedFilterChange={setHasRepliedFilter}
         loadingChats={loadingChats}
+        loadError={chatsError}
+        onRetry={retryChats}
         totalChatsLoaded={chats.length}
         groupedChats={groupedChats}
         chatsTotal={chatsTotal}
         loadingMoreChats={loadingMoreChats}
         onLoadMore={loadMoreChats}
       />
+  );
 
-      {/* Main pane - Chat thread */}
-      <div className={`${selectedChatId ? "flex" : "hidden md:flex"} flex-col flex-1 min-w-0 bg-background`}>
+  const conversationPane = (
+      <div className={`${selectedChatId ? "flex" : "hidden lg:flex"} flex-col flex-1 min-w-0 bg-background`}>
         {!selectedChatId ? (
           <div className="flex-1 flex items-center justify-center">
             <EmptyState
               icon={MessageSquare}
               title="Selecciona un chat"
-              description={chats.length === 0 ? "Conecta una cuenta de WhatsApp o Telegram para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes."}
+              description={chats.length === 0 ? "Conecta un canal para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes."}
             />
           </div>
         ) : selectedChat ? (
@@ -744,15 +873,22 @@ export function ChatWorkspace({
               }
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
+              onReply={setReplyTo}
+              onReaction={(id, reaction) => setMessages((previous) => previous.map((message) => message.id === id ? { ...message, agentReactions: [reaction] } : message))}
               messagesContainerRef={messagesContainerRef}
               messagesEndRef={messagesEndRef}
             />
             <ChatComposer
               chatId={selectedChat.id}
+              channel={selectedChat.channel}
               newMessage={newMessage}
               onMessageChange={setNewMessage}
               sending={sending}
               onSubmit={handleSend}
+              onSendSticker={sendSticker}
+              replyTo={replyTo}
+              leadName={selectedChat.name || selectedChat.remoteJid}
+              onCancelReply={() => setReplyTo(null)}
               attachment={attachment}
               attachmentPreview={attachmentPreview}
               onPickFile={pickFile}
@@ -774,12 +910,28 @@ export function ChatWorkspace({
               interactiveDisabled={selectedChat.channel !== "WHATSAPP" || !!attachment}
             />
           </>
+        ) : missingChat ? (
+          <div className="flex-1 flex items-center justify-center">
+            <EmptyState icon={MessageSquare} title="Chat no encontrado" description="Esta conversación no está disponible para tu cuenta." />
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <Spinner />
           </div>
         )}
       </div>
+  );
+
+  return (
+    <div className="flex flex-1 min-h-0">
+      <ChatAccountRail accounts={accountOptions} selectedAccountId={accountFilter} onSelect={setAccountFilter} unreadByAccount={unreadByAccount} />
+      {resizable ? <Group orientation="horizontal" className="h-full min-w-0 flex-1">
+        <Panel id="conversations" defaultSize="32%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>
+        <Separator aria-label="Ajustar ancho de conversaciones" className="group relative w-2 shrink-0 bg-background hover:bg-accent-subtle focus-visible:bg-accent-subtle">
+          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border group-hover:bg-accent-strong group-focus-visible:bg-accent-strong" />
+        </Separator>
+        <Panel id="conversation" defaultSize="68%" minSize="300px" className="flex min-w-0">{conversationPane}</Panel>
+      </Group> : <>{listPane}{conversationPane}</>}
 
       {/* Drawers */}
       {contactDrawerOpen && selectedChat?.contactId && (

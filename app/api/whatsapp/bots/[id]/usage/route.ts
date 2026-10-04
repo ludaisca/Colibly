@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { orgWhere } from "@/lib/tenancy";
 
 export async function GET(
   _req: Request,
@@ -18,7 +20,7 @@ export async function GET(
     const { id } = await params;
 
     const bot = await prisma.wABot.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await orgWhere(session.user.id)) },
     });
 
     if (!bot) {
@@ -101,7 +103,7 @@ export async function GET(
       })),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno";
+    const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

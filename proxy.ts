@@ -1,13 +1,17 @@
 import { auth } from "@/lib/auth";
 import { type NextRequest, NextResponse } from "next/server";
+import { getOrgAccess, readOnlyResponse } from "@/lib/billing/gates";
+import { requestHost } from "@/lib/request-host";
 
-const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/meta-ads"];
+// /plataforma (panel del operador) no va en las listas de rol: su acceso lo
+// decide PLATFORM_ADMIN_EMAILS en la página y en /api/plataforma (404 al resto).
+const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/meta-ads", "/plataforma"];
 // Ojo: las tres comprobaciones de rol viven DENTRO del bloque PROTECTED — una
 // ruta ausente de esa lista no solo pierde el redirect a /login con
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.
 // Cualquier sección nueva (un canal adicional, p. ej.) debe entrar en PROTECTED
 // aunque el layout ya redirija a los no autenticados.
-const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/ventas", "/meta-ads", "/whatsapp/secuencias"];
+const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/ventas", "/meta-ads", "/whatsapp/secuencias", "/whatsapp/automatizaciones"];
 // Regular "user" role keeps Panel/Estadísticas/Chats/Cuentas/Plantillas/Campañas/Config,
 // but loses Contactos and Bots IA entirely (la antigua página /whatsapp/conocimiento se
 // eliminó — el flujo de conocimiento vive en la pestaña del bot, ya bloqueada vía
@@ -18,9 +22,33 @@ const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/wh
 // only the account owner administers AI provider config, not shared/delegated roles.
 // /meta-ads es admin-only (credenciales de negocio sensibles, sin
 // WAAccountShare equivalente) — mismo criterio que /configuracion/ia.
-const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia", "/meta-ads"];
-const AUTH = ["/login", "/register"];
-const EXCLUDE = ["/_next", "/api", "/favicon.ico"];
+const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/meta-ads"];
+// /verificar-correo e /invitacion no van aquí: funcionan con o sin sesión.
+const AUTH = ["/login", "/register", "/recuperar", "/restablecer"];
+const APP_PUBLIC = [...AUTH, "/verificar-correo", "/invitacion"];
+const EXCLUDE = ["/_next", "/favicon.ico"];
+
+function configuredHost(value: string | undefined): string | null {
+  if (!value) return null;
+  try { return new URL(value).hostname.toLowerCase(); } catch { return null; }
+}
+
+function onOrigin(origin: string, req: NextRequest, path = req.nextUrl.pathname): URL {
+  const url = new URL(origin);
+  url.pathname = path;
+  url.search = req.nextUrl.search;
+  return url;
+}
+
+// Solo lectura (prueba vencida, impago tras la gracia, cancelada): la UI puede
+// leer todo pero ninguna mutación de /api pasa, salvo lo necesario para salir
+// de ese estado (pagar, cuenta, equipo, eliminar la organización) o para no
+// molestar (notificaciones).
+// Las rutas públicas (webhooks de Meta/Telegram, widget, API v1 con key) no
+// traen sesión y siguen su curso: lo entrante se guarda igual, y los envíos
+// tienen su propio candado en los emisores y en la API v1.
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const READ_ONLY_ALLOWED = ["/api/auth", "/api/billing", "/api/organizacion", "/api/plataforma", "/api/usuarios", "/api/whatsapp/notifications"];
 
 export default async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
@@ -29,11 +57,60 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Un único despliegue puede recibir ambos FQDN. El sitio muestra la beta en
+  // la raíz; las rutas de cuenta y panel conservan su propia sesión en app.*.
+  // Sin las dos URL configuradas (DEV), se pueden visitar / y /beta por separado.
+  const siteHost = configuredHost(process.env.SITE_URL);
+  const appHost = configuredHost(process.env.APP_URL);
+  const host = requestHost(req.headers, req.nextUrl.host);
+  const splitDomains = !!siteHost && !!appHost && siteHost !== appHost;
+  const isSiteHost = splitDomains && host === siteHost;
+  const isAppHost = splitDomains && host === appHost;
+
+  if (splitDomains && host === `www.${siteHost}`) {
+    return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req), 308);
+  }
+  if (isSiteHost) {
+    if (path === "/") return NextResponse.rewrite(new URL("/beta", req.url));
+    if (path === "/beta") return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req, "/"), 308);
+    if (path.startsWith("/api/") && path !== "/api/beta/solicitudes") {
+      return NextResponse.redirect(onOrigin(process.env.APP_URL!, req), 308);
+    }
+    if (APP_PUBLIC.some((r) => path === r || path.startsWith(r + "/"))
+      || PROTECTED.some((r) => path === r || path.startsWith(r + "/"))) {
+      return NextResponse.redirect(onOrigin(process.env.APP_URL!, req), 308);
+    }
+  }
+  if (isAppHost && ["/beta", "/producto", "/terminos", "/privacidad"].some((r) => path === r || path.startsWith(r + "/"))) {
+    return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req, path === "/beta" ? "/" : path), 308);
+  }
+  if (isAppHost && path === "/sitemap.xml") return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req), 308);
+
+  if (path.startsWith("/api")) {
+    if (SAFE_METHODS.has(req.method) || READ_ONLY_ALLOWED.some((r) => path === r || path.startsWith(r + "/"))) {
+      return NextResponse.next();
+    }
+    const apiSession = await auth();
+    const organizationId = apiSession?.user?.organizationId;
+    if (organizationId && (await getOrgAccess(organizationId)) !== "full") return readOnlyResponse();
+    return NextResponse.next();
+  }
+
   const session = await auth();
   const isLoggedIn = !!session?.user;
   const role = session?.user?.role;
   const isEjecutivo = role === "ejecutivo";
   const isRestrictedUser = role === "user";
+
+  if (isAppHost && path === "/") {
+    return NextResponse.redirect(new URL(isLoggedIn ? (isEjecutivo ? "/whatsapp/chat" : "/dashboard") : "/login", req.url));
+  }
+
+  // La landing no consulta la sesión (así no depende de ella para renderizar);
+  // quien ya entró va directo a su panel desde aquí.
+  if (path === "/" && isLoggedIn && !isSiteHost) {
+    return NextResponse.redirect(new URL(isEjecutivo ? "/whatsapp/chat" : "/dashboard", req.url));
+  }
 
   if (AUTH.some((r) => path.startsWith(r))) {
     if (isLoggedIn) {

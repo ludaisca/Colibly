@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Search, Plus, RefreshCw, Phone, Trash2, Settings2 } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
@@ -15,9 +16,11 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { CuentaFormModal } from "./_form";
+import { ConectarWhatsAppModal } from "./_conectar-whatsapp";
 
 interface WaAccount {
   id: string;
+  userId: string;
   name: string;
   channel: string;
   phoneNumber: string | null;
@@ -26,6 +29,9 @@ interface WaAccount {
   status: string;
   errorMessage: string | null;
   lastActivity: string | null;
+  hasAppSecret: boolean;
+  connectionType: "MANUAL" | "EMBEDDED_SIGNUP";
+  coexistence: boolean;
   createdAt: string;
   updatedAt: string;
   _count: { chats: number };
@@ -48,6 +54,7 @@ export default function CuentasPage() {
 
 function CuentasView() {
   const router = useRouter();
+  const { data: session } = useSession();
   const searchParams = useSearchParams();
   const { success, error: toastError } = useToast();
   const [accounts, setAccounts] = useState<WaAccount[]>([]);
@@ -57,6 +64,7 @@ function CuentasView() {
   const [statusFilter, setStatusFilter] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(searchParams.get("nueva") === "1");
+  const [connectOpen, setConnectOpen] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -113,7 +121,8 @@ function CuentasView() {
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>
               Actualizar
             </Button>
-            <Button icon={Plus} size="sm" onClick={() => setFormOpen(true)}>Agregar número</Button>
+            <Button variant="secondary" icon={Plus} size="sm" onClick={() => setFormOpen(true)}>Conexión manual</Button>
+            <Button icon={Plus} size="sm" onClick={() => setConnectOpen(true)}>Conectar WhatsApp</Button>
           </>
         }
       />
@@ -128,6 +137,7 @@ function CuentasView() {
             className="sm:max-w-xs flex-1"
           />
           <Select
+            aria-label="Filtrar por estado"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             placeholder="Todos los estados"
@@ -160,9 +170,11 @@ function CuentasView() {
               <DropdownItem icon={Settings2} onClick={() => router.push(`/whatsapp/cuentas/${a.id}`)}>
                 Detalles
               </DropdownItem>
-              <DropdownItem icon={Trash2} onClick={() => setDeleteId(a.id)}>
-                Eliminar
-              </DropdownItem>
+              {(session?.user?.role === "admin" || a.userId === session?.user?.id) && (
+                <DropdownItem icon={Trash2} onClick={() => setDeleteId(a.id)}>
+                  Eliminar
+                </DropdownItem>
+              )}
             </>
           )}
           renderRow={(a) => {
@@ -174,12 +186,18 @@ function CuentasView() {
                   <Link
                     href={`/whatsapp/cuentas/${a.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="hover:text-accent transition-colors"
+                    className="hover:text-accent-ink transition-colors"
                   >
                     {a.name}
                   </Link>
                 }
-                badges={<Badge tone={badge.tone} size="sm">{badge.label}</Badge>}
+                badges={
+                  <>
+                    <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
+                    {!a.hasAppSecret && <Badge tone="danger" size="sm">Sin App Secret</Badge>}
+                    {a.coexistence && <Badge tone="neutral" size="sm">App WhatsApp Business</Badge>}
+                  </>
+                }
                 subtitle={
                   <>
                     <span className="font-mono">{a.phoneNumber ?? "—"}</span>
@@ -212,6 +230,7 @@ function CuentasView() {
         onConfirm={handleDelete}
       />
 
+      <ConectarWhatsAppModal open={connectOpen} onClose={() => setConnectOpen(false)} onConnected={fetchAccounts} />
       <CuentaFormModal
         open={formOpen}
         onClose={() => {

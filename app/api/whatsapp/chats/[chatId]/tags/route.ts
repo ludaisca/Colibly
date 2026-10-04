@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
+import { resolveTagScope, tagBelongsTo } from "@/lib/tags";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForChat } from "@/lib/events/refs";
 
 export async function GET(
   _req: Request,
@@ -27,7 +31,7 @@ export async function GET(
     return NextResponse.json(chatTags.map((ct) => ct.tag));
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -55,28 +59,26 @@ export async function POST(
     }
 
     const tag = await prisma.tag.findUnique({ where: { id: tagId } });
-    if (!tag) {
+    // La etiqueta debe ser de la misma cuenta que el chat.
+    const chatScope = await resolveTagScope(session.user.id, { chatId });
+    if (!tag || !chatScope || !tagBelongsTo(tag, chatScope)) {
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 
-    if (resolved.channel !== "WHATSAPP") {
-      await prisma.chatTag.upsert({
-        where: { conversationId_tagId: { conversationId: chatId, tagId } },
-        create: { conversationId: chatId, tagId },
-        update: {},
-      });
-    } else {
-      await prisma.chatTag.upsert({
-        where: { chatId_tagId: { chatId, tagId } },
-        create: { chatId, tagId },
-        update: {},
-      });
+    const target = resolved.channel !== "WHATSAPP" ? { conversationId: chatId } : { chatId };
+    const alreadyTagged = await prisma.chatTag.findFirst({ where: { ...target, tagId }, select: { id: true } });
+    if (!alreadyTagged) {
+      await prisma.chatTag.create({ data: { ...target, tagId } });
+      const refs = await eventRefsForChat(chatId);
+      if (refs) {
+        await emitDomainEvent({ type: "tag.added", ...refs, data: { tagId, tagName: tag.name, target: "conversation" } });
+      }
     }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -110,7 +112,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -88,7 +88,7 @@ export function MultiSelect({
         }}
         className={cn(
           "w-full min-h-10 rounded-lg border bg-surface-light px-3 py-2 text-left text-sm transition-colors cursor-pointer",
-          "focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30",
+          "focus:outline-none focus:border-accent-strong focus:ring-1 focus:ring-accent-muted",
           error ? "border-danger-border" : "border-border",
           disabled && "opacity-50 cursor-not-allowed"
         )}
@@ -100,7 +100,7 @@ export function MultiSelect({
             selectedLabels.map((label, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-0.5 rounded-md bg-accent/10 text-accent px-2 py-0.5 text-xs font-medium"
+                className="inline-flex items-center gap-0.5 rounded-md bg-accent-subtle text-accent-ink px-2 py-0.5 text-xs font-medium"
               >
                 {label}
                 <button
@@ -110,7 +110,7 @@ export function MultiSelect({
                     const val = options.find((o) => o.label === label)?.value;
                     if (val) remove(val);
                   }}
-                  className="hover:text-accent-hover"
+                  className="hover:text-foreground"
                 >
                   <X size={12} />
                 </button>
@@ -141,7 +141,7 @@ export function MultiSelect({
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left transition-colors",
                   isSelected
-                    ? "bg-accent/5 text-accent"
+                    ? "bg-accent-subtle text-accent-ink"
                     : "text-foreground hover:bg-surface-light"
                 )}
               >
@@ -149,7 +149,7 @@ export function MultiSelect({
                   className={cn(
                     "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
                     isSelected
-                      ? "border-accent bg-accent text-on-accent"
+                      ? "border-accent-strong bg-accent text-on-accent"
                       : "border-border"
                   )}
                 >

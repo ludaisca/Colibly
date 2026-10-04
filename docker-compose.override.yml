@@ -1,3 +1,7 @@
+# Nombre fijo del proyecto de desarrollo (contenedores colibly-*, volúmenes
+# colibly_*), sin depender del nombre de la carpeta. Coolify no usa este archivo.
+name: colibly
+
 services:
   app:
     build:
@@ -5,14 +9,25 @@ services:
     ports:
       - "15100:5000"
     volumes:
-      - .:/app
+      - .:/app:z
       - /app/node_modules
       - media_data:/app/media
     env_file: .env
     environment:
       NODE_ENV: development
+      # Correo de desarrollo: todo lo que la app envía cae en Mailpit
+      # (http://localhost:18025), nunca en bandejas reales.
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      EMAIL_FROM: "Colibly <no-reply@colibly.com>"
     command: >
-      sh -c "npx prisma generate && npx prisma db push && npx prisma db execute --file prisma/sql/ensure-vector-index.sql --schema prisma/schema.prisma && mkdir -p /app/media && npm run dev"
+      sh -c "npx prisma generate && sh scripts/db-migrate.sh && mkdir -p /app/media && npm run dev"
+
+  mailpit:
+    image: docker.io/axllent/mailpit:v1.27
+    ports:
+      - "18025:8025"
+    restart: unless-stopped
 
 volumes:
   media_data:

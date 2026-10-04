@@ -4,8 +4,8 @@ export default function ConfiguracionIaLoading() {
   return (
     <DetailPageSkeleton
       backLabel="Volver a configuración"
-      title="Configuración IA"
-      description="Administra las API keys y preferencias de los proveedores de inteligencia artificial."
+      title="Inteligencia artificial"
+      description="La IA viene incluida en tu plan: no necesitas API keys."
       cardLines={[3, 4, 3]}
     />
   );

@@ -12,5 +12,5 @@ export default async function EstadisticasPage() {
 
   const stats = await getEstadisticas(session.user.id);
 
-  return <EstadisticasView stats={stats} />;
+  return <EstadisticasView stats={stats} canManageBots={session.user.role === "admin"} />;
 }

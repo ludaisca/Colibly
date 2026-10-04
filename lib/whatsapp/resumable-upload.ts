@@ -1,3 +1,5 @@
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+
 // Meta's Resumable Upload API — the only way to get a `header_handle` usable in
 // `example.header_handle` when creating a message template with a media header.
 // Distinct from lib/whatsapp.ts:uploadMedia() (the /{phone-number-id}/media
@@ -18,7 +20,7 @@ export async function uploadTemplateHeaderMedia(
 ): Promise<string> {
   const sessionRes = await fetch(
     `${GRAPH_API}/${appId}/uploads?file_length=${buffer.length}&file_type=${encodeURIComponent(mimeType)}&access_token=${encodeURIComponent(accessToken)}`,
-    { method: "POST" }
+    { method: "POST", signal: httpTimeout(), }
   );
   const sessionJson = (await sessionRes.json().catch(() => ({}))) as { id?: string } & MetaError;
 
@@ -34,6 +36,7 @@ export async function uploadTemplateHeaderMedia(
       file_offset: "0",
     },
     body: new Uint8Array(buffer),
+    signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS),
   });
   const uploadJson = (await uploadRes.json().catch(() => ({}))) as { h?: string } & MetaError;
 

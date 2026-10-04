@@ -1,14 +1,19 @@
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+
 const API_VERSION = "v21.0";
 const BASE_URL = "https://graph.facebook.com";
 
 interface SendMessageParams {
   to: string;
-  type: "text" | "image" | "audio" | "video" | "document";
+  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction";
+  reactionMessageId?: string;
+  emoji?: string;
   body?: string;
   mediaId?: string;
   mimeType?: string;
   caption?: string;
   filename?: string;
+  replyToWamid?: string;
 }
 
 interface SendMessageResponse {
@@ -36,6 +41,7 @@ export async function validateToken(
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
+    signal: httpTimeout(),
   });
 
   if (!res.ok) {
@@ -61,9 +67,14 @@ export async function sendMessage(
     to: params.to,
     type: params.type,
   };
+  if (params.replyToWamid) payload.context = { message_id: params.replyToWamid };
 
   if (params.type === "text") {
     payload.text = { body: params.body ?? "", preview_url: false };
+  } else if (params.type === "reaction") {
+    payload.reaction = { message_id: params.reactionMessageId, emoji: params.emoji ?? "" };
+  } else if (params.type === "sticker") {
+    payload.sticker = { id: params.mediaId };
   } else {
     payload[params.type] = {
       ...(params.mediaId ? { id: params.mediaId } : {}),
@@ -80,6 +91,7 @@ export async function sendMessage(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal: httpTimeout(),
   });
 
   if (!res.ok) {
@@ -98,6 +110,7 @@ export async function getMediaUrl(
 ): Promise<{ url: string; mimeType: string }> {
   const res = await fetch(`${BASE_URL}/${API_VERSION}/${mediaId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
+    signal: httpTimeout(),
   });
 
   if (!res.ok) {
@@ -136,6 +149,7 @@ export async function uploadMedia(
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
     body: formData,
+    signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS),
   });
 
   if (!res.ok) {

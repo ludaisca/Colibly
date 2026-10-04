@@ -10,6 +10,9 @@ import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
 import { RouteProgressBar } from "./route-progress-bar";
 import { cn } from "./cn";
+import { BRAND_NAME } from "@/lib/brand";
+import { BrandMark } from "./logo";
+import { CommandPalette } from "./command-palette";
 
 export interface NavItem {
   href: string;
@@ -30,15 +33,20 @@ export interface AppShellProps {
   logoArea?: React.ReactNode;
   brand?: string;
   headerRight?: React.ReactNode;
+  initialUser?: { name?: string | null; email?: string | null };
   hideUserDropdown?: boolean;
   collapsible?: boolean;
+  // Aviso de cuenta a todo lo ancho entre el header y el contenido (correo
+  // sin verificar, estado del plan). Fuera de <main> para no alterar el
+  // layout full-bleed del inbox.
+  topBanner?: React.ReactNode;
   children: React.ReactNode;
 }
 
 function activeClass(accent: "accent" | "danger") {
   return accent === "accent"
     ? "bg-accent text-on-accent font-semibold shadow-sm"
-    : "bg-danger text-on-accent font-semibold shadow-sm";
+    : "bg-danger text-surface font-semibold shadow-sm";
 }
 
 function SidebarContent({
@@ -46,7 +54,7 @@ function SidebarContent({
   accent = "accent",
   bottomActions,
   logoArea,
-  brand = "SundayCRM",
+  brand = BRAND_NAME,
   collapsed,
   onClose,
 }: Pick<AppShellProps, "nav" | "accent" | "bottomActions" | "brand"> & {
@@ -68,14 +76,15 @@ function SidebarContent({
           href={item.href}
           onClick={onClose}
           title={collapsed ? item.label : undefined}
+          aria-current={active ? "page" : undefined}
           className={cn(
-            "flex items-center text-sm font-medium transition-all duration-150",
+            "flex items-center text-sm font-medium transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
             collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2.5",
-            // El item activo es una píldora sólida de color — firma del rediseño
-            // "fresco y cercano"; el resto conserva el radio estándar.
+            // Radio cercano al de la marca (rx=9 sobre 32): el item mide 40px
+            // de alto, así que 12px conserva la misma proporción visual.
             active
-              ? cn("rounded-full", activeClass(accent ?? "accent"))
-              : "rounded-full text-muted hover:bg-surface-light hover:text-foreground"
+              ? cn("rounded-[12px]", activeClass(accent ?? "accent"))
+              : "rounded-[12px] text-muted hover:bg-surface-light hover:text-foreground"
           )}
         >
           <Icon size={18} className="shrink-0" />
@@ -90,9 +99,7 @@ function SidebarContent({
       <div className={cn("shrink-0 transition-all", collapsed ? "px-0 py-5" : "px-4 py-5")}>
         {logoArea ?? (
           <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-on-accent font-bold text-sm shrink-0">
-              {brand.charAt(0).toUpperCase()}
-            </div>
+            <BrandMark className="h-8 w-8" />
             {!collapsed && (
               <span className="text-base font-semibold tracking-tight whitespace-nowrap truncate">
                 {brand}
@@ -144,6 +151,9 @@ function SidebarContent({
           // mandaba al usuario fuera de la app tras cerrar sesión.
           onClick={async () => {
             await signOut({ redirect: false });
+            // Recarga completa a propósito: router.push conservaría en memoria
+            // el árbol de React y la caché del cliente de la sesión cerrada.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.href = "/login";
           }}
           title={collapsed ? "Cerrar sesión" : undefined}
@@ -167,8 +177,10 @@ export function AppShell({
   logoArea,
   brand,
   headerRight,
+  initialUser,
   hideUserDropdown = false,
   collapsible = false,
+  topBanner,
   children,
 }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -199,6 +211,12 @@ export function AppShell({
 
   return (
     <div className={cn("flex bg-background", fullBleed ? "h-svh" : "min-h-svh")}>
+      <a
+        href="#contenido-principal"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100001] focus:rounded-[12px] focus:bg-surface focus:px-4 focus:py-3 focus:text-foreground focus:shadow-lg"
+      >
+        Saltar al contenido principal
+      </a>
       <Suspense fallback={null}>
         <RouteProgressBar />
       </Suspense>
@@ -234,7 +252,7 @@ export function AppShell({
             el header (y sus dropdowns z-50) en una capa atómica — sin elevar el
             header completo, el contenido de <main> (posterior en el DOM) pinta
             encima de los menús de usuario/notificaciones y les roba los clicks. */}
-        <header className="relative z-40 flex items-center gap-3 px-4 py-3 md:px-6 shrink-0 bg-background/80 backdrop-blur-sm">
+        <header className="relative z-40 flex shrink-0 items-center gap-2 bg-background/80 px-3 py-3 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6">
           <button
             onClick={() => setDrawerOpen(true)}
             className="md:hidden text-foreground hover:text-muted transition-colors"
@@ -255,11 +273,9 @@ export function AppShell({
 
           <div className="md:hidden flex-1 flex items-center">
             <Link href="/dashboard" className="flex items-center gap-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-on-accent font-bold text-xs">
-                S
-              </div>
+              <BrandMark className="h-7 w-7" />
               <span className="text-sm font-semibold tracking-tight">
-                SundayCRM
+                {BRAND_NAME}
               </span>
             </Link>
           </div>
@@ -268,13 +284,18 @@ export function AppShell({
           <div className="hidden md:block flex-1" />
 
           <div className="flex items-center gap-1.5">
+            <CommandPalette nav={nav} />
             <ThemeToggle />
             {headerRight}
-            {!hideUserDropdown && <UserDropdown />}
+            {!hideUserDropdown && <UserDropdown initialUser={initialUser} />}
           </div>
         </header>
 
+        {topBanner}
+
         <main
+          id="contenido-principal"
+          tabIndex={-1}
           className={cn(
             "flex-1 animate-fade-in",
             fullBleed ? "flex flex-col min-h-0 overflow-hidden" : "p-4 md:p-6 lg:p-8"

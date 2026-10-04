@@ -1,6 +1,6 @@
 // Citas — Fase 2 (roadmap docs/ROADMAP_PANCAKE.md → "P1 — Citas / Appointments").
 // Mismo patrón que lib/whatsapp/lead-scoring.ts: un marcador estructurado en la
-// respuesta del modelo, NO function/tool-calling real (los providers OpenRouter y
+// respuesta del modelo, NO function/tool-calling real (los providers OpenCode y
 // Google lo implementan de forma distinta, y esta es la única feature que lo
 // necesitaría hoy). A diferencia del contrato del calificador de leads —donde TODA
 // la respuesta es el JSON— aquí el bloque es un anexo opcional al final de una

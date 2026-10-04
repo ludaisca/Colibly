@@ -12,6 +12,7 @@ import { Switch } from "@/app/components/ui/switch";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import Link from "next/link";
 import { STAGE_LABEL, PIPELINE_STAGES } from "@/lib/pipeline/stages";
 
 interface Props {
@@ -22,6 +23,9 @@ interface Props {
 }
 
 interface StepDraft { delayMinutes: string; message: string }
+
+// Ventana de servicio de Meta para mensajes libres (ver lib/sequences.ts).
+const WHATSAPP_WINDOW_MINUTES = 24 * 60;
 
 const TRIGGER_LABEL: Record<string, string> = {
   TAG_ADDED: "Se agrega una etiqueta",
@@ -64,26 +68,40 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
   useEffect(() => {
     if (!open) return;
     Promise.all([
-      fetch("/api/whatsapp/accounts").then((r) => r.json()),
-      fetch("/api/telegram/accounts").then((r) => r.json()),
-      fetch("/api/whatsapp/tags").then((r) => r.json()),
+      fetch("/api/whatsapp/accounts").then(async (r) => { if (!r.ok) throw new Error(); return r.json(); }),
+      fetch("/api/telegram/accounts").then(async (r) => { if (!r.ok) throw new Error(); return r.json(); }),
     ])
-      .then(([wa, tg, tagList]) => {
+      .then(([wa, tg]) => {
         setAccounts([
           ...(Array.isArray(wa) ? wa.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "WHATSAPP" as const })) : []),
           ...(Array.isArray(tg) ? tg.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "TELEGRAM" as const })) : []),
         ]);
-        if (Array.isArray(tagList)) setTags(tagList);
       })
-      .catch(() => toastError("Error al cargar cuentas/etiquetas"));
+      .catch(() => { setError("Error al cargar cuentas"); toastError("Error al cargar cuentas"); });
   }, [open, toastError]);
+
+  // Las etiquetas son por cuenta — el selector del disparador solo ofrece las
+  // de la cuenta elegida.
+  useEffect(() => {
+    const account = accounts.find((a) => a.id === accountId);
+    if (!open || !account) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sin cuenta no hay catálogo
+      setTags([]);
+      return;
+    }
+    const param = account.channel === "TELEGRAM" ? "channelAccountId" : "waAccountId";
+    fetch(`/api/whatsapp/tags?${param}=${account.id}`)
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setTags(d); })
+      .catch(() => toastError("Error al cargar etiquetas"));
+  }, [open, accountId, accounts, toastError]);
 
   useEffect(() => {
     if (!open || !editId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-open for edit mode
     setLoading(true);
     fetch(`/api/whatsapp/sequences/${editId}`)
-      .then((r) => r.json())
+      .then(async (r) => { if (!r.ok) throw new Error("Error al cargar secuencia"); return r.json(); })
       .then((d) => {
         if (d.name) {
           setName(d.name);
@@ -102,7 +120,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
           );
         }
       })
-      .catch(() => toastError("Error al cargar secuencia"))
+      .catch(() => { setError("Error al cargar secuencia"); toastError("Error al cargar secuencia"); })
       .finally(() => setLoading(false));
   }, [open, editId, toastError]);
 
@@ -130,6 +148,9 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
     if (triggerType !== "APPOINTMENT_COMPLETED" && !triggerValue) newErrors.triggerValue = "Requerido";
     if (steps.length === 0) newErrors.steps = "Agrega al menos un paso";
     if (steps.some((s) => !s.message.trim())) newErrors.steps = "Todos los pasos necesitan un mensaje";
+    if (steps.some((s) => !s.delayMinutes.trim() || !Number.isInteger(Number(s.delayMinutes)) || Number(s.delayMinutes) < 0 || Number(s.delayMinutes) > 43_200)) {
+      newErrors.steps = "Cada espera debe ser un número entero entre 0 y 43,200 minutos";
+    }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
@@ -148,7 +169,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
         triggerValue: triggerType === "APPOINTMENT_COMPLETED" ? null : triggerValue,
         exitOnReply,
         active,
-        steps: steps.map((s) => ({ delayMinutes: Number(s.delayMinutes) || 0, message: s.message.trim() })),
+        steps: steps.map((s) => ({ delayMinutes: Number(s.delayMinutes), message: s.message.trim() })),
       };
 
       const res = await fetch(
@@ -194,6 +215,9 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
       ) : (
         <div className="space-y-4">
           {error && <Banner tone="danger">{error}</Banner>}
+          {accounts.length === 0 && !isEditing && !error && (
+            <Banner tone="info">Conecta una cuenta de <Link href="/whatsapp/cuentas" className="underline">WhatsApp</Link> o Telegram para crear una secuencia.</Banner>
+          )}
 
           <FormField label="Nombre" error={errors.name}>
             {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Bienvenida a nuevos leads" />}
@@ -212,7 +236,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
             )}
           </FormField>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Se dispara cuando...">
               {(id) => (
                 <Select id={id} value={triggerType} onChange={(e) => { setTriggerType(e.target.value); setTriggerValue(""); }}>
@@ -271,6 +295,16 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
               </Button>
             </div>
             {errors.steps && <p className="text-xs text-danger">{errors.steps}</p>}
+            {accounts.find((a) => a.id === accountId)?.channel === "WHATSAPP" &&
+              steps.reduce((total, s) => total + (Number(s.delayMinutes) || 0), 0) > WHATSAPP_WINDOW_MINUTES && (
+                <Banner tone="warning">
+                  WhatsApp solo permite mensajes libres dentro de las 24 h posteriores al último mensaje del cliente. Los
+                  pasos que caigan fuera de esa ventana no se envían:{" "}
+                  {exitOnReply
+                    ? "con “Detener si el contacto responde” activo, la inscripción se marca como expirada."
+                    : "la inscripción espera hasta 7 días a que el cliente vuelva a escribir y luego expira."}
+                </Banner>
+              )}
             <div className="space-y-3">
               {steps.map((step, i) => (
                 <div key={i} className="rounded-lg border border-border p-3 space-y-2">

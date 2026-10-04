@@ -4,10 +4,13 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}"
-      POSTGRES_DB: sunday_crm_db
+      POSTGRES_DB: colibly_db
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # Sin montar docker/init.sql: en Coolify el repo se clona dentro de un contenedor
+      # auxiliar, así que ese archivo no existe en el host, Docker crea un DIRECTORIO
+      # con ese nombre y Postgres falla al ejecutarlo. La extensión vector la crea
+      # el servicio db-init de abajo.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -20,7 +23,7 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "PGPASSWORD=${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno} psql -h db -U postgres -d sunday_crm_db -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
+      sh -c "PGPASSWORD=${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno} psql -h db -U postgres -d colibly_db -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
     restart: "no"
 
   redis:
@@ -38,7 +41,7 @@ services:
     expose:
       - "5000"
     environment:
-      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}@db:5432/sunday_crm_db"
+      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}@db:5432/colibly_db"
       AUTH_SECRET: "${AUTH_SECRET}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
       REDIS_URL: "redis://redis:6379"
@@ -50,6 +53,20 @@ services:
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       GOOGLE_OAUTH_REDIRECT_URI: "${GOOGLE_OAUTH_REDIRECT_URI:-}"
       MEDIA_RETENTION_DAYS: "${MEDIA_RETENTION_DAYS:-90}"
+      # URL pública (enlaces de correos y de Stripe) — infraestructura de
+      # arranque, se queda en env. IA, Stripe, SMTP, Turnstile y medición ya NO
+      # son env vars: se configuran desde /plataforma → PlatformSettings
+      # (lib/platform-settings.ts), cifradas en base de datos.
+      APP_URL: "${APP_URL:-}"
+      SITE_URL: "${SITE_URL:-}"
+      # Opcional: origen HTTPS exclusivo para webhooks de Telegram en DEV.
+      TELEGRAM_WEBHOOK_BASE_URL: "${TELEGRAM_WEBHOOK_BASE_URL:-}"
+      WHATSAPP_WEBHOOK_BASE_URL: "${WHATSAPP_WEBHOOK_BASE_URL:-}"
+      # Cuenta de chat web (propia) que se muestra en la landing.
+      LANDING_WEBCHAT_ACCOUNT_ID: "${LANDING_WEBCHAT_ACCOUNT_ID:-}"
+      # Operadores de la plataforma (panel /plataforma): perímetro de acceso,
+      # deliberadamente fuera de la base de datos — ver lib/platform-admin.ts.
+      PLATFORM_ADMIN_EMAILS: "${PLATFORM_ADMIN_EMAILS:-}"
     healthcheck:
       # 127.0.0.1, no "localhost": dentro del contenedor localhost resuelve a
       # ::1 primero y next-server solo escucha en IPv4 — con localhost el

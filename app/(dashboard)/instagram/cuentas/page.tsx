@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Plus, RefreshCw, Camera, Trash2 } from "lucide-react";
+import { Search, Plus, RefreshCw, Camera, Trash2, Share2 } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { Badge } from "@/app/components/ui/badge";
@@ -14,9 +14,13 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { InstagramCuentaFormModal } from "./_form";
+import { useSession } from "next-auth/react";
+import { ChannelAccountShareModal } from "@/app/components/channel-accounts/share-modal";
+import { ChannelAvailabilityNotice, useChannelAvailability } from "@/app/components/channel-accounts/availability";
 
 interface ChannelAccount {
   id: string;
+  userId: string;
   name: string;
   channel: string;
   status: string;
@@ -52,7 +56,14 @@ function InstagramCuentasView() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(searchParams.get("nueva") === "1");
+  const { data: session } = useSession();
+  const { available, error: availabilityError } = useChannelAvailability("instagram");
+  // Solo el admin dueño comparte; una cuenta compartida contigo se ve y se
+  // atiende, pero no se comparte ni elimina desde aquí.
+  const [shareAccount, setShareAccount] = useState<ChannelAccount | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+
+  const openNewFromUrl = available === true && searchParams.get("nueva") === "1";
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -109,10 +120,12 @@ function InstagramCuentasView() {
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>
               Actualizar
             </Button>
-            <Button icon={Plus} size="sm" onClick={() => setFormOpen(true)}>Conectar cuenta</Button>
+            <Button icon={Plus} size="sm" disabled={!available} onClick={() => setFormOpen(true)}>Conectar cuenta</Button>
           </>
         }
       />
+
+      <ChannelAvailabilityNotice available={available} error={availabilityError} />
 
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -124,6 +137,7 @@ function InstagramCuentasView() {
             className="sm:max-w-xs flex-1"
           />
           <Select
+            aria-label="Filtrar por estado"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             placeholder="Todos los estados"
@@ -150,11 +164,24 @@ function InstagramCuentasView() {
               ? "No has conectado ninguna cuenta de Instagram. Debe estar vinculada a una Página de Facebook (modelo clásico) — conéctala desde Meta for Developers y agrégala aquí."
               : "No se encontraron cuentas con los filtros actuales."
           }
-          rowActions={(a) => (
-            <DropdownItem icon={Trash2} onClick={() => setDeleteId(a.id)}>
-              Eliminar
-            </DropdownItem>
-          )}
+          rowActions={(a) =>
+            session?.user?.role === "admin" || a.userId === session?.user?.id ? (
+              <>
+                {session?.user?.role === "admin" && (
+                  <DropdownItem icon={Share2} onClick={() => setShareAccount(a)}>
+                    Compartir
+                  </DropdownItem>
+                )}
+                <DropdownItem icon={Trash2} onClick={() => setDeleteId(a.id)}>
+                  Eliminar
+                </DropdownItem>
+              </>
+            ) : (
+              <DropdownItem icon={Share2} disabled>
+                Compartida contigo
+              </DropdownItem>
+            )
+          }
           renderRow={(a) => {
             const badge = STATUS_BADGE[a.status] ?? { label: a.status, tone: "neutral" as const };
             return (
@@ -179,6 +206,8 @@ function InstagramCuentasView() {
         />
       </div>
 
+      <ChannelAccountShareModal open={!!shareAccount} onClose={() => setShareAccount(null)} account={shareAccount} />
+
       <ConfirmDialog
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
@@ -190,7 +219,7 @@ function InstagramCuentasView() {
       />
 
       <InstagramCuentaFormModal
-        open={formOpen}
+        open={formOpen || openNewFromUrl}
         onClose={() => {
           setFormOpen(false);
           if (searchParams.get("nueva")) router.replace("/instagram/cuentas");

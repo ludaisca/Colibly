@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { applyReactionStatus } from "@/lib/whatsapp/reactions";
 import { createHash } from "crypto";
 import type { RecipientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
 import { rateLimit } from "@/lib/rate-limit";
-import { validateMetaWebhookSignature } from "@/lib/meta/webhook-signature";
+import { getMediaInfo, getMessageBody } from "@/lib/whatsapp/message-content";
+import { validateWhatsAppWebhookSignature, verifyTokenMatches } from "@/lib/meta/platform-app";
+import { getPlatformSettings } from "@/lib/platform-settings";
+import { COEXISTENCE_FIELDS, handleCoexistenceChange, type CoexistenceField } from "@/lib/whatsapp/coexistence/webhook";
+import { applyConnectionLifecycle } from "@/lib/whatsapp/coexistence/lifecycle";
 
 interface WebhookMessage {
   from: string;
@@ -23,6 +28,8 @@ interface WebhookMessage {
     list_reply?: { id: string; title: string; description?: string };
   };
   button?: { payload: string; text: string };
+  context?: { id?: string; from?: string };
+  reaction?: { message_id?: string; emoji?: string };
   // Presente cuando el chat se originó en un anuncio click-to-WhatsApp — ver
   // lib/whatsapp/ingest-message.ts:InboundReferral para el detalle de campos.
   referral?: {
@@ -81,6 +88,8 @@ interface AccountUpdateValue {
   phone_number?: string;
   event?: string;
   ban_info?: { waba_ban_state?: string; waba_ban_date?: string };
+  // Coexistencia: motivo de una desconexión (PARTNER_REMOVED).
+  disconnection_info?: { reason?: string; initiated_by?: string };
 }
 
 // Payload para el campo `user_preferences` — opt-out/opt-in nativo de WhatsApp
@@ -92,50 +101,6 @@ interface UserPreferencesValue {
     category?: string; // "marketing_messages"
     value?: string; // "stop" | "resume"
   }>;
-}
-
-function getMessageBody(msg: WebhookMessage): string {
-  if (msg.text) return msg.text.body;
-  if (msg.image?.caption) return msg.image.caption;
-  if (msg.video?.caption) return msg.video.caption;
-  if (msg.document?.caption) return msg.document.caption;
-  if (msg.interactive?.button_reply?.title) return msg.interactive.button_reply.title;
-  if (msg.interactive?.list_reply?.title) return msg.interactive.list_reply.title;
-  if (msg.button) return msg.button.text;
-  return `[${msg.type}]`;
-}
-
-function getMediaInfo(msg: WebhookMessage): {
-  mediaId: string | null;
-  mimeType: string | null;
-  filename: string | null;
-  caption: string | null;
-} {
-  if (msg.image) return {
-    mediaId: msg.image.id,
-    mimeType: msg.image.mime_type ?? null,
-    filename: null,
-    caption: msg.image.caption ?? null,
-  };
-  if (msg.video) return {
-    mediaId: msg.video.id,
-    mimeType: msg.video.mime_type ?? null,
-    filename: null,
-    caption: msg.video.caption ?? null,
-  };
-  if (msg.audio) return {
-    mediaId: msg.audio.id,
-    mimeType: msg.audio.mime_type ?? null,
-    filename: null,
-    caption: null,
-  };
-  if (msg.document) return {
-    mediaId: msg.document.id,
-    mimeType: msg.document.mime_type ?? null,
-    filename: msg.document.filename ?? null,
-    caption: msg.document.caption ?? null,
-  };
-  return { mediaId: null, mimeType: null, filename: null, caption: null };
 }
 
 // sent < delivered < read — Meta no garantiza el orden de entrega de los
@@ -150,6 +115,7 @@ function statusErrorDetail(status: WebhookStatus): string | null {
 
 async function applyStatusUpdate(accountId: string, status: WebhookStatus): Promise<void> {
   if (!status.id) return;
+  await applyReactionStatus(accountId, status.id, status.status);
 
   const rank = STATUS_RANK[status.status];
   const lowerStatuses = rank
@@ -325,6 +291,9 @@ async function applyAccountUpdate(wabaId: string | undefined, value: AccountUpda
   const account = await resolveAccountByWabaAndPhone(wabaId, value.phone_number);
   if (!account) return;
 
+  // Desconexión / cambio de teléfono / reconexión de una cuenta de coexistencia.
+  if (await applyConnectionLifecycle(account, value)) return;
+
   const eventName = value.event ?? "UPDATE";
   const isRestriction = !!value.ban_info || /ban|disable|restrict|flag/i.test(eventName);
 
@@ -377,6 +346,15 @@ export async function GET(req: Request) {
     return new NextResponse("Bad Request", { status: 400 });
   }
 
+  // Token global de la app de plataforma (Embedded Signup): una sola
+  // suscripción de webhook en Meta sirve a todos los clientes conectados con él.
+  // Un fallo al leer la configuración (p. ej. al descifrar) no debe romper la
+  // verificación de las cuentas manuales, que se resuelve más abajo.
+  const platformToken = await getPlatformSettings().then((s) => s.metaWebhookVerifyToken).catch(() => null);
+  if (verifyTokenMatches(token, platformToken)) {
+    return new NextResponse(challenge, { headers: { "Content-Type": "text/plain" } });
+  }
+
   const hash = createHash("sha256").update(token).digest("hex");
 
   const account = await prisma.wAAccount.findFirst({
@@ -396,13 +374,23 @@ export async function POST(req: Request) {
   try {
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
-    const { allowed } = await rateLimit(`webhook:${ip}`, 300, 60);
+    // Límite alto a propósito: todo el tráfico legítimo de Meta llega desde
+    // pocas IPs y compartido por todas las cuentas (una campaña de 1,000
+    // mensajes genera ~3,000 callbacks de estado). La autenticación real es la
+    // firma HMAC de cada payload.
+    const { allowed } = await rateLimit(`webhook:${ip}`, 3000, 60);
     if (!allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     const rawBody = await req.text();
-    const body = JSON.parse(rawBody);
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      // Malformado: reintentar no lo arregla.
+      return NextResponse.json({ success: true });
+    }
     const signature = req.headers.get("x-hub-signature-256");
 
     if (body.object !== "whatsapp_business_account") {
@@ -424,7 +412,7 @@ export async function POST(req: Request) {
           const value = change.value as QualityUpdateValue;
           const account = await resolveAccountByWabaAndPhone(wabaId, value.display_phone_number);
           if (account) {
-            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
             if (sigValid) {
               await applyPhoneNumberQualityUpdate(wabaId, value);
             }
@@ -436,7 +424,7 @@ export async function POST(req: Request) {
           const value = change.value as AccountUpdateValue;
           const account = await resolveAccountByWabaAndPhone(wabaId, value.phone_number);
           if (account) {
-            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
             if (sigValid) {
               await applyAccountUpdate(wabaId, value);
             }
@@ -451,9 +439,37 @@ export async function POST(req: Request) {
             ? await prisma.wAAccount.findFirst({ where: { phoneNumberId } })
             : null;
           if (account) {
-            const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
+            const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
             if (sigValid) {
               await applyUserPreferences(value);
+            }
+          }
+          continue;
+        }
+
+        if (field && COEXISTENCE_FIELDS.includes(field)) {
+          await handleCoexistenceChange({ field: field as CoexistenceField, value: change.value, rawBody, signature });
+          continue;
+        }
+
+        // Suscribir un campo en Meta no le da automáticamente una acción en
+        // Colibly. Registrar solo su forma, tras verificar la firma, permite
+        // estudiar los campos nuevos en DEV sin volcar teléfonos, mensajes ni
+        // otros datos personales de Meta en los logs.
+        if (field && field !== "messages") {
+          const eventValue = change.value as Record<string, unknown> | null;
+          const metadata = eventValue?.metadata as { phone_number_id?: string } | undefined;
+          const candidates = metadata?.phone_number_id
+            ? await prisma.wAAccount.findMany({ where: { phoneNumberId: metadata.phone_number_id } })
+            : wabaId ? await prisma.wAAccount.findMany({ where: { wabaId } }) : [];
+          for (const candidate of candidates) {
+            if (await validateWhatsAppWebhookSignature(rawBody, signature, candidate)) {
+              console.info("[webhook] Campo aún sin procesar", {
+                field,
+                accountId: candidate.id,
+                keys: eventValue && typeof eventValue === "object" ? Object.keys(eventValue).sort() : [],
+              });
+              break;
             }
           }
           continue;
@@ -470,15 +486,24 @@ export async function POST(req: Request) {
 
         if (!account) continue;
 
-        const sigValid = await validateMetaWebhookSignature(rawBody, signature, account.appSecret);
-        if (!sigValid) continue;
+        if (account.connectionType === "MANUAL" && !account.appSecret) {
+          // Sin secreto la firma nunca valida — antes esto descartaba el
+          // payload sin dejar rastro. La UI de la cuenta muestra el mismo aviso.
+          console.warn(`[webhook] Cuenta "${account.name}" (${account.id}) sin App Secret — payload descartado. Configúralo en Cuentas WhatsApp.`);
+          continue;
+        }
+        const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
+        if (!sigValid) {
+          console.warn(`[webhook] Firma inválida para la cuenta "${account.name}" (${account.id}) — payload descartado`);
+          continue;
+        }
 
         await prisma.wAAccount.update({
           where: { id: account.id },
           data: { lastActivity: new Date() },
         });
 
-        if (value.messages && value.contacts) {
+        if (value.messages) {
           const groups = new Map<string, WebhookMessage[]>();
           for (const msg of value.messages) {
             const list = groups.get(msg.from) ?? [];
@@ -489,7 +514,25 @@ export async function POST(req: Request) {
           await Promise.all(
             Array.from(groups.values()).map(async (msgs) => {
               for (const msg of msgs) {
-                const contact = value.contacts!.find((c) => c.wa_id === msg.from);
+                if (msg.type === "reaction") {
+                  const targetWamid = msg.reaction?.message_id;
+                  if (!targetWamid) continue;
+                  const target = await prisma.wAMessage.findFirst({
+                    where: { wamid: targetWamid, chat: { accountId: account.id, remoteJid: msg.from } },
+                    select: { id: true, reactionAt: true },
+                  });
+                  if (!target) continue;
+                  const eventSeconds = Number(msg.timestamp);
+                  const reactionAt = Number.isFinite(eventSeconds) && eventSeconds > 0
+                    ? new Date(eventSeconds * 1000) : new Date();
+                  if (target.reactionAt && reactionAt < target.reactionAt) continue;
+                  await prisma.wAMessage.update({
+                    where: { id: target.id },
+                    data: { reactionEmoji: msg.reaction?.emoji || null, reactionAt },
+                  });
+                  continue;
+                }
+                const contact = value.contacts?.find((c) => c.wa_id === msg.from);
                 const contactName = contact?.profile?.name ?? msg.from;
                 const { mediaId, mimeType, filename, caption } = getMediaInfo(msg);
                 // Meta puede omitir timestamp — un Invalid Date rompería el
@@ -512,6 +555,7 @@ export async function POST(req: Request) {
                   filename,
                   caption,
                   interactiveReplyId: msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? null,
+                  replyToWamid: msg.context?.id ?? null,
                   referral: msg.referral ?? null,
                 });
               }
@@ -529,9 +573,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal error" },
-      { status: 500 }
-    );
+    console.error("[webhook] Error procesando payload de WhatsApp:", error);
+    // 500 para que Meta reintente (el dedup por wamid hace seguro el reintento).
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

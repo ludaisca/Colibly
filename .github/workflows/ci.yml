@@ -1,0 +1,47 @@
+# Verificación de cada push y PR: lo mismo que se corre a mano antes de un
+# commit (tsc, eslint, vitest) y el build de producción tal como lo hace
+# Coolify (etapa `builder` del Dockerfile). No despliega nada.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: tsc · lint · tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      # tsconfig.tsbuildinfo no se versiona: sin esa caché incremental, tsc supera el
+      # heap por defecto de ~2 GB del runner y aborta con "heap out of memory".
+      - run: npx tsc --noEmit
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+      - run: npm run lint
+      - run: npm test
+
+  build:
+    name: Build de producción
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: builder
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

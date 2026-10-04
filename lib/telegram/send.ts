@@ -1,6 +1,7 @@
 import type { ChannelAccount } from "@prisma/client";
 import { decrypt } from "@/lib/crypto";
-import { sendTextMessage, sendMediaMessage, type TelegramMediaKind } from "@/lib/telegram";
+import { sendTextMessage, sendMediaMessage, sendKeyboardMessage, type TelegramMediaKind } from "@/lib/telegram";
+import { assertOrgCanSend } from "@/lib/billing/gates";
 
 interface SendParams {
   to: string;
@@ -13,6 +14,7 @@ export async function sendTelegramMessage(
   account: ChannelAccount,
   params: SendParams
 ): Promise<{ externalMessageId: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   const { botToken } = JSON.parse(decrypt(account.credentials)) as { botToken: string };
   const result = await sendTextMessage(botToken, params.to, params.body);
   return { externalMessageId: String(result.message_id) };
@@ -38,6 +40,7 @@ export async function sendTelegramMedia(
   account: ChannelAccount,
   params: SendMediaParams
 ): Promise<{ externalMessageId: string | null; fileId: string | null }> {
+  await assertOrgCanSend(account.organizationId);
   const { botToken } = JSON.parse(decrypt(account.credentials)) as { botToken: string };
   const kind = KIND_MAP[params.type];
   const result = await sendMediaMessage(botToken, params.to, kind, params.buffer, params.filename, params.mimeType, params.caption);
@@ -47,4 +50,16 @@ export async function sendTelegramMedia(
   else if (kind === "audio") fileId = result.audio?.file_id ?? null;
   else if (kind === "video") fileId = result.video?.file_id ?? null;
   return { externalMessageId: String(result.message_id), fileId };
+}
+
+// Opciones (botones/lista de una automatización o de la API) como teclado
+// inline. Telegram no distingue botones de lista: una opción por fila.
+export async function sendTelegramOptions(
+  account: ChannelAccount,
+  params: { to: string; body: string; options: { id: string; title: string }[] }
+): Promise<{ externalMessageId: string | null }> {
+  await assertOrgCanSend(account.organizationId);
+  const { botToken } = JSON.parse(decrypt(account.credentials)) as { botToken: string };
+  const result = await sendKeyboardMessage(botToken, params.to, params.body, params.options);
+  return { externalMessageId: String(result.message_id) };
 }

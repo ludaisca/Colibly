@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { createGoogleOAuthClient } from "@/lib/google/oauth-client";
+import { BRAND_NAME } from "@/lib/brand";
 
 const CONFIG_URL = "/configuracion";
 
@@ -68,7 +69,7 @@ export async function GET(req: Request) {
       const sheets = google.sheets({ version: "v4", auth: oauth2Client });
       const created = await sheets.spreadsheets.create({
         requestBody: {
-          properties: { title: "SundayCRM - Sincronización" },
+          properties: { title: `${BRAND_NAME} - Sincronización` },
           sheets: [
             { properties: { title: "Leads calificados" } },
             { properties: { title: "Resultados de campaña" } },

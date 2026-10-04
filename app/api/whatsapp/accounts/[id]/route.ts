@@ -5,6 +5,11 @@ import { waAccountUpdateSchema } from "@/lib/validations";
 import { encrypt, hashToken } from "@/lib/crypto";
 import { validateToken } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { accountManageWhere } from "@/lib/tenancy";
+import { getUserAccountIds } from "@/lib/shared-accounts";
+import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 
 export async function GET(
   req: Request,
@@ -18,13 +23,12 @@ export async function GET(
 
     const { id } = await params;
 
+    if (!(await getUserAccountIds(session.user.id)).includes(id)) {
+      return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+    }
     const account = await prisma.wAAccount.findFirst({
       where: {
         id,
-        OR: [
-          { userId: session.user.id },
-          { sharedWith: { some: { userId: session.user.id } } },
-        ],
       },
       select: {
         id: true,
@@ -42,6 +46,15 @@ export async function GET(
         qualityRating: true,
         messagingTier: true,
         qualityUpdatedAt: true,
+        appSecret: true,
+        connectionType: true,
+        coexistence: true,
+        syncStatus: true,
+        syncProgress: true,
+        syncDeadlineAt: true,
+        syncError: true,
+        tokenExpiresAt: true,
+        disconnectedReason: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { chats: true, templates: true } },
@@ -55,10 +68,16 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(account);
+    // Nunca se devuelve el secreto (ni cifrado) — solo si está configurado,
+    // para que la UI avise que sin él el webhook descarta todo.
+    // Las cuentas de Embedded Signup se firman con el App Secret de la
+    // plataforma: no tienen secreto propio y no deben marcarse como "sin secreto".
+    const { appSecret, ...rest } = account;
+    const usesPlatformApp = account.connectionType === "EMBEDDED_SIGNUP";
+    return NextResponse.json({ ...rest, usesPlatformApp, hasAppSecret: usesPlatformApp || !!appSecret, webhookUrl: whatsappWebhookUrl(req.url) });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -72,6 +91,8 @@ export async function PATCH(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { allowed } = await rateLimit(`account-mutate:${session.user.id}`, 20, 60);
     if (!allowed) {
@@ -81,7 +102,7 @@ export async function PATCH(
     const { id } = await params;
 
     const existing = await prisma.wAAccount.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await accountManageWhere(session.user.id)) },
     });
 
     if (!existing) {
@@ -125,12 +146,8 @@ export async function PATCH(
       data.verifyTokenHash = hashToken(verifyToken);
     }
 
-    if (appSecret !== undefined) {
-      if (appSecret) {
-        data.appSecret = encrypt(appSecret);
-      } else {
-        data.appSecret = null;
-      }
+    if (appSecret) {
+      data.appSecret = encrypt(appSecret);
     }
 
     const updated = await prisma.wAAccount.update({
@@ -148,15 +165,18 @@ export async function PATCH(
         errorMessage: true,
         lastActivity: true,
         autoAssignEnabled: true,
+        appSecret: true,
+        connectionType: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    return NextResponse.json(updated);
+    const { appSecret: storedSecret, ...updatedRest } = updated;
+    return NextResponse.json({ ...updatedRest, hasAppSecret: updated.connectionType === "EMBEDDED_SIGNUP" || !!storedSecret });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     const status = message.includes("Token validation failed") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -171,6 +191,8 @@ export async function DELETE(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { allowed } = await rateLimit(`account-mutate:${session.user.id}`, 20, 60);
     if (!allowed) {
@@ -180,7 +202,7 @@ export async function DELETE(
     const { id } = await params;
 
     const existing = await prisma.wAAccount.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, ...(await accountManageWhere(session.user.id)) },
     });
 
     if (!existing) {
@@ -196,7 +218,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

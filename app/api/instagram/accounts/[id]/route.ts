@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { deleteMetaChannelAccount } from "@/lib/meta-messaging/account-crud";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function DELETE(
   _req: Request,
@@ -29,7 +30,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

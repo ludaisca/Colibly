@@ -27,7 +27,9 @@ COPY . .
 # "JavaScript heap out of memory" — visto tanto en local como en el build real
 # de Coolify. 4096MB da margen sin acercarse al límite físico del host.
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN npm run build
+# instrumentation.ts no debe arrancar workers Redis durante el prerender;
+# el marcador solo existe en este RUN, no en el contenedor que atiende tráfico.
+RUN COLIBLY_BUILD=1 npm run build
 
 FROM base AS runner
 RUN apk add --no-cache wget
@@ -39,6 +41,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./
 COPY --chown=nextjs:nodejs scripts/startup.sh ./startup.sh
+COPY --chown=nextjs:nodejs scripts/db-migrate.sh ./scripts/db-migrate.sh
 RUN mkdir -p /app/media && chown nextjs:nodejs /app/media && chmod +x startup.sh
 USER nextjs
 EXPOSE 5000

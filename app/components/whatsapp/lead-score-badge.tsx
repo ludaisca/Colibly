@@ -137,6 +137,8 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
       open={open}
       onOpenChange={setOpen}
       align="right"
+      portal
+      closeOnSelect={false}
       trigger={
         selectedScore ? (
           <DropdownButton
@@ -149,11 +151,11 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
         )
       }
     >
-      <div className="p-3 w-80 space-y-3 max-h-[70vh] overflow-y-auto">
+      <div className="p-3 w-[min(20rem,calc(100vw-2rem))] space-y-3 max-h-[70vh] overflow-y-auto">
         {scorers.length === 0 ? (
           <p className="text-sm text-muted">
             Aún no tienes calificadores creados.{" "}
-            <Link href="/whatsapp/calificadores" className="text-accent hover:underline">
+            <Link href="/whatsapp/calificadores" className="text-accent-ink hover:underline">
               Crea uno aquí
             </Link>
             .
@@ -166,9 +168,9 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                   <button
                     key={s.id}
                     onClick={() => setSelectedScoreId(s.id)}
-                    className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                    className={`text-[11px] px-2 py-1 rounded-[12px] border transition-colors ${
                       s.id === selectedScoreId
-                        ? "border-accent text-accent bg-accent/10"
+                        ? "border-accent-strong text-accent-ink bg-accent-subtle"
                         : "border-border text-muted-darker hover:text-foreground"
                     }`}
                   >
@@ -200,7 +202,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                     {(selectedScore.details.producto_interes || selectedScore.details.urgencia) && (
                       <div className="flex flex-wrap gap-1.5">
                         {selectedScore.details.producto_interes && (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-accent-subtle text-accent-ink">
                             {selectedScore.details.producto_interes}
                           </span>
                         )}
@@ -229,7 +231,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                     )}
                     {selectedScore.details.proximos_pasos.length > 0 && (
                       <div>
-                        <p className="text-[11px] font-medium text-accent">Próximos pasos sugeridos</p>
+                        <p className="text-[11px] font-medium text-accent-ink">Próximos pasos sugeridos</p>
                         <ul className="text-xs text-muted-darker list-disc pl-4">
                           {selectedScore.details.proximos_pasos.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>

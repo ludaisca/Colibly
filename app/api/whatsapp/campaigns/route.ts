@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { campaignSchema } from "@/lib/validations";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 export async function POST(req: Request) {
   try {
@@ -10,6 +14,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const body = await req.json();
     const parsed = campaignSchema.safeParse(body);
@@ -58,10 +64,19 @@ export async function POST(req: Request) {
       );
     }
 
+    // Cada destinatario que aún no es contacto se vuelve uno al enviarle: la
+    // campaña no puede pasar el límite de contactos del plan.
+    const organizationId = await requireOrgId(session.user.id);
+    const phones = [...new Set(recipients.map((r) => r.phoneNumber))];
+    const known = await prisma.contact.count({ where: { accountId: waAccountId, remoteJid: { in: phones } } });
+    const overLimit = await checkPlanLimit(organizationId, "contacts", phones.length - known);
+    if (overLimit) return overLimit;
+
     const campaign = await prisma.$transaction(async (tx) => {
       const created = await tx.wACampaign.create({
         data: {
           userId: session.user.id,
+          organizationId,
           waAccountId,
           waTemplateId,
           name,
@@ -92,7 +107,7 @@ export async function POST(req: Request) {
     return NextResponse.json(campaign, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -134,7 +149,7 @@ export async function GET(_req: Request) {
     return NextResponse.json(campaigns);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

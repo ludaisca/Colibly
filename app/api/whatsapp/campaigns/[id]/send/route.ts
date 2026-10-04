@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { campaignQueue } from "@/lib/queue";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { rateLimit } from "@/lib/rate-limit";
+import { forbidRoles } from "@/lib/roles";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function POST(
   _req: Request,
@@ -14,6 +16,8 @@ export async function POST(
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const denied = forbidRoles(session, ["ejecutivo"]);
+    if (denied) return denied;
 
     const { allowed } = await rateLimit(`campaign-send:${session.user.id}`, 5, 60);
     if (!allowed) {
@@ -62,7 +66,7 @@ export async function POST(
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

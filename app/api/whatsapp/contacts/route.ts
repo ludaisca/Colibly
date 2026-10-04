@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 export async function GET(req: Request) {
   try {
@@ -18,14 +20,10 @@ export async function GET(req: Request) {
     }
 
     const accountIds = await getUserAccountIds(session.user.id);
-    // Los contactos de canales adicionales (Telegram) cuelgan de
+    // Los contactos de canales adicionales cuelgan de
     // channelAccountId en vez de accountId — sin esto, un lead que escribe por
     // Telegram genera su Contact pero queda invisible en el CRM.
-    const channelAccounts = await prisma.channelAccount.findMany({
-      where: { userId: session.user.id },
-      select: { id: true },
-    });
-    const channelAccountIds = channelAccounts.map((a) => a.id);
+    const channelAccountIds = await getUserChannelAccountIds(session.user.id);
 
     const { searchParams } = new URL(req.url);
     const accountId = searchParams.get("accountId");
@@ -72,6 +70,7 @@ export async function GET(req: Request) {
           id: true,
           accountId: true,
           channelAccountId: true,
+          channelAccount: { select: { channel: true } },
           remoteJid: true,
           name: true,
           leadStatus: true,
@@ -91,17 +90,17 @@ export async function GET(req: Request) {
 
     // Se aplana a un solo shape (accountId + chat + channel) para que la UI no
     // tenga que ramificar por canal — mismo criterio que GET /api/telegram/chats.
-    const items = contacts.map(({ channelAccountId, conversation, ...c }) => ({
+    const items = contacts.map(({ channelAccountId, channelAccount, conversation, ...c }) => ({
       ...c,
       accountId: c.accountId ?? channelAccountId!,
       chat: c.chat ?? conversation,
-      channel: c.accountId ? ("WHATSAPP" as const) : ("TELEGRAM" as const),
+      channel: c.accountId ? ("WHATSAPP" as const) : channelAccount?.channel,
     }));
 
     return NextResponse.json({ items, total, page, pageSize });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error interno del servidor";
+      publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -30,6 +30,8 @@ interface MessagingEvent {
     mid: string;
     text?: string;
     attachments?: MessagingAttachment[];
+    // Toque de un quick reply (automatizaciones / API): payload = id de opción.
+    quick_reply?: { payload?: string };
     // Eco de un mensaje que NOSOTROS mandamos — ya se crea el ChannelMessage
     // OUTBOUND de forma síncrona al enviar (ver lib/meta-messaging/send.ts),
     // ingerir el eco también duplicaría el mensaje como si fuera INBOUND.
@@ -128,13 +130,23 @@ export async function POST(req: Request) {
   try {
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
-    const { allowed } = await rateLimit(`meta-messaging-webhook:${ip}`, 300, 60);
+    // Límite alto a propósito: todo el tráfico legítimo de Meta llega desde
+    // pocas IPs y compartido por todas las cuentas (una campaña de 1,000
+    // mensajes genera ~3,000 callbacks de estado). La autenticación real es la
+    // firma HMAC de cada payload.
+    const { allowed } = await rateLimit(`meta-messaging-webhook:${ip}`, 3000, 60);
     if (!allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     const rawBody = await req.text();
-    const body = JSON.parse(rawBody) as MessagingWebhookBody;
+    let body: MessagingWebhookBody;
+    try {
+      body = JSON.parse(rawBody) as MessagingWebhookBody;
+    } catch {
+      // Malformado: reintentar no lo arregla.
+      return NextResponse.json({ success: true });
+    }
     const signature = req.headers.get("x-hub-signature-256");
 
     const channel = channelFromObject(body.object);
@@ -174,6 +186,7 @@ export async function POST(req: Request) {
             return profile.name ?? senderId;
           },
           isGroup: false,
+          interactiveReplyId: event.message.quick_reply?.payload ?? null,
           mediaId: info.mediaId,
           mimeType: info.mimeType,
           caption: info.caption,
@@ -191,6 +204,11 @@ export async function POST(req: Request) {
           // reaction, ...) se ignoran — solo comentarios nuevos abren
           // conversación.
           if (value.item !== "comment" || value.verb !== "add" || !value.from) continue;
+          // Comentarios publicados por la PROPIA Página (respuestas del
+          // community manager desde Facebook) llegan por el mismo webhook —
+          // sin este filtro se creaba un contacto/conversación con la Página
+          // como si fuera un lead.
+          if (value.from.id === entry.id || value.from.id === account.externalAccountId) continue;
 
           await ingestChannelMessage(account.id, channel, {
             externalId: value.from.id,
@@ -212,9 +230,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[meta messaging webhook] Error:", error);
-    // Igual que los demás webhooks de Meta: siempre 200, para no darle a un
-    // atacante una señal de qué payload es inválido ni causar reintentos
-    // infinitos.
-    return NextResponse.json({ success: true });
+    // Error procesando un payload ya parseado (DB/Redis caídos, Graph API...):
+    // 500 para que Meta reintente — antes se respondía 200 y el mensaje se
+    // perdía para siempre. El dedup por externalMessageId hace seguro el
+    // reintento. Payloads inválidos o sin firma válida siguen respondiendo 200.
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

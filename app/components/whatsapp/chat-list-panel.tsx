@@ -1,11 +1,12 @@
 "use client";
 
 import { Search, MessageSquare, Inbox } from "lucide-react";
-import { Input } from "@/app/components/ui/input";
+import { Combobox } from "@base-ui/react/combobox";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { hueClassFor } from "@/app/components/ui/hue";
 import { cn } from "@/app/components/ui/cn";
@@ -29,6 +30,7 @@ import {
 // de datos/handlers.
 
 interface ChatListPanelProps {
+  resizable?: boolean;
   selectedChatId: string | null;
   onChatSelect: (chat: ChatItem) => void;
 
@@ -47,6 +49,8 @@ interface ChatListPanelProps {
   onHasRepliedFilterChange: (value: "" | "yes" | "no") => void;
 
   loadingChats: boolean;
+  loadError: string | null;
+  onRetry: () => void;
   totalChatsLoaded: number;
   groupedChats: Record<string, ChatItem[]>;
 
@@ -56,6 +60,7 @@ interface ChatListPanelProps {
 }
 
 export function ChatListPanel({
+  resizable = false,
   selectedChatId,
   onChatSelect,
   accountOptions,
@@ -69,6 +74,8 @@ export function ChatListPanel({
   hasRepliedFilter,
   onHasRepliedFilterChange,
   loadingChats,
+  loadError,
+  onRetry,
   totalChatsLoaded,
   groupedChats,
   chatsTotal,
@@ -76,9 +83,16 @@ export function ChatListPanel({
   onLoadMore,
 }: ChatListPanelProps) {
   const hasResults = Object.keys(groupedChats).length > 0;
+  // Las sugerencias salen de la misma lista autorizada y filtrada que se ve
+  // debajo; el texto sigue pasando por la búsqueda paginada del servidor.
+  const suggestions = Object.values(groupedChats).flat().slice(0, 8).map((chat) => ({
+    value: chat.id,
+    label: `${chat.name ?? chat.remoteJid} ${chat.remoteJid}`,
+    chat,
+  }));
 
   return (
-    <div className={`${selectedChatId ? "hidden md:flex" : "flex"} md:flex flex-col w-full md:w-80 lg:w-96 border-r border-border shrink-0`}>
+    <div className={`${selectedChatId ? "hidden lg:flex" : "flex"} lg:flex flex-col w-full ${resizable ? "" : "lg:w-80 xl:w-96 shrink-0"} min-w-0 border-r border-border`}>
       <div className="p-4 border-b border-border space-y-3">
         <h1 className="text-lg font-bold tracking-tight">Chats</h1>
 
@@ -88,9 +102,9 @@ export function ChatListPanel({
               type="button"
               onClick={() => onAccountFilterChange("")}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                "flex shrink-0 items-center gap-1.5 rounded-[12px] border px-3 py-1.5 text-xs font-semibold transition-colors",
                 accountFilter === ""
-                  ? "border-accent bg-accent text-on-accent"
+                  ? "border-accent-strong bg-accent text-on-accent"
                   : "border-border bg-surface text-muted hover:bg-surface-light"
               )}
             >
@@ -102,9 +116,9 @@ export function ChatListPanel({
                 type="button"
                 onClick={() => onAccountFilterChange(acc.id)}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-full border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
+                  "flex shrink-0 items-center gap-1.5 rounded-[12px] border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
                   accountFilter === acc.id
-                    ? "border-accent bg-accent text-on-accent"
+                    ? "border-accent-strong bg-accent text-on-accent"
                     : "border-border bg-surface text-muted hover:bg-surface-light"
                 )}
               >
@@ -115,12 +129,23 @@ export function ChatListPanel({
           </div>
         )}
 
-        <Input
-          icon={Search}
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Buscar chat..."
-        />
+        <Combobox.Root items={suggestions} inputValue={search}
+          onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
+          onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
+          <Combobox.InputGroup className="flex h-10 items-center gap-2 rounded-[12px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
+            <Search size={16} className="shrink-0 text-muted-darker" />
+            <Combobox.Input aria-label="Buscar chat" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
+          </Combobox.InputGroup>
+          <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
+            <Combobox.Popup className="max-h-72 overflow-y-auto rounded-[12px] border border-border bg-surface p-1.5 shadow-lg">
+              <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
+              <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
+                <span className="truncate font-medium">{item.chat.name ?? item.chat.remoteJid}</span>
+                <span className="truncate text-[11px] text-muted">{item.chat.account.name} · {item.chat.remoteJid}</span>
+              </Combobox.Item>}</Combobox.List>
+            </Combobox.Popup>
+          </Combobox.Positioner></Combobox.Portal>
+        </Combobox.Root>
 
         <ChatFiltersPanel
           campaigns={campaigns}
@@ -135,12 +160,22 @@ export function ChatListPanel({
           <div className="flex items-center justify-center py-12">
             <Spinner />
           </div>
+        ) : loadError ? (
+          <div className="p-4"><ListErrorState message={loadError} onRetry={onRetry} /></div>
         ) : !hasResults ? (
           <div className="py-8">
             <EmptyState
               icon={MessageSquare}
-              title="Sin chats"
+              title={totalChatsLoaded === 0 ? "Sin chats" : "Sin resultados"}
               description={totalChatsLoaded === 0 ? "No tienes chats activos. Cuando recibas mensajes aparecerán aquí." : "No se encontraron chats con ese filtro."}
+              action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter) ? (
+                <Button variant="secondary" size="sm" onClick={() => {
+                  onSearchChange("");
+                  onCampaignFilterChange("");
+                  onHasRepliedFilterChange("");
+                  onAccountFilterChange("");
+                }}>Limpiar búsqueda y filtros</Button>
+              ) : undefined}
             />
           </div>
         ) : (
@@ -155,9 +190,10 @@ export function ChatListPanel({
                   <button
                     key={chat.id}
                     onClick={() => onChatSelect(chat)}
-                    className={`w-full text-left px-4 py-3 border-b border-border transition-colors hover:bg-surface-light ${
+                    className={`chat-list-row w-full text-left px-4 py-3 border-b border-border transition-colors hover:bg-surface-light ${
                       selectedChatId === chat.id ? "bg-surface-light" : ""
                     }`}
+                    aria-current={selectedChatId === chat.id ? "true" : undefined}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <EntityAvatar

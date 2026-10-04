@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getContactScopeIds } from "@/lib/appointments";
+import { publicErrorMessage } from "@/lib/api-errors";
 
 // Búsqueda de contacto acotada para el picker del formulario de Citas —
 // deliberadamente separada de GET /api/whatsapp/contacts (que 403s para el
 // rol "user", ver AGENTS.md "Role guards live in the APIs too"). Esa
 // restricción es sobre la página/gestión de Contactos; agendar una cita no
-// debería heredarla, así que este endpoint no aplica el mismo gate de rol —
-// mismo criterio que GET /api/configuracion/ia/models se deja abierto a
-// todos los roles porque lo necesita un formulario, no la sección completa.
+// debería heredarla, así que este endpoint no aplica el mismo gate de rol.
 const LIMIT = 8;
 
 export async function GET(req: Request) {
@@ -45,7 +44,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(contacts);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

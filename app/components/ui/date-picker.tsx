@@ -9,10 +9,12 @@ interface DatePickerProps {
   onChange?: (value: string) => void;
   placeholder?: string;
   error?: string;
+  showErrorMessage?: boolean;
   disabled?: boolean;
   min?: string;
   max?: string;
   id?: string;
+  ariaLabel?: string;
   className?: string;
 }
 
@@ -49,15 +51,18 @@ export function DatePicker({
   onChange,
   placeholder = "DD/MM/AAAA",
   error,
+  showErrorMessage = false,
   disabled,
   min,
   max,
   id,
+  ariaLabel,
   className,
 }: DatePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [panelOffset, setPanelOffset] = useState(0);
   const [display, setDisplay] = useState(formatDate(value));
   const [prevValue, setPrevValue] = useState(value);
   if (value !== prevValue) {
@@ -132,10 +137,16 @@ export function DatePicker({
         <input
           ref={inputRef}
           id={id}
+          aria-label={ariaLabel}
           type="text"
           value={display}
           onChange={handleInputChange}
-          onFocus={() => !disabled && setOpen(true)}
+          onFocus={() => {
+            if (disabled) return;
+            const left = inputRef.current?.getBoundingClientRect().left ?? 0;
+            setPanelOffset(Math.max(8 - left, Math.min(0, window.innerWidth - left - 288)));
+            setOpen(true);
+          }}
           onBlur={handleInputBlur}
           placeholder={placeholder}
           disabled={disabled}
@@ -144,7 +155,7 @@ export function DatePicker({
           className={cn(
             "w-full h-10 rounded-lg border bg-surface-light px-4 pl-10 pr-8 text-sm text-foreground",
             "placeholder:text-muted-darker outline-none transition-colors",
-            "focus:border-accent focus:ring-1 focus:ring-accent/30",
+            "focus:border-accent-strong focus:ring-1 focus:ring-accent-muted",
             error ? "border-danger-border" : "border-border",
             disabled && "opacity-50 cursor-not-allowed"
           )}
@@ -152,19 +163,21 @@ export function DatePicker({
         {display && !disabled && (
           <button
             type="button"
+            aria-label={`Borrar fecha ${ariaLabel ?? placeholder}`}
             onClick={() => { setDisplay(""); onChange?.(""); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-darker hover:text-foreground"
+            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-darker hover:text-foreground"
           >
             <X size={14} />
           </button>
         )}
       </div>
 
-      {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
+      {error && showErrorMessage && <p className="mt-1.5 text-xs text-danger">{error}</p>}
 
       {open && (
         <div
           ref={panelRef}
+          style={{ left: panelOffset }}
           className={cn(
             "absolute z-50 mt-1.5 rounded-xl border border-border bg-surface shadow-lg p-3 w-[280px]",
             "animate-fade-in"
@@ -173,6 +186,7 @@ export function DatePicker({
           <div className="flex items-center justify-between mb-3">
             <button
               type="button"
+              aria-label="Mes anterior"
               onClick={() => {
                 if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
                 else setViewMonth(viewMonth - 1);
@@ -186,6 +200,7 @@ export function DatePicker({
             </span>
             <button
               type="button"
+              aria-label="Mes siguiente"
               onClick={() => {
                 if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
                 else setViewMonth(viewMonth + 1);
@@ -220,7 +235,7 @@ export function DatePicker({
                     "h-8 w-full rounded-md text-xs font-medium transition-colors",
                     "hover:bg-surface-light",
                     isSelected && "bg-accent text-on-accent hover:bg-accent-hover",
-                    isToday && !isSelected && "border border-accent text-accent",
+                    isToday && !isSelected && "border border-accent-strong text-accent-ink",
                     !isSelected && !isToday && "text-foreground"
                   )}
                 >
@@ -235,7 +250,7 @@ export function DatePicker({
             onClick={() => {
               applyDate(today.getFullYear(), today.getMonth(), today.getDate());
             }}
-            className="mt-3 w-full text-xs text-accent hover:text-accent-hover transition-colors py-1.5 rounded-md hover:bg-surface-light"
+            className="mt-3 w-full text-xs text-accent-ink hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-surface-light"
           >
             Hoy
           </button>

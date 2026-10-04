@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getContactScopeIds, canAssignToContact } from "@/lib/appointments";
 import { appointmentUpdateSchema } from "@/lib/validations";
 import { enrollContactInTrigger } from "@/lib/sequences";
+import { publicErrorMessage } from "@/lib/api-errors";
+import { emitDomainEvent } from "@/lib/events/emit";
+import { eventRefsForContact } from "@/lib/events/refs";
 
 const CONTACT_SELECT = {
   id: true,
@@ -20,6 +23,7 @@ const APPOINTMENT_SELECT = {
   notes: true,
   scheduledAt: true,
   durationMinutes: true,
+  reminderMinutesBefore: true,
   status: true,
   source: true,
   cancelReason: true,
@@ -63,7 +67,7 @@ export async function GET(
 
     return NextResponse.json(appointment);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -126,6 +130,17 @@ export async function PATCH(
     // Trigger de secuencias (roadmap P3-a) — solo en la transición REAL hacia
     // COMPLETED, no en cada PATCH que la deje en ese estado (evita
     // reinscribir si se editan notas/duración de una cita ya completada).
+    if (parsed.data.status !== undefined && parsed.data.status !== existing.status) {
+      const refs = await eventRefsForContact(existing.contactId);
+      if (refs) {
+        await emitDomainEvent({
+          type: "appointment.status_changed",
+          ...refs,
+          data: { appointmentId: id, from: existing.status, to: parsed.data.status },
+        });
+      }
+    }
+
     if (parsed.data.status === "COMPLETED" && existing.status !== "COMPLETED") {
       await enrollContactInTrigger("APPOINTMENT_COMPLETED", null, existing.contactId).catch((err) =>
         console.error("[appointments] enrollContactInTrigger falló:", err)
@@ -134,7 +149,7 @@ export async function PATCH(
 
     return NextResponse.json(appointment);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -161,7 +176,7 @@ export async function DELETE(
     await prisma.wAAppointment.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

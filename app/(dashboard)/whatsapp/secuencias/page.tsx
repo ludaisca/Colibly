@@ -30,12 +30,15 @@ interface Sequence {
   channelAccount: { id: string; name: string } | null;
   steps: Array<{ id: string; order: number; delayMinutes: number; message: string }>;
   _count: { enrollments: number };
+  // Inscripciones FAILED (envío fallido) o EXPIRED (fuera de la ventana de 24h).
+  stoppedEnrollments: number;
 }
 
 export default function SequencesPage() {
   const { success, error: toastError } = useToast();
   const [sequences, setSequences] = useState<Sequence[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -43,16 +46,18 @@ export default function SequencesPage() {
 
   const fetchSequences = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch("/api/whatsapp/sequences");
       const data = await res.json();
-      if (Array.isArray(data)) setSequences(data);
-    } catch {
-      toastError("Error al cargar secuencias");
+      if (!res.ok || !Array.isArray(data)) throw new Error(data.error ?? "Error al cargar secuencias");
+      setSequences(data);
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : "Error al cargar secuencias");
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchSequences also used for manual refresh
   useEffect(() => { fetchSequences(); }, [fetchSequences]);
@@ -93,7 +98,7 @@ export default function SequencesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Secuencias"
-        description="Automatizaciones lineales: un trigger inscribe al contacto y una serie de pasos con espera se envían en orden."
+        description="Un evento inscribe al contacto y envía mensajes programados en orden. Disponible para WhatsApp y Telegram."
         actions={
           <Button icon={Plus} size="sm" onClick={() => { setEditId(null); setFormOpen(true); }}>
             Crear secuencia
@@ -105,9 +110,11 @@ export default function SequencesPage() {
         rows={sequences}
         rowKey={(seq) => seq.id}
         loading={loading}
+        error={fetchError}
+        onRetry={fetchSequences}
         emptyIcon={Workflow}
         emptyTitle="Sin secuencias"
-        emptyDescription="Crea tu primera secuencia para nutrir leads automáticamente tras un tag, un cambio de estado o una cita completada."
+        emptyDescription="Crea tu primera secuencia para dar seguimiento tras una etiqueta, un cambio de estado o una cita completada."
         onRowClick={(seq) => { setEditId(seq.id); setFormOpen(true); }}
         renderRow={(seq) => (
           <>
@@ -120,6 +127,11 @@ export default function SequencesPage() {
                   <Badge tone={seq.active ? "success" : "neutral"} size="sm">
                     {seq.active ? "Activa" : "Pausada"}
                   </Badge>
+                  {seq.stoppedEnrollments > 0 && (
+                    <Badge tone="warning" size="sm">
+                      {seq.stoppedEnrollments} sin completar
+                    </Badge>
+                  )}
                 </span>
               }
               subtitle={

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { saveMediaFromMeta, saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
 import { decrypt } from "@/lib/crypto";
 import { getFileUrl } from "@/lib/telegram";
+import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
 
 interface MediaDownloadJob {
   messageId: string;
@@ -69,7 +70,7 @@ async function processTelegramMediaDownload(job: MediaDownloadJob) {
   const { botToken } = JSON.parse(decrypt(account.credentials)) as { botToken: string };
   const fileUrl = await getFileUrl(botToken, job.mediaId);
 
-  const res = await fetch(fileUrl);
+  const res = await fetch(fileUrl, { signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Descarga de medio Telegram fallida (HTTP ${res.status})`);
   const buffer = Buffer.from(await res.arrayBuffer());
 
@@ -98,7 +99,7 @@ async function processMetaChannelMediaDownload(job: MediaDownloadJob) {
   });
   if (!account || (account.channel !== "MESSENGER" && account.channel !== "INSTAGRAM")) return;
 
-  const res = await fetch(job.mediaId);
+  const res = await fetch(job.mediaId, { signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Descarga de medio ${account.channel} fallida (HTTP ${res.status})`);
   const buffer = Buffer.from(await res.arrayBuffer());
 
