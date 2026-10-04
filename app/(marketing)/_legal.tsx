@@ -13,7 +13,7 @@ export const LEGAL = {
   // Buzón del dominio de la marca: debe existir antes del lanzamiento.
   email: BRAND_CONTACT_EMAIL,
   jurisdiction: "los Estados Unidos Mexicanos",
-  updatedAt: "2 de octubre de 2026",
+  updatedAt: "4 de octubre de 2026",
 };
 
 export function Blank({ children }: { children: React.ReactNode }) {

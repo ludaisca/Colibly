@@ -94,7 +94,8 @@ Qué implicaba el cambio en el código (hecho el 2026-09-27, salvo la identidad 
 ### 3. Textos legales
 
 - [x] Publicar términos y privacidad con texto genérico funcional para la etapa beta (confirmado por el propietario el 2026-10-02).
-- [ ] Llenar `LEGAL` en `app/(marketing)/_legal.tsx` (razón social = tu nombre como persona física, domicilio fiscal, correo, jurisdicción) y los 13 huecos `<Blank>` de términos y privacidad (p. ej. si los precios incluyen impuestos y cómo se factura).
+- [x] Textos legales **genéricos por decisión (2026-10-04)**: razón social «Colibly», domicilio para notificaciones y contacto por correo (`contacto@colibly.com`), jurisdicción México; sin huecos `<Blank>`. El aviso de privacidad ya cubre la importación de la app WhatsApp Business (coexistencia) y las copias de seguridad en almacenamiento externo. La copia de `cpanel-site/` se mantiene a mano con los mismos textos.
+- [ ] **Antes del lanzamiento general** (la beta puede seguir así): nombrar en el aviso al responsable como persona física o moral y su domicilio —la ley de protección de datos mexicana exige identidad y domicilio del responsable en el aviso de privacidad—, y decidir si los precios incluyen impuestos y cómo se factura.
 - [ ] Revisión con abogado antes del lanzamiento.
 - [ ] Con el contador: alta en el SAT con actividad empresarial (también se necesita para cobrar y facturar) y si hay que emitir CFDI a clientes mexicanos (Stripe no lo hace).
 
