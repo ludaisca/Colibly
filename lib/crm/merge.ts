@@ -30,6 +30,8 @@ export async function mergePeople(actor: CrmActor, raw: unknown) {
     // Los negocios también se mudan ANTES de borrar la persona de origen (si no,
     // se irían con ella por la cascada).
     const deals = await tx.deal.updateMany({ where: { personId: sourceId }, data: { personId: targetId } });
+    // Igual las tareas ligadas a la persona (la cascada las borraría).
+    await tx.task.updateMany({ where: { personId: sourceId }, data: { personId: targetId } });
     await tx.person.delete({ where: { id: sourceId } });
     await tx.person.update({ where: { id: targetId }, data: { ...(data as Prisma.PersonUncheckedUpdateInput), version: { increment: 1 } } });
     await logActivity(tx, {

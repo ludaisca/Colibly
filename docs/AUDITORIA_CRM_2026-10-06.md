@@ -154,6 +154,14 @@ Pospuesto, con motivo: búsqueda indexada por teléfono/correo → Fase 1 (llega
 ### Fase 3 — Tareas y actividad
 `Task` con recordatorios; **línea de tiempo** unificada en la ficha; vista **"Mi día"** (tareas + citas + chats sin responder); regla "al ganar un negocio, crear tarea de seguimiento".
 
+#### Resultado de la Fase 3 (rama `feat/crm-fase-0`, backend/API + interfaz mínima)
+- **Modelo** (migraciones `crm_tareas` y `crm_tareas_aviso`): `Task` (persona/empresa/negocio, responsable, fecha, tipo, aviso), reglas de etapa en `PipelineStage` (`autoTaskTitle`/`autoTaskDueDays`), avisos `TASK_DUE`/`TASK_ASSIGNED`.
+- **Regla "al ganar, tarea de seguimiento"**: se configura por etapa (cualquiera, no solo Ganado); el pipeline por defecto trae "Seguimiento postventa" a 7 días en Ganado. Se crea dentro de la misma transacción del movimiento/alta, sin duplicar al reintentar y asignada al responsable del negocio.
+- **Línea de tiempo unificada** (`/api/crm/people/{id}/timeline`): historial CRM + mensajes de todos los canales + notas + citas pasadas, paginada con cursor por fuente; respeta el acceso a cada cuenta.
+- **Mi día** (`/mi-dia`, `/api/crm/my-day`): tareas atrasadas/de hoy/próximas/sin fecha, citas, chats cuyo último mensaje es del cliente y negocios sin siguiente paso.
+- **Verificación**: 19 + 4 pruebas puras nuevas; 13 pruebas de integración contra la base real (alta automática con tarea, chats sin responder, línea de tiempo con mensajes/notas/citas y paginación, avisos una sola vez, organización suspendida, fusión, reasignación, exportación, cascada, alcance del ejecutivo; repetidas 3 veces); HTTP con dos organizaciones y tres roles (59 + 44 comprobaciones); renderizado real de `/mi-dia` y del modal. Base de desarrollo de vuelta a su línea base (4 organizaciones, 105 personas, 66 negocios, 0 tareas).
+- **Pendiente / decidido**: sin pantalla para editar las reglas de etapa; `/api/v1` de tareas, eventos `task.*`, paso de automatización "crear tarea" y límites de plan van en la Fase 5; las tareas no llevan versión (gana la última escritura).
+
 ### Fase 4 — Reportes y pronóstico
 Embudo con conversión por etapa y tiempo en etapa, tasa de cierre, ciclo de venta, ventas por responsable y por origen/anuncio, **pronóstico** (monto × probabilidad por etapa).
 

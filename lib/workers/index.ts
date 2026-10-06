@@ -7,6 +7,7 @@ import { processRagJob } from "./rag-worker";
 import { processMediaDownloadJob } from "./media-worker";
 import { processMediaCleanupJob } from "./media-cleanup-worker";
 import { processBotSendJob } from "./bot-send-worker";
+import { processTaskReminderTick } from "./task-reminder-worker";
 import { processLeadScoringTick } from "./lead-scoring-worker";
 import { processLeadRecoveryTick } from "./lead-recovery-worker";
 import { processSheetsSyncTick } from "./sheets-sync-worker";
@@ -22,7 +23,7 @@ import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
 import { processBillingTick } from "@/lib/billing/tick";
 import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
 import { processBackupTick, runBackup, BackupAlreadyRunningError } from "@/lib/backups/runner";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue } from "@/lib/queue";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, taskReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -117,6 +118,10 @@ export function startWorkers() {
     await processAppointmentReminderTick();
   }, { connection, concurrency: 1 });
 
+  const taskReminderWorker = new Worker("task-reminders", async () => {
+    await processTaskReminderTick();
+  }, { connection, concurrency: 1 });
+
   const sequenceWorker = new Worker("sequence-tick", async () => {
     await processSequenceTickJob();
   }, { connection, concurrency: 1 });
@@ -184,7 +189,7 @@ export function startWorkers() {
     await processWebhookDelivery(job);
   }, { connection, concurrency: 5 });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker);
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, taskReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker);
 
   mediaCleanupQueue
     .add(
@@ -261,6 +266,11 @@ export function startWorkers() {
       { jobId: "appointment-reminder-tick", repeat: { pattern: "*/5 * * * *" } }
     )
     .catch((err) => console.error("[workers] No se pudo programar appointment-reminders:", err));
+
+  // Avisos de tareas del CRM: mismo ritmo de 5 min que las citas.
+  taskReminderQueue
+    .add("tick", {}, { jobId: "task-reminder-tick", repeat: { pattern: "*/5 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar task-reminders:", err));
 
   // delayMinutes de un paso es granularidad de minuto — mismo cron de 5 min
   // que appointment-reminders/lead-scoring da margen de sobra.

@@ -6,6 +6,7 @@ import { canonicalRemoteJid, isPhoneJid, isPhoneNameOf, remoteJidCandidates } fr
 import { phoneForms } from "@/lib/crm/normalize";
 import { logActivity } from "@/lib/crm/activity";
 import { ensureDefaultPipeline } from "@/lib/crm/pipelines";
+import { createStageTask } from "@/lib/crm/stage-tasks";
 import { defaultDealTitle } from "@/lib/crm/deal-rules";
 import { afterDealCreated } from "@/lib/crm/deal-effects";
 
@@ -141,6 +142,7 @@ export async function resolveContact(scope: ContactScope, input: ResolveContactI
             data: { organizationId, dealId: deal.id, toStageId: entry.firstStageId, toStageName: deal.stage.name, toStatus: deal.stage.outcome },
           });
           await logActivity(tx, { organizationId, actorId: null, type: "deal.created", personId, data: { dealId: deal.id, stage: deal.stage.name, source: input.openDeal.source } });
+          await createStageTask(tx, { organizationId, dealId: deal.id, personId, dealTitle: defaultDealTitle(personName), ownerId: null, stageId: entry.firstStageId, enteredAt: new Date(), actorId: null });
           dealId = deal.id;
         }
       }

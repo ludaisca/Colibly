@@ -5,7 +5,7 @@ import { requestHost } from "@/lib/request-host";
 
 // /plataforma (panel del operador) no va en las listas de rol: su acceso lo
 // decide PLATFORM_ADMIN_EMAILS en la página y en /api/plataforma (404 al resto).
-const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/meta-ads", "/plataforma"];
+const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/mi-dia", "/meta-ads", "/plataforma"];
 // Ojo: las tres comprobaciones de rol viven DENTRO del bloque PROTECTED — una
 // ruta ausente de esa lista no solo pierde el redirect a /login con
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.

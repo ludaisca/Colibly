@@ -40,7 +40,7 @@ const personRowSelect = {
 } satisfies Prisma.PersonSelect;
 
 // Contactos (identidades de canal) que el actor puede ver.
-async function accessibleContacts(actor: CrmActor): Promise<Prisma.ContactWhereInput> {
+export async function accessibleContacts(actor: CrmActor): Promise<Prisma.ContactWhereInput> {
   const [wa, ch] = await Promise.all([getUserAccountIds(actor.userId), getUserChannelAccountIds(actor.userId)]);
   return { OR: [{ accountId: { in: wa } }, { channelAccountId: { in: ch } }] };
 }
@@ -356,20 +356,6 @@ export async function getPersonDetail(actor: CrmActor, id: string) {
     upcomingAppointments: appointments,
     activity,
   };
-}
-
-export async function listTimeline(actor: CrmActor, id: string, cursor: string | null, limit = 30) {
-  await loadPerson(actor.organizationId, id);
-  const take = Math.min(Math.max(limit, 1), 100);
-  const rows = await prisma.activityLog.findMany({
-    where: { organizationId: actor.organizationId, personId: id },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: take + 1,
-    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-    select: { id: true, type: true, data: true, createdAt: true, actor: { select: { id: true, name: true } } },
-  });
-  const page = rows.slice(0, take);
-  return { items: page, nextCursor: rows.length > take ? page[page.length - 1].id : null };
 }
 
 // ── Acciones en lote ───────────────────────────────────────────────────────

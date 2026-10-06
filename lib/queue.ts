@@ -47,6 +47,7 @@ export const metaConversionsQueue = new Queue("meta-conversions", {
   defaultJobOptions: metaConversionsJobOptions,
 });
 export const appointmentReminderQueue = new Queue("appointment-reminders", { connection, defaultJobOptions });
+export const taskReminderQueue = new Queue("task-reminders", { connection, defaultJobOptions });
 export const sequenceQueue = new Queue("sequence-tick", { connection, defaultJobOptions });
 // Tick de campañas programadas en su propia cola: en campaign-send (concurrencia
 // 1) quedaba esperando detrás de cualquier campaña en envío, y una campaña de

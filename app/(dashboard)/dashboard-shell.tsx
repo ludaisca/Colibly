@@ -21,6 +21,7 @@ import {
   Zap,
   Globe,
   Building2,
+  ListChecks,
 } from "lucide-react";
 // Meta (feedback loop de calificación de leads) usa el mismo ícono que
 // Difusión WhatsApp para no introducir un cuarto ícono de "anuncios" — la
@@ -58,6 +59,7 @@ export function DashboardShell({
         {
           title: "Mensajería",
           items: [
+            { href: "/mi-dia",             label: "Mi día",          icon: ListChecks },
             { href: "/whatsapp/chat",      label: "Chats",           icon: MessageSquare },
             { href: "/whatsapp/contactos", label: "Contactos",       icon: Contact },
             { href: "/whatsapp/citas",     label: "Citas",           icon: CalendarClock },
@@ -78,6 +80,7 @@ export function DashboardShell({
           title: "Principal",
           items: [
             { href: "/dashboard",               label: "Panel",            icon: LayoutDashboard, exact: true },
+            { href: "/mi-dia",                  label: "Mi día",           icon: ListChecks },
             { href: "/whatsapp/chat",           label: "Bandeja de Chats", icon: MessageSquare },
             ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
             { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },

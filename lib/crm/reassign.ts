@@ -5,12 +5,13 @@ import { prisma } from "@/lib/prisma";
 // quedarse con un responsable que ya no entra: hay que pasarlos a otro.
 
 export async function countOwnedRecords(organizationId: string, userId: string) {
-  const [people, companies, deals] = await Promise.all([
+  const [people, companies, deals, tasks] = await Promise.all([
     prisma.person.count({ where: { organizationId, ownerId: userId, archivedAt: null } }),
     prisma.company.count({ where: { organizationId, ownerId: userId, archivedAt: null } }),
     prisma.deal.count({ where: { organizationId, ownerId: userId, status: "OPEN", archivedAt: null } }),
+    prisma.task.count({ where: { organizationId, assigneeId: userId, status: "OPEN" } }),
   ]);
-  return { people, companies, deals };
+  return { people, companies, deals, tasks };
 }
 
 export async function reassignOwnedRecords(
@@ -19,7 +20,7 @@ export async function reassignOwnedRecords(
   fromUserId: string,
   toUserId: string,
   actorId: string
-): Promise<{ people: number; companies: number; deals: number }> {
+): Promise<{ people: number; companies: number; deals: number; tasks: number }> {
   const [people, companies, deals] = await Promise.all([
     tx.person.findMany({ where: { organizationId, ownerId: fromUserId, archivedAt: null }, select: { id: true } }),
     tx.company.findMany({ where: { organizationId, ownerId: fromUserId, archivedAt: null }, select: { id: true } }),
@@ -44,5 +45,7 @@ export async function reassignOwnedRecords(
       data: companies.map((c) => ({ organizationId, actorId, type: "company.updated", companyId: c.id, data: { changes: { ownerId: [fromUserId, toUserId] }, reason: "user_disabled" } })),
     });
   }
-  return { people: people.length, companies: companies.length, deals: deals.length };
+  // Las tareas abiertas también cambian de responsable (las hechas quedan con quien las hizo).
+  const tasks = await tx.task.updateMany({ where: { organizationId, assigneeId: fromUserId, status: "OPEN" }, data: { assigneeId: toUserId } });
+  return { people: people.length, companies: companies.length, deals: deals.length, tasks: tasks.count };
 }

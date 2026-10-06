@@ -14,6 +14,8 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
 import { ContactDeals, type ContactDeal } from "@/app/components/pipeline/contact-deals";
+import { ContactTasks } from "@/app/components/crm/contact-tasks";
+import { PersonTimeline } from "@/app/components/crm/person-timeline";
 import "./contact-drawer.css";
 
 interface ContactDetail {
@@ -250,6 +252,8 @@ export function ContactDrawer({
             }}
           />
 
+          <ContactTasks personId={contact.personId} personLabel={contact.name ?? contact.remoteJid} />
+
           <div>
             <label className="block text-xs font-medium text-muted-darker mb-1.5">Etiquetas</label>
             <MultiSelect
@@ -383,6 +387,8 @@ export function ContactDrawer({
               )}
             </div>
           </div>
+
+          <PersonTimeline personId={contact.personId} refreshKey={notes.length} />
         </div>
       )}
               </div>

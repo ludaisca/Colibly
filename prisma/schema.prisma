@@ -70,6 +70,9 @@ model User {
 
   @@index([organizationId])
   @@map("users")
+  tasksAssigned  Task[] @relation("TaskAssignee")
+  tasksCreated   Task[] @relation("TaskCreatedBy")
+  tasksCompleted Task[] @relation("TaskCompletedBy")
 }
 
 // Conexión OAuth por usuario a Google (Sheets). A diferencia de WAAccount
@@ -1138,6 +1141,7 @@ model Person {
   @@index([organizationId, ownerId])
   @@index([companyId])
   @@map("people")
+  tasks Task[]
 }
 
 // Empresa (B2B): opcional, agrupa personas.
@@ -1165,6 +1169,7 @@ model Company {
   @@index([organizationId, archivedAt, name])
   @@index([organizationId, ownerId])
   @@map("companies")
+  tasks Task[]
 }
 
 // Historial CRM de una persona/empresa (creación, cambios de campos, de
@@ -1241,6 +1246,10 @@ model PipelineStage {
   outcome     DealStatus @default(OPEN)
   probability Int        @default(0)
   metaEvent   String?    @map("meta_event")
+  // Regla "al entrar a esta etapa, crear una tarea de seguimiento" (null =
+  // ninguna). El plazo son días desde la entrada; 0 = para hoy.
+  autoTaskTitle   String? @map("auto_task_title")
+  autoTaskDueDays Int?    @map("auto_task_due_days")
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
@@ -1326,6 +1335,7 @@ model Deal {
   @@index([contactId])
   @@index([organizationId, leadOrigin, adId])
   @@map("deals")
+  tasks Task[]
 }
 
 // Historial de movimientos de un negocio entre etapas (nace con el negocio:
@@ -1757,6 +1767,68 @@ model WASequenceEnrollment {
   @@map("wa_sequence_enrollments")
 }
 
+// ─── Tareas (Fase 3 del giro a CRM) ─────────────────────────────────────────
+// Algo por hacer ligado a una persona, empresa y/o negocio, con responsable,
+// fecha y recordatorio. Alimenta "Mi día". Las tareas que nacen de una regla de
+// etapa llevan `source = "stage_rule"` y un `autoKey` (etapa + hora de entrada)
+// que las hace idempotentes: reintentar el mismo cambio no duplica.
+
+enum TaskKind {
+  TODO
+  CALL
+  MESSAGE
+  EMAIL
+  MEETING
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+}
+
+model Task {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  notes          String?      @db.Text
+  kind           TaskKind     @default(TODO)
+  status         TaskStatus   @default(OPEN)
+  dueAt          DateTime?    @map("due_at")
+  // Anticipación elegida (minutos antes de `dueAt`; null = sin aviso) y el
+  // instante resultante. `remindedAt` marca que ya se avisó: una sola pasada,
+  // se reinicia al reprogramar. El aviso solo se programa si queda en el futuro.
+  remindMinutesBefore Int?    @map("remind_minutes_before")
+  remindAt       DateTime?    @map("remind_at")
+  remindedAt     DateTime?    @map("reminded_at")
+  completedAt    DateTime?    @map("completed_at")
+  completedById  String?      @map("completed_by_id")
+  completedBy    User?        @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  assigneeId     String?      @map("assignee_id")
+  assignee       User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdById    String?      @map("created_by_id")
+  createdBy      User?        @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  personId       String?      @map("person_id")
+  person         Person?      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId      String?      @map("company_id")
+  company        Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  dealId         String?      @map("deal_id")
+  deal           Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  // "manual" | "stage_rule" | "api" | "automation"
+  source         String       @default("manual")
+  autoKey        String?      @map("auto_key")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@unique([dealId, autoKey])
+  @@index([organizationId, assigneeId, status, dueAt])
+  @@index([organizationId, personId, status])
+  @@index([organizationId, dealId, status])
+  @@index([organizationId, companyId, status])
+  @@index([status, remindedAt, remindAt])
+  @@map("tasks")
+}
+
 enum NotificationType {
   CHAT_MESSAGE
   CAMPAIGN_COMPLETED
@@ -1776,6 +1848,9 @@ enum NotificationType {
   INTEGRATION_ERROR
   // Prueba por vencer, pago fallido, solo lectura, límite del plan alcanzado.
   BILLING
+  // Una tarea del CRM llegó a su hora, o alguien más te la asignó.
+  TASK_DUE
+  TASK_ASSIGNED
 }
 
 model Notification {
@@ -2148,6 +2223,7 @@ model Organization {
 
   @@index([status])
   @@map("organizations")
+  tasks Task[]
 }
 
 enum AuthTokenType {

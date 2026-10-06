@@ -20,7 +20,10 @@ export type ActivityType =
   | "deal.owner_changed"
   | "deal.archived"
   | "deal.restored"
-  | "deal.deleted";
+  | "deal.deleted"
+  | "task.created"
+  | "task.completed"
+  | "task.reopened";
 
 export interface ActivityInput {
   organizationId: string;

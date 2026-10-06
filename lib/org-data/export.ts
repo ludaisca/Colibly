@@ -107,7 +107,7 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
         isDefault: true,
         autoCreateDeals: true,
         archivedAt: true,
-        stages: { orderBy: { position: "asc" }, select: { id: true, name: true, position: true, outcome: true, probability: true, metaEvent: true } },
+        stages: { orderBy: { position: "asc" }, select: { id: true, name: true, position: true, outcome: true, probability: true, metaEvent: true, autoTaskTitle: true, autoTaskDueDays: true } },
       },
     })
   )}`;
@@ -158,6 +158,42 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
           stageChanges: stageChanges.map(({ actor, ...c }) => ({ ...c, actor: actor?.email ?? null })),
         });
       firstDeal = false;
+    }
+    if (page.length < PAGE) break;
+    cursor = page[page.length - 1].id;
+  }
+  yield "]";
+
+  // Tareas (con a qué persona, empresa o negocio pertenecen).
+  yield `,"tasks":[`;
+  let firstTask = true;
+  for (let cursor: string | undefined; ; ) {
+    const page = await prisma.task.findMany({
+      where: { organizationId },
+      orderBy: { id: "asc" },
+      take: PAGE,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      select: {
+        id: true,
+        title: true,
+        notes: true,
+        kind: true,
+        status: true,
+        dueAt: true,
+        completedAt: true,
+        source: true,
+        personId: true,
+        companyId: true,
+        dealId: true,
+        createdAt: true,
+        assignee: { select: { email: true } },
+        completedBy: { select: { email: true } },
+      },
+    });
+    for (const t of page) {
+      const { assignee, completedBy, ...rest } = t;
+      yield (firstTask ? "" : ",") + JSON.stringify({ ...rest, assignee: assignee?.email ?? null, completedBy: completedBy?.email ?? null });
+      firstTask = false;
     }
     if (page.length < PAGE) break;
     cursor = page[page.length - 1].id;

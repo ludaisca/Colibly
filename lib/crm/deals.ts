@@ -6,6 +6,7 @@ import { isRestricted, requireRoles, type CrmActor } from "@/lib/crm/access";
 import { logActivity } from "@/lib/crm/activity";
 import { validateOwner, validateCompany } from "@/lib/crm/people";
 import { ensureDefaultPipeline } from "@/lib/crm/pipelines";
+import { createStageTask } from "@/lib/crm/stage-tasks";
 import { afterDealCreated, afterDealStageChanged } from "@/lib/crm/deal-effects";
 import { defaultDealTitle, effectiveProbability, planTransition, roundMoney, weightedAmount } from "@/lib/crm/deal-rules";
 import { diffFields } from "@/lib/crm/merge-fields";
@@ -231,6 +232,16 @@ export async function createDeal(actor: CrmActor, raw: unknown) {
       personId: person.id,
       data: { dealId: created.id, stage: stage.name },
     });
+    await createStageTask(tx, {
+      organizationId: actor.organizationId,
+      dealId: created.id,
+      personId: person.id,
+      dealTitle: input.title?.trim() || defaultDealTitle(person.name),
+      ownerId,
+      stageId: stage.id,
+      enteredAt: new Date(),
+      actorId: actor.userId,
+    });
     return tx.deal.findUniqueOrThrow({ where: { id: created.id }, select: dealSelect });
   });
 
@@ -362,6 +373,17 @@ export async function moveDeal(actor: CrmActor, id: string, raw: unknown) {
         });
       }
     }
+    // Regla de la etapa: tarea de seguimiento al entrar (p. ej. postventa al ganar).
+    await createStageTask(tx, {
+      organizationId: actor.organizationId,
+      dealId: id,
+      personId: deal.personId,
+      dealTitle: deal.title,
+      ownerId: deal.ownerId,
+      stageId: to.id,
+      enteredAt: now,
+      actorId: actor.userId,
+    });
     return { updated: await tx.deal.findUniqueOrThrow({ where: { id }, select: dealSelect }), from: { id: deal.stage.id, name: deal.stage.name } };
   });
 

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { CrmError, invalid, notFound } from "@/lib/crm/errors";
 import { requireRoles, type CrmActor } from "@/lib/crm/access";
 import { isSupportedCurrency, stageProbability, validateStageSet } from "@/lib/crm/deal-rules";
+import { MAX_AUTO_TASK_DAYS } from "@/lib/crm/task-rules";
 
 // Pipelines, etapas, motivos de pérdida y moneda de la organización.
 // Todo se lee con cualquier rol (el ejecutivo también ve los embudos); solo el
@@ -14,12 +15,22 @@ import { isSupportedCurrency, stageProbability, validateStageSet } from "@/lib/c
 // uno, cambia el otro. `metaEvent` es el nombre del evento de la Conversions
 // API que se reporta al entrar un negocio de anuncio (null = no se reporta).
 export const DEFAULT_STAGES = [
-  { key: "new", name: "Nuevo", color: "info", outcome: "OPEN", probability: 10, metaEvent: null },
-  { key: "contacted", name: "Contactado", color: "warning", outcome: "OPEN", probability: 25, metaEvent: "Contact" },
-  { key: "qualified", name: "Calificado", color: "accent", outcome: "OPEN", probability: 50, metaEvent: "Lead" },
-  { key: "won", name: "Ganado", color: "success", outcome: "WON", probability: 100, metaEvent: "Purchase" },
-  { key: "lost", name: "Perdido", color: "muted", outcome: "LOST", probability: 0, metaEvent: "LeadLost" },
-] as const satisfies ReadonlyArray<{ key: string; name: string; color: string; outcome: DealStatus; probability: number; metaEvent: string | null }>;
+  { key: "new", name: "Nuevo", color: "info", outcome: "OPEN", probability: 10, metaEvent: null, autoTaskTitle: null, autoTaskDueDays: null },
+  { key: "contacted", name: "Contactado", color: "warning", outcome: "OPEN", probability: 25, metaEvent: "Contact", autoTaskTitle: null, autoTaskDueDays: null },
+  { key: "qualified", name: "Calificado", color: "accent", outcome: "OPEN", probability: 50, metaEvent: "Lead", autoTaskTitle: null, autoTaskDueDays: null },
+  // Al ganar: tarea de seguimiento postventa a 7 días (migración crm_tareas).
+  { key: "won", name: "Ganado", color: "success", outcome: "WON", probability: 100, metaEvent: "Purchase", autoTaskTitle: "Seguimiento postventa", autoTaskDueDays: 7 },
+  { key: "lost", name: "Perdido", color: "muted", outcome: "LOST", probability: 0, metaEvent: "LeadLost", autoTaskTitle: null, autoTaskDueDays: null },
+] as const satisfies ReadonlyArray<{
+  key: string;
+  name: string;
+  color: string;
+  outcome: DealStatus;
+  probability: number;
+  metaEvent: string | null;
+  autoTaskTitle: string | null;
+  autoTaskDueDays: number | null;
+}>;
 
 export const DEFAULT_LOSS_REASONS = ["Precio", "Sin respuesta", "Compró con la competencia", "Ya no le interesa", "Otro"] as const;
 
@@ -46,6 +57,8 @@ async function createPipelineWithStages(tx: Prisma.TransactionClient, organizati
       outcome: s.outcome,
       probability: s.probability,
       metaEvent: s.metaEvent,
+      autoTaskTitle: s.autoTaskTitle,
+      autoTaskDueDays: s.autoTaskDueDays,
     })),
   });
   return pipeline.id;
@@ -221,6 +234,9 @@ const stageFields = {
   color: z.enum(STAGE_COLORS),
   probability: z.number().int().min(0).max(100).optional(),
   metaEvent: z.string().trim().max(60).nullable().optional(),
+  // Tarea que se crea al entrar un negocio a la etapa (título null = ninguna).
+  autoTaskTitle: z.string().trim().max(200).nullable().optional(),
+  autoTaskDueDays: z.number().int().min(0).max(MAX_AUTO_TASK_DAYS).nullable().optional(),
 };
 const stageCreateSchema = z.object({ ...stageFields, color: stageFields.color.optional(), outcome: outcomeSchema.optional(), position: z.number().int().min(0).optional() });
 const stageUpdateSchema = z.object({
@@ -229,6 +245,8 @@ const stageUpdateSchema = z.object({
   outcome: outcomeSchema.optional(),
   probability: stageFields.probability,
   metaEvent: stageFields.metaEvent,
+  autoTaskTitle: stageFields.autoTaskTitle,
+  autoTaskDueDays: stageFields.autoTaskDueDays,
 });
 
 async function checkStageSet(tx: Prisma.TransactionClient, pipelineId: string): Promise<void> {
@@ -268,6 +286,8 @@ export async function createStage(actor: CrmActor, pipelineId: string, raw: unkn
         outcome,
         probability: stageProbability(outcome, input.probability),
         metaEvent: input.metaEvent?.trim() || null,
+        autoTaskTitle: input.autoTaskTitle?.trim() || null,
+        autoTaskDueDays: input.autoTaskTitle?.trim() ? input.autoTaskDueDays ?? 0 : null,
       },
     });
     await compactPositions(tx, pipelineId);
@@ -299,6 +319,13 @@ export async function updateStage(actor: CrmActor, id: string, raw: unknown) {
     if (input.name !== undefined) data.name = input.name;
     if (input.color !== undefined) data.color = input.color;
     if (input.metaEvent !== undefined) data.metaEvent = input.metaEvent?.trim() || null;
+    if (input.autoTaskTitle !== undefined) {
+      const title = input.autoTaskTitle?.trim() || null;
+      data.autoTaskTitle = title;
+      data.autoTaskDueDays = title ? input.autoTaskDueDays ?? stage.autoTaskDueDays ?? 0 : null;
+    } else if (input.autoTaskDueDays !== undefined && stage.autoTaskTitle) {
+      data.autoTaskDueDays = input.autoTaskDueDays ?? 0;
+    }
     if (input.probability !== undefined || outcome !== stage.outcome) data.probability = stageProbability(outcome, input.probability ?? stage.probability);
     const updated = await tx.pipelineStage.update({ where: { id }, data });
     await checkStageSet(tx, stage.pipelineId);
