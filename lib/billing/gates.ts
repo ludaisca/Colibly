@@ -119,17 +119,18 @@ export function readOnlyResponse() {
   );
 }
 
-export type LimitKey = "users" | "channels" | "contacts" | "activeAutomations";
+export type LimitKey = "users" | "channels" | "contacts" | "activeAutomations" | "pipelines";
 
 export interface OrgUsage {
   users: number; // activos + invitaciones pendientes
   channels: number; // sin contar el widget web
   contacts: number; // personas no archivadas
   activeAutomations: number;
+  pipelines: number; // no archivados
 }
 
 export async function getOrgUsage(organizationId: string): Promise<OrgUsage> {
-  const [users, invites, wa, channels, contacts, activeAutomations] = await Promise.all([
+  const [users, invites, wa, channels, contacts, activeAutomations, pipelines] = await Promise.all([
     prisma.user.count({ where: { organizationId, disabledAt: null } }),
     prisma.authToken.count({ where: { organizationId, type: "INVITE", usedAt: null, expiresAt: { gt: new Date() } } }),
     prisma.wAAccount.count({ where: { organizationId } }),
@@ -138,8 +139,9 @@ export async function getOrgUsage(organizationId: string): Promise<OrgUsage> {
     // canales cuenta una sola vez.
     prisma.person.count({ where: { organizationId, archivedAt: null } }),
     prisma.automation.count({ where: { organizationId, status: "ACTIVE" } }),
+    prisma.pipeline.count({ where: { organizationId, archivedAt: null } }),
   ]);
-  return { users: users + invites, channels: wa + channels, contacts, activeAutomations };
+  return { users: users + invites, channels: wa + channels, contacts, activeAutomations, pipelines };
 }
 
 function limitMessage(key: LimitKey, planName: string, max: number): string {
@@ -152,6 +154,8 @@ function limitMessage(key: LimitKey, planName: string, max: number): string {
       return `Llegaste al límite de ${max.toLocaleString("es-MX")} contactos de tu plan ${planName}. Los mensajes entrantes se siguen guardando; mejora tu plan para agregar más.`;
     case "activeAutomations":
       return `Tu plan ${planName} permite ${max} automatizaciones activas. Pausa otra o mejora tu plan.`;
+    case "pipelines":
+      return `Tu plan ${planName} permite ${max} ${max === 1 ? "pipeline de ventas" : "pipelines de ventas"}. Archiva otro o mejora tu plan.`;
   }
 }
 

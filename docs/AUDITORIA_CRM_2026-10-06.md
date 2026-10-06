@@ -170,8 +170,17 @@ Embudo con conversión por etapa y tiempo en etapa, tasa de cierre, ciclo de ven
 - Criterios: rendimiento por fecha de cierre; atribución y embudo por cohorte de negocios creados en el periodo. Tasas sin base devuelven `null`. El ejecutivo solo ve lo suyo.
 - Verificación: 13 pruebas puras nuevas y 13 de integración contra la base real con negocios de fechas controladas (cifras calculadas a mano, incluido el periodo anterior, archivados, saltos de etapa, ejecutivo y otra organización).
 
-### Fase 5 — Integración y cierre
+### Fase 5 — Integración y cierre (detalle del plan)
 `/api/v1` para personas, empresas, negocios y tareas + **OpenAPI al mismo tiempo**; eventos y webhooks nuevos en el catálogo; pasos de automatización "crear negocio / mover etapa / crear tarea"; límites de plan (decisión 3); textos de la landing y del plan; exportación/borrado de organización completos; barrido de aislamiento final con dos organizaciones.
+
+#### Resultado de la Fase 5 (rama `feat/crm-fase-0`)
+- **API v1**: `/people`, `/companies`, `/tasks` (alta, edición, `{id}`, borrar tareas) y `/reports/*`, con permisos nuevos (`people:*`, `companies:*`, `tasks:*`, `reports:read`) y OpenAPI al mismo tiempo. Las keys limitadas a cuentas solo ven personas con canal en ellas, sus empresas y sus tareas, y no pueden crear personas/empresas ni leer reportes. Escrituras por los mismos servicios que la interfaz (reglas, historial, eventos y límites idénticos).
+- **Eventos y webhooks**: `task.created`, `task.completed`, `person.created`. Son eventos **de toda la organización** (sin cuenta): llegan solo a webhooks sin recorte de cuentas. Con ello los `deal.*` de negocios sin conversación (importados, abiertos a mano) ya también se emiten.
+- **Automatizaciones**: paso nuevo "Crear tarea" (título con variables, tipo, plazo, responsable: el del contacto / quien tenga el chat / una persona). "Crear negocio / mover etapa" ya existían como "Mover negocio".
+- **Límites de plan (decisión 3)**: único límite nuevo, **pipelines de ventas: Básico 1, Pro 5** (los archivados no cuentan; restaurar uno también cuenta). Tareas, negocios y reportes sin tope; la API sigue siendo solo Pro. Se cambia en `lib/billing/plans.ts`. Visible en la pantalla del plan y en la landing.
+- **Textos**: tarjeta "Sabes quién está listo para comprar" de la landing y lista de características de los planes (salen de `plans.ts`/`plan-features.ts`). **Pendiente de revisión legal**: el aviso de privacidad describe los datos que se tratan; no se tocó (borrador a cargo de un abogado) aunque ahora el CRM guarda también negocios, importes, tareas y notas de actividad.
+- **Exportación/borrado completos**: la exportación suma tareas, vistas guardadas, historial y las reglas de etapa; borrar una organización poblada deja vacías todas las tablas con `organization_id`.
+- **Verificación**: 60 comprobaciones de la API v1 con key completa, recortada, de solo lectura y de otra organización (incluye paginación por cursor, duplicados, versiones y alcance); 51 de aislamiento entre organizaciones sobre todas las rutas `/api/crm/*` (22 intentos de B sobre ids de A, todos 404), listados, exportación y reportes; webhooks reales contra un receptor local (organización completa vs recortada a una cuenta); pruebas puras del paso `create_task` y del límite de pipelines; barrido de borrado.
 
 ## 6. Riesgos
 

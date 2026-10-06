@@ -82,6 +82,15 @@ export function ApiDocsSection() {
   -H "Authorization: Bearer $COLIBLY_API_KEY" -H "Content-Type: application/json" \\
   -d '{ "stageId": "<id de la etapa Ganado>", "amount": 4800 }'`}</Code>
         <p className="text-sm text-muted">
+          Crear una tarea de seguimiento para una persona (con aviso a la hora) y consultar el pronóstico de ventas:
+        </p>
+        <Code>{`curl -X POST ${base}/tasks \\
+  -H "Authorization: Bearer $COLIBLY_API_KEY" -H "Content-Type: application/json" \\
+  -d '{ "title": "Llamar para cerrar", "kind": "CALL", "personId": "<id de la persona>",
+        "dueAt": "2026-10-20T16:00:00Z" }'
+
+curl "${base}/reports/forecast" -H "Authorization: Bearer $COLIBLY_API_KEY"`}</Code>
+        <p className="text-sm text-muted">
           Enviar una plantilla aprobada (abre el chat si el contacto aún no escribió). Texto y botones solo dentro de la ventana de
           24 h de WhatsApp; fuera de ella la API responde <code className="font-mono text-xs">422 window_closed</code>:
         </p>

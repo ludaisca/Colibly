@@ -104,6 +104,20 @@ export type Step = StepBase &
     // Mueve el negocio abierto del contacto (en el pipeline de esa etapa) o abre
     // uno si no tiene. `lostReasonId` es obligatorio si la etapa es de pérdida.
     | { type: "set_deal_stage"; config: { stageId: string; lostReasonId: string | null } }
+    // Crea una tarea de seguimiento ligada al contacto (y a su negocio abierto, si
+    // lo tiene). `dueInMinutes` null = sin fecha. El responsable es el del contacto
+    // ("owner"), el que tenga el chat asignado ("chat") o una persona ("user"); si
+    // no se puede resolver, la tarea queda para el dueño de la automatización.
+    | {
+        type: "create_task";
+        config: {
+          title: string;
+          kind: "TODO" | "CALL" | "MESSAGE" | "EMAIL" | "MEETING";
+          dueInMinutes: number | null;
+          assignee: "owner" | "chat" | "user";
+          userId: string | null;
+        };
+      }
     | { type: "set_custom_field"; config: { key: string; value: string } }
     | { type: "assign"; config: { mode: "user" | "auto"; userId: string | null } }
     | { type: "notify_team"; config: { target: "assignee" | "user"; userId: string | null; title: string; body: string } }

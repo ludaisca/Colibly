@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { CrmError, invalid, notFound } from "@/lib/crm/errors";
 import { requireRoles, type CrmActor } from "@/lib/crm/access";
+import { evaluatePlanLimit } from "@/lib/billing/gates";
 import { isSupportedCurrency, stageProbability, validateStageSet } from "@/lib/crm/deal-rules";
 import { MAX_AUTO_TASK_DAYS } from "@/lib/crm/task-rules";
 
@@ -162,9 +163,15 @@ const pipelineUpdateSchema = z.object({
   archived: z.boolean().optional(),
 });
 
+async function assertPipelineLimit(organizationId: string): Promise<void> {
+  const exceeded = await evaluatePlanLimit(organizationId, "pipelines");
+  if (exceeded) throw new CrmError(402, "plan_limit", exceeded.message, { limit: "pipelines", current: exceeded.current, max: exceeded.max });
+}
+
 export async function createPipeline(actor: CrmActor, raw: unknown) {
   requireRoles(actor, ["admin"]);
   const input = pipelineCreateSchema.parse(raw);
+  await assertPipelineLimit(actor.organizationId);
   return prisma.$transaction(async (tx) => {
     const existing = await tx.pipeline.findMany({ where: { organizationId: actor.organizationId, archivedAt: null }, select: { name: true } });
     if (existing.length >= MAX_PIPELINES) throw invalid(`Máximo ${MAX_PIPELINES} pipelines`);
@@ -200,6 +207,8 @@ export async function updatePipeline(actor: CrmActor, id: string, raw: unknown) 
       if (open) throw new CrmError(409, "pipeline_has_open_deals", `Aún tiene ${open} negocio(s) abiertos: ciérralos o muévelos a otro pipeline`, { open });
       data.archivedAt = new Date();
     } else if (input.archived === false && pipeline.archivedAt) {
+      // Restaurar uno cuenta como crear otro: tampoco se salta el límite del plan.
+      await assertPipelineLimit(actor.organizationId);
       data.archivedAt = null;
     }
 

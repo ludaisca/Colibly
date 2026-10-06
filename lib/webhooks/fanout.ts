@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { webhookDeliveryQueue } from "@/lib/queue";
 import type { DomainEvent } from "@/lib/events/types";
-import { resolveIntegrationScope, scopeIncludes, type ResolvedScope } from "@/lib/integrations/account-scope";
+import { isRestricted, resolveIntegrationScope, scopeIncludes, type ResolvedScope } from "@/lib/integrations/account-scope";
 import { buildPublicEvent, type PublicEvent } from "./payload";
 import { hasApiAccess, isOrgWritable } from "@/lib/billing/gates";
 
@@ -31,12 +31,15 @@ export async function fanOutToWebhooks(event: DomainEvent): Promise<number> {
   };
 
   for (const endpoint of endpoints) {
+    // Un evento de toda la organización (sin cuenta) solo llega a webhooks de esa
+    // organización que no estén recortados a cuentas: no hay cómo saber a cuál pertenece.
+    if (!event.account && (endpoint.organizationId !== event.organizationId || isRestricted(endpoint))) continue;
     if (!(await orgCanReceive(endpoint.organizationId))) continue;
     const scopeKey = `${endpoint.userId}:${endpoint.accountIds.join(",")}:${endpoint.channelAccountIds.join(",")}`;
     if (!scopeByOwner.has(scopeKey)) {
       scopeByOwner.set(scopeKey, resolveIntegrationScope(endpoint.userId, endpoint));
     }
-    if (!scopeIncludes(await scopeByOwner.get(scopeKey)!, event.account)) continue;
+    if (event.account && !scopeIncludes(await scopeByOwner.get(scopeKey)!, event.account)) continue;
 
     payload ??= await buildPublicEvent(event);
     const delivery = await createDelivery(endpoint.id, payload);

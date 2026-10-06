@@ -7,6 +7,24 @@ import { buttons, graph, text } from "./helpers";
 
 const messages = (issues: { message: string }[]) => issues.map((i) => i.message);
 
+describe("validateGraph — crear tarea", () => {
+  const task = (config: Partial<Extract<Step, { type: "create_task" }>["config"]>): Step => ({
+    id: "t",
+    type: "create_task",
+    config: { title: "Seguir", kind: "TODO", dueInMinutes: 60, assignee: "owner", userId: null, ...config },
+  });
+  it("una tarea completa no tiene errores", () => {
+    expect(hasErrors(validateGraph(graph([task({})]), "WHATSAPP"))).toBe(false);
+    expect(hasErrors(validateGraph(graph([task({ dueInMinutes: null })]), "WHATSAPP"))).toBe(false);
+  });
+  it("exige título, plazo válido y responsable cuando es una persona", () => {
+    expect(messages(validateGraph(graph([task({ title: "  " })]), "WHATSAPP")).join()).toContain("qué hay que hacer");
+    expect(messages(validateGraph(graph([task({ title: "x".repeat(201) })]), "WHATSAPP")).join()).toContain("200 caracteres");
+    expect(messages(validateGraph(graph([task({ dueInMinutes: -5 })]), "WHATSAPP")).join()).toContain("plazo");
+    expect(messages(validateGraph(graph([task({ assignee: "user" })]), "WHATSAPP")).join()).toContain("a quién asignar");
+  });
+});
+
 describe("validateGraph", () => {
   it("un grafo correcto no tiene errores", () => {
     const g = graph([text("a", "Hola"), buttons("q", ["Sí", "No"])]);

@@ -232,6 +232,12 @@ function validateStep(
     case "set_deal_stage":
       if (!step.config.stageId) err(id, "Elige la etapa a la que se mueve el negocio");
       break;
+    case "create_task":
+      if (!step.config.title.trim()) err(id, "Escribe qué hay que hacer");
+      else if (step.config.title.length > 200) err(id, "El título de la tarea admite hasta 200 caracteres");
+      if (step.config.dueInMinutes !== null && !(step.config.dueInMinutes >= 0 && step.config.dueInMinutes <= 525_600)) err(id, "El plazo de la tarea debe ser de 0 minutos a 1 año");
+      if (step.config.assignee === "user" && !step.config.userId) err(id, "Elige a quién asignar la tarea");
+      break;
   }
 }
 

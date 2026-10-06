@@ -31,6 +31,22 @@ export interface DealEventData {
   lostReason: { id: string; name: string } | null;
 }
 
+// Eventos de tareas y de personas: son de toda la organización (no cuelgan de
+// una conversación), así que viajan sin cuenta, con `organizationId`.
+export interface TaskEventData {
+  taskId: string;
+  title: string;
+  kind: string;
+  status: "OPEN" | "DONE";
+  dueAt: string | null;
+  assigneeId: string | null;
+  completedById: string | null;
+  personId: string | null;
+  companyId: string | null;
+  dealId: string | null;
+  source: string;
+}
+
 interface EventDataMap {
   "message.received": { messageId: string; messageType: string; text: string | null; interactiveReplyId: string | null };
   "message.sent": { messageId: string; messageType: string; text: string | null; source: MessageSource; senderId: string | null };
@@ -39,6 +55,9 @@ interface EventDataMap {
   "deal.stage_changed": DealEventData;
   "deal.won": DealEventData;
   "deal.lost": DealEventData;
+  "task.created": TaskEventData;
+  "task.completed": TaskEventData;
+  "person.created": { personId: string; name: string; email: string | null; phone: string | null; source: string | null };
   "tag.added": { tagId: string; tagName: string; target: "contact" | "conversation" };
   "conversation.assigned": { assignedToId: string | null; auto: boolean };
   "conversation.resolved": Record<string, never>;
@@ -53,7 +72,10 @@ export type DomainEventType = keyof EventDataMap;
 export type DomainEventInput = {
   [T in DomainEventType]: {
     type: T;
-    account: AccountRef;
+    // Null = hecho de toda la organización (tareas, personas, negocios sin
+    // conversación): entonces `organizationId` es obligatorio.
+    account: AccountRef | null;
+    organizationId?: string;
     contactId: string | null;
     chat: ChatRef | null;
     data: EventDataMap[T];
@@ -69,6 +91,9 @@ export const DOMAIN_EVENT_CATALOG: Record<DomainEventType, string> = {
   "message.received": "Mensaje recibido de un contacto",
   "message.sent": "Mensaje enviado por un agente, la API o una automatización",
   "contact.created": "Contacto nuevo",
+  "person.created": "Contacto (persona) nuevo, de cualquier origen: chat, importación, API o alta manual",
+  "task.created": "Tarea creada",
+  "task.completed": "Tarea completada",
   "deal.created": "Negocio nuevo",
   "deal.stage_changed": "Un negocio cambió de etapa",
   "deal.won": "Negocio ganado",

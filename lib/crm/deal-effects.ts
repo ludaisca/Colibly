@@ -16,6 +16,7 @@ async function loadContext(dealId: string) {
     where: { id: dealId },
     select: {
       id: true,
+      organizationId: true,
       title: true,
       amount: true,
       personId: true,
@@ -69,20 +70,23 @@ async function enqueueConversion(deal: Ctx): Promise<void> {
 async function runEffects(deal: Ctx, from: { id: string; name: string } | null, created: boolean): Promise<void> {
   await enqueueConversion(deal);
 
-  if (!deal.contactId) return;
-  await enrollContactInTrigger("DEAL_STAGE_CHANGED", deal.stage.id, deal.contactId).catch((err) =>
-    console.error("[deals] enrollContactInTrigger falló:", err)
-  );
+  if (deal.contactId) {
+    await enrollContactInTrigger("DEAL_STAGE_CHANGED", deal.stage.id, deal.contactId).catch((err) =>
+      console.error("[deals] enrollContactInTrigger falló:", err)
+    );
+  }
 
-  const refs = await eventRefsForContact(deal.contactId);
-  if (!refs) return;
+  // Con conversación, el evento cuelga de su cuenta; sin ella (contacto
+  // importado, negocio abierto a mano) es un evento de toda la organización.
+  const refs = deal.contactId ? await eventRefsForContact(deal.contactId) : null;
+  const base = refs ?? { account: null, organizationId: deal.organizationId, chat: null, contactId: null };
   const data = eventData(deal, from);
   if (created) {
-    await emitDomainEvent({ type: "deal.created", ...refs, data });
+    await emitDomainEvent({ type: "deal.created", ...base, data });
   } else {
-    await emitDomainEvent({ type: "deal.stage_changed", ...refs, data });
-    if (deal.stage.outcome === "WON") await emitDomainEvent({ type: "deal.won", ...refs, data });
-    if (deal.stage.outcome === "LOST") await emitDomainEvent({ type: "deal.lost", ...refs, data });
+    await emitDomainEvent({ type: "deal.stage_changed", ...base, data });
+    if (deal.stage.outcome === "WON") await emitDomainEvent({ type: "deal.won", ...base, data });
+    if (deal.stage.outcome === "LOST") await emitDomainEvent({ type: "deal.lost", ...base, data });
   }
 }
 

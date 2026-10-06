@@ -33,6 +33,7 @@ export const STEP_ICON: Record<StepType, React.ElementType> = {
   add_tag: Tag,
   remove_tag: TagsIcon,
   set_deal_stage: KanbanSquare,
+  create_task: ListChecks,
   set_custom_field: FormInput,
   assign: UserPlus,
   notify_team: BellRing,
@@ -54,7 +55,7 @@ export function stepTone(type: StepType): "accent" | "info" | "warning" | "neutr
   if (type === "wait" || type === "wait_for_reply") return "warning";
   if (type === "condition") return "neutral";
   if (type === "handoff" || type === "end" || type === "webhook") return "neutral";
-  if (["add_tag", "remove_tag", "set_deal_stage", "set_custom_field", "assign", "notify_team"].includes(type)) return "success";
+  if (["add_tag", "remove_tag", "set_deal_stage", "create_task", "set_custom_field", "assign", "notify_team"].includes(type)) return "success";
   return "accent";
 }
 

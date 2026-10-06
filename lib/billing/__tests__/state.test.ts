@@ -32,6 +32,11 @@ describe("planLimits", () => {
     expect(planLimits({ plan: "BASIC", isInternal: false })).toMatchObject({ users: 2, channels: 1, apiAccess: false });
     expect(planLimits({ plan: "PRO", isInternal: false }).activeAutomations).toBe(Infinity);
   });
+  it("pipelines de ventas: Básico 1, Pro 5, interna sin tope", () => {
+    expect(planLimits({ plan: "BASIC", isInternal: false }).pipelines).toBe(1);
+    expect(planLimits({ plan: "PRO", isInternal: false }).pipelines).toBe(5);
+    expect(planLimits({ plan: "BASIC", isInternal: true }).pipelines).toBe(Infinity);
+  });
   it("interna: sin topes", () => expect(planLimits({ plan: "BASIC", isInternal: true }).contacts).toBe(Infinity));
 });
 

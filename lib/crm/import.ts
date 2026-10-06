@@ -7,6 +7,7 @@ import { requireRoles, type CrmActor } from "@/lib/crm/access";
 import { companyNameKey } from "@/lib/crm/normalize";
 import { buildImportPreview, companyNamesToResolve, ImportInputError, type ImportPreview } from "@/lib/crm/import-csv";
 import { importSchema } from "@/lib/crm/schemas";
+import { emitPersonCreated } from "@/lib/crm/task-events";
 
 // Importación CSV de contactos: previsualiza (sin escribir) y aplica. Solo
 // admin y user. La previsualización devuelve una huella (archivo + mapeo): la
@@ -60,7 +61,7 @@ export async function applyPeopleImport(actor: CrmActor, raw: unknown) {
 
   const orgId = actor.organizationId;
   try {
-    return await prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx) => {
         await tx.importRun.create({
           data: { organizationId: orgId, userId: actor.userId, fingerprint: preview.fingerprint, summary: preview.counts },
@@ -95,10 +96,13 @@ export async function applyPeopleImport(actor: CrmActor, raw: unknown) {
         await tx.activityLog.createMany({
           data: people.map((p) => ({ organizationId: orgId, actorId: actor.userId, type: "person.created", personId: p.id, data: { source: "import" } })),
         });
-        return { imported: people.length, companiesCreated: missing.length, skipped: { duplicate: preview.counts.duplicate, error: preview.counts.error } };
+        return { ids: people.map((p) => p.id), imported: people.length, companiesCreated: missing.length, skipped: { duplicate: preview.counts.duplicate, error: preview.counts.error } };
       },
       { timeout: 60_000, maxWait: 10_000 }
     );
+    const { ids, ...summary } = result;
+    for (const id of ids) void emitPersonCreated(id);
+    return summary;
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       throw new CrmError(409, "duplicate_import", "Este archivo ya se importó");

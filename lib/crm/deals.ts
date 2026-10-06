@@ -6,6 +6,7 @@ import { isRestricted, requireRoles, type CrmActor } from "@/lib/crm/access";
 import { logActivity } from "@/lib/crm/activity";
 import { validateOwner, validateCompany } from "@/lib/crm/people";
 import { ensureDefaultPipeline } from "@/lib/crm/pipelines";
+import { emitTaskEvent } from "@/lib/crm/task-events";
 import { createStageTask } from "@/lib/crm/stage-tasks";
 import { afterDealCreated, afterDealStageChanged } from "@/lib/crm/deal-effects";
 import { defaultDealTitle, effectiveProbability, planTransition, roundMoney, weightedAmount } from "@/lib/crm/deal-rules";
@@ -201,6 +202,7 @@ export async function createDeal(actor: CrmActor, raw: unknown) {
     if (ownerId) await validateOwner(actor.organizationId, ownerId);
   }
 
+  let stageTaskId: string | null = null;
   const deal = await prisma.$transaction(async (tx) => {
     const created = await tx.deal.create({
       data: {
@@ -232,7 +234,7 @@ export async function createDeal(actor: CrmActor, raw: unknown) {
       personId: person.id,
       data: { dealId: created.id, stage: stage.name },
     });
-    await createStageTask(tx, {
+    stageTaskId = await createStageTask(tx, {
       organizationId: actor.organizationId,
       dealId: created.id,
       personId: person.id,
@@ -246,6 +248,7 @@ export async function createDeal(actor: CrmActor, raw: unknown) {
   });
 
   void afterDealCreated(deal.id);
+  if (stageTaskId) void emitTaskEvent("task.created", stageTaskId);
   return serializeDeal(deal);
 }
 
@@ -324,6 +327,7 @@ export async function moveDeal(actor: CrmActor, id: string, raw: unknown) {
   if (plan.lostReasonId) await validateLossReason(actor.organizationId, plan.lostReasonId);
   const expected = input.expectedVersion ?? deal.version;
 
+  let stageTaskId: string | null = null;
   const { updated, from } = await prisma.$transaction(async (tx) => {
     const res = await tx.deal.updateMany({
       where: { id, organizationId: actor.organizationId, version: expected },
@@ -374,7 +378,7 @@ export async function moveDeal(actor: CrmActor, id: string, raw: unknown) {
       }
     }
     // Regla de la etapa: tarea de seguimiento al entrar (p. ej. postventa al ganar).
-    await createStageTask(tx, {
+    stageTaskId = await createStageTask(tx, {
       organizationId: actor.organizationId,
       dealId: id,
       personId: deal.personId,
@@ -388,6 +392,7 @@ export async function moveDeal(actor: CrmActor, id: string, raw: unknown) {
   });
 
   void afterDealStageChanged(updated.id, from);
+  if (stageTaskId) void emitTaskEvent("task.created", stageTaskId);
   return serializeDeal(updated);
 }
 

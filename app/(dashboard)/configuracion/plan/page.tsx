@@ -49,6 +49,7 @@ export default async function PlanPage() {
       { key: "channels", label: "Canales registrados", hint: "WhatsApp, Telegram, Messenger e Instagram. El widget web no cuenta", used: usage.channels, max: finite(limits.channels) },
       { key: "contacts", label: "Contactos", hint: null, used: usage.contacts, max: finite(limits.contacts) },
       { key: "automations", label: "Automatizaciones activas", hint: null, used: usage.activeAutomations, max: finite(limits.activeAutomations) },
+      { key: "pipelines", label: "Pipelines de ventas", hint: "Los archivados no cuentan", used: usage.pipelines, max: finite(limits.pipelines) },
       {
         key: "ai",
         label: "Créditos de IA este mes",

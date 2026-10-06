@@ -36,6 +36,9 @@ const CODE_MAP: Record<string, ApiErrorCode> = {
   forbidden: "forbidden",
   version_conflict: "conflict",
   duplicate_name: "conflict",
+  duplicate_person: "conflict",
+  duplicate_import: "conflict",
+  plan_limit: "plan_limit",
 };
 
 // Errores del servicio CRM → forma de error de la API pública.

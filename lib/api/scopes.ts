@@ -3,6 +3,13 @@
 export const API_SCOPES = {
   "contacts:read": "Leer contactos, etiquetas y campos",
   "contacts:write": "Crear y editar contactos y etiquetas",
+  "people:read": "Leer personas (contactos del CRM)",
+  "people:write": "Crear y editar personas",
+  "companies:read": "Leer empresas",
+  "companies:write": "Crear y editar empresas",
+  "tasks:read": "Leer tareas",
+  "tasks:write": "Crear, editar, completar y borrar tareas",
+  "reports:read": "Leer reportes de ventas (embudo, pronóstico…)",
   "deals:read": "Leer pipelines y negocios",
   "deals:write": "Crear negocios, editarlos, moverlos de etapa y cerrarlos",
   "conversations:read": "Leer conversaciones y mensajes",

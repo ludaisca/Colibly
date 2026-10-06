@@ -14,6 +14,8 @@ export interface PlanLimits {
   aiCreditsPerMonth: number;
   // Automatizaciones ACTIVAS a la vez (Infinity = sin límite).
   activeAutomations: number;
+  // Pipelines de ventas NO archivados a la vez (cada uno con sus etapas).
+  pipelines: number;
   apiAccess: boolean;
 }
 
@@ -31,14 +33,14 @@ export const PLANS: Record<PlanId, Plan> = {
     name: "Básico",
     priceUsd: 5,
     tagline: "Para empezar a vender por chat",
-    limits: { users: 2, channels: 1, contacts: 1000, aiCreditsPerMonth: 300, activeAutomations: 5, apiAccess: false },
+    limits: { users: 2, channels: 1, contacts: 1000, aiCreditsPerMonth: 300, activeAutomations: 5, pipelines: 1, apiAccess: false },
   },
   PRO: {
     id: "PRO",
     name: "Pro",
     priceUsd: 10,
     tagline: "Para equipos con varios canales",
-    limits: { users: 5, channels: 3, contacts: 5000, aiCreditsPerMonth: 1000, activeAutomations: Infinity, apiAccess: true },
+    limits: { users: 5, channels: 3, contacts: 5000, aiCreditsPerMonth: 1000, activeAutomations: Infinity, pipelines: 5, apiAccess: true },
   },
 };
 

@@ -45,6 +45,10 @@ export function fakeAdapters(overrides: Partial<Facts> = {}) {
       calls.push({ op: "setDealStage", arg: lostReasonId ? { stageId, lostReasonId } : stageId });
       return { summary: `Negocio movido a ${stageId}` };
     },
+    createTask: async (input) => {
+      calls.push({ op: "createTask", arg: input });
+      return { summary: `Tarea creada: ${input.title}` };
+    },
     setCustomField: async (k, v) => {
       facts.customFields[k] = v;
       calls.push({ op: "setCustomField", arg: [k, v] });

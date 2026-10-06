@@ -12,6 +12,8 @@ export function planFeatures(plan: Plan): Array<{ text: string; included: boolea
     { text: `${n(l.contacts)} contactos`, included: true },
     { text: `${n(l.aiCreditsPerMonth)} créditos de IA al mes`, included: true },
     { text: Number.isFinite(l.activeAutomations) ? `${l.activeAutomations} automatizaciones activas` : "Automatizaciones ilimitadas", included: true },
+    { text: l.pipelines === 1 ? "1 pipeline de ventas" : `${n(l.pipelines)} pipelines de ventas`, included: true },
+    { text: "Tareas, línea de tiempo, Mi día y reportes de ventas", included: true },
     { text: "API y webhooks", included: l.apiAccess },
   ];
 }

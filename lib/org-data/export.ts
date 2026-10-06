@@ -200,6 +200,34 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
   }
   yield "]";
 
+  // Vistas guardadas del directorio de contactos.
+  yield `,"savedViews":${JSON.stringify(
+    (await prisma.savedView.findMany({ where: { organizationId }, orderBy: { createdAt: "asc" }, select: { id: true, entity: true, name: true, filters: true, shared: true, createdAt: true, user: { select: { email: true } } } })).map(
+      ({ user, ...v }) => ({ ...v, owner: user.email })
+    )
+  )}`;
+
+  // Historial de contactos y empresas (altas, ediciones, negocios, tareas, fusiones).
+  yield `,"activity":[`;
+  let firstActivity = true;
+  for (let cursor: string | undefined; ; ) {
+    const page = await prisma.activityLog.findMany({
+      where: { organizationId },
+      orderBy: { id: "asc" },
+      take: PAGE,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      select: { id: true, type: true, data: true, personId: true, companyId: true, createdAt: true, actor: { select: { email: true } } },
+    });
+    for (const a of page) {
+      const { actor, ...rest } = a;
+      yield (firstActivity ? "" : ",") + JSON.stringify({ ...rest, actor: actor?.email ?? null });
+      firstActivity = false;
+    }
+    if (page.length < PAGE) break;
+    cursor = page[page.length - 1].id;
+  }
+  yield "]";
+
   // Contactos con etiquetas, campos personalizados, notas y citas.
   yield `,"contacts":[`;
   let first = true;

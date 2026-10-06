@@ -49,6 +49,7 @@ export interface ExecutorAdapters {
   addTag(name: string): Promise<void>;
   removeTag(name: string): Promise<void>;
   setDealStage(stageId: string, lostReasonId: string | null): Promise<{ summary: string }>;
+  createTask(input: { title: string; kind: string; dueInMinutes: number | null; assignee: "owner" | "chat" | "user"; userId: string | null }): Promise<{ summary: string }>;
   setCustomField(key: string, value: string): Promise<void>;
   assign(mode: "user" | "auto", userId: string | null): Promise<void>;
   notifyTeam(target: "assignee" | "user", userId: string | null, title: string, body: string): Promise<void>;
@@ -254,6 +255,12 @@ export async function execute(graph: Graph, initial: RunState, input: RunInput, 
       case "set_deal_stage": {
         const { summary } = await adapters.setDealStage(step.config.stageId, step.config.lostReasonId);
         invalidateFacts();
+        log(step, "ok", summary);
+        state.nodeId = next;
+        break;
+      }
+      case "create_task": {
+        const { summary } = await adapters.createTask({ ...step.config, title: (await render(step.config.title)).trim().slice(0, 200) });
         log(step, "ok", summary);
         state.nodeId = next;
         break;

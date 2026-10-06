@@ -53,7 +53,7 @@ export async function validateForPublish(
     }
   }
 
-  const assignees = steps.some((s) => (s.type === "assign" && s.config.mode === "user") || (s.type === "notify_team" && s.config.target === "user"))
+  const assignees = steps.some((s) => (s.type === "assign" && s.config.mode === "user") || (s.type === "notify_team" && s.config.target === "user") || (s.type === "create_task" && s.config.assignee === "user"))
     ? (scope.waAccountId ? await getEligibleAssignees(scope.waAccountId) : await getEligibleChannelAssignees(scope.channelAccountId!)).map((u) => u.id)
     : [];
   const fieldKeys = new Set(
@@ -70,6 +70,9 @@ export async function validateForPublish(
       err(s.id, "Ese usuario no tiene acceso a esta cuenta");
     }
     if (s.type === "notify_team" && s.config.target === "user" && s.config.userId && !assignees.includes(s.config.userId)) {
+      err(s.id, "Ese usuario no tiene acceso a esta cuenta");
+    }
+    if (s.type === "create_task" && s.config.assignee === "user" && s.config.userId && !assignees.includes(s.config.userId)) {
       err(s.id, "Ese usuario no tiene acceso a esta cuenta");
     }
     const key =

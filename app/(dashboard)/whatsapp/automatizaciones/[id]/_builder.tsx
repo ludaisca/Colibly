@@ -288,6 +288,7 @@ export function stepSummary(step: Step): string {
     case "webhook":
       return `${step.config.method} ${step.config.url}`;
     case "notify_team":
+    case "create_task":
       return step.config.title;
     case "assign":
       return step.config.mode === "auto" ? "Autoasignación de la cuenta" : "A una persona";

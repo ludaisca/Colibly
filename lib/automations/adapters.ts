@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { botQueue } from "@/lib/queue";
 import { sendOutbound, OutboundError, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
 import { createDeal, moveDeal } from "@/lib/crm/deals";
+import { createTask } from "@/lib/crm/tasks";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { setCustomFieldsByKey } from "@/lib/contacts/custom-fields";
 import { findOrCreateTag } from "@/lib/tags";
@@ -194,6 +195,35 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
       if (stage.outcome !== "OPEN") return { summary: `Sin negocio abierto que mover a ${stage.name}` };
       await createDeal(actor, { personId: contact.personId, contactId: contact.id, stageId: stage.id, source: "automation" });
       return { summary: `Negocio abierto en ${stage.name}` };
+    },
+
+    async createTask({ title, kind, dueInMinutes, assignee, userId }) {
+      const contact = await contactOwner();
+      const person = await prisma.person.findUnique({ where: { id: contact.personId }, select: { ownerId: true } });
+      const deal = await prisma.deal.findFirst({
+        where: { personId: contact.personId, status: "OPEN", archivedAt: null },
+        orderBy: { stageEnteredAt: "desc" },
+        select: { id: true },
+      });
+      let assigneeId: string | null =
+        assignee === "user" ? userId : assignee === "chat" ? await currentAssignee() : person?.ownerId ?? (await currentAssignee());
+      // Un responsable que ya no es de la organización o está desactivado se
+      // reemplaza por el dueño de la automatización (la tarea no se pierde).
+      if (assigneeId) {
+        const ok = await prisma.user.findFirst({ where: { id: assigneeId, organizationId: ctx.organizationId, disabledAt: null }, select: { id: true } });
+        if (!ok) assigneeId = null;
+      }
+      const actor = { userId: ctx.ownerId, organizationId: ctx.organizationId, role: "admin" as const };
+      await createTask(actor, {
+        title,
+        kind,
+        personId: contact.personId,
+        dealId: deal?.id ?? null,
+        dueAt: dueInMinutes === null ? null : new Date(Date.now() + dueInMinutes * 60_000).toISOString(),
+        assigneeId: assigneeId ?? ctx.ownerId,
+        source: "automation",
+      });
+      return { summary: `Tarea creada: ${title}` };
     },
 
     async setCustomField(key, value) {

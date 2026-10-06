@@ -23,12 +23,15 @@ export interface PublicEvent {
 }
 
 export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent> {
-  const isWhatsapp = event.account.kind === "whatsapp";
+  const ref = event.account;
+  const isWhatsapp = ref?.kind === "whatsapp";
 
   const [account, contact, conversation] = await Promise.all([
-    isWhatsapp
-      ? prisma.wAAccount.findUnique({ where: { id: event.account.id }, select: { id: true, name: true } })
-      : prisma.channelAccount.findUnique({ where: { id: event.account.id }, select: { id: true, name: true } }),
+    !ref
+      ? null
+      : ref.kind === "whatsapp"
+        ? prisma.wAAccount.findUnique({ where: { id: ref.id }, select: { id: true, name: true } })
+        : prisma.channelAccount.findUnique({ where: { id: ref.id }, select: { id: true, name: true } }),
     event.contactId
       ? prisma.contact.findUnique({
           where: { id: event.contactId },
@@ -42,13 +45,13 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
       : null,
   ]);
 
-  const channel = event.account.kind === "whatsapp" ? "WHATSAPP" : event.account.channel;
+  const channel = !ref ? null : ref.kind === "whatsapp" ? "WHATSAPP" : ref.channel;
 
   return {
     id: event.id,
     type: event.type,
     occurredAt: event.occurredAt,
-    account: account ? { id: account.id, channel, name: account.name } : null,
+    account: account && channel ? { id: account.id, channel, name: account.name } : null,
     contact: contact
       ? {
           id: contact.id,
@@ -58,7 +61,7 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
           leadOrigin: contact.leadOrigin,
         }
       : null,
-    conversation: conversation
+    conversation: conversation && channel
       ? { id: conversation.id, channel, status: conversation.status, assignedToId: conversation.assignedToId }
       : null,
     data: event.data as Record<string, unknown>,

@@ -86,6 +86,11 @@ export async function simulate(input: {
       effect(summary);
       return { summary };
     },
+    createTask: async ({ title, dueInMinutes }) => {
+      const summary = `Se crearía la tarea “${title}”${dueInMinutes === null ? "" : ` para dentro de ${dueInMinutes} min`}`;
+      effect(summary);
+      return { summary };
+    },
     setCustomField: async (k, v) => {
       facts.customFields[k] = v;
       effect(`Campo ${k} = ${v}`);

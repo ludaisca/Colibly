@@ -6,6 +6,7 @@ import { canonicalRemoteJid, isPhoneJid, isPhoneNameOf, remoteJidCandidates } fr
 import { phoneForms } from "@/lib/crm/normalize";
 import { logActivity } from "@/lib/crm/activity";
 import { ensureDefaultPipeline } from "@/lib/crm/pipelines";
+import { emitPersonCreated, emitTaskEvent } from "@/lib/crm/task-events";
 import { createStageTask } from "@/lib/crm/stage-tasks";
 import { defaultDealTitle } from "@/lib/crm/deal-rules";
 import { afterDealCreated } from "@/lib/crm/deal-effects";
@@ -87,7 +88,7 @@ export async function resolveContact(scope: ContactScope, input: ResolveContactI
 
   const { organizationId, source } = await scopeOrigin(scope);
   try {
-    const { contact, dealId } = await prisma.$transaction(async (tx) => {
+    const { contact, dealId, personCreated, stageTaskId } = await prisma.$transaction(async (tx) => {
       // Cada identidad de canal pertenece a una Person (el "Contacto" de la
       // interfaz). Si ya hay una con ese teléfono (p. ej. importada por CSV) se
       // reutiliza; si no, se crea. Todo en la misma transacción que el Contact.
@@ -121,6 +122,7 @@ export async function resolveContact(scope: ContactScope, input: ResolveContactI
 
       // Alta automática del negocio de una persona nueva.
       let dealId: string | null = null;
+      let stageTaskId: string | null = null;
       if (input.openDeal && !existingPerson) {
         const entry = await ensureDefaultPipeline(organizationId, tx);
         if (entry.autoCreateDeals) {
@@ -142,13 +144,15 @@ export async function resolveContact(scope: ContactScope, input: ResolveContactI
             data: { organizationId, dealId: deal.id, toStageId: entry.firstStageId, toStageName: deal.stage.name, toStatus: deal.stage.outcome },
           });
           await logActivity(tx, { organizationId, actorId: null, type: "deal.created", personId, data: { dealId: deal.id, stage: deal.stage.name, source: input.openDeal.source } });
-          await createStageTask(tx, { organizationId, dealId: deal.id, personId, dealTitle: defaultDealTitle(personName), ownerId: null, stageId: entry.firstStageId, enteredAt: new Date(), actorId: null });
+          stageTaskId = await createStageTask(tx, { organizationId, dealId: deal.id, personId, dealTitle: defaultDealTitle(personName), ownerId: null, stageId: entry.firstStageId, enteredAt: new Date(), actorId: null });
           dealId = deal.id;
         }
       }
-      return { contact: created, dealId };
+      return { contact: created, dealId, personCreated: !existingPerson, personId, stageTaskId };
     });
     if (dealId) void afterDealCreated(dealId);
+    if (personCreated) void emitPersonCreated(contact.personId);
+    if (stageTaskId) void emitTaskEvent("task.created", stageTaskId);
     return { contact, remoteJid, created: true, nameChanged: false, dealId };
   } catch (err) {
     // Carrera entre dos entregas del mismo contacto: la otra ganó el @@unique

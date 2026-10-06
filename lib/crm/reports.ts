@@ -402,7 +402,7 @@ function localMonthStart(now: Date, tz: string): Date {
 }
 
 // Despacho por nombre para la ruta `/api/crm/reports/[report]`.
-export const REPORTS = {
+const REPORT_FNS = {
   summary: getSummary,
   funnel: getFunnel,
   owners: getOwnersReport,
@@ -411,7 +411,8 @@ export const REPORTS = {
   trend: getTrend,
   forecast: getForecast,
 } as const;
-export type ReportName = keyof typeof REPORTS;
+export type ReportName = keyof typeof REPORT_FNS;
+export const REPORTS: Record<ReportName, (actor: CrmActor, raw: unknown) => Promise<unknown>> = REPORT_FNS;
 
 export function isReportName(name: string): name is ReportName {
   return Object.prototype.hasOwnProperty.call(REPORTS, name);

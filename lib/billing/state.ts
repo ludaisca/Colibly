@@ -47,6 +47,7 @@ const UNLIMITED: PlanLimits = {
   contacts: Infinity,
   aiCreditsPerMonth: Infinity,
   activeAutomations: Infinity,
+  pipelines: Infinity,
   apiAccess: true,
 };
 

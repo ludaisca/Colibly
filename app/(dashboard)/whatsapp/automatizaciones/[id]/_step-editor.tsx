@@ -216,6 +216,52 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
         </>
       )}
 
+      {step.type === "create_task" && (
+        <>
+          <FormField label="¿Qué hay que hacer?" required>
+            {(id) => <Input id={id} value={step.config.title} onChange={(e) => set(step, { title: e.target.value })} />}
+          </FormField>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Tipo">
+              {(id) => (
+                <Select id={id} value={step.config.kind} onChange={(e) => set(step, { kind: e.target.value as StepOf<"create_task">["config"]["kind"] })}>
+                  <option value="TODO">Tarea</option>
+                  <option value="CALL">Llamada</option>
+                  <option value="MESSAGE">Mensaje</option>
+                  <option value="EMAIL">Correo</option>
+                  <option value="MEETING">Reunión</option>
+                </Select>
+              )}
+            </FormField>
+            <FormField label="Plazo">
+              {(id) => {
+                const v = step.config.dueInMinutes;
+                return (
+                  <Select id={id} value={v === null ? "none" : String(v)} onChange={(e) => set(step, { dueInMinutes: e.target.value === "none" ? null : Number(e.target.value) })}>
+                    <option value="none">Sin fecha</option>
+                    <option value="0">Al momento</option>
+                    {v !== null && v !== 0 && !DURATIONS.some((d) => d.value === v) && <option value={v}>{v} minutos</option>}
+                    {DURATIONS.map((d) => <option key={d.value} value={d.value}>En {d.label}</option>)}
+                  </Select>
+                );
+              }}
+            </FormField>
+          </div>
+          <FormField label="Responsable">
+            {(id) => (
+              <Select id={id} value={step.config.assignee} onChange={(e) => set(step, { assignee: e.target.value as "owner" | "chat" | "user" })}>
+                <option value="owner">El responsable del contacto</option>
+                <option value="chat">Quien tenga asignado el chat</option>
+                <option value="user">Una persona</option>
+              </Select>
+            )}
+          </FormField>
+          {step.config.assignee === "user" && <UserSelect value={step.config.userId} users={options.users} onChange={(userId) => set(step, { userId })} />}
+          <p className="text-xs text-muted">Se liga al negocio abierto del contacto, si lo tiene. Si no hay responsable, queda para el dueño de la automatización.</p>
+          <VariablesHint />
+        </>
+      )}
+
       {step.type === "set_custom_field" && (
         <>
           <FieldSelect label="Campo" value={step.config.key || null} fields={options.fields} onChange={(key) => set(step, { key: key ?? "" })} required />

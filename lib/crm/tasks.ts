@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { forbidden, invalid, notFound } from "@/lib/crm/errors";
 import { isRestricted, type CrmActor } from "@/lib/crm/access";
 import { logActivity } from "@/lib/crm/activity";
+import { emitTaskEvent } from "@/lib/crm/task-events";
 import { validateOwner } from "@/lib/crm/people";
 import { MAX_REMIND_MINUTES, computeRemindAt, dayBounds } from "@/lib/crm/task-rules";
 
@@ -186,6 +187,7 @@ export async function createTask(actor: CrmActor, raw: unknown) {
   });
 
   await notifyAssigned(actor, task.assigneeId, task);
+  void emitTaskEvent("task.created", task.id);
   return serializeTask(task);
 }
 
@@ -264,6 +266,7 @@ export async function updateTask(actor: CrmActor, id: string, raw: unknown) {
   });
 
   if (assigneeChanged) await notifyAssigned(actor, updated.assigneeId, updated);
+  if (transition === "completed") void emitTaskEvent("task.completed", id);
   return serializeTask(updated, now);
 }
 

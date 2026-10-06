@@ -16,6 +16,7 @@ export const STEP_META: Record<StepType, { label: string; description: string; g
   add_tag: { label: "Agregar etiqueta", description: "Etiqueta el contacto", group: "CRM" },
   remove_tag: { label: "Quitar etiqueta", description: "Quita una etiqueta del contacto", group: "CRM" },
   set_deal_stage: { label: "Mover negocio", description: "Mueve el negocio del contacto a una etapa (o abre uno)", group: "CRM" },
+  create_task: { label: "Crear tarea", description: "Tarea de seguimiento con responsable y plazo", group: "CRM" },
   set_custom_field: { label: "Guardar campo", description: "Escribe un campo personalizado", group: "CRM" },
   assign: { label: "Asignar", description: "A una persona o por autoasignación", group: "CRM" },
   notify_team: { label: "Avisar al equipo", description: "Notificación en la campana", group: "CRM" },

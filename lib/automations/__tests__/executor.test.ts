@@ -3,6 +3,20 @@ import { execute, MAX_STEPS_PER_ADVANCE } from "../executor";
 import type { Step } from "../types";
 import { buttons, fakeAdapters, graph, SendFailure, startState, text } from "./helpers";
 
+describe("execute — crear tarea", () => {
+  it("renderiza el título con las variables y pasa la configuración al adaptador", async () => {
+    const g = graph([
+      { id: "t", type: "create_task", config: { title: "Llamar a {{nombre}}", kind: "CALL", dueInMinutes: 1440, assignee: "owner", userId: null } },
+      text("b", "listo"),
+    ]);
+    const { adapters, calls } = fakeAdapters();
+    const r = await execute(g, startState(g), { kind: "start" }, adapters);
+    expect(r.outcome.status).toBe("completed");
+    expect(calls.find((c) => c.op === "createTask")?.arg).toMatchObject({ title: "Llamar a Ana", kind: "CALL", dueInMinutes: 1440, assignee: "owner" });
+    expect(calls.map((c) => c.op)).toEqual(["createTask", "send"]);
+  });
+});
+
 describe("execute — pasos lineales", () => {
   it("envía en orden, renderiza variables y termina", async () => {
     const g = graph([text("a", "Hola {{nombre}} 👋"), { id: "t", type: "add_tag", config: { tagName: "Bienvenida" } }, text("b", "Tel {{telefono}} {{desconocido}}.")]);

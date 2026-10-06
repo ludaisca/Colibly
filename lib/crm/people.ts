@@ -7,6 +7,7 @@ import { CrmError, invalid, notFound, versionConflict } from "@/lib/crm/errors";
 import { assertCanEdit, isRestricted, requireRoles, type CrmActor } from "@/lib/crm/access";
 import { logActivity } from "@/lib/crm/activity";
 import { cleanText, normalizeEmail, normalizePersonPhone, phoneForms } from "@/lib/crm/normalize";
+import { emitPersonCreated } from "@/lib/crm/task-events";
 import { findDuplicateClusters } from "@/lib/crm/duplicates";
 import { diffFields } from "@/lib/crm/merge-fields";
 import {
@@ -83,7 +84,8 @@ export async function findPersonMatches(organizationId: string, email: string | 
   }));
 }
 
-export async function createPerson(actor: CrmActor, raw: unknown) {
+// `opts.source`: cómo llegó ("manual" por defecto; la API pública pasa "api").
+export async function createPerson(actor: CrmActor, raw: unknown, opts: { source?: string } = {}) {
   const input = personCreateSchema.parse(raw);
   const email = normalizeEmail(input.email);
   if (email.invalid) throw invalid("El correo no es válido");
@@ -104,7 +106,7 @@ export async function createPerson(actor: CrmActor, raw: unknown) {
   const exceeded = await evaluatePlanLimit(actor.organizationId, "contacts");
   if (exceeded) throw new CrmError(402, "plan_limit", exceeded.message, { limit: "contacts", current: exceeded.current, max: exceeded.max });
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const person = await tx.person.create({
       data: {
         organizationId: actor.organizationId,
@@ -116,13 +118,15 @@ export async function createPerson(actor: CrmActor, raw: unknown) {
         companyId: input.companyId ?? null,
         ownerId,
         lifecycle: input.lifecycle ?? "LEAD",
-        source: "manual",
+        source: opts.source ?? "manual",
       },
       select: personRowSelect,
     });
-    await logActivity(tx, { organizationId: actor.organizationId, actorId: actor.userId, type: "person.created", personId: person.id, data: { source: "manual" } });
+    await logActivity(tx, { organizationId: actor.organizationId, actorId: actor.userId, type: "person.created", personId: person.id, data: { source: opts.source ?? "manual" } });
     return person;
   });
+  void emitPersonCreated(created.id);
+  return created;
 }
 
 const EDITABLE = ["name", "email", "phone", "phoneDigits", "jobTitle", "companyId", "lifecycle"] as const;

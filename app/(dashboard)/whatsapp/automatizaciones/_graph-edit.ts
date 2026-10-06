@@ -210,6 +210,8 @@ export function createStep(type: StepType): Step {
       return { id, type, config: { tagName: "" } };
     case "set_deal_stage":
       return { id, type, config: { stageId: "", lostReasonId: null } };
+    case "create_task":
+      return { id, type, config: { title: "Dar seguimiento a {{nombre}}", kind: "TODO", dueInMinutes: 1440, assignee: "owner", userId: null } };
     case "set_custom_field":
       return { id, type, config: { key: "", value: "" } };
     case "assign":

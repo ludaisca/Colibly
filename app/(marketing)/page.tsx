@@ -75,7 +75,7 @@ const FEATURES = [
   {
     icon: Target,
     title: "Sabes quién está listo para comprar",
-    text: "Califica leads con IA y mueve cada oportunidad por etapas en el pipeline hasta cerrar.",
+    text: "Califica leads con IA y lleva cada negocio por las etapas de tu pipeline, con tareas de seguimiento, vista “Mi día” y reportes de ventas.",
   },
   {
     icon: Megaphone,
