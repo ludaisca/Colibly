@@ -1,0 +1,558 @@
+[
+  {
+    "iso": "US",
+    "name": "United States",
+    "dial": "1",
+    "patterns": [
+      "(###) ###-####"
+    ],
+    "example": "2015550123",
+    "trunk": "1"
+  },
+  {
+    "iso": "CA",
+    "name": "Canada",
+    "dial": "1",
+    "patterns": [
+      "(###) ###-####"
+    ],
+    "example": "5065550123",
+    "trunk": "1",
+    "areaCodes": [
+      "204",
+      "226",
+      "236",
+      "249",
+      "250",
+      "263",
+      "289",
+      "306",
+      "343",
+      "354",
+      "365",
+      "367",
+      "368",
+      "382",
+      "387",
+      "403",
+      "416",
+      "418",
+      "428",
+      "431",
+      "437",
+      "438",
+      "450",
+      "468",
+      "474",
+      "506",
+      "514",
+      "519",
+      "548",
+      "579",
+      "581",
+      "584",
+      "587",
+      "604",
+      "613",
+      "639",
+      "647",
+      "672",
+      "683",
+      "705",
+      "709",
+      "742",
+      "753",
+      "778",
+      "780",
+      "782",
+      "807",
+      "819",
+      "825",
+      "867",
+      "873",
+      "879",
+      "902",
+      "905"
+    ]
+  },
+  {
+    "iso": "MX",
+    "name": "Mexico",
+    "dial": "52",
+    "patterns": [
+      "## #### ####"
+    ],
+    "example": "2221234567",
+    "trunk": ""
+  },
+  {
+    "iso": "BR",
+    "name": "Brazil",
+    "dial": "55",
+    "patterns": [
+      "(##) ####-####",
+      "(##) #####-####"
+    ],
+    "example": "11961234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "AR",
+    "name": "Argentina",
+    "dial": "54",
+    "patterns": [
+      "## ####-####"
+    ],
+    "example": "1123456789",
+    "trunk": "0"
+  },
+  {
+    "iso": "CO",
+    "name": "Colombia",
+    "dial": "57",
+    "patterns": [
+      "### ### ####"
+    ],
+    "example": "3211234567",
+    "trunk": ""
+  },
+  {
+    "iso": "CL",
+    "name": "Chile",
+    "dial": "56",
+    "patterns": [
+      "# #### ####"
+    ],
+    "example": "221234567",
+    "trunk": ""
+  },
+  {
+    "iso": "PE",
+    "name": "Peru",
+    "dial": "51",
+    "patterns": [
+      "### ### ###"
+    ],
+    "example": "912345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "GB",
+    "name": "United Kingdom",
+    "dial": "44",
+    "patterns": [
+      "#### ######"
+    ],
+    "example": "7400123456",
+    "trunk": "0"
+  },
+  {
+    "iso": "IE",
+    "name": "Ireland",
+    "dial": "353",
+    "patterns": [
+      "## ### ####"
+    ],
+    "example": "850123456",
+    "trunk": "0"
+  },
+  {
+    "iso": "FR",
+    "name": "France",
+    "dial": "33",
+    "patterns": [
+      "# ## ## ## ##"
+    ],
+    "example": "612345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "DE",
+    "name": "Germany",
+    "dial": "49",
+    "patterns": [
+      "### #######",
+      "### ########"
+    ],
+    "example": "15123456789",
+    "trunk": "0"
+  },
+  {
+    "iso": "ES",
+    "name": "Spain",
+    "dial": "34",
+    "patterns": [
+      "### ## ## ##"
+    ],
+    "example": "612345678",
+    "trunk": ""
+  },
+  {
+    "iso": "IT",
+    "name": "Italy",
+    "dial": "39",
+    "patterns": [
+      "### ### ###",
+      "### ### ####"
+    ],
+    "example": "3123456789",
+    "trunk": ""
+  },
+  {
+    "iso": "PT",
+    "name": "Portugal",
+    "dial": "351",
+    "patterns": [
+      "### ### ###"
+    ],
+    "example": "912345678",
+    "trunk": ""
+  },
+  {
+    "iso": "NL",
+    "name": "Netherlands",
+    "dial": "31",
+    "patterns": [
+      "# ########"
+    ],
+    "example": "612345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "BE",
+    "name": "Belgium",
+    "dial": "32",
+    "patterns": [
+      "### ## ## ##"
+    ],
+    "example": "470123456",
+    "trunk": "0"
+  },
+  {
+    "iso": "CH",
+    "name": "Switzerland",
+    "dial": "41",
+    "patterns": [
+      "## ### ## ##"
+    ],
+    "example": "781234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "AT",
+    "name": "Austria",
+    "dial": "43",
+    "patterns": [
+      "### #######",
+      "### ########"
+    ],
+    "example": "6641234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "SE",
+    "name": "Sweden",
+    "dial": "46",
+    "patterns": [
+      "## ### ## ##"
+    ],
+    "example": "701234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "NO",
+    "name": "Norway",
+    "dial": "47",
+    "patterns": [
+      "### ## ###"
+    ],
+    "example": "40612345",
+    "trunk": ""
+  },
+  {
+    "iso": "DK",
+    "name": "Denmark",
+    "dial": "45",
+    "patterns": [
+      "## ## ## ##"
+    ],
+    "example": "32123456",
+    "trunk": ""
+  },
+  {
+    "iso": "FI",
+    "name": "Finland",
+    "dial": "358",
+    "patterns": [
+      "## ### ####",
+      "## ### #####"
+    ],
+    "example": "412345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "PL",
+    "name": "Poland",
+    "dial": "48",
+    "patterns": [
+      "### ### ###"
+    ],
+    "example": "512345678",
+    "trunk": ""
+  },
+  {
+    "iso": "CZ",
+    "name": "Czechia",
+    "dial": "420",
+    "patterns": [
+      "### ### ###"
+    ],
+    "example": "601123456",
+    "trunk": ""
+  },
+  {
+    "iso": "GR",
+    "name": "Greece",
+    "dial": "30",
+    "patterns": [
+      "### ### ####"
+    ],
+    "example": "6912345678",
+    "trunk": ""
+  },
+  {
+    "iso": "UA",
+    "name": "Ukraine",
+    "dial": "380",
+    "patterns": [
+      "## ### ## ##"
+    ],
+    "example": "501234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "TR",
+    "name": "Turkey",
+    "dial": "90",
+    "patterns": [
+      "### ### ## ##"
+    ],
+    "example": "5012345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "IL",
+    "name": "Israel",
+    "dial": "972",
+    "patterns": [
+      "##-###-####"
+    ],
+    "example": "502345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "AE",
+    "name": "United Arab Emirates",
+    "dial": "971",
+    "patterns": [
+      "## ### ####"
+    ],
+    "example": "501234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "SA",
+    "name": "Saudi Arabia",
+    "dial": "966",
+    "patterns": [
+      "## ### ####"
+    ],
+    "example": "512345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "EG",
+    "name": "Egypt",
+    "dial": "20",
+    "patterns": [
+      "### ### ####"
+    ],
+    "example": "1001234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "NG",
+    "name": "Nigeria",
+    "dial": "234",
+    "patterns": [
+      "### ### ####"
+    ],
+    "example": "8021234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "KE",
+    "name": "Kenya",
+    "dial": "254",
+    "patterns": [
+      "### ######"
+    ],
+    "example": "712123456",
+    "trunk": "0"
+  },
+  {
+    "iso": "ZA",
+    "name": "South Africa",
+    "dial": "27",
+    "patterns": [
+      "## ### ####"
+    ],
+    "example": "711234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "IN",
+    "name": "India",
+    "dial": "91",
+    "patterns": [
+      "#####-#####"
+    ],
+    "example": "8123456789",
+    "trunk": "0"
+  },
+  {
+    "iso": "PK",
+    "name": "Pakistan",
+    "dial": "92",
+    "patterns": [
+      "### #######"
+    ],
+    "example": "3012345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "CN",
+    "name": "China",
+    "dial": "86",
+    "patterns": [
+      "### #### ####"
+    ],
+    "example": "13123456789",
+    "trunk": "0"
+  },
+  {
+    "iso": "JP",
+    "name": "Japan",
+    "dial": "81",
+    "patterns": [
+      "##-####-####"
+    ],
+    "example": "9012345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "KR",
+    "name": "South Korea",
+    "dial": "82",
+    "patterns": [
+      "##-###-####",
+      "##-####-####"
+    ],
+    "example": "1020000000",
+    "trunk": "0"
+  },
+  {
+    "iso": "TW",
+    "name": "Taiwan",
+    "dial": "886",
+    "patterns": [
+      "### ### ###"
+    ],
+    "example": "912345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "HK",
+    "name": "Hong Kong",
+    "dial": "852",
+    "patterns": [
+      "#### ####"
+    ],
+    "example": "51234567",
+    "trunk": ""
+  },
+  {
+    "iso": "SG",
+    "name": "Singapore",
+    "dial": "65",
+    "patterns": [
+      "#### ####"
+    ],
+    "example": "81234567",
+    "trunk": ""
+  },
+  {
+    "iso": "PH",
+    "name": "Philippines",
+    "dial": "63",
+    "patterns": [
+      "### ### ####"
+    ],
+    "example": "9051234567",
+    "trunk": "0"
+  },
+  {
+    "iso": "ID",
+    "name": "Indonesia",
+    "dial": "62",
+    "patterns": [
+      "###-###-####",
+      "###-####-####",
+      "###-####-#####"
+    ],
+    "example": "81234567890",
+    "trunk": "0"
+  },
+  {
+    "iso": "TH",
+    "name": "Thailand",
+    "dial": "66",
+    "patterns": [
+      "## ### ####"
+    ],
+    "example": "812345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "VN",
+    "name": "Vietnam",
+    "dial": "84",
+    "patterns": [
+      "## ### ## ##"
+    ],
+    "example": "912345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "AU",
+    "name": "Australia",
+    "dial": "61",
+    "patterns": [
+      "### ### ###"
+    ],
+    "example": "412345678",
+    "trunk": "0"
+  },
+  {
+    "iso": "NZ",
+    "name": "New Zealand",
+    "dial": "64",
+    "patterns": [
+      "# ### ####",
+      "## ### ####",
+      "## #### ####"
+    ],
+    "example": "211234567",
+    "trunk": "0"
+  }
+]
