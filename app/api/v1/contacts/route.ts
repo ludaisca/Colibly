@@ -7,6 +7,7 @@ import { apiContactCreateSchema } from "@/lib/api/schemas";
 import { setCustomFieldsByKey } from "@/lib/contacts/custom-fields";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { findOrCreateTag } from "@/lib/tags";
+import { findContact, resolveContact } from "@/lib/contacts/resolve";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { evaluatePlanLimit } from "@/lib/billing/gates";
 
@@ -84,37 +85,23 @@ export const POST = withApiErrors(async (req: Request) => {
     throw new ApiError(404, "not_found", "Cuenta no encontrada");
   }
 
-  const existing = await prisma.contact.findUnique({
-    where: { accountId_remoteJid: { accountId: input.accountId, remoteJid: input.phone } },
-    select: { id: true },
-  });
+  // Punto único de alta (lib/contacts/resolve.ts): el mismo móvil como 52… o
+  // 521… cuenta como el mismo contacto.
+  const scope = { kind: "whatsapp", accountId: input.accountId } as const;
+  const existing = await findContact(scope, input.phone);
   if (existing) return apiOk(serializeContact(await findScopedContact(ctx, existing.id)), 200);
 
   const exceeded = await evaluatePlanLimit(ctx.organizationId, "contacts");
   if (exceeded) throw new ApiError(402, "plan_limit", exceeded.message);
 
-  let created;
-  try {
-    created = await prisma.contact.create({
-      data: {
-        accountId: input.accountId,
-        remoteJid: input.phone,
-        name: input.name ?? input.phone,
-        leadStatus: input.leadStatus,
-      },
-      select: { id: true, accountId: true, channelAccountId: true },
-    });
-  } catch (err) {
-    // Carrera entre dos altas del mismo teléfono: la otra ganó.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      const winner = await prisma.contact.findUniqueOrThrow({
-        where: { accountId_remoteJid: { accountId: input.accountId, remoteJid: input.phone } },
-        select: { id: true },
-      });
-      return apiOk(serializeContact(await findScopedContact(ctx, winner.id)), 200);
-    }
-    throw err;
-  }
+  const resolved = await resolveContact(scope, {
+    remoteJid: input.phone,
+    name: input.name ?? input.phone,
+    leadStatus: input.leadStatus,
+  });
+  const created = resolved.contact;
+  // Carrera entre dos altas del mismo teléfono: la otra ganó.
+  if (!resolved.created) return apiOk(serializeContact(await findScopedContact(ctx, created.id)), 200);
 
   if (input.customFields) {
     const { unknownKeys } = await setCustomFieldsByKey(created, input.customFields);

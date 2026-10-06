@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
 import { rateLimit } from "@/lib/rate-limit";
 import { getMediaInfo, getMessageBody } from "@/lib/whatsapp/message-content";
+import { remoteJidCandidates } from "@/lib/contacts/jid";
 import { validateWhatsAppWebhookSignature, verifyTokenMatches } from "@/lib/meta/platform-app";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import { COEXISTENCE_FIELDS, handleCoexistenceChange, type CoexistenceField } from "@/lib/whatsapp/coexistence/webhook";
@@ -330,7 +331,7 @@ async function applyUserPreferences(value: UserPreferencesValue) {
     if (pref.category !== "marketing_messages" || !pref.wa_id) continue;
     const optedOut = pref.value === "stop";
     await prisma.contact.updateMany({
-      where: { accountId: account.id, remoteJid: pref.wa_id },
+      where: { accountId: account.id, remoteJid: { in: remoteJidCandidates(pref.wa_id) } },
       data: { optedOutMarketing: optedOut, optedOutAt: optedOut ? new Date() : null },
     });
   }
@@ -518,7 +519,7 @@ export async function POST(req: Request) {
                   const targetWamid = msg.reaction?.message_id;
                   if (!targetWamid) continue;
                   const target = await prisma.wAMessage.findFirst({
-                    where: { wamid: targetWamid, chat: { accountId: account.id, remoteJid: msg.from } },
+                    where: { wamid: targetWamid, chat: { accountId: account.id, remoteJid: { in: remoteJidCandidates(msg.from) } } },
                     select: { id: true, reactionAt: true },
                   });
                   if (!target) continue;

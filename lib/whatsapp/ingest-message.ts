@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { resolveContact } from "@/lib/contacts/resolve";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
@@ -73,46 +74,36 @@ export async function ingestInboundMessage(
     if (existing) return null;
   }
 
-  const [existingContact, existingChat] = await Promise.all([
-    prisma.contact.findUnique({
-      where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
-      select: { name: true },
-    }),
-    prisma.wAChat.findUnique({
-      where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
-      select: { name: true },
-    }),
-  ]);
-
-  const contactNameShouldUpdate = shouldUpdateName(msg.contactName, existingContact?.name, msg.remoteJid);
-  const chatNameShouldUpdate = shouldUpdateName(msg.contactName, existingChat?.name, msg.remoteJid);
-
-  const contactRecord = await prisma.contact.upsert({
-    where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
-    create: {
-      accountId,
+  // Un solo punto de alta (lib/contacts/resolve.ts): reconoce el mismo móvil
+  // aunque llegue como 52… o 521…, y devuelve el identificador con el que ya
+  // existe para usarlo también en el chat.
+  const resolved = await resolveContact(
+    { kind: "whatsapp", accountId },
+    {
       remoteJid: msg.remoteJid,
       name: msg.contactName,
-      // First-touch attribution: solo se setea al crear el Contact, nunca en
-      // el `update` de abajo — un segundo mensaje (con o sin referral propio)
-      // no debe pisar el origen real del primer contacto. Mismo principio que
-      // realName en este mismo modelo.
-      ...(msg.referral?.ctwa_clid
-        ? {
-            leadOrigin: "CTWA" as const,
-            ctwaClid: msg.referral.ctwa_clid,
-            adId: msg.referral.source_id ?? null,
-          }
-        : {}),
-    },
-    update: contactNameShouldUpdate ? { name: msg.contactName } : {},
+      // First-touch attribution: solo se escribe al crear el Contact (nunca en
+      // un update): un segundo mensaje, con o sin referral propio, no debe
+      // pisar el origen real del primer contacto. Mismo principio que realName.
+      attribution: msg.referral?.ctwa_clid
+        ? { leadOrigin: "CTWA", ctwaClid: msg.referral.ctwa_clid, adId: msg.referral.source_id ?? null }
+        : undefined,
+    }
+  );
+  const contactRecord = resolved.contact;
+  const remoteJid = resolved.remoteJid;
+
+  const existingChat = await prisma.wAChat.findUnique({
+    where: { accountId_remoteJid: { accountId, remoteJid } },
+    select: { name: true },
   });
+  const chatNameShouldUpdate = shouldUpdateName(msg.contactName, existingChat?.name, remoteJid);
 
   const chat = await prisma.wAChat.upsert({
-    where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
+    where: { accountId_remoteJid: { accountId, remoteJid } },
     create: {
       accountId,
-      remoteJid: msg.remoteJid,
+      remoteJid,
       name: msg.contactName,
       isGroup: msg.isGroup,
       lastMessage: msg.body.slice(0, 500),
@@ -195,7 +186,7 @@ export async function ingestInboundMessage(
     chat: { kind: "whatsapp" as const, id: chat.id },
     contactId: contactRecord.id,
   };
-  if (!existingContact) {
+  if (resolved.created) {
     await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: contactRecord.leadOrigin, source: "inbound" } }, msg.timestamp);
     if (contactRecord.leadOrigin === "CTWA") {
       await emitDomainEvent({ type: "lead.ad_captured", ...refs, data: { origin: "CTWA", adId: contactRecord.adId } }, msg.timestamp);

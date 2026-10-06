@@ -1,3 +1,4 @@
+import { digitsOnly, jidCandidates } from "@/lib/phone";
 import { getMediaInfo, getMessageBody, type WhatsAppMessageContent } from "@/lib/whatsapp/message-content";
 
 // Normalizadores PUROS de los webhooks de coexistencia de Meta
@@ -27,21 +28,7 @@ export interface NormalizedBusinessMessage {
   historyStatus: string | null;
 }
 
-export function digitsOnly(value: string | null | undefined): string {
-  return (value ?? "").replace(/\D/g, "");
-}
-
-// Meta ha usado dos formas para los móviles de México: 52 + 10 dígitos y
-// 521 + 10 dígitos. Un eco o un historial puede traer una y el chat existir con
-// la otra; al buscar chats/contactos se prueban ambas.
-export function jidCandidates(phoneDigits: string): string[] {
-  const d = digitsOnly(phoneDigits);
-  if (!d) return [];
-  const out = new Set<string>([d]);
-  if (/^521\d{10}$/.test(d)) out.add("52" + d.slice(3));
-  else if (/^52\d{10}$/.test(d)) out.add("521" + d.slice(2));
-  return [...out];
-}
+export { digitsOnly, jidCandidates };
 
 function toDate(ts: unknown): Date {
   const n = Number(ts);

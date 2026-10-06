@@ -1,7 +1,7 @@
 import { Prisma, type WAMessageOrigin } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mediaDownloadQueue } from "@/lib/queue";
-import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { resolveContact } from "@/lib/contacts/resolve";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
 import { jidCandidates, mapHistoryStatus, type NormalizedBusinessMessage, type NormalizedStateSyncContact } from "./normalize";
 
@@ -34,13 +34,12 @@ async function resolveChat(accountId: string, userPhone: string, cache: ChatCach
   if (chat?.contactId) {
     entry = { chatId: chat.id, contactId: chat.contactId, lastMessageAt: chat.lastMessageAt, created: false };
   } else {
-    const jid = chat?.remoteJid ?? candidates[0];
-    const contact = await prisma.contact.upsert({
-      where: { accountId_remoteJid: { accountId, remoteJid: jid } },
-      create: { accountId, remoteJid: jid, name: jid },
-      update: {},
-      select: { id: true },
-    });
+    // Punto único de alta (lib/contacts/resolve.ts); devuelve el identificador
+    // con el que ya existe la persona (52… o 521…).
+    const { contact, remoteJid: jid } = await resolveContact(
+      { kind: "whatsapp", accountId },
+      { remoteJid: chat?.remoteJid ?? candidates[0], name: chat?.remoteJid ?? candidates[0] }
+    );
     const created = chat
       ? await prisma.wAChat.update({ where: { id: chat.id }, data: { contactId: contact.id }, select: { id: true, lastMessageAt: true } })
       : await prisma.wAChat.create({
@@ -187,21 +186,9 @@ export async function applyStateSyncContacts(accountId: string, contacts: Normal
       ignoredRemovals++;
       continue;
     }
-    const candidates = jidCandidates(c.phone);
-    const existing = await prisma.contact.findFirst({
-      where: { accountId, remoteJid: { in: candidates } },
-      select: { id: true, name: true, remoteJid: true },
-    });
     const name = c.fullName ?? c.firstName;
-    if (existing) {
-      if (name && shouldUpdateName(name, existing.name, existing.remoteJid)) {
-        await prisma.contact.update({ where: { id: existing.id }, data: { name } });
-        upserted++;
-      }
-    } else {
-      await prisma.contact.create({ data: { accountId, remoteJid: candidates[0], name: name ?? candidates[0] } });
-      upserted++;
-    }
+    const resolved = await resolveContact({ kind: "whatsapp", accountId }, { remoteJid: c.phone, name });
+    if (resolved.created || resolved.nameChanged) upserted++;
   }
   return { upserted, ignoredRemovals };
 }

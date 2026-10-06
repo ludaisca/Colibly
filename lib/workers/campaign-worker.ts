@@ -4,6 +4,7 @@ import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/templat
 import { saveMediaFromMeta, isImageMime, isVideoMime } from "@/lib/whatsapp/media-store";
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { resolveContact } from "@/lib/contacts/resolve";
 import { isOrgWritable } from "@/lib/billing/gates";
 
 function mediaMessageTypeFromMime(mimeType: string): string {
@@ -165,31 +166,23 @@ export async function processCampaignJob(job: CampaignJob) {
       // Only attribute Contact/WAChat/WAMessage on an actual successful
       // send — a recipient that never got a message shouldn't leave a
       // phantom contact behind.
-      const remoteJid = recipient.phoneNumber;
       const contactName = recipient.contactName ?? recipient.phoneNumber;
       const messageBody = renderTemplateText(campaign.waTemplate.components, {
         bodyParams,
         headerParam: campaign.headerParam,
       }) || `Plantilla: ${templateName}`;
 
-      const [existingContact, existingChat] = await Promise.all([
-        prisma.contact.findUnique({
-          where: { accountId_remoteJid: { accountId: campaign.waAccountId, remoteJid } },
-          select: { name: true },
-        }),
-        prisma.wAChat.findUnique({
-          where: { accountId_remoteJid: { accountId: campaign.waAccountId, remoteJid } },
-          select: { name: true },
-        }),
-      ]);
-      const contactNameShouldUpdate = shouldUpdateName(contactName, existingContact?.name, remoteJid);
-      const chatNameShouldUpdate = shouldUpdateName(contactName, existingChat?.name, remoteJid);
-
-      const contact = await prisma.contact.upsert({
+      // Punto único de alta (lib/contacts/resolve.ts): el mismo móvil no se
+      // duplica si el contacto ya existe como 52… o 521….
+      const { contact, remoteJid } = await resolveContact(
+        { kind: "whatsapp", accountId: campaign.waAccountId },
+        { remoteJid: recipient.phoneNumber, name: contactName }
+      );
+      const existingChat = await prisma.wAChat.findUnique({
         where: { accountId_remoteJid: { accountId: campaign.waAccountId, remoteJid } },
-        create: { accountId: campaign.waAccountId, remoteJid, name: contactName },
-        update: contactNameShouldUpdate ? { name: contactName } : {},
+        select: { name: true },
       });
+      const chatNameShouldUpdate = shouldUpdateName(contactName, existingChat?.name, remoteJid);
 
       const chat = await prisma.wAChat.upsert({
         where: { accountId_remoteJid: { accountId: campaign.waAccountId, remoteJid } },

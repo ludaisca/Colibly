@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { decrypt } from "@/lib/crypto";
 import { validateMetaWebhookSignature } from "@/lib/meta/webhook-signature";
 import { normalizePhone } from "@/lib/phone";
-import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { resolveContact } from "@/lib/contacts/resolve";
 import { emitDomainEvent } from "@/lib/events/emit";
 
 // Webhook de Meta para el campo `leadgen` (Instant Forms) de una Página de
@@ -151,32 +151,28 @@ export async function POST(req: Request) {
         const phone = normalizePhone(rawPhone);
         const fullName = findField(fieldData, "full_name");
 
-        const existingContact = await prisma.contact.findUnique({
-          where: { accountId_remoteJid: { accountId: account.waAccountId, remoteJid: phone } },
-          select: { name: true },
-        });
-        const nameShouldUpdate = fullName ? shouldUpdateName(fullName, existingContact?.name, phone) : false;
-
         // First-touch: leadOrigin/metaLeadId/adId/metaAdsAccountId solo se
-        // setean en el create, mismo principio que la atribución CTWA en
-        // lib/whatsapp/ingest-message.ts — un segundo lead del mismo teléfono
-        // no debe pisar el origen ya registrado.
-        const contact = await prisma.contact.upsert({
-          where: { accountId_remoteJid: { accountId: account.waAccountId, remoteJid: phone } },
-          create: {
-            accountId: account.waAccountId,
+        // setean al crear (lib/contacts/resolve.ts), mismo principio que la
+        // atribución CTWA en lib/whatsapp/ingest-message.ts — un segundo lead
+        // del mismo teléfono (también como 52…/521…) no pisa el origen ya
+        // registrado.
+        const resolved = await resolveContact(
+          { kind: "whatsapp", accountId: account.waAccountId },
+          {
             remoteJid: phone,
-            name: fullName ?? phone,
-            leadOrigin: "INSTANT_FORM",
-            metaLeadId: value.leadgen_id,
-            adId: value.ad_id ?? null,
-            metaAdsAccountId: account.id,
-          },
-          update: nameShouldUpdate ? { name: fullName! } : {},
-          select: { id: true, chat: { select: { id: true } } },
-        });
+            name: fullName,
+            attribution: {
+              leadOrigin: "INSTANT_FORM",
+              metaLeadId: value.leadgen_id,
+              adId: value.ad_id ?? null,
+              metaAdsAccountId: account.id,
+            },
+          }
+        );
+        const chat = await prisma.wAChat.findFirst({ where: { contactId: resolved.contact.id }, select: { id: true } });
+        const contact = { id: resolved.contact.id, chat };
 
-        if (!existingContact) {
+        if (resolved.created) {
           const refs = {
             account: { kind: "whatsapp" as const, id: account.waAccountId },
             chat: contact.chat ? { kind: "whatsapp" as const, id: contact.chat.id } : null,

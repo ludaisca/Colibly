@@ -6,6 +6,7 @@ import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { saveMediaFromMeta, isImageMime, isVideoMime } from "@/lib/whatsapp/media-store";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { normalizePhone } from "@/lib/phone";
+import { findContact, resolveContact } from "@/lib/contacts/resolve";
 import type { LeadSheetSource, WAAccount, WATemplate } from "@prisma/client";
 
 // Tope por corrida del tick automático — evita que una ráfaga de filas nuevas (o una
@@ -156,9 +157,7 @@ export async function importNewLeadsForSource(
     const bodyParams = bodyIdxs.map((idx) => (idx === -1 ? "" : row[idx] ?? ""));
     const contactName = nameIdx !== -1 ? row[nameIdx] || phone : phone;
 
-    const contact = await prisma.contact.findUnique({
-      where: { accountId_remoteJid: { accountId: source.waAccountId, remoteJid: phone } },
-    });
+    const contact = await findContact({ kind: "whatsapp", accountId: source.waAccountId }, phone);
     if (contact?.optedOutMarketing) {
       await prisma.leadSheetImportedRow.upsert({
         where: { sourceId_phoneNumber: { sourceId: source.id, phoneNumber: phone } },
@@ -192,25 +191,22 @@ export async function importNewLeadsForSource(
         renderTemplateText(source.waTemplate.components, { bodyParams, headerParam: source.headerParam }) ||
         `Plantilla: ${templateName}`;
 
-      const contactNameShouldUpdate = shouldUpdateName(contactName, contact?.name, phone);
-
-      const upsertedContact = await prisma.contact.upsert({
-        where: { accountId_remoteJid: { accountId: source.waAccountId, remoteJid: phone } },
-        create: { accountId: source.waAccountId, remoteJid: phone, name: contactName },
-        update: contactNameShouldUpdate ? { name: contactName } : {},
-      });
+      const { contact: upsertedContact, remoteJid } = await resolveContact(
+        { kind: "whatsapp", accountId: source.waAccountId },
+        { remoteJid: phone, name: contactName }
+      );
 
       const existingChat = await prisma.wAChat.findUnique({
-        where: { accountId_remoteJid: { accountId: source.waAccountId, remoteJid: phone } },
+        where: { accountId_remoteJid: { accountId: source.waAccountId, remoteJid } },
         select: { name: true },
       });
-      const chatNameShouldUpdate = shouldUpdateName(contactName, existingChat?.name, phone);
+      const chatNameShouldUpdate = shouldUpdateName(contactName, existingChat?.name, remoteJid);
 
       const chat = await prisma.wAChat.upsert({
-        where: { accountId_remoteJid: { accountId: source.waAccountId, remoteJid: phone } },
+        where: { accountId_remoteJid: { accountId: source.waAccountId, remoteJid } },
         create: {
           accountId: source.waAccountId,
-          remoteJid: phone,
+          remoteJid,
           name: contactName,
           contactId: upsertedContact.id,
           lastMessage: messageBody.slice(0, 500),

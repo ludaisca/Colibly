@@ -1,6 +1,7 @@
 import { Prisma, type Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
+import { resolveContact } from "@/lib/contacts/resolve";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { autoAssignConversation } from "./auto-assign";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
@@ -98,14 +99,12 @@ export async function ingestChannelMessage(
   // amerita una llamada a la Graph API solo para un título de notificación).
   const displayName = nameCandidate ?? existingContact?.name ?? existingConversation?.name ?? msg.externalId;
 
-  const contactNameShouldUpdate = nameCandidate ? shouldUpdateName(nameCandidate, existingContact?.name, msg.externalId) : false;
   const conversationNameShouldUpdate = nameCandidate ? shouldUpdateName(nameCandidate, existingConversation?.name, msg.externalId) : false;
 
-  const contactRecord = await prisma.contact.upsert({
-    where: { channelAccountId_remoteJid: { channelAccountId, remoteJid: msg.externalId } },
-    create: { channelAccountId, remoteJid: msg.externalId, name: nameCandidate ?? msg.externalId },
-    update: contactNameShouldUpdate ? { name: nameCandidate! } : {},
-  });
+  // Punto único de alta de contactos (lib/contacts/resolve.ts); en canales
+  // genéricos el id externo no se normaliza.
+  const resolved = await resolveContact({ kind: "channel", channelAccountId }, { remoteJid: msg.externalId, name: nameCandidate });
+  const contactRecord = resolved.contact;
 
   const conversation = await prisma.conversation.upsert({
     where: { channelAccountId_externalId: { channelAccountId, externalId: msg.externalId } },
@@ -188,7 +187,7 @@ export async function ingestChannelMessage(
     chat: { kind: "channel" as const, id: conversation.id },
     contactId: contactRecord.id,
   };
-  if (!existingContact) {
+  if (resolved.created) {
     await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: contactRecord.leadOrigin, source: "inbound" } }, msg.timestamp);
   }
   await emitDomainEvent(

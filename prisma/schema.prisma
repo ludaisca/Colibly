@@ -1044,6 +1044,11 @@ model Contact {
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
   @@index([accountId, leadStatus])
+  @@index([channelAccountId, leadStatus])
+  // Listados de contactos: orden por actividad reciente dentro del alcance de
+  // cuentas (WhatsApp o canal genérico).
+  @@index([accountId, updatedAt(sort: Desc)])
+  @@index([channelAccountId, updatedAt(sort: Desc)])
   // Un Contact de Instant Form nace sin `chat` (no ha escrito por WhatsApp
   // todavía) bajo el `waAccountId` vinculado en su MetaAdsAccount — este
   // índice soporta el reporte de "leads de Instant Form sin conversación
