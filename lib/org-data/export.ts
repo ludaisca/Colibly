@@ -41,6 +41,59 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
     ...channelAccounts,
   ])}`;
 
+  // Directorio: empresas y personas (los "contactos" de la interfaz). Cada
+  // identidad de canal de la sección siguiente referencia a su persona (`personId`).
+  yield `,"companies":[`;
+  let firstCompany = true;
+  for (let cursor: string | undefined; ; ) {
+    const page = await prisma.company.findMany({
+      where: { organizationId },
+      orderBy: { id: "asc" },
+      take: PAGE,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      select: { id: true, name: true, domain: true, industry: true, size: true, location: true, notes: true, archivedAt: true, createdAt: true, owner: { select: { email: true } } },
+    });
+    for (const c of page) {
+      const { owner, ...rest } = c;
+      yield (firstCompany ? "" : ",") + JSON.stringify({ ...rest, owner: owner?.email ?? null });
+      firstCompany = false;
+    }
+    if (page.length < PAGE) break;
+    cursor = page[page.length - 1].id;
+  }
+  yield "]";
+  yield `,"people":[`;
+  let firstPerson = true;
+  for (let cursor: string | undefined; ; ) {
+    const page = await prisma.person.findMany({
+      where: { organizationId },
+      orderBy: { id: "asc" },
+      take: PAGE,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        jobTitle: true,
+        companyId: true,
+        lifecycle: true,
+        source: true,
+        archivedAt: true,
+        createdAt: true,
+        owner: { select: { email: true } },
+      },
+    });
+    for (const p of page) {
+      const { owner, ...rest } = p;
+      yield (firstPerson ? "" : ",") + JSON.stringify({ ...rest, owner: owner?.email ?? null });
+      firstPerson = false;
+    }
+    if (page.length < PAGE) break;
+    cursor = page[page.length - 1].id;
+  }
+  yield "]";
+
   // Contactos con etiquetas, campos personalizados, notas y citas.
   yield `,"contacts":[`;
   let first = true;
@@ -52,6 +105,7 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       select: {
         id: true,
+        personId: true,
         accountId: true,
         channelAccountId: true,
         remoteJid: true,

@@ -124,7 +124,7 @@ export type LimitKey = "users" | "channels" | "contacts" | "activeAutomations";
 export interface OrgUsage {
   users: number; // activos + invitaciones pendientes
   channels: number; // sin contar el widget web
-  contacts: number;
+  contacts: number; // personas no archivadas
   activeAutomations: number;
 }
 
@@ -134,7 +134,9 @@ export async function getOrgUsage(organizationId: string): Promise<OrgUsage> {
     prisma.authToken.count({ where: { organizationId, type: "INVITE", usedAt: null, expiresAt: { gt: new Date() } } }),
     prisma.wAAccount.count({ where: { organizationId } }),
     prisma.channelAccount.count({ where: { organizationId, channel: { not: "WEBCHAT" } } }),
-    prisma.contact.count({ where: { OR: [{ account: { organizationId } }, { channelAccount: { organizationId } }] } }),
+    // "Contactos" del plan = personas (no archivadas): una persona con varios
+    // canales cuenta una sola vez.
+    prisma.person.count({ where: { organizationId, archivedAt: null } }),
     prisma.automation.count({ where: { organizationId, status: "ACTIVE" } }),
   ]);
   return { users: users + invites, channels: wa + channels, contacts, activeAutomations };

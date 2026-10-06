@@ -1,3 +1,4 @@
+import { countOwnedRecords, reassignOwnedRecords } from "@/lib/crm/reassign";
 import { NextResponse } from "next/server";
 import { auth, invalidateUserSessionCache } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -66,6 +67,8 @@ export async function PATCH(req: Request) {
       // true desactiva (no puede iniciar sesión y sus sesiones se invalidan),
       // false lo reactiva.
       disabled: z.boolean().optional(),
+      // Al desactivar: a quién pasan sus contactos y empresas (obligatorio si tiene).
+      reassignToUserId: z.string().min(1).optional(),
     }).refine((d) => d.role !== undefined || d.disabled !== undefined, {
       message: "Indica role o disabled",
     }).safeParse(body);
@@ -74,7 +77,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: validated.error.issues[0].message }, { status: 400 });
     }
 
-    const { userId, role, disabled } = validated.data;
+    const { userId, role, disabled, reassignToUserId } = validated.data;
 
     const orgId = await requireOrgId(session.user.id);
     const target = await prisma.user.findFirst({
@@ -113,16 +116,37 @@ export async function PATCH(req: Request) {
       if (overLimit) return overLimit;
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(role !== undefined ? { role } : {}),
-        ...(disabled === true && !target.disabledAt
-          ? { disabledAt: new Date(), sessionVersion: { increment: 1 } }
-          : {}),
-        ...(disabled === false ? { disabledAt: null } : {}),
-      },
-      select: { id: true, name: true, email: true, role: true, disabledAt: true },
+    // Al desactivar, sus contactos y empresas activos pasan a otro responsable.
+    const disabling = disabled === true && !target.disabledAt;
+    let reassignTo: string | null = null;
+    if (disabling) {
+      const owned = await countOwnedRecords(orgId, userId);
+      if (owned.people + owned.companies > 0) {
+        if (!reassignToUserId) {
+          return NextResponse.json(
+            { error: "Este usuario es responsable de contactos o empresas. Elige a quién pasárselos.", code: "needs_reassign", ...owned },
+            { status: 409 }
+          );
+        }
+        const dest = await prisma.user.findFirst({ where: { id: reassignToUserId, organizationId: orgId, disabledAt: null }, select: { id: true } });
+        if (!dest || dest.id === userId) {
+          return NextResponse.json({ error: "El nuevo responsable debe ser otro usuario activo de tu organización" }, { status: 400 });
+        }
+        reassignTo = dest.id;
+      }
+    }
+
+    const user = await prisma.$transaction(async (tx) => {
+      if (disabling && reassignTo) await reassignOwnedRecords(tx, orgId, userId, reassignTo, session.user.id);
+      return tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(role !== undefined ? { role } : {}),
+          ...(disabling ? { disabledAt: new Date(), sessionVersion: { increment: 1 } } : {}),
+          ...(disabled === false ? { disabledAt: null } : {}),
+        },
+        select: { id: true, name: true, email: true, role: true, disabledAt: true },
+      });
     });
     // Aplica ya en este proceso; en los demás, en ≤ 60 s (ver lib/auth.ts).
     invalidateUserSessionCache(userId);

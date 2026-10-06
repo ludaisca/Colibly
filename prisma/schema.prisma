@@ -59,6 +59,11 @@ model User {
   webhookEndpoints      WebhookEndpoint[]
   automations           Automation[]
   automationVersions    AutomationVersion[]
+  ownedPeople           Person[]               @relation("PersonOwner")
+  ownedCompanies        Company[]              @relation("CompanyOwner")
+  activityLogs          ActivityLog[]
+  savedViews            SavedView[]
+  importRuns            ImportRun[]
 
   @@index([organizationId])
   @@map("users")
@@ -1028,6 +1033,14 @@ model Contact {
   // waAccountId al momento de mandar el evento, en vez de congelarla aquí.
   metaAdsAccountId  String?
   metaAdsAccount    MetaAdsAccount? @relation(fields: [metaAdsAccountId], references: [id], onDelete: SetNull)
+  // La PERSONA real detrás de esta identidad de canal ("Contacto" en la
+  // interfaz). Un Contact es una identidad por canal/cuenta; una Person puede
+  // tener varias (WhatsApp + Instagram + web…). Siempre existe: la crea
+  // lib/contacts/resolve.ts junto con el Contact. Borrar una Person borra sus
+  // Contact (cascada) — por eso se borra con lib/crm/people.ts, que antes
+  // elimina chats y media.
+  personId          String
+  person            Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -1049,6 +1062,7 @@ model Contact {
   // cuentas (WhatsApp o canal genérico).
   @@index([accountId, updatedAt(sort: Desc)])
   @@index([channelAccountId, updatedAt(sort: Desc)])
+  @@index([personId])
   // Un Contact de Instant Form nace sin `chat` (no ha escrito por WhatsApp
   // todavía) bajo el `waAccountId` vinculado en su MetaAdsAccount — este
   // índice soporta el reporte de "leads de Instant Form sin conversación
@@ -1079,6 +1093,140 @@ enum MetaAdsAccountMode {
   // modos explícitamente confirmado por un admin.
   TEST
   LIVE
+}
+
+enum PersonLifecycle {
+  LEAD
+  CUSTOMER
+}
+
+enum SavedViewEntity {
+  PEOPLE
+  COMPANIES
+}
+
+// Persona real ("Contacto" en la interfaz): el perfil unificado de un cliente
+// o prospecto en toda la organización, sin importar por cuántos canales escriba.
+// Los canales cuelgan de ella como `Contact` (identidad por cuenta/canal).
+// Directorio compartido de la organización: `organizationId` es el alcance.
+model Person {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  // Siempre en minúsculas (coincidencia y deduplicación).
+  email          String?
+  // Teléfono tal como se mostró/capturó, y su forma de solo dígitos para
+  // buscar y detectar duplicados (52…/521… se tratan como el mismo móvil).
+  phone          String?
+  phoneDigits    String?         @map("phone_digits")
+  jobTitle       String?         @map("job_title")
+  companyId      String?         @map("company_id")
+  company        Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  // Responsable comercial de la persona (no es el asignado del chat).
+  ownerId        String?         @map("owner_id")
+  owner          User?           @relation("PersonOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  lifecycle      PersonLifecycle @default(LEAD)
+  // Cómo llegó: "manual", "import", "api", "whatsapp", "instagram"…
+  source         String?
+  // Concurrencia optimista: toda edición manda la versión que vio.
+  version        Int             @default(1)
+  archivedAt     DateTime?       @map("archived_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  contacts     Contact[]
+  activityLogs ActivityLog[]
+
+  @@index([organizationId, archivedAt, updatedAt(sort: Desc)])
+  @@index([organizationId, phoneDigits])
+  @@index([organizationId, email])
+  @@index([organizationId, ownerId])
+  @@index([companyId])
+  @@map("people")
+}
+
+// Empresa (B2B): opcional, agrupa personas.
+model Company {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  domain         String?
+  industry       String?
+  size           String?
+  location       String?
+  notes          String?      @db.Text
+  ownerId        String?      @map("owner_id")
+  owner          User?        @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  version        Int          @default(1)
+  archivedAt     DateTime?    @map("archived_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  people       Person[]
+  activityLogs ActivityLog[]
+
+  @@index([organizationId, archivedAt, name])
+  @@index([organizationId, ownerId])
+  @@map("companies")
+}
+
+// Historial CRM de una persona/empresa (creación, cambios de campos, de
+// responsable, fusiones, archivo). Se escribe en la MISMA transacción que el
+// cambio. Los mensajes, notas y citas no se duplican aquí: la línea de tiempo
+// los lee de sus tablas.
+model ActivityLog {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  personId       String?      @map("person_id")
+  person         Person?      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId      String?      @map("company_id")
+  company        Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorId        String?      @map("actor_id")
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  type           String
+  data           Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, personId, createdAt(sort: Desc)])
+  @@index([organizationId, companyId, createdAt(sort: Desc)])
+  @@map("activity_logs")
+}
+
+// Vista guardada de un listado (filtros + orden), personal o compartida.
+model SavedView {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String          @map("user_id")
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity         SavedViewEntity
+  name           String
+  filters        Json
+  shared         Boolean         @default(false)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@index([organizationId, entity])
+  @@map("saved_views")
+}
+
+// Una importación CSV ya aplicada: la huella (archivo + mapeo) impide
+// importar dos veces el mismo archivo.
+model ImportRun {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint    String
+  summary        Json
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([organizationId, fingerprint])
+  @@map("import_runs")
 }
 
 // Config de una Página/Business de Meta Ads para el feedback loop de
@@ -1818,6 +1966,11 @@ model Organization {
   sequences        WASequence[]
   campaigns        WACampaign[]
   leadSheetSources LeadSheetSource[]
+  people           Person[]
+  companies        Company[]
+  activityLogs     ActivityLog[]
+  savedViews       SavedView[]
+  importRuns       ImportRun[]
   authTokens       AuthToken[]
 
   @@index([status])

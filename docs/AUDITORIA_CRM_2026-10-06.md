@@ -130,6 +130,16 @@ Pospuesto, con motivo: búsqueda indexada por teléfono/correo → Fase 1 (llega
 ### Fase 1 — Personas y empresas
 `Person`, `Company`, `ownerId`, correo/cargo/campos; migración con relleno 1:1; **ficha 360** (chats de todos los canales, notas, citas, campos); fusión manual desde la UI; **importar/exportar CSV** con mapeo y deduplicación por teléfono/correo; **vistas guardadas** y filtros por responsable/etiqueta/origen/empresa; acciones en lote (etiquetar, asignar, exportar); búsqueda por correo y empresa.
 
+#### Resultado de la Fase 1 (rama `feat/crm-fase-0`, solo backend y API; sin interfaz por diseño)
+- **Modelos** (migración `crm_people_companies`, con relleno: una persona por cada contacto existente, los `CUSTOMER` pasan a ciclo de vida de cliente): `Person` ("Contactos" en la interfaz), `Company`, `ActivityLog`, `SavedView`, `ImportRun`; `Contact.personId` obligatorio. Concurrencia por versión y archivo lógico en personas y empresas.
+- **Creación única**: `resolveContact()` crea o reutiliza la persona en la misma transacción; una persona creada a mano o importada se **vincula sola** cuando escribe por WhatsApp (probado con el formato `52…`/`521…` contrario).
+- **API `/api/crm/*`**: listado con búsqueda y filtros (responsable, empresa, ciclo de vida, canal, etiqueta, fechas, archivados), ficha con canales/citas/historial, alta con aviso de duplicado, edición con control de versión, archivar/restaurar, fusión, acciones en lote, duplicados, importación CSV con previsualización y huella, exportación, vistas guardadas, historial, equipo; empresas completas.
+- **Permisos** como se decidió: `ejecutivo` comparte el directorio pero solo edita lo suyo; `admin`/`user` todo; borrado definitivo solo `admin`; al desactivar un usuario hay que reasignar sus contactos y empresas.
+- **Plan**: el límite "contactos" cuenta personas. **Exportación/borrado de organización** incluyen lo nuevo.
+- **Búsqueda indexada** (`pg_trgm`) fuera de las migraciones, como el índice vectorial.
+- **Verificación**: 30 pruebas puras nuevas; pruebas por HTTP con **dos organizaciones y los tres roles** (aislamiento 404/403, duplicados 409, 6 ediciones simultáneas = 1×200 + 5×409, fusión, lote, importación, vistas, reasignación, borrado) y borrado real de organización por cascada. La primera tanda dio falsos positivos por la caché obsoleta de Turbopack (404 en HTML); se limpió `.next` y se endureció el verificador para exigir JSON.
+- **Pospuesto**: etiquetas y campos personalizados a nivel de persona (hoy viven en el contacto de canal y la ficha los muestra por canal), eventos de dominio y API pública para personas/empresas (Fase 5), interfaz (rediseño).
+
 ### Fase 2 — Negocios y pipelines
 `Pipeline`, `PipelineStage`, `Deal`, `DealStageChange`; pipeline por defecto sembrado desde `LeadStatus`; doble escritura hacia `Contact.leadStatus`; tablero **paginado por columna** (arregla D4) con monto por columna; motivo de pérdida; editor de etapas en Configuración; eventos `deal.*`; CAPI conectado por equivalente de etapa.
 
