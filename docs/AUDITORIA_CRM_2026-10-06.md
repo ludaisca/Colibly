@@ -165,6 +165,11 @@ Pospuesto, con motivo: búsqueda indexada por teléfono/correo → Fase 1 (llega
 ### Fase 4 — Reportes y pronóstico
 Embudo con conversión por etapa y tiempo en etapa, tasa de cierre, ciclo de venta, ventas por responsable y por origen/anuncio, **pronóstico** (monto × probabilidad por etapa).
 
+#### Resultado de la Fase 4 (backend/API, sin pantalla)
+- `GET /api/crm/reports/{summary,funnel,owners,origins,loss-reasons,trend,forecast}` (SQL agregado, solo lectura): resumen con comparación contra el periodo anterior, **embudo** con conversión y tiempo por etapa, tasa de cierre, ciclo de venta, ventas por responsable, por origen y por anuncio, motivos de pérdida, tendencia por día/semana/mes y **pronóstico** (monto × probabilidad por mes de cierre, vencidos y sin fecha, más el cierre proyectado del mes).
+- Criterios: rendimiento por fecha de cierre; atribución y embudo por cohorte de negocios creados en el periodo. Tasas sin base devuelven `null`. El ejecutivo solo ve lo suyo.
+- Verificación: 13 pruebas puras nuevas y 13 de integración contra la base real con negocios de fechas controladas (cifras calculadas a mano, incluido el periodo anterior, archivados, saltos de etapa, ejecutivo y otra organización).
+
 ### Fase 5 — Integración y cierre
 `/api/v1` para personas, empresas, negocios y tareas + **OpenAPI al mismo tiempo**; eventos y webhooks nuevos en el catálogo; pasos de automatización "crear negocio / mover etapa / crear tarea"; límites de plan (decisión 3); textos de la landing y del plan; exportación/borrado de organización completos; barrido de aislamiento final con dos organizaciones.
 

@@ -459,6 +459,14 @@ A **deal** is a sales opportunity of a *person* (not of a channel identity): `De
 - **UI** (minimal on purpose, a redesign is planned): `/ventas` = board of the chosen pipeline (per-column totals, "cargar más", drag & drop with `@dnd-kit`, a modal asking the loss reason), `ContactDrawer` shows the person's open deals (`app/components/pipeline/contact-deals.tsx`), `/whatsapp/contactos` shows/filters the stage. No pipeline editor screen yet — configure through the API.
 - **Data**: the migration seeded a pipeline per existing organization and one open deal per person whose contact was New/Contacted/Qualified (Customer and Lost contacts did not become deals); existing `MetaConversionEvent` rows were deleted (they had no deal to hang from).
 
+### Reports (`lib/crm/reports.ts`, since 2026-10-06)
+
+Read-only sales reports computed in SQL (aggregates, never loading deals into memory): `GET /api/crm/reports/{summary|funnel|owners|origins|loss-reasons|trend|forecast}`. Filters: `pipelineId` (funnel defaults to the default pipeline, the rest span all), `from`/`to` (`YYYY-MM-DD` = local days of the organization's time zone, `to` inclusive; or ISO instants; default last 90 days, max 800), `ownerId` (id | `none` | `me`), `leadOrigin`, `adId`, `granularity` (trend only, default by span). Pure rules in `lib/crm/report-rules.ts` (periods, rates, funnel, forecast buckets — tested).
+- **Two period criteria on purpose**: performance (summary, owners, loss reasons, trend of won/lost) is by **closing date**; attribution and funnel (origins/ads, funnel) are by **cohort** — deals *created* in the period and what became of them to date. `summary` also returns the previous period of the same length and today's open snapshot.
+- **Funnel**: "reached stage k" = ever occupied k **or a later open stage**, or ever won (a deal that jumps stages counts for the ones it skipped); built from `DealStageChange`. Also per-stage time spent (`secondsInFrom` of moves in the period: average and median) and what sits in each stage now with its average age.
+- **Rates are `null` when there is no base** (never a fake 0 %). `winRate` = won ÷ (won + lost). Forecast = amount × effective probability (the deal's own, else the stage's), bucketed by expected close month with `overdue` / `none` buckets, plus the month in progress (won so far + weighted expected this month).
+- **Access**: `organizationId`-scoped; the `ejecutivo` always gets only their own deals (a different `ownerId` is ignored), archived deals never count. Amounts are in the organization's currency. No UI yet (the redesign owns it).
+
 ### Tasks, timeline and "Mi día" (`Task`, since 2026-10-06)
 
 A **task** is something to do, tied to a person, company and/or deal (at least one; a deal fills in its person), with assignee, optional due date and reminder. `Task.source` is `manual | stage_rule | api | automation`.

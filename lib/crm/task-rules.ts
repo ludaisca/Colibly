@@ -31,6 +31,16 @@ function zonedMidnight(y: number, m: number, d: number, timeZone: string): numbe
   return t;
 }
 
+// Inicio (00:00 local) del día "YYYY-MM-DD" en la zona de la organización.
+export function localDayStart(date: string, timeZone: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return null;
+  return new Date(zonedMidnight(y, mo, d, safeTimeZone(timeZone)));
+}
+
 export function safeTimeZone(tz: string | null | undefined): string {
   if (!tz) return "UTC";
   try {
