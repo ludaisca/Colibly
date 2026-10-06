@@ -18,15 +18,50 @@ if (!isset($_SESSION['beta_csrf']) || !hash_equals($_SESSION['beta_csrf'], (stri
 $name = trim((string)($_POST['name'] ?? ''));
 $business = trim((string)($_POST['businessName'] ?? ''));
 $email = trim((string)($_POST['email'] ?? ''));
-$phone = trim((string)($_POST['phone'] ?? ''));
+$phoneInput = trim((string)($_POST['phone'] ?? ''));
+$phoneCountryIso = strtoupper(trim((string)($_POST['phoneCountry'] ?? 'MX')));
 $description = trim((string)($_POST['description'] ?? ''));
 $website = trim((string)($_POST['website'] ?? ''));
 if ($website !== '') reply(201, '', true);
 if (mb_strlen($name) < 2 || mb_strlen($name) > 80 || mb_strlen($business) < 2 || mb_strlen($business) > 100) reply(400, 'Revisa tu nombre y el nombre del negocio.');
 if (mb_strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strpbrk($email, "\r\n") !== false) reply(400, 'Escribe un correo válido.');
-// Cuenta dígitos, no caracteres (igual que lib/beta-application.ts): "(55) 12" mide 8 pero no es un teléfono.
+// El formulario enriquece la captura con un país; se normaliza aquí para mantener
+// el correo de solicitud en E.164 incluso sin JavaScript o con borradores antiguos.
+$countryData = json_decode((string)file_get_contents(__DIR__ . '/assets/phone-countries.json'), true);
+$phoneCountry = null;
+foreach (is_array($countryData) ? $countryData : [] as $country) {
+    if (($country['iso'] ?? '') === $phoneCountryIso) { $phoneCountry = $country; break; }
+}
+if (mb_strlen($phoneInput) > 30 || !preg_match('/^(?:\+|00)?[()0-9 .-]+$/', $phoneInput)) reply(400, 'Revisa el número de WhatsApp.');
+if (str_starts_with($phoneInput, '+') || str_starts_with($phoneInput, '00')) {
+    $international = preg_replace('/\D/', '', $phoneInput) ?? '';
+    if (str_starts_with($phoneInput, '00')) $international = substr($international, 2);
+    $phone = '+' . $international;
+    $matches = array_values(array_filter(is_array($countryData) ? $countryData : [], static fn(array $country): bool => str_starts_with($international, (string)($country['dial'] ?? ''))));
+    usort($matches, static fn(array $a, array $b): int => strlen((string)$b['dial']) <=> strlen((string)$a['dial']));
+    $phoneCountry = $matches[0] ?? null;
+    if (count($matches) > 1 && strlen((string)$matches[0]['dial']) === strlen((string)$matches[1]['dial'])) {
+        $nationalForArea = substr($international, strlen((string)$matches[0]['dial']));
+        foreach ($matches as $match) {
+            if (!empty($match['areaCodes']) && array_filter($match['areaCodes'], static fn(string $area): bool => str_starts_with($nationalForArea, $area))) { $phoneCountry = $match; break; }
+        }
+    }
+    if (!$phoneCountry) reply(400, 'Elige un país válido para tu número.');
+    $national = substr($international, strlen((string)$phoneCountry['dial']));
+} else {
+    if (!$phoneCountry) reply(400, 'Elige un país válido para tu número.');
+    $national = preg_replace('/\D/', '', $phoneInput) ?? '';
+    $trunk = (string)($phoneCountry['trunk'] ?? '');
+    $lengths = array_map(static fn(string $pattern): int => substr_count($pattern, '#'), $phoneCountry['patterns'] ?? []);
+    if ($trunk !== '' && str_starts_with($national, $trunk) && $lengths && strlen($national) - strlen($trunk) >= min($lengths)) {
+        $national = substr($national, strlen($trunk));
+    }
+    $phone = '+' . $phoneCountry['dial'] . $national;
+}
 $phoneDigits = (int)preg_match_all('/\d/', $phone);
-if (mb_strlen($phone) > 30 || !preg_match('/^[+()0-9 .-]+$/', $phone) || $phoneDigits < 8 || $phoneDigits > 15) reply(400, 'Revisa el número de WhatsApp: incluye la lada, por ejemplo 55 1234 5678.');
+if (!preg_match('/^\+[1-9]\d{7,14}$/', $phone) || $phoneDigits < 8 || $phoneDigits > 15) reply(400, 'Revisa el número de WhatsApp: incluye el país y la lada.');
+$validLengths = array_map(static fn(string $pattern): int => substr_count($pattern, '#'), $phoneCountry['patterns'] ?? []);
+if (!$validLengths || !in_array(strlen($national), $validLengths, true)) reply(400, 'Revisa la cantidad de dígitos para el país seleccionado.');
 if (mb_strlen($description) > 400) reply(400, 'Usa 400 caracteres o menos en la descripción.');
 if (($_POST['privacyAccepted'] ?? '') !== '1') reply(400, 'Marca la casilla de aceptación para enviar tu solicitud.');
 

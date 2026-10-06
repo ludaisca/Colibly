@@ -10,6 +10,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { betaApplicationSchema } from "@/lib/beta-application";
 import { track } from "@/lib/analytics/client";
 import { BRAND_CONTACT_EMAIL } from "@/lib/brand";
+import { PhoneInput, isValidPhoneNumber, parsePhoneNumber } from "@/app/components/arc/phone-input/phone-input";
 
 type Fields = "name" | "businessName" | "email" | "phone" | "description" | "privacyAccepted";
 type TextFields = Exclude<Fields, "privacyAccepted">;
@@ -58,8 +59,14 @@ export function BetaApplicationForm() {
       for (const field of TEXT_FIELDS) {
         const value = saved[field];
         if (typeof value === "string" && value) {
-          draft.current[field] = value;
-          setters[field](value);
+          // Old drafts contained free text. Keep the common ten-digit Mexican case
+          // when moving to Arc's controlled E.164 input.
+          const normalized = field === "phone" && !parsePhoneNumber(value)
+            ? (/^\d{10}$/.test(value.replace(/\D/g, "")) ? `+52${value.replace(/\D/g, "")}` : "")
+            : value;
+          if (!normalized) continue;
+          draft.current[field] = normalized;
+          setters[field](normalized);
         }
       }
     } catch {
@@ -86,7 +93,8 @@ export function BetaApplicationForm() {
     const result = betaApplicationSchema.shape[field].safeParse(value);
     setErrors((prev) => {
       const next = { ...prev };
-      if (result.success) delete next[field];
+      if (result.success && field === "phone" && !isValidPhoneNumber(value)) next[field] = "Revisa el número de WhatsApp para el país seleccionado";
+      else if (result.success) delete next[field];
       else next[field] = result.error.issues[0]?.message ?? "Revisa este campo";
       return next;
     });
@@ -119,12 +127,15 @@ export function BetaApplicationForm() {
     setServerError("");
     setErrors({});
     const parsed = betaApplicationSchema.safeParse({ name, businessName, email, phone, description, privacyAccepted, website });
-    if (!parsed.success) {
+    if (!parsed.success || (phone && !isValidPhoneNumber(phone))) {
       const next: Partial<Record<Fields, string>> = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0] as Fields;
-        if (!next[field]) next[field] = issue.message;
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          const field = issue.path[0] as Fields;
+          if (!next[field]) next[field] = issue.message;
+        }
       }
+      if (phone && !isValidPhoneNumber(phone) && !next.phone) next.phone = "Revisa el número de WhatsApp para el país seleccionado";
       setErrors(next);
       const first = (["name", "businessName", "email", "phone", "description", "privacyAccepted"] as const).find((field) => next[field]);
       const refs = { name: nameRef, businessName: businessRef, email: emailRef, phone: phoneRef, description: descriptionRef, privacyAccepted: privacyRef };
@@ -193,9 +204,11 @@ export function BetaApplicationForm() {
         <FormField label="Correo donde te escribimos" required error={errors.email}>
           {(id, describedBy) => <Input ref={emailRef} id={id} aria-describedby={describedBy} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={254} placeholder="ana@negocio.com" error={errors.email} inputClassName="max-sm:text-base" {...fieldProps("email", email)} />}
         </FormField>
-        <FormField label="WhatsApp de contacto" required error={errors.phone} hint="Incluye la lada; acepta números de 8 a 15 dígitos.">
-          {(id, describedBy) => <Input ref={phoneRef} id={id} aria-describedby={describedBy} type="tel" inputMode="tel" autoComplete="tel" maxLength={30} placeholder="+52 55 1234 5678" error={errors.phone} inputClassName="max-sm:text-base" {...fieldProps("phone", phone)} />}
-        </FormField>
+        <PhoneInput ref={phoneRef} id="beta-phone" label="WhatsApp de contacto *" required value={phone}
+          defaultCountry="MX" preferredCountries={["MX", "CO", "AR", "US", "ES"]}
+          description="Elige el país y escribe tu número de WhatsApp." error={errors.phone} validate={false}
+          onValueChange={(value) => { setPhone(value); remember("phone", value); if (errors.phone) checkField("phone", value); }}
+          onBlur={() => { if (phone) checkField("phone", phone); }} />
       </div>
       <FormField label="¿Cómo atiendes hoy los mensajes de tus clientes?" hint="Opcional. Con una frase basta." error={errors.description} className="mt-4">
         {(id, describedBy) => <Textarea ref={descriptionRef} id={id} aria-describedby={describedBy} maxLength={DESCRIPTION_MAX} placeholder="Somos dos personas y atendemos desde un solo celular…" error={errors.description} className="max-sm:[&_textarea]:text-base" {...fieldProps("description", description)} />}
