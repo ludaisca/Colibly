@@ -88,6 +88,8 @@ export async function ingestInboundMessage(
       attribution: msg.referral?.ctwa_clid
         ? { leadOrigin: "CTWA", ctwaClid: msg.referral.ctwa_clid, adId: msg.referral.source_id ?? null }
         : undefined,
+      // Una persona nueva que escribe abre un negocio en el pipeline predeterminado.
+      openDeal: { source: msg.referral?.ctwa_clid ? "ads" : "inbound" },
     }
   );
   const contactRecord = resolved.contact;

@@ -14,7 +14,8 @@ import { getOrgBusinessHours } from "@/lib/organizations";
 export interface SimFacts {
   name: string;
   tags: string[];
-  leadStatus: string;
+  // Etapas (ids) de los negocios abiertos del contacto de prueba.
+  dealStageIds: string[];
   customFields: Record<string, string | null>;
 }
 
@@ -56,7 +57,7 @@ export async function simulate(input: {
       contact: { name: facts.name, phone: "5215500000000" },
       customFields: facts.customFields,
       tags: facts.tags,
-      leadStatus: facts.leadStatus,
+      dealStageIds: facts.dealStageIds,
       scoreLabels: [],
       channel: input.channel,
     }),
@@ -78,9 +79,12 @@ export async function simulate(input: {
       facts.tags = facts.tags.filter((t) => t.toLowerCase() !== name.toLowerCase());
       effect(`Etiqueta quitada: ${name}`);
     },
-    setLeadStatus: async (s) => {
-      facts.leadStatus = s;
-      effect(`Etapa del lead: ${s}`);
+    setDealStage: async (stageId) => {
+      const stage = await prisma.pipelineStage.findFirst({ where: { id: stageId, pipeline: { organizationId: input.organizationId } }, select: { name: true } });
+      facts.dealStageIds = [stageId];
+      const summary = `Negocio movido a ${stage?.name ?? "la etapa elegida"}`;
+      effect(summary);
+      return { summary };
     },
     setCustomField: async (k, v) => {
       facts.customFields[k] = v;

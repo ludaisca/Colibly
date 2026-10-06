@@ -10,7 +10,7 @@ import { Switch } from "@/app/components/ui/switch";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { shortId } from "@/lib/automations/graph";
-import { STEP_META, LEAD_STATUS_LABEL } from "@/lib/automations/labels";
+import { STEP_META } from "@/lib/automations/labels";
 import { LIMITS, type AutomationChannel, type ValidationIssue } from "@/lib/automations/validate";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import type { ConditionRule, Option, Step, StepOf } from "@/lib/automations/types";
@@ -22,6 +22,8 @@ export interface EditorOptions {
   scorers: { id: string; name: string }[];
   users: { id: string; name: string }[];
   scoreLabels: string[];
+  stages: { id: string; name: string; outcome: "OPEN" | "WON" | "LOST" }[];
+  lossReasons: { id: string; name: string }[];
 }
 
 interface Props {
@@ -183,18 +185,35 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
         </FormField>
       )}
 
-      {step.type === "set_lead_status" && (
-        <FormField label="Nueva etapa">
-          {(id) => (
-            <Select id={id} value={step.config.status} onChange={(e) => set(step, { status: e.target.value as StepOf<"set_lead_status">["config"]["status"] })}>
-              {Object.entries(LEAD_STATUS_LABEL).map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </Select>
+      {step.type === "set_deal_stage" && (
+        <>
+          <FormField label="Mover el negocio a" required hint="Si el contacto no tiene un negocio abierto en ese pipeline, se abre uno en la etapa elegida.">
+            {(id) => (
+              <Select id={id} value={step.config.stageId} onChange={(e) => set(step, { stageId: e.target.value })}>
+                <option value="">Elige una etapa</option>
+                {options.stages.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+          {options.stages.find((s) => s.id === step.config.stageId)?.outcome === "LOST" && (
+            <FormField label="Motivo de pérdida" required>
+              {(id) => (
+                <Select id={id} value={step.config.lostReasonId ?? ""} onChange={(e) => set(step, { lostReasonId: e.target.value || null })}>
+                  <option value="">Elige un motivo</option>
+                  {options.lossReasons.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </FormField>
           )}
-        </FormField>
+        </>
       )}
 
       {step.type === "set_custom_field" && (
@@ -589,7 +608,7 @@ function TemplateEditor({ step, templates, onChange }: { step: StepOf<"send_temp
 
 const SUBJECTS: { value: ConditionRule["subject"]; label: string }[] = [
   { value: "tag", label: "Etiqueta" },
-  { value: "lead_status", label: "Etapa del lead" },
+  { value: "deal_stage", label: "Etapa del negocio" },
   { value: "custom_field", label: "Campo personalizado" },
   { value: "var", label: "Variable" },
   { value: "score_label", label: "Calificación IA" },
@@ -686,12 +705,12 @@ function RuleFields({ rule, options, onChange }: { rule: ConditionRule; options:
         ))}
       </Select>
       {needsValue &&
-        (rule.subject === "lead_status" ? (
+        (rule.subject === "deal_stage" ? (
           <Select aria-label="Etapa" value={rule.value ?? ""} onChange={(e) => onChange({ value: e.target.value })}>
             <option value="">Elige</option>
-            {Object.entries(LEAD_STATUS_LABEL).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
+            {options.stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
             ))}
           </Select>

@@ -8,23 +8,23 @@ datasource db {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  name           String?
-  email          String    @unique
-  password       String?
-  role           String    @default("user")
-  maxOpenChats   Int?
+  id                String        @id @default(cuid())
+  name              String?
+  email             String        @unique
+  password          String?
+  role              String        @default("user")
+  maxOpenChats      Int?
   // Usuario desactivado por un admin: no puede iniciar sesión, su sesión
   // vigente se invalida en la siguiente revalidación (lib/auth.ts) y deja de
   // recibir chats por auto-asignación.
-  disabledAt     DateTime? @map("disabled_at")
+  disabledAt        DateTime?     @map("disabled_at")
   // Se incrementa para invalidar todas las sesiones JWT ya emitidas del
   // usuario (al desactivarlo) — el token guarda la versión con la que se firmó.
-  sessionVersion Int       @default(0) @map("session_version")
+  sessionVersion    Int           @default(0) @map("session_version")
   // Espacio de trabajo al que pertenece (un usuario = una organización). role
   // es el rol DENTRO de esta organización.
-  organizationId String       @map("organization_id")
-  organization   Organization @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId    String        @map("organization_id")
+  organization      Organization  @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: Cascade)
   ownedOrganization Organization? @relation("OrganizationOwner")
   // Correo confirmado (enlace de verificación, restablecer contraseña o
   // aceptar una invitación lo prueban). Sin verificar se puede entrar, pero no
@@ -61,6 +61,9 @@ model User {
   automationVersions    AutomationVersion[]
   ownedPeople           Person[]               @relation("PersonOwner")
   ownedCompanies        Company[]              @relation("CompanyOwner")
+  ownedDeals            Deal[]                 @relation("DealOwner")
+  createdDeals          Deal[]                 @relation("DealCreator")
+  dealStageChanges      DealStageChange[]
   activityLogs          ActivityLog[]
   savedViews            SavedView[]
   importRuns            ImportRun[]
@@ -94,14 +97,14 @@ model GoogleAccount {
 }
 
 model WAAccount {
-  id                String          @id @default(cuid())
-  userId            String
-  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId    String          @map("organization_id")
-  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  name              String
-  channel           WAChannel       @default(META_CLOUD)
-  connectionType    WAConnectionType @default(MANUAL) @map("connection_type")
+  id                     String                  @id @default(cuid())
+  userId                 String
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId         String                  @map("organization_id")
+  organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                   String
+  channel                WAChannel               @default(META_CLOUD)
+  connectionType         WAConnectionType        @default(MANUAL) @map("connection_type")
   // Coexistencia: el número sigue activo en la app WhatsApp Business del
   // teléfono además de Cloud API (Embedded Signup con featureType
   // whatsapp_business_app_onboarding).
@@ -123,31 +126,31 @@ model WAAccount {
   // Id de Meta de quien autorizó la app, si se pudo obtener: sirve para casar
   // los callbacks de desautorización/eliminación de datos con la cuenta.
   metaUserId             String?                 @map("meta_user_id")
-  phoneNumber       String?
-  phoneNumberId     String?
-  wabaId            String?
+  phoneNumber            String?
+  phoneNumberId          String?
+  wabaId                 String?
   // Meta App ID that owns accessToken — required only for the Resumable Upload
   // API used when creating a template with a media header (distinct from wabaId,
   // which scopes template/message sends). Different WABA accounts can belong to
   // different Meta Apps, so this is per-account rather than a global env var.
-  appId             String?
-  accessToken       String?
-  verifyTokenHash   String?
-  appSecret         String?
-  status            WaAccountStatus @default(PENDING)
-  errorMessage      String?
-  lastActivity      DateTime?
-  autoAssignEnabled Boolean         @default(false)
+  appId                  String?
+  accessToken            String?
+  verifyTokenHash        String?
+  appSecret              String?
+  status                 WaAccountStatus         @default(PENDING)
+  errorMessage           String?
+  lastActivity           DateTime?
+  autoAssignEnabled      Boolean                 @default(false)
   // Reportados por el webhook `phone_number_quality_update` de Meta — no se
   // consultan por API, solo llegan de forma reactiva (push). qualityRating es
   // el valor crudo que manda Meta (p. ej. "GREEN"/"YELLOW"/"RED" o el nombre
   // del evento "FLAGGED"/"UNFLAGGED"); messagingTier es el límite de envío por
   // 24h vigente (p. ej. "TIER_1K"). Ambos null hasta el primer evento recibido.
-  qualityRating     String?
-  messagingTier     String?
-  qualityUpdatedAt  DateTime?
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
+  qualityRating          String?
+  messagingTier          String?
+  qualityUpdatedAt       DateTime?
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
 
   chats      WAChat[]
   templates  WATemplate[]
@@ -429,34 +432,34 @@ model Conversation {
 }
 
 model ChannelMessage {
-  id                String           @id @default(cuid())
-  externalMessageId String?
-  conversationId    String
-  conversation      Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  direction         MessageDirection
-  messageType       String
-  body              String?
-  caption           String?
-  mediaId           String?
-  mediaUrl          String?
-  mimeType          String?
-  filename          String?
-  bytesSize         Int?
-  status            String?
-  senderId          String?
-  sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  id                 String           @id @default(cuid())
+  externalMessageId  String?
+  conversationId     String
+  conversation       Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction          MessageDirection
+  messageType        String
+  body               String?
+  caption            String?
+  mediaId            String?
+  mediaUrl           String?
+  mimeType           String?
+  filename           String?
+  bytesSize          Int?
+  status             String?
+  senderId           String?
+  sender             User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
   // Roadmap P3-c — true si este INBOUND vino de un comentario de Facebook
   // Page (webhook `feed`), no de un mensaje directo. `externalMessageId` ya
   // guarda el comment_id de Meta en ese caso (mismo campo, sin columna
   // aparte) — este flag es lo que permite distinguir cuál de los dos
   // significados tiene. Necesario para decidir el mecanismo de envío de la
   // primera respuesta: ver sendMetaChannelReply() en chats/[chatId]/send.
-  isFromComment     Boolean          @default(false) @map("is_from_comment")
+  isFromComment      Boolean          @default(false) @map("is_from_comment")
   // Botones/lista enviados (OUTBOUND) o la opción elegida (INBOUND:
   // { replyId }) — paridad con WAMessage.interactivePayload.
-  interactivePayload Json?          @map("interactive_payload")
-  timestamp         DateTime
-  createdAt         DateTime         @default(now()) @map("created_at")
+  interactivePayload Json?            @map("interactive_payload")
+  timestamp          DateTime
+  createdAt          DateTime         @default(now()) @map("created_at")
 
   @@unique([conversationId, externalMessageId])
   @@index([conversationId, timestamp])
@@ -499,27 +502,27 @@ model WAChat {
 }
 
 model WALeadScorerBot {
-  id                        String    @id @default(cuid())
+  id                        String       @id @default(cuid())
   userId                    String
-  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId            String       @map("organization_id")
+  organization              Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name                      String
   provider                  String
   model                     String
-  systemPrompt              String    @db.Text
-  isActive                  Boolean   @default(true)
-  scheduleEnabled           Boolean   @default(false)
+  systemPrompt              String       @db.Text
+  isActive                  Boolean      @default(true)
+  scheduleEnabled           Boolean      @default(false)
   scheduleIntervalMinutes   Int?
-  scheduleAccountIds        String[]  @default([])
+  scheduleAccountIds        String[]     @default([])
   // Alcance separado para cuentas de Telegram — WAAccount.id y
   // ChannelAccount.id son cuids de tablas distintas sin garantía de
   // unicidad cruzada; mezclarlos en scheduleAccountIds arriesgaría
   // colisiones silenciosas de id entre canales.
-  scheduleChannelAccountIds String[]  @default([])
+  scheduleChannelAccountIds String[]     @default([])
   lastRunAt                 DateTime?
-  createdAt                 DateTime  @default(now()) @map("created_at")
-  updatedAt                 DateTime  @updatedAt @map("updated_at")
+  createdAt                 DateTime     @default(now()) @map("created_at")
+  updatedAt                 DateTime     @updatedAt @map("updated_at")
 
   scores WALeadScore[]
   usage  WALeadScorerUsage[]
@@ -648,31 +651,31 @@ enum MessageDirection {
 // va un chat sin tener que resetear nada manualmente cuando el lead responde:
 // solo se cuentan los intentos con createdAt posterior al último INBOUND.
 model WAReaction {
-  id        String @id @default(cuid())
+  id        String    @id @default(cuid())
   messageId String
   message   WAMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   emoji     String
-  wamid     String? @unique
-  status    String @default("pending")
+  wamid     String?   @unique
+  status    String    @default("pending")
   error     String?
   senderId  String
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([messageId, createdAt])
   @@map("wa_reactions")
 }
 
 model WASticker {
-  id             String @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   data           Bytes
   sha256         String
-  animated       Boolean @default(false)
-  favorite       Boolean @default(false)
+  animated       Boolean      @default(false)
+  favorite       Boolean      @default(false)
   lastUsedAt     DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
 
   @@unique([organizationId, sha256])
   @@map("wa_stickers")
@@ -730,15 +733,15 @@ model WATemplate {
 // arbitraria del usuario — la misma conexión OAuth (lib/google/sheets-client.ts) sirve
 // para leerla porque el scope otorgado no está restringido a los archivos creados por la app.
 model LeadSheetSource {
-  id                String     @id @default(cuid())
+  id                String       @id @default(cuid())
   userId            String
-  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId    String       @map("organization_id")
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId       String
-  waAccount         WAAccount  @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  waAccount         WAAccount    @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
   waTemplateId      String
-  waTemplate        WATemplate @relation(fields: [waTemplateId], references: [id], onDelete: Cascade)
+  waTemplate        WATemplate   @relation(fields: [waTemplateId], references: [id], onDelete: Cascade)
   name              String
   spreadsheetId     String
   sheetName         String
@@ -750,12 +753,12 @@ model LeadSheetSource {
   // texto o Meta media id para el header, sufijo de URL para el botón dinámico.
   headerParam       String?
   buttonParam       String?
-  enabled           Boolean    @default(true)
+  enabled           Boolean      @default(true)
   lastRunAt         DateTime?
-  lastImportedCount Int        @default(0)
+  lastImportedCount Int          @default(0)
   lastError         String?
-  createdAt         DateTime   @default(now()) @map("created_at")
-  updatedAt         DateTime   @updatedAt @map("updated_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
 
   importedRows LeadSheetImportedRow[]
   messages     WAMessage[]
@@ -794,8 +797,8 @@ model WACampaign {
   id             String         @id @default(cuid())
   userId         String
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String         @map("organization_id")
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId    String
   waAccount      WAAccount      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
   waTemplateId   String
@@ -866,8 +869,8 @@ model WABot {
   id                           String          @id @default(cuid())
   userId                       String
   user                         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId               String          @map("organization_id")
+  organization                 Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   waAccountId                  String?
   waAccount                    WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: SetNull)
   // Mutuamente excluyente con waAccountId a nivel de aplicación — un bot sirve
@@ -977,14 +980,6 @@ model WABotUsage {
   @@map("wa_bot_usage")
 }
 
-enum LeadStatus {
-  NEW
-  CONTACTED
-  QUALIFIED
-  CUSTOMER
-  LOST
-}
-
 model Contact {
   id                String          @id @default(cuid())
   // accountId/channelAccountId son mutuamente excluyentes (a nivel de
@@ -1003,7 +998,6 @@ model Contact {
   // CSV/hoja de origen (revisado por marketing) y nunca se pisa con esto.
   // Null hasta que algún calificador detecte un nombre real.
   realName          String?
-  leadStatus        LeadStatus      @default(NEW)
   // Reportado por el webhook `user_preferences` de Meta cuando el lead usa el
   // mecanismo nativo de WhatsApp para darse de baja de mensajes de marketing
   // (category "marketing_messages", value "stop"/"resume"). campaign-worker.ts
@@ -1053,11 +1047,10 @@ model Contact {
   customFieldValues    ContactCustomFieldValue[]
   sequenceEnrollments  WASequenceEnrollment[]
   automationRuns       AutomationRun[]
+  deals                Deal[]
 
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
-  @@index([accountId, leadStatus])
-  @@index([channelAccountId, leadStatus])
   // Listados de contactos: orden por actividad reciente dentro del alcance de
   // cuentas (WhatsApp o canal genérico).
   @@index([accountId, updatedAt(sort: Desc)])
@@ -1137,6 +1130,7 @@ model Person {
 
   contacts     Contact[]
   activityLogs ActivityLog[]
+  deals        Deal[]
 
   @@index([organizationId, archivedAt, updatedAt(sort: Desc)])
   @@index([organizationId, phoneDigits])
@@ -1166,6 +1160,7 @@ model Company {
 
   people       Person[]
   activityLogs ActivityLog[]
+  deals        Deal[]
 
   @@index([organizationId, archivedAt, name])
   @@index([organizationId, ownerId])
@@ -1193,6 +1188,170 @@ model ActivityLog {
   @@index([organizationId, personId, createdAt(sort: Desc)])
   @@index([organizationId, companyId, createdAt(sort: Desc)])
   @@map("activity_logs")
+}
+
+// ─── Negocios (Fase 2 del giro a CRM) ───────────────────────────────────────
+// Un negocio (`Deal`) es una oportunidad de venta de una persona (o empresa) y
+// vive en una etapa de un pipeline. Reemplaza al viejo `Contact.leadStatus`:
+// la persona puede tener varios negocios (y en varios pipelines), cada uno con
+// su monto, responsable e historial de etapas.
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+// Embudo de ventas de una organización. Varios por organización; exactamente
+// uno es el predeterminado (el que abre negocios solos y el que muestra
+// /ventas al entrar).
+model Pipeline {
+  id              String       @id @default(cuid())
+  organizationId  String       @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String
+  position        Int          @default(0)
+  isDefault       Boolean      @default(false) @map("is_default")
+  // ¿Un contacto nuevo que escribe abre solo un negocio en la primera etapa?
+  autoCreateDeals Boolean      @default(true) @map("auto_create_deals")
+  archivedAt      DateTime?    @map("archived_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  stages PipelineStage[]
+  deals  Deal[]
+
+  @@index([organizationId, archivedAt, position])
+  @@map("pipelines")
+}
+
+// Etapa de un pipeline. `outcome` dice si estar aquí cierra el negocio
+// (ganado/perdido) o sigue abierto; `probability` es el % de cierre por defecto
+// (para el pronóstico); `metaEvent` es el evento de la Conversions API que se
+// reporta cuando un negocio de anuncio entra a la etapa (null = no se reporta).
+model PipelineStage {
+  id          String     @id @default(cuid())
+  pipelineId  String     @map("pipeline_id")
+  pipeline    Pipeline   @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  name        String
+  position    Int
+  // Nombre de un tono semántico de la interfaz (info, warning, accent,
+  // success, muted…), no un hex: los colores salen de los tokens.
+  color       String     @default("info")
+  outcome     DealStatus @default(OPEN)
+  probability Int        @default(0)
+  metaEvent   String?    @map("meta_event")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  deals Deal[]
+
+  @@index([pipelineId, position])
+  @@map("pipeline_stages")
+}
+
+// Catálogo de motivos de pérdida (obligatorio al perder un negocio).
+model LossReason {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  position       Int          @default(0)
+  archivedAt     DateTime?    @map("archived_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  deals Deal[]
+
+  @@index([organizationId, archivedAt, position])
+  @@map("loss_reasons")
+}
+
+model Deal {
+  id                String        @id @default(cuid())
+  organizationId    String        @map("organization_id")
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pipelineId        String        @map("pipeline_id")
+  pipeline          Pipeline      @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  stageId           String        @map("stage_id")
+  // Cascade para que borrar la organización/pipeline/etapa no se atore; la
+  // aplicación no deja borrar una etapa que aún tiene negocios (hay que
+  // moverlos antes).
+  stage             PipelineStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  personId          String        @map("person_id")
+  person            Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId         String?       @map("company_id")
+  company           Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  // Identidad de canal de la que nació/se atiende el negocio: enlaza el
+  // negocio con su conversación y aporta la atribución a anuncios (ctwa_clid,
+  // lead id) para la Conversions API.
+  contactId         String?       @map("contact_id")
+  contact           Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  title             String
+  // Importe en la moneda de la organización.
+  amount            Decimal       @default(0) @db.Decimal(14, 2)
+  // null = usa la probabilidad de la etapa.
+  probability       Int?
+  expectedCloseDate DateTime?     @map("expected_close_date")
+  ownerId           String?       @map("owner_id")
+  owner             User?         @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdById       String?       @map("created_by_id")
+  createdBy         User?         @relation("DealCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  // Copia de `PipelineStage.outcome` de la etapa actual (para filtrar y sumar
+  // sin unir con las etapas).
+  status            DealStatus    @default(OPEN)
+  stageEnteredAt    DateTime      @default(now()) @map("stage_entered_at")
+  closedAt          DateTime?     @map("closed_at")
+  lostReasonId      String?       @map("lost_reason_id")
+  lostReason        LossReason?   @relation(fields: [lostReasonId], references: [id], onDelete: SetNull)
+  lossNote          String?       @map("loss_note")
+  // Atribución copiada del contacto al abrir el negocio, para reportar ventas
+  // por anuncio/origen aunque el contacto cambie o se borre.
+  leadOrigin        LeadOrigin    @default(ORGANIC) @map("lead_origin")
+  adId              String?       @map("ad_id")
+  // Cómo se abrió: "manual", "inbound", "api", "lead_ads", "automation"…
+  source            String?
+  version           Int           @default(1)
+  archivedAt        DateTime?     @map("archived_at")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  stageChanges         DealStageChange[]
+  metaConversionEvents MetaConversionEvent[]
+
+  // Columna del tablero: negocios de una etapa, los que más tiempo llevan primero.
+  @@index([organizationId, pipelineId, stageId, archivedAt, stageEnteredAt])
+  @@index([organizationId, ownerId, status])
+  @@index([organizationId, status, closedAt])
+  @@index([personId])
+  @@index([contactId])
+  @@index([organizationId, leadOrigin, adId])
+  @@map("deals")
+}
+
+// Historial de movimientos de un negocio entre etapas (nace con el negocio:
+// from = null). Los nombres de etapa se guardan tal como eran, porque una etapa
+// puede renombrarse o borrarse después y el historial debe seguir legible.
+model DealStageChange {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dealId         String       @map("deal_id")
+  deal           Deal         @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  fromStageId    String?      @map("from_stage_id")
+  fromStageName  String?      @map("from_stage_name")
+  toStageId      String       @map("to_stage_id")
+  toStageName    String       @map("to_stage_name")
+  toStatus       DealStatus   @map("to_status")
+  actorId        String?      @map("actor_id")
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  // Segundos que estuvo en la etapa de la que sale (null en el alta).
+  secondsInFrom  Int?         @map("seconds_in_from")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([dealId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, toStageId, createdAt])
+  @@map("deal_stage_changes")
 }
 
 // Vista guardada de un listado (filtros + orden), personal o compartida.
@@ -1237,8 +1396,8 @@ model MetaAdsAccount {
   id              String             @id @default(cuid())
   userId          String
   user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String             @map("organization_id")
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name            String
   // Id de la Página de Facebook que recibe leadgen — clave para resolver a
   // qué MetaAdsAccount pertenece cada notificación del webhook `leadgen`.
@@ -1278,17 +1437,23 @@ model MetaAdsAccount {
 
 // Log de cada evento de calificación enviado (o intentado) a la Conversions
 // API — idempotencia (no reenviar el mismo estado dos veces) y auditoría de
-// qué se le mandó a Meta y cuándo. unique([contactId, leadStatus]) se
-// resuelve con upsert: si un contacto vuelve a pasar por el mismo estado
-// (QUALIFIED -> LOST -> QUALIFIED), el segundo evento sí se reenvía,
-// reseteando status a PENDING en vez de quedar bloqueado por el constraint.
+// qué se le mandó a Meta y cuándo. Desde la Fase 2 del giro a CRM el evento lo
+// dispara un NEGOCIO al entrar a una etapa con `metaEvent`; la atribución
+// (ctwa_clid / lead id) sigue viviendo en el Contact de origen del negocio.
+// unique([dealId, stageId]) se resuelve con upsert: si el negocio vuelve a
+// pasar por la misma etapa, el segundo evento sí se reenvía, reseteando status
+// a PENDING en vez de quedar bloqueado por el constraint.
 model MetaConversionEvent {
   id               String          @id @default(cuid())
   contactId        String
   contact          Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  dealId           String          @map("deal_id")
+  deal             Deal            @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  // Etapa (id) que disparó el evento; sin FK a propósito: la etapa puede
+  // borrarse después y el log de lo enviado a Meta se conserva.
+  stageId          String          @map("stage_id")
   metaAdsAccountId String
   metaAdsAccount   MetaAdsAccount  @relation(fields: [metaAdsAccountId], references: [id], onDelete: Cascade)
-  leadStatus       LeadStatus
   eventName        String
   // event_id enviado a Meta para que su lado pueda deduplicar si se reintenta.
   metaEventId      String          @default(cuid())
@@ -1298,7 +1463,8 @@ model MetaConversionEvent {
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
-  @@unique([contactId, leadStatus])
+  @@unique([dealId, stageId])
+  @@index([contactId])
   @@index([status])
   @@map("meta_conversion_events")
 }
@@ -1480,9 +1646,9 @@ enum RoutingConditionType {
 enum SequenceTriggerType {
   // triggerValue = Tag.id — dispara al agregar esa etiqueta a un Contact.
   TAG_ADDED
-  // triggerValue = valor de LeadStatus (como string) — dispara cuando
-  // Contact.leadStatus cambia A ese valor.
-  LEAD_STATUS_CHANGED
+  // triggerValue = PipelineStage.id — dispara cuando un negocio del contacto
+  // entra a esa etapa.
+  DEAL_STAGE_CHANGED
   // triggerValue = null (ignorado) — dispara cuando una WAAppointment del
   // contacto pasa a status COMPLETED.
   APPOINTMENT_COMPLETED
@@ -1527,12 +1693,12 @@ model WASequence {
   // el mismo riesgo de sonar robotizadas si se completan de corrido.
   exitOnReply  Boolean             @default(true)
 
-  createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdById    String
+  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
   steps       WASequenceStep[]
   enrollments WASequenceEnrollment[]
@@ -1634,23 +1800,23 @@ model Notification {
 // `channelAccountIds`. El secreto nunca se guarda: solo su sha256 (hashToken),
 // y se muestra una única vez al crearla — mismo criterio que verifyTokenHash.
 model ApiKey {
-  id                String    @id @default(cuid())
+  id                String       @id @default(cuid())
   userId            String
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId    String       @map("organization_id")
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name              String
   // Primeros caracteres visibles ("sk_live_ab12") para reconocerla en la lista.
   prefix            String
-  keyHash           String    @unique @map("key_hash")
-  scopes            String[]  @default([])
+  keyHash           String       @unique @map("key_hash")
+  scopes            String[]     @default([])
   // Vacíos = todas las cuentas a las que el dueño tiene acceso.
-  accountIds        String[]  @default([]) @map("account_ids")
-  channelAccountIds String[]  @default([]) @map("channel_account_ids")
-  lastUsedAt        DateTime? @map("last_used_at")
-  expiresAt         DateTime? @map("expires_at")
-  revokedAt         DateTime? @map("revoked_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  accountIds        String[]     @default([]) @map("account_ids")
+  channelAccountIds String[]     @default([]) @map("channel_account_ids")
+  lastUsedAt        DateTime?    @map("last_used_at")
+  expiresAt         DateTime?    @map("expires_at")
+  revokedAt         DateTime?    @map("revoked_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
 
   @@index([userId])
   @@index([organizationId])
@@ -1661,26 +1827,26 @@ model ApiKey {
 // coincide con `events` y el alcance de cuentas se entrega firmado con HMAC
 // (X-Colibly-Signature) por la cola webhook-deliveries.
 model WebhookEndpoint {
-  id                  String    @id @default(cuid())
+  id                  String       @id @default(cuid())
   userId              String
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId      String       @map("organization_id")
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name                String
   url                 String
   // Secreto de firma, cifrado con lib/crypto.ts (se muestra al crearlo y se
   // puede rotar, nunca se devuelve en claro después).
   secret              String
-  events              String[]  @default([])
-  accountIds          String[]  @default([]) @map("account_ids")
-  channelAccountIds   String[]  @default([]) @map("channel_account_ids")
-  active              Boolean   @default(true)
-  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  events              String[]     @default([])
+  accountIds          String[]     @default([]) @map("account_ids")
+  channelAccountIds   String[]     @default([]) @map("channel_account_ids")
+  active              Boolean      @default(true)
+  consecutiveFailures Int          @default(0) @map("consecutive_failures")
   // Se desactiva solo tras WEBHOOK_MAX_CONSECUTIVE_FAILURES fallos seguidos.
-  disabledAt          DateTime? @map("disabled_at")
-  lastDeliveryAt      DateTime? @map("last_delivery_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  disabledAt          DateTime?    @map("disabled_at")
+  lastDeliveryAt      DateTime?    @map("last_delivery_at")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
 
   deliveries WebhookDelivery[]
 
@@ -1727,31 +1893,31 @@ enum AutomationStatus {
 }
 
 model Automation {
-  id                 String           @id @default(cuid())
+  id                 String             @id @default(cuid())
   // Mutuamente excluyentes a nivel de aplicación — mismo patrón que WASequence.
-  waAccountId        String?          @map("wa_account_id")
-  waAccount          WAAccount?       @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
-  channelAccountId   String?          @map("channel_account_id")
-  channelAccount     ChannelAccount?  @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  waAccountId        String?            @map("wa_account_id")
+  waAccount          WAAccount?         @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId   String?            @map("channel_account_id")
+  channelAccount     ChannelAccount?    @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
   name               String
   description        String?
-  status             AutomationStatus @default(DRAFT)
-  draftGraph         Json             @map("draft_graph")
+  status             AutomationStatus   @default(DRAFT)
+  draftGraph         Json               @map("draft_graph")
   // Desnormalizados de la versión publicada para filtrar por índice al
   // evaluar disparadores (no hay que abrir el JSON de cada automatización).
-  triggerType        String?          @map("trigger_type")
-  triggerConfig      Json?            @map("trigger_config")
-  conversational     Boolean          @default(false)
-  publishedVersionId String?          @unique @map("published_version_id")
+  triggerType        String?            @map("trigger_type")
+  triggerConfig      Json?              @map("trigger_config")
+  conversational     Boolean            @default(false)
+  publishedVersionId String?            @unique @map("published_version_id")
   publishedVersion   AutomationVersion? @relation("PublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
   // { exitOnReply, allowReentry } — ver lib/automations/settings.ts
-  settings           Json             @default("{}")
-  createdById        String           @map("created_by_id")
-  createdBy          User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  organizationId   String       @map("organization_id")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
+  settings           Json               @default("{}")
+  createdById        String             @map("created_by_id")
+  createdBy          User               @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  organizationId     String             @map("organization_id")
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
   versions AutomationVersion[] @relation("AutomationVersions")
   runs     AutomationRun[]
@@ -1898,60 +2064,63 @@ enum OrganizationStatus {
 }
 
 model Organization {
-  id                   String             @id @default(cuid())
-  name                 String
+  id                         String             @id @default(cuid())
+  name                       String
   // Dueño: admin que no se puede degradar ni desactivar (antes, "el primer
   // usuario registrado").
-  ownerId              String?            @unique @map("owner_id")
-  owner                User?              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  plan                 PlanId             @default(PRO)
-  status               OrganizationStatus @default(TRIALING)
+  ownerId                    String?            @unique @map("owner_id")
+  owner                      User?              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  plan                       PlanId             @default(PRO)
+  status                     OrganizationStatus @default(TRIALING)
   // Organizaciones de la casa (la instalación original, demos): sin cobro ni
   // candados de facturación.
-  isInternal           Boolean            @default(false) @map("is_internal")
+  isInternal                 Boolean            @default(false) @map("is_internal")
   // Canales adicionales como feature por organización — el operador los
   // activa desde /plataforma (lib/channel-flags.ts). WhatsApp no tiene flag,
   // siempre disponible. Default false: una organización nueva solo tiene
   // WhatsApp hasta que se le habilite algo más.
   // Coexistencia de WhatsApp (conectar el número de la app WhatsApp Business):
   // bandera por organización durante la beta, apagada por defecto.
-  whatsappCoexistenceEnabled Boolean       @default(false) @map("whatsapp_coexistence_enabled")
-  channelTelegramEnabled  Boolean          @default(false) @map("channel_telegram_enabled")
-  channelMessengerEnabled Boolean          @default(false) @map("channel_messenger_enabled")
-  channelInstagramEnabled Boolean          @default(false) @map("channel_instagram_enabled")
-  channelWebchatEnabled   Boolean          @default(false) @map("channel_webchat_enabled")
-  trialEndsAt          DateTime?          @map("trial_ends_at")
-  currentPeriodEnd     DateTime?          @map("current_period_end")
-  graceEndsAt          DateTime?          @map("grace_ends_at")
-  stripeCustomerId     String?            @unique @map("stripe_customer_id")
-  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  whatsappCoexistenceEnabled Boolean            @default(false) @map("whatsapp_coexistence_enabled")
+  channelTelegramEnabled     Boolean            @default(false) @map("channel_telegram_enabled")
+  channelMessengerEnabled    Boolean            @default(false) @map("channel_messenger_enabled")
+  channelInstagramEnabled    Boolean            @default(false) @map("channel_instagram_enabled")
+  channelWebchatEnabled      Boolean            @default(false) @map("channel_webchat_enabled")
+  trialEndsAt                DateTime?          @map("trial_ends_at")
+  currentPeriodEnd           DateTime?          @map("current_period_end")
+  graceEndsAt                DateTime?          @map("grace_ends_at")
+  stripeCustomerId           String?            @unique @map("stripe_customer_id")
+  stripeSubscriptionId       String?            @unique @map("stripe_subscription_id")
   // El cliente canceló desde el portal: sigue activa hasta currentPeriodEnd.
-  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  cancelAtPeriodEnd          Boolean            @default(false) @map("cancel_at_period_end")
   // Cuándo pasó a CANCELED — la purga de datos corre RETENTION_DAYS_AFTER_CANCEL después.
-  canceledAt           DateTime?          @map("canceled_at")
+  canceledAt                 DateTime?          @map("canceled_at")
   // Último aviso de facturación enviado (clave del aviso + fecha), para no
   // repetir el mismo correo/notificación en cada tick.
-  lastBillingNotice    String?            @map("last_billing_notice")
-  aiCreditsUsed        Int                @default(0) @map("ai_credits_used")
+  lastBillingNotice          String?            @map("last_billing_notice")
+  aiCreditsUsed              Int                @default(0) @map("ai_credits_used")
   // Créditos extra del periodo actual dados por la plataforma (/plataforma);
   // se reinician a 0 junto con el consumo.
-  aiCreditsBonus       Int                @default(0) @map("ai_credits_bonus")
-  aiCreditsPeriodStart DateTime           @default(now()) @map("ai_credits_period_start")
+  aiCreditsBonus             Int                @default(0) @map("ai_credits_bonus")
+  aiCreditsPeriodStart       DateTime           @default(now()) @map("ai_credits_period_start")
   // Último umbral de créditos avisado en el periodo (0, 80 o 100).
-  aiCreditsAlertLevel  Int                @default(0) @map("ai_credits_alert_level")
+  aiCreditsAlertLevel        Int                @default(0) @map("ai_credits_alert_level")
 
   // Operación de la organización (antes vivían por usuario en AppSettings):
   // zona horaria y horario laboral (recuperación de leads, citas del bot,
   // importación de hojas) y la recuperación automática de leads.
-  timezone                       String  @default("America/Mexico_City")
-  businessHourStart              Int     @default(8) @map("business_hour_start")
-  businessHourEnd                Int     @default(20) @map("business_hour_end")
-  leadRecoveryEnabled            Boolean @default(false) @map("lead_recovery_enabled")
-  leadRecoveryFirstMessageHours  Int     @default(2) @map("lead_recovery_first_message_hours")
+  // Moneda de los importes de los negocios (código ISO 4217); una por
+  // organización, no por negocio.
+  currency                       String   @default("MXN")
+  timezone                       String   @default("America/Mexico_City")
+  businessHourStart              Int      @default(8) @map("business_hour_start")
+  businessHourEnd                Int      @default(20) @map("business_hour_end")
+  leadRecoveryEnabled            Boolean  @default(false) @map("lead_recovery_enabled")
+  leadRecoveryFirstMessageHours  Int      @default(2) @map("lead_recovery_first_message_hours")
   // null = solo se manda 1 mensaje.
-  leadRecoverySecondMessageHours Int?    @default(12) @map("lead_recovery_second_message_hours")
-  createdAt            DateTime           @default(now()) @map("created_at")
-  updatedAt            DateTime           @updatedAt @map("updated_at")
+  leadRecoverySecondMessageHours Int?     @default(12) @map("lead_recovery_second_message_hours")
+  createdAt                      DateTime @default(now()) @map("created_at")
+  updatedAt                      DateTime @updatedAt @map("updated_at")
 
   members          User[]            @relation("OrganizationMembers")
   waAccounts       WAAccount[]
@@ -1971,6 +2140,10 @@ model Organization {
   activityLogs     ActivityLog[]
   savedViews       SavedView[]
   importRuns       ImportRun[]
+  pipelines        Pipeline[]
+  deals            Deal[]
+  lossReasons      LossReason[]
+  dealStageChanges DealStageChange[]
   authTokens       AuthToken[]
 
   @@index([status])
@@ -2058,12 +2231,12 @@ model PlatformSettings {
   stripePricePro      String? @map("stripe_price_pro")
 
   // SMTP (lib/email/mailer.ts)
-  smtpHost   String?  @map("smtp_host")
-  smtpPort   Int?     @map("smtp_port")
-  smtpSecure Boolean  @default(false) @map("smtp_secure")
-  smtpUser   String?  @map("smtp_user")
-  smtpPass   String?  @map("smtp_pass") // cifrado
-  emailFrom  String?  @map("email_from")
+  smtpHost   String? @map("smtp_host")
+  smtpPort   Int?    @map("smtp_port")
+  smtpSecure Boolean @default(false) @map("smtp_secure")
+  smtpUser   String? @map("smtp_user")
+  smtpPass   String? @map("smtp_pass") // cifrado
+  emailFrom  String? @map("email_from")
 
   // Captcha (lib/turnstile.ts)
   turnstileSiteKey   String? @map("turnstile_site_key")
@@ -2118,15 +2291,15 @@ enum PlatformBackupTrigger {
 // Historial de respaldos de la plataforma (no por organización). Se conservan
 // 90 días; el respaldo en sí vive en el almacenamiento externo.
 model PlatformBackupRun {
-  id           String                @id @default(cuid())
-  trigger      PlatformBackupTrigger
-  status       PlatformBackupStatus  @default(RUNNING)
-  startedAt    DateTime              @default(now()) @map("started_at")
-  finishedAt   DateTime?             @map("finished_at")
-  dbBytes      BigInt?               @map("db_bytes")
-  mediaBytes   BigInt?               @map("media_bytes")
-  error        String?               @db.Text
-  triggeredBy  String?               @map("triggered_by") // correo del operador (manual)
+  id          String                @id @default(cuid())
+  trigger     PlatformBackupTrigger
+  status      PlatformBackupStatus  @default(RUNNING)
+  startedAt   DateTime              @default(now()) @map("started_at")
+  finishedAt  DateTime?             @map("finished_at")
+  dbBytes     BigInt?               @map("db_bytes")
+  mediaBytes  BigInt?               @map("media_bytes")
+  error       String?               @db.Text
+  triggeredBy String?               @map("triggered_by") // correo del operador (manual)
 
   @@index([startedAt])
   @@map("platform_backup_runs")

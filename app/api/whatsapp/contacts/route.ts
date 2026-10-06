@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
 
 export async function GET(req: Request) {
   try {
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const accountId = searchParams.get("accountId");
-    const leadStatus = searchParams.get("leadStatus");
+    const stageId = searchParams.get("stageId");
     const tagId = searchParams.get("tagId");
     const search = searchParams.get("search");
 
@@ -57,7 +58,8 @@ export async function GET(req: Request) {
     }
 
     const where: Record<string, unknown> = { AND: andFilters };
-    if (leadStatus) where.leadStatus = leadStatus;
+    // Contactos con un negocio abierto en esa etapa.
+    if (stageId) where.person = { deals: { some: { stageId, status: "OPEN", archivedAt: null, pipeline: { organizationId: await requireOrgId(session.user.id) } } } };
     if (tagId) where.tags = { some: { tagId } };
 
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
@@ -73,7 +75,7 @@ export async function GET(req: Request) {
           channelAccount: { select: { channel: true } },
           remoteJid: true,
           name: true,
-          leadStatus: true,
+          person: { select: { deals: { where: { status: "OPEN", archivedAt: null }, orderBy: { stageEnteredAt: "desc" }, take: 1, select: { id: true, stage: { select: { id: true, name: true, color: true } } } } } },
           createdAt: true,
           updatedAt: true,
           tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
@@ -90,8 +92,10 @@ export async function GET(req: Request) {
 
     // Se aplana a un solo shape (accountId + chat + channel) para que la UI no
     // tenga que ramificar por canal — mismo criterio que GET /api/telegram/chats.
-    const items = contacts.map(({ channelAccountId, channelAccount, conversation, ...c }) => ({
+    const items = contacts.map(({ channelAccountId, channelAccount, conversation, person, ...c }) => ({
       ...c,
+      // Etapa del negocio abierto más reciente (null = sin negocio abierto).
+      stage: person.deals[0]?.stage ?? null,
       accountId: c.accountId ?? channelAccountId!,
       chat: c.chat ?? conversation,
       channel: c.accountId ? ("WHATSAPP" as const) : channelAccount?.channel,

@@ -61,7 +61,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           parameters: [
             ...pageParams,
             { name: "accountId", in: "query", schema: { type: "string" } },
-            { name: "leadStatus", in: "query", schema: ref("LeadStatus") },
+            { name: "stageId", in: "query", schema: { type: "string" }, description: "Contactos cuya persona tiene un negocio abierto en esa etapa" },
             { name: "tagId", in: "query", schema: { type: "string" } },
             { name: "q", in: "query", schema: { type: "string" }, description: "Nombre o teléfono" },
             { name: "updatedSince", in: "query", schema: { type: "string", format: "date-time" } },
@@ -79,7 +79,7 @@ export function buildOpenApiSpec(serverUrl: string) {
         get: { summary: "Obtener contacto", description: scopeNote("contacts:read"), parameters: [idParam], responses: { "200": ok(ref("Contact")), ...errors } },
         patch: {
           summary: "Actualizar contacto",
-          description: `${scopeNote("contacts:write")} Cambiar leadStatus dispara lo mismo que moverlo en el Pipeline (Meta CAPI, secuencias, webhooks).`,
+          description: `${scopeNote("contacts:write")} La etapa de venta ya no se cambia aquí: usa PATCH /deals/{id}.`,
           parameters: [idParam],
           requestBody: { required: true, content: json(ref("ContactUpdate")) },
           responses: { "200": ok(ref("Contact")), ...errors },
@@ -101,6 +101,46 @@ export function buildOpenApiSpec(serverUrl: string) {
           description: scopeNote("contacts:write"),
           parameters: [idParam, { name: "tagId", in: "query", required: true, schema: { type: "string" } }],
           responses: { "200": ok(ref("Contact")), ...errors },
+        },
+      },
+      "/pipelines": {
+        get: {
+          summary: "Pipelines, etapas, motivos de pérdida y moneda",
+          description: `${scopeNote("deals:read")} Los ids de etapa y de motivo son los que piden los endpoints de negocios.`,
+          responses: { "200": ok(ref("PipelinesResponse")), ...errors },
+        },
+      },
+      "/deals": {
+        get: {
+          summary: "Listar negocios",
+          description: scopeNote("deals:read"),
+          parameters: [
+            ...pageParams,
+            { name: "pipelineId", in: "query", schema: { type: "string" } },
+            { name: "stageId", in: "query", schema: { type: "string" } },
+            { name: "status", in: "query", schema: ref("DealStatus") },
+            { name: "contactId", in: "query", schema: { type: "string" } },
+            { name: "updatedSince", in: "query", schema: { type: "string", format: "date-time" } },
+          ],
+          responses: { "200": ok(paged("Deal")), ...errors },
+        },
+        post: {
+          summary: "Abrir un negocio para un contacto",
+          description: `${scopeNote("deals:write")} Sin stageId/pipelineId entra a la primera etapa del pipeline predeterminado. Un negocio nuevo siempre entra a una etapa abierta.`,
+          requestBody: { required: true, content: json(ref("DealCreate")) },
+          responses: { "201": ok(ref("Deal"), "Creado"), ...errors },
+        },
+      },
+      "/deals/{id}": {
+        get: { summary: "Obtener negocio", description: scopeNote("deals:read"), parameters: [idParam], responses: { "200": ok(ref("Deal")), ...errors } },
+        patch: {
+          summary: "Editar un negocio y/o moverlo de etapa",
+          description:
+            `${scopeNote("deals:write")} Con stageId lo mueve: a una etapa de tipo WON lo gana, a una de tipo LOST lo pierde (exige lostReasonId). ` +
+            "Un cambio de etapa dispara Meta CAPI (leads de anuncios), secuencias y los webhooks deal.stage_changed / deal.won / deal.lost.",
+          parameters: [idParam],
+          requestBody: { required: true, content: json(ref("DealUpdate")) },
+          responses: { "200": ok(ref("Deal")), "409": { $ref: "#/components/responses/Error" }, ...errors },
         },
       },
       "/conversations": {
@@ -206,7 +246,92 @@ export function buildOpenApiSpec(serverUrl: string) {
         },
       },
       schemas: {
-        LeadStatus: { type: "string", enum: ["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"] },
+        DealStatus: { type: "string", enum: ["OPEN", "WON", "LOST"] },
+        PipelinesResponse: {
+          type: "object",
+          properties: {
+            currency: { type: "string", description: "Moneda (ISO 4217) de los importes de toda la organización" },
+            pipelines: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  name: { type: "string" },
+                  isDefault: { type: "boolean" },
+                  stages: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        name: { type: "string" },
+                        position: { type: "integer" },
+                        type: ref("DealStatus"),
+                        probability: { type: "integer", description: "% de cierre por defecto de la etapa" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            lossReasons: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" } } } },
+          },
+        },
+        Deal: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            title: { type: "string" },
+            amount: { type: "number", description: "En la moneda de la organización" },
+            probability: { type: ["integer", "null"], description: "Fijada a mano; null = la de la etapa" },
+            probabilityEffective: { type: "integer" },
+            weightedAmount: { type: "number" },
+            expectedCloseDate: { type: ["string", "null"], format: "date-time" },
+            status: ref("DealStatus"),
+            pipelineId: { type: "string" },
+            stageId: { type: "string" },
+            stage: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, outcome: ref("DealStatus") } },
+            stageEnteredAt: { type: "string", format: "date-time" },
+            closedAt: { type: ["string", "null"], format: "date-time" },
+            lostReason: { type: ["object", "null"], properties: { id: { type: "string" }, name: { type: "string" } } },
+            lossNote: { type: ["string", "null"] },
+            personId: { type: "string" },
+            contactId: { type: ["string", "null"], description: "Conversación (canal) a la que está ligado" },
+            ownerId: { type: ["string", "null"] },
+            leadOrigin: { type: "string", enum: ["ORGANIC", "INSTANT_FORM", "CTWA"] },
+            adId: { type: ["string", "null"] },
+            source: { type: ["string", "null"] },
+            version: { type: "integer" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        DealCreate: {
+          type: "object",
+          required: ["contactId"],
+          properties: {
+            contactId: { type: "string", description: "Contacto (canal) del que sale el negocio" },
+            title: { type: "string", description: "Por defecto, el nombre del contacto" },
+            amount: { type: "number" },
+            pipelineId: { type: "string" },
+            stageId: { type: "string", description: "Debe ser una etapa abierta" },
+            probability: { type: ["integer", "null"] },
+            expectedCloseDate: { type: "string", format: "date" },
+          },
+        },
+        DealUpdate: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            amount: { type: "number" },
+            probability: { type: ["integer", "null"] },
+            expectedCloseDate: { type: ["string", "null"], format: "date" },
+            stageId: { type: "string", description: "Mueve el negocio a esa etapa" },
+            lostReasonId: { type: ["string", "null"], description: "Obligatorio al mover a una etapa de tipo LOST" },
+            lostNote: { type: ["string", "null"] },
+          },
+        },
         Channel: { type: "string", enum: ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"] },
         Account: {
           type: "object",
@@ -222,7 +347,12 @@ export function buildOpenApiSpec(serverUrl: string) {
             realName: { type: ["string", "null"] },
             phone: { type: ["string", "null"], description: "Solo WhatsApp" },
             externalId: { type: ["string", "null"], description: "Id del contacto en Telegram/Messenger/Instagram/Web" },
-            leadStatus: ref("LeadStatus"),
+            personId: { type: "string", description: "La persona (\"Contacto\" en la interfaz) detrás de este canal" },
+            openDeal: {
+              type: ["object", "null"],
+              description: "Negocio abierto más reciente de la persona",
+              properties: { id: { type: "string" }, pipelineId: { type: "string" }, stageId: { type: "string" }, stageName: { type: "string" } },
+            },
             leadOrigin: { type: "string", enum: ["ORGANIC", "INSTANT_FORM", "CTWA"] },
             optedOutMarketing: { type: "boolean" },
             tags: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" } } } },
@@ -239,7 +369,6 @@ export function buildOpenApiSpec(serverUrl: string) {
             accountId: { type: "string", description: "Cuenta de WhatsApp" },
             phone: { type: "string", description: "Con código de país, p. ej. 5215512345678" },
             name: { type: "string" },
-            leadStatus: ref("LeadStatus"),
             tags: { type: "array", items: { type: "string" }, description: "Nombres; se crean si no existen" },
             customFields: { type: "object", additionalProperties: { type: ["string", "null"] }, description: "Por key del campo" },
           },
@@ -249,7 +378,6 @@ export function buildOpenApiSpec(serverUrl: string) {
           properties: {
             name: { type: "string" },
             realName: { type: ["string", "null"] },
-            leadStatus: ref("LeadStatus"),
             customFields: { type: "object", additionalProperties: { type: ["string", "null"] }, description: "null o \"\" borra el valor" },
           },
         },
@@ -346,7 +474,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             account: { type: ["object", "null"] },
             contact: { type: ["object", "null"] },
             conversation: { type: ["object", "null"] },
-            data: { type: "object", description: "Depende del tipo (p. ej. from/to en contact.lead_status_changed)" },
+            data: { type: "object", description: "Depende del tipo (p. ej. stage/fromStage/amount en deal.stage_changed)" },
           },
         },
       },

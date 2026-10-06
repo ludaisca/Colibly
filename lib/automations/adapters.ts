@@ -1,8 +1,9 @@
-import type { Channel, LeadStatus } from "@prisma/client";
+import type { Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { botQueue } from "@/lib/queue";
 import { sendOutbound, OutboundError, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
-import { afterContactTagAdded, afterLeadStatusChanged } from "@/lib/contacts/side-effects";
+import { createDeal, moveDeal } from "@/lib/crm/deals";
+import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { setCustomFieldsByKey } from "@/lib/contacts/custom-fields";
 import { findOrCreateTag } from "@/lib/tags";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
@@ -48,7 +49,7 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
   const contactOwner = async () =>
     prisma.contact.findUniqueOrThrow({
       where: { id: ctx.contactId },
-      select: { id: true, accountId: true, channelAccountId: true, leadOrigin: true, leadStatus: true },
+      select: { id: true, accountId: true, channelAccountId: true, leadOrigin: true, personId: true },
     });
 
   const target = async (): Promise<OutboundTarget> => {
@@ -93,11 +94,12 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
           name: true,
           realName: true,
           remoteJid: true,
-          leadStatus: true,
+          personId: true,
           tags: { select: { tag: { select: { name: true } } } },
           customFieldValues: { select: { value: true, definition: { select: { key: true } } } },
         },
       });
+      const deals = await prisma.deal.findMany({ where: { personId: contact.personId, status: "OPEN", archivedAt: null }, select: { stageId: true } });
       const scores = await prisma.wALeadScore.findMany({
         where: isWhatsapp ? { chatId: ctx.chat.id } : { conversationId: ctx.chat.id },
         select: { label: true },
@@ -111,7 +113,7 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
         },
         customFields: Object.fromEntries(contact.customFieldValues.map((v) => [v.definition.key, v.value])),
         tags: contact.tags.map((t) => t.tag.name),
-        leadStatus: contact.leadStatus,
+        dealStageIds: deals.map((d) => d.stageId),
         scoreLabels: scores.map((s) => s.label),
         channel,
       };
@@ -169,11 +171,29 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
       });
     },
 
-    async setLeadStatus(status) {
+    async setDealStage(stageId, lostReasonId) {
       const contact = await contactOwner();
-      if (contact.leadStatus === status) return;
-      await prisma.contact.update({ where: { id: contact.id }, data: { leadStatus: status as LeadStatus } });
-      await afterLeadStatusChanged(contact, contact.leadStatus, status as LeadStatus);
+      const stage = await prisma.pipelineStage.findFirst({
+        where: { id: stageId, pipeline: { organizationId: ctx.organizationId } },
+        select: { id: true, name: true, outcome: true, pipelineId: true },
+      });
+      if (!stage) throw new Error("La etapa ya no existe");
+      const actor = { userId: ctx.ownerId, organizationId: ctx.organizationId, role: "admin" as const };
+      // El negocio abierto del contacto en el pipeline de esa etapa; si no
+      // tiene (y la etapa es abierta), se abre uno directamente en ella.
+      const open = await prisma.deal.findFirst({
+        where: { personId: contact.personId, pipelineId: stage.pipelineId, status: "OPEN", archivedAt: null },
+        orderBy: { stageEnteredAt: "desc" },
+        select: { id: true, stageId: true },
+      });
+      if (open) {
+        if (open.stageId === stage.id) return { summary: `El negocio ya estaba en ${stage.name}` };
+        await moveDeal(actor, open.id, { stageId: stage.id, lostReasonId, lostNote: "Cerrado por una automatización" });
+        return { summary: `Negocio movido a ${stage.name}` };
+      }
+      if (stage.outcome !== "OPEN") return { summary: `Sin negocio abierto que mover a ${stage.name}` };
+      await createDeal(actor, { personId: contact.personId, contactId: contact.id, stageId: stage.id, source: "automation" });
+      return { summary: `Negocio abierto en ${stage.name}` };
     },
 
     async setCustomField(key, value) {

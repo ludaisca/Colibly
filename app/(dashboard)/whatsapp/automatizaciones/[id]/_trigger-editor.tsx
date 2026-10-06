@@ -5,7 +5,7 @@ import { Select } from "@/app/components/ui/select";
 import { Switch } from "@/app/components/ui/switch";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
-import { TRIGGER_META, LEAD_STATUS_LABEL } from "@/lib/automations/labels";
+import { TRIGGER_META } from "@/lib/automations/labels";
 import type { AutomationSettings } from "@/lib/automations/settings";
 import type { Trigger, TriggerType } from "@/lib/automations/types";
 import type { AutomationChannel, ValidationIssue } from "@/lib/automations/validate";
@@ -17,8 +17,8 @@ function defaultTrigger(type: TriggerType): Trigger {
       return { type, keywords: ["hola"], match: "contains" };
     case "tag_added":
       return { type, tagName: "" };
-    case "lead_status_changed":
-      return { type, status: "QUALIFIED" };
+    case "deal_stage_changed":
+      return { type, stageId: "" };
     case "score_label":
       return { type, label: "prioridad_alta" };
     case "ad_lead":
@@ -106,13 +106,14 @@ export function TriggerEditor({
           )}
         </FormField>
       )}
-      {trigger.type === "lead_status_changed" && (
-        <FormField label="Cuando el lead pasa a">
+      {trigger.type === "deal_stage_changed" && (
+        <FormField label="Cuando un negocio entra a" required>
           {(id) => (
-            <Select id={id} value={trigger.status} onChange={(e) => onChange({ ...trigger, status: e.target.value as typeof trigger.status })}>
-              {Object.entries(LEAD_STATUS_LABEL).map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
+            <Select id={id} value={trigger.stageId} onChange={(e) => onChange({ ...trigger, stageId: e.target.value })}>
+              <option value="">Elige una etapa</option>
+              {options.stages.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
             </Select>

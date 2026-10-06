@@ -15,7 +15,7 @@ export const STEP_META: Record<StepType, { label: string; description: string; g
   condition: { label: "Condición", description: "Sí / No según etiquetas, etapa, campos u horario", group: "Lógica" },
   add_tag: { label: "Agregar etiqueta", description: "Etiqueta el contacto", group: "CRM" },
   remove_tag: { label: "Quitar etiqueta", description: "Quita una etiqueta del contacto", group: "CRM" },
-  set_lead_status: { label: "Cambiar etapa", description: "Mueve el lead en el Pipeline", group: "CRM" },
+  set_deal_stage: { label: "Mover negocio", description: "Mueve el negocio del contacto a una etapa (o abre uno)", group: "CRM" },
   set_custom_field: { label: "Guardar campo", description: "Escribe un campo personalizado", group: "CRM" },
   assign: { label: "Asignar", description: "A una persona o por autoasignación", group: "CRM" },
   notify_team: { label: "Avisar al equipo", description: "Notificación en la campana", group: "CRM" },
@@ -33,19 +33,11 @@ export const TRIGGER_META: Record<TriggerType, { label: string; description: str
   first_message: { label: "Primer mensaje", description: "Alguien escribe por primera vez" },
   message_received: { label: "Cualquier mensaje", description: "Cada mensaje entrante (si ninguna otra lo tomó)" },
   tag_added: { label: "Etiqueta agregada", description: "Se agrega una etiqueta al contacto o chat" },
-  lead_status_changed: { label: "Cambio de etapa", description: "El lead pasa a una etapa del Pipeline" },
+  deal_stage_changed: { label: "Negocio en una etapa", description: "Un negocio del contacto entra a una etapa del pipeline" },
   appointment_completed: { label: "Cita completada", description: "Una cita se marca como completada" },
   score_label: { label: "Calificación IA", description: "Un calificador asigna cierta calificación" },
   ad_lead: { label: "Lead de anuncio", description: "Llega un lead de un anuncio de Meta" },
   manual: { label: "Manual", description: "Se inicia desde el chat o por la API" },
-};
-
-export const LEAD_STATUS_LABEL: Record<string, string> = {
-  NEW: "Nuevo",
-  CONTACTED: "Contactado",
-  QUALIFIED: "Calificado",
-  CUSTOMER: "Cliente",
-  LOST: "Perdido",
 };
 
 function clip(text: string, max = 48): string {
@@ -65,8 +57,6 @@ export function stepLabel(step: Step): string {
     case "add_tag":
     case "remove_tag":
       return `${base}: ${step.config.tagName}`;
-    case "set_lead_status":
-      return `${base}: ${LEAD_STATUS_LABEL[step.config.status] ?? step.config.status}`;
     default:
       return base;
   }
@@ -78,8 +68,8 @@ export function triggerSummary(trigger: Trigger): string {
       return `Palabra clave: ${trigger.keywords.filter(Boolean).join(", ") || "—"}`;
     case "tag_added":
       return `Etiqueta: ${trigger.tagName || "—"}`;
-    case "lead_status_changed":
-      return `Pasa a ${LEAD_STATUS_LABEL[trigger.status] ?? trigger.status}`;
+    case "deal_stage_changed":
+      return "Un negocio entra a una etapa";
     case "score_label":
       return `Calificación: ${trigger.label || "—"}`;
     case "ad_lead":

@@ -17,7 +17,7 @@ export type Trigger =
   | { type: "first_message" }
   | { type: "message_received" }
   | { type: "tag_added"; tagName: string }
-  | { type: "lead_status_changed"; status: LeadStatusValue }
+  | { type: "deal_stage_changed"; stageId: string }
   | { type: "appointment_completed" }
   | { type: "score_label"; label: string }
   | { type: "ad_lead"; origin: "ANY" | "CTWA" | "INSTANT_FORM" }
@@ -29,8 +29,6 @@ export type TriggerType = Trigger["type"];
 // síncrona en la ingesta (antes de encolar el bot). El resto llega por el bus
 // de eventos de dominio.
 export const INBOUND_TRIGGERS: readonly TriggerType[] = ["keyword", "first_message", "message_received"];
-
-export type LeadStatusValue = "NEW" | "CONTACTED" | "QUALIFIED" | "CUSTOMER" | "LOST";
 
 // ─── Pasos ──────────────────────────────────────────────────────────────────
 
@@ -103,7 +101,9 @@ export type Step = StepBase &
       }
     | { type: "add_tag"; config: { tagName: string } }
     | { type: "remove_tag"; config: { tagName: string } }
-    | { type: "set_lead_status"; config: { status: LeadStatusValue } }
+    // Mueve el negocio abierto del contacto (en el pipeline de esa etapa) o abre
+    // uno si no tiene. `lostReasonId` es obligatorio si la etapa es de pérdida.
+    | { type: "set_deal_stage"; config: { stageId: string; lostReasonId: string | null } }
     | { type: "set_custom_field"; config: { key: string; value: string } }
     | { type: "assign"; config: { mode: "user" | "auto"; userId: string | null } }
     | { type: "notify_team"; config: { target: "assignee" | "user"; userId: string | null; title: string; body: string } }
@@ -131,9 +131,9 @@ export type StepOf<T extends StepType> = Extract<Step, { type: T }>;
 export type BranchingStep = Extract<Step, { branches: Branch[] }>;
 
 export interface ConditionRule {
-  subject: "var" | "tag" | "lead_status" | "custom_field" | "score_label" | "channel" | "business_hours";
+  subject: "var" | "tag" | "deal_stage" | "custom_field" | "score_label" | "channel" | "business_hours";
   op: "equals" | "not_equals" | "contains" | "present" | "absent";
-  key: string | null; // nombre de variable / key del campo personalizado
+  key: string | null; // nombre de variable / key del campo personalizado (deal_stage: value = id de etapa)
   value: string | null;
 }
 

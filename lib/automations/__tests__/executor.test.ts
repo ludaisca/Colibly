@@ -174,7 +174,7 @@ describe("execute — condiciones, IA y webhook", () => {
       {
         id: "c",
         type: "condition",
-        config: { match: "all", rules: [{ subject: "tag", op: "equals", key: null, value: "vip" }, { subject: "lead_status", op: "equals", key: null, value: "NEW" }] },
+        config: { match: "all", rules: [{ subject: "tag", op: "equals", key: null, value: "vip" }, { subject: "deal_stage", op: "equals", key: null, value: "stg_new" }] },
         branches: [
           { id: "y", key: "yes", label: "Sí", steps: [text("vip", "Hola VIP")] },
           { id: "n", key: "no", label: "No", steps: [text("normal", "Hola")] },

@@ -375,7 +375,6 @@ export type TemplateCreateInput = z.infer<typeof templateCreateSchema>;
 
 export const contactUpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  leadStatus: z.enum(["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"]).optional(),
 });
 
 export const noteSchema = z.object({
@@ -401,7 +400,7 @@ export const sequenceSchema = z.object({
   channelAccountId: z.string().min(1).optional().nullable(),
   name: z.string().min(1, "El nombre es requerido").max(100),
   active: z.boolean().optional(),
-  triggerType: z.enum(["TAG_ADDED", "LEAD_STATUS_CHANGED", "APPOINTMENT_COMPLETED"]),
+  triggerType: z.enum(["TAG_ADDED", "DEAL_STAGE_CHANGED", "APPOINTMENT_COMPLETED"]),
   triggerValue: z.string().min(1).optional().nullable(),
   exitOnReply: z.boolean().optional(),
   steps: z.array(sequenceStepSchema).min(1, "Agrega al menos un paso"),
@@ -410,7 +409,7 @@ export const sequenceSchema = z.object({
 export const sequenceUpdateSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100).optional(),
   active: z.boolean().optional(),
-  triggerType: z.enum(["TAG_ADDED", "LEAD_STATUS_CHANGED", "APPOINTMENT_COMPLETED"]).optional(),
+  triggerType: z.enum(["TAG_ADDED", "DEAL_STAGE_CHANGED", "APPOINTMENT_COMPLETED"]).optional(),
   triggerValue: z.string().min(1).optional().nullable(),
   exitOnReply: z.boolean().optional(),
   steps: z.array(sequenceStepSchema).min(1, "Agrega al menos un paso").optional(),

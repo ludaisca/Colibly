@@ -59,6 +59,7 @@ export function validateGraph(graph: Graph, channel: AutomationChannel): Validat
     if (t.keywords.filter((k) => k.trim()).length === 0) err(null, "Agrega al menos una palabra clave");
   }
   if (t.type === "tag_added" && !t.tagName.trim()) err(null, "Elige la etiqueta que dispara la automatización");
+  if (t.type === "deal_stage_changed" && !t.stageId) err(null, "Elige la etapa que dispara la automatización");
   if (t.type === "score_label" && !t.label.trim()) err(null, "Elige la calificación que dispara la automatización");
 
   if (graph.steps.length === 0) err(null, "Agrega al menos un paso");
@@ -227,7 +228,9 @@ function validateStep(
     case "handoff":
     case "ai_reply":
     case "end":
-    case "set_lead_status":
+      break;
+    case "set_deal_stage":
+      if (!step.config.stageId) err(id, "Elige la etapa a la que se mueve el negocio");
       break;
   }
 }

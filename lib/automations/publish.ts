@@ -79,6 +79,16 @@ export async function validateForPublish(
           ? s.config.saveToCustomField
           : null;
     if (key && !fieldKeys.has(key)) err(s.id, `El campo personalizado “${key}” no existe en esta cuenta`);
+    if (s.type === "set_deal_stage" && s.config.stageId) {
+      const stage = await prisma.pipelineStage.findFirst({ where: { id: s.config.stageId, pipeline: { organizationId: scope.organizationId } }, select: { outcome: true } });
+      if (!stage) err(s.id, "La etapa ya no existe");
+      else if (stage.outcome === "LOST") {
+        const reason = s.config.lostReasonId
+          ? await prisma.lossReason.findFirst({ where: { id: s.config.lostReasonId, organizationId: scope.organizationId, archivedAt: null }, select: { id: true } })
+          : null;
+        if (!reason) err(s.id, "Esta etapa es de pérdida: elige el motivo de pérdida");
+      }
+    }
     if (s.type === "score_lead") {
       const scorer = await prisma.wALeadScorerBot.findFirst({ where: { id: s.config.scorerId, organizationId: scope.organizationId }, select: { id: true } });
       if (!scorer) err(s.id, "El calificador no existe o no es del dueño de la cuenta");

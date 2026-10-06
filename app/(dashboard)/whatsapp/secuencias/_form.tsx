@@ -13,7 +13,6 @@ import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import Link from "next/link";
-import { STAGE_LABEL, PIPELINE_STAGES } from "@/lib/pipeline/stages";
 
 interface Props {
   open: boolean;
@@ -29,7 +28,7 @@ const WHATSAPP_WINDOW_MINUTES = 24 * 60;
 
 const TRIGGER_LABEL: Record<string, string> = {
   TAG_ADDED: "Se agrega una etiqueta",
-  LEAD_STATUS_CHANGED: "El estado del lead cambia a",
+  DEAL_STAGE_CHANGED: "Un negocio entra a la etapa",
   APPOINTMENT_COMPLETED: "Se completa una cita",
 };
 
@@ -52,6 +51,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<Array<{ id: string; name: string; channel: "WHATSAPP" | "TELEGRAM" }>>([]);
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
+  const [stages, setStages] = useState<Array<{ id: string; name: string }>>([]);
 
   const resetForm = useCallback(() => {
     setName("");
@@ -78,6 +78,18 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
         ]);
       })
       .catch(() => { setError("Error al cargar cuentas"); toastError("Error al cargar cuentas"); });
+  }, [open, toastError]);
+
+  // Etapas de todos los pipelines de la organización (para el disparador de negocios).
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/crm/pipelines")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { items: Array<{ name: string; stages: Array<{ id: string; name: string }> }> } | null) => {
+        if (!d) return;
+        setStages(d.items.flatMap((p) => p.stages.map((s) => ({ id: s.id, name: d.items.length > 1 ? `${p.name} · ${s.name}` : s.name }))));
+      })
+      .catch(() => toastError("Error al cargar las etapas"));
   }, [open, toastError]);
 
   // Las etiquetas son por cuenta — el selector del disparador solo ofrece las
@@ -260,13 +272,13 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
               </FormField>
             )}
 
-            {triggerType === "LEAD_STATUS_CHANGED" && (
-              <FormField label="Nuevo estado" error={errors.triggerValue}>
+            {triggerType === "DEAL_STAGE_CHANGED" && (
+              <FormField label="Etapa" error={errors.triggerValue}>
                 {(id) => (
                   <Select id={id} value={triggerValue} onChange={(e) => setTriggerValue(e.target.value)}>
-                    <option value="">Selecciona un estado</option>
-                    {PIPELINE_STAGES.map((s) => (
-                      <option key={s} value={s}>{STAGE_LABEL[s]}</option>
+                    <option value="">Selecciona una etapa</option>
+                    {stages.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </Select>
                 )}

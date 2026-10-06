@@ -1,18 +1,31 @@
-import type { LeadStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
-import { mapLeadStatusToMetaEvent } from "@/lib/meta/lead-status-mapping";
 import { sendConversionEvent, buildInstantFormPayload, buildCtwaPayload } from "@/lib/meta/conversions";
 
-// Punto de entrada único compartido por el trigger automático (PATCH
-// /api/whatsapp/contacts/[id] -> metaConversionsQueue) y cualquier reenvío
-// manual futuro — mismo principio que lib/whatsapp/lead-scoring.ts:
-// scoreChatWithScorer(), una sola función de negocio, dos disparadores.
-export async function sendLeadConversionEvent(contactId: string, leadStatus: LeadStatus): Promise<void> {
-  const contact = await prisma.contact.findUnique({
-    where: { id: contactId },
-    include: { metaAdsAccount: true },
+// Punto de entrada único compartido por el trigger automático (un negocio entra
+// a una etapa con `metaEvent` -> lib/crm/deal-effects.ts -> metaConversionsQueue)
+// y cualquier reenvío manual futuro — mismo principio que
+// lib/whatsapp/lead-scoring.ts: scoreChatWithScorer(), una sola función de
+// negocio, dos disparadores.
+//
+// El evento y su nombre salen de la etapa (`PipelineStage.metaEvent`); la
+// atribución al anuncio (ctwa_clid, lead id) sigue en el Contact de origen del
+// negocio. Al ganar un negocio con importe se reporta también su valor.
+export async function sendLeadConversionEvent(dealId: string, stageId: string): Promise<void> {
+  const deal = await prisma.deal.findUnique({
+    where: { id: dealId },
+    select: {
+      id: true,
+      amount: true,
+      contactId: true,
+      organization: { select: { currency: true } },
+      contact: { include: { metaAdsAccount: true } },
+    },
   });
+  if (!deal?.contact || !deal.contactId) return;
+  const contact = deal.contact;
+  const contactId = deal.contactId;
+  const stage = await prisma.pipelineStage.findUnique({ where: { id: stageId }, select: { name: true, outcome: true, metaEvent: true } });
 
   // Guards silenciosos — mismo patrón que isMonthlyBudgetExceeded(): nada
   // que reportar no es un error, solo un no-op logueado.
@@ -46,25 +59,30 @@ export async function sendLeadConversionEvent(contactId: string, leadStatus: Lea
     return;
   }
 
-  const mapping = mapLeadStatusToMetaEvent(leadStatus);
-  if (!mapping || !mapping.report) {
-    console.log(`[meta-conversions] leadStatus ${leadStatus} no está mapeado para reportarse — se omite`);
+  if (!stage?.metaEvent) {
+    console.log(`[meta-conversions] la etapa ${stageId} no reporta evento a Meta — se omite`);
     return;
   }
+  const amount = Number(deal.amount);
+  const mapping = {
+    eventName: stage.metaEvent,
+    ...(stage.outcome === "WON" && amount > 0 ? { value: amount, currency: deal.organization.currency } : {}),
+  };
 
   if (contact.leadOrigin === "INSTANT_FORM" && !contact.metaLeadId) return;
   if (contact.leadOrigin === "CTWA" && !contact.ctwaClid) return;
 
-  // upsert, no create-o-skip: si el contacto vuelve a pasar por el mismo
-  // estado (QUALIFIED -> LOST -> QUALIFIED), el segundo evento sí se
+  // upsert, no create-o-skip: si el negocio vuelve a pasar por la misma
+  // etapa (Calificado -> Perdido -> Calificado), el segundo evento sí se
   // reenvía, reseteando a PENDING en vez de quedar bloqueado por el
-  // @@unique([contactId, leadStatus]).
+  // @@unique([dealId, stageId]).
   const logEntry = await prisma.metaConversionEvent.upsert({
-    where: { contactId_leadStatus: { contactId, leadStatus } },
+    where: { dealId_stageId: { dealId, stageId } },
     create: {
       contactId,
+      dealId,
+      stageId,
       metaAdsAccountId: account.id,
-      leadStatus,
       eventName: mapping.eventName,
       status: "PENDING",
     },
@@ -112,6 +130,6 @@ export async function sendLeadConversionEvent(contactId: string, leadStatus: Lea
       where: { id: logEntry.id },
       data: { status: "FAILED", errorMessage },
     });
-    console.error(`[meta-conversions] envío falló para contact ${contactId}, status ${leadStatus}:`, errorMessage);
+    console.error(`[meta-conversions] envío falló para el negocio ${dealId}, etapa ${stageId}:`, errorMessage);
   }
 }

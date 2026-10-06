@@ -27,7 +27,8 @@ interface ContactRow {
   accountId: string;
   remoteJid: string;
   name: string | null;
-  leadStatus: string;
+  // Etapa del negocio abierto más reciente (null = sin negocio abierto).
+  stage: { id: string; name: string; color: string } | null;
   updatedAt: string;
   tags: Array<{ tag: { id: string; name: string; color: string } }>;
   chat: { id: string; unreadCount: number; lastMessageAt: string | null } | null;
@@ -39,12 +40,13 @@ function phoneFromJid(remoteJid: string): string {
   return remoteJid.split("@")[0];
 }
 
-const LEAD_STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" | "info" | "accent" }> = {
-  NEW: { label: "Nuevo", tone: "info" },
-  CONTACTED: { label: "Contactado", tone: "warning" },
-  QUALIFIED: { label: "Calificado", tone: "accent" },
-  CUSTOMER: { label: "Cliente", tone: "success" },
-  LOST: { label: "Perdido", tone: "danger" },
+const STAGE_TONE: Record<string, "success" | "warning" | "danger" | "neutral" | "info" | "accent"> = {
+  info: "info",
+  warning: "warning",
+  accent: "accent",
+  success: "success",
+  danger: "danger",
+  muted: "neutral",
 };
 
 export default function ContactosPage() {
@@ -55,12 +57,22 @@ export default function ContactosPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [leadStatusFilter, setLeadStatusFilter] = useState("");
+  const [stageFilter, setStageFilter] = useState("");
+  const [stageOptions, setStageOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [accountFilter, setAccountFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const requestId = useRef(0);
+
+  useEffect(() => {
+    fetch("/api/crm/pipelines")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { items: Array<{ name: string; stages: Array<{ id: string; name: string }> }> } | null) => {
+        if (d) setStageOptions(d.items.flatMap((p) => p.stages.map((st) => ({ value: st.id, label: d.items.length > 1 ? `${p.name} · ${st.name}` : st.name }))));
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 300);
@@ -70,7 +82,7 @@ export default function ContactosPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination when filters change
     setPage(1);
-  }, [search, leadStatusFilter, accountFilter]);
+  }, [search, stageFilter, accountFilter]);
 
   const fetchContacts = useCallback(async () => {
     const currentRequest = ++requestId.current;
@@ -79,7 +91,7 @@ export default function ContactosPage() {
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (leadStatusFilter) params.set("leadStatus", leadStatusFilter);
+      if (stageFilter) params.set("stageId", stageFilter);
       if (accountFilter) params.set("accountId", accountFilter);
       params.set("page", String(page));
       params.set("pageSize", String(PAGE_SIZE));
@@ -96,7 +108,7 @@ export default function ContactosPage() {
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
-  }, [search, leadStatusFilter, accountFilter, page]);
+  }, [search, stageFilter, accountFilter, page]);
 
   // Todos los canales en una sola lista — el selector filtra por id sin
   // importar de qué canal venga (la API resuelve la columna correcta).
@@ -166,18 +178,15 @@ export default function ContactosPage() {
                   } satisfies FilterFieldDef]
                 : []),
               {
-                key: "leadStatus",
-                label: "Estado",
-                options: [
-                  { value: "", label: "Todos los estados" },
-                  ...Object.entries(LEAD_STATUS_BADGE).map(([value, { label }]) => ({ value, label })),
-                ],
+                key: "stage",
+                label: "Etapa del negocio",
+                options: [{ value: "", label: "Todas las etapas" }, ...stageOptions],
               },
             ]}
-            values={{ account: accountFilter, leadStatus: leadStatusFilter }}
+            values={{ account: accountFilter, stage: stageFilter }}
             onApply={(v) => {
               setAccountFilter(v.account ?? "");
-              setLeadStatusFilter(v.leadStatus ?? "");
+              setStageFilter(v.stage ?? "");
             }}
           />
         </div>
@@ -190,20 +199,19 @@ export default function ContactosPage() {
           onRetry={fetchContacts}
           onRowClick={(c) => setSelectedId(c.id)}
           emptyIcon={ContactIcon}
-          emptyTitle={search || leadStatusFilter || accountFilter ? "Sin resultados" : "Sin contactos"}
-          emptyDescription={search || leadStatusFilter || accountFilter
+          emptyTitle={search || stageFilter || accountFilter ? "Sin resultados" : "Sin contactos"}
+          emptyDescription={search || stageFilter || accountFilter
             ? "No se encontraron contactos con la búsqueda o los filtros actuales."
             : "Los contactos se crean automáticamente cuando recibes mensajes en tus canales."}
-          emptyAction={search || leadStatusFilter || accountFilter ? (
+          emptyAction={search || stageFilter || accountFilter ? (
             <Button variant="secondary" size="sm" onClick={() => {
               setSearchInput("");
               setSearch("");
-              setLeadStatusFilter("");
+              setStageFilter("");
               setAccountFilter("");
             }}>Limpiar búsqueda y filtros</Button>
           ) : undefined}
           renderRow={(contact) => {
-            const badge = LEAD_STATUS_BADGE[contact.leadStatus] ?? { label: contact.leadStatus, tone: "neutral" as const };
             const account = accounts.find((a) => a.id === contact.accountId);
             const name = contact.name ?? contact.remoteJid;
             return (
@@ -212,7 +220,7 @@ export default function ContactosPage() {
                 title={name}
                 badges={
                   <span className="flex shrink-0 items-center gap-1">
-                    <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
+                    {contact.stage && <Badge tone={STAGE_TONE[contact.stage.color] ?? "neutral"} size="sm">{contact.stage.name}</Badge>}
                     {contact.tags.map(({ tag }) => (
                       <Badge key={tag.id} tone="accent" size="sm" className="hidden md:inline-flex">{tag.name}</Badge>
                     ))}

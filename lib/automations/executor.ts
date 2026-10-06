@@ -18,7 +18,8 @@ export interface Facts {
   contact: { name: string | null; phone: string | null };
   customFields: Record<string, string | null>;
   tags: string[];
-  leadStatus: string;
+  // Etapas (ids) de los negocios abiertos de la persona.
+  dealStageIds: string[];
   scoreLabels: string[];
   channel: AutomationChannel;
 }
@@ -47,7 +48,7 @@ export interface ExecutorAdapters {
   send(message: OutgoingMessage): Promise<void>;
   addTag(name: string): Promise<void>;
   removeTag(name: string): Promise<void>;
-  setLeadStatus(status: string): Promise<void>;
+  setDealStage(stageId: string, lostReasonId: string | null): Promise<{ summary: string }>;
   setCustomField(key: string, value: string): Promise<void>;
   assign(mode: "user" | "auto", userId: string | null): Promise<void>;
   notifyTeam(target: "assignee" | "user", userId: string | null, title: string, body: string): Promise<void>;
@@ -250,10 +251,10 @@ export async function execute(graph: Graph, initial: RunState, input: RunInput, 
         state.nodeId = next;
         break;
       }
-      case "set_lead_status": {
-        await adapters.setLeadStatus(step.config.status);
+      case "set_deal_stage": {
+        const { summary } = await adapters.setDealStage(step.config.stageId, step.config.lostReasonId);
         invalidateFacts();
-        log(step, "ok", `Etapa: ${step.config.status}`);
+        log(step, "ok", summary);
         state.nodeId = next;
         break;
       }
@@ -425,14 +426,13 @@ export async function evaluateRule(
       return compare(vars[rule.key ?? ""] ?? null, rule);
     case "custom_field":
       return compare((await getFacts()).customFields[rule.key ?? ""] ?? null, rule);
-    case "lead_status":
-      return compare((await getFacts()).leadStatus, rule);
     case "channel":
       return compare((await getFacts()).channel, rule);
     case "tag":
+    case "deal_stage":
     case "score_label": {
       const f = await getFacts();
-      const list = (rule.subject === "tag" ? f.tags : f.scoreLabels).map(normalize);
+      const list = (rule.subject === "tag" ? f.tags : rule.subject === "deal_stage" ? f.dealStageIds : f.scoreLabels).map(normalize);
       const has = list.includes(normalize(rule.value ?? ""));
       if (rule.op === "present") return list.length > 0;
       if (rule.op === "absent") return list.length === 0;

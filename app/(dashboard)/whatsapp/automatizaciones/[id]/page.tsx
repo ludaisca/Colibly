@@ -37,7 +37,7 @@ interface AutomationDetail {
   hasUnpublishedChanges: boolean;
 }
 
-const EMPTY_OPTIONS: EditorOptions = { tags: [], fields: [], templates: [], scorers: [], users: [], scoreLabels: [] };
+const EMPTY_OPTIONS: EditorOptions = { tags: [], fields: [], templates: [], scorers: [], users: [], scoreLabels: [], stages: [], lossReasons: [] };
 
 function useIsDesktop(): boolean {
   return useSyncExternalStore(

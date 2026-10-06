@@ -13,13 +13,15 @@ import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
+import { ContactDeals, type ContactDeal } from "@/app/components/pipeline/contact-deals";
 import "./contact-drawer.css";
 
 interface ContactDetail {
   id: string;
   name: string | null;
   remoteJid: string;
-  leadStatus: string;
+  personId: string;
+  deals: ContactDeal[];
   optedOutMarketing: boolean;
   tags: Array<{ tag: { id: string; name: string; color: string } }>;
 }
@@ -45,14 +47,6 @@ interface CustomFieldDefinition {
   options: string[];
   required: boolean;
 }
-
-const LEAD_STATUS_OPTIONS = [
-  { value: "NEW", label: "Nuevo" },
-  { value: "CONTACTED", label: "Contactado" },
-  { value: "QUALIFIED", label: "Calificado" },
-  { value: "CUSTOMER", label: "Cliente" },
-  { value: "LOST", label: "Perdido" },
-];
 
 export function ContactDrawer({
   contactId,
@@ -120,22 +114,6 @@ export function ContactDrawer({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAll also used for manual refresh
     fetchAll();
   }, [fetchAll]);
-
-  async function handleLeadStatusChange(leadStatus: string) {
-    if (!contact) return;
-    setContact({ ...contact, leadStatus });
-    try {
-      const res = await fetch(`/api/whatsapp/contacts/${contactId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadStatus }),
-      });
-      if (!res.ok) throw new Error();
-      onUpdated();
-    } catch {
-      toastError("Error al actualizar el estado");
-    }
-  }
 
   async function handleTagsChange(tagIds: string[]) {
     if (!contact) return;
@@ -262,14 +240,15 @@ export function ContactDrawer({
             </Banner>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-muted-darker mb-1.5">Estado de lead</label>
-            <Select value={contact.leadStatus} onChange={(e) => handleLeadStatusChange(e.target.value)}>
-              {LEAD_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
-          </div>
+          <ContactDeals
+            personId={contact.personId}
+            contactId={contactId}
+            deals={contact.deals}
+            onChanged={() => {
+              void fetchAll();
+              onUpdated();
+            }}
+          />
 
           <div>
             <label className="block text-xs font-medium text-muted-darker mb-1.5">Etiquetas</label>

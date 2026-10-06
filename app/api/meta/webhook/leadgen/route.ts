@@ -167,6 +167,7 @@ export async function POST(req: Request) {
               adId: value.ad_id ?? null,
               metaAdsAccountId: account.id,
             },
+            openDeal: { source: "lead_ads" },
           }
         );
         const chat = await prisma.wAChat.findFirst({ where: { contactId: resolved.contact.id }, select: { id: true } });

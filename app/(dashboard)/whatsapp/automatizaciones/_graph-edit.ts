@@ -208,8 +208,8 @@ export function createStep(type: StepType): Step {
     case "add_tag":
     case "remove_tag":
       return { id, type, config: { tagName: "" } };
-    case "set_lead_status":
-      return { id, type, config: { status: "CONTACTED" } };
+    case "set_deal_stage":
+      return { id, type, config: { stageId: "", lostReasonId: null } };
     case "set_custom_field":
       return { id, type, config: { key: "", value: "" } };
     case "assign":

@@ -13,7 +13,14 @@ export type ActivityType =
   | "company.created"
   | "company.updated"
   | "company.archived"
-  | "company.restored";
+  | "company.restored"
+  | "deal.created"
+  | "deal.updated"
+  | "deal.stage_changed"
+  | "deal.owner_changed"
+  | "deal.archived"
+  | "deal.restored"
+  | "deal.deleted";
 
 export interface ActivityInput {
   organizationId: string;

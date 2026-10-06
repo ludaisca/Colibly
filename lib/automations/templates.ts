@@ -80,7 +80,7 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
           branches: [
             branch(categories[0].id, "Precios", [{ id: shortId("s"), type: "add_tag", config: { tagName: "Interesado" } }, { id: shortId("s"), type: "ai_reply", config: {} }]),
             branch(categories[1].id, "Cita", [
-              { id: shortId("s"), type: "set_lead_status", config: { status: "QUALIFIED" } },
+              { id: shortId("s"), type: "add_tag", config: { tagName: "Quiere cita" } },
               { id: shortId("s"), type: "handoff", config: { message: "¡Claro! Te comunico con quien agenda 📅", assign: "auto" } },
             ]),
             branch(categories[2].id, "Queja", [

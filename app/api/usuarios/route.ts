@@ -116,15 +116,15 @@ export async function PATCH(req: Request) {
       if (overLimit) return overLimit;
     }
 
-    // Al desactivar, sus contactos y empresas activos pasan a otro responsable.
+    // Al desactivar, sus contactos, empresas y negocios abiertos pasan a otro responsable.
     const disabling = disabled === true && !target.disabledAt;
     let reassignTo: string | null = null;
     if (disabling) {
       const owned = await countOwnedRecords(orgId, userId);
-      if (owned.people + owned.companies > 0) {
+      if (owned.people + owned.companies + owned.deals > 0) {
         if (!reassignToUserId) {
           return NextResponse.json(
-            { error: "Este usuario es responsable de contactos o empresas. Elige a quién pasárselos.", code: "needs_reassign", ...owned },
+            { error: "Este usuario es responsable de contactos, empresas o negocios. Elige a quién pasárselos.", code: "needs_reassign", ...owned },
             { status: 409 }
           );
         }

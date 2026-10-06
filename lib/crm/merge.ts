@@ -27,6 +27,9 @@ export async function mergePeople(actor: CrmActor, raw: unknown) {
     const moved = await tx.contact.updateMany({ where: { personId: sourceId }, data: { personId: targetId } });
     // El historial de la persona fusionada no se pierde: pasa al destino.
     await tx.activityLog.updateMany({ where: { personId: sourceId }, data: { personId: targetId } });
+    // Los negocios también se mudan ANTES de borrar la persona de origen (si no,
+    // se irían con ella por la cascada).
+    const deals = await tx.deal.updateMany({ where: { personId: sourceId }, data: { personId: targetId } });
     await tx.person.delete({ where: { id: sourceId } });
     await tx.person.update({ where: { id: targetId }, data: { ...(data as Prisma.PersonUncheckedUpdateInput), version: { increment: 1 } } });
     await logActivity(tx, {
@@ -34,8 +37,8 @@ export async function mergePeople(actor: CrmActor, raw: unknown) {
       actorId: actor.userId,
       type: "person.merged",
       personId: targetId,
-      data: { sourceId, sourceName: source.name, channelsMoved: moved.count, filled },
+      data: { sourceId, sourceName: source.name, channelsMoved: moved.count, dealsMoved: deals.count, filled },
     });
-    return { targetId, channelsMoved: moved.count, filled };
+    return { targetId, channelsMoved: moved.count, dealsMoved: deals.count, filled };
   });
 }

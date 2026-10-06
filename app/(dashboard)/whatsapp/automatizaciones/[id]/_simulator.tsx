@@ -18,7 +18,7 @@ interface SimEntry {
 interface SimFacts {
   name: string;
   tags: string[];
-  leadStatus: string;
+  dealStageIds: string[];
   customFields: Record<string, string | null>;
 }
 
@@ -38,7 +38,7 @@ const OUTCOME_TEXT: Record<string, string> = {
 export function Simulator({ automationId, graph, triggerText }: { automationId: string; graph: Graph; triggerText: string }) {
   const [entries, setEntries] = useState<SimEntry[]>([]);
   const [state, setState] = useState<RunState | null>(null);
-  const [facts, setFacts] = useState<SimFacts>({ name: "Cliente de prueba", tags: [], leadStatus: "NEW", customFields: {} });
+  const [facts, setFacts] = useState<SimFacts>({ name: "Cliente de prueba", tags: [], dealStageIds: [], customFields: {} });
   const [status, setStatus] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -75,7 +75,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
   );
 
   const restart = useCallback(() => {
-    const initialFacts = { name: "Cliente de prueba", tags: [], leadStatus: "NEW", customFields: {} };
+    const initialFacts = { name: "Cliente de prueba", tags: [], dealStageIds: [], customFields: {} };
     const opening: SimEntry[] = triggerText ? [{ kind: "client", text: triggerText }] : [];
     step({ kind: "start" }, null, initialFacts, opening);
   }, [step, triggerText]);

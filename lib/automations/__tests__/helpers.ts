@@ -10,7 +10,7 @@ export function fakeAdapters(overrides: Partial<Facts> = {}) {
     contact: { name: "Ana", phone: "5215500000001" },
     customFields: {},
     tags: [],
-    leadStatus: "NEW",
+    dealStageIds: ["stg_new"],
     scoreLabels: [],
     channel: "WHATSAPP",
     ...overrides,
@@ -40,9 +40,10 @@ export function fakeAdapters(overrides: Partial<Facts> = {}) {
       facts.tags = facts.tags.filter((t) => t !== name);
       calls.push({ op: "removeTag", arg: name });
     },
-    setLeadStatus: async (s) => {
-      facts.leadStatus = s;
-      calls.push({ op: "setLeadStatus", arg: s });
+    setDealStage: async (stageId, lostReasonId) => {
+      facts.dealStageIds = [stageId];
+      calls.push({ op: "setDealStage", arg: lostReasonId ? { stageId, lostReasonId } : stageId });
+      return { summary: `Negocio movido a ${stageId}` };
     },
     setCustomField: async (k, v) => {
       facts.customFields[k] = v;

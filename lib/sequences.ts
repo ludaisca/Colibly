@@ -29,7 +29,7 @@ function renderStepMessage(message: string, contact: { name: string | null; real
 }
 
 // Llamado justo después de que ocurre un trigger real (se agregó un tag,
-// Contact.leadStatus cambió, una WAAppointment pasó a COMPLETED) — busca
+// un negocio entró a una etapa, una WAAppointment pasó a COMPLETED) — busca
 // WASequence activas que matcheen y, si el contacto no está ya inscrito,
 // crea la WASequenceEnrollment con el primer paso programado.
 export async function enrollContactInTrigger(

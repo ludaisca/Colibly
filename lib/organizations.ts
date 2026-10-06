@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { TRIAL_DAYS, TRIAL_PLAN } from "@/lib/billing/plans";
+import { seedOrganizationPipeline } from "@/lib/crm/pipelines";
 
 // Alta de un cliente nuevo (SaaS): la organización nace en prueba (plan Pro,
 // TRIAL_DAYS días, sin tarjeta) y su primer usuario es admin y DUEÑO — el
@@ -23,6 +24,8 @@ export async function createOrganizationWithOwner(
     data: { name: input.name, email: input.email, password: input.hashedPassword, role: "admin", organizationId: organization.id },
   });
   await tx.organization.update({ where: { id: organization.id }, data: { ownerId: owner.id } });
+  // Pipeline de ventas y motivos de pérdida listos desde el primer día.
+  await seedOrganizationPipeline(tx, organization.id);
   return { organization, owner };
 }
 

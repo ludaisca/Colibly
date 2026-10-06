@@ -106,8 +106,8 @@ export function startWorkers() {
     await processLeadSheetImportTick();
   }, { connection, concurrency: 1 });
 
-  // Cola de trabajo por job (no tick) — el productor es el PATCH de
-  // /api/whatsapp/contacts/[id], un job por cambio de leadStatus. Mismo
+  // Cola de trabajo por job (no tick) — el productor es lib/crm/deal-effects.ts,
+  // un job por cada negocio que entra a una etapa con evento de Meta. Mismo
   // shape que bot-message-send.
   const metaConversionsWorker = new Worker("meta-conversions", async (job) => {
     await processMetaConversionsJob(job.data);

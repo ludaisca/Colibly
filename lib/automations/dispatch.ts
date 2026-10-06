@@ -135,8 +135,10 @@ function eventTrigger(event: DomainEvent): { type: TriggerType; matches: (config
         type: "tag_added",
         matches: (c) => normalize(String(c?.tagName ?? "")) === normalize(event.data.tagName),
       };
-    case "contact.lead_status_changed":
-      return { type: "lead_status_changed", matches: (c) => c?.status === event.data.to };
+    // Un negocio que nace en una etapa también "entra" a ella.
+    case "deal.created":
+    case "deal.stage_changed":
+      return { type: "deal_stage_changed", matches: (c) => c?.stageId === event.data.stage.id };
     case "appointment.status_changed":
       return event.data.to === "COMPLETED" ? { type: "appointment_completed", matches: () => true } : null;
     case "lead.scored":

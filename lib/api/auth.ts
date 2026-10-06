@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
-import { resolveIntegrationScope, type ResolvedScope } from "@/lib/integrations/account-scope";
+import { isRestricted as isKeyRestricted, resolveIntegrationScope, type ResolvedScope } from "@/lib/integrations/account-scope";
 import { ApiError } from "./respond";
 import { API_KEY_PREFIX } from "./keys";
 import type { ApiScope } from "./scopes";
@@ -12,6 +12,9 @@ export interface ApiContext extends ResolvedScope {
   userId: string;
   organizationId: string;
   scopes: string[];
+  // La key tiene recorte de cuentas: no ve nada que no cuelgue de ellas (los
+  // negocios sin conversación ligada, que son de toda la organización, tampoco).
+  restricted: boolean;
 }
 
 // 120 req/min por key: holgado para una integración normal (CRM ↔ ERP,
@@ -70,7 +73,7 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
   }
 
   const resolved = await resolveIntegrationScope(key.userId, key);
-  return { keyId: key.id, userId: key.userId, organizationId: key.organizationId, scopes: key.scopes, ...resolved };
+  return { keyId: key.id, userId: key.userId, organizationId: key.organizationId, scopes: key.scopes, restricted: isKeyRestricted(key), ...resolved };
 }
 
 // Frena la enumeración de keys desde una misma IP.

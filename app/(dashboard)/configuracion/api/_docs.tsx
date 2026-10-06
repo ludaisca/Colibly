@@ -74,10 +74,13 @@ export function ApiDocsSection() {
   -H "Content-Type: application/json" \\
   -d '{ "accountId": "<id de la cuenta>", "phone": "5215512345678", "name": "Ana López",
         "tags": ["Web"], "customFields": { "tipo_piel": "Mixta" } }'`}</Code>
-        <p className="text-sm text-muted">Mover el lead de etapa (dispara Meta Ads, secuencias y webhooks como el Pipeline):</p>
-        <Code>{`curl -X PATCH ${base}/contacts/<contactId> \\
+        <p className="text-sm text-muted">
+          Ganar un negocio (lo llevas a una etapa de tipo ganado; los ids de etapa salen de <code className="font-mono text-xs">GET /pipelines</code>).
+          Dispara Meta Ads, secuencias y webhooks como el tablero:
+        </p>
+        <Code>{`curl -X PATCH ${base}/deals/<dealId> \\
   -H "Authorization: Bearer $COLIBLY_API_KEY" -H "Content-Type: application/json" \\
-  -d '{ "leadStatus": "CUSTOMER" }'`}</Code>
+  -d '{ "stageId": "<id de la etapa Ganado>", "amount": 4800 }'`}</Code>
         <p className="text-sm text-muted">
           Enviar una plantilla aprobada (abre el chat si el contacto aún no escribió). Texto y botones solo dentro de la ventana de
           24 h de WhatsApp; fuera de ella la API responde <code className="font-mono text-xs">422 window_closed</code>:

@@ -1,4 +1,4 @@
-import { PIPELINE_STAGES, STAGE_COLOR_BORDER, STAGE_COLOR_BG } from "@/lib/pipeline/stages";
+import { stageClasses } from "@/lib/pipeline/stage-colors";
 import { cn } from "@/app/components/ui/cn";
 
 function SkeletonCard() {
@@ -38,13 +38,13 @@ export default function VentasLoading() {
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {PIPELINE_STAGES.map((stage) => (
-          <div key={stage} className="flex min-w-[300px] max-w-[360px] flex-1 flex-col">
+        {["info", "warning", "accent", "success", "muted"].map((color) => (
+          <div key={color} className="flex min-w-[300px] max-w-[360px] flex-1 flex-col">
             <div className="mb-3 flex items-center gap-2 px-1">
               <div className="h-2.5 w-2.5 rounded-full bg-surface-light" />
               <div className="h-4 w-20 rounded bg-surface-light animate-pulse" />
             </div>
-            <div className={cn("flex flex-1 flex-col gap-3 rounded-xl border p-3 min-h-[200px]", STAGE_COLOR_BORDER[stage], STAGE_COLOR_BG[stage])}>
+            <div className={cn("flex flex-1 flex-col gap-3 rounded-xl border p-3 min-h-[200px]", stageClasses(color).border, stageClasses(color).bg)}>
               <SkeletonCard />
               <SkeletonCard />
               <SkeletonCard />

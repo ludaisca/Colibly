@@ -11,10 +11,8 @@ import { findContact, resolveContact } from "@/lib/contacts/resolve";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { evaluatePlanLimit } from "@/lib/billing/gates";
 
-const LEAD_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"] as const;
-
 // GET /api/v1/contacts — más recientes primero (updatedAt), paginado por cursor.
-// Filtros: accountId, leadStatus, tagId, q (nombre o teléfono), updatedSince.
+// Filtros: accountId, stageId (negocio abierto en esa etapa), tagId, q (nombre o teléfono), updatedSince.
 export const GET = withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "contacts:read");
   const url = new URL(req.url);
@@ -24,12 +22,9 @@ export const GET = withApiErrors(async (req: Request) => {
   const and: Prisma.ContactWhereInput[] = [contactScopeWhere(ctx)];
   const accountId = url.searchParams.get("accountId");
   if (accountId) and.push({ OR: [{ accountId }, { channelAccountId: accountId }] });
-  const leadStatus = url.searchParams.get("leadStatus");
-  if (leadStatus) {
-    if (!(LEAD_STATUSES as readonly string[]).includes(leadStatus)) {
-      throw new ApiError(400, "invalid_request", `leadStatus debe ser uno de ${LEAD_STATUSES.join(", ")}`);
-    }
-    and.push({ leadStatus: leadStatus as (typeof LEAD_STATUSES)[number] });
+  const stageId = url.searchParams.get("stageId");
+  if (stageId) {
+    and.push({ person: { deals: { some: { stageId, status: "OPEN", archivedAt: null, organizationId: ctx.organizationId } } } });
   }
   const tagId = url.searchParams.get("tagId");
   if (tagId) and.push({ tags: { some: { tagId } } });
@@ -97,7 +92,7 @@ export const POST = withApiErrors(async (req: Request) => {
   const resolved = await resolveContact(scope, {
     remoteJid: input.phone,
     name: input.name ?? input.phone,
-    leadStatus: input.leadStatus,
+    openDeal: { source: "api" },
   });
   const created = resolved.contact;
   // Carrera entre dos altas del mismo teléfono: la otra ganó.
@@ -106,6 +101,7 @@ export const POST = withApiErrors(async (req: Request) => {
   if (input.customFields) {
     const { unknownKeys } = await setCustomFieldsByKey(created, input.customFields);
     if (unknownKeys.length > 0) {
+      if (resolved.dealId) await prisma.deal.delete({ where: { id: resolved.dealId } }).catch(() => undefined);
       await prisma.contact.delete({ where: { id: created.id } });
       throw new ApiError(400, "invalid_request", `Campos personalizados desconocidos: ${unknownKeys.join(", ")}`);
     }

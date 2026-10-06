@@ -2,7 +2,9 @@
 // cuentas), y dentro de eso solo puede hacer lo que sus scopes permiten.
 export const API_SCOPES = {
   "contacts:read": "Leer contactos, etiquetas y campos",
-  "contacts:write": "Crear y editar contactos, etapas y etiquetas",
+  "contacts:write": "Crear y editar contactos y etiquetas",
+  "deals:read": "Leer pipelines y negocios",
+  "deals:write": "Crear negocios, editarlos, moverlos de etapa y cerrarlos",
   "conversations:read": "Leer conversaciones y mensajes",
   "messages:send": "Enviar mensajes (texto, plantillas y botones)",
   "webhooks:manage": "Administrar webhooks salientes",

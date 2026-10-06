@@ -4,7 +4,6 @@ import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
 import { findScopedContact, serializeContact } from "@/lib/api/resources";
 import { apiContactUpdateSchema } from "@/lib/api/schemas";
 import { setCustomFieldsByKey } from "@/lib/contacts/custom-fields";
-import { afterLeadStatusChanged } from "@/lib/contacts/side-effects";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -14,9 +13,8 @@ export const GET = withApiErrors(async (req: Request, { params }: Params) => {
   return apiOk(serializeContact(await findScopedContact(ctx, id)));
 });
 
-// PATCH — nombre, nombre real, etapa y campos personalizados (por key). Un
-// cambio de etapa dispara lo mismo que moverlo en el Pipeline: Meta CAPI para
-// leads de anuncios, secuencias y el webhook contact.lead_status_changed.
+// PATCH — nombre, nombre real y campos personalizados (por key). La etapa de
+// venta ya no vive en el contacto sino en sus negocios: PATCH /api/v1/deals/{id}.
 export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
   const ctx = await authenticateApiKey(req, "contacts:write");
   const { id } = await params;
@@ -35,9 +33,6 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
 
   if (Object.keys(fields).length > 0) {
     await prisma.contact.update({ where: { id }, data: fields });
-  }
-  if (fields.leadStatus) {
-    await afterLeadStatusChanged(contact, contact.leadStatus, fields.leadStatus);
   }
 
   return apiOk(serializeContact(await findScopedContact(ctx, id)));

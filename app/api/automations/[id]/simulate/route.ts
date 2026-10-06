@@ -28,7 +28,7 @@ const bodySchema = z.object({
   facts: z.object({
     name: z.string().max(100),
     tags: z.array(z.string().max(60)).max(50),
-    leadStatus: z.string().max(20),
+    dealStageIds: z.array(z.string().max(60)).max(10),
     customFields: z.record(z.string(), z.string().nullable()),
   }),
 });

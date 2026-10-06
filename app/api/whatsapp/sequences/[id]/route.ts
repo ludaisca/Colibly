@@ -81,9 +81,11 @@ export async function PATCH(
       if (!tag || !tagBelongsTo(tag, existing)) {
         return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
       }
-    } else if (triggerType === "LEAD_STATUS_CHANGED" &&
-      (!triggerValue || !["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"].includes(triggerValue))) {
-      return NextResponse.json({ error: "Estado de lead inválido" }, { status: 400 });
+    } else if (triggerType === "DEAL_STAGE_CHANGED") {
+      const stage = triggerValue
+        ? await prisma.pipelineStage.findFirst({ where: { id: triggerValue, pipeline: { organizationId: existing.organizationId } }, select: { id: true } })
+        : null;
+      if (!stage) return NextResponse.json({ error: "Etapa del pipeline inválida" }, { status: 400 });
     }
 
     // currentStep apunta al índice del paso: no se puede sustituir la lista

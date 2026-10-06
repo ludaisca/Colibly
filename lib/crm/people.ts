@@ -293,7 +293,7 @@ export async function getPersonDetail(actor: CrmActor, id: string) {
   if (!person) throw notFound("Contacto");
   const scope = await accessibleContacts(actor);
 
-  const [contacts, appointments, activity] = await Promise.all([
+  const [contacts, appointments, activity, deals] = await Promise.all([
     prisma.contact.findMany({
       where: { AND: [{ personId: id }, scope] },
       orderBy: { createdAt: "asc" },
@@ -303,7 +303,6 @@ export async function getPersonDetail(actor: CrmActor, id: string) {
         channelAccountId: true,
         remoteJid: true,
         name: true,
-        leadStatus: true,
         leadOrigin: true,
         optedOutMarketing: true,
         createdAt: true,
@@ -333,6 +332,13 @@ export async function getPersonDetail(actor: CrmActor, id: string) {
       take: 20,
       select: { id: true, type: true, data: true, createdAt: true, actor: { select: { id: true, name: true } } },
     }),
+    // Negocios abiertos y los últimos cerrados; el ejecutivo solo los suyos.
+    prisma.deal.findMany({
+      where: { organizationId: actor.organizationId, personId: id, archivedAt: null, ...(isRestricted(actor) ? { ownerId: actor.userId } : {}) },
+      orderBy: [{ status: "asc" }, { stageEnteredAt: "desc" }],
+      take: 20,
+      select: { id: true, title: true, amount: true, status: true, ownerId: true, closedAt: true, stageEnteredAt: true, stage: { select: { id: true, name: true, color: true } }, pipeline: { select: { id: true, name: true } } },
+    }),
   ]);
 
   return {
@@ -346,6 +352,7 @@ export async function getPersonDetail(actor: CrmActor, id: string) {
       tags: tags.map((t) => t.tag),
       notes: _count.notes,
     })),
+    deals: deals.map((d) => ({ ...d, amount: Number(d.amount) })),
     upcomingAppointments: appointments,
     activity,
   };

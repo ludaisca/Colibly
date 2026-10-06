@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { contactUpdateSchema } from "@/lib/validations";
-import { afterLeadStatusChanged } from "@/lib/contacts/side-effects";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { forbidRoles } from "@/lib/roles";
 import { rateLimit } from "@/lib/rate-limit";
@@ -32,13 +31,15 @@ export async function GET(
         accountId: true,
         remoteJid: true,
         name: true,
-        leadStatus: true,
+        personId: true,
         optedOutMarketing: true,
         optedOutAt: true,
         createdAt: true,
         updatedAt: true,
         tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
         chat: { select: { id: true } },
+        // Negocios abiertos de la persona (el viejo "estado del lead").
+        person: { select: { deals: { where: { status: "OPEN", archivedAt: null }, orderBy: { stageEnteredAt: "desc" }, take: 5, select: { id: true, title: true, amount: true, ownerId: true, stage: { select: { id: true, name: true, color: true } }, pipeline: { select: { id: true, name: true } } } } } },
       },
     });
 
@@ -46,7 +47,8 @@ export async function GET(
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
     }
 
-    return NextResponse.json(contact);
+    const { person, ...rest } = contact;
+    return NextResponse.json({ ...rest, deals: person.deals.map((d) => ({ ...d, amount: Number(d.amount) })) });
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");
@@ -94,16 +96,9 @@ export async function PATCH(
         accountId: true,
         remoteJid: true,
         name: true,
-        leadStatus: true,
         updatedAt: true,
       },
     });
-
-    // Meta Ads (CAPI), secuencias y evento de dominio — compartido con la API
-    // pública y las automatizaciones.
-    if (parsed.data.leadStatus) {
-      await afterLeadStatusChanged(existing, existing.leadStatus, parsed.data.leadStatus);
-    }
 
     return NextResponse.json(updated);
   } catch (error) {

@@ -3,8 +3,9 @@ import type { DomainEvent } from "@/lib/events/types";
 
 // Forma pública de un evento — lo que recibe un webhook (y lo que documenta
 // /api/v1/openapi.json). Se arma una sola vez por evento en el fanout, con
-// lectura fresca de contacto/conversación: nombres y etapa del momento de la
-// entrega, mientras que `data` conserva el hecho tal como ocurrió (from/to).
+// lectura fresca de contacto/conversación: nombres del momento de la entrega,
+// mientras que `data` conserva el hecho tal como ocurrió (p. ej. de qué etapa
+// a cuál pasó un negocio).
 export interface PublicEvent {
   id: string;
   type: string;
@@ -15,7 +16,6 @@ export interface PublicEvent {
     name: string | null;
     phone: string | null; // solo WhatsApp
     externalId: string | null; // Telegram/Messenger/Instagram/Web
-    leadStatus: string;
     leadOrigin: string;
   } | null;
   conversation: { id: string; channel: string; status: string; assignedToId: string | null } | null;
@@ -32,7 +32,7 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
     event.contactId
       ? prisma.contact.findUnique({
           where: { id: event.contactId },
-          select: { id: true, name: true, realName: true, remoteJid: true, leadStatus: true, leadOrigin: true },
+          select: { id: true, name: true, realName: true, remoteJid: true, leadOrigin: true },
         })
       : null,
     event.chat
@@ -55,7 +55,6 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
           name: contact.realName ?? contact.name,
           phone: isWhatsapp ? contact.remoteJid : null,
           externalId: isWhatsapp ? null : contact.remoteJid,
-          leadStatus: contact.leadStatus,
           leadOrigin: contact.leadOrigin,
         }
       : null,

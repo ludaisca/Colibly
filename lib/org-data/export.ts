@@ -20,6 +20,7 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
       plan: true,
       status: true,
       timezone: true,
+      currency: true,
       businessHourStart: true,
       businessHourEnd: true,
       createdAt: true,
@@ -94,6 +95,75 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
   }
   yield "]";
 
+  // Pipelines (con sus etapas), motivos de pérdida y negocios con el historial
+  // de movimientos entre etapas.
+  yield `,"pipelines":${JSON.stringify(
+    await prisma.pipeline.findMany({
+      where: { organizationId },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        isDefault: true,
+        autoCreateDeals: true,
+        archivedAt: true,
+        stages: { orderBy: { position: "asc" }, select: { id: true, name: true, position: true, outcome: true, probability: true, metaEvent: true } },
+      },
+    })
+  )}`;
+  yield `,"lossReasons":${JSON.stringify(await prisma.lossReason.findMany({ where: { organizationId }, orderBy: { position: "asc" }, select: { id: true, name: true, archivedAt: true } }))}`;
+  yield `,"deals":[`;
+  let firstDeal = true;
+  for (let cursor: string | undefined; ; ) {
+    const page = await prisma.deal.findMany({
+      where: { organizationId },
+      orderBy: { id: "asc" },
+      take: PAGE,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      select: {
+        id: true,
+        title: true,
+        amount: true,
+        probability: true,
+        expectedCloseDate: true,
+        status: true,
+        pipelineId: true,
+        stageId: true,
+        personId: true,
+        companyId: true,
+        contactId: true,
+        lostReasonId: true,
+        lossNote: true,
+        leadOrigin: true,
+        adId: true,
+        source: true,
+        stageEnteredAt: true,
+        closedAt: true,
+        archivedAt: true,
+        createdAt: true,
+        owner: { select: { email: true } },
+        stageChanges: {
+          orderBy: { createdAt: "asc" },
+          select: { fromStageName: true, toStageName: true, toStatus: true, secondsInFrom: true, createdAt: true, actor: { select: { email: true } } },
+        },
+      },
+    });
+    for (const d of page) {
+      const { owner, stageChanges, ...rest } = d;
+      yield (firstDeal ? "" : ",") +
+        JSON.stringify({
+          ...rest,
+          amount: Number(d.amount),
+          owner: owner?.email ?? null,
+          stageChanges: stageChanges.map(({ actor, ...c }) => ({ ...c, actor: actor?.email ?? null })),
+        });
+      firstDeal = false;
+    }
+    if (page.length < PAGE) break;
+    cursor = page[page.length - 1].id;
+  }
+  yield "]";
+
   // Contactos con etiquetas, campos personalizados, notas y citas.
   yield `,"contacts":[`;
   let first = true;
@@ -111,7 +181,6 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
         remoteJid: true,
         name: true,
         realName: true,
-        leadStatus: true,
         leadOrigin: true,
         optedOutMarketing: true,
         createdAt: true,

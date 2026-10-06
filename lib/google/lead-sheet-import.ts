@@ -193,7 +193,7 @@ export async function importNewLeadsForSource(
 
       const { contact: upsertedContact, remoteJid } = await resolveContact(
         { kind: "whatsapp", accountId: source.waAccountId },
-        { remoteJid: phone, name: contactName }
+        { remoteJid: phone, name: contactName, openDeal: { source: "sheet" } }
       );
 
       const existingChat = await prisma.wAChat.findUnique({

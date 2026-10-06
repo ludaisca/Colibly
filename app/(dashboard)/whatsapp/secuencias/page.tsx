@@ -14,7 +14,7 @@ import { SequenceFormModal } from "./_form";
 
 const TRIGGER_LABEL: Record<string, string> = {
   TAG_ADDED: "Etiqueta agregada",
-  LEAD_STATUS_CHANGED: "Cambio de estado",
+  DEAL_STAGE_CHANGED: "Negocio en una etapa",
   APPOINTMENT_COMPLETED: "Cita completada",
 };
 

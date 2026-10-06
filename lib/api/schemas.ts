@@ -3,8 +3,6 @@ import { z } from "zod";
 // Validación de entrada de la API pública (/api/v1). Mensajes en español,
 // igual que lib/validations.ts; los `code` de error viven en respond.ts.
 
-const leadStatus = z.enum(["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"]);
-
 export const apiContactCreateSchema = z.object({
   accountId: z.string().min(1, "accountId es requerido"),
   phone: z
@@ -12,7 +10,6 @@ export const apiContactCreateSchema = z.object({
     .transform((v) => v.replace(/\D/g, ""))
     .refine((v) => v.length >= 8 && v.length <= 15, "phone debe tener entre 8 y 15 dígitos, con código de país"),
   name: z.string().trim().min(1).max(200).optional(),
-  leadStatus: leadStatus.optional(),
   tags: z.array(z.string().trim().min(1).max(60)).max(20).optional(),
   customFields: z.record(z.string(), z.string().max(2000).nullable()).optional(),
 });
@@ -21,7 +18,6 @@ export const apiContactUpdateSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
     realName: z.string().trim().min(1).max(200).nullable().optional(),
-    leadStatus: leadStatus.optional(),
     customFields: z.record(z.string(), z.string().max(2000).nullable()).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, "Nada que actualizar");

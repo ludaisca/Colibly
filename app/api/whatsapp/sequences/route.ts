@@ -133,10 +133,11 @@ export async function POST(req: Request) {
       if (!tag || !tagBelongsTo(tag, { waAccountId, channelAccountId })) {
         return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
       }
-    } else if (data.triggerType === "LEAD_STATUS_CHANGED") {
-      if (!data.triggerValue || !["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"].includes(data.triggerValue)) {
-        return NextResponse.json({ error: "Estado de lead inválido" }, { status: 400 });
-      }
+    } else if (data.triggerType === "DEAL_STAGE_CHANGED") {
+      const stage = data.triggerValue
+        ? await prisma.pipelineStage.findFirst({ where: { id: data.triggerValue, pipeline: { organizationId: await requireOrgId(session.user.id) } }, select: { id: true } })
+        : null;
+      if (!stage) return NextResponse.json({ error: "Etapa del pipeline inválida" }, { status: 400 });
     }
 
     const sequence = await prisma.wASequence.create({

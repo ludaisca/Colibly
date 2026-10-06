@@ -1,10 +1,13 @@
-import { Prisma, type Contact, type LeadStatus } from "@prisma/client";
+import { Prisma, type Contact } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jidCandidates } from "@/lib/phone";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { canonicalRemoteJid, isPhoneJid, isPhoneNameOf, remoteJidCandidates } from "@/lib/contacts/jid";
 import { phoneForms } from "@/lib/crm/normalize";
 import { logActivity } from "@/lib/crm/activity";
+import { ensureDefaultPipeline } from "@/lib/crm/pipelines";
+import { defaultDealTitle } from "@/lib/crm/deal-rules";
+import { afterDealCreated } from "@/lib/crm/deal-effects";
 
 // ÚNICO punto de alta/búsqueda de `Contact`. Antes cada ingesta (mensaje de
 // WhatsApp, Telegram/Meta, campañas, hojas de Google, Instant Forms, API,
@@ -29,8 +32,11 @@ export interface ResolveContactInput {
   // Nombre que trae la fuente; null/undefined = la fuente no trae nombre.
   name?: string | null;
   attribution?: ContactAttribution;
-  // Etapa inicial; solo al crear (por defecto NEW).
-  leadStatus?: LeadStatus;
+  // Si la persona es NUEVA (no existía ni por teléfono), abre un negocio en la
+  // primera etapa del pipeline predeterminado — cuando ese pipeline tiene
+  // activada la alta automática. `source` dice cómo llegó ("inbound", "api",
+  // "lead_ads"…). Omitirlo = no abrir negocio (campañas, historial importado).
+  openDeal?: { source: string };
 }
 
 export interface ResolvedContact {
@@ -41,6 +47,9 @@ export interface ResolvedContact {
   created: boolean;
   // true si ya existía y su nombre se actualizó con esta llamada.
   nameChanged: boolean;
+  // Negocio abierto automáticamente en esta llamada (solo al crear una persona
+  // nueva con `openDeal`).
+  dealId: string | null;
 }
 
 function scopeWhere(scope: ContactScope) {
@@ -72,12 +81,12 @@ export async function resolveContact(scope: ContactScope, input: ResolveContactI
   const existing = await prisma.contact.findFirst({ where });
   if (existing) {
     const contact = await refreshName(existing, input.name);
-    return { contact, remoteJid, created: false, nameChanged: contact.name !== existing.name };
+    return { contact, remoteJid, created: false, nameChanged: contact.name !== existing.name, dealId: null };
   }
 
   const { organizationId, source } = await scopeOrigin(scope);
   try {
-    const contact = await prisma.$transaction(async (tx) => {
+    const { contact, dealId } = await prisma.$transaction(async (tx) => {
       // Cada identidad de canal pertenece a una Person (el "Contacto" de la
       // interfaz). Si ya hay una con ese teléfono (p. ej. importada por CSV) se
       // reutiliza; si no, se crea. Todo en la misma transacción que el Contact.
@@ -89,11 +98,12 @@ export async function resolveContact(scope: ContactScope, input: ResolveContactI
             select: { id: true },
           })
         : null;
+      const personName = input.name ?? remoteJid;
       const personId =
         existingPerson?.id ??
         (
           await tx.person.create({
-            data: { organizationId, name: input.name ?? remoteJid, phone, phoneDigits: phone, source },
+            data: { organizationId, name: personName, phone, phoneDigits: phone, source },
             select: { id: true },
           })
         ).id;
@@ -104,18 +114,47 @@ export async function resolveContact(scope: ContactScope, input: ResolveContactI
         personId,
         data: { source, remoteJid },
       });
-      return tx.contact.create({
-        data: { ...where, personId, name: input.name ?? remoteJid, ...(input.leadStatus ? { leadStatus: input.leadStatus } : {}), ...(input.attribution ?? {}) },
+      const created = await tx.contact.create({
+        data: { ...where, personId, name: personName, ...(input.attribution ?? {}) },
       });
+
+      // Alta automática del negocio de una persona nueva.
+      let dealId: string | null = null;
+      if (input.openDeal && !existingPerson) {
+        const entry = await ensureDefaultPipeline(organizationId, tx);
+        if (entry.autoCreateDeals) {
+          const deal = await tx.deal.create({
+            data: {
+              organizationId,
+              pipelineId: entry.pipelineId,
+              stageId: entry.firstStageId,
+              personId,
+              contactId: created.id,
+              title: defaultDealTitle(personName),
+              leadOrigin: created.leadOrigin,
+              adId: created.adId,
+              source: input.openDeal.source,
+            },
+            select: { id: true, stage: { select: { name: true, outcome: true } } },
+          });
+          await tx.dealStageChange.create({
+            data: { organizationId, dealId: deal.id, toStageId: entry.firstStageId, toStageName: deal.stage.name, toStatus: deal.stage.outcome },
+          });
+          await logActivity(tx, { organizationId, actorId: null, type: "deal.created", personId, data: { dealId: deal.id, stage: deal.stage.name, source: input.openDeal.source } });
+          dealId = deal.id;
+        }
+      }
+      return { contact: created, dealId };
     });
-    return { contact, remoteJid, created: true, nameChanged: false };
+    if (dealId) void afterDealCreated(dealId);
+    return { contact, remoteJid, created: true, nameChanged: false, dealId };
   } catch (err) {
     // Carrera entre dos entregas del mismo contacto: la otra ganó el @@unique
-    // (la transacción entera se revierte, incluida la Person).
+    // (la transacción entera se revierte, incluida la Person y su negocio).
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       const winner = await prisma.contact.findFirstOrThrow({ where });
       const contact = await refreshName(winner, input.name);
-      return { contact, remoteJid, created: false, nameChanged: contact.name !== winner.name };
+      return { contact, remoteJid, created: false, nameChanged: contact.name !== winner.name, dealId: null };
     }
     throw err;
   }

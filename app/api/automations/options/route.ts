@@ -23,7 +23,7 @@ export async function GET(req: Request) {
       ? await prisma.wAAccount.findUniqueOrThrow({ where: { id: account.waAccountId }, select: { organizationId: true } })
       : await prisma.channelAccount.findUniqueOrThrow({ where: { id: account.channelAccountId }, select: { organizationId: true } });
 
-    const [tags, fields, templates, scorers, users, scoreLabels] = await Promise.all([
+    const [tags, fields, templates, scorers, users, scoreLabels, pipelines, lossReasons] = await Promise.all([
       prisma.tag.findMany({ where: scope, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       prisma.contactCustomFieldDefinition.findMany({ where: scope, select: { key: true, label: true, type: true, options: true }, orderBy: { order: "asc" } }),
       isWa
@@ -35,7 +35,13 @@ export async function GET(req: Request) {
         : [],
       prisma.wALeadScorerBot.findMany({ where: { organizationId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       isWa ? getEligibleAssignees(account.waAccountId) : getEligibleChannelAssignees(account.channelAccountId),
-      prisma.wALeadScore.findMany({ distinct: ["label"], select: { label: true }, take: 20 }),
+      prisma.wALeadScore.findMany({ where: { scorer: { organizationId } }, distinct: ["label"], select: { label: true }, take: 20 }),
+      prisma.pipeline.findMany({
+        where: { organizationId, archivedAt: null },
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+        select: { id: true, name: true, stages: { orderBy: { position: "asc" }, select: { id: true, name: true, outcome: true } } },
+      }),
+      prisma.lossReason.findMany({ where: { organizationId, archivedAt: null }, orderBy: [{ position: "asc" }], select: { id: true, name: true } }),
     ]);
 
     return NextResponse.json({
@@ -44,6 +50,13 @@ export async function GET(req: Request) {
       templates,
       scorers,
       users: users.map((u) => ({ id: u.id, name: u.name ?? u.email })),
+      // Etapas de todos los pipelines (con el nombre del pipeline por delante
+      // cuando hay más de uno) y motivos de pérdida, para disparadores, pasos y
+      // condiciones de negocio.
+      stages: pipelines.flatMap((p) =>
+        p.stages.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${p.name} · ${s.name}` : s.name, outcome: s.outcome }))
+      ),
+      lossReasons,
       scoreLabels: [...new Set(["prioridad_alta", "oportunidad", "interesado", "frio", "descartado", ...scoreLabels.map((s) => s.label)])],
     });
   } catch (error) {

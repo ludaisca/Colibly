@@ -18,7 +18,7 @@ export const API_CONTACT_SELECT = {
   remoteJid: true,
   name: true,
   realName: true,
-  leadStatus: true,
+  personId: true,
   leadOrigin: true,
   optedOutMarketing: true,
   createdAt: true,
@@ -27,6 +27,17 @@ export const API_CONTACT_SELECT = {
   customFieldValues: { select: { value: true, definition: { select: { key: true } } } },
   chat: { select: { id: true } },
   conversation: { select: { id: true } },
+  // Negocio abierto más reciente de la persona (el viejo "estado del lead").
+  person: {
+    select: {
+      deals: {
+        where: { status: "OPEN", archivedAt: null },
+        orderBy: { stageEnteredAt: "desc" },
+        take: 1,
+        select: { id: true, pipelineId: true, stage: { select: { id: true, name: true } } },
+      },
+    },
+  },
 } satisfies Prisma.ContactSelect;
 
 type ApiContactRow = Prisma.ContactGetPayload<{ select: typeof API_CONTACT_SELECT }>;
@@ -47,7 +58,10 @@ export function serializeContact(c: ApiContactRow) {
     realName: c.realName,
     phone: isWhatsapp ? c.remoteJid : null,
     externalId: isWhatsapp ? null : c.remoteJid,
-    leadStatus: c.leadStatus,
+    personId: c.personId,
+    openDeal: c.person.deals[0]
+      ? { id: c.person.deals[0].id, pipelineId: c.person.deals[0].pipelineId, stageId: c.person.deals[0].stage.id, stageName: c.person.deals[0].stage.name }
+      : null,
     leadOrigin: c.leadOrigin,
     optedOutMarketing: c.optedOutMarketing,
     tags: c.tags.map((t) => t.tag),

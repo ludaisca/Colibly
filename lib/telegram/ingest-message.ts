@@ -103,7 +103,7 @@ export async function ingestChannelMessage(
 
   // Punto único de alta de contactos (lib/contacts/resolve.ts); en canales
   // genéricos el id externo no se normaliza.
-  const resolved = await resolveContact({ kind: "channel", channelAccountId }, { remoteJid: msg.externalId, name: nameCandidate });
+  const resolved = await resolveContact({ kind: "channel", channelAccountId }, { remoteJid: msg.externalId, name: nameCandidate, openDeal: { source: "inbound" } });
   const contactRecord = resolved.contact;
 
   const conversation = await prisma.conversation.upsert({
