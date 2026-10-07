@@ -12,7 +12,8 @@ export async function GET(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-    // El rol "user" tiene /whatsapp/contactos bloqueado en proxy.ts — este 403
+    // Este listado de identidades de canal ya no tiene pantalla (el directorio es por
+    // persona, en /contactos). El rol "user" nunca tuvo acceso a él — este 403
     // cierra el acceso directo a la API (defensa en profundidad, mismo patrón
     // que /api/usuarios). El detalle /contacts/[id] queda abierto: lo usa el
     // ContactDrawer desde el chat, que "user" sí puede ver.

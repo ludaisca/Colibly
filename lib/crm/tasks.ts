@@ -6,6 +6,7 @@ import { isRestricted, type CrmActor } from "@/lib/crm/access";
 import { logActivity } from "@/lib/crm/activity";
 import { emitTaskEvent } from "@/lib/crm/task-events";
 import { validateOwner } from "@/lib/crm/people";
+import { taskVisibleWhere } from "@/lib/crm/task-scope";
 import { MAX_REMIND_MINUTES, computeRemindAt, dayBounds } from "@/lib/crm/task-rules";
 
 // Servicio de TAREAS. Alcance: `organizationId`. Roles:
@@ -49,13 +50,7 @@ export function serializeTask(row: TaskRow, now = new Date()) {
 
 // ── Alcance ─────────────────────────────────────────────────────────────────
 
-export function taskVisibleWhere(actor: CrmActor): Prisma.TaskWhereInput {
-  if (!isRestricted(actor)) return { organizationId: actor.organizationId };
-  return {
-    organizationId: actor.organizationId,
-    OR: [{ assigneeId: actor.userId }, { person: { ownerId: actor.userId } }, { deal: { ownerId: actor.userId } }, { company: { ownerId: actor.userId } }],
-  };
-}
+export { taskVisibleWhere };
 
 function assertCanEditTask(actor: CrmActor, task: { assigneeId: string | null }): void {
   if (isRestricted(actor) && task.assigneeId !== actor.userId) throw forbidden("Solo puedes editar las tareas que tienes asignadas");

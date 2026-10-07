@@ -1,24 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Search, X } from "lucide-react";
-import { Modal } from "@/app/components/ui/modal";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { Select } from "@/app/components/ui/select";
-import { Textarea } from "@/app/components/ui/textarea";
-import { FormField } from "@/app/components/ui/form-field";
-import { Banner } from "@/app/components/ui/banner";
+import { Alert } from "@/app/components/kit/alert";
+import { Button } from "@/app/components/kit/button";
+import { Dialog, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from "@/app/components/kit/dialog";
+import { Field, FieldLabel } from "@/app/components/kit/field";
+import { Input } from "@/app/components/kit/input";
+import { Textarea } from "@/app/components/kit/textarea";
 import { useToast } from "@/app/components/ui/toast";
+import { EntityPicker, searchPeople, type PickerOption } from "@/app/components/crm/entity-picker";
+import { SimpleSelect } from "@/app/components/crm/simple-select";
+import { useTeam } from "@/app/components/crm/use-crm-lookups";
 import { REMIND_OPTIONS, TASK_KINDS, isoToLocalInput, type TaskItem, type TaskKind } from "@/lib/crm/task-ui";
-
-interface PersonOption {
-  id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-}
 
 interface Props {
   open: boolean;
@@ -39,7 +33,7 @@ export function TaskFormModal({ open, onClose, onSaved, personId, personLabel, d
   const isEdit = !!initialData;
   const canAssign = session?.user?.role !== "ejecutivo";
   const lockedPerson = personId ?? initialData?.personId ?? null;
-  const searchBoxRef = useRef<HTMLDivElement>(null);
+  const team = useTeam(open && canAssign);
 
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<TaskKind>("TODO");
@@ -47,14 +41,9 @@ export function TaskFormModal({ open, onClose, onSaved, personId, personLabel, d
   const [remind, setRemind] = useState("0");
   const [assigneeId, setAssigneeId] = useState("");
   const [notes, setNotes] = useState("");
+  const [picked, setPicked] = useState<PickerOption | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  const [team, setTeam] = useState<Array<{ id: string; name: string | null; email: string }>>([]);
-  const [selected, setSelected] = useState<PersonOption | null>(null);
-  const [search, setSearch] = useState("");
-  const [results, setResults] = useState<PersonOption[]>([]);
-  const [showResults, setShowResults] = useState(false);
 
   const reset = useCallback(() => {
     setTitle(initialData?.title ?? "");
@@ -63,10 +52,7 @@ export function TaskFormModal({ open, onClose, onSaved, personId, personLabel, d
     setRemind(initialData ? (initialData.remindMinutesBefore === null ? "none" : String(initialData.remindMinutesBefore)) : "0");
     setAssigneeId(initialData?.assigneeId ?? "");
     setNotes(initialData?.notes ?? "");
-    setSelected(null);
-    setSearch("");
-    setResults([]);
-    setShowResults(false);
+    setPicked(null);
     setError("");
   }, [initialData]);
 
@@ -75,42 +61,9 @@ export function TaskFormModal({ open, onClose, onSaved, personId, personLabel, d
     if (open) reset();
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!open || !canAssign) return;
-    fetch("/api/crm/team")
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((d) => setTeam(d.items ?? []))
-      .catch(() => undefined);
-  }, [open, canAssign]);
-
-  useEffect(() => {
-    if (lockedPerson || !open) return;
-    const term = search.trim();
-    if (!term) return;
-    const handle = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/crm/people?q=${encodeURIComponent(term)}&pageSize=8`);
-        const data = await res.json();
-        if (Array.isArray(data.items)) setResults(data.items);
-      } catch {
-        // silencioso: se puede reintentar escribiendo
-      }
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [search, lockedPerson, open]);
-
-  useEffect(() => {
-    if (!showResults) return;
-    const handler = (e: MouseEvent) => {
-      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) setShowResults(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showResults]);
-
   async function submit() {
     setError("");
-    const targetPerson = lockedPerson ?? selected?.id ?? null;
+    const targetPerson = lockedPerson ?? picked?.id ?? null;
     if (!isEdit && !targetPerson && !dealId) return setError("Elige el contacto al que pertenece la tarea");
     if (!title.trim()) return setError("Indica qué hay que hacer");
 
@@ -144,100 +97,76 @@ export function TaskFormModal({ open, onClose, onSaved, personId, personLabel, d
     }
   }
 
-  const label = personLabel ?? initialData?.person?.name ?? selected?.name ?? null;
+  const label = personLabel ?? initialData?.person?.name ?? null;
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={isEdit ? "Editar tarea" : "Nueva tarea"}
-      size="md"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear tarea"}</Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        {error && <Banner tone="danger">{error}</Banner>}
+    <Dialog open={open} onOpenChange={(o) => { if (!o && !saving) onClose(); }}>
+      <DialogPopup>
+        <form onSubmit={(e) => { e.preventDefault(); void submit(); }} className="flex min-h-0 flex-1 flex-col">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? "Editar tarea" : "Nueva tarea"}</DialogTitle>
+          </DialogHeader>
+          <DialogPanel>
+            <div className="space-y-4">
+              {error && <Alert variant="error">{error}</Alert>}
 
-        {lockedPerson ? (
-          <div className="rounded-lg border border-border bg-surface-light px-3.5 py-2.5 text-sm text-foreground">
-            Contacto: <span className="font-medium">{label ?? "—"}</span>
-          </div>
-        ) : (
-          <FormField label="Contacto" required>
-            {(id) => (
-              <div ref={searchBoxRef} className="relative">
-                {selected ? (
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-surface-light px-3.5 py-2.5 text-sm">
-                    <span className="font-medium text-foreground">{selected.name}</span>
-                    <button type="button" onClick={() => { setSelected(null); setSearch(""); }} className="text-muted-darker hover:text-foreground" aria-label="Quitar contacto">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <Input id={id} icon={Search} value={search} onChange={(e) => { setSearch(e.target.value); setShowResults(true); }} onFocus={() => setShowResults(true)} placeholder="Buscar por nombre, correo o teléfono..." />
-                    {showResults && search.trim() && results.length > 0 && (
-                      <div className="absolute z-10 mt-1.5 max-h-56 w-full overflow-y-auto rounded-lg border border-border bg-surface shadow-lg">
-                        {results.map((p) => (
-                          <button key={p.id} type="button" onClick={() => { setSelected(p); setShowResults(false); }} className="w-full px-3.5 py-2 text-left text-sm transition-colors hover:bg-surface-light">
-                            <p className="font-medium text-foreground">{p.name}</p>
-                            <p className="text-xs text-muted-darker">{p.phone ?? p.email ?? ""}</p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
+              {lockedPerson ? (
+                <div className="rounded-lg border bg-surface-light px-3 py-2 text-sm">
+                  Contacto: <span className="font-medium">{label ?? "—"}</span>
+                </div>
+              ) : (
+                <Field>
+                  <FieldLabel>Contacto</FieldLabel>
+                  <div className="w-full"><EntityPicker value={picked} onChange={setPicked} search={searchPeople} placeholder="Buscar por nombre, correo o teléfono" ariaLabel="Contacto" /></div>
+                </Field>
+              )}
+
+              <Field>
+                <FieldLabel>¿Qué hay que hacer?</FieldLabel>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej. Llamar para confirmar la propuesta" maxLength={200} autoFocus />
+              </Field>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Tipo</FieldLabel>
+                  <SimpleSelect ariaLabel="Tipo de tarea" value={kind} onChange={(v) => setKind(v as TaskKind)} options={TASK_KINDS} />
+                </Field>
+                <Field>
+                  <FieldLabel>Fecha y hora</FieldLabel>
+                  <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+                </Field>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Aviso</FieldLabel>
+                  <SimpleSelect ariaLabel="Aviso" value={dueAt ? remind : "none"} onChange={setRemind} options={REMIND_OPTIONS} disabled={!dueAt} />
+                </Field>
+                {canAssign && (
+                  <Field>
+                    <FieldLabel>Responsable</FieldLabel>
+                    <SimpleSelect
+                      ariaLabel="Responsable"
+                      value={assigneeId}
+                      onChange={setAssigneeId}
+                      options={[{ value: "", label: isEdit ? "Sin asignar" : "Yo" }, ...team.map((u) => ({ value: u.id, label: u.name ?? u.email }))]}
+                    />
+                  </Field>
                 )}
               </div>
-            )}
-          </FormField>
-        )}
 
-        <FormField label="¿Qué hay que hacer?" required>
-          {(id) => <Input id={id} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej. Llamar para confirmar la propuesta" />}
-        </FormField>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label="Tipo">
-            {(id) => (
-              <Select id={id} value={kind} onChange={(e) => setKind(e.target.value as TaskKind)}>
-                {TASK_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
-              </Select>
-            )}
-          </FormField>
-          <FormField label="Fecha y hora">
-            {(id) => <Input id={id} type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />}
-          </FormField>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label="Aviso">
-            {(id) => (
-              <Select id={id} value={dueAt ? remind : "none"} disabled={!dueAt} onChange={(e) => setRemind(e.target.value)}>
-                {REMIND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </Select>
-            )}
-          </FormField>
-          {canAssign && (
-            <FormField label="Responsable">
-              {(id) => (
-                <Select id={id} value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-                  <option value="">{isEdit ? "Sin asignar" : "Yo"}</option>
-                  {team.map((u) => <option key={u.id} value={u.id}>{u.name ?? u.email}</option>)}
-                </Select>
-              )}
-            </FormField>
-          )}
-        </div>
-
-        <FormField label="Notas">
-          {(id) => <Textarea id={id} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />}
-        </FormField>
-      </div>
-    </Modal>
+              <Field>
+                <FieldLabel>Notas</FieldLabel>
+                <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={5000} />
+              </Field>
+            </div>
+          </DialogPanel>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
+            <Button type="submit" loading={saving}>{isEdit ? "Guardar cambios" : "Crear tarea"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogPopup>
+    </Dialog>
   );
 }

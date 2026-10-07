@@ -6,6 +6,7 @@ import { deleteContactData } from "@/lib/contacts/delete";
 import { CrmError, invalid, notFound, versionConflict } from "@/lib/crm/errors";
 import { assertCanEdit, isRestricted, requireRoles, type CrmActor } from "@/lib/crm/access";
 import { logActivity } from "@/lib/crm/activity";
+import { activityVisibleWhere } from "@/lib/crm/activity-scope";
 import { cleanText, normalizeEmail, normalizePersonPhone, phoneForms } from "@/lib/crm/normalize";
 import { emitPersonCreated } from "@/lib/crm/task-events";
 import { findDuplicateClusters } from "@/lib/crm/duplicates";
@@ -240,6 +241,7 @@ export async function buildPeopleWhere(actor: CrmActor, f: PeopleFilters): Promi
     and.push({ contacts: { some: { AND: [scope, channelWhere] } } });
   }
   if (f.tagId) and.push({ contacts: { some: { AND: [scope, { tags: { some: { tagId: f.tagId } } }] } } });
+  if (f.stageId) and.push({ deals: { some: { stageId: f.stageId, status: "OPEN", archivedAt: null, ...(isRestricted(actor) ? { ownerId: actor.userId } : {}) } } });
   return { AND: and };
 }
 
@@ -331,7 +333,7 @@ export async function getPersonDetail(actor: CrmActor, id: string) {
       select: { id: true, title: true, scheduledAt: true, durationMinutes: true, assignedToId: true, contactId: true },
     }),
     prisma.activityLog.findMany({
-      where: { organizationId: actor.organizationId, personId: id },
+      where: { organizationId: actor.organizationId, personId: id, AND: [await activityVisibleWhere(actor, id)] },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 20,
       select: { id: true, type: true, data: true, createdAt: true, actor: { select: { id: true, name: true } } },
@@ -341,7 +343,23 @@ export async function getPersonDetail(actor: CrmActor, id: string) {
       where: { organizationId: actor.organizationId, personId: id, archivedAt: null, ...(isRestricted(actor) ? { ownerId: actor.userId } : {}) },
       orderBy: [{ status: "asc" }, { stageEnteredAt: "desc" }],
       take: 20,
-      select: { id: true, title: true, amount: true, status: true, ownerId: true, closedAt: true, stageEnteredAt: true, stage: { select: { id: true, name: true, color: true } }, pipeline: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        title: true,
+        amount: true,
+        probability: true,
+        expectedCloseDate: true,
+        status: true,
+        ownerId: true,
+        owner: { select: { id: true, name: true } },
+        lostReason: { select: { id: true, name: true } },
+        version: true,
+        createdAt: true,
+        closedAt: true,
+        stageEnteredAt: true,
+        stage: { select: { id: true, name: true, color: true } },
+        pipeline: { select: { id: true, name: true } },
+      },
     }),
   ]);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Building2, CalendarClock, Mail, Phone, UserRound } from "lucide-react";
+import { ArrowUpRight, Building2, CalendarClock, Mail, Phone, UserRound } from "lucide-react";
 import { Alert } from "@/app/components/kit/alert";
 import { Badge } from "@/app/components/kit/badge";
 import { Button } from "@/app/components/kit/button";
@@ -13,11 +13,11 @@ import { Textarea } from "@/app/components/kit/textarea";
 import { useToast } from "@/app/components/ui/toast";
 import { formatPhoneDisplay } from "@/lib/phone";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
-import { ContactDeals, type ContactDeal } from "@/app/components/pipeline/contact-deals";
-import { ContactTasks } from "@/app/components/crm/contact-tasks";
+import { PersonDeals, type PersonDeal } from "@/app/components/crm/person-deals";
+import { PersonTasks } from "@/app/components/crm/person-tasks";
 import { ContactAvatar } from "@/app/components/crm/contact-avatar";
 import { TagChips, type TagOption } from "@/app/components/crm/tag-chips";
-import { PersonTimeline } from "@/app/components/crm/person-timeline";
+import { Timeline } from "@/app/components/crm/timeline";
 
 // Ficha de contacto reutilizable: va dentro del cajón (desde Contactos) y como
 // columna fija de la bandeja de chats. Reúne lo que el equipo necesita para
@@ -29,7 +29,6 @@ export interface ContactDetail {
   name: string | null;
   remoteJid: string;
   personId: string;
-  deals: ContactDeal[];
   optedOutMarketing: boolean;
   tags: Array<{ tag: TagOption }>;
 }
@@ -42,6 +41,7 @@ interface PersonSummary {
   lifecycle: "LEAD" | "CUSTOMER";
   company: { id: string; name: string } | null;
   owner: { id: string; name: string | null } | null;
+  deals: PersonDeal[];
 }
 
 interface Note {
@@ -257,6 +257,9 @@ export function ContactPanel({
             {person && <Badge variant={person.lifecycle === "CUSTOMER" ? "success" : "info"}>{person.lifecycle === "CUSTOMER" ? "Cliente" : "Prospecto"}</Badge>}
             {contact.optedOutMarketing && <Badge variant="warning">Sin marketing</Badge>}
           </div>
+          <Link href={`/contactos/${contact.personId}`} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent-ink hover:underline">
+            Abrir ficha completa <ArrowUpRight size={12} aria-hidden="true" />
+          </Link>
         </div>
       </div>
 
@@ -271,9 +274,9 @@ export function ContactPanel({
         <Alert variant="warning">Se dio de baja de mensajes de marketing por WhatsApp: no recibirá futuras campañas.</Alert>
       )}
 
-      <ContactDeals personId={contact.personId} contactId={contactId} deals={contact.deals} onChanged={() => { void fetchAll(); onUpdated(); }} />
+      <PersonDeals personId={contact.personId} personLabel={displayName} contactId={contactId} deals={person?.deals ?? []} compact onChanged={() => { void fetchAll(); onUpdated(); }} />
 
-      <ContactTasks personId={contact.personId} personLabel={displayName} />
+      <PersonTasks personId={contact.personId} personLabel={displayName} compact />
 
       <Section
         title="Próxima cita"
@@ -364,7 +367,11 @@ export function ContactPanel({
         )}
       </Section>
 
-      {!activitySlot && <PersonTimeline personId={contact.personId} refreshKey={notes.length} />}
+      {!activitySlot && (
+        <Section title="Actividad">
+          <Timeline personId={contact.personId} refreshKey={notes.length} compact />
+        </Section>
+      )}
 
       <AppointmentFormModal open={appointmentModalOpen} onClose={() => setAppointmentModalOpen(false)} onSaved={fetchAll} contactId={contact.id} contactLabel={displayName} />
     </div>

@@ -42,8 +42,8 @@ export function TaskRow({ task, onChanged, onEdit, showPerson = true }: { task: 
     <div className="flex items-start gap-3 py-2.5">
       <Checkbox className="mt-0.5" checked={done} onCheckedChange={(v) => toggle(v === true)} disabled={busy} aria-label={done ? "Reabrir tarea" : "Completar tarea"} />
       <button type="button" onClick={() => onEdit?.(task)} disabled={!onEdit} className="min-w-0 flex-1 text-left">
-        <p className={done ? "text-sm text-muted line-through" : "text-sm font-medium text-foreground"}>{task.title}</p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-darker">
+        <p className={done ? "text-sm text-muted-foreground line-through" : "text-sm font-medium text-foreground"}>{task.title}</p>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><Icon size={12} />{taskKindLabel(task.kind)}</span>
           {about && <span className="truncate">{about}</span>}
           {task.assignee && <span>· {task.assignee.name}</span>}

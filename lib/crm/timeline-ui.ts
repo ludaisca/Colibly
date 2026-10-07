@@ -1,6 +1,8 @@
 // Texto de cada elemento de la línea de tiempo (módulo puro: lo usan
 // componentes de cliente y pruebas).
 
+import { sourceLabel } from "@/lib/crm/labels";
+
 export interface TimelineItem {
   key: string;
   kind: "activity" | "message" | "note" | "appointment";
@@ -42,7 +44,7 @@ export function describeTimelineItem(item: TimelineItem): TimelineText {
   const d = item.data;
   switch (item.type) {
     case "person.created":
-      return { title: "Contacto creado", detail: str(d.source) };
+      return { title: "Contacto creado", detail: str(d.source) ? sourceLabel(str(d.source)) : undefined };
     case "person.updated": {
       const changes = d.changes && typeof d.changes === "object" ? Object.keys(d.changes as object) : [];
       const labels = changes.map((k) => FIELD_LABELS[k] ?? k);

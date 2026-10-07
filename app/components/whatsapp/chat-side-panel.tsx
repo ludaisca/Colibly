@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from "@/app/components/kit/tabs";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@/app/components/kit/select";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/app/components/kit/empty";
 import { ContactPanel } from "@/app/components/crm/contact-panel";
-import { PersonTimeline } from "@/app/components/crm/person-timeline";
+import { Timeline } from "@/app/components/crm/timeline";
 import { ChatTagPicker } from "./chat-tag-picker";
 import { LeadScoreBadge } from "./lead-score-badge";
 import { ChatCostBadge } from "./chat-cost-badge";
@@ -75,7 +75,7 @@ export function ChatSidePanel({
         <TabsPanel value="activity" className="scrollbar-thin min-h-0 overflow-y-auto">
           <div className="p-4">
             {personId ? (
-              <PersonTimeline personId={personId} />
+              <Timeline personId={personId} compact />
             ) : (
               <Empty className="py-8"><EmptyHeader><EmptyTitle>Cargando actividad</EmptyTitle><EmptyDescription>Un momento…</EmptyDescription></EmptyHeader></Empty>
             )}

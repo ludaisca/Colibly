@@ -61,7 +61,7 @@ export function DashboardShell({
           items: [
             { href: "/mi-dia",             label: "Mi día",          icon: ListChecks },
             { href: "/whatsapp/chat",      label: "Chats",           icon: MessageSquare },
-            { href: "/whatsapp/contactos", label: "Contactos",       icon: Contact },
+            { href: "/contactos",          label: "Contactos",       icon: Contact },
             { href: "/whatsapp/citas",     label: "Citas",           icon: CalendarClock },
           ],
         },
@@ -82,7 +82,7 @@ export function DashboardShell({
             { href: "/dashboard",               label: "Panel",            icon: LayoutDashboard, exact: true },
             { href: "/mi-dia",                  label: "Mi día",           icon: ListChecks },
             { href: "/whatsapp/chat",           label: "Bandeja de Chats", icon: MessageSquare },
-            ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
+            { href: "/contactos",                label: "Contactos",        icon: Contact },
             { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
             { href: "/ventas",                  label: "Pipeline",         icon: KanbanSquare, exact: true },
             { href: "/whatsapp/citas",          label: "Citas",            icon: CalendarClock },

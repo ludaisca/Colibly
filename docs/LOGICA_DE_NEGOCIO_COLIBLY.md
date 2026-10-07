@@ -664,7 +664,7 @@ export function mergeTimeline<T extends TimelineEntry>(lists: Record<string, T[]
 ```
 En Nexo (sin red), la paginación puede ser en memoria, pero conserva la forma "una posición por fuente": facilita pasar a un servidor.
 
-**Visibilidad:** mensajes y notas respetan el acceso a la **cuenta** de cada canal (quien no puede ver el WhatsApp de la persona no ve su conversación). Un `ejecutivo` solo ve las **citas asignadas a él**.
+**Visibilidad:** mensajes y notas respetan el acceso a la **cuenta** de cada canal (quien no puede ver el WhatsApp de la persona no ve su conversación). Un `ejecutivo` solo ve las **citas asignadas a él** y, del historial, únicamente las entradas de **negocios y tareas que sí le tocan** (`deal.*` de negocios suyos, `task.*` de tareas que puede ver); las altas, ediciones, fusiones y cambios de responsable del contacto se ven igual que para todos. Si no se filtra, el historial revela títulos y etapas de negocios ajenos.
 
 ### 12.3 Textos
 `describeTimelineItem` convierte cada tipo en un título y detalle en español (por ejemplo "Contacto creado", "Datos actualizados — correo, teléfono", "Pasó a cliente al ganar un negocio", "Cambió el responsable", "Se fusionó con otro contacto", "Mensaje recibido · WhatsApp"). Ver `lib/crm/timeline-ui.ts`.

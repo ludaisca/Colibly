@@ -84,6 +84,8 @@ export const peopleFiltersSchema = z.object({
   archived: z.enum(["exclude", "only", "include"]).optional(),
   channel: z.enum(["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"]).optional(),
   tagId: z.string().optional(),
+  // Personas con un negocio ABIERTO en esa etapa (el ejecutivo, solo entre los suyos).
+  stageId: z.string().optional(),
   createdFrom: z.string().datetime({ offset: true }).optional(),
   createdTo: z.string().datetime({ offset: true }).optional(),
   sort: z.enum(["recent", "newest", "name"]).optional(),

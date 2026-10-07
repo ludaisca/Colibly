@@ -5,7 +5,7 @@ import { requestHost } from "@/lib/request-host";
 
 // /plataforma (panel del operador) no va en las listas de rol: su acceso lo
 // decide PLATFORM_ADMIN_EMAILS en la página y en /api/plataforma (404 al resto).
-const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/mi-dia", "/meta-ads", "/plataforma"];
+const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/mi-dia", "/contactos", "/meta-ads", "/plataforma"];
 // Ojo: las tres comprobaciones de rol viven DENTRO del bloque PROTECTED — una
 // ruta ausente de esa lista no solo pierde el redirect a /login con
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.
@@ -22,7 +22,7 @@ const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/wh
 // only the account owner administers AI provider config, not shared/delegated roles.
 // /meta-ads es admin-only (credenciales de negocio sensibles, sin
 // WAAccountShare equivalente) — mismo criterio que /configuracion/ia.
-const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/meta-ads"];
+const USER_BLOCKED = ["/whatsapp/bots", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/meta-ads"];
 // /verificar-correo e /invitacion no van aquí: funcionan con o sin sesión.
 const AUTH = ["/login", "/register", "/recuperar", "/restablecer"];
 const APP_PUBLIC = [...AUTH, "/verificar-correo", "/invitacion"];

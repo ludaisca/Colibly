@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "@/lib/crm/errors";
 import { isRestricted, type CrmActor } from "@/lib/crm/access";
 import { accessibleContacts } from "@/lib/crm/people";
+import { activityVisibleWhere } from "@/lib/crm/activity-scope";
 import { decodeMergeCursor, encodeMergeCursor, mergeTimeline, type SourcePosition, type TimelineEntry } from "@/lib/crm/task-rules";
 
 // Línea de tiempo UNIFICADA de una persona: lo que el CRM registró (historial:
@@ -57,10 +58,11 @@ export async function listTimeline(actor: CrmActor, personId: string, rawCursor:
   const jobs: Promise<void>[] = [];
 
   if (kinds.has("activity")) {
+    const activityScope = await activityVisibleWhere(actor, personId);
     jobs.push(
       prisma.activityLog
         .findMany({
-          where: { organizationId: actor.organizationId, personId, ...(before("createdAt", cursor.activity) as Prisma.ActivityLogWhereInput) },
+          where: { organizationId: actor.organizationId, personId, AND: [before("createdAt", cursor.activity) as Prisma.ActivityLogWhereInput, activityScope] },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: n,
           select: { id: true, type: true, data: true, createdAt: true, actor: { select: { id: true, name: true } } },
