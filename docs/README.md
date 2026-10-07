@@ -9,6 +9,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [CONTINUIDAD_2026-10-04.md](CONTINUIDAD_2026-10-04.md) | **Empieza aquí**: estado, pendientes en orden y cómo retomar (coexistencia, respaldos, ramas). |
 | [AUDITORIA_CRM_2026-10-06.md](AUDITORIA_CRM_2026-10-06.md) | **Giro a CRM completo**: auditoría, arquitectura objetivo (Person/Company/Deal/Task), decisiones abiertas y plan por fases. |
 | [COMPARATIVA_AUREA_Y_REFERENCIAS_CRM_2026-10-06.md](COMPARATIVA_AUREA_Y_REFERENCIAS_CRM_2026-10-06.md) | Qué adoptar (y qué no) del CRM Áurea del colega y de respond.io/Kommo; ajustes al plan por fases. |
+| [LOGICA_DE_NEGOCIO_COLIBLY.md](LOGICA_DE_NEGOCIO_COLIBLY.md) | **Toda la lógica de negocio** (roles, contactos, pipelines, negocios, tareas, reportes, automatizaciones, bandeja, planes) con código de referencia verificado y criterios de aceptación, escrita para implementarla en el Nexo CRM. |
 | [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) | Plan maestro: decisiones, marca, dominio, legal, Meta, Stripe. |
 | [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md) | Estado y pasos siguientes de la landing beta y `cpanel-site/`. |
 | [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md) | Plan A (Contabo) y plan B (ludaisca), DNS, correo. |
