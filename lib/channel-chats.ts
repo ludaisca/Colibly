@@ -49,6 +49,11 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
     if (statuses.length > 0) where.status = { in: statuses };
   }
 
+  const assignedParam = searchParams.get("assigned");
+  if (assignedParam === "me") where.assignedToId = userId;
+  else if (assignedParam === "none") where.assignedToId = null;
+  if (searchParams.get("unread") === "1") where.unreadCount = { gt: 0 };
+
   // hasReplied: sin campañas en estos canales, "yes" es simplemente cualquier
   // conversación con al menos un mensaje INBOUND — mismo criterio que
   // WhatsApp, sin el filtro adicional de campaignId (fuera de alcance).

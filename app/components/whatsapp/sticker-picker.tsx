@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Sticker, Upload, Star, Send, Trash2 } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
+import { Button as KitButton } from "@/app/components/kit/button";
 import { useToast } from "@/app/components/ui/toast";
 
 interface Item { id: string; name: string; favorite: boolean; animated: boolean; lastUsedAt: string | null }
@@ -61,7 +62,7 @@ export function StickerPicker({ disabled, onSend }: { disabled: boolean; onSend:
     finally { setBusy(false); }
   }
   return <>
-    <button type="button" disabled={disabled} onClick={() => { setOpen(true); setSelectedId(null); setConfirmDelete(false); load(); }} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium hover:bg-surface-light disabled:opacity-50"><Sticker size={16} className="text-accent-ink" /> Stickers</button>
+    <KitButton variant="ghost" size="sm" aria-label="Stickers" title="Stickers" disabled={disabled} onClick={() => { setOpen(true); setSelectedId(null); setConfirmDelete(false); load(); }}><Sticker className="text-accent-ink" /> <span className="hidden @xl:inline">Stickers</span></KitButton>
     <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} title="Stickers del equipo" size="md">
       <div className="space-y-4">
         <p className="text-xs text-muted-darker">Biblioteca compartida por tu organización · {items.length}/100. WebP de 512 × 512 px: hasta 100 KB estáticos o 500 KB animados.</p>

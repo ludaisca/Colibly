@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useRouter, usePathname } from "next/navigation";
 import { MessageSquare } from "lucide-react";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { Spinner } from "@/app/components/ui/spinner";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/app/components/kit/empty";
+import { Spinner } from "@/app/components/kit/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
+import { ChatSidePanel } from "@/app/components/whatsapp/chat-side-panel";
 import { ChatAccountRail } from "@/app/components/whatsapp/chat-account-rail";
 import { ChatListPanel } from "@/app/components/whatsapp/chat-list-panel";
 import { ChatThreadPanel, MediaPreviewModal } from "@/app/components/whatsapp/chat-thread-panel";
@@ -19,6 +20,7 @@ import {
   type Channel,
   type ChatItem,
   type ChatStatus,
+  type ChatView,
   type Message,
   type PreviewMedia,
   type CannedResponseItem,
@@ -48,20 +50,40 @@ const MEDIA_UPLOAD_ENDPOINT: Record<Channel, string> = {
 
 interface ChatWorkspaceProps {
   initialAccounts: AccountOption[];
+  /** Cuenta de la URL /chat/<cuenta>/<chat>: solo sirve para recuperar un chat que no está en la primera página. */
+  routeAccountId?: string;
+  /** Filtro de cuenta (?accountId=). */
   initialAccountId?: string;
   initialChatId?: string;
   initialCampaignId?: string;
   initialHasReplied?: "" | "yes" | "no";
   initialSearch?: string;
+  initialView?: ChatView;
+  initialStatus?: StatusFilter;
+}
+
+// "" = abiertos y pendientes (lo que hay que atender); con una búsqueda activa
+// se incluyen también los resueltos para poder encontrar cualquier chat.
+export type StatusFilter = "" | "RESOLVED" | "ALL";
+const SIDE_PANEL_KEY = "colibly_inbox_side_panel";
+
+// La conversación abierta no desaparece cuando un filtro o vista deja de
+// incluirla (al resolverla, al leerla en "sin leer", al cambiar de vista).
+function keepOpenChat(prev: ChatItem[], items: ChatItem[], openId: string | null): ChatItem[] {
+  const open = openId ? prev.find((c) => c.id === openId) : undefined;
+  return open && !items.some((c) => c.id === open.id) ? [...items, open] : items;
 }
 
 export function ChatWorkspace({
   initialAccounts,
+  routeAccountId,
   initialAccountId,
   initialChatId,
   initialCampaignId,
   initialHasReplied,
   initialSearch,
+  initialView,
+  initialStatus,
 }: ChatWorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -71,6 +93,16 @@ export function ChatWorkspace({
     () => window.matchMedia("(min-width: 1024px)").matches,
     () => false
   );
+
+  const wide = useSyncExternalStore(
+    (onChange) => { const query = window.matchMedia("(min-width: 1280px)"); query.addEventListener("change", onChange); return () => query.removeEventListener("change", onChange); },
+    () => window.matchMedia("(min-width: 1280px)").matches,
+    () => false
+  );
+  // La ficha fija a la derecha recuerda si el usuario la ocultó.
+  const [sidePanelPref, setSidePanelPref] = useState<boolean>(() => {
+    try { return window.localStorage.getItem(SIDE_PANEL_KEY) !== "0"; } catch { return true; }
+  });
 
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
@@ -93,6 +125,8 @@ export function ChatWorkspace({
   const [accountFilter, setAccountFilter] = useState(initialAccountId || "");
   const [campaignFilter, setCampaignFilter] = useState(initialCampaignId || "");
   const [hasRepliedFilter, setHasRepliedFilter] = useState<"" | "yes" | "no">(initialHasReplied || "");
+  const [view, setView] = useState<ChatView>(initialView || "all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus || "");
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const accounts = initialAccounts;
   // Las cuentas llegan del servidor: un filtro de cuenta ya conoce su canal
@@ -150,8 +184,13 @@ export function ChatWorkspace({
     if (hasRepliedFilter) params.set("hasReplied", hasRepliedFilter);
     if (accountFilter) params.set("accountId", accountFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
+    if (view === "mine") params.set("assigned", "me");
+    if (view === "unassigned") params.set("assigned", "none");
+    if (view === "unread") params.set("unread", "1");
+    if (statusFilter === "RESOLVED") params.set("status", "RESOLVED");
+    else if (statusFilter === "" && !debouncedSearch) params.set("status", "OPEN,PENDING");
     return params;
-  }, [campaignFilter, hasRepliedFilter, accountFilter, debouncedSearch]);
+  }, [campaignFilter, hasRepliedFilter, accountFilter, debouncedSearch, view, statusFilter]);
 
   // Mezcla las 4 fuentes en una sola página ordenada por lastMessageAt. No es
   // paginación combinada real a nivel de DB (cada fuente pagina por su cuenta
@@ -200,7 +239,9 @@ export function ChatWorkspace({
     try {
       const pageSize = Math.min(Math.max(chats.length, CHATS_PAGE_SIZE), 100);
       const { items, total } = await fetchChatsPage(firstPagePerChannel, pageSize);
-      setChats(items);
+      // La conversación abierta se conserva aunque deje de cumplir el filtro
+      // (p. ej. al resolverla estando en "abiertos" o al leerla en "sin leer").
+      setChats((prev) => keepOpenChat(prev, items, activeChatIdRef.current));
       setChatsTotal(total);
       setChatsError(null);
     } catch (error) {
@@ -250,13 +291,15 @@ export function ChatWorkspace({
   const [prevInitialCampaignId, setPrevInitialCampaignId] = useState(initialCampaignId);
   const [prevInitialHasReplied, setPrevInitialHasReplied] = useState(initialHasReplied);
   const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
+  const [prevInitialView, setPrevInitialView] = useState(initialView);
+  const [prevInitialStatus, setPrevInitialStatus] = useState(initialStatus);
   if (initialChatId !== prevInitialChatId) {
     setPrevInitialChatId(initialChatId);
-    if (initialChatId) setSelectedChatId(initialChatId);
+    setSelectedChatId(initialChatId ?? null);
   }
   if (initialAccountId !== prevInitialAccountId) {
     setPrevInitialAccountId(initialAccountId);
-    if (initialAccountId) setAccountFilter(initialAccountId);
+    setAccountFilter(initialAccountId || "");
   }
   if (initialCampaignId !== prevInitialCampaignId) {
     setPrevInitialCampaignId(initialCampaignId);
@@ -265,6 +308,14 @@ export function ChatWorkspace({
   if (initialHasReplied !== prevInitialHasReplied) {
     setPrevInitialHasReplied(initialHasReplied);
     setHasRepliedFilter(initialHasReplied || "");
+  }
+  if (initialView !== prevInitialView) {
+    setPrevInitialView(initialView);
+    setView(initialView || "all");
+  }
+  if (initialStatus !== prevInitialStatus) {
+    setPrevInitialStatus(initialStatus);
+    setStatusFilter(initialStatus || "");
   }
   if (initialSearch !== prevInitialSearch) {
     setPrevInitialSearch(initialSearch);
@@ -282,14 +333,16 @@ export function ChatWorkspace({
     if (campaignFilter) params.set("campaignId", campaignFilter);
     if (hasRepliedFilter) params.set("hasReplied", hasRepliedFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
+    if (view !== "all") params.set("view", view);
+    if (statusFilter) params.set("status", statusFilter);
     return params;
-  }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch]);
+  }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch, view, statusFilter]);
 
   useEffect(() => {
     const qs = buildFilterSearchParams().toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo resincroniza cuando cambian los filtros, no en cada render por pathname/router
-  }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch]);
+  }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch, view, statusFilter]);
 
   // Campaign list for the filter dropdown — fetched once, doesn't depend on the
   // current chat filters.
@@ -311,7 +364,7 @@ export function ChatWorkspace({
       try {
         const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
         if (generation !== chatsGenerationRef.current) return; // filtros cambiaron mientras tanto
-        setChats(items);
+        setChats((prev) => keepOpenChat(prev, items, activeChatIdRef.current));
         setChatsTotal(total);
       } catch (error) {
         if (generation === chatsGenerationRef.current) {
@@ -362,8 +415,8 @@ export function ChatWorkspace({
   // chat anterior a la primera página. Se recupera por id dentro de la cuenta
   // autorizada y se incorpora a la lista para abrir también su hilo.
   useEffect(() => {
-    if (!initialChatId || !initialAccountId || loadingChats || selectedChat) return;
-    const account = accounts.find((a) => a.id === initialAccountId);
+    if (!initialChatId || !routeAccountId || loadingChats || selectedChat) return;
+    const account = accounts.find((a) => a.id === routeAccountId);
     const source = CHANNEL_SOURCES.find((item) => item.channel === account?.channel);
     if (!source) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- estado de enlace inválido
@@ -371,7 +424,7 @@ export function ChatWorkspace({
       return;
     }
     const controller = new AbortController();
-    const params = new URLSearchParams({ accountId: initialAccountId, chatId: initialChatId, page: "1", pageSize: "1" });
+    const params = new URLSearchParams({ accountId: routeAccountId, chatId: initialChatId, page: "1", pageSize: "1" });
     fetch(`${source.endpoint}?${params}`, { signal: controller.signal })
       .then(async (response) => {
         const data = await response.json();
@@ -388,7 +441,7 @@ export function ChatWorkspace({
         }
       });
     return () => controller.abort();
-  }, [initialChatId, initialAccountId, loadingChats, selectedChat, accounts, CHANNEL_SOURCES, toastError]);
+  }, [initialChatId, routeAccountId, loadingChats, selectedChat, accounts, CHANNEL_SOURCES, toastError]);
 
   // Fetch canned responses
   useEffect(() => {
@@ -799,13 +852,6 @@ export function ChatWorkspace({
     );
   });
 
-  const groupedChats: Record<string, ChatItem[]> = {};
-  for (const c of filteredChats) {
-    const key = c.account.id;
-    if (!groupedChats[key]) groupedChats[key] = [];
-    groupedChats[key].push(c);
-  }
-
   const cannedQuery = newMessage.startsWith("/") && !newMessage.includes(" ")
     ? newMessage.slice(1).toLowerCase()
     : null;
@@ -828,31 +874,49 @@ export function ChatWorkspace({
         onAccountFilterChange={setAccountFilter}
         search={search}
         onSearchChange={setSearch}
+        view={view}
+        onViewChange={setView}
         campaigns={campaigns}
         campaignFilter={campaignFilter}
         onCampaignFilterChange={setCampaignFilter}
         hasRepliedFilter={hasRepliedFilter}
         onHasRepliedFilterChange={setHasRepliedFilter}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
         loadingChats={loadingChats}
         loadError={chatsError}
         onRetry={retryChats}
         totalChatsLoaded={chats.length}
-        groupedChats={groupedChats}
+        chats={filteredChats}
         chatsTotal={chatsTotal}
         loadingMoreChats={loadingMoreChats}
         onLoadMore={loadMoreChats}
       />
   );
 
+  const sidePanelVisible = wide && sidePanelPref && !!selectedChat;
+  function toggleSidePanel() {
+    if (wide) {
+      const next = !sidePanelPref;
+      setSidePanelPref(next);
+      try { window.localStorage.setItem(SIDE_PANEL_KEY, next ? "1" : "0"); } catch { /* sin almacenamiento: la preferencia vale solo esta sesión */ }
+    } else {
+      setContactDrawerOpen((open) => !open);
+    }
+  }
+
   const conversationPane = (
-      <div className={`${selectedChatId ? "flex" : "hidden lg:flex"} flex-col flex-1 min-w-0 bg-background`}>
+      <div className={`${selectedChatId ? "flex" : "hidden lg:flex"} min-w-0 flex-1`}>
+        <div className="flex min-w-0 flex-1 flex-col bg-background">
         {!selectedChatId ? (
-          <div className="flex-1 flex items-center justify-center">
-            <EmptyState
-              icon={MessageSquare}
-              title="Selecciona un chat"
-              description={chats.length === 0 ? "Conecta un canal para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes."}
-            />
+          <div className="flex flex-1 items-center justify-center">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><MessageSquare /></EmptyMedia>
+                <EmptyTitle>Selecciona una conversación</EmptyTitle>
+                <EmptyDescription>{chats.length === 0 ? "Conecta un canal para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes y la ficha del contacto."}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           </div>
         ) : selectedChat ? (
           <>
@@ -864,7 +928,8 @@ export function ChatWorkspace({
               loadingOlder={loadingOlder}
               onLoadOlder={loadOlderMessages}
               onCloseChat={handleCloseChat}
-              onOpenContactDrawer={() => setContactDrawerOpen(true)}
+              sidePanelOpen={wide ? sidePanelPref : contactDrawerOpen}
+              onToggleSidePanel={toggleSidePanel}
               onStatusChange={handleStatusChange}
               onAssigned={(assignee) =>
                 setChats((prev) => prev.map((c) =>
@@ -911,30 +976,40 @@ export function ChatWorkspace({
             />
           </>
         ) : missingChat ? (
-          <div className="flex-1 flex items-center justify-center">
-            <EmptyState icon={MessageSquare} title="Chat no encontrado" description="Esta conversación no está disponible para tu cuenta." />
+          <div className="flex flex-1 items-center justify-center">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><MessageSquare /></EmptyMedia>
+                <EmptyTitle>Chat no encontrado</EmptyTitle>
+                <EmptyDescription>Esta conversación no está disponible para tu cuenta.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-1 items-center justify-center">
             <Spinner />
           </div>
+        )}
+        </div>
+        {sidePanelVisible && selectedChat && (
+          <aside aria-label="Ficha y detalles" className="flex w-80 shrink-0 flex-col border-l bg-card">
+            <ChatSidePanel key={selectedChat.id} chat={selectedChat} onStatusChange={handleStatusChange} onUpdated={refreshChats} />
+          </aside>
         )}
       </div>
   );
 
   return (
-    <div className="flex flex-1 min-h-0">
+    <div className="flex min-h-0 flex-1 bg-background">
       <ChatAccountRail accounts={accountOptions} selectedAccountId={accountFilter} onSelect={setAccountFilter} unreadByAccount={unreadByAccount} />
       {resizable ? <Group orientation="horizontal" className="h-full min-w-0 flex-1">
-        <Panel id="conversations" defaultSize="32%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>
-        <Separator aria-label="Ajustar ancho de conversaciones" className="group relative w-2 shrink-0 bg-background hover:bg-accent-subtle focus-visible:bg-accent-subtle">
-          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border group-hover:bg-accent-strong group-focus-visible:bg-accent-strong" />
-        </Separator>
-        <Panel id="conversation" defaultSize="68%" minSize="300px" className="flex min-w-0">{conversationPane}</Panel>
+        <Panel id="conversations" defaultSize="26%" minSize="260px" maxSize="42%" className="flex min-w-0">{listPane}</Panel>
+        <Separator aria-label="Ajustar ancho de conversaciones" className="relative w-1 shrink-0 bg-transparent transition-colors hover:bg-primary/25 focus-visible:bg-primary/25 data-[separator=active]:bg-primary/40" />
+        <Panel id="conversation" defaultSize="74%" minSize="360px" className="flex min-w-0">{conversationPane}</Panel>
       </Group> : <>{listPane}{conversationPane}</>}
 
       {/* Drawers */}
-      {contactDrawerOpen && selectedChat?.contactId && (
+      {!wide && contactDrawerOpen && selectedChat?.contactId && (
         <ContactDrawer
           contactId={selectedChat.contactId}
           onClose={() => setContactDrawerOpen(false)}

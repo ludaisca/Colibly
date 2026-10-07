@@ -1,26 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Tag as TagIcon, Plus } from "lucide-react";
-import { Dropdown, DropdownButton } from "@/app/components/ui/dropdown";
-import { MultiSelect } from "@/app/components/ui/multi-select";
-import { Input } from "@/app/components/ui/input";
-import { Button } from "@/app/components/ui/button";
-import { Badge } from "@/app/components/ui/badge";
+import { TagChips, type TagOption } from "@/app/components/crm/tag-chips";
 import { useToast } from "@/app/components/ui/toast";
-
-interface TagOption {
-  id: string;
-  name: string;
-  color: string;
-}
 
 export function ChatTagPicker({ chatId }: { chatId: string }) {
   const { error: toastError } = useToast();
-  const [open, setOpen] = useState(false);
   const [allTags, setAllTags] = useState<TagOption[]>([]);
   const [chatTags, setChatTags] = useState<TagOption[]>([]);
-  const [newTagName, setNewTagName] = useState("");
 
   const fetchAll = useCallback(async () => {
     try {
@@ -42,97 +29,54 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
     fetchAll();
   }, [fetchAll]);
 
-  useEffect(() => {
-    if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh when dropdown opens
-    fetchAll();
-  }, [open, fetchAll]);
-
-  async function handleTagsChange(tagIds: string[]) {
-    const currentIds = chatTags.map((t) => t.id);
-    const toAdd = tagIds.filter((id) => !currentIds.includes(id));
-    const toRemove = currentIds.filter((id) => !tagIds.includes(id));
-
+  async function addTag(tagId: string) {
+    const tag = allTags.find((t) => t.id === tagId);
+    if (!tag) return;
     try {
-      await Promise.all([
-        ...toAdd.map((tagId) =>
-          fetch(`/api/whatsapp/chats/${chatId}/tags`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tagId }),
-          })
-        ),
-        ...toRemove.map((tagId) =>
-          fetch(`/api/whatsapp/chats/${chatId}/tags?tagId=${tagId}`, {
-            method: "DELETE",
-          })
-        ),
-      ]);
-      setChatTags(allTags.filter((t) => tagIds.includes(t.id)));
+      const res = await fetch(`/api/whatsapp/chats/${chatId}/tags`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tagId }),
+      });
+      if (!res.ok) throw new Error();
+      setChatTags((prev) => (prev.some((t) => t.id === tagId) ? prev : [...prev, tag]));
     } catch {
       toastError("Error al actualizar etiquetas");
     }
   }
 
-  async function handleCreateTag() {
-    if (!newTagName.trim()) return;
+  async function removeTag(tagId: string) {
+    try {
+      const res = await fetch(`/api/whatsapp/chats/${chatId}/tags?tagId=${tagId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setChatTags((prev) => prev.filter((t) => t.id !== tagId));
+    } catch {
+      toastError("Error al actualizar etiquetas");
+    }
+  }
+
+  async function createTag(name: string) {
     try {
       const res = await fetch("/api/whatsapp/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newTagName.trim(), chatId }),
+        body: JSON.stringify({ name, chatId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al crear etiqueta");
       const newTag: TagOption = data;
       setAllTags((prev) => [...prev, newTag]);
-      setNewTagName("");
-      await fetch(`/api/whatsapp/chats/${chatId}/tags`, {
+      const assign = await fetch(`/api/whatsapp/chats/${chatId}/tags`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tagId: newTag.id }),
       });
-      // Append the tag we already have in hand instead of routing through
-      // handleTagsChange, which rebuilds chatTags from `allTags` — that state
-      // update from setAllTags above hasn't flushed yet, so the new tag wouldn't
-      // be in it and the picker would show it missing despite saving fine.
+      if (!assign.ok) throw new Error("La etiqueta se creó pero no se pudo asignar");
       setChatTags((prev) => [...prev, newTag]);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al crear etiqueta");
     }
   }
 
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {chatTags.map((tag) => (
-        <Badge key={tag.id} tone="accent" size="sm">{tag.name}</Badge>
-      ))}
-      <Dropdown
-        open={open}
-        onOpenChange={setOpen}
-        align="right"
-        portal
-        closeOnSelect={false}
-        trigger={<DropdownButton label="Etiquetas" icon={TagIcon} size="sm" />}
-      >
-        <div className="p-3 w-64 space-y-2">
-          <MultiSelect
-            options={allTags.map((t) => ({ value: t.id, label: t.name }))}
-            value={chatTags.map((t) => t.id)}
-            onChange={handleTagsChange}
-            placeholder="Sin etiquetas"
-          />
-          <div className="flex gap-2">
-            <Input
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              placeholder="Nueva etiqueta..."
-              className="flex-1"
-            />
-            <Button size="sm" variant="secondary" icon={Plus} onClick={handleCreateTag} />
-          </div>
-        </div>
-      </Dropdown>
-    </div>
-  );
+  return <TagChips tags={chatTags} allTags={allTags} onAdd={addTag} onRemove={removeTag} onCreate={createTag} />;
 }

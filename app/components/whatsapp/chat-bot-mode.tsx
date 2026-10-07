@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Bot, UserRound, Zap, CircleOff, Handshake, Play, ChevronDown } from "lucide-react";
-import { Dropdown, DropdownButton, DropdownItem } from "@/app/components/ui/dropdown";
+import { Button } from "@/app/components/kit/button";
+import { Popover, PopoverPopup, PopoverTrigger } from "@/app/components/kit/popover";
+import { cn } from "@/app/components/kit/utils";
 import { useToast } from "@/app/components/ui/toast";
 
 interface ModeData {
@@ -13,11 +15,11 @@ interface ModeData {
 }
 
 const MODE = {
-  AI: { label: "IA atendiendo", icon: Bot, tone: "border-success-border bg-success-bg text-success" },
-  HUMAN: { label: "Humano atendiendo", icon: UserRound, tone: "border-warning-border bg-warning-bg text-warning" },
-  AUTOMATION: { label: "Automatización", icon: Zap, tone: "border-accent-muted bg-accent-subtle text-accent-ink" },
-  HANDOFF: { label: "Pasado a humano", icon: Handshake, tone: "border-warning-border bg-warning-bg text-warning" },
-  OFF: { label: "Sin atención automática", icon: CircleOff, tone: "border-border bg-surface-light text-muted" },
+  AI: { label: "IA atendiendo", icon: Bot },
+  HUMAN: { label: "Humano atendiendo", icon: UserRound },
+  AUTOMATION: { label: "Automatización", icon: Zap },
+  HANDOFF: { label: "Pasado a humano", icon: Handshake },
+  OFF: { label: "Sin atención automática", icon: CircleOff },
 } as const;
 
 function localTime(value: string) {
@@ -71,29 +73,24 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
   const view = MODE[data.mode];
   const Icon = view.icon;
   const compactLabel = { AI: "IA activa", HUMAN: "Atención manual", AUTOMATION: "Automatización", HANDOFF: "Derivado a humano", OFF: "IA inactiva" }[data.mode];
-  const iconTone = { AI: "text-success", HUMAN: "text-warning", AUTOMATION: "text-accent-ink", HANDOFF: "text-warning", OFF: "text-muted-darker" }[data.mode];
+  const iconTone = { AI: "text-success-foreground", HUMAN: "text-warning-foreground", AUTOMATION: "text-accent-ink", HANDOFF: "text-warning-foreground", OFF: "text-muted-foreground" }[data.mode];
   return (
-    <Dropdown
-      open={open}
-      onOpenChange={setOpen}
-      align="right"
-      portal
-      trigger={compact ? (
-        <button type="button" aria-expanded={open} title={data.detail} className="inline-flex h-8 items-center gap-1.5 rounded-xl px-1 text-xs text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong">
-          <Icon size={14} className={iconTone} /> {compactLabel} <ChevronDown size={12} />
-        </button>
-      ) : <DropdownButton size="sm" icon={view.icon} label={view.label} className={`rounded-xl ${view.tone}`} />}
-    >
-      <div className="w-64 px-3.5 py-3">
-        <p className="text-sm font-semibold text-foreground">{view.label}</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-darker">{data.detail}</p>
-        {data.until && <p className="mt-1 text-xs text-muted-darker">{data.mode === "HUMAN" ? "Pausa hasta" : "Derivación hasta"}: {localTime(data.until)}</p>}
-        {data.canResume && (
-          <div className="-mx-3.5 mt-2 border-t border-border pt-1">
-            <DropdownItem icon={Play} onClick={resume} disabled={resuming}>Devolver al bot</DropdownItem>
-          </div>
-        )}
-      </div>
-    </Dropdown>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={<Button variant="ghost" size="sm" title={data.detail} />}>
+        <Icon className={cn(iconTone)} /> <span className={compact ? "hidden @2xl:inline" : undefined}>{compact ? compactLabel : view.label}</span><span className="sr-only">{compactLabel}</span> <ChevronDown className="opacity-60" />
+      </PopoverTrigger>
+      <PopoverPopup align="end" className="w-72">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">{view.label}</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{data.detail}</p>
+          {data.until && <p className="text-xs text-muted-foreground">{data.mode === "HUMAN" ? "Pausa hasta" : "Derivación hasta"}: {localTime(data.until)}</p>}
+          {data.canResume && (
+            <Button size="sm" variant="outline" className="mt-2 w-full" onClick={resume} loading={resuming}>
+              <Play /> Devolver al bot
+            </Button>
+          )}
+        </div>
+      </PopoverPopup>
+    </Popover>
   );
 }

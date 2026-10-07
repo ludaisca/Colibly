@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Sparkles, RefreshCw } from "lucide-react";
-import { Dropdown } from "@/app/components/ui/dropdown";
-import { Button } from "@/app/components/ui/button";
-import { Select } from "@/app/components/ui/select";
+import { Sparkles, Loader2 } from "lucide-react";
+import { Button } from "@/app/components/kit/button";
+import { Popover, PopoverPopup, PopoverTrigger } from "@/app/components/kit/popover";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "@/app/components/kit/select";
 import { useToast } from "@/app/components/ui/toast";
 
 // Copiloto de IA (roadmap P3-e) — botón en el compositor del chat, mismo
@@ -75,66 +75,48 @@ export function ReplySuggestionButton({ chatId, onInsert }: { chatId: string; on
     setOpen(false);
   }
 
+  const botLabel = (id: string) => { const b = bots.find((x) => x.id === id); return b ? `${b.name}${!b.isActive ? " (pausado)" : ""}` : "Elige un bot"; };
+
   return (
-    <Dropdown
-      open={open}
-      onOpenChange={handleOpenChange}
-      align="left"
-      portal
-      closeOnSelect={false}
-      trigger={
-        <button
-          type="button"
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong"
-          aria-label="Sugerir respuesta con IA"
-          aria-expanded={open}
-        >
-          <Sparkles size={16} className="text-accent-ink" />
-          <span>Sugerir con IA</span>
-        </button>
-      }
-    >
-      <div className="w-[min(20rem,calc(100vw-2rem))] space-y-3 p-3">
-        {!botsLoaded ? (
-          <p className="text-sm text-muted">Cargando bots...</p>
-        ) : loadError ? (
-          <div className="space-y-2">
-            <p className="text-sm text-muted">No se pudieron cargar los bots de esta cuenta.</p>
-            <Button type="button" size="sm" variant="secondary" onClick={fetchBots} className="w-full">Reintentar</Button>
-          </div>
-        ) : bots.length === 0 ? (
-          <p className="text-sm text-muted">
-            Esta cuenta no tiene ningún bot configurado — crea uno en Bots IA para poder usar sugerencias de IA.
-          </p>
-        ) : (
-          <>
-            <Select aria-label="Bot para sugerir respuesta" value={botId} onChange={(e) => setBotId(e.target.value)}>
-              {bots.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}{!b.isActive ? " (pausado)" : ""}</option>
-              ))}
-            </Select>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              icon={loading ? RefreshCw : Sparkles}
-              onClick={handleSuggest}
-              disabled={loading || !botId}
-              className="w-full"
-            >
-              {loading ? "Generando..." : "Generar sugerencia"}
-            </Button>
-            {suggestion && (
-              <div className="space-y-2 pt-1 border-t border-border">
-                <p className="max-h-40 overflow-y-auto text-sm text-foreground whitespace-pre-wrap">{suggestion}</p>
-                <Button type="button" size="sm" onClick={handleUse} className="w-full">
-                  Usar este texto
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </Dropdown>
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger render={<Button variant="ghost" size="sm" aria-label="Sugerir respuesta con IA" title="Sugerir respuesta con IA" />}>
+        <Sparkles className="text-accent-ink" /> <span className="hidden @xl:inline">Sugerir con IA</span>
+      </PopoverTrigger>
+      <PopoverPopup align="start" side="top" className="w-80">
+        <div className="space-y-3">
+          {!botsLoaded ? (
+            <p className="text-sm text-muted-foreground">Cargando bots...</p>
+          ) : loadError ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">No se pudieron cargar los bots de esta cuenta.</p>
+              <Button size="sm" variant="outline" onClick={fetchBots} className="w-full">Reintentar</Button>
+            </div>
+          ) : bots.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Esta cuenta no tiene ningún bot configurado — crea uno en Bots IA para poder usar sugerencias de IA.
+            </p>
+          ) : (
+            <>
+              <Select value={botId} onValueChange={(v) => v && setBotId(v)}>
+                <SelectTrigger aria-label="Bot para sugerir respuesta"><SelectValue>{botLabel(botId)}</SelectValue></SelectTrigger>
+                <SelectPopup>
+                  {bots.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}{!b.isActive ? " (pausado)" : ""}</SelectItem>)}
+                </SelectPopup>
+              </Select>
+              <Button size="sm" variant="outline" onClick={handleSuggest} disabled={loading || !botId} className="w-full">
+                {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                {loading ? "Generando..." : "Generar sugerencia"}
+              </Button>
+              {suggestion && (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-sm text-foreground">{suggestion}</p>
+                  <Button size="sm" onClick={handleUse} className="w-full">Usar este texto</Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </PopoverPopup>
+    </Popover>
   );
 }

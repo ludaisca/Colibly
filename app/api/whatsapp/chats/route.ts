@@ -44,6 +44,14 @@ export async function GET(req: Request) {
       if (statuses.length > 0) where.status = { in: statuses };
     }
 
+    // Vistas de la bandeja: "míos" / "sin asignar" / "sin leer" se resuelven
+    // en el servidor (la lista está paginada, filtrar solo lo cargado esconde
+    // chats antiguos).
+    const assignedParam = searchParams.get("assigned");
+    if (assignedParam === "me") where.assignedToId = session.user.id;
+    else if (assignedParam === "none") where.assignedToId = null;
+    if (searchParams.get("unread") === "1") where.unreadCount = { gt: 0 };
+
     // Ambos filtros son sobre la relación messages[] — se combinan vía AND en
     // lugar de asignar dos veces where.messages, que se pisarían entre sí.
     const messageFilters: Record<string, unknown>[] = [];

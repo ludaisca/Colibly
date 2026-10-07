@@ -1,17 +1,16 @@
 "use client";
 
-import { Inbox, Send, MessageCircle, Camera } from "lucide-react";
-import { EntityAvatar } from "@/app/components/ui/avatar";
-import { cn } from "@/app/components/ui/cn";
+import { Inbox } from "lucide-react";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@/app/components/kit/tooltip";
+import { cn } from "@/app/components/kit/utils";
+import { ContactAvatar } from "@/app/components/crm/contact-avatar";
+import { ChannelGlyph } from "./channel-meta";
 import type { AccountOption, Channel } from "./chat-shared";
 
-// Rail vertical de cuentas WhatsApp — estilo "workspaces" de Slack: un ícono
-// por cuenta accesible (propia o compartida vía WAAccountShare), color por
-// hueClassFor a través de EntityAvatar (mismo color que sus filas en la
-// lista), más un ícono "Todas" al inicio. Reemplaza al <Select> de cuenta que
-// antes vivía arriba de la lista de chats — ese <Select> se mantiene solo en
-// mobile/tablet (< lg), donde este rail no se renderiza por falta de ancho.
-// Si el usuario solo tiene una cuenta, el rail no aporta nada y no se monta.
+// Rail vertical de cuentas (estilo "workspaces"): un botón por cuenta accesible
+// (propia o compartida), con el mismo color que sus filas, más "Todas" al
+// inicio. Solo se monta con 2+ cuentas y a partir de `lg`; debajo, la lista
+// trae sus propios chips de cuenta.
 
 interface ChatAccountRailProps {
   accounts: AccountOption[];
@@ -26,98 +25,58 @@ export function ChatAccountRail({ accounts, selectedAccountId, onSelect, unreadB
   const totalUnread = Object.values(unreadByAccount).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="hidden w-16 min-h-0 shrink-0 flex-col items-center gap-2 border-r border-border bg-surface/40 py-3 lg:flex">
-      <div className="shrink-0">
-        <RailButton active={selectedAccountId === ""} label="Todas las cuentas" unread={totalUnread} onClick={() => onSelect("")}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light text-muted-darker">
-            <Inbox size={18} />
-          </span>
-        </RailButton>
-      </div>
+    <nav aria-label="Cuentas" className="hidden w-16 min-h-0 shrink-0 flex-col items-center gap-2 border-r bg-surface py-3 lg:flex">
+      <RailButton active={selectedAccountId === ""} label="Todas las cuentas" unread={totalUnread} onClick={() => onSelect("")}>
+        <span className="flex size-10 items-center justify-center rounded-full bg-surface-light text-muted-foreground">
+          <Inbox size={18} />
+        </span>
+      </RailButton>
 
       <div className="my-1 h-px w-8 shrink-0 bg-border" />
 
-      {/* flex-1 min-h-0: solo así el div realmente se acota a lo que sobra
-          del rail y overflow-y-auto dispara nada más cuando hay más cuentas
-          de las que caben — sin esto, el div media exacto a su contenido y
-          hover:scale-105 en el avatar alcanzaba a "desbordarlo" por un par
-          de px, mostrando un scrollbar fantasma solo al pasar el mouse.
-          w-full: sin esto, "items-center" del padre deja que este div se
-          encoja al ancho de su contenido (40px, igual al ícono) en vez de
-          heredar los 64px del rail — con cero margen a los lados, el aro de
-          selección (ring-offset + ring) no tenía dónde pintarse y se
-          recortaba contra el propio borde del contenedor. */}
       <div className="scrollbar-thin flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto py-1">
         {accounts.map((acc) => (
-          <RailButton
-            key={acc.id}
-            active={selectedAccountId === acc.id}
-            label={acc.name}
-            unread={unreadByAccount[acc.id] ?? 0}
-            onClick={() => onSelect(acc.id)}
-            channel={acc.channel}
-          >
-            <EntityAvatar id={acc.id} name={acc.name} size="md" />
+          <RailButton key={acc.id} active={selectedAccountId === acc.id} label={acc.name} unread={unreadByAccount[acc.id] ?? 0} onClick={() => onSelect(acc.id)} channel={acc.channel}>
+            <ContactAvatar id={acc.id} name={acc.name} size="md" />
           </RailButton>
         ))}
       </div>
-    </div>
+    </nav>
   );
 }
 
-function RailButton({
-  active,
-  label,
-  unread,
-  onClick,
-  channel,
-  children,
-}: {
-  active: boolean;
-  label: string;
-  unread: number;
-  onClick: () => void;
-  channel?: Channel;
-  children: React.ReactNode;
-}) {
+function RailButton({ active, label, unread, onClick, channel, children }: { active: boolean; label: string; unread: number; onClick: () => void; channel?: Channel; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-pressed={active}
-      className={cn(
-        "relative flex rounded-lg transition-opacity duration-fast ease-brand",
-        // ring-offset (no padding en el botón) para que el aro de selección
-        // no pegue directo al borde del avatar y se note como un halo propio.
-        active
-          ? "ring-2 ring-accent-strong ring-offset-2 ring-offset-background"
-          : "opacity-80 hover:opacity-100"
-      )}
-    >
-      {children}
-      {unread > 0 && (
-        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">
-          {unread > 99 ? "99+" : unread}
-        </span>
-      )}
-      {/* WhatsApp es el canal por defecto/mayoritario y no necesita
-          distinguirse a sí mismo — los otros 3 llevan marca de canal. */}
-      {channel === "TELEGRAM" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-surface ring-2 ring-background">
-          <Send size={9} />
-        </span>
-      )}
-      {channel === "MESSENGER" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent-2 text-surface ring-2 ring-background">
-          <MessageCircle size={9} />
-        </span>
-      )}
-      {channel === "INSTAGRAM" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-surface ring-2 ring-background">
-          <Camera size={9} />
-        </span>
-      )}
-    </button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            aria-pressed={active}
+            className={cn(
+              "relative flex rounded-full outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring",
+              active ? "ring-2 ring-primary ring-offset-2 ring-offset-surface" : "opacity-75 hover:opacity-100"
+            )}
+          />
+        }
+      >
+        {children}
+        {unread > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold tabular-nums text-primary-foreground ring-2 ring-surface">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+        {/* WhatsApp es el canal mayoritario y no necesita distinguirse a sí
+            mismo — los demás llevan su marca. */}
+        {channel && channel !== "WHATSAPP" && (
+          <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-card text-foreground ring-2 ring-surface">
+            <ChannelGlyph channel={channel} size={9} />
+          </span>
+        )}
+      </TooltipTrigger>
+      <TooltipPopup side="right">{label}</TooltipPopup>
+    </Tooltip>
   );
 }

@@ -419,10 +419,24 @@ body {
   font-family: var(--font-sans);
 }
 
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+/* El kit (data-slot) trae su propio anillo de foco: esta regla es solo para
+   los componentes viejos. Sin la exclusión, pisaba el radio de los botones
+   redondeados al enfocarlos (una regla sin capa le gana a las utilidades). */
+:where(a, button, input, select, textarea, [tabindex]):not([data-slot]):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+/* Tailwind v4 pinta los bordes con currentColor; el kit espera el token. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { UserCheck } from "lucide-react";
-import { Dropdown, DropdownItem, DropdownButton } from "@/app/components/ui/dropdown";
+import { Check, UserCheck } from "lucide-react";
+import { Button } from "@/app/components/kit/button";
+import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@/app/components/kit/menu";
 import { useToast } from "@/app/components/ui/toast";
 
 interface Assignee {
@@ -36,7 +37,7 @@ export function ChatAssigneePicker({
 
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch when dropdown opens; fetchAssignees also called each time it reopens
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- se consulta cada vez que se abre el menú
     fetchAssignees();
   }, [open, fetchAssignees]);
 
@@ -56,26 +57,23 @@ export function ChatAssigneePicker({
   }
 
   return (
-    <Dropdown
-      open={open}
-      onOpenChange={setOpen}
-      align="right"
-      portal
-      trigger={
-        <DropdownButton
-          label={assignedTo?.name ?? "Asignar"}
-          icon={UserCheck}
-          size="sm"
-          className="max-w-36 [&>span]:truncate"
-        />
-      }
-    >
-      <DropdownItem onClick={() => handleAssign(null)}>Sin asignar</DropdownItem>
-      {assignees.map((a) => (
-        <DropdownItem key={a.id} onClick={() => handleAssign(a.id)}>
-          {a.name ?? a.email}
-        </DropdownItem>
-      ))}
-    </Dropdown>
+    <Menu open={open} onOpenChange={setOpen}>
+      <MenuTrigger render={<Button variant="outline" size="sm" className="max-w-36" />}>
+        <UserCheck />
+        <span className="truncate">{assignedTo?.name ?? "Asignar"}</span>
+      </MenuTrigger>
+      <MenuPopup align="end" className="min-w-48">
+        <MenuItem onClick={() => handleAssign(null)}>
+          Sin asignar {!assignedTo && <Check className="ms-auto" />}
+        </MenuItem>
+        <MenuSeparator />
+        {assignees.map((a) => (
+          <MenuItem key={a.id} onClick={() => handleAssign(a.id)}>
+            <span className="truncate">{a.name ?? a.email}</span>
+            {assignedTo?.id === a.id && <Check className="ms-auto" />}
+          </MenuItem>
+        ))}
+      </MenuPopup>
+    </Menu>
   );
 }

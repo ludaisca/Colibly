@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef } from "react";
-import { Send, Paperclip, X, FileAudio, Video, FileText, ListChecks, Plus, Reply } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { Spinner } from "@/app/components/ui/spinner";
+import { useEffect, useRef } from "react";
+import { Send, Paperclip, X, FileAudio, Video, FileText, ListChecks, Plus, Reply, Loader2 } from "lucide-react";
+import { Button } from "@/app/components/kit/button";
+import { Input } from "@/app/components/kit/input";
+import { cn } from "@/app/components/kit/utils";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { ReplySuggestionButton } from "./reply-suggestion-button";
 import { StickerPicker } from "./sticker-picker";
@@ -52,6 +53,7 @@ interface ChatComposerProps {
 
 const MAX_BUTTONS = 3;
 const MAX_BUTTON_LENGTH = 20;
+const MAX_TEXTAREA_PX = 160;
 
 export function ChatComposer({
   chatId,
@@ -81,10 +83,18 @@ export function ChatComposer({
   onToggleButtonsPanel,
   interactiveDisabled = false,
 }: ChatComposerProps) {
-  const messageInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const supportsAttachments = channel !== "WEBCHAT";
   const supportsButtons = channel === "WHATSAPP";
   const supportsSuggestions = channel === "WHATSAPP" || channel === "TELEGRAM";
+
+  // El textarea crece con el texto hasta un tope y luego desplaza.
+  useEffect(() => {
+    const el = messageInputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_PX)}px`;
+  }, [newMessage]);
 
   function toggleButtons() {
     if (buttonsPanelOpen) {
@@ -100,166 +110,104 @@ export function ChatComposer({
     messageInputRef.current?.focus();
   }
 
+  const cannotSend =
+    (!newMessage.trim() && !attachment && interactiveButtons.length === 0) ||
+    (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((t) => !t.trim()))) ||
+    sending;
+
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-2 px-4 py-3 border-t border-border bg-surface shrink-0 relative">
-      {replyTo && (
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
-          <Reply size={16} className="shrink-0 text-accent-ink" />
-          <div className="min-w-0 flex-1 border-l-2 border-accent-strong pl-2 text-xs">
-            <p className="font-semibold text-accent-ink">Respondiendo a {replyTo.direction === "OUTBOUND" ? "tu mensaje" : leadName}</p>
-            <p className="truncate text-muted-darker">{replyTo.body || replyTo.caption || `[${replyTo.messageType}]`}</p>
-          </div>
-          <button type="button" onClick={onCancelReply} className="rounded-lg p-1 text-muted-darker hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent" aria-label="Cancelar respuesta citada"><X size={16} /></button>
-        </div>
-      )}
+    <form onSubmit={onSubmit} className="@container relative shrink-0 border-t bg-card px-4 pb-3 pt-3 sm:px-6">
       {cannedSuggestions.length > 0 && (
-        <div className="chat-disclosure-enter absolute bottom-full left-4 right-4 mb-1.5 rounded-lg border border-border bg-surface shadow-lg overflow-hidden z-20">
+        <div className="chat-disclosure-enter absolute inset-x-4 bottom-full z-20 mb-1.5 overflow-hidden rounded-xl border bg-popover shadow-lg sm:inset-x-6">
           {cannedSuggestions.map((c, i) => (
             <button
               key={c.id}
               type="button"
               onClick={() => onInsertCanned(c.content)}
               onMouseEnter={() => onCannedIndexChange(i)}
-              className={`w-full text-left px-3 py-2 text-sm transition-colors border-b border-border last:border-b-0 ${
-                i === cannedIndex ? "bg-surface-light" : "hover:bg-surface-light"
-              }`}
+              className={cn("w-full border-b px-3 py-2 text-left text-sm transition-colors last:border-b-0", i === cannedIndex ? "bg-surface-light" : "hover:bg-surface-light")}
             >
               <span className="font-semibold text-accent-ink">/{c.shortcut}</span>
-              <span className="text-muted-darker ml-2 truncate">{c.content}</span>
+              <span className="ml-2 truncate text-muted-foreground">{c.content}</span>
             </button>
           ))}
         </div>
       )}
 
-      {attachment && (
-        <div className="chat-disclosure-enter flex items-center gap-3 rounded-lg border border-border bg-background p-2">
-          {attachmentPreview && isImageMime(attachment.type) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local preview blob
-            <img src={attachmentPreview} alt={attachment.name} className="h-12 w-12 rounded object-cover animate-fade-in" />
-          ) : isAudioMime(attachment.type) ? (
-            <FileAudio size={18} className="text-muted-darker shrink-0" />
-          ) : isVideoMime(attachment.type) ? (
-            <Video size={18} className="text-muted-darker shrink-0" />
-          ) : (
-            <FileText size={18} className="text-muted-darker shrink-0" />
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-xs truncate">{attachment.name}</p>
-            <p className="text-[11px] text-muted-darker">{(attachment.size / 1024).toFixed(0)} KB</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClearAttachment}
-            className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
-            disabled={sending}
-            title="Quitar adjunto"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
-      {buttonsPanelOpen && (
-        <div className="chat-disclosure-enter max-h-[min(40dvh,18rem)] space-y-2 overflow-y-auto rounded-xl border border-border bg-background p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-darker">
-              Botones de respuesta rápida ({interactiveButtons.length}/{MAX_BUTTONS})
-            </span>
-            <button
-              type="button"
-              onClick={toggleButtons}
-              className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
-              title="Cerrar y quitar botones"
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <p className="text-xs text-muted-darker">Se enviarán con el mensaje. Hasta tres botones de 20 caracteres.</p>
-          {interactiveButtons.map((title, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                value={title}
-                autoFocus={i === 0}
-                onChange={(e) => {
-                  const next = [...interactiveButtons];
-                  next[i] = e.target.value.slice(0, MAX_BUTTON_LENGTH);
-                  onButtonsChange(next);
-                }}
-                maxLength={MAX_BUTTON_LENGTH}
-                aria-label={`Texto del botón ${i + 1}`}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    messageInputRef.current?.focus();
-                  }
-                }}
-                placeholder={`Botón ${i + 1}`}
-                className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted"
-              />
-              <button
-                type="button"
-                onClick={() => onButtonsChange(interactiveButtons.filter((_, idx) => idx !== i))}
-                className="text-muted-darker hover:text-danger transition-colors p-1.5 rounded-md hover:bg-surface-light shrink-0"
-                aria-label={`Quitar botón ${i + 1}`}
-              >
-                <X size={14} />
-              </button>
+      <div className="rounded-xl border bg-background shadow-xs/5 transition-shadow focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/24">
+        {replyTo && (
+          <div className="mx-2.5 mt-2.5 flex items-center gap-3 rounded-lg bg-surface-light px-3 py-2">
+            <Reply size={16} className="shrink-0 text-accent-ink" />
+            <div className="min-w-0 flex-1 border-l-2 border-accent-strong pl-2 text-xs">
+              <p className="font-semibold text-accent-ink">Respondiendo a {replyTo.direction === "OUTBOUND" ? "tu mensaje" : leadName}</p>
+              <p className="truncate text-muted-foreground">{replyTo.body || replyTo.caption || `[${replyTo.messageType}]`}</p>
             </div>
-          ))}
-          {interactiveButtons.length < MAX_BUTTONS && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              icon={Plus}
-              onClick={() => onButtonsChange([...interactiveButtons, ""])}
-            >
-              Agregar botón
-            </Button>
-          )}
-        </div>
-      )}
+            <Button type="button" variant="ghost" size="icon-xs" onClick={onCancelReply} aria-label="Cancelar respuesta citada"><X /></Button>
+          </div>
+        )}
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        onChange={onFileChosen}
-        accept="image/*,audio/*,video/*,application/pdf,text/plain"
-        className="hidden"
-      />
-      <div className="flex flex-wrap items-center gap-2" aria-label="Herramientas del mensaje">
-        {supportsAttachments && (
-          <button
-            type="button"
-            onClick={onPickFile}
-            disabled={sending || attachmentsDisabled}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong"
-            title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar archivo"}
-          >
-            <Paperclip size={16} className="text-accent-ink" />
-            <span>Adjuntar</span>
-          </button>
+        {attachment && (
+          <div className="chat-disclosure-enter mx-2.5 mt-2.5 flex items-center gap-3 rounded-lg bg-surface-light p-2">
+            {attachmentPreview && isImageMime(attachment.type) ? (
+              // eslint-disable-next-line @next/next/no-img-element -- local preview blob
+              <img src={attachmentPreview} alt={attachment.name} className="size-12 rounded-md object-cover" />
+            ) : isAudioMime(attachment.type) ? (
+              <FileAudio size={18} className="shrink-0 text-muted-foreground" />
+            ) : isVideoMime(attachment.type) ? (
+              <Video size={18} className="shrink-0 text-muted-foreground" />
+            ) : (
+              <FileText size={18} className="shrink-0 text-muted-foreground" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium">{attachment.name}</p>
+              <p className="text-[11px] tabular-nums text-muted-foreground">{(attachment.size / 1024).toFixed(0)} KB</p>
+            </div>
+            <Button type="button" variant="ghost" size="icon-xs" onClick={onClearAttachment} disabled={sending} title="Quitar adjunto" aria-label="Quitar adjunto"><X /></Button>
+          </div>
         )}
-        {supportsButtons && (
-          <button
-            type="button"
-            onClick={toggleButtons}
-            disabled={sending || interactiveDisabled}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong data-[active=true]:border-accent-strong data-[active=true]:bg-accent-subtle"
-            title={interactiveDisabled ? "Quita el archivo adjunto para usar botones" : buttonsPanelOpen ? "Cerrar y quitar botones" : "Añadir botones de respuesta rápida"}
-            aria-expanded={buttonsPanelOpen}
-            data-active={buttonsPanelOpen}
-          >
-            <ListChecks size={16} className="text-accent-ink" />
-            <span>Botones{interactiveButtons.length > 0 ? ` (${interactiveButtons.length})` : ""}</span>
-          </button>
+
+        {buttonsPanelOpen && (
+          <div className="chat-disclosure-enter mx-2.5 mt-2.5 max-h-[min(40dvh,18rem)] space-y-2 overflow-y-auto rounded-lg bg-surface-light p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-foreground">Botones de respuesta rápida ({interactiveButtons.length}/{MAX_BUTTONS})</span>
+              <Button type="button" variant="ghost" size="icon-xs" onClick={toggleButtons} title="Cerrar y quitar botones" aria-label="Cerrar y quitar botones"><X /></Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Se enviarán con el mensaje. Hasta tres botones de 20 caracteres.</p>
+            {interactiveButtons.map((title, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={title}
+                  autoFocus={i === 0}
+                  onChange={(e) => {
+                    const next = [...interactiveButtons];
+                    next[i] = e.target.value.slice(0, MAX_BUTTON_LENGTH);
+                    onButtonsChange(next);
+                  }}
+                  maxLength={MAX_BUTTON_LENGTH}
+                  aria-label={`Texto del botón ${i + 1}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      messageInputRef.current?.focus();
+                    }
+                  }}
+                  placeholder={`Botón ${i + 1}`}
+                  className="flex-1"
+                />
+                <Button type="button" variant="ghost" size="icon-sm" onClick={() => onButtonsChange(interactiveButtons.filter((_, idx) => idx !== i))} aria-label={`Quitar botón ${i + 1}`}><X /></Button>
+              </div>
+            ))}
+            {interactiveButtons.length < MAX_BUTTONS && (
+              <Button type="button" variant="outline" size="sm" onClick={() => onButtonsChange([...interactiveButtons, ""])}>
+                <Plus /> Agregar botón
+              </Button>
+            )}
+          </div>
         )}
-        {supportsSuggestions && <ReplySuggestionButton key={chatId} chatId={chatId} onInsert={insertSuggestion} />}
-        {channel === "WHATSAPP" && <StickerPicker key={`stickers-${chatId}`} disabled={sending || !!attachment || interactiveButtons.length > 0} onSend={onSendSticker} />}
-      </div>
-      <div className="flex items-end gap-2">
-        <input
+
+        <textarea
           ref={messageInputRef}
+          rows={1}
           value={newMessage}
           aria-label="Mensaje"
           onChange={(e) => { onMessageChange(e.target.value); onCannedIndexChange(0); }}
@@ -294,25 +242,32 @@ export function ChatComposer({
               ? "Escribe el mensaje que acompaña a los botones..."
               : attachment
                 ? "Añadir comentario (opcional)..."
-                : "Escribe un mensaje... (usa /atajo para respuestas rápidas)"
+                : "Escribe un mensaje (usa /atajo para respuestas rápidas)"
           }
-          className="min-w-0 flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted transition-colors"
+          className="scrollbar-thin block max-h-40 w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/72 disabled:opacity-60"
           disabled={sending}
         />
-        <Button
-          type="submit"
-          aria-label="Enviar mensaje"
-          icon={sending ? undefined : Send}
-          size="md"
-          className="px-3"
-          disabled={
-            (!newMessage.trim() && !attachment && interactiveButtons.length === 0) ||
-            (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((t) => !t.trim()))) ||
-            sending
-          }
-        >
-          {sending ? <Spinner /> : ""}
-        </Button>
+
+        <input ref={fileInputRef} type="file" onChange={onFileChosen} accept="image/*,audio/*,video/*,application/pdf,text/plain" className="hidden" />
+        <div className="flex flex-wrap items-center gap-1 px-2 pb-2 pt-1" role="toolbar" aria-label="Herramientas del mensaje">
+          {supportsAttachments && (
+            <Button type="button" variant="ghost" size="sm" onClick={onPickFile} disabled={sending || attachmentsDisabled} title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar archivo"}>
+              <Paperclip className="text-accent-ink" /> <span className="hidden @xl:inline">Adjuntar</span>
+            </Button>
+          )}
+          {supportsButtons && (
+            <Button type="button" variant={buttonsPanelOpen ? "secondary" : "ghost"} size="sm" onClick={toggleButtons} disabled={sending || interactiveDisabled} aria-expanded={buttonsPanelOpen}
+              title={interactiveDisabled ? "Quita el archivo adjunto para usar botones" : buttonsPanelOpen ? "Cerrar y quitar botones" : "Añadir botones de respuesta rápida"}>
+              <ListChecks className="text-accent-ink" /> <span className="hidden @xl:inline">Botones</span>{interactiveButtons.length > 0 ? ` (${interactiveButtons.length})` : ""}
+            </Button>
+          )}
+          {supportsSuggestions && <ReplySuggestionButton key={chatId} chatId={chatId} onInsert={insertSuggestion} />}
+          {channel === "WHATSAPP" && <StickerPicker key={`stickers-${chatId}`} disabled={sending || !!attachment || interactiveButtons.length > 0} onSend={onSendSticker} />}
+          <span className="ml-auto hidden text-[11px] text-muted-foreground @2xl:inline">Enter envía · Shift+Enter nueva línea</span>
+          <Button type="submit" size="icon-sm" aria-label="Enviar mensaje" disabled={cannotSend} className="ml-auto @2xl:ml-2">
+            {sending ? <Loader2 className="animate-spin" /> : <Send />}
+          </Button>
+        </div>
       </div>
     </form>
   );

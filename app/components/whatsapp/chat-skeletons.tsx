@@ -1,22 +1,23 @@
-import { Skeleton } from "@/app/components/ui/skeleton";
-import { cn } from "@/app/components/ui/cn";
+import { Skeleton } from "@/app/components/kit/skeleton";
+import { cn } from "@/app/components/kit/utils";
 
-// Filas fantasma para el riel de conversaciones (mismo ancho que
-// ChatWorkspace: w-80 lg:w-96, border-r) — usado en los loading.tsx de las
-// rutas de chat mientras no hay nada montado todavía.
+// Fantasma de la lista de conversaciones (mismo ancho que ChatListPanel) —
+// fallback del layout de la bandeja mientras llegan la sesión y las cuentas.
 export function ChatListSkeleton() {
   return (
-    <div className="hidden md:flex flex-col w-full md:w-80 lg:w-96 border-r border-border shrink-0 h-full overflow-hidden">
-      <div className="p-3 border-b border-border">
-        <Skeleton className="h-9 w-full rounded-lg" />
+    <div className="hidden h-full w-full shrink-0 flex-col overflow-hidden border-r bg-card md:flex md:w-80 xl:w-96" aria-hidden="true">
+      <div className="space-y-3 border-b px-4 pb-3 pt-4">
+        <Skeleton className="h-6 w-28" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
       </div>
-      <div className="flex-1 divide-y divide-border overflow-hidden">
+      <div className="flex-1 space-y-1 overflow-hidden p-2">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 px-3 py-3">
-            <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
-            <div className="flex-1 space-y-1.5 min-w-0">
-              <Skeleton className="h-3.5 w-2/3" />
-              <Skeleton className="h-3 w-1/2" />
+          <div key={i} className="flex items-center gap-3 rounded-lg px-2.5 py-2.5">
+            <Skeleton className="size-10 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-3.5 w-1/2" />
+              <Skeleton className="h-3 w-4/5" />
             </div>
           </div>
         ))}
@@ -25,12 +26,9 @@ export function ChatListSkeleton() {
   );
 }
 
-// Burbujas fantasma para el panel de conversación — alterna ancho/alineación
-// para imitar MessageBubble. Usado tanto en los loading.tsx de rutas de chat
-// como dentro de ChatWorkspace mientras carga el historial de un chat ya
-// seleccionado (reemplaza el <Spinner/> genérico anterior). Sin padding/altura
-// propios a propósito — cada contexto ya tiene su propio contenedor
-// (px-4 py-4 en ChatWorkspace, flex-1 p-4 en los loading.tsx de ruta).
+// Burbujas fantasma del hilo mientras carga el historial de un chat ya
+// seleccionado. Sin padding ni altura propios: el contenedor del hilo ya los
+// pone.
 export function ChatBubblesSkeleton({ className }: { className?: string }) {
   const bubbles = [
     { mine: false, w: "w-48" },
@@ -44,13 +42,7 @@ export function ChatBubblesSkeleton({ className }: { className?: string }) {
     <div className={cn("flex flex-col justify-end gap-3", className)} aria-hidden="true">
       {bubbles.map((b, i) => (
         <div key={i} className={cn("flex", b.mine ? "justify-end" : "justify-start")}>
-          <Skeleton
-            className={cn(
-              "h-10",
-              b.w,
-              b.mine ? "rounded-2xl rounded-tr-sm" : "rounded-2xl rounded-tl-sm"
-            )}
-          />
+          <Skeleton className={cn("h-10", b.w, b.mine ? "rounded-2xl rounded-tr-md" : "rounded-2xl rounded-tl-md")} />
         </div>
       ))}
     </div>

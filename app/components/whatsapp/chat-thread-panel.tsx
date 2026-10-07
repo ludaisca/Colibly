@@ -18,9 +18,10 @@ import {
 } from "lucide-react";
 import { ChatMessageActions } from "./chat-message-actions";
 import { Button } from "@/app/components/ui/button";
-import { Spinner } from "@/app/components/ui/spinner";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Button as KitButton } from "@/app/components/kit/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/app/components/kit/empty";
 import { Modal } from "@/app/components/ui/modal";
+import { Loader2 } from "lucide-react";
 import { ChatConversationHeader } from "./chat-conversation-header";
 import { ChatBubblesSkeleton } from "@/app/components/whatsapp/chat-skeletons";
 import { mediaEndpointFor } from "@/lib/whatsapp/media-shared";
@@ -179,10 +180,10 @@ function MessageBubble({
     <div className={`group flex items-end gap-1.5 ${isInbound ? "justify-start" : "justify-end"}`}>
       {!isInbound && canReply && <ChatMessageActions message={msg} onReply={onReply} onReaction={onReaction} />}
       <div
-        className={`relative max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
+        className={`relative max-w-[78%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
           msg.messageType === "sticker" ? "rounded-xl bg-transparent text-foreground" : isInbound
-            ? "rounded-2xl rounded-tl-sm bg-surface text-foreground"
-            : "rounded-2xl rounded-tr-sm bg-accent-muted text-foreground"
+            ? "rounded-2xl rounded-tl-md border bg-card text-foreground shadow-xs/5"
+            : "rounded-2xl rounded-tr-md bg-accent-muted text-foreground"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
@@ -203,7 +204,7 @@ function MessageBubble({
             {caption && <p className="whitespace-pre-wrap break-words">{caption}</p>}
           </div>
         )}
-        {!hasMedia && msg.body}
+        {!hasMedia && <span className="whitespace-pre-wrap break-words">{msg.body}</span>}
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
         {buttons && buttons.length > 0 && (
           // Un mensaje interactivo siempre es OUTBOUND (lo arma el agente), y
@@ -297,7 +298,8 @@ interface ChatThreadPanelProps {
   loadingOlder: boolean;
   onLoadOlder: () => void;
   onCloseChat: () => void;
-  onOpenContactDrawer: () => void;
+  sidePanelOpen: boolean;
+  onToggleSidePanel: () => void;
   onStatusChange: (status: ChatStatus) => void | Promise<void>;
   onAssigned: (assignee: { id: string; name: string | null } | null) => void;
   onPreview: (media: PreviewMedia) => void;
@@ -316,7 +318,8 @@ export function ChatThreadPanel({
   loadingOlder,
   onLoadOlder,
   onCloseChat,
-  onOpenContactDrawer,
+  sidePanelOpen,
+  onToggleSidePanel,
   onStatusChange,
   onAssigned,
   onPreview,
@@ -336,25 +339,32 @@ export function ChatThreadPanel({
         chat={selectedChat}
         refreshKey={messages.at(-1)?.id ?? ""}
         onCloseChat={onCloseChat}
-        onOpenContactDrawer={onOpenContactDrawer}
+        sidePanelOpen={sidePanelOpen}
+        onToggleSidePanel={onToggleSidePanel}
         onStatusChange={onStatusChange}
         onAssigned={onAssigned}
       />
 
-      <div ref={messagesContainerRef} className="scrollbar-thin flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div ref={messagesContainerRef} className="scrollbar-thin flex-1 space-y-3 overflow-y-auto bg-background px-4 py-4 sm:px-6">
         {loadingMessages ? (
           <ChatBubblesSkeleton className="h-full" />
         ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <EmptyState icon={MessageSquare} title="Sin mensajes" description="Aún no hay mensajes en este chat." />
+          <div className="flex h-full items-center justify-center">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><MessageSquare /></EmptyMedia>
+                <EmptyTitle>Sin mensajes</EmptyTitle>
+                <EmptyDescription>Aún no hay mensajes en este chat.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           </div>
         ) : (
           <>
             {hasOlderMessages && (
               <div className="flex justify-center pb-1">
-                <Button variant="secondary" size="sm" onClick={onLoadOlder} disabled={loadingOlder}>
-                  {loadingOlder ? <Spinner /> : "Ver mensajes anteriores"}
-                </Button>
+                <KitButton variant="outline" size="sm" onClick={onLoadOlder} disabled={loadingOlder}>
+                  {loadingOlder ? <Loader2 className="animate-spin" /> : "Ver mensajes anteriores"}
+                </KitButton>
               </div>
             )}
             <AnimatePresence initial={false}>
@@ -371,7 +381,7 @@ export function ChatThreadPanel({
                   >
                     {showDivider && (
                       <div className="flex justify-center my-3">
-                        <span className="text-[11px] font-medium text-muted-darker bg-surface border border-border px-2.5 py-1 rounded-full">
+                        <span suppressHydrationWarning className="rounded-full border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
                           {formatDayDivider(msg.timestamp)}
                         </span>
                       </div>

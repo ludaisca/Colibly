@@ -17,6 +17,9 @@ export const STATUS_BADGE: Record<ChatStatus, { label: string; tone: "info" | "w
   RESOLVED: { label: "Resuelto", tone: "success" },
 };
 
+// Vistas de la bandeja (se resuelven en el servidor: la lista está paginada).
+export type ChatView = "all" | "mine" | "unassigned" | "unread";
+
 export type Channel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
 
 export interface AccountOption {

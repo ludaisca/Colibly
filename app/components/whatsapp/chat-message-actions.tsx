@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { Smile, Reply, BookmarkPlus, Loader2 } from "lucide-react";
-import { Dropdown } from "@/app/components/ui/dropdown";
+import { Button } from "@/app/components/kit/button";
+import { Popover, PopoverPopup, PopoverTrigger } from "@/app/components/kit/popover";
+import { cn } from "@/app/components/kit/utils";
 import { useToast } from "@/app/components/ui/toast";
 import { REACTION_OPTIONS, canReactToMessage } from "@/lib/whatsapp/reaction-options";
 import type { Message, AgentReaction } from "./chat-shared";
@@ -12,7 +14,6 @@ export function ChatMessageActions({ message, onReply, onReaction }: { message: 
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const { error: toastError, success } = useToast();
-  const actionClass = "rounded-xl p-2 text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50";
   const latest = message.agentReactions?.[0];
   const current = latest && ["accepted", "pending"].includes(latest.status) ? latest.emoji : message.agentReactionEmoji;
 
@@ -42,21 +43,27 @@ export function ChatMessageActions({ message, onReply, onReaction }: { message: 
   }
 
   return (
-    <div className="mb-2 flex shrink-0 flex-col items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-      <button type="button" onClick={() => onReply?.(message)} className={actionClass} aria-label="Responder a este mensaje" title="Responder"><Reply size={15} /></button>
+    <div className="mb-1 flex shrink-0 items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+      <Button type="button" variant="ghost" size="icon-xs" onClick={() => onReply?.(message)} aria-label="Responder a este mensaje" title="Responder"><Reply /></Button>
       {canReactToMessage(message.timestamp) && message.status !== "failed" && (
-        <Dropdown portal open={open} onOpenChange={setOpen} closeOnSelect={false} trigger={<button type="button" className={actionClass} aria-expanded={open} aria-label="Reaccionar al mensaje" title="Reaccionar"><Smile size={15} /></button>}>
-          <div className="p-2">
-            <p className="px-1 pb-2 text-xs text-muted-darker">Reacción del equipo</p>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger render={<Button type="button" variant="ghost" size="icon-xs" aria-label="Reaccionar al mensaje" title="Reaccionar" />}><Smile /></PopoverTrigger>
+          <PopoverPopup align="center" className="w-auto">
+            <p className="pb-2 text-xs text-muted-foreground">Reacción del equipo</p>
             <div className="flex gap-1">
-              {REACTION_OPTIONS.map((emoji) => <button key={emoji} type="button" disabled={busy} aria-label={`Reaccionar con ${emoji}`} aria-pressed={current === emoji} onClick={() => react(current === emoji ? "" : emoji)} className={`h-8 w-8 rounded-xl text-xl hover:bg-accent-subtle disabled:opacity-50 ${current === emoji ? "bg-accent-subtle ring-1 ring-accent-strong" : ""}`}>{emoji}</button>)}
+              {REACTION_OPTIONS.map((emoji) => (
+                <button key={emoji} type="button" disabled={busy} aria-label={`Reaccionar con ${emoji}`} aria-pressed={current === emoji} onClick={() => react(current === emoji ? "" : emoji)}
+                  className={cn("size-8 rounded-lg text-xl outline-none hover:bg-surface-light focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50", current === emoji && "bg-accent-subtle ring-1 ring-accent-strong")}>{emoji}</button>
+              ))}
             </div>
-            {busy && <p role="status" className="mt-2 text-xs text-muted-darker">Enviando a WhatsApp…</p>}
-            {current && <button type="button" disabled={busy} onClick={() => react("")} className="mt-2 w-full rounded-xl p-2 text-xs text-danger hover:bg-danger-bg">Quitar nuestra reacción</button>}
-          </div>
-        </Dropdown>
+            {busy && <p role="status" className="mt-2 text-xs text-muted-foreground">Enviando a WhatsApp…</p>}
+            {current && <Button type="button" variant="ghost" size="xs" disabled={busy} onClick={() => react("")} className="mt-2 w-full text-destructive-foreground">Quitar nuestra reacción</Button>}
+          </PopoverPopup>
+        </Popover>
       )}
-      {message.messageType === "sticker" && message.mediaUrl && <button type="button" disabled={saving} onClick={saveSticker} className={actionClass} aria-label="Guardar sticker en la biblioteca" title="Guardar sticker">{saving ? <Loader2 size={15} className="animate-spin" /> : <BookmarkPlus size={15} />}</button>}
+      {message.messageType === "sticker" && message.mediaUrl && (
+        <Button type="button" variant="ghost" size="icon-xs" disabled={saving} onClick={saveSticker} aria-label="Guardar sticker en la biblioteca" title="Guardar sticker">{saving ? <Loader2 className="animate-spin" /> : <BookmarkPlus />}</Button>
+      )}
     </div>
   );
 }
