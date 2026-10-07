@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { CalendarClock, Mail, MessageSquare, Phone, Users, ListChecks } from "lucide-react";
-import { Badge } from "@/app/components/ui/badge";
-import { Checkbox } from "@/app/components/ui/checkbox";
+import { Badge } from "@/app/components/kit/badge";
+import { Checkbox } from "@/app/components/kit/checkbox";
 import { useToast } from "@/app/components/ui/toast";
 import { formatDue, taskKindLabel, type TaskItem, type TaskKind } from "@/lib/crm/task-ui";
 
@@ -40,7 +40,7 @@ export function TaskRow({ task, onChanged, onEdit, showPerson = true }: { task: 
 
   return (
     <div className="flex items-start gap-3 py-2.5">
-      <Checkbox checked={done} onChange={toggle} disabled={busy} ariaLabel={done ? "Reabrir tarea" : "Completar tarea"} />
+      <Checkbox className="mt-0.5" checked={done} onCheckedChange={(v) => toggle(v === true)} disabled={busy} aria-label={done ? "Reabrir tarea" : "Completar tarea"} />
       <button type="button" onClick={() => onEdit?.(task)} disabled={!onEdit} className="min-w-0 flex-1 text-left">
         <p className={done ? "text-sm text-muted line-through" : "text-sm font-medium text-foreground"}>{task.title}</p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-darker">
@@ -50,7 +50,7 @@ export function TaskRow({ task, onChanged, onEdit, showPerson = true }: { task: 
         </p>
       </button>
       {task.dueAt && !done && (
-        <Badge tone={task.overdue ? "danger" : "neutral"} size="sm" icon={CalendarClock}>{formatDue(task.dueAt)}</Badge>
+        <Badge variant={task.overdue ? "error" : "outline"}><CalendarClock /><span suppressHydrationWarning>{formatDue(task.dueAt)}</span></Badge>
       )}
     </div>
   );

@@ -43,10 +43,22 @@ export interface AppShellProps {
   children: React.ReactNode;
 }
 
+// Ítem activo del menú: tinte suave de la marca (acento) o de peligro (panel
+// de plataforma), como en el resto del rediseño — nada de relleno sólido.
 function activeClass(accent: "accent" | "danger") {
   return accent === "accent"
-    ? "bg-accent text-on-accent font-semibold shadow-sm"
-    : "bg-danger text-surface font-semibold shadow-sm";
+    ? "bg-accent-subtle text-accent-ink font-medium"
+    : "bg-danger-bg text-danger font-medium";
+}
+
+// Sección activa para las migas de pan: el ítem de menú con la ruta más
+// específica que coincide con la actual.
+function currentSection(nav: (NavItem | NavGroup)[], pathname: string): string | null {
+  const items = nav.flatMap((e) => ("items" in e ? e.items : [e]));
+  const match = items
+    .filter((i) => (i.exact ? pathname === i.href : pathname === i.href || pathname.startsWith(i.href + "/")))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+  return match?.label ?? null;
 }
 
 function SidebarContent({
@@ -79,12 +91,10 @@ function SidebarContent({
           aria-current={active ? "page" : undefined}
           className={cn(
             "flex items-center text-sm font-medium transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
-            collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2.5",
-            // Radio cercano al de la marca (rx=9 sobre 32): el item mide 40px
-            // de alto, así que 12px conserva la misma proporción visual.
+            collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
             active
-              ? cn("rounded-[12px]", activeClass(accent ?? "accent"))
-              : "rounded-[12px] text-muted hover:bg-surface-light hover:text-foreground"
+              ? cn("rounded-lg", activeClass(accent ?? "accent"))
+              : "rounded-lg text-muted hover:bg-surface-light hover:text-foreground"
           )}
         >
           <Icon size={18} className="shrink-0" />
@@ -119,7 +129,7 @@ function SidebarContent({
               return (
                 <div key={group.title || index} className="flex flex-col gap-1 w-full">
                   {!collapsed && group.title && (
-                    <div className="px-3 text-[10px] font-bold text-muted-darker tracking-wider uppercase mb-1">
+                    <div className="px-3 text-eyebrow font-medium text-muted-darker tracking-wider uppercase mb-1">
                       {group.title}
                     </div>
                   )}
@@ -190,6 +200,7 @@ export function AppShell({
   // it needs, so this route gets a full-bleed shell instead.
   const pathname = usePathname();
   const fullBleed = pathname.startsWith("/whatsapp/chat");
+  const currentLabel = currentSection(nav, pathname);
 
   useEffect(() => {
     if (!collapsible) return;
@@ -222,7 +233,7 @@ export function AppShell({
       </Suspense>
       <aside
         className={cn(
-          "hidden md:flex border-r border-border/60 bg-background flex-col shrink-0 transition-all duration-200",
+          "hidden md:flex border-r border-border bg-surface flex-col shrink-0 transition-all duration-200",
           collapsed ? "w-16" : "w-60 lg:w-64"
         )}
       >
@@ -252,7 +263,7 @@ export function AppShell({
             el header (y sus dropdowns z-50) en una capa atómica — sin elevar el
             header completo, el contenido de <main> (posterior en el DOM) pinta
             encima de los menús de usuario/notificaciones y les roba los clicks. */}
-        <header className="relative z-40 flex shrink-0 items-center gap-2 bg-background/80 px-3 py-3 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6">
+        <header className="relative z-40 flex shrink-0 items-center gap-2 border-b border-border bg-background/80 px-3 py-2.5 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6">
           <button
             onClick={() => setDrawerOpen(true)}
             className="md:hidden text-foreground hover:text-muted transition-colors"
@@ -280,8 +291,16 @@ export function AppShell({
             </Link>
           </div>
 
-          {/* Spacer: empuja los controles de la derecha al borde del header. */}
-          <div className="hidden md:block flex-1" />
+          {/* Migas de pan: organización / sección actual. */}
+          <nav aria-label="Ubicación" className="hidden min-w-0 flex-1 items-center gap-2 text-sm md:flex">
+            <span className="truncate text-muted-darker">{brand ?? BRAND_NAME}</span>
+            {currentLabel && (
+              <>
+                <span aria-hidden className="text-muted-darker">/</span>
+                <span className="truncate font-medium text-foreground">{currentLabel}</span>
+              </>
+            )}
+          </nav>
 
           <div className="flex items-center gap-1.5">
             <CommandPalette nav={nav} />

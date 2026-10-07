@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* `dark:` sigue al interruptor de la app (clase .dark en <html>), no al modo del
+   sistema operativo: los componentes de app/components/kit lo usan. */
+@custom-variant dark (&:is(.dark *));
 
 /* ─────────────────────────────────────────────────
    TOKENS — paleta "Colibrí" de Colibly (2026-09-27): violeta colibrí como
@@ -40,6 +45,12 @@
   --ruby-700: #C21E4C;
   --ruby-800: #A3173F;
 
+  /* "Papel": fondos claros que no son blanco puro (rediseño 2026-10). */
+  --paper-50:  #FBFAFE;
+  --paper-100: #F3F1F8;
+  --paper-200: #ECE9F4;
+  --paper-300: #DFDAEB;
+
   --ink-0:   #FFFFFF;
   --ink-25:  #F8F6FC;
   --ink-50:  #F1EEF8;
@@ -58,11 +69,11 @@
    También en .theme-light: un contenedor con esa clase vuelve a la paleta
    clara aunque <html> tenga .dark (la landing es siempre clara). */
 :root, .theme-light {
-  --background:    var(--ink-25);
+  --background:    var(--paper-100);
   --foreground:    var(--ink-950);
-  --surface:       var(--ink-0);
-  --surface-light: var(--ink-50);
-  --border:        var(--ink-100);
+  --surface:       var(--paper-50);
+  --surface-light: var(--paper-200);
+  --border:        var(--paper-300);
 
   --muted:         var(--ink-600);
   --muted-darker:  var(--ink-600);   /* texto secundario pequeño y placeholders legibles */
@@ -98,6 +109,34 @@
   --shadow-sm: 0 1px 2px rgba(23, 19, 43, 0.05);
   --shadow-md: 0 10px 28px rgba(23, 19, 43, 0.08), 0 2px 6px rgba(23, 19, 43, 0.05);
   --shadow-lg: 0 20px 48px rgba(23, 19, 43, 0.12), 0 4px 10px rgba(23, 19, 43, 0.06);
+
+
+  /* ── Alias con los nombres de coss ui (app/components/kit) ──
+     Los componentes de coss usan estos nombres; aquí se traducen a los
+     semánticos de Colibly (declarados en este mismo bloque para que un
+     contenedor .theme-light también los re-evalúe). `accent` y `muted` NO
+     tienen alias: significan otra cosa en Colibly y scripts/coss-sync.mjs los
+     traduce al importar. */
+  --card:                       var(--surface);
+  --card-foreground:            var(--foreground);
+  --popover:                    var(--surface);
+  --popover-foreground:         var(--foreground);
+  --primary:                    var(--accent);
+  --primary-foreground:         var(--on-accent);
+  --secondary:                  var(--surface-light);
+  --secondary-foreground:       var(--foreground);
+  --muted-foreground:           var(--muted);
+  --destructive:                var(--danger);
+  --destructive-foreground:     var(--danger);
+  --input:                      var(--border);
+  --sidebar:                    var(--surface);
+  --sidebar-foreground:         var(--foreground);
+  --sidebar-primary:            var(--accent);
+  --sidebar-primary-foreground: var(--on-accent);
+  --sidebar-accent:             var(--surface-light);
+  --sidebar-accent-foreground:  var(--foreground);
+  --sidebar-border:             var(--border);
+  --sidebar-ring:               var(--ring);
 
   /* Focus */
   --ring:        var(--accent-strong);
@@ -243,6 +282,38 @@
   --color-info:           var(--info);
   --color-info-bg:        var(--info-bg);
   --color-info-border:    var(--info-border);
+
+  --color-card:                       var(--card);
+  --color-card-foreground:            var(--card-foreground);
+  --color-popover:                    var(--popover);
+  --color-popover-foreground:         var(--popover-foreground);
+  --color-primary:                    var(--primary);
+  --color-primary-foreground:         var(--primary-foreground);
+  --color-secondary:                  var(--secondary);
+  --color-secondary-foreground:       var(--secondary-foreground);
+  --color-muted-foreground:           var(--muted-foreground);
+  --color-destructive:                var(--destructive);
+  --color-destructive-foreground:     var(--destructive-foreground);
+  --color-input:                      var(--input);
+  --color-ring:                       var(--ring);
+  --color-info-foreground:            var(--info);
+  --color-success-foreground:         var(--success);
+  --color-warning-foreground:         var(--warning);
+  --color-sidebar:                    var(--sidebar);
+  --color-sidebar-foreground:         var(--sidebar-foreground);
+  --color-sidebar-primary:            var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:             var(--sidebar-accent);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-ring:               var(--sidebar-ring);
+
+  --animate-skeleton: skeleton 2s -1s infinite linear;
+  @keyframes skeleton {
+    to {
+      background-position: -200% 0;
+    }
+  }
 
   --color-entity:    var(--entity);
   --color-entity-bg: var(--entity-bg, color-mix(in oklab, var(--entity) 14%, transparent));

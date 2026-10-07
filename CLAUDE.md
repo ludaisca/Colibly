@@ -6,6 +6,8 @@ The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). R
 
 @AGENTS.md
 
+**UI work:** new screens are built with `app/components/kit/*` (generated from coss ui by `scripts/coss-sync.mjs`, never hand-edited) — see AGENTS.md → "Frontend redesign in progress", including the licensing rules for anything copied from the web.
+
 ## Commands
 
 Everything runs in containers — never install dependencies or run Node/Postgres/Redis on the host. `docker compose` and `podman compose` are the same compose CLI, and the files work with both. **On the shared dev server (`ludaisca`) always use `podman compose`**: that host's Docker daemon is Coolify's production runtime. Rootless Podman under SELinux is also why every bind mount in the compose files carries `:z` — keep it on new mounts; Docker ignores it.

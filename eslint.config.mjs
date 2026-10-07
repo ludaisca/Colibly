@@ -4,7 +4,8 @@ import nextTypescript from "eslint-config-next/typescript";
 const eslintConfig = [
   // Herramientas y pruebas de desarrollo (scripts de Node en CommonJS), fuera
   // del código del producto.
-  { ignores: ["dev/**"] },
+  // app/components/kit/** es código generado por scripts/coss-sync.mjs (coss ui, MIT).
+  { ignores: ["dev/**", "app/components/kit/**"] },
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
