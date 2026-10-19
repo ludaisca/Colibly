@@ -14,7 +14,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { cn } from "@/app/components/ui/cn";
 import {
   formatMxn,
-  MAX_SEATS,
+  maxSeatsFor,
   MIN_SEATS,
   monthlyTotalMxn,
   PLAN_LIST,
@@ -27,7 +27,7 @@ import {
   TRIAL_MAX_SEATS,
   TRIAL_POOL_TEXT,
 } from "@/lib/billing/plans";
-import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures } from "@/lib/billing/plan-features";
+import { COEXISTENCE_PITCH, planFeatures, PRICING_FOOTNOTE } from "@/lib/billing/plan-features";
 import { planChangeImpact, type AccessMode } from "@/lib/billing/state";
 import { DataSection } from "./_datos";
 import { OrgStatusBadge } from "@/app/components/billing/org-status-badge";
@@ -50,6 +50,7 @@ export interface PlanViewData {
   seatsUsed: number;
   apiKeys: number;
   webhooks: number;
+  webchat: number;
   seatsPaid: number | null;
   usage: Array<{ key: string; label: string; hint: string | null; used: number; max: number | null }>;
 }
@@ -62,7 +63,7 @@ function statusLine(d: PlanViewData): string {
   if (d.isInternal) return "Cuenta interna: sin cobro ni límites.";
   if (d.status === "TRIALING") {
     if (d.access !== "full") return `Tu prueba terminó. Elige un plan para reactivar tu cuenta; sin plan, tus datos se eliminan ${RETENTION_DAYS_AFTER_TRIAL} días después de terminar la prueba.`;
-    return `Prueba gratis de ${TRIAL_DAYS} días con el plan Pro (hasta ${TRIAL_MAX_SEATS} ejecutivos, con ${TRIAL_POOL_TEXT}), hasta el ${formatDate(d.trialEndsAt)}.`;
+    return `Prueba gratis de ${TRIAL_DAYS} días con el plan Pro (hasta ${TRIAL_MAX_SEATS} ejecutivos, con ${TRIAL_POOL_TEXT}), hasta el ${formatDate(d.trialEndsAt)}. Si no eliges un plan, ese día tu cuenta pasa a solo lectura.`;
   }
   if (d.status === "ACTIVE") {
     if (d.cancelAtPeriodEnd) return `Cancelado: sigue activo hasta el ${formatDate(d.currentPeriodEnd)}.`;
@@ -104,6 +105,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
       telegram: data.usage.find((u) => u.key === "telegram")?.used ?? 0,
       messenger: data.usage.find((u) => u.key === "messenger")?.used ?? 0,
       instagram: data.usage.find((u) => u.key === "instagram")?.used ?? 0,
+      webchat: data.webchat,
       contacts: data.usage.find((u) => u.key === "contacts")?.used ?? 0,
       activeAutomations: data.usage.find((u) => u.key === "automations")?.used ?? 0,
       apiKeys: data.apiKeys,
@@ -112,8 +114,10 @@ export function PlanView({ data }: { data: PlanViewData }) {
     return planChangeImpact(selectedPlan, seats, usage);
   }, [data, selectedPlan, seats]);
 
+  // Tope del plan elegido (Esencial: 3 ejecutivos).
+  const planMaxSeats = maxSeatsFor(plan);
   function clampSeats(n: number) {
-    return Math.min(MAX_SEATS, Math.max(minSeats, n));
+    return Math.min(planMaxSeats, Math.max(minSeats, n));
   }
 
   async function submit(confirm: boolean) {
@@ -243,9 +247,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
         <section id="asientos" className="space-y-4 scroll-mt-24">
           <SectionHeader eyebrow="Planes" title={data.hasSubscription ? "Cambiar plan o asientos" : "Elige tu plan"} />
           <p className="text-sm text-muted">
-            Se cobra por ejecutivo: cada persona de tu equipo que puede atender conversaciones (incluido el dueño) ocupa un asiento. Contactos y créditos de IA se suman por asiento. {META_FEES_NOTE}
+            Se cobra por ejecutivo: cada persona de tu equipo que puede atender conversaciones (incluido el dueño) ocupa un asiento. Contactos y créditos de IA se suman por asiento. {PRICING_FOOTNOTE}
           </p>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             {PLAN_LIST.map((p) => {
               const current = data.plan === p.id && (data.hasSubscription || data.status === "TRIALING");
               const selected = selectedPlan === p.id;
@@ -263,7 +267,10 @@ export function PlanView({ data }: { data: PlanViewData }) {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-display text-lg font-semibold">{p.name}</p>
-                    {current && <Badge tone="accent" size="sm">{data.status === "TRIALING" ? "En prueba" : "Tu plan"}</Badge>}
+                    <span className="flex gap-1">
+                      {p.badge && <Badge tone="info" size="sm">{p.badge}</Badge>}
+                      {current && <Badge tone="accent" size="sm">{data.status === "TRIALING" ? "En prueba" : "Tu plan"}</Badge>}
+                    </span>
                   </div>
                   <p className="mt-1 text-sm text-muted">{p.tagline}</p>
                   <p className="mt-4">
@@ -295,13 +302,13 @@ export function PlanView({ data }: { data: PlanViewData }) {
                   <input
                     type="number"
                     min={minSeats}
-                    max={MAX_SEATS}
+                    max={planMaxSeats}
                     value={seats}
                     onChange={(e) => setSeats(clampSeats(Number(e.target.value) || minSeats))}
                     className="w-16 rounded-lg border border-border bg-background px-2 py-1.5 text-center text-sm tabular-nums"
                     aria-label="Número de asientos"
                   />
-                  <Button size="sm" variant="secondary" icon={Plus} disabled={!!busy || seats >= MAX_SEATS} onClick={() => setSeats((n) => clampSeats(n + 1))} aria-label="Agregar asiento" />
+                  <Button size="sm" variant="secondary" icon={Plus} disabled={!!busy || seats >= planMaxSeats} onClick={() => setSeats((n) => clampSeats(n + 1))} aria-label="Agregar asiento" />
                 </div>
               </div>
               <p className="text-sm">

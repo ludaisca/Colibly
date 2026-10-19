@@ -47,6 +47,7 @@ export async function buildOutputs() {
       features: f.filter((x) => x.included).map((x) => x.text),
       missing: f.filter((x) => !x.included).map((x) => x.text),
       featured: p.id === "PRO",
+      badge: p.badge ?? "",
     };
   });
   const pricesSentence = c.PLAN_LIST.map(c.priceSentence).join("; ");
@@ -65,6 +66,9 @@ export async function buildOutputs() {
     COLIBLY_TRIAL_POOL_TEXT: c.TRIAL_POOL_TEXT,
     COLIBLY_COEXISTENCE_PITCH: c.COEXISTENCE_PITCH,
     COLIBLY_META_FEES_NOTE: c.META_FEES_NOTE,
+    // TODO(IVA): neutral hasta que el contador confirme (ver PRICE_CURRENCY_NOTE).
+    COLIBLY_PRICE_CURRENCY_NOTE: c.PRICE_CURRENCY_NOTE,
+    COLIBLY_PRICING_FOOTNOTE: c.PRICING_FOOTNOTE,
   };
   const phpOut =
     "<?php\n" +
@@ -79,10 +83,10 @@ export async function buildOutputs() {
     LLMS_START,
     "## Planes y precios",
     `- Se cobra por ejecutivo (cada usuario que atiende conversaciones, incluido el dueño), cada mes, en pesos mexicanos: ${pricesSentence}${c.PRICE_TAX_NOTE ? ` (${c.PRICE_TAX_NOTE})` : ""}. Sin plan anual.`,
-    `- ${c.COEXISTENCE_PITCH} Telegram, Messenger e Instagram (por habilitación): 1 cuenta de cada uno por ejecutivo.`,
+    `- ${c.COEXISTENCE_PITCH} En Negocio y Pro, Telegram, Messenger e Instagram (por habilitación): 1 cuenta de cada uno por ejecutivo; Esencial es solo WhatsApp.`,
     ...plans.map((p) => `- ${p.name}: ${p.features.join("; ")}${p.missing.length ? `. No incluye: ${p.missing.join(", ")}` : ""}.`),
     `- Prueba: ${c.TRIAL_DAYS} días gratis, sin tarjeta, con el plan ${pro.name} para hasta ${c.TRIAL_MAX_SEATS} ejecutivos y ${c.TRIAL_POOL_TEXT}.`,
-    `- ${c.META_FEES_NOTE}`,
+    `- ${c.PRICE_CURRENCY_NOTE} ${c.META_FEES_NOTE}`,
     LLMS_END,
   ].join("\n");
   return { php: phpOut, llmsBlock };

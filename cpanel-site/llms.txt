@@ -10,18 +10,19 @@ Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colib
 - Seguimiento: cada cliente queda con su conversación asignada para retomar oportunidades.
 
 ## Prueba gratis y registro abierto
-- Cualquier negocio puede crear su cuenta en https://app.colibly.com/register; 30 días sin costo, sin tarjeta y sin cobro automático.
+- Cualquier negocio puede crear su cuenta en https://app.colibly.com/register; 14 días sin costo, sin tarjeta y sin cobro automático.
 - La prueba incluye el plan Pro para hasta 3 ejecutivos, con 5,000 contactos y 1,000 créditos de IA al mes para todo el equipo (no se multiplican por ejecutivo).
-- Los 30 días empiezan al crear la cuenta.
+- Los 14 días empiezan al crear la cuenta. Al terminar, si no se elige un plan, la cuenta pasa a solo lectura ese mismo día (sin días de gracia).
 
 <!-- precios: generado por scripts/gen-cpanel-pricing.mjs, no editar a mano -->
 ## Planes y precios
-- Se cobra por ejecutivo (cada usuario que atiende conversaciones, incluido el dueño), cada mes, en pesos mexicanos: Básico: $149 MXN por ejecutivo al mes; Pro: $299 MXN por ejecutivo al mes. Sin plan anual.
-- Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia). Telegram, Messenger e Instagram (por habilitación): 1 cuenta de cada uno por ejecutivo.
-- Básico: 1 número de WhatsApp por ejecutivo, con Coexistencia; 1,000 contactos por ejecutivo; 300 créditos de IA al mes por ejecutivo; 5 automatizaciones activas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación. No incluye: Integración con tus sistemas vía API o webhooks.
+- Se cobra por ejecutivo (cada usuario que atiende conversaciones, incluido el dueño), cada mes, en pesos mexicanos: Esencial: $99 MXN por ejecutivo al mes; Negocio: $199 MXN por ejecutivo al mes; Pro: $349 MXN por ejecutivo al mes. Sin plan anual.
+- Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia). En Negocio y Pro, Telegram, Messenger e Instagram (por habilitación): 1 cuenta de cada uno por ejecutivo; Esencial es solo WhatsApp.
+- Esencial: 1 número de WhatsApp por ejecutivo, con Coexistencia; 500 contactos por ejecutivo; 1 automatización activa; Hasta 3 ejecutivos. No incluye: Bots y asistentes de IA, Telegram, Messenger e Instagram, Chat web, Integración con tus sistemas vía API o webhooks.
+- Negocio: 1 número de WhatsApp por ejecutivo, con Coexistencia; 2,000 contactos por ejecutivo; 300 créditos de IA al mes por ejecutivo; 5 automatizaciones activas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación. No incluye: Integración con tus sistemas vía API o webhooks.
 - Pro: 1 número de WhatsApp por ejecutivo, con Coexistencia; 5,000 contactos por ejecutivo; 1,000 créditos de IA al mes por ejecutivo; Automatizaciones ilimitadas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación; Integración con tus sistemas vía API o webhooks.
-- Prueba: 30 días gratis, sin tarjeta, con el plan Pro para hasta 3 ejecutivos y 5,000 contactos y 1,000 créditos de IA al mes para todo el equipo.
-- Meta cobra aparte algunos mensajes de WhatsApp según su categoría y destino; ese cargo lo paga el cliente directamente a Meta y no forma parte de la suscripción.
+- Prueba: 14 días gratis, sin tarjeta, con el plan Pro para hasta 3 ejecutivos y 5,000 contactos y 1,000 créditos de IA al mes para todo el equipo.
+- Precios en MXN. Meta cobra aparte algunos mensajes de WhatsApp según su categoría y destino; ese cargo lo paga el cliente directamente a Meta y no forma parte de la suscripción.
 <!-- /precios -->
 
 ## Páginas

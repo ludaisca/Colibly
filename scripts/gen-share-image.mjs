@@ -22,7 +22,7 @@ h1{font-size:76px;line-height:1.05;letter-spacing:-.03em;margin-top:26px;max-wid
 .row{display:flex;gap:16px;font-size:30px}.b{border-radius:16px;padding:14px 26px;font-weight:700}.b1{background:${C.accent};color:#fff}.b2{background:#fff;border:2px solid ${C.border};color:${C.ink};font-weight:500}
 </style><div class="brand">${MARK}Colibly</div>
 <div><span class="pill"><span class="dot"></span>Registro abierto</span><h1>Cada chat puede ser <em>una oportunidad.</em></h1></div>
-<div class="row"><span class="b b1">30 días gratis</span><span class="b b2">Sin tarjeta · Cancela cuando quieras</span></div>`;
+<div class="row"><span class="b b1">14 días gratis</span><span class="b b2">Sin tarjeta · Cancela cuando quieras</span></div>`;
 
 const apple = `<!doctype html><meta charset="utf-8"><body style="margin:0;width:180px;height:180px;background:${C.accent};display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 32 32" width="180" height="180"><path d="M21.1 11.2 A7 7 0 1 0 21.1 20.8" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/></svg>`;
 

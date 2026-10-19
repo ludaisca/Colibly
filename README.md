@@ -12,7 +12,7 @@ CRM conversacional multi-tenant y de pago (SaaS) para negocios que venden por me
 - **Campañas y plantillas** de WhatsApp (Meta), con segmentación por etiqueta, variables por destinatario y métricas.
 - **CRM**: contactos con campos personalizados, pipeline Kanban, citas con recordatorios, calificadores de leads por IA, recuperación de leads en visto, feedback a Meta Ads (Conversions API).
 - **Integraciones**: API pública v1 con API keys, webhooks salientes firmados, Google Sheets.
-- **SaaS**: organizaciones aisladas entre sí, planes Básico y Pro con límites, cobro con Stripe, prueba de 30 días, exportar y eliminar datos, purga automática de cuentas canceladas o sin pago, panel del operador (`/plataforma`).
+- **SaaS**: organizaciones aisladas entre sí, planes Esencial, Negocio y Pro con límites, cobro con Stripe, prueba de 14 días, exportar y eliminar datos, purga automática de cuentas canceladas o sin pago, panel del operador (`/plataforma`).
 - **Roles**: `admin`, `user` y `ejecutivo`, aplicados en la navegación, en `proxy.ts` y en cada endpoint.
 
 ## Stack

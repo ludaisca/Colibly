@@ -14,13 +14,28 @@ export function planFeatures(plan: Plan): Array<{ text: string; included: boolea
   const s = plan.perSeat;
   const o = plan.perOrg;
   const n = (v: number) => v.toLocaleString("es-MX");
+  const otherChannels = s.channelsPerType > 0;
   return [
     { text: `${s.whatsappNumbers} número de WhatsApp por ejecutivo, con Coexistencia`, included: true },
     { text: `${n(s.contacts)} contactos por ejecutivo`, included: true },
-    { text: `${n(s.aiCreditsPerMonth)} créditos de IA al mes por ejecutivo`, included: true },
-    { text: Number.isFinite(o.activeAutomations) ? `${o.activeAutomations} automatizaciones activas` : "Automatizaciones ilimitadas", included: true },
-    { text: `${s.channelsPerType} cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación`, included: true },
-    { text: "Chat web disponible por habilitación", included: true },
+    o.aiAccess
+      ? { text: `${n(s.aiCreditsPerMonth)} créditos de IA al mes por ejecutivo`, included: true }
+      : { text: "Bots y asistentes de IA", included: false },
+    {
+      text: Number.isFinite(o.activeAutomations)
+        ? `${o.activeAutomations} ${o.activeAutomations === 1 ? "automatización activa" : "automatizaciones activas"}`
+        : "Automatizaciones ilimitadas",
+      included: true,
+    },
+    otherChannels
+      ? { text: `${s.channelsPerType} cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación`, included: true }
+      : { text: "Telegram, Messenger e Instagram", included: false },
+    o.webchat ? { text: "Chat web disponible por habilitación", included: true } : { text: "Chat web", included: false },
     { text: "Integración con tus sistemas vía API o webhooks", included: o.apiAccess },
+    ...(o.maxSeats < 100 ? [{ text: `Hasta ${o.maxSeats} ejecutivos`, included: true }] : []),
   ];
 }
+
+// Nota pública junto a los precios: moneda (sin afirmar nada de IVA, ver
+// PRICE_CURRENCY_NOTE en plans.ts) y cargos de Meta aparte.
+export const PRICING_FOOTNOTE = "Precios en MXN, por ejecutivo al mes. Los cargos de Meta por mensajes de WhatsApp se pagan aparte, directamente a Meta.";

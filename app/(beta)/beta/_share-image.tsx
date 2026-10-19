@@ -1,9 +1,10 @@
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { ImageResponse } from "next/og";
 import { BRAND_NAME } from "@/lib/brand";
 import { BRAND_COLORS as C } from "@/lib/brand-colors";
 import { BRAND_MARK_BG, BRAND_MARK_FG, BRAND_MARK_PATH } from "@/lib/brand-mark";
 
-export const alt = "Colibly: vende por WhatsApp sin perder conversaciones. 30 días sin costo.";
+export const alt = `Colibly: vende por WhatsApp sin perder conversaciones. ${TRIAL_DAYS} días sin costo.`;
 export const size = { width: 1200, height: 630 };
 
 export function betaShareImage() {
@@ -18,7 +19,7 @@ export function betaShareImage() {
         <span style={{ maxWidth: 1020, fontSize: 65, fontWeight: 700, lineHeight: 1.08 }}>Vende por WhatsApp sin perder conversaciones.</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-        <span style={{ borderRadius: 14, padding: "12px 22px", background: C.accent, color: C.onAccent, fontSize: 27, fontWeight: 700 }}>30 días sin costo</span>
+        <span style={{ borderRadius: 14, padding: "12px 22px", background: C.accent, color: C.onAccent, fontSize: 27, fontWeight: 700 }}>{TRIAL_DAYS} días sin costo</span>
         <span style={{ fontSize: 25 }}>Sin tarjeta · Cancela cuando quieras</span>
       </div>
     </div>,

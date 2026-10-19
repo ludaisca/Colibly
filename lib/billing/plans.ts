@@ -20,6 +20,10 @@ import type { PlanId } from "@prisma/client";
 
 export const PRICE_CURRENCY = "MXN" as const;
 export const PRICE_UNIT = "MXN por ejecutivo al mes";
+// TODO(IVA): pendiente de confirmar con el contador si los precios incluyen IVA
+// o son "más IVA". Mientras tanto, la copia pública solo dice "Precios en MXN"
+// (PRICE_CURRENCY_NOTE), neutral sobre impuestos.
+export const PRICE_CURRENCY_NOTE = "Precios en MXN.";
 // Leyenda fiscal junto a cada precio público. null = no se muestra ninguna:
 // hoy no se factura, así que la copia NO dice "incluye IVA" ni "verás el precio
 // final con impuestos". Si eso cambia, se escribe aquí (p. ej. "más IVA") y
@@ -42,6 +46,13 @@ export interface PerOrgAllowances {
   // Automatizaciones ACTIVAS a la vez (Infinity = sin límite).
   activeAutomations: number;
   apiAccess: boolean;
+  // Bots IA, calificadores de leads, recuperación y sugerencias. Sin IA los
+  // créditos son 0 (también los de bono) y las pantallas muestran "mejora tu plan".
+  aiAccess: boolean;
+  // Chat web (widget). Además de esto sigue detrás del flag de /plataforma.
+  webchat: boolean;
+  // Tope de ejecutivos (asientos) que admite el plan.
+  maxSeats: number;
 }
 
 export interface Plan {
@@ -49,30 +60,45 @@ export interface Plan {
   name: string;
   pricePerSeatMxn: number;
   tagline: string;
+  // Etiqueta destacada en las tarjetas de precios (p. ej. "Más popular").
+  badge: string | null;
   perSeat: PerSeatAllowances;
   perOrg: PerOrgAllowances;
 }
 
+// Tres planes (decisión del dueño, 2026-10-19). Ids internos: ESSENTIAL,
+// BUSINESS (antes BASIC "Básico") y PRO.
 export const PLANS: Record<PlanId, Plan> = {
-  BASIC: {
-    id: "BASIC",
-    name: "Básico",
-    pricePerSeatMxn: 149,
-    tagline: "Para equipos que empiezan a vender por WhatsApp",
-    perSeat: { whatsappNumbers: 1, channelsPerType: 1, contacts: 1000, aiCreditsPerMonth: 300 },
-    perOrg: { activeAutomations: 5, apiAccess: false },
+  ESSENTIAL: {
+    id: "ESSENTIAL",
+    name: "Esencial",
+    pricePerSeatMxn: 99,
+    tagline: "Para equipos pequeños que atienden por WhatsApp",
+    badge: null,
+    perSeat: { whatsappNumbers: 1, channelsPerType: 0, contacts: 500, aiCreditsPerMonth: 0 },
+    perOrg: { activeAutomations: 1, apiAccess: false, aiAccess: false, webchat: false, maxSeats: 3 },
+  },
+  BUSINESS: {
+    id: "BUSINESS",
+    name: "Negocio",
+    pricePerSeatMxn: 199,
+    tagline: "Para equipos que venden en todos sus canales con IA",
+    badge: null,
+    perSeat: { whatsappNumbers: 1, channelsPerType: 1, contacts: 2000, aiCreditsPerMonth: 300 },
+    perOrg: { activeAutomations: 5, apiAccess: false, aiAccess: true, webchat: true, maxSeats: 100 },
   },
   PRO: {
     id: "PRO",
     name: "Pro",
-    pricePerSeatMxn: 299,
+    pricePerSeatMxn: 349,
     tagline: "Para equipos que automatizan e integran",
+    badge: "Más popular",
     perSeat: { whatsappNumbers: 1, channelsPerType: 1, contacts: 5000, aiCreditsPerMonth: 1000 },
-    perOrg: { activeAutomations: Infinity, apiAccess: true },
+    perOrg: { activeAutomations: Infinity, apiAccess: true, aiAccess: true, webchat: true, maxSeats: 100 },
   },
 };
 
-export const PLAN_LIST: Plan[] = [PLANS.BASIC, PLANS.PRO];
+export const PLAN_LIST: Plan[] = [PLANS.ESSENTIAL, PLANS.BUSINESS, PLANS.PRO];
 
 // Canales que se limitan por ejecutivo, además de WhatsApp (el widget web no).
 export const SEAT_CHANNELS = ["telegram", "messenger", "instagram"] as const;
@@ -91,12 +117,14 @@ export interface PlanLimits {
   aiCreditsPerMonth: number;
   activeAutomations: number;
   apiAccess: boolean;
+  aiAccess: boolean;
+  webchat: boolean;
 }
 
 // `trial`: la bolsa de contactos y créditos es la plana de TRIAL_POOL (no
 // se multiplica por asientos); números y canales siguen siendo por asiento.
 export function limitsForSeats(plan: Plan, seats: number, opts: { trial?: boolean } = {}): PlanLimits {
-  const n = Math.max(MIN_SEATS, Math.floor(seats));
+  const n = Math.min(plan.perOrg.maxSeats, Math.max(MIN_SEATS, Math.floor(seats)));
   const perType = plan.perSeat.channelsPerType * n;
   return {
     seats: n,
@@ -108,6 +136,8 @@ export function limitsForSeats(plan: Plan, seats: number, opts: { trial?: boolea
     aiCreditsPerMonth: opts.trial ? TRIAL_POOL.aiCreditsPerMonth : plan.perSeat.aiCreditsPerMonth * n,
     activeAutomations: plan.perOrg.activeAutomations,
     apiAccess: plan.perOrg.apiAccess,
+    aiAccess: plan.perOrg.aiAccess,
+    webchat: plan.perOrg.webchat,
   };
 }
 
@@ -120,7 +150,7 @@ export function formatMxn(amount: number): string {
   return `$${amount.toLocaleString("es-MX")}`;
 }
 
-// "Básico: $149 MXN por ejecutivo al mes" (+ la leyenda fiscal si existe).
+// "Negocio: $199 MXN por ejecutivo al mes" (+ la leyenda fiscal si existe).
 export function priceSentence(plan: Plan): string {
   return `${plan.name}: ${formatMxn(plan.pricePerSeatMxn)} ${PRICE_UNIT}${PRICE_TAX_NOTE ? ` (${PRICE_TAX_NOTE})` : ""}`;
 }
@@ -130,17 +160,23 @@ export const MIN_SEATS = 1;
 // esto, por contacto).
 export const MAX_SEATS = 100;
 
+/** Tope de ejecutivos del plan (Esencial: 3; los demás, MAX_SEATS). */
+export function maxSeatsFor(plan: Plan): number {
+  return Math.min(MAX_SEATS, plan.perOrg.maxSeats);
+}
+
 // Prueba gratis sin tarjeta, con el plan Pro completo y hasta TRIAL_MAX_SEATS
 // ejecutivos (números de WhatsApp y canales se calculan con ese número).
 // Contactos y créditos de IA NO se multiplican en la prueba: TRIAL_POOL es la
 // bolsa plana de toda la organización (decisión del dueño, 2026-10-19).
-export const TRIAL_DAYS = 30;
+export const TRIAL_DAYS = 14;
 export const TRIAL_PLAN: PlanId = "PRO";
 export const TRIAL_MAX_SEATS = 3;
 export const TRIAL_POOL = { contacts: 5000, aiCreditsPerMonth: 1000 } as const;
 // "5,000 contactos y 1,000 créditos de IA al mes para todo el equipo" — para la copia.
 export const TRIAL_POOL_TEXT = `${TRIAL_POOL.contacts.toLocaleString("es-MX")} contactos y ${TRIAL_POOL.aiCreditsPerMonth.toLocaleString("es-MX")} créditos de IA al mes para todo el equipo`;
-// Pago fallido: días de gracia antes de pasar a solo lectura.
+// Pago fallido: días de gracia antes de pasar a solo lectura. Solo para quien
+// ya pagó (PAST_DUE); una prueba vencida pasa a solo lectura el día que vence.
 export const GRACE_DAYS = 7;
 // Organización cancelada: días antes de purgar sus datos.
 export const RETENTION_DAYS_AFTER_CANCEL = 60;

@@ -1,5 +1,5 @@
 import nodemailer, { type Transporter } from "nodemailer";
-import { BRAND_NAME, BRAND_DOMAIN } from "@/lib/brand";
+import { BRAND_CONTACT_EMAIL, BRAND_NAME, BRAND_NOREPLY_EMAIL } from "@/lib/brand";
 import { getPlatformSettings } from "@/lib/platform-settings";
 
 // Envío de correo transaccional por SMTP (Resend, Brevo, SES… todos lo
@@ -68,7 +68,8 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
     console.info(`[email] (sin SMTP) Para: ${message.to} · ${message.subject}\n${message.text}`);
     return;
   }
-  await t.transporter.sendMail({ from: t.from || `${BRAND_NAME} <no-reply@${BRAND_DOMAIN}>`, ...message });
+  // Remitente noreply@; las respuestas llegan a contacto@ salvo que el correo diga otra cosa.
+  await t.transporter.sendMail({ from: t.from || `${BRAND_NAME} <${BRAND_NOREPLY_EMAIL}>`, ...message, replyTo: message.replyTo || BRAND_CONTACT_EMAIL });
 }
 
 // Envío en segundo plano (dentro de after() de Next): un fallo del SMTP se

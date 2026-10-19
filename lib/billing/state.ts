@@ -53,6 +53,8 @@ const UNLIMITED: PlanLimits = {
   aiCreditsPerMonth: Infinity,
   activeAutomations: Infinity,
   apiAccess: true,
+  aiAccess: true,
+  webchat: true,
 };
 
 export type SeatSnapshot = Pick<BillingSnapshot, "plan" | "isInternal" | "status" | "seatQuantity">;
@@ -65,7 +67,8 @@ export type SeatSnapshot = Pick<BillingSnapshot, "plan" | "isInternal" | "status
 export function seatCap(org: SeatSnapshot): number {
   if (org.isInternal) return Infinity;
   if (org.status === "TRIALING") return TRIAL_MAX_SEATS;
-  return Math.max(MIN_SEATS, org.seatQuantity || MIN_SEATS);
+  // Nunca más que el tope del plan (Esencial: 3), aunque Stripe diga otra cosa.
+  return Math.min(PLANS[org.plan].perOrg.maxSeats, Math.max(MIN_SEATS, org.seatQuantity || MIN_SEATS));
 }
 
 // Números de WhatsApp y cuentas de Telegram/Messenger/Instagram: 1 por
@@ -100,6 +103,9 @@ export function daysUntil(date: Date, now: Date): number {
 }
 
 export const TRIAL_ENDING_NOTICE_DAYS = 3;
+// Recordatorios por correo/notificación de la prueba (14 días): a 7, 3 y 1 día
+// de terminar. El banner se pone en amarillo desde TRIAL_ENDING_NOTICE_DAYS.
+export const TRIAL_REMINDER_DAYS: readonly number[] = [7, 3, 1];
 
 // El aviso superior que corresponde (o null si no hay nada que decir).
 export function billingNotice(org: BillingSnapshot, now: Date): BillingNotice | null {
@@ -162,7 +168,10 @@ export function purgeDue(org: PurgeSnapshot, now: Date): boolean {
 // Tope de créditos del periodo: el del plan más el bono que dio la plataforma
 // (se reinicia con el periodo, igual que el consumo).
 export function aiCreditLimit(org: SeatSnapshot & { aiCreditsBonus: number }): number {
-  return planLimits(org).aiCreditsPerMonth + Math.max(0, org.aiCreditsBonus);
+  const limits = planLimits(org);
+  // Plan sin IA (Esencial): ni el bono la habilita.
+  if (!limits.aiAccess) return 0;
+  return limits.aiCreditsPerMonth + Math.max(0, org.aiCreditsBonus);
 }
 
 export const MAX_TRIAL_EXTENSION_DAYS = 90;
@@ -275,6 +284,7 @@ export interface SeatUsage {
   telegram: number;
   messenger: number;
   instagram: number;
+  webchat: number; // cuentas de chat web
   contacts: number;
   activeAutomations: number;
   apiKeys: number; // claves de API activas
@@ -297,16 +307,23 @@ const fmt = (n: number) => n.toLocaleString("es-MX");
 //  - no se puede tener más números de WhatsApp que asientos (1 por ejecutivo),
 //    ni más cuentas de Telegram, Messenger o Instagram (1 de cada tipo por
 //    ejecutivo);
-//  - Básico permite 5 automatizaciones activas: hay que pausar las de sobra;
-//  - avisos (no bloquean): la API y los webhooks dejan de funcionar en Básico,
-//    los contactos por encima del nuevo tope se conservan pero no se agregan
-//    nuevos y los créditos de IA del periodo bajan.
+//  - no más ejecutivos que el tope del plan (Esencial: 3);
+//  - Esencial no incluye Telegram, Messenger, Instagram ni chat web: hay que
+//    desconectarlos antes;
+//  - Esencial permite 1 automatización activa y Negocio 5: hay que pausar las de sobra;
+//  - avisos (no bloquean): la API y los webhooks dejan de funcionar fuera de Pro,
+//    la IA deja de funcionar en Esencial, los contactos por encima del nuevo
+//    tope se conservan pero no se agregan nuevos.
 export function planChangeImpact(targetPlan: PlanId, targetSeats: number, usage: SeatUsage): PlanChangeImpact {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const plan = PLANS[targetPlan];
   if (!Number.isInteger(targetSeats) || targetSeats < MIN_SEATS) {
     blockers.push(`Necesitas al menos ${MIN_SEATS} ejecutivo.`);
+    return { blockers, warnings };
+  }
+  if (targetSeats > plan.perOrg.maxSeats) {
+    blockers.push(`${plan.name} admite hasta ${fmt(plan.perOrg.maxSeats)} ejecutivos. Elige ${fmt(plan.perOrg.maxSeats)} o menos, o un plan mayor.`);
     return { blockers, warnings };
   }
   const l = limitsForSeats(plan, targetSeats);
@@ -321,11 +338,23 @@ export function planChangeImpact(targetPlan: PlanId, targetSeats: number, usage:
   for (const ch of SEAT_CHANNELS) {
     if (usage[ch] > l[ch]) {
       const label = SEAT_CHANNEL_LABELS[ch];
+      if (l[ch] === 0) {
+        blockers.push(`${plan.name} no incluye ${label}: desconecta tus ${fmt(usage[ch])} ${usage[ch] === 1 ? "cuenta" : "cuentas"} de ${label} antes de cambiar.`);
+        continue;
+      }
       blockers.push(`Tienes ${fmt(usage[ch])} cuentas de ${label} y cada ejecutivo conecta 1. Desconecta cuentas de ${label} hasta quedar en ${fmt(l[ch])}.`);
     }
   }
+  if (!l.webchat && usage.webchat > 0) {
+    blockers.push(`${plan.name} no incluye el chat web: elimina tus ${fmt(usage.webchat)} ${usage.webchat === 1 ? "cuenta" : "cuentas"} de chat web antes de cambiar.`);
+  }
   if (Number.isFinite(l.activeAutomations) && usage.activeAutomations > l.activeAutomations) {
-    blockers.push(`${plan.name} permite ${l.activeAutomations} automatizaciones activas y tienes ${fmt(usage.activeAutomations)}. Pausa las que sobran antes de cambiar.`);
+    blockers.push(
+      `${plan.name} permite ${l.activeAutomations} ${l.activeAutomations === 1 ? "automatización activa" : "automatizaciones activas"} y tienes ${fmt(usage.activeAutomations)}. Pausa las que sobran antes de cambiar.`
+    );
+  }
+  if (!l.aiAccess) {
+    warnings.push(`${plan.name} no incluye IA: tus bots de IA, calificadores de leads, sugerencias y recuperación de leads dejarán de funcionar (su configuración se conserva).`);
   }
   if (!l.apiAccess && (usage.apiKeys > 0 || usage.webhooks > 0)) {
     warnings.push(`La API y los webhooks son del plan Pro: tus ${fmt(usage.apiKeys)} claves de API y ${fmt(usage.webhooks)} webhooks dejarán de funcionar.`);

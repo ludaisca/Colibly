@@ -51,6 +51,7 @@ export default async function PlanPage() {
     seatsUsed: usage.seats,
     apiKeys: usage.apiKeys,
     webhooks: usage.webhooks,
+    webchat: usage.webchat,
     seatsPaid: Number.isFinite(paidSeats) ? paidSeats : null,
     usage: [
       { key: "seats", label: "Ejecutivos (asientos)", hint: "Usuarios activos e invitaciones pendientes; dueño y admins cuentan", used: usage.seats, max: finite(limits.seats) },
@@ -67,7 +68,7 @@ export default async function PlanPage() {
       {
         key: "ai",
         label: "Créditos de IA este mes",
-        hint: `1 crédito = 1 respuesta o análisis de IA. ${trialing ? poolHint("ejecutivos") : poolHint("créditos")}${
+        hint: !limits.aiAccess ? "Tu plan no incluye IA: cambia a Negocio o Pro para usar bots y calificadores" : `1 crédito = 1 respuesta o análisis de IA. ${trialing ? poolHint("ejecutivos") : poolHint("créditos")}${
           org.aiCreditsBonus > 0 ? `, más ${org.aiCreditsBonus.toLocaleString("es-MX")} créditos extra de este periodo` : ""
         }`,
         used: org.aiCreditsUsed,

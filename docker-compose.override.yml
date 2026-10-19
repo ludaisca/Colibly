@@ -19,7 +19,7 @@ services:
       # (http://localhost:18025), nunca en bandejas reales.
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
-      EMAIL_FROM: "Colibly <no-reply@colibly.com>"
+      EMAIL_FROM: "Colibly <noreply@colibly.com>"
     command: >
       sh -c "npx prisma generate && sh scripts/db-migrate.sh && mkdir -p /app/media && npm run dev"
 

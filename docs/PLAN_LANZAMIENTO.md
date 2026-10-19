@@ -146,7 +146,7 @@ Con llaves de modo prueba y `stripe listen --forward-to <url>/api/billing/webhoo
 - [ ] Eliminar la organización con suscripción activa (cancela en Stripe antes de borrar).
 - [ ] Reactivar desde `/plataforma` una organización suspendida que tiene suscripción.
 - [ ] Cuenta de Stripe México como persona física; ~~precios en USD~~ precios en **MXN por ejecutivo** (superado 2026-10-19, ver [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md)).
-- [ ] Asientos: alta con N ejecutivos, +1/−1 asiento con prorrateo, Pro → Básico, `customer.subscription.updated` sincroniza `seatQuantity`.
+- [ ] Asientos: alta con N ejecutivos, +1/−1 asiento con prorrateo, Pro → Negocio → Esencial, `customer.subscription.updated` sincroniza `seatQuantity`.
 
 ## Fuentes (Meta, consultadas el 2026-09-27)
 

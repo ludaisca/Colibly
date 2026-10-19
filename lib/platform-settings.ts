@@ -13,7 +13,8 @@ export interface PlatformSettings {
   googleApiKey: string | null;
   stripeSecretKey: string | null;
   stripeWebhookSecret: string | null;
-  stripePriceBasic: string | null;
+  stripePriceEssential: string | null;
+  stripePriceBusiness: string | null;
   stripePricePro: string | null;
   smtpHost: string | null;
   smtpPort: number;
@@ -54,7 +55,8 @@ async function loadSettings(): Promise<PlatformSettings> {
     googleApiKey: decryptOrNull(row?.googleApiKey),
     stripeSecretKey: decryptOrNull(row?.stripeSecretKey),
     stripeWebhookSecret: decryptOrNull(row?.stripeWebhookSecret),
-    stripePriceBasic: row?.stripePriceBasic ?? null,
+    stripePriceEssential: row?.stripePriceEssential ?? null,
+    stripePriceBusiness: row?.stripePriceBusiness ?? null,
     stripePricePro: row?.stripePricePro ?? null,
     smtpHost: row?.smtpHost ?? null,
     smtpPort: row?.smtpPort ?? 587,

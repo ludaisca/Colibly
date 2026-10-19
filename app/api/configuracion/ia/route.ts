@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { OrganizationStatus } from "@prisma/client";
+import type { OrganizationStatus, PlanId } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { orgAiSettingsUpdateSchema } from "@/lib/validations";
@@ -28,7 +28,7 @@ const SELECT = {
 } as const;
 
 type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
-  plan: "BASIC" | "PRO";
+  plan: PlanId;
   isInternal: boolean;
   status: OrganizationStatus;
   seatQuantity: number;

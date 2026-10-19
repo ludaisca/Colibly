@@ -11,13 +11,13 @@ import { notifyBillingTransition } from "./notify";
 // price ids) editable desde /plataforma — ver lib/platform-settings.ts.
 //
 // Cobro por asiento: cada plan es UN precio recurrente mensual en MXN por
-// unidad (149 / 299 MXN), y la suscripción lleva un solo item con
+// unidad (99 / 199 / 349 MXN: Esencial, Negocio, Pro), y la suscripción lleva un solo item con
 // quantity = asientos (ejecutivos). Cambiar asientos o plan actualiza ese item
 // con prorrateo (create_prorations, el default de Stripe).
 
 export async function isStripeConfigured(): Promise<boolean> {
   const s = await getPlatformSettings();
-  return !!(s.stripeSecretKey && s.stripePriceBasic && s.stripePricePro);
+  return !!(s.stripeSecretKey && s.stripePriceEssential && s.stripePriceBusiness && s.stripePricePro);
 }
 
 export async function getStripe(): Promise<Stripe> {
@@ -33,15 +33,16 @@ export async function getStripeWebhookSecret(): Promise<string | null> {
 }
 
 export async function priceIdFor(plan: PlanId): Promise<string> {
-  const { stripePriceBasic, stripePricePro } = await getPlatformSettings();
-  const id = plan === "BASIC" ? stripePriceBasic : stripePricePro;
+  const s = await getPlatformSettings();
+  const id = { ESSENTIAL: s.stripePriceEssential, BUSINESS: s.stripePriceBusiness, PRO: s.stripePricePro }[plan];
   if (!id) throw new Error(`Falta el precio de Stripe del plan ${plan} en /plataforma`);
   return id;
 }
 
 export async function planForPrice(priceId: string): Promise<PlanId | null> {
-  const { stripePriceBasic, stripePricePro } = await getPlatformSettings();
-  if (priceId === stripePriceBasic) return "BASIC";
+  const { stripePriceEssential, stripePriceBusiness, stripePricePro } = await getPlatformSettings();
+  if (priceId === stripePriceEssential) return "ESSENTIAL";
+  if (priceId === stripePriceBusiness) return "BUSINESS";
   if (priceId === stripePricePro) return "PRO";
   return null;
 }

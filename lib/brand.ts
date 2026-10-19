@@ -8,4 +8,7 @@ export const BRAND_TAGLINE = "El CRM de WhatsApp con IA para negocios que venden
 // Dominio público de la marca. La URL real de la app sale de APP_URL en
 // runtime (lib/app-url.ts); esto es para textos, correos y remitentes.
 export const BRAND_DOMAIN = "colibly.com";
+// Contacto y soporte (enlaces, textos y Reply-To de los correos).
 export const BRAND_CONTACT_EMAIL = `contacto@${BRAND_DOMAIN}`;
+// Remitente por defecto del correo transaccional (si /plataforma no define otro).
+export const BRAND_NOREPLY_EMAIL = `noreply@${BRAND_DOMAIN}`;

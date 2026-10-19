@@ -1,6 +1,6 @@
 import { checkContactAlerts, reconcileOverLimit } from "./contact-limits";
 import { prisma } from "@/lib/prisma";
-import { daysUntil, planLimits, purgeDue, tickTransition, TRIAL_ENDING_NOTICE_DAYS } from "./state";
+import { daysUntil, planLimits, purgeDue, tickTransition, TRIAL_REMINDER_DAYS } from "./state";
 import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "./plans";
 import { deleteOrganizationData } from "@/lib/org-data/delete";
 import { invalidateOrgBilling } from "./gates";
@@ -44,7 +44,7 @@ export async function processBillingTick(now = new Date()): Promise<void> {
       if (org.status === "TRIALING" && org.trialEndsAt) {
         const daysLeft = daysUntil(org.trialEndsAt, now);
         const key = `trial_ending:${daysLeft}`;
-        if (daysLeft <= TRIAL_ENDING_NOTICE_DAYS && org.lastBillingNotice !== key && (await claimNotice(org.id, org.lastBillingNotice, key))) {
+        if (TRIAL_REMINDER_DAYS.includes(daysLeft) && org.lastBillingNotice !== key && (await claimNotice(org.id, org.lastBillingNotice, key))) {
           await notifyOrgAdmins(org.id, trialEndingNotice(daysLeft));
         }
       }

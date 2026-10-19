@@ -29,10 +29,10 @@ describe("accessMode", () => {
 
 describe("planLimits", () => {
   it("usa el catálogo del plan", () => {
-    expect(planLimits({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 2 })).toMatchObject({ seats: 2, whatsapp: 2, telegram: 2, messenger: 2, instagram: 2, apiAccess: false });
+    expect(planLimits({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 2 })).toMatchObject({ seats: 2, whatsapp: 2, telegram: 2, messenger: 2, instagram: 2, apiAccess: false });
     expect(planLimits({ plan: "PRO", isInternal: false, status: "ACTIVE", seatQuantity: 1 }).activeAutomations).toBe(Infinity);
   });
-  it("interna: sin topes", () => expect(planLimits({ plan: "BASIC", isInternal: true, status: "ACTIVE", seatQuantity: 1 }).contacts).toBe(Infinity));
+  it("interna: sin topes", () => expect(planLimits({ plan: "BUSINESS", isInternal: true, status: "ACTIVE", seatQuantity: 1 }).contacts).toBe(Infinity));
 });
 
 describe("billingNotice", () => {
@@ -94,9 +94,9 @@ describe("purgeDue", () => {
 });
 
 describe("aiCreditLimit", () => {
-  it("plan más bono", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 200 })).toBe(500));
-  it("un bono negativo no resta", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: -50 })).toBe(300));
-  it("interna: sin límite", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: true, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 0 })).toBe(Infinity));
+  it("plan más bono", () => expect(aiCreditLimit({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 200 })).toBe(500));
+  it("un bono negativo no resta", () => expect(aiCreditLimit({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: -50 })).toBe(300));
+  it("interna: sin límite", () => expect(aiCreditLimit({ plan: "BUSINESS", isInternal: true, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 0 })).toBe(Infinity));
 });
 
 describe("extendTrial", () => {
@@ -138,13 +138,13 @@ describe("statusAfterSuspension", () => {
 });
 
 describe("deriveFromSubscription", () => {
-  const prices = (id: string) => (id === "price_basic" ? "BASIC" : id === "price_pro" ? "PRO" : null);
+  const prices = (id: string) => (id === "price_basic" ? "BUSINESS" : id === "price_pro" ? "PRO" : null);
   const base = { status: "TRIALING" as const, graceEndsAt: null, canceledAt: null };
   const sub = (status: string, over: Record<string, unknown> = {}) => ({ status, priceId: "price_basic", quantity: 1, currentPeriodEnd: 1790000000, cancelAtPeriodEnd: false, ...over });
 
   it("activa: ACTIVE, plan del precio, periodo y gracia limpia", () => {
     const u = deriveFromSubscription(sub("active"), { ...base, graceEndsAt: days(3) }, NOW, prices);
-    expect(u).toMatchObject({ status: "ACTIVE", plan: "BASIC", graceEndsAt: null, canceledAt: null });
+    expect(u).toMatchObject({ status: "ACTIVE", plan: "BUSINESS", graceEndsAt: null, canceledAt: null });
     expect(u.currentPeriodEnd?.getTime()).toBe(1790000000 * 1000);
   });
   it("pago fallido: PAST_DUE con 7 días de gracia", () => {
@@ -168,4 +168,16 @@ describe("deriveFromSubscription", () => {
     expect(deriveFromSubscription(sub("active"), { ...base, status: "SUSPENDED" }, NOW, prices).status).toBeUndefined());
   it("cancelación programada se refleja", () =>
     expect(deriveFromSubscription(sub("active", { cancelAtPeriodEnd: true }), base, NOW, prices).cancelAtPeriodEnd).toBe(true));
+});
+
+describe("prueba de 14 días", () => {
+  it("dura 14 días, avisa a 7, 3 y 1 días y la gracia solo es para impagos", async () => {
+    const { TRIAL_DAYS, GRACE_DAYS } = await import("../plans");
+    const { TRIAL_REMINDER_DAYS } = await import("../state");
+    expect(TRIAL_DAYS).toBe(14);
+    expect(GRACE_DAYS).toBe(7);
+    expect([...TRIAL_REMINDER_DAYS]).toEqual([7, 3, 1]);
+  });
+  it("al vencer pasa a solo lectura sin gracia aunque haya graceEndsAt", () =>
+    expect(accessMode(org({ trialEndsAt: days(-1), graceEndsAt: days(5) }), NOW)).toBe("read_only"));
 });

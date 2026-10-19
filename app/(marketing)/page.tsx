@@ -25,7 +25,7 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
 import { formatMxn, PLAN_LIST, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS, TRIAL_POOL_TEXT } from "@/lib/billing/plans";
-import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures } from "@/lib/billing/plan-features";
+import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures, PRICING_FOOTNOTE } from "@/lib/billing/plan-features";
 import { HeroDemo } from "./_hero-demo";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { siteUrl } from "@/lib/app-url";
@@ -122,7 +122,7 @@ const TRUST = [
 const FAQ = [
   {
     q: "¿Necesito tarjeta para la prueba?",
-    a: `No. Tienes ${TRIAL_DAYS} días con todo el plan Pro para hasta ${TRIAL_MAX_SEATS} ejecutivos, con ${TRIAL_POOL_TEXT}, sin tarjeta. Al terminar eliges un plan; si no lo haces, tu cuenta queda en solo lectura y tus datos se conservan.`,
+    a: `No. Tienes ${TRIAL_DAYS} días con todo el plan Pro para hasta ${TRIAL_MAX_SEATS} ejecutivos, con ${TRIAL_POOL_TEXT}, sin tarjeta. Al terminar eliges un plan; si no lo haces, ese mismo día tu cuenta queda en solo lectura y tus datos se conservan.`,
   },
   {
     q: "¿Cómo conecto mi WhatsApp?",
@@ -134,7 +134,7 @@ const FAQ = [
   },
   {
     q: "¿Cómo se cobra?",
-    a: `Por ejecutivo: cada persona de tu equipo que atiende conversaciones (incluido quien crea la cuenta) ocupa un asiento, con un precio mensual en pesos. Cada ejecutivo conecta su propio número de WhatsApp y lo sigue usando en su celular (Coexistencia); Telegram, Messenger e Instagram, 1 cuenta de cada uno por ejecutivo. Contactos y créditos de IA se suman por ejecutivo. ${META_FEES_NOTE}`,
+    a: `Por ejecutivo: cada persona de tu equipo que atiende conversaciones (incluido quien crea la cuenta) ocupa un asiento, con un precio mensual en pesos. Cada ejecutivo conecta su propio número de WhatsApp y lo sigue usando en su celular (Coexistencia); en Negocio y Pro, también Telegram, Messenger e Instagram, 1 cuenta de cada uno por ejecutivo (Esencial es solo WhatsApp, hasta 3 ejecutivos). Contactos y créditos de IA se suman por ejecutivo. ${PRICING_FOOTNOTE} ${META_FEES_NOTE}`,
   },
   {
     q: "¿Qué es un crédito de IA?",
@@ -208,7 +208,7 @@ export default function LandingPage() {
             </p>
             <p className="mt-6 inline-flex flex-wrap items-baseline gap-x-2 rounded-xl border border-accent-muted bg-accent-subtle px-4 py-2">
               <span className="font-display text-xl font-semibold tabular-nums">Desde {formatMxn(MIN_PRICE)} {PRICE_UNIT}</span>
-              <span className="text-sm text-muted">con la IA incluida</span>
+              <span className="text-sm text-muted">· IA incluida desde Negocio</span>
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button href="/register" size="lg" data-track="cta" data-track-location="hero">{CTA}</Button>
@@ -330,9 +330,9 @@ export default function LandingPage() {
           <p className="text-center text-eyebrow font-medium uppercase tracking-wider text-muted">Precios</p>
           <h2 className="reveal mt-2 text-center font-display text-3xl font-semibold tracking-tight">Un precio por ejecutivo, en pesos</h2>
           <p className="mt-3 text-center text-muted">
-            {COEXISTENCE_PITCH} La IA ya viene incluida. Empieza con {TRIAL_DAYS} días gratis del plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos, sin tarjeta.
+            {COEXISTENCE_PITCH} La IA viene incluida en Negocio y Pro. Empieza con {TRIAL_DAYS} días gratis del plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos, sin tarjeta.
           </p>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
             {PLAN_LIST.map((plan) => {
               const featured = plan.id === "PRO";
               return (
@@ -345,7 +345,7 @@ export default function LandingPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="font-display text-xl font-semibold">{plan.name}</h3>
-                    {featured && <Badge tone="accent" size="sm">Recomendado</Badge>}
+                    {plan.badge && <Badge tone="accent" size="sm">{plan.badge}</Badge>}
                   </div>
                   <p className="mt-1 text-sm text-muted">{plan.tagline}</p>
                   <p className="mt-5">
@@ -372,7 +372,7 @@ export default function LandingPage() {
               );
             })}
           </div>
-          <p className="mt-6 text-center text-sm text-muted">{META_FEES_NOTE}</p>
+          <p className="mt-6 text-center text-sm text-muted">{PRICING_FOOTNOTE} {META_FEES_NOTE}</p>
         </div>
       </section>
 

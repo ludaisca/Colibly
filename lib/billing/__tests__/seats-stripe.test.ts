@@ -30,7 +30,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/platform-settings", () => ({
-  getPlatformSettings: vi.fn(async () => ({ stripeSecretKey: "sk_test", stripePriceBasic: "price_basic", stripePricePro: "price_pro", stripeWebhookSecret: "whsec" })),
+  getPlatformSettings: vi.fn(async () => ({ stripeSecretKey: "sk_test", stripePriceBusiness: "price_basic", stripePricePro: "price_pro", stripeWebhookSecret: "whsec" })),
 }));
 vi.mock("../notify", () => ({ notifyBillingTransition: vi.fn() }));
 vi.mock("stripe", () => ({

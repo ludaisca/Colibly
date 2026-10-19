@@ -1755,8 +1755,10 @@ model AutomationAiUsage {
 // entidades de primer nivel llevan organizationId; chats, contactos, mensajes y
 // etiquetas la heredan de su cuenta). Plan, estado de suscripción y créditos de
 // IA viven aquí — ver lib/billing y lib/tenancy.ts.
+// ESSENTIAL "Esencial", BUSINESS "Negocio" (antes BASIC "Básico"), PRO "Pro".
 enum PlanId {
-  BASIC
+  ESSENTIAL
+  BUSINESS
   PRO
 }
 
@@ -1931,7 +1933,9 @@ model PlatformSettings {
   // Stripe (lib/billing/stripe.ts)
   stripeSecretKey     String? @map("stripe_secret_key") // cifrado
   stripeWebhookSecret String? @map("stripe_webhook_secret") // cifrado
-  stripePriceBasic    String? @map("stripe_price_basic")
+  stripePriceEssential String? @map("stripe_price_essential")
+  // Negocio (antes Básico): conserva la columna stripe_price_basic.
+  stripePriceBusiness  String? @map("stripe_price_basic")
   stripePricePro      String? @map("stripe_price_pro")
 
   // SMTP (lib/email/mailer.ts)

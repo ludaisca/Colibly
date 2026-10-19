@@ -19,7 +19,7 @@ export async function POST(_req: Request, { params }: Params) {
   try {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
-    // Las entregas son del plan Pro: sin esto, una cuenta que bajó a Básico
+    // Las entregas son del plan Pro: sin esto, una cuenta que bajó a Esencial o Negocio
     // seguiría mandando eventos a sus webhooks viejos con este botón.
     const noApi = await checkApiAccess(await requireOrgId(admin.userId));
     if (noApi) return noApi;

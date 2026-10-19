@@ -27,7 +27,7 @@ describe("botón Probar webhook: candado del plan Pro", () => {
     db.apiAccess = true;
   });
 
-  it("en Básico responde 402 y no crea ni encola ninguna entrega", async () => {
+  it("en Negocio responde 402 y no crea ni encola ninguna entrega", async () => {
     db.apiAccess = false;
     const res = await call();
     expect(res.status).toBe(402);

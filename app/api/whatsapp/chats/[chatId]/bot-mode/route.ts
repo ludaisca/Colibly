@@ -43,6 +43,9 @@ async function modeFor(ctx: NonNullable<Awaited<ReturnType<typeof context>>>) {
     return { mode: "OFF", detail: "El proveedor de IA del bot no está configurado", until: null, canResume: false };
   }
   const billing = await getOrgBilling(bot.organizationId);
+  if (billing && aiCreditLimit(billing) === 0) {
+    return { mode: "OFF", detail: "La IA no está incluida en el plan Esencial", until: null, canResume: false };
+  }
   if (billing && billing.aiCreditsUsed >= aiCreditLimit(billing)) {
     return { mode: "OFF", detail: "Los créditos de IA de este periodo se agotaron", until: null, canResume: false };
   }

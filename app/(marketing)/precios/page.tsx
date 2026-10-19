@@ -5,11 +5,11 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
 import { BRAND_NAME } from "@/lib/brand";
-import { formatMxn, GRACE_DAYS, PLAN_LIST, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS, TRIAL_POOL_TEXT } from "@/lib/billing/plans";
+import { formatMxn, GRACE_DAYS, PLAN_LIST, PRICE_CURRENCY_NOTE, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS, TRIAL_POOL_TEXT } from "@/lib/billing/plans";
 import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures } from "@/lib/billing/plan-features";
 import { InfoPage, LINK } from "../_page";
 
-const DESCRIPTION = `Planes y precios de ${BRAND_NAME}: Básico y Pro, en pesos mexicanos por ejecutivo al mes, con la IA incluida. Crea tu cuenta y prueba ${TRIAL_DAYS} días gratis, sin tarjeta.`;
+const DESCRIPTION = `Planes y precios de ${BRAND_NAME}: Esencial, Negocio y Pro, en pesos mexicanos por ejecutivo al mes. Crea tu cuenta y prueba ${TRIAL_DAYS} días gratis, sin tarjeta.`;
 
 export const metadata: Metadata = {
   title: "Planes y precios",
@@ -26,7 +26,7 @@ export default function PricingPage() {
       title="Planes y precios"
       intro={`Pagas por ejecutivo. ${COEXISTENCE_PITCH} Crea tu cuenta y prueba ${BRAND_NAME} ${TRIAL_DAYS} días gratis con el plan Pro para hasta ${TRIAL_MAX_SEATS} ejecutivos, sin tarjeta y sin cobros automáticos. Al terminar, tú eliges el plan y cuántos ejecutivos pagar.`}
     >
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-3">
         {PLAN_LIST.map((plan) => {
           const featured = plan.id === "PRO";
           return (
@@ -36,7 +36,7 @@ export default function PricingPage() {
             >
               <div className="flex items-center justify-between gap-2">
                 <h2 className="!mt-0 font-display text-xl font-semibold">{plan.name}</h2>
-                {featured && <Badge tone="accent" size="sm">Recomendado</Badge>}
+                {plan.badge && <Badge tone="accent" size="sm">{plan.badge}</Badge>}
               </div>
               <p className="mt-1 text-sm text-muted">{plan.tagline}</p>
               <p className="mt-5">
@@ -62,11 +62,11 @@ export default function PricingPage() {
       <h2>Lo que conviene saber</h2>
       <ul>
         <li>Un ejecutivo es cada persona de tu equipo que puede atender conversaciones, incluido quien crea la cuenta y los administradores. Las invitaciones pendientes también ocupan un asiento. Puedes agregar o quitar ejecutivos cuando quieras; el cambio se prorratea.</li>
-        <li>Cada ejecutivo conecta 1 número de WhatsApp y, por habilitación, 1 cuenta de Telegram, de Messenger y de Instagram. Contactos y créditos de IA se suman por ejecutivo en una bolsa para todo tu equipo; las automatizaciones y la API dependen del plan (<a href={appUrl("/docs/api")} className="font-medium text-accent-ink underline underline-offset-2">documentación de la API</a>).</li>
-        <li>La prueba de {TRIAL_DAYS} días incluye el plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos, con {TRIAL_POOL_TEXT}, y no pide tarjeta. Al terminar, si no eliges un plan, tu cuenta pasa a solo lectura y tus datos se conservan.</li>
-        <li>Los precios están en pesos mexicanos (MXN) por ejecutivo, se cobran cada mes con tarjeta a través de Stripe y la suscripción se renueva hasta que la cancelas.</li>
-        <li>La IA ya viene incluida: no necesitas contratar ni configurar una IA por tu cuenta.</li>
-        <li>Si un cobro falla tienes {GRACE_DAYS} días de gracia con todo funcionando antes de pasar a solo lectura.</li>
+        <li>Cada ejecutivo conecta 1 número de WhatsApp; en Negocio y Pro, también, por habilitación, 1 cuenta de Telegram, de Messenger y de Instagram, y el chat web. Esencial es solo WhatsApp, sin IA y para hasta 3 ejecutivos. Contactos y créditos de IA se suman por ejecutivo en una bolsa para todo tu equipo; las automatizaciones y la API dependen del plan (<a href={appUrl("/docs/api")} className="font-medium text-accent-ink underline underline-offset-2">documentación de la API</a>).</li>
+        <li>La prueba de {TRIAL_DAYS} días incluye el plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos, con {TRIAL_POOL_TEXT}, y no pide tarjeta. Al terminar, si no eliges un plan, tu cuenta pasa a solo lectura ese mismo día (la prueba no tiene días de gracia) y tus datos se conservan.</li>
+        <li>{PRICE_CURRENCY_NOTE} Los precios son por ejecutivo, se cobran cada mes con tarjeta a través de Stripe y la suscripción se renueva hasta que la cancelas.</li>
+        <li>En Negocio y Pro la IA ya viene incluida: no necesitas contratar ni configurar una IA por tu cuenta.</li>
+        <li>Si ya pagaste y un cobro falla, tienes {GRACE_DAYS} días de gracia con todo funcionando antes de pasar a solo lectura.</li>
         <li>{META_FEES_NOTE}</li>
       </ul>
       <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted-strong">

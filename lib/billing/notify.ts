@@ -44,7 +44,10 @@ function formatDate(date: Date): string {
 export function trialEndingNotice(daysLeft: number): Notice {
   return {
     title: daysLeft <= 1 ? `Tu prueba de ${BRAND_NAME} termina mañana` : `Tu prueba de ${BRAND_NAME} termina en ${daysLeft} días`,
-    paragraphs: ["Elige un plan para seguir atendiendo a tus clientes sin interrupciones. Tus datos, canales y automatizaciones se conservan."],
+    paragraphs: [
+      "Elige un plan para seguir atendiendo a tus clientes sin interrupciones. Tus datos, canales y automatizaciones se conservan.",
+      "Si no eliges un plan, tu cuenta pasa a solo lectura el día que termina la prueba: podrás ver todo, pero no enviar mensajes ni usar bots o automatizaciones hasta contratar.",
+    ],
     email: true,
   };
 }

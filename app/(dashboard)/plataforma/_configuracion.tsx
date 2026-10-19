@@ -17,7 +17,8 @@ interface ConfigResponse {
   hasGoogleApiKey: boolean;
   hasStripeSecretKey: boolean;
   hasStripeWebhookSecret: boolean;
-  stripePriceBasic: string | null;
+  stripePriceEssential: string | null;
+  stripePriceBusiness: string | null;
   stripePricePro: string | null;
   smtpHost: string | null;
   smtpPort: number;
@@ -102,7 +103,8 @@ export function PlataformaConfiguracion() {
     Object.fromEntries(SECRET_FIELDS.map((f) => [f, false])) as Record<SecretField, boolean>
   );
   const [plain, setPlain] = useState({
-    stripePriceBasic: "",
+    stripePriceEssential: "",
+    stripePriceBusiness: "",
     stripePricePro: "",
     smtpHost: "",
     smtpPort: "587",
@@ -127,7 +129,8 @@ export function PlataformaConfiguracion() {
       const json: ConfigResponse = await res.json();
       setData(json);
       setPlain({
-        stripePriceBasic: json.stripePriceBasic ?? "",
+        stripePriceEssential: json.stripePriceEssential ?? "",
+        stripePriceBusiness: json.stripePriceBusiness ?? "",
         stripePricePro: json.stripePricePro ?? "",
         smtpHost: json.smtpHost ?? "",
         smtpPort: String(json.smtpPort),
@@ -169,7 +172,8 @@ export function PlataformaConfiguracion() {
         if (cleared[f]) payload[f] = null;
         else if (secrets[f].trim()) payload[f] = secrets[f].trim();
       }
-      payload.stripePriceBasic = plain.stripePriceBasic.trim() || null;
+      payload.stripePriceEssential = plain.stripePriceEssential.trim() || null;
+      payload.stripePriceBusiness = plain.stripePriceBusiness.trim() || null;
       payload.stripePricePro = plain.stripePricePro.trim() || null;
       payload.smtpHost = plain.smtpHost.trim() || null;
       payload.smtpPort = plain.smtpPort.trim() ? Number.parseInt(plain.smtpPort, 10) : null;
@@ -256,11 +260,14 @@ export function PlataformaConfiguracion() {
           cleared={cleared.stripeWebhookSecret}
           onToggleClear={() => toggleClear("stripeWebhookSecret")}
         />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Price id Básico (MXN por ejecutivo/mes)" hint="Precio recurrente mensual en MXN, por unidad: la cantidad de la suscripción = ejecutivos.">
-            {(id) => <Input id={id} value={plain.stripePriceBasic} onChange={(e) => setPlain((p) => ({ ...p, stripePriceBasic: e.target.value }))} placeholder="price_..." />}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <FormField label="Price id Esencial ($99 MXN por ejecutivo/mes)" hint="Precio recurrente mensual en MXN, por unidad: la cantidad de la suscripción = ejecutivos.">
+            {(id) => <Input id={id} value={plain.stripePriceEssential} onChange={(e) => setPlain((p) => ({ ...p, stripePriceEssential: e.target.value }))} placeholder="price_..." />}
           </FormField>
-          <FormField label="Price id Pro (MXN por ejecutivo/mes)" hint="Precio recurrente mensual en MXN, por unidad.">
+          <FormField label="Price id Negocio ($199 MXN por ejecutivo/mes)" hint="Antes «Básico». Precio recurrente mensual en MXN, por unidad.">
+            {(id) => <Input id={id} value={plain.stripePriceBusiness} onChange={(e) => setPlain((p) => ({ ...p, stripePriceBusiness: e.target.value }))} placeholder="price_..." />}
+          </FormField>
+          <FormField label="Price id Pro ($349 MXN por ejecutivo/mes)" hint="Precio recurrente mensual en MXN, por unidad.">
             {(id) => <Input id={id} value={plain.stripePricePro} onChange={(e) => setPlain((p) => ({ ...p, stripePricePro: e.target.value }))} placeholder="price_..." />}
           </FormField>
         </div>
@@ -287,7 +294,7 @@ export function PlataformaConfiguracion() {
             onToggleClear={() => toggleClear("smtpPass")}
           />
           <FormField label="Remitente (From)">
-            {(id) => <Input id={id} value={plain.emailFrom} onChange={(e) => setPlain((p) => ({ ...p, emailFrom: e.target.value }))} placeholder="Colibly <no-reply@colibly.com>" />}
+            {(id) => <Input id={id} value={plain.emailFrom} onChange={(e) => setPlain((p) => ({ ...p, emailFrom: e.target.value }))} placeholder="Colibly <noreply@colibly.com>" />}
           </FormField>
         </div>
         <label className="flex items-center gap-3 text-sm">

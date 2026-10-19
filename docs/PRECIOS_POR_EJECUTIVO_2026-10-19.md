@@ -2,6 +2,24 @@
 
 **Vigente.** Decisión de Luis (dueño): se cobra **por ejecutivo**. Reemplaza el esquema por organización (Básico 5 USD / Pro 10 USD), que queda superado. Fuente única de números: `lib/billing/plans.ts`.
 
+> **Actualización 2026-10-19 (tarde): tres planes.** Las tablas de abajo describen el esquema anterior de dos planes; manda `lib/billing/plans.ts`.
+>
+> | | Esencial | Negocio (antes Básico) | Pro («Más popular») |
+> |---|---|---|---|
+> | Precio MXN / ejecutivo / mes | 99 | 199 | 349 |
+> | WhatsApp (Coexistencia) | 1 por ejecutivo | 1 por ejecutivo | 1 por ejecutivo |
+> | Telegram / Messenger / Instagram | No | 1 de cada uno por ejecutivo | 1 de cada uno por ejecutivo |
+> | Chat web | No | Sí | Sí |
+> | Contactos (bolsa) | 500 × ejecutivos | 2,000 × ejecutivos | 5,000 × ejecutivos |
+> | Créditos de IA (bolsa) | 0 (sin IA; bots y calificadores bloqueados) | 300 × ejecutivos | 1,000 × ejecutivos |
+> | Automatizaciones activas | 1 | 5 | Ilimitadas |
+> | API y webhooks | No | No | Sí |
+> | Máximo de ejecutivos | 3 | 100 | 100 |
+>
+> - Enum: `BASIC` se renombró a `BUSINESS` (migración `20261019214500_plans_three_tiers`); las organizaciones que estaban en Básico quedan en Negocio. Se agregó `ESSENTIAL`. El price id de Negocio sigue en la columna `stripe_price_basic` (`stripePriceBusiness`); nuevo `stripePriceEssential`.
+> - Prueba: `TRIAL_DAYS` = 14 (antes 30), Pro, hasta 3 ejecutivos, bolsa fija 5,000 / 1,000. Al vencer: solo lectura de inmediato, sin gracia. La gracia de `GRACE_DAYS` = 7 solo aplica a `PAST_DUE` (clientes que ya pagaron). Recordatorios a 7, 3 y 1 días.
+> - Copia: "Precios en MXN" (`PRICE_CURRENCY_NOTE`, con TODO de IVA) y "Los cargos de Meta se pagan aparte".
+
 ## Oferta
 
 | | Básico | Pro |

@@ -9,7 +9,7 @@ import { applyPlanChange } from "@/lib/billing/seats";
 import { MAX_SEATS, MIN_SEATS } from "@/lib/billing/plans";
 
 const schema = z.object({
-  plan: z.enum(["BASIC", "PRO"]),
+  plan: z.enum(["ESSENTIAL", "BUSINESS", "PRO"]),
   seats: z.number().int().min(MIN_SEATS).max(MAX_SEATS),
   confirm: z.boolean().optional().default(false),
 });

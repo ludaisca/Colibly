@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkAiAccess } from "@/lib/billing/gates";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { leadScorerBotSchema } from "@/lib/validations";
@@ -33,6 +34,9 @@ export async function POST(req: Request) {
     }
     const denied = forbidRoles(session, ["user"]);
     if (denied) return denied;
+    // Plan sin IA (Esencial): no se crean calificadores.
+    const noAi = await checkAiAccess(await requireOrgId(session.user.id));
+    if (noAi) return noAi;
 
     const body = await req.json();
     const parsed = leadScorerBotSchema.safeParse(body);

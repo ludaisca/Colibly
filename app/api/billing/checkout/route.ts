@@ -12,7 +12,7 @@ import { planChangeImpact } from "@/lib/billing/state";
 import { MAX_SEATS, MIN_SEATS } from "@/lib/billing/plans";
 
 const schema = z.object({
-  plan: z.enum(["BASIC", "PRO"]),
+  plan: z.enum(["ESSENTIAL", "BUSINESS", "PRO"]),
   // Asientos = ejecutivos a cobrar (quantity del item). Mínimo: los ocupados hoy.
   seats: z.number().int().min(MIN_SEATS).max(MAX_SEATS),
   confirm: z.boolean().optional().default(false),
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     }
 
     // Nunca menos asientos que los ocupados; avisar lo que se pierde (p. ej.
-    // de la prueba Pro a Básico) antes de mandar a pagar.
+    // de la prueba Pro a Esencial o Negocio) antes de mandar a pagar.
     const impact = planChangeImpact(parsed.data.plan, parsed.data.seats, await getSeatUsage(org.id));
     if (impact.blockers.length > 0) return NextResponse.json({ error: impact.blockers[0], code: "blocked", impact }, { status: 409 });
     if (impact.warnings.length > 0 && !parsed.data.confirm) {

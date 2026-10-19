@@ -50,11 +50,9 @@ Mínimo recomendado al comprar `colibly.com`:
 | Dirección | Uso | Tipo |
 |---|---|---|
 | `contacto@colibly.com` | Solicitudes de beta, contacto público y respuesta general | Buzón real |
-| `luis@colibly.com` | Administración de cuentas del negocio y conversaciones personales | Buzón real |
-| `soporte@colibly.com` | Ayuda a participantes; puede llegar al mismo equipo de contacto | Alias hacia `contacto@` |
-| `notificaciones@colibly.com` | Remitente de verificación, invitaciones y avisos de la aplicación; las respuestas deben llegar a una bandeja atendida | Alias hacia `contacto@` y remitente autorizado en SMTP |
+| `noreply@colibly.com` | Remitente por defecto de verificación, invitaciones, recordatorios y avisos de la aplicación (Reply-To → `contacto@`) | Remitente autorizado en SMTP |
 
-`facturacion@colibly.com` puede añadirse como alias cuando se active el cobro. Configurar SPF, DKIM y DMARC para los proveedores que envíen correo. En `/plataforma` se debe establecer el remitente SMTP: el valor de reserva del código actual es `no-reply@colibly.com`.
+Política (2026-10-19): solo existen dos direcciones públicas, `contacto@colibly.com` (contacto y soporte) y `noreply@colibly.com` (remitente por defecto). No se usan otras (soporte@, hola@, notificaciones@, facturacion@, etc.). Configurar SPF, DKIM y DMARC para los proveedores que envíen correo. En `/plataforma` se puede establecer el remitente SMTP; el valor de reserva del código es `noreply@colibly.com`.
 
 ## Antes de publicar esta oferta
 

@@ -29,4 +29,4 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 
 ## Pendiente conocido
 
-Ninguno de momento. (La prueba es de 30 días en todo el producto desde 2026-10-01.)
+Ninguno de momento. (La prueba es de 14 días en todo el producto desde 2026-10-19; antes, 30.)
