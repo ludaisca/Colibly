@@ -1,6 +1,7 @@
 import type { EmailMessage } from "./mailer";
-import { BRAND_NAME } from "@/lib/brand";
+import { BRAND_CONTACT_EMAIL, BRAND_NAME } from "@/lib/brand";
 import { BRAND_COLORS } from "@/lib/brand-colors";
+import { PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
 
 // Plantillas de correo: HTML con estilos en línea (los clientes de correo
 // ignoran <style> y variables CSS) más versión de texto plano. Los colores van
@@ -90,5 +91,29 @@ export function billingNoticeTemplate(input: { to: string; title: string; paragr
       footnote: `Recibes este correo porque administras una cuenta de ${BRAND_NAME}.`,
     }),
     text: `${input.title}\n\n${input.paragraphs.join("\n\n")}\n\n${input.ctaLabel}: ${input.url}`,
+  };
+}
+
+// Bienvenida al confirmar el correo de una cuenta nueva. Los límites salen del
+// catálogo de planes (el periodo de prueba es el plan Pro completo), así que
+// un cambio de límites o de TRIAL_DAYS se refleja aquí sin tocar el texto.
+export function welcomeTemplate(input: { to: string; name: string | null; appUrl: string; supportUrl: string }): EmailMessage {
+  const hello = input.name ? `Hola ${input.name},` : "Hola,";
+  const pro = PLANS.PRO.limits;
+  const intro = `Tu correo quedó confirmado y tu cuenta de ${BRAND_NAME} está lista. Tienes ${TRIAL_DAYS} días gratis con el plan Pro completo (hasta ${pro.users} personas de tu equipo y ${pro.channels} canales), sin tarjeta y sin cobros automáticos.`;
+  const steps = "Para empezar: conecta tu WhatsApp, enséñale a tu bot lo que vendes (precios, servicios, preguntas frecuentes) e invita a tu equipo.";
+  const meta = "Ten en cuenta que Meta puede cobrar algunos mensajes de WhatsApp según su categoría; esos cargos son independientes de tu suscripción a Colibly. Al terminar la prueba tú eliges un plan; si no eliges, tu cuenta pasa a solo lectura y tus datos se conservan.";
+  const help = `¿Dudas? Escríbenos a <a href="mailto:${BRAND_CONTACT_EMAIL}" style="color:${BRAND_COLORS.accentInk}">${BRAND_CONTACT_EMAIL}</a> o visita nuestra <a href="${escapeHtml(input.supportUrl)}" style="color:${BRAND_COLORS.accentInk}">página de ayuda</a>.`;
+  return {
+    to: input.to,
+    replyTo: BRAND_CONTACT_EMAIL,
+    subject: `Te damos la bienvenida a ${BRAND_NAME}`,
+    html: layout({
+      title: `Bienvenido a ${BRAND_NAME}`,
+      paragraphs: [escapeHtml(hello), escapeHtml(intro), escapeHtml(steps), escapeHtml(meta), help],
+      cta: { label: `Entrar a ${BRAND_NAME}`, url: input.appUrl },
+      footnote: `Recibes este correo porque creaste una cuenta en ${BRAND_NAME}.`,
+    }),
+    text: `${hello}\n\n${intro}\n\n${steps}\n\n${meta}\n\nEntra a ${BRAND_NAME}: ${input.appUrl}\n\n¿Dudas? Escríbenos a ${BRAND_CONTACT_EMAIL} o visita ${input.supportUrl}`,
   };
 }

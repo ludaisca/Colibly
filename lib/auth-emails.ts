@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { issueAuthToken } from "@/lib/auth-tokens";
 import { appUrl, sendEmailSafely } from "@/lib/email/mailer";
-import { invitationTemplate, passwordResetTemplate, verifyEmailTemplate } from "@/lib/email/templates";
+import { siteUrl } from "@/lib/app-url";
+import { invitationTemplate, passwordResetTemplate, verifyEmailTemplate, welcomeTemplate } from "@/lib/email/templates";
 
 // Flujos de correo de la cuenta: emiten el token y mandan el mensaje. Los
 // llamadores los ejecutan dentro de after() para no retrasar la respuesta.
@@ -10,6 +11,20 @@ import { invitationTemplate, passwordResetTemplate, verifyEmailTemplate } from "
 export async function sendVerificationEmail(user: { id: string; email: string; name: string | null }): Promise<void> {
   const { token } = await issueAuthToken({ type: "EMAIL_VERIFY", email: user.email, userId: user.id });
   await sendEmailSafely(verifyEmailTemplate({ to: user.email, name: user.name, url: appUrl(`/verificar-correo?token=${token}`) }), "verificación");
+}
+
+// Bienvenida tras confirmar el correo. sendEmailSafely ya traga los fallos de
+// SMTP; el try/catch cubre cualquier otro error para que, llamada desde after(),
+// nunca afecte a la confirmación del correo.
+export async function sendWelcomeEmail(user: { email: string; name: string | null }): Promise<void> {
+  try {
+    await sendEmailSafely(
+      welcomeTemplate({ to: user.email, name: user.name, appUrl: appUrl("/dashboard"), supportUrl: siteUrl("/contacto") }),
+      "bienvenida"
+    );
+  } catch (error) {
+    console.error("[email] bienvenida: no se pudo preparar", error);
+  }
 }
 
 export async function sendPasswordResetEmail(user: { id: string; email: string; name: string | null }): Promise<void> {

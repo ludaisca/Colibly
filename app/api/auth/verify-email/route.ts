@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { consumeAuthToken, findValidAuthToken } from "@/lib/auth-tokens";
 import { invalidateUserSessionCache } from "@/lib/auth";
+import { sendWelcomeEmail } from "@/lib/auth-emails";
 
 // Confirma el correo con el enlace recibido. Público: el enlace puede abrirse
 // en otro navegador, sin sesión.
@@ -23,6 +24,15 @@ export async function POST(req: Request) {
       data: { emailVerifiedAt: new Date() },
     });
     invalidateUserSessionCache(record.userId);
+    // Solo en la primera confirmación; si falla el envío, la verificación ya está hecha.
+    if (count > 0) {
+      try {
+        const user = await prisma.user.findUnique({ where: { id: record.userId }, select: { email: true, name: true } });
+        if (user) after(() => sendWelcomeEmail(user));
+      } catch (error) {
+        console.error("[verify-email] bienvenida", error);
+      }
+    }
     return NextResponse.json({ success: true, alreadyVerified: count === 0 });
   } catch (error) {
     console.error("[verify-email]", error);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { invitationTemplate, passwordResetTemplate, verifyEmailTemplate } from "../templates";
-import { BRAND_NAME } from "@/lib/brand";
+import { invitationTemplate, passwordResetTemplate, verifyEmailTemplate, welcomeTemplate } from "../templates";
+import { BRAND_CONTACT_EMAIL, BRAND_NAME } from "@/lib/brand";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 
 // El nombre del negocio y el del invitador los escribe el cliente: no deben
 // poder inyectar HTML en correos que se envían a terceros.
@@ -34,5 +35,15 @@ describe("plantillas de correo", () => {
   it("traduce el rol de la invitación", () => {
     const msg = invitationTemplate({ to: "x@y.com", organizationName: "Spa", inviterName: null, role: "ejecutivo", url: "https://a/b" });
     expect(msg.text).toContain(`Un administrador te invitó a unirte a Spa en ${BRAND_NAME} como ejecutivo.`);
+  });
+
+  it("la bienvenida enlaza la app y el soporte, y escapa el nombre", () => {
+    const msg = welcomeTemplate({ to: "x@y.com", name: `<b>Ana</b>`, appUrl: "https://app.example/dashboard", supportUrl: "https://site.example/contacto" });
+    expect(msg.subject).toBe(`Te damos la bienvenida a ${BRAND_NAME}`);
+    expect(msg.html).not.toContain("<b>Ana</b>");
+    expect(msg.html).toContain(`href="https://app.example/dashboard"`);
+    expect(msg.html).toContain("https://site.example/contacto");
+    expect(msg.text).toContain(BRAND_CONTACT_EMAIL);
+    expect(msg.text).toContain(`${TRIAL_DAYS} días`);
   });
 });
