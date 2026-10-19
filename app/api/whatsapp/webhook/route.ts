@@ -115,6 +115,13 @@ function statusErrorDetail(status: WebhookStatus): string | null {
 
 async function applyStatusUpdate(accountId: string, status: WebhookStatus): Promise<void> {
   if (!status.id) return;
+  if (status.status === "failed") {
+    // WAMessage no guarda el motivo: sin este log un envío rechazado por Meta
+    // (ventana de 24 h, método de pago de la WABA, número bloqueado…) no deja
+    // rastro. Solo código y texto de Meta, nunca el contenido del mensaje.
+    const err = status.errors?.[0];
+    console.warn(`[webhook] Envío fallido (cuenta ${accountId}, ${status.id}): ${err?.code ?? "sin código"} ${statusErrorDetail(status) ?? ""}`.trim());
+  }
   await applyReactionStatus(accountId, status.id, status.status);
 
   const rank = STATUS_RANK[status.status];

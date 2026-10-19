@@ -18,6 +18,7 @@ import { pauseConversationalRuns } from "@/lib/automations/dispatch";
 import { uploadMedia } from "@/lib/whatsapp";
 import { decrypt } from "@/lib/crypto";
 import { saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
+import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { assertOrgCanSend } from "@/lib/billing/gates";
 
 export async function POST(
@@ -89,6 +90,27 @@ export async function POST(
       : null;
     if (replyToMessageId && !replyTarget?.wamid) {
       return NextResponse.json({ error: "El mensaje citado ya no está disponible para responder" }, { status: 400 });
+    }
+
+    // Ventana de 24 h de Meta (misma regla que lib/messaging/outbound.ts): fuera
+    // de ella Meta acepta el envío (devuelve wamid) y después lo marca "failed"
+    // por webhook (131047), así que la bandeja mostraba un fallo sin motivo.
+    // Cuenta cualquier mensaje entrante, también los importados del historial.
+    const lastInbound = await prisma.wAMessage.findFirst({
+      where: { chatId: chat.id, direction: "INBOUND" },
+      orderBy: { timestamp: "desc" },
+      select: { timestamp: true },
+    });
+    if (!lastInbound || !isWithinServiceWindow(lastInbound.timestamp, new Date())) {
+      return NextResponse.json(
+        {
+          error: lastInbound
+            ? "Pasaron más de 24 h desde el último mensaje de este cliente: WhatsApp solo permite enviarle una plantilla aprobada (Campañas) hasta que vuelva a escribir."
+            : "Este cliente todavía no te ha escrito: WhatsApp solo permite iniciar la conversación con una plantilla aprobada (Campañas).",
+          code: "window_closed",
+        },
+        { status: 422 }
+      );
     }
 
     if (type === "sticker") {
