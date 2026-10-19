@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 const CONTACT_EMAIL = 'contacto@colibly.com';
 const FROM_EMAIL = 'contacto@colibly.com';
-const APP_URL = 'https://app.colibly.com';
+// Configurable con la variable de entorno COLIBLY_APP_URL (p. ej. SetEnv en .htaccess o php -S local).
+// Por defecto apunta a producción.
+const APP_URL_DEFAULT = 'https://app.colibly.com';
+define('APP_URL', rtrim((string)(getenv('COLIBLY_APP_URL') ?: APP_URL_DEFAULT), '/'));
 const SITE_URL = 'https://colibly.com';
 
 function start_site_session(): void {

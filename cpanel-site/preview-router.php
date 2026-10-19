@@ -10,4 +10,6 @@ if ($path === '/config.php' || $path === '/legal-layout.php' || $path === '/prev
     http_response_code(404);
     return true;
 }
+$file = __DIR__ . $path;
+if ($path !== "/" && !is_file($file)) { http_response_code(404); echo "404"; return true; }
 return false;

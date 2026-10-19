@@ -7,7 +7,7 @@ RewriteCond %{HTTP_HOST} ^www\. [NC]
 RewriteCond %{REQUEST_URI} !^/\.well-known/
 RewriteRule ^ https://colibly.com%{REQUEST_URI} [L,R=301]
 RewriteRule ^(terminos|privacidad|contacto|precios|eliminar-datos)/?$ $1.php [L]
-<FilesMatch "^(config\.php|\.htaccess)$">
+<FilesMatch "^(config\.php|legal-layout\.php|\.htaccess)$">
   Require all denied
 </FilesMatch>
 <IfModule mod_headers.c>
