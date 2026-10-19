@@ -23,13 +23,13 @@ export default function ContactPage() {
           <p className="mt-1">
             <a href={`mailto:${BRAND_CONTACT_EMAIL}`} className={`${LINK} font-medium`}>{BRAND_CONTACT_EMAIL}</a>
           </p>
-          <p className="mt-1 text-sm text-muted">Es el canal para soporte, ventas, facturación y solicitudes sobre tus datos personales.</p>
+          <p className="mt-1 text-sm text-muted-strong">Es el canal para soporte, ventas, facturación y solicitudes sobre tus datos personales.</p>
         </div>
         <div className="rounded-xl border border-border bg-surface p-5">
           <Clock size={20} className="text-accent-ink" aria-hidden />
           <h2 className="!mt-3 !text-base">Horario de atención</h2>
           <p className="mt-1">Lunes a viernes, en horario laboral de México.</p>
-          <p className="mt-1 text-sm text-muted">Respondemos tan pronto como nos es posible, normalmente en uno o dos días hábiles.</p>
+          <p className="mt-1 text-sm text-muted-strong">Respondemos tan pronto como nos es posible, normalmente en uno o dos días hábiles.</p>
         </div>
       </div>
 

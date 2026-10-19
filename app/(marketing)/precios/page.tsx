@@ -66,7 +66,7 @@ export default function PricingPage() {
         <li>Si un cobro falla tienes {GRACE_DAYS} días de gracia con todo funcionando antes de pasar a solo lectura.</li>
         <li>Meta puede cobrar algunos mensajes de WhatsApp según su categoría y destino. Esos cargos son independientes de tu suscripción a {BRAND_NAME}.</li>
       </ul>
-      <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted">
+      <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted-strong">
         <strong className="text-foreground">Precios sujetos a ajuste.</strong> Los precios finales pueden ajustarse. Si cambian, te avisamos con al
         menos 30 días de anticipación y el cambio aplica a partir de tu siguiente periodo, como indican los{" "}
         <a href="/terminos" className={LINK}>Términos y condiciones</a>.

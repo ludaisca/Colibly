@@ -121,7 +121,7 @@ export function BetaApplicationForm() {
       <Button type="submit" size="lg" fullWidth loading={submitting} icon={Send} className="mt-6" data-track="cta" data-track-location="beta_formulario">
         {submitting ? "Enviando solicitud…" : "Quiero que me contacten"}
       </Button>
-      <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted"><Mail size={13} aria-hidden /> Sin tarjeta ni compromiso de pago</p>
+      <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-sm text-muted-strong"><Mail size={13} aria-hidden /> Sin tarjeta ni compromiso de pago</p>
     </form>
   );
 }

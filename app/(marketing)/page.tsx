@@ -221,7 +221,7 @@ export default function LandingPage() {
           <div className="relative min-w-0 rounded-xl border border-accent-muted bg-accent-subtle/60 p-3 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3 px-1 text-xs font-medium text-accent-ink">
               <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-accent-strong" /> Una conversación, de principio a fin</span>
-              <span className="hidden sm:inline">Ejemplo ilustrativo</span>
+              <span className="hidden text-muted-strong sm:inline">Ejemplo ilustrativo</span>
             </div>
             <HeroDemo />
           </div>
@@ -237,7 +237,7 @@ export default function LandingPage() {
               {label}
             </span>
           ))}
-          <span className="w-full text-center text-xs text-muted">Instagram, Messenger, Telegram y chat web requieren habilitación previa.</span>
+          <span className="w-full text-center text-sm text-muted-strong">Instagram, Messenger, Telegram y chat web requieren habilitación previa.</span>
         </div>
       </section>
 
