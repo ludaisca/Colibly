@@ -11,13 +11,15 @@
 | Contactos (bolsa) | 1,000 × ejecutivos | 5,000 × ejecutivos |
 | Créditos de IA al mes (bolsa) | 300 × ejecutivos | 1,000 × ejecutivos |
 | Automatizaciones activas | 5 por organización | Ilimitadas |
-| Telegram/Messenger/Instagram | 1 por organización, por habilitación | 3 por organización, por habilitación |
+| Telegram / Messenger / Instagram | 1 cuenta de cada tipo por ejecutivo, por habilitación | 1 cuenta de cada tipo por ejecutivo, por habilitación |
 | API y webhooks | No | Sí |
 
 - Solo mensual, sin plan anual. Moneda MXN.
 - **Sin leyenda fiscal**: la empresa no factura; la copia dice solo "MXN por ejecutivo al mes", nunca "incluye IVA" ni "verás el precio final con impuestos". El único interruptor es `PRICE_TAX_NOTE` en `plans.ts` (hoy `null`); si se le pone texto aparece junto a cada precio (landing, `/precios`, `/beta`, términos, pantalla del plan y cPanel).
 - Meta cobra aparte algunos mensajes; lo paga el cliente directamente a Meta (`META_FEES_NOTE` en `plan-features.ts`).
-- Prueba: `TRIAL_DAYS` = 30, plan Pro, sin tarjeta, hasta `TRIAL_MAX_SEATS` = 3 ejecutivos (los límites por asiento se calculan con 3).
+- Prueba: `TRIAL_DAYS` = 30, plan Pro, sin tarjeta, hasta `TRIAL_MAX_SEATS` = 3 ejecutivos. **Contactos y créditos NO se multiplican en la prueba** (decisión 2026-10-19): `TRIAL_POOL` = 5,000 contactos y 1,000 créditos de IA al mes para toda la organización (`limitsForSeats(plan, seats, { trial: true })`, que usa `planLimits()` cuando `status = TRIALING`). WhatsApp y los otros canales sí van por asiento (3 de cada uno). Al pagar, la bolsa pasa a ser por asiento.
+- Tope de asientos desde la app (Checkout y cambio de asientos): `MAX_SEATS` = 100 (antes 200). Las organizaciones internas no tienen tope.
+- Planes de pago sin cambios en contactos/créditos (por ejecutivo, en bolsa). *Por confirmar con Luis*: si su mensaje de la bolsa plana también aplicaba a los planes de pago; se dejó solo para la prueba.
 
 ## Reglas
 
@@ -25,8 +27,8 @@
 - **Tope de asientos** (`state.ts:seatCap()`): interna = sin tope; `TRIALING` = `TRIAL_MAX_SEATS`; si no, `Organization.seatQuantity` (= quantity de la suscripción de Stripe, mínimo 1).
 - **Agregar un ejecutivo de más** (crear, invitar, reactivar, aceptar invitación) responde 402 `code: "plan_limit"`, `limit: "seats"` y `billingUrl: "/configuracion/plan#asientos"`; los modales de Usuarios muestran el enlace "Agregar ejecutivos en Plan y facturación".
 - **WhatsApp**: `limit: "whatsapp"` = 1 × asientos, contando todos los `WAAccount` de la organización (alta manual y Embedded Signup). `WAAccount.userId` ya existe, pero es **quien conectó** el número (los ejecutivos no pueden conectar cuentas: `forbidRoles(["ejecutivo"])`); por eso NO se agregó `ownerUserId` ni un tope de 1 por `userId`: bloquearía al admin que conecta los números de su equipo. El número se le da al ejecutivo con "Compartir cuenta" (`WAAccountShare`).
-- **Otros canales** (Telegram/Messenger/Instagram): siguen detrás de los flags por organización de `/plataforma` y con un tope por organización (`perOrg.otherChannels`: Básico 1, Pro 3, los números del tope de canales anterior), ahora separado de WhatsApp. El widget web no cuenta.
-- **Contactos y créditos de IA**: bolsa de la organización = por asiento × `seatCap()`. Al agregar asientos crece al instante; al quitar, baja al instante (los créditos se siguen reiniciando con `invoice.paid`).
+- **Otros canales** (Telegram/Messenger/Instagram): siguen detrás de los flags por organización de `/plataforma`; desde 2026-10-19 la regla es la de WhatsApp, **por tipo**: cuentas de ese tipo ≤ asientos (`perSeat.channelsPerType` = 1 en Básico y Pro; `limit: "telegram" | "messenger" | "instagram"`, con `billingUrl`). Reemplaza el tope por organización anterior (Básico 1, Pro 3). El widget web no cuenta.
+- **Contactos y créditos de IA**: bolsa de la organización = por asiento × `seatCap()` (en prueba, la bolsa plana `TRIAL_POOL`). Al agregar asientos crece al instante; al quitar, baja al instante (los créditos se siguen reiniciando con `invoice.paid`).
 
 ## Stripe
 
@@ -40,12 +42,12 @@
 Bloquean (no se puede confirmar):
 - menos asientos que los ocupados (usuarios activos + invitaciones);
 - más números de WhatsApp que asientos;
+- más cuentas de Telegram, de Messenger o de Instagram que asientos (cada tipo por separado);
 - Básico con más de 5 automatizaciones activas.
 
 Avisan y piden confirmación (`code: "confirm_required"`):
 - la API y los webhooks dejan de funcionar en Básico (cuántas claves y webhooks);
-- contactos por encima del nuevo tope: se conservan, pero no se agregan nuevos;
-- canales adicionales por encima del tope: siguen conectados, no se agregan más.
+- contactos por encima del nuevo tope: se conservan, pero no se agregan nuevos.
 
 La pantalla "Plan y facturación" calcula lo mismo en vivo (misma función) y la API lo vuelve a evaluar.
 

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getOrgBilling, getSeatUsage, invalidateOrgBilling } from "@/lib/billing/gates";
 import { accessMode, aiCreditLimit, planLimits, seatCap } from "@/lib/billing/state";
 import { isStripeConfigured } from "@/lib/billing/stripe";
+import { SEAT_CHANNEL_LABELS, SEAT_CHANNELS } from "@/lib/billing/plans";
 import { PlanView, type PlanViewData } from "./_view";
 
 // Plan y facturación (solo admin): estado, asientos, consumo y pago.
@@ -28,6 +29,8 @@ export default async function PlanPage() {
   const limits = planLimits(org);
   const finite = (n: number) => (Number.isFinite(n) ? n : null);
   const paidSeats = seatCap(org);
+  const trialing = org.status === "TRIALING" && !org.isInternal;
+  const poolHint = (what: string) => (trialing ? `Bolsa fija de la prueba para toda la organización (no se multiplica por ${what})` : `Bolsa de la organización: ${what} por ejecutivo × asientos`);
 
   const data: PlanViewData = {
     organizationName: org.name,
@@ -52,15 +55,21 @@ export default async function PlanPage() {
     usage: [
       { key: "seats", label: "Ejecutivos (asientos)", hint: "Usuarios activos e invitaciones pendientes; dueño y admins cuentan", used: usage.seats, max: finite(limits.seats) },
       { key: "whatsapp", label: "Números de WhatsApp", hint: "1 por ejecutivo, con Coexistencia", used: usage.whatsapp, max: finite(limits.whatsapp) },
-      { key: "channels", label: "Canales adicionales", hint: "Telegram, Messenger e Instagram. El widget web no cuenta", used: usage.channels, max: finite(limits.channels) },
-      { key: "contacts", label: "Contactos", hint: "Bolsa de la organización: contactos por ejecutivo × asientos", used: usage.contacts, max: finite(limits.contacts) },
+      ...SEAT_CHANNELS.map((ch) => ({
+        key: ch,
+        label: `Cuentas de ${SEAT_CHANNEL_LABELS[ch]}`,
+        hint: "1 por ejecutivo, por habilitación",
+        used: usage[ch],
+        max: finite(limits[ch]),
+      })),
+      { key: "contacts", label: "Contactos", hint: trialing ? poolHint("ejecutivos") : poolHint("contactos"), used: usage.contacts, max: finite(limits.contacts) },
       { key: "automations", label: "Automatizaciones activas", hint: null, used: usage.activeAutomations, max: finite(limits.activeAutomations) },
       {
         key: "ai",
         label: "Créditos de IA este mes",
-        hint: org.aiCreditsBonus > 0
-          ? `1 crédito = 1 respuesta o análisis de IA. Bolsa de la organización (créditos por ejecutivo × asientos) más ${org.aiCreditsBonus.toLocaleString("es-MX")} créditos extra de este periodo`
-          : "1 crédito = 1 respuesta o análisis de IA. Bolsa de la organización: créditos por ejecutivo × asientos",
+        hint: `1 crédito = 1 respuesta o análisis de IA. ${trialing ? poolHint("ejecutivos") : poolHint("créditos")}${
+          org.aiCreditsBonus > 0 ? `, más ${org.aiCreditsBonus.toLocaleString("es-MX")} créditos extra de este periodo` : ""
+        }`,
         used: org.aiCreditsUsed,
         max: finite(aiCreditLimit(org)),
       },

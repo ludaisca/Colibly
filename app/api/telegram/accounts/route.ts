@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const organizationId = await requireOrgId(session.user.id);
     const channelDisabled = await assertChannelEnabled(organizationId, "TELEGRAM");
     if (channelDisabled) return channelDisabled;
-    const overLimit = await checkPlanLimit(organizationId, "channels");
+    const overLimit = await checkPlanLimit(organizationId, "telegram");
     if (overLimit) return overLimit;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);

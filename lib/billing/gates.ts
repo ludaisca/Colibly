@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Organization } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { PLANS } from "./plans";
+import { PLANS, SEAT_CHANNEL_LABELS, SEAT_CHANNELS, type SeatChannel } from "./plans";
 import type { SeatUsage } from "./state";
 import { accessMode, planLimits, type AccessMode, type BillingSnapshot } from "./state";
 
@@ -124,20 +124,23 @@ export function readOnlyResponse() {
 // seats: usuarios activos + invitaciones pendientes (dueño y admins incluidos).
 // whatsapp: números de WhatsApp (1 por asiento). channels: Telegram/Messenger/
 // Instagram (el widget web no cuenta).
-export type LimitKey = "seats" | "whatsapp" | "channels" | "contacts" | "activeAutomations";
+export type LimitKey = "seats" | "whatsapp" | SeatChannel | "contacts" | "activeAutomations";
 
 export type OrgUsage = Omit<SeatUsage, "apiKeys" | "webhooks">;
 
 export async function getOrgUsage(organizationId: string): Promise<OrgUsage> {
-  const [users, invites, whatsapp, channels, contacts, activeAutomations] = await Promise.all([
+  const [users, invites, whatsapp, telegram, messenger, instagram, contacts, activeAutomations] = await Promise.all([
     prisma.user.count({ where: { organizationId, disabledAt: null } }),
     prisma.authToken.count({ where: { organizationId, type: "INVITE", usedAt: null, expiresAt: { gt: new Date() } } }),
     prisma.wAAccount.count({ where: { organizationId } }),
-    prisma.channelAccount.count({ where: { organizationId, channel: { not: "WEBCHAT" } } }),
+    // 1 cuenta de cada tipo por asiento (el widget web no cuenta).
+    prisma.channelAccount.count({ where: { organizationId, channel: "TELEGRAM" } }),
+    prisma.channelAccount.count({ where: { organizationId, channel: "MESSENGER" } }),
+    prisma.channelAccount.count({ where: { organizationId, channel: "INSTAGRAM" } }),
     prisma.contact.count({ where: { OR: [{ account: { organizationId } }, { channelAccount: { organizationId } }] } }),
     prisma.automation.count({ where: { organizationId, status: "ACTIVE" } }),
   ]);
-  return { seats: users + invites, whatsapp, channels, contacts, activeAutomations };
+  return { seats: users + invites, whatsapp, telegram, messenger, instagram, contacts, activeAutomations };
 }
 
 // Uso completo para evaluar un cambio de plan o de asientos (planChangeImpact).
@@ -161,10 +164,18 @@ function limitMessage(key: LimitKey, planName: string, max: number, trialing: bo
         : `Tu organización paga ${max} ${max === 1 ? "ejecutivo" : "ejecutivos"} y ya están ocupados (las invitaciones pendientes cuentan). Agrega un asiento en Configuración → Plan y facturación, o desactiva a alguien.`;
     case "whatsapp":
       return `Cada ejecutivo conecta 1 número de WhatsApp: con ${max} ${max === 1 ? "asiento" : "asientos"} puedes tener ${max} ${max === 1 ? "número" : "números"}. Agrega un asiento en Configuración → Plan y facturación para conectar otro.`;
-    case "channels":
-      return `Tu plan ${planName} permite ${max} ${max === 1 ? "canal adicional" : "canales adicionales"} (Telegram, Messenger o Instagram; el widget web no cuenta). Mejora tu plan para conectar más.`;
+    case "telegram":
+    case "messenger":
+    case "instagram": {
+      const label = SEAT_CHANNEL_LABELS[key];
+      return trialing
+        ? `La prueba gratis incluye 1 cuenta de ${label} por ejecutivo (hasta ${max}). Elige un plan en Configuración → Plan y facturación para conectar más.`
+        : `Cada ejecutivo conecta 1 cuenta de ${label}: con ${max} ${max === 1 ? "asiento" : "asientos"} puedes tener ${max} ${max === 1 ? "cuenta" : "cuentas"}. Agrega un asiento en Configuración → Plan y facturación para conectar otra.`;
+    }
     case "contacts":
-      return `Llegaste al límite de ${max.toLocaleString("es-MX")} contactos de tu organización (plan ${planName}, por ejecutivo). Los mensajes entrantes se siguen guardando; agrega asientos o mejora tu plan para agregar más.`;
+      return trialing
+        ? `Llegaste al límite de ${max.toLocaleString("es-MX")} contactos de la prueba gratis (para toda tu organización). Los mensajes entrantes se siguen guardando; elige un plan para agregar más.`
+        : `Llegaste al límite de ${max.toLocaleString("es-MX")} contactos de tu organización (plan ${planName}, por ejecutivo). Los mensajes entrantes se siguen guardando; agrega asientos o mejora tu plan para agregar más.`;
     case "activeAutomations":
       return `Tu plan ${planName} permite ${max} automatizaciones activas. Pausa otra o mejora tu plan.`;
   }
@@ -199,8 +210,9 @@ export async function checkPlanLimit(organizationId: string, key: LimitKey, addi
       limit: key,
       current: exceeded.current,
       max: exceeded.max,
-      // Asientos y WhatsApp se resuelven agregando asientos: la UI enlaza aquí.
-      ...(key === "seats" || key === "whatsapp" ? { billingUrl: BILLING_SEATS_PATH } : {}),
+      // Asientos, WhatsApp y los canales por ejecutivo se resuelven agregando
+      // asientos: la UI enlaza aquí.
+      ...(key === "seats" || key === "whatsapp" || (SEAT_CHANNELS as readonly string[]).includes(key) ? { billingUrl: BILLING_SEATS_PATH } : {}),
     },
     { status: 402 }
   );

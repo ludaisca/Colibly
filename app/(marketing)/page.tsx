@@ -23,7 +23,7 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
-import { formatMxn, PLAN_LIST, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS } from "@/lib/billing/plans";
+import { formatMxn, PLAN_LIST, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS, TRIAL_POOL_TEXT } from "@/lib/billing/plans";
 import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures } from "@/lib/billing/plan-features";
 import { HeroDemo } from "./_hero-demo";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
@@ -121,7 +121,7 @@ const TRUST = [
 const FAQ = [
   {
     q: "¿Necesito tarjeta para la prueba?",
-    a: `No. Tienes ${TRIAL_DAYS} días con todo el plan Pro, sin tarjeta. Al terminar eliges un plan; si no lo haces, tu cuenta queda en solo lectura y tus datos se conservan.`,
+    a: `No. Tienes ${TRIAL_DAYS} días con todo el plan Pro para hasta ${TRIAL_MAX_SEATS} ejecutivos, con ${TRIAL_POOL_TEXT}, sin tarjeta. Al terminar eliges un plan; si no lo haces, tu cuenta queda en solo lectura y tus datos se conservan.`,
   },
   {
     q: "¿Cómo conecto mi WhatsApp?",
@@ -133,11 +133,11 @@ const FAQ = [
   },
   {
     q: "¿Cómo se cobra?",
-    a: `Por ejecutivo: cada persona de tu equipo que atiende conversaciones (incluido quien crea la cuenta) ocupa un asiento, con un precio mensual en pesos. Cada ejecutivo conecta su propio número de WhatsApp y lo sigue usando en su celular (Coexistencia). Contactos y créditos de IA se suman por ejecutivo. ${META_FEES_NOTE}`,
+    a: `Por ejecutivo: cada persona de tu equipo que atiende conversaciones (incluido quien crea la cuenta) ocupa un asiento, con un precio mensual en pesos. Cada ejecutivo conecta su propio número de WhatsApp y lo sigue usando en su celular (Coexistencia); Telegram, Messenger e Instagram, 1 cuenta de cada uno por ejecutivo. Contactos y créditos de IA se suman por ejecutivo. ${META_FEES_NOTE}`,
   },
   {
     q: "¿Qué es un crédito de IA?",
-    a: "Cada respuesta de un bot, sugerencia, calificación de un lead o paso de IA de una automatización usa un crédito. Cada plan incluye créditos al mes por ejecutivo, en una bolsa compartida por tu equipo; no necesitas contratar ni configurar ninguna IA por tu cuenta.",
+    a: "Cada respuesta de un bot, sugerencia, calificación de un lead o paso de IA de una automatización usa un crédito. Cada plan incluye créditos al mes por ejecutivo, en una bolsa compartida por tu equipo (en la prueba, una bolsa fija para todo el equipo); no necesitas contratar ni configurar ninguna IA por tu cuenta.",
   },
   {
     q: "¿Puedo cambiar de plan o cancelar?",

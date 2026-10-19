@@ -19,10 +19,7 @@ export function planFeatures(plan: Plan): Array<{ text: string; included: boolea
     { text: `${n(s.contacts)} contactos por ejecutivo`, included: true },
     { text: `${n(s.aiCreditsPerMonth)} créditos de IA al mes por ejecutivo`, included: true },
     { text: Number.isFinite(o.activeAutomations) ? `${o.activeAutomations} automatizaciones activas` : "Automatizaciones ilimitadas", included: true },
-    {
-      text: `${o.otherChannels} ${o.otherChannels === 1 ? "canal adicional" : "canales adicionales"} (Telegram, Messenger o Instagram) por habilitación`,
-      included: true,
-    },
+    { text: `${s.channelsPerType} cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación`, included: true },
     { text: "Chat web disponible por habilitación", included: true },
     { text: "API y webhooks", included: o.apiAccess },
   ];

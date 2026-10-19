@@ -1,5 +1,5 @@
 import type { OrganizationStatus, PlanId } from "@prisma/client";
-import { GRACE_DAYS, limitsForSeats, MIN_SEATS, PLANS, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_MAX_SEATS, type PlanLimits } from "./plans";
+import { GRACE_DAYS, limitsForSeats, MIN_SEATS, PLANS, SEAT_CHANNEL_LABELS, SEAT_CHANNELS, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_MAX_SEATS, type PlanLimits } from "./plans";
 
 // Reglas de facturación como funciones puras (sin Prisma ni Stripe): qué puede
 // hacer una organización según su estado, qué aviso ver, cómo avanza el reloj y
@@ -46,7 +46,9 @@ export function accessMode(org: BillingSnapshot, now: Date): AccessMode {
 const UNLIMITED: PlanLimits = {
   seats: Infinity,
   whatsapp: Infinity,
-  channels: Infinity,
+  telegram: Infinity,
+  messenger: Infinity,
+  instagram: Infinity,
   contacts: Infinity,
   aiCreditsPerMonth: Infinity,
   activeAutomations: Infinity,
@@ -66,10 +68,11 @@ export function seatCap(org: SeatSnapshot): number {
   return Math.max(MIN_SEATS, org.seatQuantity || MIN_SEATS);
 }
 
-// Límites vigentes: los del plan por asiento; las internas no tienen tope.
+// Límites vigentes: los del plan por asiento; en prueba, contactos y créditos
+// son la bolsa plana TRIAL_POOL; las internas no tienen tope.
 export function planLimits(org: SeatSnapshot): PlanLimits {
   if (org.isInternal) return UNLIMITED;
-  return limitsForSeats(PLANS[org.plan], seatCap(org));
+  return limitsForSeats(PLANS[org.plan], seatCap(org), { trial: org.status === "TRIALING" });
 }
 
 export type NoticeKind = "trial_ending" | "trial_expired" | "past_due" | "read_only" | "canceled" | "canceling";
@@ -259,7 +262,10 @@ export function deriveFromSubscription(
 export interface SeatUsage {
   seats: number; // usuarios activos + invitaciones pendientes
   whatsapp: number;
-  channels: number;
+  // Cuentas conectadas de cada tipo (sin el widget web).
+  telegram: number;
+  messenger: number;
+  instagram: number;
   contacts: number;
   activeAutomations: number;
   apiKeys: number; // claves de API activas
@@ -279,12 +285,13 @@ const fmt = (n: number) => n.toLocaleString("es-MX");
 // lo que la organización usa hoy. Regla:
 //  - no se puede bajar de los asientos ocupados (usuarios activos + invitaciones):
 //    primero se desactiva a alguien o se revoca una invitación;
-//  - no se puede tener más números de WhatsApp que asientos (1 por ejecutivo);
+//  - no se puede tener más números de WhatsApp que asientos (1 por ejecutivo),
+//    ni más cuentas de Telegram, Messenger o Instagram (1 de cada tipo por
+//    ejecutivo);
 //  - Básico permite 5 automatizaciones activas: hay que pausar las de sobra;
 //  - avisos (no bloquean): la API y los webhooks dejan de funcionar en Básico,
 //    los contactos por encima del nuevo tope se conservan pero no se agregan
-//    nuevos, los créditos de IA del periodo bajan y otros canales de más
-//    siguen conectados pero no se pueden agregar.
+//    nuevos y los créditos de IA del periodo bajan.
 export function planChangeImpact(targetPlan: PlanId, targetSeats: number, usage: SeatUsage): PlanChangeImpact {
   const blockers: string[] = [];
   const warnings: string[] = [];
@@ -302,6 +309,12 @@ export function planChangeImpact(targetPlan: PlanId, targetSeats: number, usage:
   if (usage.whatsapp > l.whatsapp) {
     blockers.push(`Tienes ${fmt(usage.whatsapp)} números de WhatsApp y cada ejecutivo conecta 1. Desconecta números hasta quedar en ${fmt(l.whatsapp)}.`);
   }
+  for (const ch of SEAT_CHANNELS) {
+    if (usage[ch] > l[ch]) {
+      const label = SEAT_CHANNEL_LABELS[ch];
+      blockers.push(`Tienes ${fmt(usage[ch])} cuentas de ${label} y cada ejecutivo conecta 1. Desconecta cuentas de ${label} hasta quedar en ${fmt(l[ch])}.`);
+    }
+  }
   if (Number.isFinite(l.activeAutomations) && usage.activeAutomations > l.activeAutomations) {
     blockers.push(`${plan.name} permite ${l.activeAutomations} automatizaciones activas y tienes ${fmt(usage.activeAutomations)}. Pausa las que sobran antes de cambiar.`);
   }
@@ -310,9 +323,6 @@ export function planChangeImpact(targetPlan: PlanId, targetSeats: number, usage:
   }
   if (usage.contacts > l.contacts) {
     warnings.push(`Tienes ${fmt(usage.contacts)} contactos y el nuevo tope es ${fmt(l.contacts)}: se conservan todos, pero no podrás agregar nuevos (los mensajes entrantes se siguen guardando).`);
-  }
-  if (usage.channels > l.channels) {
-    warnings.push(`Tienes ${fmt(usage.channels)} canales adicionales (Telegram, Messenger o Instagram) y ${plan.name} incluye ${fmt(l.channels)}: siguen conectados, pero no podrás agregar otro.`);
   }
   return { blockers, warnings };
 }

@@ -59,7 +59,10 @@ export async function buildOutputs() {
     COLIBLY_PRICE_TAX_NOTE: c.PRICE_TAX_NOTE ?? "",
     COLIBLY_MIN_PRICE_LABEL: c.formatMxn(Math.min(...c.PLAN_LIST.map((p) => p.pricePerSeatMxn))),
     COLIBLY_PRICES_SENTENCE: pricesSentence,
-    COLIBLY_TRIAL_AI_CREDITS_PER_SEAT: c.PLANS[c.TRIAL_PLAN].perSeat.aiCreditsPerMonth.toLocaleString("es-MX"),
+    // Bolsa plana de la prueba (no se multiplica por ejecutivos).
+    COLIBLY_TRIAL_AI_CREDITS: c.TRIAL_POOL.aiCreditsPerMonth.toLocaleString("es-MX"),
+    COLIBLY_TRIAL_CONTACTS: c.TRIAL_POOL.contacts.toLocaleString("es-MX"),
+    COLIBLY_TRIAL_POOL_TEXT: c.TRIAL_POOL_TEXT,
     COLIBLY_COEXISTENCE_PITCH: c.COEXISTENCE_PITCH,
     COLIBLY_META_FEES_NOTE: c.META_FEES_NOTE,
   };
@@ -76,9 +79,9 @@ export async function buildOutputs() {
     LLMS_START,
     "## Planes y precios",
     `- Se cobra por ejecutivo (cada usuario que atiende conversaciones, incluido el dueño), cada mes, en pesos mexicanos: ${pricesSentence}${c.PRICE_TAX_NOTE ? ` (${c.PRICE_TAX_NOTE})` : ""}. Sin plan anual.`,
-    `- ${c.COEXISTENCE_PITCH}`,
+    `- ${c.COEXISTENCE_PITCH} Telegram, Messenger e Instagram (por habilitación): 1 cuenta de cada uno por ejecutivo.`,
     ...plans.map((p) => `- ${p.name}: ${p.features.join("; ")}${p.missing.length ? `. No incluye: ${p.missing.join(", ")}` : ""}.`),
-    `- Prueba: ${c.TRIAL_DAYS} días gratis, sin tarjeta, con el plan ${pro.name} para hasta ${c.TRIAL_MAX_SEATS} ejecutivos.`,
+    `- Prueba: ${c.TRIAL_DAYS} días gratis, sin tarjeta, con el plan ${pro.name} para hasta ${c.TRIAL_MAX_SEATS} ejecutivos y ${c.TRIAL_POOL_TEXT}.`,
     `- ${c.META_FEES_NOTE}`,
     LLMS_END,
   ].join("\n");

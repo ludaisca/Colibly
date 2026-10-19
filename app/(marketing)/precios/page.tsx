@@ -4,7 +4,7 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
 import { BRAND_NAME } from "@/lib/brand";
-import { formatMxn, GRACE_DAYS, PLAN_LIST, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS } from "@/lib/billing/plans";
+import { formatMxn, GRACE_DAYS, PLAN_LIST, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS, TRIAL_POOL_TEXT } from "@/lib/billing/plans";
 import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures } from "@/lib/billing/plan-features";
 import { InfoPage, LINK } from "../_page";
 
@@ -61,8 +61,8 @@ export default function PricingPage() {
       <h2>Lo que conviene saber</h2>
       <ul>
         <li>Un ejecutivo es cada persona de tu equipo que puede atender conversaciones, incluido quien crea la cuenta y los administradores. Las invitaciones pendientes también ocupan un asiento. Puedes agregar o quitar ejecutivos cuando quieras; el cambio se prorratea.</li>
-        <li>Cada ejecutivo conecta 1 número de WhatsApp. Contactos y créditos de IA se suman por ejecutivo en una bolsa para todo tu equipo; las automatizaciones y la API dependen del plan.</li>
-        <li>La prueba de {TRIAL_DAYS} días incluye el plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos y no pide tarjeta. Al terminar, si no eliges un plan, tu cuenta pasa a solo lectura y tus datos se conservan.</li>
+        <li>Cada ejecutivo conecta 1 número de WhatsApp y, por habilitación, 1 cuenta de Telegram, de Messenger y de Instagram. Contactos y créditos de IA se suman por ejecutivo en una bolsa para todo tu equipo; las automatizaciones y la API dependen del plan.</li>
+        <li>La prueba de {TRIAL_DAYS} días incluye el plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos, con {TRIAL_POOL_TEXT}, y no pide tarjeta. Al terminar, si no eliges un plan, tu cuenta pasa a solo lectura y tus datos se conservan.</li>
         <li>Los precios están en pesos mexicanos (MXN) por ejecutivo, se cobran cada mes con tarjeta a través de Stripe y la suscripción se renueva hasta que la cancelas.</li>
         <li>La IA ya viene incluida: no necesitas contratar ni configurar una IA por tu cuenta.</li>
         <li>Si un cobro falla tienes {GRACE_DAYS} días de gracia con todo funcionando antes de pasar a solo lectura.</li>

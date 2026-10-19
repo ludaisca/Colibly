@@ -25,6 +25,7 @@ import {
   RETENTION_DAYS_AFTER_TRIAL,
   TRIAL_DAYS,
   TRIAL_MAX_SEATS,
+  TRIAL_POOL_TEXT,
 } from "@/lib/billing/plans";
 import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures } from "@/lib/billing/plan-features";
 import { planChangeImpact, type AccessMode } from "@/lib/billing/state";
@@ -61,7 +62,7 @@ function statusLine(d: PlanViewData): string {
   if (d.isInternal) return "Cuenta interna: sin cobro ni límites.";
   if (d.status === "TRIALING") {
     if (d.access !== "full") return `Tu prueba terminó. Elige un plan para reactivar tu cuenta; sin plan, tus datos se eliminan ${RETENTION_DAYS_AFTER_TRIAL} días después de terminar la prueba.`;
-    return `Prueba gratis de ${TRIAL_DAYS} días con el plan Pro (hasta ${TRIAL_MAX_SEATS} ejecutivos), hasta el ${formatDate(d.trialEndsAt)}.`;
+    return `Prueba gratis de ${TRIAL_DAYS} días con el plan Pro (hasta ${TRIAL_MAX_SEATS} ejecutivos, con ${TRIAL_POOL_TEXT}), hasta el ${formatDate(d.trialEndsAt)}.`;
   }
   if (d.status === "ACTIVE") {
     if (d.cancelAtPeriodEnd) return `Cancelado: sigue activo hasta el ${formatDate(d.currentPeriodEnd)}.`;
@@ -100,7 +101,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
     const usage = {
       seats: data.seatsUsed,
       whatsapp: data.usage.find((u) => u.key === "whatsapp")?.used ?? 0,
-      channels: data.usage.find((u) => u.key === "channels")?.used ?? 0,
+      telegram: data.usage.find((u) => u.key === "telegram")?.used ?? 0,
+      messenger: data.usage.find((u) => u.key === "messenger")?.used ?? 0,
+      instagram: data.usage.find((u) => u.key === "instagram")?.used ?? 0,
       contacts: data.usage.find((u) => u.key === "contacts")?.used ?? 0,
       activeAutomations: data.usage.find((u) => u.key === "automations")?.used ?? 0,
       apiKeys: data.apiKeys,

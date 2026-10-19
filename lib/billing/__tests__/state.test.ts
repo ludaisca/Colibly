@@ -29,7 +29,7 @@ describe("accessMode", () => {
 
 describe("planLimits", () => {
   it("usa el catálogo del plan", () => {
-    expect(planLimits({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 2 })).toMatchObject({ seats: 2, whatsapp: 2, channels: 1, apiAccess: false });
+    expect(planLimits({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 2 })).toMatchObject({ seats: 2, whatsapp: 2, telegram: 2, messenger: 2, instagram: 2, apiAccess: false });
     expect(planLimits({ plan: "PRO", isInternal: false, status: "ACTIVE", seatQuantity: 1 }).activeAutomations).toBe(Infinity);
   });
   it("interna: sin topes", () => expect(planLimits({ plan: "BASIC", isInternal: true, status: "ACTIVE", seatQuantity: 1 }).contacts).toBe(Infinity));

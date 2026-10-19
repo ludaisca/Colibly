@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { aiCreditLimit, deriveFromSubscription, planChangeImpact, planLimits, seatCap, type SeatUsage } from "../state";
-import { limitsForSeats, monthlyTotalMxn, PLANS, PRICE_TAX_NOTE, TRIAL_MAX_SEATS } from "../plans";
+import { limitsForSeats, MAX_SEATS, monthlyTotalMxn, PLANS, PRICE_TAX_NOTE, TRIAL_MAX_SEATS, TRIAL_POOL } from "../plans";
 
 const usage = (over: Partial<SeatUsage> = {}): SeatUsage => ({
-  seats: 1, whatsapp: 0, channels: 0, contacts: 0, activeAutomations: 0, apiKeys: 0, webhooks: 0, ...over,
+  seats: 1, whatsapp: 0, telegram: 0, messenger: 0, instagram: 0, contacts: 0, activeAutomations: 0, apiKeys: 0, webhooks: 0, ...over,
 });
 
 describe("catálogo por asiento (plans.ts)", () => {
@@ -13,6 +13,7 @@ describe("catálogo por asiento (plans.ts)", () => {
     expect(monthlyTotalMxn(PLANS.PRO, 4)).toBe(1196);
   });
   it("sin leyenda fiscal mientras no se facture", () => expect(PRICE_TAX_NOTE).toBeNull());
+  it("tope de 100 ejecutivos desde la app", () => expect(MAX_SEATS).toBe(100));
 });
 
 describe("seatCap", () => {
@@ -27,16 +28,23 @@ describe("seatCap", () => {
 describe("límites en bolsa (por asiento × asientos)", () => {
   it("Básico con 4 ejecutivos", () =>
     expect(planLimits({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 4 })).toEqual({
-      seats: 4, whatsapp: 4, channels: 1, contacts: 4000, aiCreditsPerMonth: 1200, activeAutomations: 5, apiAccess: false,
+      seats: 4, whatsapp: 4, telegram: 4, messenger: 4, instagram: 4, contacts: 4000, aiCreditsPerMonth: 1200, activeAutomations: 5, apiAccess: false,
     }));
   it("Pro con 2 ejecutivos", () =>
     expect(planLimits({ plan: "PRO", isInternal: false, status: "ACTIVE", seatQuantity: 2 })).toMatchObject({
-      seats: 2, whatsapp: 2, contacts: 10000, aiCreditsPerMonth: 2000, activeAutomations: Infinity, apiAccess: true,
+      seats: 2, whatsapp: 2, telegram: 2, messenger: 2, instagram: 2, contacts: 10000, aiCreditsPerMonth: 2000, activeAutomations: Infinity, apiAccess: true,
     }));
-  it("prueba: Pro con TRIAL_MAX_SEATS ejecutivos", () =>
+  it("prueba: Pro con TRIAL_MAX_SEATS ejecutivos y bolsa plana (no se multiplica)", () => {
+    expect(TRIAL_POOL).toEqual({ contacts: 5000, aiCreditsPerMonth: 1000 });
     expect(planLimits({ plan: "PRO", isInternal: false, status: "TRIALING", seatQuantity: 1 })).toMatchObject({
-      seats: TRIAL_MAX_SEATS, whatsapp: TRIAL_MAX_SEATS, contacts: 5000 * TRIAL_MAX_SEATS, aiCreditsPerMonth: 1000 * TRIAL_MAX_SEATS,
-    }));
+      seats: TRIAL_MAX_SEATS, whatsapp: TRIAL_MAX_SEATS, telegram: TRIAL_MAX_SEATS, messenger: TRIAL_MAX_SEATS, instagram: TRIAL_MAX_SEATS,
+      contacts: 5000, aiCreditsPerMonth: 1000,
+    });
+  });
+  it("prueba: créditos de IA = bolsa plana + bono", () =>
+    expect(aiCreditLimit({ plan: "PRO", isInternal: false, status: "TRIALING", seatQuantity: 3, aiCreditsBonus: 50 })).toBe(1050));
+  it("al pagar, la bolsa vuelve a ser por asiento", () =>
+    expect(planLimits({ plan: "PRO", isInternal: false, status: "ACTIVE", seatQuantity: 3 })).toMatchObject({ contacts: 15000, aiCreditsPerMonth: 3000 }));
   it("créditos de IA: bolsa + bono", () =>
     expect(aiCreditLimit({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 3, aiCreditsBonus: 100 })).toBe(1000));
   it("limitsForSeats redondea hacia abajo y respeta el mínimo", () => {
@@ -62,6 +70,12 @@ describe("planChangeImpact (reducción de asientos y Pro → Básico)", () => {
   });
   it("bloquea tener más números de WhatsApp que asientos", () =>
     expect(planChangeImpact("PRO", 2, usage({ seats: 2, whatsapp: 3 })).blockers[0]).toMatch(/números de WhatsApp/));
+  it.each(["telegram", "messenger", "instagram"] as const)("bloquea tener más cuentas de %s que asientos (en Básico y en Pro)", (ch) => {
+    expect(planChangeImpact("PRO", 2, usage({ seats: 2, [ch]: 3 })).blockers[0]).toMatch(/cada ejecutivo conecta 1/);
+    expect(planChangeImpact("BASIC", 2, usage({ seats: 2, [ch]: 3 })).blockers[0]).toMatch(/Desconecta cuentas de/);
+  });
+  it("1 cuenta de cada tipo por ejecutivo cabe aunque sean 3 tipos", () =>
+    expect(planChangeImpact("BASIC", 1, usage({ telegram: 1, messenger: 1, instagram: 1 }))).toEqual({ blockers: [], warnings: [] }));
   it("Básico: bloquea con más de 5 automatizaciones activas", () =>
     expect(planChangeImpact("BASIC", 3, usage({ seats: 3, activeAutomations: 6 })).blockers[0]).toMatch(/automatizaciones activas/));
   it("Básico: avisa que la API y los webhooks dejan de funcionar", () => {
