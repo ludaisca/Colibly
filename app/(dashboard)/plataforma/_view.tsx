@@ -36,7 +36,7 @@ export interface PlatformSummary {
   pastDue: number;
   inactive: number;
   suspended: number;
-  mrrUsd: number;
+  mrrMxn: number;
   signups7d: number;
 }
 
@@ -157,7 +157,7 @@ export function PlatformView({
           <KpiStrip
             size="compact"
             items={[
-              { label: "Ingreso mensual", value: `$${n(summary.mrrUsd)} USD`, hint: "Suscripciones activas" },
+              { label: "Ingreso mensual", value: `$${n(summary.mrrMxn)} MXN`, hint: "Suscripciones activas × asientos" },
               { label: "Pagando", value: n(summary.paying), delta: summary.pastDue ? `${n(summary.pastDue)} con pago pendiente` : undefined, deltaTone: "danger" },
               { label: "En prueba", value: n(summary.trialing), delta: `${n(summary.signups7d)} altas en 7 días`, deltaTone: "neutral" },
               {

@@ -23,12 +23,15 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
   const [role, setRole] = useState("user");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // 402 por asientos: enlace para agregar ejecutivos (lib/billing/gates.ts).
+  const [billingUrl, setBillingUrl] = useState<string | null>(null);
   const [emailError, setEmailError] = useState("");
 
   function handleClose() {
     setEmail("");
     setRole("user");
     setError("");
+    setBillingUrl(null);
     setEmailError("");
     onClose();
   }
@@ -49,7 +52,10 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
         body: JSON.stringify(parsed.data),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "No se pudo enviar la invitación");
+      if (!res.ok) {
+        setBillingUrl(typeof data.billingUrl === "string" ? data.billingUrl : null);
+        throw new Error(data.error ?? "No se pudo enviar la invitación");
+      }
       success(`Invitación enviada a ${parsed.data.email}`);
       handleClose();
       onInvited();
@@ -79,7 +85,17 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
       }
     >
       <div className="space-y-4">
-        {error && <Banner tone="danger">{error}</Banner>}
+        {error && (
+          <Banner tone="danger">
+            {error}
+            {billingUrl && (
+              <>
+                {" "}
+                <a href={billingUrl} className="font-medium underline underline-offset-2">Agregar ejecutivos en Plan y facturación</a>
+              </>
+            )}
+          </Banner>
+        )}
         <FormField label="Email" required error={emailError}>
           {(id) => (
             <Input

@@ -26,6 +26,8 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
   const [maxOpenChats, setMaxOpenChats] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // 402 por asientos: enlace para agregar ejecutivos (lib/billing/gates.ts).
+  const [billingUrl, setBillingUrl] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const resetForm = useCallback(() => {
@@ -35,6 +37,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
     setRole("user");
     setMaxOpenChats("");
     setError("");
+    setBillingUrl(null);
     setFieldErrors({});
   }, []);
 
@@ -66,7 +69,10 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error al crear usuario");
+      if (!res.ok) {
+        setBillingUrl(typeof data.billingUrl === "string" ? data.billingUrl : null);
+        throw new Error(data.error ?? "Error al crear usuario");
+      }
 
       success("Usuario creado");
       resetForm();
@@ -98,7 +104,17 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
       }
     >
       <div className="space-y-4">
-        {error && <Banner tone="danger">{error}</Banner>}
+        {error && (
+          <Banner tone="danger">
+            {error}
+            {billingUrl && (
+              <>
+                {" "}
+                <a href={billingUrl} className="font-medium underline underline-offset-2">Agregar ejecutivos en Plan y facturación</a>
+              </>
+            )}
+          </Banner>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Nombre" required error={fieldErrors.name}>

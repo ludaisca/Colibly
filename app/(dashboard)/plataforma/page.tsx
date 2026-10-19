@@ -56,6 +56,7 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
         createdAt: true,
         aiCreditsUsed: true,
         aiCreditsBonus: true,
+        seatQuantity: true,
         stripeSubscriptionId: true,
         channelTelegramEnabled: true,
         channelMessengerEnabled: true,
@@ -67,7 +68,7 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
       },
     }),
     prisma.organization.groupBy({ by: ["status"], where: { isInternal: false }, _count: true }),
-    prisma.organization.groupBy({ by: ["plan"], where: { isInternal: false, status: "ACTIVE" }, _count: true }),
+    prisma.organization.groupBy({ by: ["plan"], where: { isInternal: false, status: "ACTIVE" }, _sum: { seatQuantity: true } }),
     prisma.organization.count({ where: { isInternal: false, createdAt: { gte: weekAgo } } }),
   ]);
 
@@ -79,7 +80,7 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
     pastDue: count("PAST_DUE"),
     inactive: count("READ_ONLY") + count("CANCELED"),
     suspended: count("SUSPENDED"),
-    mrrUsd: activeByPlan.reduce((n, b) => n + b._count * PLANS[b.plan].priceUsd, 0),
+    mrrMxn: activeByPlan.reduce((n, b) => n + (b._sum.seatQuantity ?? 0) * PLANS[b.plan].pricePerSeatMxn, 0),
     signups7d,
   };
 
