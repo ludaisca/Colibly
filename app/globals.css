@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
-   TOKENS — paleta "Colibrí" de Colibly (2026-09-27): violeta colibrí como
-   acento, rubí (la garganta del colibrí) como acento de apoyo y neutros con
-   un tinte violeta. Reemplaza a la paleta "Girasol" de SunflowCRM.
+   TOKENS — paleta "Menta y grafito" de Colibly (2026-10-18): verde profundo
+   #0F766E como acento, menta #5EEAD4 solo decorativa, tinta casi negra
+   #0F1A1A y fondos con tinte menta. Reemplaza a "Colibrí" (violeta).
    Dos capas:
-   1. Primitivos (--violet-*, --ruby-*, --ink-*, estados): solo se usan aquí
+   1. Primitivos (--teal-*, --graphite-*, --ink-*, estados): solo se usan aquí
       dentro, nunca desde componentes.
    2. Semánticos (--accent, --surface, --muted…): lo único que consumen los
       componentes vía las utilidades de Tailwind (@theme inline, abajo).
@@ -16,8 +16,8 @@
      accent-strong bordes, anillos de foco y trazos de gráficas (≥ 3:1)
      accent-ink    texto e iconos en color de marca (≥ 4.5:1)
      accent-subtle / accent-muted  fondos suaves y bordes decorativos
-   El rubí brillante (--ruby-500) no pasa como texto: solo rellenos
-   decorativos; como texto se usa --ruby-700 (--accent-2).
+   La menta (--teal-300) no pasa como texto sobre fondo claro: solo
+   decorativa; el acento de apoyo (--accent-2) es grafito.
    Los mismos valores en hex para lo que no lee CSS (correos, imágenes,
    widget de chat web): lib/brand-colors.ts — cambiarlos juntos.
    lib/design/__tests__/contrast.test.ts verifica los pares texto/fondo.
@@ -26,28 +26,28 @@
    ───────────────────────────────────────────────── */
 :root {
   /* ── Primitivos ── */
-  --violet-50:  #F5F2FF;
-  --violet-100: #EEE9FE;
-  --violet-200: #D9CFFC;
-  --violet-300: #B7A6FF;
-  --violet-400: #9B85FF;
-  --violet-600: #5B34E6;
-  --violet-700: #4A26C9;
-  --violet-800: #3A1CA8;
+  --teal-50:  #F2F9F7;
+  --teal-100: #DDF3EE;
+  --teal-200: #A9E3D6;
+  --teal-300: #5EEAD4;  /* menta: solo decorativo (puntos, trazos, texto sobre fondo oscuro) */
+  --teal-400: #2DD4BF;
+  --teal-600: #0F766E;
+  --teal-700: #0B5F58;
+  --teal-800: #084A45;
 
-  --ruby-50:  #FFE4EB;
-  --ruby-500: #FF4F7B;
-  --ruby-700: #C21E4C;
-  --ruby-800: #A3173F;
+  --graphite-50:  #E4F1EE;
+  --graphite-500: #5E7370;
+  --graphite-700: #2F3F3F;
+  --graphite-800: #1F2B2B;
 
   --ink-0:   #FFFFFF;
-  --ink-25:  #F8F6FC;
-  --ink-50:  #F1EEF8;
-  --ink-100: #E7E2F3;
-  --ink-400: #8C86A0;
-  --ink-600: #5F5A73;
-  --ink-700: #4A455E;
-  --ink-950: #17132B;
+  --ink-25:  #F2F9F7;
+  --ink-50:  #E4F1EE;
+  --ink-100: #D3E6E2;
+  --ink-400: #7A8F8C;
+  --ink-600: #465757;
+  --ink-700: #2F3F3F;
+  --ink-950: #0F1A1A;
 
   --green-700: #17663F;  --green-50:  #E3F4EA;  --green-200: #B9E0C9;
   --orange-700:#9A4307;  --orange-50: #FDEFE3;  --orange-200:#F6CBA8;
@@ -69,18 +69,18 @@
   --muted-darker:  var(--ink-600);   /* texto secundario pequeño y placeholders legibles */
   --muted-strong:  var(--ink-700);   /* microtexto (notas bajo botones, pies de tarjeta, enlaces del pie): ≥ 7:1 */
 
-  --accent:        var(--violet-600);
-  --accent-hover:  var(--violet-700);
+  --accent:        var(--teal-600);
+  --accent-hover:  var(--teal-700);
   --on-accent:     var(--ink-0);
-  --accent-strong: var(--violet-600);
-  --accent-ink:    var(--violet-700);
-  --accent-subtle: var(--violet-100);
-  --accent-muted:  var(--violet-200);
+  --accent-strong: var(--teal-600);
+  --accent-ink:    var(--teal-700);
+  --accent-subtle: var(--teal-100);
+  --accent-muted:  var(--teal-200);
 
-  /* Acento de apoyo: rubí (iconos secundarios, destacados). No es CTA. */
-  --accent-2:       var(--ruby-700);
-  --accent-2-hover: var(--ruby-800);
-  --accent-2-bg:    var(--ruby-50);
+  /* Acento de apoyo: grafito (iconos secundarios, destacados). No es CTA. */
+  --accent-2:       var(--graphite-700);
+  --accent-2-hover: var(--graphite-800);
+  --accent-2-bg:    var(--graphite-50);
 
   /* Estados. */
   --success:        var(--green-700);
@@ -96,10 +96,10 @@
   --info-bg:        var(--blue-50);
   --info-border:    var(--blue-200);
 
-  /* Elevation — sombras suaves con tinte de la tinta violeta. */
-  --shadow-sm: 0 1px 2px rgba(23, 19, 43, 0.05);
-  --shadow-md: 0 10px 28px rgba(23, 19, 43, 0.08), 0 2px 6px rgba(23, 19, 43, 0.05);
-  --shadow-lg: 0 20px 48px rgba(23, 19, 43, 0.12), 0 4px 10px rgba(23, 19, 43, 0.06);
+  /* Elevation — sombras suaves con tinte de la tinta. */
+  --shadow-sm: 0 1px 2px rgba(15, 26, 26, 0.05);
+  --shadow-md: 0 10px 28px rgba(15, 26, 26, 0.08), 0 2px 6px rgba(15, 26, 26, 0.05);
+  --shadow-lg: 0 20px 48px rgba(15, 26, 26, 0.12), 0 4px 10px rgba(15, 26, 26, 0.06);
 
   /* Focus */
   --ring:        var(--accent-strong);
@@ -130,7 +130,7 @@
 
 /* ─────────────────────────────────────────────────
    TEMA OSCURO — solo remapea la capa semántica (next-themes pone .dark en
-   <html>). Fondo "noche" violeta casi negro; el acento de relleno se aclara un
+   <html>). Fondo "noche" verde casi negro; el acento de relleno se aclara un
    poco pero conserva texto blanco encima, y los tonos de texto/borde se
    aclaran para leerse sobre fondo oscuro. Los pares se verifican en
    contrast.test.ts.
@@ -138,27 +138,27 @@
 .dark {
   color-scheme: dark;
 
-  --background:    #100D1F;
-  --foreground:    #F2F0F8;
-  --surface:       #1B1731;
-  --surface-light: #25203F;
-  --border:        #3A3357;
+  --background:    #0B1514;
+  --foreground:    #EAF4F2;
+  --surface:       #12201E;
+  --surface-light: #1A2D2A;
+  --border:        #2B4440;
 
-  --muted:         #B1ABC7;
-  --muted-darker:  #8A84A3;
-  --muted-strong:  #C9C4DB;
+  --muted:         #A9C0BC;
+  --muted-darker:  #84A09B;
+  --muted-strong:  #C5D8D4;
 
-  --accent:        #6A50F5;
-  --accent-hover:  #5A3FE3;
+  --accent:        #0F766E;
+  --accent-hover:  #0D6B64;
   --on-accent:     #FFFFFF;
-  --accent-strong: #9B85FF;
-  --accent-ink:    #B7A6FF;
-  --accent-subtle: #241C48;
-  --accent-muted:  #3A2F72;
+  --accent-strong: #2DD4BF;
+  --accent-ink:    #5EEAD4;
+  --accent-subtle: #11302C;
+  --accent-muted:  #1D4D47;
 
-  --accent-2:       #FF7A9A;
-  --accent-2-hover: #FF96AE;
-  --accent-2-bg:    #3A1E2B;
+  --accent-2:       #B4CAC6;
+  --accent-2-hover: #CFE0DD;
+  --accent-2-bg:    #1A2D2A;
 
   --success:        #74CC8F;
   --success-bg:     #18301F;
@@ -188,8 +188,8 @@
 .hue-3 { --entity: oklch(0.44 0.10 200); }
 .hue-4 { --entity: oklch(0.44 0.10 225); }
 .hue-5 { --entity: oklch(0.44 0.11 250); }
-.hue-6 { --entity: oklch(0.44 0.11 275); }
-.hue-7 { --entity: oklch(0.44 0.11 300); }
+.hue-6 { --entity: oklch(0.44 0.10 150); }
+.hue-7 { --entity: oklch(0.44 0.12 340); }
 
 .dark .hue-0 { --entity: oklch(0.84 0.11 25); --entity-bg: color-mix(in oklab, var(--entity) 12%, var(--surface)); }
 .dark .hue-1 { --entity: oklch(0.80 0.11 60);  }
@@ -197,8 +197,8 @@
 .dark .hue-3 { --entity: oklch(0.78 0.10 200); }
 .dark .hue-4 { --entity: oklch(0.77 0.10 225); }
 .dark .hue-5 { --entity: oklch(0.76 0.11 250); }
-.dark .hue-6 { --entity: oklch(0.76 0.11 275); }
-.dark .hue-7 { --entity: oklch(0.77 0.11 300); }
+.dark .hue-6 { --entity: oklch(0.78 0.10 150); }
+.dark .hue-7 { --entity: oklch(0.80 0.10 340); }
 
 /* Mezclado contra --surface (opaco), no "transparent": a 14% sobre
    transparent el relleno quedaba casi invisible en algunos hues sobre el
