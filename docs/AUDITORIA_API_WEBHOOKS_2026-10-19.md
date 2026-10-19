@@ -111,3 +111,81 @@ No se envió ningún mensaje de WhatsApp.
 12. **Texto de marketing.** Cambiar a "conecta tu tienda o ERP vía API y webhooks (o Zapier/Make)" para no prometer conectores nativos. *Esfuerzo: 15 min.*
 
 **Lo que ya está bien y no hay que tocar:** hash de llaves (sha256 basta con 256 bits de entropía), firma HMAC con marca de tiempo, protección SSRF, aislamiento por organización y bitácora con purga.
+
+## 6. Estado de las correcciones (2026-10-19, tarde)
+
+Luis aprobó las correcciones. Todas están en `feat/lanzamiento-pulido` (dev), sin push. Hay una migración nueva, `webhook_pause_owner`: agrega dos columnas a `webhook_endpoints` y se generó con `scripts/new-migration.sh`.
+
+| # | Corrección | Estado | Dónde |
+|---|---|---|---|
+| 1 | IP confiable para los límites anti-fuerza-bruta | Hecho | `lib/net/client-ip.ts`; se usa en API keys inválidas, login, registro, recuperar/restablecer contraseña, verificar correo, invitaciones y solicitudes beta |
+| 2 | `Idempotency-Key` en los POST | Hecho | `lib/api/idempotency.ts`, aplicado a `/messages`, `/contacts`, `/contacts/{id}/tags` y `/automations/{id}/runs`; documentado en OpenAPI |
+| 3 | Candado Pro en el botón "Probar" (y en "Reintentar entrega") | Hecho | rutas `test` y `retry` de `/api/configuracion/webhooks` |
+| 4 | Pausa de webhooks cuando su creador pierde el admin | Hecho | `lib/webhooks/ownership.ts`, `PATCH /api/usuarios`, `updateWebhook(takeOwnership)`, UI con "Reactivar y tomar propiedad" |
+| 5 | Topes de 10 API keys activas y 10 webhooks por cuenta | Hecho | `lib/api/limits.ts`; responde 409 `limit_reached` con mensaje claro; las cuentas internas no tienen tope |
+| 6 | Búsqueda de webhooks filtrada por `organizationId` | Hecho | `lib/webhooks/fanout.ts`: filtra por la organización de la cuenta del evento y exige que el dueño sea admin activo |
+| 7 | `contact.created` en coexistencia | Hecho | `lib/whatsapp/coexistence/ingest.ts`: historial (`source: "history"`) y eco (`source: "echo"`). Los entrantes ya lo emitían (`source: "inbound"`). |
+| 8 | Texto de marketing | Hecho | Landing, `/precios`, `plan-features.ts` → `pricing.generated.php` y `llms.txt` (regenerados), `index.php`, `precios.php` y `legal-layout.php` del cPanel |
+| 9 | Documentación pública en `/docs/api` y headers de límite | Hecho | `app/(marketing)/docs/api` y `lib/api/openapi.ts` (ampliado); headers en `lib/api/rate-headers.ts` |
+
+### Cómo funciona cada corrección
+
+**1. IP confiable.** Detrás de Coolify/Traefik, Traefik borra los `X-Forwarded-*` y el `X-Real-Ip` que manda el cliente. En su lugar pone `X-Real-Ip` con la IP real y agrega esa misma IP al final de `X-Forwarded-For`. La regla es:
+1. Si existe `TRUSTED_CLIENT_IP_HEADER`, se usa ese header. Es opcional y solo hace falta si algún día ponemos un CDN delante (p. ej. `cf-connecting-ip`); en ese caso, aceptar tráfico únicamente del CDN.
+2. Si no, `X-Real-Ip`.
+3. Si no, el **último** valor de `X-Forwarded-For`, nunca el primero.
+4. Si no hay ninguno, `unknown`.
+
+La variable ya está en `docker-compose.yml`. Con la regla anterior, rotar un `X-Forwarded-For` falso ya no salta el límite.
+
+**2. Idempotencia.**
+- Se guarda en Redis durante 24 h, por organización y clave: la huella (método + ruta + JSON con las claves ordenadas), el status y el cuerpo de la respuesta.
+- Misma clave y mismo cuerpo: se devuelve la respuesta original con `Idempotent-Replayed: true` y la operación no se repite.
+- Misma clave con otro cuerpo: 422 `idempotency_conflict`. Si la primera solicitud sigue en curso: 409.
+- No se guardan 401/402/403/429 ni 5xx, para que el cliente pueda reintentarlos. Si la key está revocada, la respuesta guardada no se reproduce.
+- Si Redis falla, la solicitud se procesa sin idempotencia (se prefirió no bloquear la API entera).
+- `POST /webhooks` queda fuera a propósito: su respuesta trae el secreto `whsec_` y no debe guardarse en Redis.
+
+**4. Pausa por pérdida de admin.**
+- **Qué la dispara:** que el creador pase a ejecutivo o usuario, o que se desactive. En ese caso sus webhooks activos quedan con `active=false`, `pausedAt` y `pausedReason`, y su `status` es `paused`.
+- **Aviso:** los demás admins activos reciben una notificación en la campana con enlace a Webhooks.
+- **Reactivación:** para reactivarlo hay que tomar la propiedad. En la UI hay una confirmación; por API es `PATCH` con `takeOwnership: true`. El webhook pasa a nombre de quien lo reactiva y el recorte de cuentas se valida contra el nuevo dueño. Sin tomar la propiedad, la reactivación se rechaza con un mensaje claro.
+- **Defensa extra:** el fanout ignora endpoints cuyo dueño no sea admin activo, aunque el rol haya cambiado por otra vía (p. ej. SQL o soporte).
+
+**7. Ráfaga del historial: qué se decidió.** Se emite un evento por contacto, no por lotes:
+- El receptor necesita cada contacto, y el total ya está acotado por el tope de contactos del plan.
+- Los eventos del historial entran a la cola `domain-events` con prioridad baja (los eventos en vivo pasan primero) y espaciados 200 ms dentro de cada lote.
+- Después, cada entrega sigue los reintentos y el backoff normales.
+- El receptor puede filtrarlos por `data.source = "history"`. Así está documentado.
+- `contact.created` no dispara automatizaciones, así que no sale ningún mensaje.
+
+**9. Documentación pública.**
+- **Qué es:** `app.colibly.com/docs/api` es una página del servidor, sin sesión, que se arma desde `buildOpenApiSpec()`. Los números (límites, reintentos, topes) salen de `lib/api/constants.ts`, que el código también usa, así que la página no se desfasa.
+- **Qué cubre:** introducción, autenticación, límites y headers, idempotencia, errores, paginación, política de versiones, webhooks (eventos con ejemplo de `data`, payload, firma en Node y PHP, reintentos, desactivación y pausa) y la referencia de endpoints con `curl` y respuesta de ejemplo.
+- **Indexación:**
+  - En producción, `robots.txt` de app.* permite `/docs/` y bloquea el resto.
+  - Si la página se pide en el dominio del sitio, se redirige a app.* (una sola URL canónica).
+  - Solo muestra datos ficticios.
+- **Enlaces:** se enlaza desde el pie de la landing ("API para desarrolladores"), `/precios`, el pie del cPanel (inicio y páginas legales), `precios.php` y `llms.txt`.
+- **Headers de límite:** toda respuesta autenticada de `/api/v1` lleva `X-RateLimit-Limit`, `X-RateLimit-Remaining` y `X-RateLimit-Reset` (segundos). El 429 agrega `Retry-After`.
+
+### Corrección de un dato de la auditoría
+
+Los 6 intentos de entrega de un webhook suman unos **15 minutos**: esperas de 30 s, 1 m, 2 m, 4 m y 8 m. No 31, como decía el comentario de `lib/queue.ts`, que ya se corrigió.
+
+### Verificación
+
+- **Pruebas automáticas:** `tsc` limpio, `eslint` limpio y `vitest` con 46 archivos y 519 pruebas. Hay 12 archivos nuevos de pruebas: IP confiable, idempotencia, headers de límite, topes, pausa y toma de propiedad, ruta `PATCH /usuarios`, fanout por organización, candado del botón Probar, eventos de coexistencia, cobertura del OpenAPI y receta de firma de los snippets.
+- **Prueba en vivo (dev, Vamex):**
+  - `X-RateLimit-*` presentes.
+  - `POST /contacts` con un teléfono que ya existía y una `Idempotency-Key`: 200; repetido: 200 con `Idempotent-Replayed: true`; con otro cuerpo: 422 `idempotency_conflict`. El contacto no se modificó.
+  - La 11.ª API key se rechazó con 409 `limit_reached`.
+  - Se borraron las 10 keys de prueba y las claves `idem:*` de Redis.
+- **Lo que no se probó:** no se envió ningún WhatsApp, y la pausa por degradación no se probó en vivo porque Vamex tiene un solo admin (sí está cubierta por pruebas).
+- **Capturas:** en `/workspace/api-docs/` (escritorio y celular).
+
+### Pendiente o para decidir
+
+- **Política de versiones:** la página promete mantener v1 al menos 12 meses después de una v2 y avisar por correo. Luis debe confirmar ese compromiso.
+- **Publicar el cPanel:** el cPanel se publica a mano. Hay que subir `index.php`, `legal-layout.php`, `precios.php`, `pricing.generated.php` y `llms.txt`.
+- **Rotar llave en un clic** (mejora 10): sigue pendiente; hoy se rota creando una nueva y revocando la vieja.

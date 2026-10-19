@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/app-url";
 import type { Metadata } from "next";
 import { Check, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -61,7 +62,7 @@ export default function PricingPage() {
       <h2>Lo que conviene saber</h2>
       <ul>
         <li>Un ejecutivo es cada persona de tu equipo que puede atender conversaciones, incluido quien crea la cuenta y los administradores. Las invitaciones pendientes también ocupan un asiento. Puedes agregar o quitar ejecutivos cuando quieras; el cambio se prorratea.</li>
-        <li>Cada ejecutivo conecta 1 número de WhatsApp y, por habilitación, 1 cuenta de Telegram, de Messenger y de Instagram. Contactos y créditos de IA se suman por ejecutivo en una bolsa para todo tu equipo; las automatizaciones y la API dependen del plan.</li>
+        <li>Cada ejecutivo conecta 1 número de WhatsApp y, por habilitación, 1 cuenta de Telegram, de Messenger y de Instagram. Contactos y créditos de IA se suman por ejecutivo en una bolsa para todo tu equipo; las automatizaciones y la API dependen del plan (<a href={appUrl("/docs/api")} className="font-medium text-accent-ink underline underline-offset-2">documentación de la API</a>).</li>
         <li>La prueba de {TRIAL_DAYS} días incluye el plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos, con {TRIAL_POOL_TEXT}, y no pide tarjeta. Al terminar, si no eliges un plan, tu cuenta pasa a solo lectura y tus datos se conservan.</li>
         <li>Los precios están en pesos mexicanos (MXN) por ejecutivo, se cobran cada mes con tarjeta a través de Stripe y la suscripción se renueva hasta que la cancelas.</li>
         <li>La IA ya viene incluida: no necesitas contratar ni configurar una IA por tu cuenta.</li>

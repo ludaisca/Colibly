@@ -7,12 +7,10 @@ import { acceptInvitationSchema } from "@/lib/validations";
 import { findValidAuthToken } from "@/lib/auth-tokens";
 import { checkPlanLimit } from "@/lib/billing/gates";
 import { BRAND_NAME } from "@/lib/brand";
+import { clientIp } from "@/lib/net/client-ip";
 
 const INVALID = "La invitación no es válida o ya venció. Pide a tu administrador que te envíe una nueva.";
 
-function clientIp(req: Request) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-}
 
 // Datos de la invitación para la pantalla de aceptar (público).
 export async function GET(req: Request) {

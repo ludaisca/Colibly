@@ -9,14 +9,14 @@ import { sendVerificationEmail } from "@/lib/auth-emails";
 import { sendMetaSignupEvent } from "@/lib/analytics/meta-capi";
 import { appUrl } from "@/lib/app-url";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { clientIp } from "@/lib/net/client-ip";
 
 // Registro público (SaaS): cada registro crea un cliente nuevo — su
 // organización en prueba gratis y su usuario dueño. Los demás miembros de un
 // equipo entran por invitación de su admin, nunca por aquí.
 export async function POST(req: Request) {
   try {
-    const forwarded = req.headers.get("x-forwarded-for");
-    const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
 
     // Por IP (ráfagas) y global por hora (un script creando cuentas en masa).
     const [perIp, global] = await Promise.all([rateLimit(`register:${ip}`, 5, 60), rateLimit("register:global", 300, 3600)]);
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => null);
     // Captcha (si está configurado) antes de tocar la base o hashear nada.
-    if (!(await verifyTurnstile(body?.turnstileToken, forwarded ? ip : null))) {
+    if (!(await verifyTurnstile(body?.turnstileToken, ip !== "unknown" ? ip : null))) {
       return NextResponse.json({ error: "No pudimos confirmar que no eres un robot. Vuelve a marcar la verificación e intenta de nuevo." }, { status: 400 });
     }
 

@@ -4,6 +4,7 @@ import { ApiError, apiOk, withApiErrors, type ApiErrorCode } from "@/lib/api/res
 import { findScopedContact, findScopedConversation } from "@/lib/api/resources";
 import { apiSendMessageSchema, type ApiSendMessageInput } from "@/lib/api/schemas";
 import { OutboundError, sendOutbound, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
+import { withIdempotency } from "@/lib/api/idempotency";
 
 const OUTBOUND_STATUS: Record<OutboundError["code"], [number, ApiErrorCode]> = {
   window_closed: [422, "window_closed"],
@@ -18,7 +19,7 @@ const OUTBOUND_STATUS: Record<OutboundError["code"], [number, ApiErrorCode]> = {
 // 422 window_closed y hay que mandar una plantilla. Una plantilla a un contacto
 // de WhatsApp que aún no tiene chat (p. ej. recién creado por POST /contacts)
 // abre el chat.
-export const POST = withApiErrors(async (req: Request) => {
+export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "messages:send");
   const parsed = apiSendMessageSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
@@ -42,7 +43,7 @@ export const POST = withApiErrors(async (req: Request) => {
     }
     throw err;
   }
-});
+}));
 
 function toContent(input: ApiSendMessageInput): OutboundContent {
   if (input.type === "text") return { type: "text", text: input.text! };

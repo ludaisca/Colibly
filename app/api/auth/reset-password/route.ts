@@ -5,13 +5,14 @@ import { rateLimit } from "@/lib/rate-limit";
 import { resetPasswordSchema } from "@/lib/validations";
 import { consumeAuthToken, findValidAuthToken } from "@/lib/auth-tokens";
 import { invalidateUserSessionCache } from "@/lib/auth";
+import { clientIp } from "@/lib/net/client-ip";
 
 // Fija una contraseña nueva con el enlace del correo. Cierra todas las
 // sesiones abiertas (sessionVersion + 1) — si alguien más tenía acceso, lo
 // pierde — y, como abrir el enlace prueba el correo, lo da por verificado.
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     const { allowed } = await rateLimit(`reset-password:${ip}`, 10, 900);
     if (!allowed) return NextResponse.json({ error: "Demasiados intentos. Espera unos minutos." }, { status: 429 });
 

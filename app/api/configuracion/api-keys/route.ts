@@ -8,6 +8,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
 import { checkApiAccess } from "@/lib/billing/gates";
+import { apiKeyCapExceeded } from "@/lib/api/limits";
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(80),
@@ -34,8 +35,11 @@ export async function POST(req: Request) {
   try {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
-    const noApi = await checkApiAccess(await requireOrgId(admin.userId));
+    const organizationId = await requireOrgId(admin.userId);
+    const noApi = await checkApiAccess(organizationId);
     if (noApi) return noApi;
+    const cap = await apiKeyCapExceeded(organizationId);
+    if (cap) return NextResponse.json({ error: cap.message, code: "limit_reached", current: cap.current, max: cap.max }, { status: 409 });
 
     const parsed = createSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
@@ -53,7 +57,7 @@ export async function POST(req: Request) {
     const key = await prisma.apiKey.create({
       data: {
         userId: admin.userId,
-        organizationId: await requireOrgId(admin.userId),
+        organizationId,
         name: input.name,
         prefix,
         keyHash,

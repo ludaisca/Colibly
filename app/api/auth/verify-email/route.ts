@@ -4,12 +4,13 @@ import { rateLimit } from "@/lib/rate-limit";
 import { consumeAuthToken, findValidAuthToken } from "@/lib/auth-tokens";
 import { invalidateUserSessionCache } from "@/lib/auth";
 import { sendWelcomeEmail } from "@/lib/auth-emails";
+import { clientIp } from "@/lib/net/client-ip";
 
 // Confirma el correo con el enlace recibido. Público: el enlace puede abrirse
 // en otro navegador, sin sesión.
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     const { allowed } = await rateLimit(`verify-email:${ip}`, 20, 600);
     if (!allowed) return NextResponse.json({ error: "Demasiados intentos. Espera unos minutos." }, { status: 429 });
 

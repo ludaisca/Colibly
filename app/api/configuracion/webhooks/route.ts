@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/integrations/admin-session";
-import { createWebhook, serializeWebhook, webhookCreateSchema, WebhookInputError } from "@/lib/webhooks/crud";
+import { createWebhook, serializeWebhook, webhookCreateSchema, WebhookInputError, WebhookLimitError } from "@/lib/webhooks/crud";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { checkApiAccess } from "@/lib/billing/gates";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
@@ -32,6 +32,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ webhook: serializeWebhook(endpoint), secret }, { status: 201 });
   } catch (error) {
     if (error instanceof WebhookInputError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof WebhookLimitError) {
+      return NextResponse.json({ error: error.message, code: "limit_reached", current: error.current, max: error.max }, { status: 409 });
+    }
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno del servidor") }, { status: 500 });
   }
 }

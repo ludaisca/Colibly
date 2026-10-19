@@ -11,7 +11,8 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const appHost = process.env.APP_URL ? new URL(process.env.APP_URL).hostname.toLowerCase() : null;
   const siteHost = process.env.SITE_URL ? new URL(process.env.SITE_URL).hostname.toLowerCase() : null;
   if (appHost && siteHost && appHost !== siteHost && host === appHost) {
-    return { rules: { userAgent: "*", disallow: "/" } };
+    // En app.* solo se indexa la documentación pública de la API.
+    return { rules: { userAgent: "*", allow: ["/docs/"], disallow: "/" } };
   }
   return {
     rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/eliminacion-de-datos/"] },

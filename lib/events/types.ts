@@ -16,7 +16,9 @@ export type MessageSource = "agent" | "api" | "automation";
 interface EventDataMap {
   "message.received": { messageId: string; messageType: string; text: string | null; interactiveReplyId: string | null };
   "message.sent": { messageId: string; messageType: string; text: string | null; source: MessageSource; senderId: string | null };
-  "contact.created": { origin: LeadOrigin; source: "inbound" | "api" | "lead_ads" };
+  // history = importación del historial de la app WhatsApp Business
+  // (coexistencia); echo = el negocio escribió primero desde esa app.
+  "contact.created": { origin: LeadOrigin; source: "inbound" | "api" | "lead_ads" | "history" | "echo" };
   "contact.lead_status_changed": { from: LeadStatus; to: LeadStatus };
   "tag.added": { tagId: string; tagName: string; target: "contact" | "conversation" };
   "conversation.assigned": { assignedToId: string | null; auto: boolean };

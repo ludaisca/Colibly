@@ -3,13 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { forgotPasswordSchema } from "@/lib/validations";
 import { sendPasswordResetEmail } from "@/lib/auth-emails";
+import { clientIp } from "@/lib/net/client-ip";
 
 // Pide un enlace para restablecer la contraseña. Responde lo mismo exista o no
 // el correo, y el envío corre después de responder (after): ni el cuerpo ni el
 // tiempo de respuesta revelan qué correos tienen cuenta.
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     const parsed = forgotPasswordSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     const { email } = parsed.data;

@@ -4,6 +4,7 @@ import { authenticateApiKey } from "@/lib/api/auth";
 import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
 import { findScopedContact } from "@/lib/api/resources";
 import { startRun } from "@/lib/automations/runner";
+import { withIdempotency } from "@/lib/api/idempotency";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -14,7 +15,7 @@ const bodySchema = z.object({
 
 // POST /api/v1/automations/{id}/runs — inicia una automatización con
 // disparador "Manual" para un contacto (p. ej. tu ERP al confirmar un pedido).
-export const POST = withApiErrors(async (req: Request, { params }: Params) => {
+export const POST = withIdempotency(withApiErrors(async (req: Request, { params }: Params) => {
   const ctx = await authenticateApiKey(req, "automations:run");
   const { id } = await params;
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
@@ -48,4 +49,4 @@ export const POST = withApiErrors(async (req: Request, { params }: Params) => {
   });
   if (!result.started) throw new ApiError(409, "conflict", result.reason);
   return apiOk({ runId: result.runId }, 201);
-});
+}));

@@ -1546,6 +1546,10 @@ model WebhookEndpoint {
   consecutiveFailures Int       @default(0) @map("consecutive_failures")
   // Se desactiva solo tras WEBHOOK_MAX_CONSECUTIVE_FAILURES fallos seguidos.
   disabledAt          DateTime? @map("disabled_at")
+  // Pausado porque su dueño (userId) dejó de ser admin o fue desactivado
+  // (lib/webhooks/ownership.ts). Otro admin lo reactiva tomando la propiedad.
+  pausedAt            DateTime? @map("paused_at")
+  pausedReason        String?   @map("paused_reason")
   lastDeliveryAt      DateTime? @map("last_delivery_at")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")

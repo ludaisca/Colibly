@@ -5,13 +5,14 @@ import { findScopedContact, serializeContact } from "@/lib/api/resources";
 import { apiContactTagSchema } from "@/lib/api/schemas";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { findOrCreateTag, tagBelongsTo } from "@/lib/tags";
+import { withIdempotency } from "@/lib/api/idempotency";
 
 type Params = { params: Promise<{ id: string }> };
 
 // POST — { "tagId": "..." } o { "name": "VIP" } (la crea en la cuenta del
 // contacto si no existe). Dispara secuencias y el webhook tag.added solo si la
 // etiqueta es nueva para el contacto.
-export const POST = withApiErrors(async (req: Request, { params }: Params) => {
+export const POST = withIdempotency(withApiErrors(async (req: Request, { params }: Params) => {
   const ctx = await authenticateApiKey(req, "contacts:write");
   const { id } = await params;
   const contact = await findScopedContact(ctx, id);
@@ -35,7 +36,7 @@ export const POST = withApiErrors(async (req: Request, { params }: Params) => {
     await afterContactTagAdded(id, tag);
   }
   return apiOk(serializeContact(await findScopedContact(ctx, id)));
-});
+}));
 
 // DELETE ?tagId=...
 export const DELETE = withApiErrors(async (req: Request, { params }: Params) => {

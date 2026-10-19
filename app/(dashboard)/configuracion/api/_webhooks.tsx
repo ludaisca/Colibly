@@ -15,7 +15,8 @@ import { SecretField } from "@/app/components/integrations/secret-field";
 import { WebhookFormModal, type WebhookRow } from "./_webhook-form";
 import { formatDateTime, scopeSummary, type IntegrationAccount } from "./_shared";
 
-function webhookState(w: WebhookRow): { label: string; tone: "success" | "danger" | "neutral" } {
+function webhookState(w: WebhookRow): { label: string; tone: "success" | "danger" | "neutral" | "warning" } {
+  if (w.status === "paused") return { label: "Pausado: su creador ya no es admin", tone: "warning" };
   if (w.disabledAt) return { label: "Desactivado por fallos", tone: "danger" };
   if (!w.active) return { label: "Pausado", tone: "neutral" };
   return { label: "Activo", tone: "success" };
@@ -31,6 +32,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
   const [editing, setEditing] = useState<WebhookRow | null>(null);
   const [deleting, setDeleting] = useState<WebhookRow | null>(null);
   const [rotating, setRotating] = useState<WebhookRow | null>(null);
+  const [claiming, setClaiming] = useState<WebhookRow | null>(null);
   const [rotatedSecret, setRotatedSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -72,6 +74,11 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
   }
 
   async function toggleActive(w: WebhookRow) {
+    // Pausado porque su creador perdió el acceso: reactivarlo lo pasa a tu nombre.
+    if (w.status === "paused") {
+      setClaiming(w);
+      return;
+    }
     try {
       await call(
         `/api/configuracion/webhooks/${w.id}`,
@@ -81,6 +88,24 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
       fetchItems();
     } catch (err) {
       toastError(err instanceof Error ? err.message : "No se pudo actualizar");
+    }
+  }
+
+  async function handleClaim() {
+    if (!claiming) return;
+    setBusy(true);
+    try {
+      await call(
+        `/api/configuracion/webhooks/${claiming.id}`,
+        { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: true, takeOwnership: true }) },
+        "Webhook reactivado a tu nombre"
+      );
+      setClaiming(null);
+      fetchItems();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo reactivar");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -126,7 +151,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
       />
       <p className="text-sm text-muted">
         Recibe en tu servidor, al instante, lo que pasa en el CRM: mensajes, contactos nuevos, cambios de etapa, citas y más.
-        Un webhook que falla 20 entregas seguidas se desactiva solo y te avisa.
+        Un webhook que falla 20 entregas seguidas se desactiva solo y te avisa. Si su creador deja de ser admin, se pausa hasta que otro admin lo reactive.
       </p>
 
       <EntityList
@@ -137,7 +162,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
         onRetry={fetchItems}
         emptyIcon={Webhook}
         emptyTitle="Sin webhooks"
-        emptyDescription="Crea uno para enviar los eventos del CRM a tu ERP, Zapier o Make."
+        emptyDescription="Crea uno para enviar los eventos del CRM a tu ERP o a tu propio servidor."
         emptyAction={<Button size="sm" icon={Plus} onClick={openCreate}>Nuevo webhook</Button>}
         onRowClick={(w) => router.push(`/configuracion/api/webhooks/${w.id}/entregas`)}
         renderRow={(w) => {
@@ -151,6 +176,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
                   <span className="font-mono">{w.url}</span> ·{" "}
                   {w.events.includes("*") ? "todos los eventos" : `${w.events.length} evento${w.events.length === 1 ? "" : "s"}`} ·{" "}
                   {scopeSummary(w.accountIds, w.channelAccountIds, accounts)}
+                  {w.status === "paused" && w.pausedReason && <span className="block text-warning">{w.pausedReason}. Actívalo para que quede a tu nombre.</span>}
                 </span>
               }
               badges={<Badge size="sm" tone={state.tone}>{state.label}</Badge>}
@@ -181,6 +207,16 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
         />
       )}
 
+      <ConfirmDialog
+        open={!!claiming}
+        onClose={() => setClaiming(null)}
+        onConfirm={handleClaim}
+        loading={busy}
+        tone="warning"
+        title={`¿Reactivar “${claiming?.name}” a tu nombre?`}
+        description="Su creador ya no es administrador. Al reactivarlo pasa a ser tuyo y enviará los eventos de las cuentas a las que tú tienes acceso."
+        confirmLabel="Reactivar y tomar propiedad"
+      />
       <ConfirmDialog
         open={!!rotating}
         onClose={() => setRotating(null)}

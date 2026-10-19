@@ -4,15 +4,28 @@ import { webhookDeliveryQueue } from "@/lib/queue";
 import type { DomainEvent } from "@/lib/events/types";
 import { resolveIntegrationScope, scopeIncludes, type ResolvedScope } from "@/lib/integrations/account-scope";
 import { buildPublicEvent, type PublicEvent } from "./payload";
-import { hasApiAccess, isOrgWritable } from "@/lib/billing/gates";
+import { hasApiAccess, isOrgWritable, orgIdForAccount } from "@/lib/billing/gates";
 
 // Worker de domain-events → una WebhookDelivery por endpoint que coincide
 // (tipo de evento + alcance de cuentas de su dueño) y un job de entrega por
 // cada una. El @@unique([endpointId, eventId]) hace idempotente el reintento
 // de este mismo job: no se duplican entregas.
 export async function fanOutToWebhooks(event: DomainEvent): Promise<number> {
+  // Multi-tenant: solo los endpoints de la organización dueña de la cuenta
+  // del evento (antes se filtraba endpoint por endpoint después de leerlos todos).
+  const organizationId = await orgIdForAccount(
+    event.account.kind === "whatsapp" ? { waAccountId: event.account.id } : { channelAccountId: event.account.id }
+  );
+  if (!organizationId) return 0;
   const endpoints = await prisma.webhookEndpoint.findMany({
-    where: { active: true, disabledAt: null, events: { hasSome: [event.type, "*"] } },
+    where: {
+      organizationId,
+      active: true,
+      disabledAt: null,
+      events: { hasSome: [event.type, "*"] },
+      // Defensa extra por si el rol cambió por otra vía que no pausó (SQL, soporte).
+      user: { role: "admin", disabledAt: null },
+    },
     select: { id: true, userId: true, organizationId: true, accountIds: true, channelAccountIds: true },
   });
   if (endpoints.length === 0) return 0;

@@ -9,6 +9,7 @@ import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { findOrCreateTag } from "@/lib/tags";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { evaluatePlanLimit } from "@/lib/billing/gates";
+import { withIdempotency } from "@/lib/api/idempotency";
 
 const LEAD_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"] as const;
 
@@ -71,7 +72,7 @@ export const GET = withApiErrors(async (req: Request) => {
 // contacto existente (sin modificarlo); 201 si lo creó. Los contactos de
 // Telegram/Messenger/Instagram/Web no se pueden crear así: su id lo asigna la
 // plataforma cuando la persona escribe primero.
-export const POST = withApiErrors(async (req: Request) => {
+export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "contacts:write");
   const parsed = apiContactCreateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
@@ -144,4 +145,4 @@ export const POST = withApiErrors(async (req: Request) => {
   }
 
   return apiOk(serializeContact(await findScopedContact(ctx, created.id)), 201);
-});
+}));

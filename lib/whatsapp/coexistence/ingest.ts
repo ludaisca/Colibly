@@ -5,12 +5,16 @@ import { mediaDownloadQueue } from "@/lib/queue";
 import { addressBookNameFor, forgetAddressBookEntry, shouldApplyAddressBookName } from "@/lib/whatsapp/address-book";
 import { contactsRemaining, notifyContactLimitOnce } from "@/lib/billing/contact-budget";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
+import { BACKGROUND_EVENT_PRIORITY, emitDomainEvent } from "@/lib/events/emit";
 import { jidCandidates, mapHistoryStatus, type NormalizedBusinessMessage, type NormalizedStateSyncContact } from "./normalize";
 
 // Ingesta de lo que viene de la app WhatsApp Business del cliente (coexistencia).
 // A diferencia de ingestInboundMessage() es SILENCIOSA: no notifica, no dispara
-// bot, automatizaciones ni eventos de dominio, no auto-asigna y no incrementa
-// mensajes sin leer. Solo deja el historial/los ecos visibles en el inbox.
+// bot ni automatizaciones, no auto-asigna y no incrementa mensajes sin leer.
+// Solo deja el historial/los ecos visibles en el inbox. Única excepción: el
+// evento de dominio contact.created (webhooks salientes) de cada contacto que
+// nace aquí — ver emitContactCreated. contact.created no dispara
+// automatizaciones (lib/automations/dispatch.ts), así que no sale ningún mensaje.
 
 export interface BusinessIngestResult {
   created: number;
@@ -28,12 +32,32 @@ interface ContactBudget {
   remaining: number;
 }
 
+// Una importación del historial puede crear cientos de contactos de golpe.
+// Decisión: un contact.created POR contacto (el receptor necesita cada uno y
+// el total ya está acotado por el tope de contactos del plan), pero con
+// prioridad baja en la cola de eventos — los eventos en vivo pasan primero —
+// y espaciados HISTORY_EVENT_SPACING_MS entre sí dentro de cada lote. Luego
+// cada entrega lleva sus reintentos con backoff normales.
+export const HISTORY_EVENT_SPACING_MS = 200;
+
+async function emitContactCreated(accountId: string, chatId: string, contactId: string, source: "whatsapp_history" | "whatsapp_echo", index: number) {
+  const refs = { account: { kind: "whatsapp" as const, id: accountId }, chat: { kind: "whatsapp" as const, id: chatId }, contactId };
+  if (source === "whatsapp_history") {
+    await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: "ORGANIC", source: "history" } }, new Date(), {
+      priority: BACKGROUND_EVENT_PRIORITY,
+      delayMs: index * HISTORY_EVENT_SPACING_MS,
+    });
+  } else {
+    await emitDomainEvent({ type: "contact.created", ...refs, data: { origin: "ORGANIC", source: "echo" } });
+  }
+}
+
 // Encuentra (o crea) Contact + WAChat del cliente final. Para números de México
 // prueba las dos formas (52… y 521…) antes de crear, para no duplicar chats.
 // Sin cupo de contactos (historial al tope del plan) el chat se crea igual,
 // sin contacto: la conversación no se pierde y el contacto nace cuando la
 // persona vuelva a escribir (los entrantes no tienen tope).
-async function resolveChat(accountId: string, userPhone: string, cache: ChatCache, source: "whatsapp_history" | "whatsapp_echo", budget: ContactBudget) {
+async function resolveChat(accountId: string, userPhone: string, cache: ChatCache, source: "whatsapp_history" | "whatsapp_echo", budget: ContactBudget, emitted: { count: number }) {
   const cached = cache.get(userPhone);
   if (cached) return cached;
 
@@ -51,6 +75,7 @@ async function resolveChat(accountId: string, userPhone: string, cache: ChatCach
     const bookName = await addressBookNameFor(accountId, jid);
     const existingContact = await prisma.contact.findUnique({ where: { accountId_remoteJid: { accountId, remoteJid: jid } }, select: { id: true } });
     let contactId: string | null = existingContact?.id ?? null;
+    let contactCreated = false;
     if (!contactId && budget.remaining > 0) {
       budget.remaining--;
       const contact = await prisma.contact.upsert({
@@ -60,6 +85,7 @@ async function resolveChat(accountId: string, userPhone: string, cache: ChatCach
         select: { id: true },
       });
       contactId = contact.id;
+      contactCreated = true;
       await afterContactCreated({ waAccountId: accountId }, contact.id);
       if (bookName) await forgetAddressBookEntry(accountId, jid);
     }
@@ -72,6 +98,7 @@ async function resolveChat(accountId: string, userPhone: string, cache: ChatCach
           select: { id: true, lastMessageAt: true },
         });
     entry = { chatId: created.id, contactId, lastMessageAt: created.lastMessageAt, created: !chat };
+    if (contactCreated && contactId) await emitContactCreated(accountId, created.id, contactId, source, emitted.count++);
   }
   cache.set(userPhone, entry);
   return entry;
@@ -88,12 +115,13 @@ export async function ingestBusinessAppMessages(
   // conversación en vivo (como un entrante) y siempre crea su contacto.
   const budget: ContactBudget = { remaining: origin === "HISTORY" ? await contactsRemaining(accountId) : Infinity };
   const source = origin === "HISTORY" ? "whatsapp_history" : "whatsapp_echo";
+  const emitted = { count: 0 };
 
   // Agrupa por conversación para guardar por lotes: un historial grande
   // (decenas de miles de mensajes) no puede costar varias consultas por mensaje.
   const byChat = new Map<string, NormalizedBusinessMessage[]>();
   for (const msg of messages) {
-    const chat = await resolveChat(accountId, msg.userPhone, cache, source, budget);
+    const chat = await resolveChat(accountId, msg.userPhone, cache, source, budget, emitted);
     const list = byChat.get(chat.chatId);
     if (list) list.push(msg);
     else byChat.set(chat.chatId, [msg]);

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { pauseWebhooksOfUser } from "@/lib/webhooks/ownership";
 import { auth, invalidateUserSessionCache } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -126,6 +127,12 @@ export async function PATCH(req: Request) {
     });
     // Aplica ya en este proceso; en los demás, en ≤ 60 s (ver lib/auth.ts).
     invalidateUserSessionCache(userId);
+
+    // Sus webhooks dejan de enviar datos (sus API keys ya fallan solas al
+    // revisar el rol): se pausan y se avisa a los demás admins.
+    if (losesAdmin) {
+      await pauseWebhooksOfUser(userId, orgId, disabled === true ? "disabled" : "demoted", user.name);
+    }
 
     return NextResponse.json(user);
   } catch (error) {

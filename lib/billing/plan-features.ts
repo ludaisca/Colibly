@@ -21,6 +21,6 @@ export function planFeatures(plan: Plan): Array<{ text: string; included: boolea
     { text: Number.isFinite(o.activeAutomations) ? `${o.activeAutomations} automatizaciones activas` : "Automatizaciones ilimitadas", included: true },
     { text: `${s.channelsPerType} cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación`, included: true },
     { text: "Chat web disponible por habilitación", included: true },
-    { text: "API y webhooks", included: o.apiAccess },
+    { text: "Integración con tus sistemas vía API o webhooks", included: o.apiAccess },
   ];
 }

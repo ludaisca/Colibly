@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { rateLimit } from "./rate-limit";
 import { invalidateTenantCache } from "./tenancy";
+import { clientIp } from "@/lib/net/client-ip";
 
 // El JWT guarda rol y versión de sesión al iniciar sesión. Sin revalidar, un
 // cambio de rol o la desactivación de un usuario no surtían efecto hasta que el
@@ -65,8 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const forwarded = request.headers.get("x-forwarded-for");
-        const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
+        const ip = clientIp(request);
         const { allowed } = await rateLimit(`login:${ip}`, 5, 60);
         if (!allowed) return null;
 

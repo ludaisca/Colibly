@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { applyRateLimitHeaders } from "./rate-headers";
 
 // Respuestas de la API pública (/api/v1). Forma de error estable para que las
 // integraciones puedan ramificar por `code` sin parsear mensajes en español:
@@ -11,6 +12,8 @@ export type ApiErrorCode =
   | "invalid_request"
   | "conflict"
   | "rate_limited"
+  | "limit_reached"
+  | "idempotency_conflict"
   | "window_closed"
   | "plan_limit"
   | "read_only"
@@ -37,15 +40,20 @@ export class ApiError extends Error {
 }
 
 // Envuelve un handler: ApiError → su respuesta; cualquier otra cosa → 500 sin
-// filtrar detalles de Prisma (publicErrorMessage ya los registra).
-export function withApiErrors<A extends unknown[]>(handler: (...args: A) => Promise<Response>) {
+// filtrar detalles de Prisma (publicErrorMessage ya los registra). Agrega los
+// headers X-RateLimit-* que dejó authenticateApiKey.
+export function withApiErrors<A extends [Request, ...unknown[]]>(handler: (...args: A) => Promise<Response>) {
   return async (...args: A): Promise<Response> => {
+    let res: Response;
     try {
-      return await handler(...args);
+      res = await handler(...args);
     } catch (err) {
-      if (err instanceof ApiError) return apiError(err.status, err.code, err.message);
-      return apiError(500, "internal_error", publicErrorMessage(err, "Error interno del servidor"));
+      res =
+        err instanceof ApiError
+          ? apiError(err.status, err.code, err.message)
+          : apiError(500, "internal_error", publicErrorMessage(err, "Error interno del servidor"));
     }
+    return applyRateLimitHeaders(args[0], res);
   };
 }
 

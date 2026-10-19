@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/app-url";
 import type { Metadata } from "next";
 import {
   BadgeCheck,
@@ -304,7 +305,7 @@ export default function LandingPage() {
           ))}
         </div>
         <p className="mt-6 text-sm text-muted">
-          Además: API y webhooks para conectar tu tienda o ERP, reportes por agente y campos personalizados para tu giro.
+          Además: integración con tus propios sistemas vía API o webhooks (<a href={appUrl("/docs/api")} className="font-medium text-accent-ink underline underline-offset-2">documentación</a>), reportes por agente y campos personalizados para tu giro.
         </p>
       </section>
 

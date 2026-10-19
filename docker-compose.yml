@@ -58,6 +58,8 @@ services:
       # son env vars: se configuran desde /plataforma → PlatformSettings
       # (lib/platform-settings.ts), cifradas en base de datos.
       APP_URL: "${APP_URL:-}"
+      # IP confiable para límites anti-abuso: vacío = X-Real-Ip de Traefik (ver lib/net/client-ip.ts).
+      TRUSTED_CLIENT_IP_HEADER: "${TRUSTED_CLIENT_IP_HEADER:-}"
       SITE_URL: "${SITE_URL:-}"
       # Opcional: origen HTTPS exclusivo para webhooks de Telegram en DEV.
       TELEGRAM_WEBHOOK_BASE_URL: "${TELEGRAM_WEBHOOK_BASE_URL:-}"

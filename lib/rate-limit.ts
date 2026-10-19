@@ -6,7 +6,7 @@ export async function rateLimit(
   key: string,
   maxRequests: number,
   windowSeconds: number
-): Promise<{ allowed: boolean; remaining: number }> {
+): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
   const fullKey = `ratelimit:${key}`;
   const now = Date.now();
   const windowStart = now - windowSeconds * 1000;
@@ -17,12 +17,15 @@ export async function rateLimit(
     const multi = r.multi();
     multi.zremrangebyscore(fullKey, 0, windowStart);
     multi.zcard(fullKey);
+    // El más viejo dentro de la ventana: cuando sale, se libera un lugar.
+    multi.zrange(fullKey, 0, 0, "WITHSCORES");
     multi.zadd(fullKey, now, `${now}_${Math.random()}`);
     multi.expire(fullKey, windowSeconds + 1);
 
-    const [, current] = (await multi.exec()) ?? [[null, 0], [null, 0]];
+    const [, current, oldest] = (await multi.exec()) ?? [[null, 0], [null, 0], [null, []]];
     const count = (current?.[1] as number) || 0;
-    return { allowed: count < maxRequests, remaining: Math.max(0, maxRequests - count - 1) };
+    const oldestScore = Number((oldest?.[1] as string[] | undefined)?.[1] ?? now);
+    return { allowed: count < maxRequests, remaining: Math.max(0, maxRequests - count - 1), resetAt: (Number.isFinite(oldestScore) ? oldestScore : now) + windowSeconds * 1000 };
   } catch {
     // Poda de claves muertas: sin esto, con Redis caído un rato el Map crece
     // sin límite (una entrada por IP/usuario que jamás se libera).
@@ -35,6 +38,6 @@ export async function rateLimit(
     const valid = timestamps.filter((t) => t > windowStart);
     valid.push(now);
     memoryStore.set(fullKey, valid);
-    return { allowed: valid.length <= maxRequests, remaining: Math.max(0, maxRequests - valid.length) };
+    return { allowed: valid.length <= maxRequests, remaining: Math.max(0, maxRequests - valid.length), resetAt: valid[0] + windowSeconds * 1000 };
   }
 }

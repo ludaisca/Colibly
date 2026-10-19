@@ -4,11 +4,12 @@ import { decrypt } from "@/lib/crypto";
 import { safeFetch, SafeFetchError } from "@/lib/net/safe-fetch";
 import { WEBHOOK_DELIVERY_ATTEMPTS } from "@/lib/queue";
 import { SIGNATURE_HEADER, signWebhookBody } from "./signature";
+import { WEBHOOK_MAX_CONSECUTIVE_FAILURES, WEBHOOK_TIMEOUT_SECONDS } from "@/lib/api/constants";
 
 // Tras tantas entregas fallidas SEGUIDAS (cada una ya agotó sus reintentos) el
 // endpoint se desactiva solo y se avisa a su dueño — un receptor muerto no
 // debe acumular miles de jobs ni esconder que la integración está rota.
-export const WEBHOOK_MAX_CONSECUTIVE_FAILURES = 20;
+export { WEBHOOK_MAX_CONSECUTIVE_FAILURES } from "@/lib/api/constants";
 
 export interface WebhookDeliveryJob {
   deliveryId: string;
@@ -46,6 +47,7 @@ export async function processWebhookDelivery(job: Job<WebhookDeliveryJob>): Prom
         "X-Colibly-Delivery": delivery.id,
       },
       maxResponseBytes: 4096,
+      timeoutMs: WEBHOOK_TIMEOUT_SECONDS * 1000,
     });
     if (res.status >= 200 && res.status < 300) {
       await prisma.$transaction([

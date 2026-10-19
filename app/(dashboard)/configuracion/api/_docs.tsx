@@ -27,7 +27,7 @@ import crypto from "node:crypto";
 
 app.post("/webhooks/colibly", express.raw({ type: "application/json" }), (req, res) => {
   const header = req.get("X-Colibly-Signature") ?? "";
-  const [, t, v1] = header.match(/t=(\\d+),v1=([0-9a-f]+)/) ?? [];
+  const [, t, v1] = header.match(/^t=(\\d+),v1=([0-9a-f]{64})$/) ?? [];
   const expected = crypto
     .createHmac("sha256", process.env.COLIBLY_WEBHOOK_SECRET)
     .update(\`\${t}.\${req.body}\`)
@@ -63,6 +63,11 @@ export function ApiDocsSection() {
           solicitudes por minuto por key. Los errores responden{" "}
           <code className="font-mono text-xs">{`{ "error": { "code", "message" } }`}</code>. Importa la especificación OpenAPI en
           Postman, Insomnia o tu generador de clientes.
+        </p>
+        <p className="text-sm text-muted">
+          En los envíos manda <code className="font-mono text-xs">Idempotency-Key</code> para poder reintentar sin duplicar mensajes. Guía completa
+          (límites, errores, eventos, firma en Node y PHP):{" "}
+          <a href="/docs/api" target="_blank" rel="noopener" className="font-medium text-accent-ink underline underline-offset-2">documentación pública de la API</a>.
         </p>
       </Card>
 

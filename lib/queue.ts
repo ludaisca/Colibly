@@ -90,14 +90,15 @@ export const platformBackupQueue = new Queue("platform-backup", { connection, de
 export const billingTickQueue = new Queue("billing-tick", { connection, defaultJobOptions });
 // Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a
 // propósito: el receptor suele estar caído por minutos, no por segundos
-// (30s, 1m, 2m, 4m, 8m, 16m ≈ 31 min en total).
-export const WEBHOOK_DELIVERY_ATTEMPTS = 6;
+// (6 intentos: esperas de 30s, 1m, 2m, 4m y 8m ≈ 15 min en total).
+export { WEBHOOK_DELIVERY_ATTEMPTS } from "@/lib/api/constants";
+import { WEBHOOK_BACKOFF_BASE_MS, WEBHOOK_DELIVERY_ATTEMPTS } from "@/lib/api/constants";
 export const webhookDeliveryQueue = new Queue("webhook-deliveries", {
   connection,
   defaultJobOptions: {
     removeOnComplete: { count: 200 },
     removeOnFail: { count: 200 },
     attempts: WEBHOOK_DELIVERY_ATTEMPTS,
-    backoff: { type: "exponential" as const, delay: 30_000 },
+    backoff: { type: "exponential" as const, delay: WEBHOOK_BACKOFF_BASE_MS },
   },
 });

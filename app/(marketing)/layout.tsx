@@ -21,7 +21,7 @@ const MOBILE_LINKS = [
 const FOOTER_LINK = "inline-flex min-h-11 items-center hover:text-foreground md:min-h-0";
 
 const FOOTER_COLUMNS = [
-  { title: "Producto", links: [{ href: "/", label: "Conocer Colibly" }, { href: "/precios", label: "Planes y precios" }, { href: "/#preguntas", label: "Preguntas frecuentes" }] },
+  { title: "Producto", links: [{ href: "/", label: "Conocer Colibly" }, { href: "/precios", label: "Planes y precios" }, { href: "/#preguntas", label: "Preguntas frecuentes" }, { href: appUrl("/docs/api"), label: "API para desarrolladores" }] },
   { title: "Soporte", links: [{ href: "/contacto", label: "Contacto y soporte" }, { href: "/eliminar-datos", label: "Eliminar mis datos" }] },
   { title: "Legal", links: [{ href: "/terminos", label: "Términos y condiciones" }, { href: "/privacidad", label: "Aviso de privacidad" }, { href: "/privacidad#cookies", label: "Cookies y medición" }] },
 ];

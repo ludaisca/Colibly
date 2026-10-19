@@ -21,6 +21,8 @@ export interface WebhookRow {
   accountIds: string[];
   channelAccountIds: string[];
   active: boolean;
+  status: "active" | "paused" | "disabled" | "inactive";
+  pausedReason: string | null;
   disabledAt: string | null;
   consecutiveFailures: number;
   lastDeliveryAt: string | null;

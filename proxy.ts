@@ -76,6 +76,10 @@ export default async function proxy(req: NextRequest) {
     if (path.startsWith("/api/") && path !== "/api/beta/solicitudes") {
       return NextResponse.redirect(onOrigin(process.env.APP_URL!, req), 308);
     }
+    // La documentación de la API vive solo en app.* (una URL canónica).
+    if (path === "/docs" || path.startsWith("/docs/")) {
+      return NextResponse.redirect(onOrigin(process.env.APP_URL!, req), 308);
+    }
     if (APP_PUBLIC.some((r) => path === r || path.startsWith(r + "/"))
       || PROTECTED.some((r) => path === r || path.startsWith(r + "/"))) {
       return NextResponse.redirect(onOrigin(process.env.APP_URL!, req), 308);

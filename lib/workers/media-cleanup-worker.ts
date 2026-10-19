@@ -1,3 +1,4 @@
+import { WEBHOOK_DELIVERY_RETENTION_DAYS } from "@/lib/api/constants";
 import { promises as fs } from "fs";
 import { prisma } from "@/lib/prisma";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
@@ -37,7 +38,6 @@ async function purgeBatches(
 
 // El registro de entregas de webhooks solo sirve para depurar integraciones
 // recientes; sin purga crece una fila por evento y endpoint para siempre.
-const WEBHOOK_DELIVERY_RETENTION_DAYS = 30;
 
 export async function processMediaCleanupJob() {
   // Antes de la salida por MEDIA_RETENTION_DAYS: es independiente de la media.

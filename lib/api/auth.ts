@@ -6,6 +6,9 @@ import { ApiError } from "./respond";
 import { API_KEY_PREFIX } from "./keys";
 import type { ApiScope } from "./scopes";
 import { hasApiAccess, isOrgWritable } from "@/lib/billing/gates";
+import { clientIp } from "@/lib/net/client-ip";
+import { API_BAD_KEY_ATTEMPTS_PER_MINUTE, API_REQUESTS_PER_MINUTE } from "./constants";
+import { setRateLimitInfo } from "./rate-headers";
 
 export interface ApiContext extends ResolvedScope {
   keyId: string;
@@ -16,7 +19,7 @@ export interface ApiContext extends ResolvedScope {
 
 // 120 req/min por key: holgado para una integración normal (CRM ↔ ERP,
 // Zapier), y acota el daño de una key filtrada o de un bucle mal hecho.
-const REQUESTS_PER_MINUTE = 120;
+const REQUESTS_PER_MINUTE = API_REQUESTS_PER_MINUTE;
 // No se escribe lastUsedAt en cada request — basta con resolución de minutos.
 const LAST_USED_RESOLUTION_MS = 60_000;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -56,7 +59,10 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
     throw new ApiError(402, "read_only", "La cuenta está en solo lectura (prueba vencida o pago pendiente): la API solo admite consultas.");
   }
 
-  const { allowed } = await rateLimit(`api:${key.id}`, REQUESTS_PER_MINUTE, 60);
+  const { allowed, remaining, resetAt } = await rateLimit(`api:${key.id}`, REQUESTS_PER_MINUTE, 60);
+  // X-RateLimit-* en toda respuesta autenticada (y Retry-After en el 429):
+  // withApiErrors los agrega a la respuesta de este request.
+  setRateLimitInfo(req, { limit: REQUESTS_PER_MINUTE, remaining, resetAt });
   if (!allowed) {
     throw new ApiError(429, "rate_limited", `Límite de ${REQUESTS_PER_MINUTE} solicitudes por minuto excedido`);
   }
@@ -73,10 +79,12 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
   return { keyId: key.id, userId: key.userId, organizationId: key.organizationId, scopes: key.scopes, ...resolved };
 }
 
-// Frena la enumeración de keys desde una misma IP.
+// Frena la enumeración de keys desde una misma IP (IP confiable: ver
+// lib/net/client-ip.ts — el primer X-Forwarded-For lo inventa el cliente).
 async function throttleBadKey(req: Request): Promise<void> {
-  const forwarded = req.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
-  const { allowed } = await rateLimit(`api-bad-key:${ip}`, 30, 60);
-  if (!allowed) throw new ApiError(429, "rate_limited", "Demasiados intentos con una API key inválida");
+  const { allowed, resetAt } = await rateLimit(`api-bad-key:${clientIp(req)}`, API_BAD_KEY_ATTEMPTS_PER_MINUTE, 60);
+  if (!allowed) {
+    setRateLimitInfo(req, { limit: API_BAD_KEY_ATTEMPTS_PER_MINUTE, remaining: 0, resetAt });
+    throw new ApiError(429, "rate_limited", "Demasiados intentos con una API key inválida");
+  }
 }

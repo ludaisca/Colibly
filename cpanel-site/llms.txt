@@ -18,8 +18,8 @@ Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colib
 ## Planes y precios
 - Se cobra por ejecutivo (cada usuario que atiende conversaciones, incluido el dueño), cada mes, en pesos mexicanos: Básico: $149 MXN por ejecutivo al mes; Pro: $299 MXN por ejecutivo al mes. Sin plan anual.
 - Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia). Telegram, Messenger e Instagram (por habilitación): 1 cuenta de cada uno por ejecutivo.
-- Básico: 1 número de WhatsApp por ejecutivo, con Coexistencia; 1,000 contactos por ejecutivo; 300 créditos de IA al mes por ejecutivo; 5 automatizaciones activas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación. No incluye: API y webhooks.
-- Pro: 1 número de WhatsApp por ejecutivo, con Coexistencia; 5,000 contactos por ejecutivo; 1,000 créditos de IA al mes por ejecutivo; Automatizaciones ilimitadas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación; API y webhooks.
+- Básico: 1 número de WhatsApp por ejecutivo, con Coexistencia; 1,000 contactos por ejecutivo; 300 créditos de IA al mes por ejecutivo; 5 automatizaciones activas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación. No incluye: Integración con tus sistemas vía API o webhooks.
+- Pro: 1 número de WhatsApp por ejecutivo, con Coexistencia; 5,000 contactos por ejecutivo; 1,000 créditos de IA al mes por ejecutivo; Automatizaciones ilimitadas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación; Integración con tus sistemas vía API o webhooks.
 - Prueba: 30 días gratis, sin tarjeta, con el plan Pro para hasta 3 ejecutivos y 5,000 contactos y 1,000 créditos de IA al mes para todo el equipo.
 - Meta cobra aparte algunos mensajes de WhatsApp según su categoría y destino; ese cargo lo paga el cliente directamente a Meta y no forma parte de la suscripción.
 <!-- /precios -->
@@ -27,4 +27,5 @@ Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colib
 ## Páginas
 - [Inicio](https://colibly.com/): descripción, prueba gratis, preguntas frecuentes y contacto.
 - [Planes y precios](https://colibly.com/precios), [Contacto y soporte](https://colibly.com/contacto) y [Eliminación de datos](https://colibly.com/eliminar-datos).
+- [API para desarrolladores](https://app.colibly.com/docs/api): API REST y webhooks del plan Pro (autenticación, límites, eventos, firma y referencia de endpoints). Especificación OpenAPI en https://app.colibly.com/api/v1/openapi.json.
 - [Términos](https://colibly.com/terminos) y [Privacidad](https://colibly.com/privacidad): borradores en revisión.

@@ -3,14 +3,14 @@ import { betaApplicationSchema } from "@/lib/beta-application";
 import { BRAND_CONTACT_EMAIL } from "@/lib/brand";
 import { sendEmail } from "@/lib/email/mailer";
 import { rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/net/client-ip";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
 export async function POST(req: Request) {
-  const forwarded = req.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIp(req);
   const [perIp, global] = await Promise.all([
     rateLimit(`beta-application:${ip}`, 3, 3600),
     rateLimit("beta-application:global", 100, 86400),
