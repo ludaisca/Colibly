@@ -15,3 +15,9 @@ RewriteRule ^(terminos|privacidad|contacto|precios|eliminar-datos)/?$ $1.php [L]
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set X-Frame-Options "SAMEORIGIN"
 </IfModule>
+# Páginas PHP sin caché en el proxy nginx de cPanel (los assets llevan ?v=filemtime).
+<FilesMatch "\.php$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, private"
+  </IfModule>
+</FilesMatch>

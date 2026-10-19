@@ -40,7 +40,7 @@ $ld = [
   <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Colibly — Vende por WhatsApp sin perder conversaciones"><meta name="twitter:description" content="Registro abierto: <?= COLIBLY_TRIAL_DAYS ?> días sin costo y sin tarjeta."><meta name="twitter:image" content="https://colibly.com/assets/share.png">
   <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1"><meta name="theme-color" content="#0F766E"><link rel="apple-touch-icon" href="/assets/apple-touch-icon.png"><link rel="alternate" type="text/markdown" href="/llms.txt" title="Resumen para asistentes de IA">
   <script type="application/ld+json"><?= json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script>
-  <link rel="stylesheet" href="/assets/site.css"><script src="/assets/site.js" defer></script>
+  <link rel="stylesheet" href="/assets/site.css?v=<?= (int)@filemtime(__DIR__ . '/assets/site.css') ?>"><script src="/assets/site.js?v=<?= (int)@filemtime(__DIR__ . '/assets/site.js') ?>" defer></script>
 </head>
 <body>
 <a class="skip" href="#contenido-principal">Saltar al contenido principal</a>
