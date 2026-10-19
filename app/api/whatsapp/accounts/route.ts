@@ -25,8 +25,8 @@ export async function POST(req: Request) {
 
     const unverified = await requireVerifiedEmail(session.user.id);
     if (unverified) return unverified;
-    const overLimit = await checkPlanLimit(await requireOrgId(session.user.id), "channels");
-    if (overLimit) return overLimit;
+    const overLimit = await checkPlanLimit(await requireOrgId(session.user.id), "whatsapp");
+    if (overLimit) return overLimit; // 1 número de WhatsApp por asiento
 
     const { allowed } = await rateLimit(`account-create:${session.user.id}`, 10, 60);
     if (!allowed) {

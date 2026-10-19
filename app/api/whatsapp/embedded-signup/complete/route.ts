@@ -34,8 +34,8 @@ export async function POST(req: Request) {
     const unverified = await requireVerifiedEmail(session.user.id);
     if (unverified) return unverified;
     const organizationId = await requireOrgId(session.user.id);
-    const overLimit = await checkPlanLimit(organizationId, "channels");
-    if (overLimit) return overLimit;
+    const overLimit = await checkPlanLimit(organizationId, "whatsapp");
+    if (overLimit) return overLimit; // 1 número de WhatsApp por asiento
 
     const { allowed } = await rateLimit(`embedded-signup:${session.user.id}`, 10, 60);
     if (!allowed) return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });

@@ -1772,6 +1772,10 @@ model Organization {
   graceEndsAt          DateTime?          @map("grace_ends_at")
   stripeCustomerId     String?            @unique @map("stripe_customer_id")
   stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  // Asientos cobrados (quantity de la suscripción de Stripe). Durante la
+  // prueba se usa TRIAL_MAX_SEATS (plans.ts); al sincronizar el webhook se
+  // actualiza. Los límites de contactos/créditos/WhatsApp = perSeat × seats.
+  seatQuantity         Int                @default(1) @map("seat_quantity")
   // El cliente canceló desde el portal: sigue activa hasta currentPeriodEnd.
   cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
   // Cuándo pasó a CANCELED — la purga de datos corre RETENTION_DAYS_AFTER_CANCEL después.

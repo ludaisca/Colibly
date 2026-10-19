@@ -45,9 +45,9 @@ export async function POST(req: Request) {
     const role = record.role;
     // La invitación ya ocupa su lugar (cuenta como pendiente): aceptarla no
     // suma. Solo falla si el plan bajó después de invitar.
-    const overLimit = await checkPlanLimit(organizationId, "users", 0);
+    const overLimit = await checkPlanLimit(organizationId, "seats", 0);
     if (overLimit) {
-      return NextResponse.json({ error: "Tu equipo ya llegó al límite de usuarios de su plan. Pide a tu administrador que libere un lugar.", code: "plan_limit" }, { status: 402 });
+      return NextResponse.json({ error: "Tu equipo ya ocupó todos los asientos (ejecutivos) que paga. Pide a tu administrador que agregue un asiento o libere uno.", code: "plan_limit" }, { status: 402 });
     }
     const password = await bcrypt.hash(parsed.data.password, 12);
 

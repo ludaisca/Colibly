@@ -109,7 +109,7 @@ export async function PATCH(req: Request) {
     }
     // Reactivar ocupa un lugar del plan (desactivar lo libera).
     if (disabled === false && target.disabledAt) {
-      const overLimit = await checkPlanLimit(orgId, "users");
+      const overLimit = await checkPlanLimit(orgId, "seats");
       if (overLimit) return overLimit;
     }
 
@@ -161,7 +161,7 @@ export async function POST(req: Request) {
     }
 
     const organizationId = await requireOrgId(session.user.id);
-    const overLimit = await checkPlanLimit(organizationId, "users");
+    const overLimit = await checkPlanLimit(organizationId, "seats");
     if (overLimit) return overLimit;
 
     const hashedPassword = await bcrypt.hash(password, 12);

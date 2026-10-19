@@ -41,7 +41,7 @@ export async function resetAiCredits(organizationId: string, at = new Date()): P
 async function limitFor(organizationId: string): Promise<{ used: number; max: number } | null> {
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { plan: true, isInternal: true, aiCreditsUsed: true, aiCreditsBonus: true },
+    select: { plan: true, isInternal: true, status: true, seatQuantity: true, aiCreditsUsed: true, aiCreditsBonus: true },
   });
   return org ? { used: org.aiCreditsUsed, max: aiCreditLimit(org) } : null;
 }

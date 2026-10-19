@@ -25,6 +25,7 @@ export async function processBillingTick(now = new Date()): Promise<void> {
       graceEndsAt: true,
       currentPeriodEnd: true,
       cancelAtPeriodEnd: true,
+      seatQuantity: true,
       lastBillingNotice: true,
     },
   });

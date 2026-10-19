@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     const pendingSame = await prisma.authToken.count({
       where: { organizationId, type: "INVITE", email, usedAt: null, expiresAt: { gt: new Date() } },
     });
-    const overLimit = await checkPlanLimit(organizationId, "users", pendingSame > 0 ? 0 : 1);
+    const overLimit = await checkPlanLimit(organizationId, "seats", pendingSame > 0 ? 0 : 1);
     if (overLimit) return overLimit;
 
     const inviter = await prisma.user.findUniqueOrThrow({

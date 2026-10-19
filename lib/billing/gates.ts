@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Organization } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PLANS } from "./plans";
+import type { SeatUsage } from "./state";
 import { accessMode, planLimits, type AccessMode, type BillingSnapshot } from "./state";
 
 // Candados de facturación del servidor: estado de la suscripción (¿puede
@@ -31,6 +32,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
       graceEndsAt: true,
       currentPeriodEnd: true,
       cancelAtPeriodEnd: true,
+      seatQuantity: true,
       canceledAt: true,
       aiCreditsUsed: true,
       aiCreditsBonus: true,
@@ -119,17 +121,15 @@ export function readOnlyResponse() {
   );
 }
 
-export type LimitKey = "users" | "channels" | "contacts" | "activeAutomations";
+// seats: usuarios activos + invitaciones pendientes (dueño y admins incluidos).
+// whatsapp: números de WhatsApp (1 por asiento). channels: Telegram/Messenger/
+// Instagram (el widget web no cuenta).
+export type LimitKey = "seats" | "whatsapp" | "channels" | "contacts" | "activeAutomations";
 
-export interface OrgUsage {
-  users: number; // activos + invitaciones pendientes
-  channels: number; // sin contar el widget web
-  contacts: number;
-  activeAutomations: number;
-}
+export type OrgUsage = Omit<SeatUsage, "apiKeys" | "webhooks">;
 
 export async function getOrgUsage(organizationId: string): Promise<OrgUsage> {
-  const [users, invites, wa, channels, contacts, activeAutomations] = await Promise.all([
+  const [users, invites, whatsapp, channels, contacts, activeAutomations] = await Promise.all([
     prisma.user.count({ where: { organizationId, disabledAt: null } }),
     prisma.authToken.count({ where: { organizationId, type: "INVITE", usedAt: null, expiresAt: { gt: new Date() } } }),
     prisma.wAAccount.count({ where: { organizationId } }),
@@ -137,17 +137,34 @@ export async function getOrgUsage(organizationId: string): Promise<OrgUsage> {
     prisma.contact.count({ where: { OR: [{ account: { organizationId } }, { channelAccount: { organizationId } }] } }),
     prisma.automation.count({ where: { organizationId, status: "ACTIVE" } }),
   ]);
-  return { users: users + invites, channels: wa + channels, contacts, activeAutomations };
+  return { seats: users + invites, whatsapp, channels, contacts, activeAutomations };
 }
 
-function limitMessage(key: LimitKey, planName: string, max: number): string {
+// Uso completo para evaluar un cambio de plan o de asientos (planChangeImpact).
+export async function getSeatUsage(organizationId: string): Promise<SeatUsage> {
+  const [usage, apiKeys, webhooks] = await Promise.all([
+    getOrgUsage(organizationId),
+    prisma.apiKey.count({ where: { organizationId, revokedAt: null } }),
+    prisma.webhookEndpoint.count({ where: { organizationId, active: true } }),
+  ]);
+  return { ...usage, apiKeys, webhooks };
+}
+
+// Adonde mandar a un admin que se quedó sin asientos.
+export const BILLING_SEATS_PATH = "/configuracion/plan#asientos";
+
+function limitMessage(key: LimitKey, planName: string, max: number, trialing: boolean): string {
   switch (key) {
-    case "users":
-      return `Tu plan ${planName} permite ${max} usuarios (las invitaciones pendientes cuentan). Mejora tu plan o desactiva a alguien.`;
+    case "seats":
+      return trialing
+        ? `La prueba gratis incluye hasta ${max} ejecutivos (las invitaciones pendientes cuentan). Elige un plan en Configuración → Plan y facturación para agregar más.`
+        : `Tu organización paga ${max} ${max === 1 ? "ejecutivo" : "ejecutivos"} y ya están ocupados (las invitaciones pendientes cuentan). Agrega un asiento en Configuración → Plan y facturación, o desactiva a alguien.`;
+    case "whatsapp":
+      return `Cada ejecutivo conecta 1 número de WhatsApp: con ${max} ${max === 1 ? "asiento" : "asientos"} puedes tener ${max} ${max === 1 ? "número" : "números"}. Agrega un asiento en Configuración → Plan y facturación para conectar otro.`;
     case "channels":
-      return `Tu plan ${planName} permite ${max} ${max === 1 ? "canal conectado" : "canales conectados"} (el widget web no cuenta). Mejora tu plan para conectar más.`;
+      return `Tu plan ${planName} permite ${max} ${max === 1 ? "canal adicional" : "canales adicionales"} (Telegram, Messenger o Instagram; el widget web no cuenta). Mejora tu plan para conectar más.`;
     case "contacts":
-      return `Llegaste al límite de ${max.toLocaleString("es-MX")} contactos de tu plan ${planName}. Los mensajes entrantes se siguen guardando; mejora tu plan para agregar más.`;
+      return `Llegaste al límite de ${max.toLocaleString("es-MX")} contactos de tu organización (plan ${planName}, por ejecutivo). Los mensajes entrantes se siguen guardando; agrega asientos o mejora tu plan para agregar más.`;
     case "activeAutomations":
       return `Tu plan ${planName} permite ${max} automatizaciones activas. Pausa otra o mejora tu plan.`;
   }
@@ -168,7 +185,7 @@ export async function evaluatePlanLimit(organizationId: string, key: LimitKey, a
   if (max === Infinity) return null;
   const current = (await getOrgUsage(organizationId))[key];
   if (current + adding <= max) return null;
-  return { limit: key, message: limitMessage(key, PLANS[org.plan].name, max), current, max };
+  return { limit: key, message: limitMessage(key, PLANS[org.plan].name, max, org.status === "TRIALING"), current, max };
 }
 
 // Igual que evaluatePlanLimit, como respuesta 402 lista para devolver.
@@ -176,10 +193,19 @@ export async function checkPlanLimit(organizationId: string, key: LimitKey, addi
   const exceeded = await evaluatePlanLimit(organizationId, key, adding);
   if (!exceeded) return null;
   return NextResponse.json(
-    { error: exceeded.message, code: "plan_limit", limit: key, current: exceeded.current, max: exceeded.max },
+    {
+      error: exceeded.message,
+      code: "plan_limit",
+      limit: key,
+      current: exceeded.current,
+      max: exceeded.max,
+      // Asientos y WhatsApp se resuelven agregando asientos: la UI enlaza aquí.
+      ...(key === "seats" || key === "whatsapp" ? { billingUrl: BILLING_SEATS_PATH } : {}),
+    },
     { status: 402 }
   );
 }
+
 
 // API pública y webhooks salientes: solo en planes que los incluyen.
 export async function hasApiAccess(organizationId: string): Promise<boolean> {

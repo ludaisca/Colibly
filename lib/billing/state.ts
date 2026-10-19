@@ -1,5 +1,5 @@
 import type { OrganizationStatus, PlanId } from "@prisma/client";
-import { GRACE_DAYS, PLANS, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, type PlanLimits } from "./plans";
+import { GRACE_DAYS, limitsForSeats, MIN_SEATS, PLANS, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_MAX_SEATS, type PlanLimits } from "./plans";
 
 // Reglas de facturación como funciones puras (sin Prisma ni Stripe): qué puede
 // hacer una organización según su estado, qué aviso ver, cómo avanza el reloj y
@@ -16,6 +16,8 @@ export interface BillingSnapshot {
   graceEndsAt: Date | null;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
+  // Asientos cobrados (quantity de Stripe). Ver seatCap().
+  seatQuantity: number;
 }
 
 // full: todo funciona. read_only: se ve todo, pero no se envían mensajes ni
@@ -42,7 +44,8 @@ export function accessMode(org: BillingSnapshot, now: Date): AccessMode {
 }
 
 const UNLIMITED: PlanLimits = {
-  users: Infinity,
+  seats: Infinity,
+  whatsapp: Infinity,
   channels: Infinity,
   contacts: Infinity,
   aiCreditsPerMonth: Infinity,
@@ -50,9 +53,23 @@ const UNLIMITED: PlanLimits = {
   apiAccess: true,
 };
 
-// Límites vigentes: los del plan; las organizaciones internas no tienen tope.
-export function planLimits(org: Pick<BillingSnapshot, "plan" | "isInternal">): PlanLimits {
-  return org.isInternal ? UNLIMITED : PLANS[org.plan].limits;
+export type SeatSnapshot = Pick<BillingSnapshot, "plan" | "isInternal" | "status" | "seatQuantity">;
+
+// Asientos con los que se calculan los límites:
+//  - interna: sin tope;
+//  - en prueba (aunque ya haya vencido): TRIAL_MAX_SEATS;
+//  - con o sin suscripción vigente: los cobrados (quantity de Stripe, mínimo 1).
+//    Una cancelada/solo lectura conserva su último número: igual no escribe.
+export function seatCap(org: SeatSnapshot): number {
+  if (org.isInternal) return Infinity;
+  if (org.status === "TRIALING") return TRIAL_MAX_SEATS;
+  return Math.max(MIN_SEATS, org.seatQuantity || MIN_SEATS);
+}
+
+// Límites vigentes: los del plan por asiento; las internas no tienen tope.
+export function planLimits(org: SeatSnapshot): PlanLimits {
+  if (org.isInternal) return UNLIMITED;
+  return limitsForSeats(PLANS[org.plan], seatCap(org));
 }
 
 export type NoticeKind = "trial_ending" | "trial_expired" | "past_due" | "read_only" | "canceled" | "canceling";
@@ -132,7 +149,7 @@ export function purgeDue(org: PurgeSnapshot, now: Date): boolean {
 
 // Tope de créditos del periodo: el del plan más el bono que dio la plataforma
 // (se reinicia con el periodo, igual que el consumo).
-export function aiCreditLimit(org: Pick<BillingSnapshot, "plan" | "isInternal"> & { aiCreditsBonus: number }): number {
+export function aiCreditLimit(org: SeatSnapshot & { aiCreditsBonus: number }): number {
   return planLimits(org).aiCreditsPerMonth + Math.max(0, org.aiCreditsBonus);
 }
 
@@ -168,12 +185,15 @@ export function statusAfterSuspension(org: { trialEndsAt: Date | null; canceledA
 export interface SubscriptionSnapshot {
   status: string; // Stripe.Subscription.Status
   priceId: string | null;
+  // quantity del item = asientos cobrados.
+  quantity: number | null;
   currentPeriodEnd: number | null; // unix (segundos)
   cancelAtPeriodEnd: boolean;
 }
 
 export interface SubscriptionUpdate {
   plan?: PlanId;
+  seatQuantity?: number;
   status?: OrganizationStatus;
   graceEndsAt?: Date | null;
   currentPeriodEnd?: Date | null;
@@ -196,6 +216,9 @@ export function deriveFromSubscription(
   };
   const plan = sub.priceId ? planForPrice(sub.priceId) : null;
   if (plan) update.plan = plan;
+  // Cambio de asientos (desde la app, el portal o el dashboard de Stripe):
+  // la cantidad de Stripe manda.
+  if (sub.quantity && sub.quantity >= MIN_SEATS) update.seatQuantity = Math.floor(sub.quantity);
 
   switch (sub.status) {
     case "active":
@@ -230,3 +253,67 @@ export function deriveFromSubscription(
   if (org.status === "SUSPENDED") delete update.status;
   return update;
 }
+
+// ── Asientos: cambios de cantidad y de plan ──
+
+export interface SeatUsage {
+  seats: number; // usuarios activos + invitaciones pendientes
+  whatsapp: number;
+  channels: number;
+  contacts: number;
+  activeAutomations: number;
+  apiKeys: number; // claves de API activas
+  webhooks: number; // webhooks salientes activos
+}
+
+export interface PlanChangeImpact {
+  // Impiden el cambio: hay que resolverlos antes (la app no los decide sola).
+  blockers: string[];
+  // Se pierde o se reduce algo, pero el cambio procede si el admin confirma.
+  warnings: string[];
+}
+
+const fmt = (n: number) => n.toLocaleString("es-MX");
+
+// Qué pasa al pasar a `targetPlan` con `targetSeats` asientos, comparado con
+// lo que la organización usa hoy. Regla:
+//  - no se puede bajar de los asientos ocupados (usuarios activos + invitaciones):
+//    primero se desactiva a alguien o se revoca una invitación;
+//  - no se puede tener más números de WhatsApp que asientos (1 por ejecutivo);
+//  - Básico permite 5 automatizaciones activas: hay que pausar las de sobra;
+//  - avisos (no bloquean): la API y los webhooks dejan de funcionar en Básico,
+//    los contactos por encima del nuevo tope se conservan pero no se agregan
+//    nuevos, los créditos de IA del periodo bajan y otros canales de más
+//    siguen conectados pero no se pueden agregar.
+export function planChangeImpact(targetPlan: PlanId, targetSeats: number, usage: SeatUsage): PlanChangeImpact {
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+  const plan = PLANS[targetPlan];
+  if (!Number.isInteger(targetSeats) || targetSeats < MIN_SEATS) {
+    blockers.push(`Necesitas al menos ${MIN_SEATS} ejecutivo.`);
+    return { blockers, warnings };
+  }
+  const l = limitsForSeats(plan, targetSeats);
+  if (usage.seats > targetSeats) {
+    blockers.push(
+      `Tu equipo ocupa ${fmt(usage.seats)} ${usage.seats === 1 ? "asiento" : "asientos"} (usuarios activos e invitaciones pendientes). Desactiva usuarios o revoca invitaciones hasta quedar en ${fmt(targetSeats)}.`
+    );
+  }
+  if (usage.whatsapp > l.whatsapp) {
+    blockers.push(`Tienes ${fmt(usage.whatsapp)} números de WhatsApp y cada ejecutivo conecta 1. Desconecta números hasta quedar en ${fmt(l.whatsapp)}.`);
+  }
+  if (Number.isFinite(l.activeAutomations) && usage.activeAutomations > l.activeAutomations) {
+    blockers.push(`${plan.name} permite ${l.activeAutomations} automatizaciones activas y tienes ${fmt(usage.activeAutomations)}. Pausa las que sobran antes de cambiar.`);
+  }
+  if (!l.apiAccess && (usage.apiKeys > 0 || usage.webhooks > 0)) {
+    warnings.push(`La API y los webhooks son del plan Pro: tus ${fmt(usage.apiKeys)} claves de API y ${fmt(usage.webhooks)} webhooks dejarán de funcionar.`);
+  }
+  if (usage.contacts > l.contacts) {
+    warnings.push(`Tienes ${fmt(usage.contacts)} contactos y el nuevo tope es ${fmt(l.contacts)}: se conservan todos, pero no podrás agregar nuevos (los mensajes entrantes se siguen guardando).`);
+  }
+  if (usage.channels > l.channels) {
+    warnings.push(`Tienes ${fmt(usage.channels)} canales adicionales (Telegram, Messenger o Instagram) y ${plan.name} incluye ${fmt(l.channels)}: siguen conectados, pero no podrás agregar otro.`);
+  }
+  return { blockers, warnings };
+}
+

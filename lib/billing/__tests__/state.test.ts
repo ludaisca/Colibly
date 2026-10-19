@@ -7,7 +7,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const days = (n: number) => new Date(NOW.getTime() + n * DAY);
 
 function org(over: Partial<BillingSnapshot> = {}): BillingSnapshot {
-  return { plan: "PRO", status: "TRIALING", isInternal: false, trialEndsAt: days(10), graceEndsAt: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, ...over };
+  return { plan: "PRO", status: "TRIALING", isInternal: false, trialEndsAt: days(10), graceEndsAt: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, seatQuantity: 1, ...over };
 }
 
 describe("accessMode", () => {
@@ -29,10 +29,10 @@ describe("accessMode", () => {
 
 describe("planLimits", () => {
   it("usa el catálogo del plan", () => {
-    expect(planLimits({ plan: "BASIC", isInternal: false })).toMatchObject({ users: 2, channels: 1, apiAccess: false });
-    expect(planLimits({ plan: "PRO", isInternal: false }).activeAutomations).toBe(Infinity);
+    expect(planLimits({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 2 })).toMatchObject({ seats: 2, whatsapp: 2, channels: 1, apiAccess: false });
+    expect(planLimits({ plan: "PRO", isInternal: false, status: "ACTIVE", seatQuantity: 1 }).activeAutomations).toBe(Infinity);
   });
-  it("interna: sin topes", () => expect(planLimits({ plan: "BASIC", isInternal: true }).contacts).toBe(Infinity));
+  it("interna: sin topes", () => expect(planLimits({ plan: "BASIC", isInternal: true, status: "ACTIVE", seatQuantity: 1 }).contacts).toBe(Infinity));
 });
 
 describe("billingNotice", () => {
@@ -94,9 +94,9 @@ describe("purgeDue", () => {
 });
 
 describe("aiCreditLimit", () => {
-  it("plan más bono", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: false, aiCreditsBonus: 200 })).toBe(500));
-  it("un bono negativo no resta", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: false, aiCreditsBonus: -50 })).toBe(300));
-  it("interna: sin límite", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: true, aiCreditsBonus: 0 })).toBe(Infinity));
+  it("plan más bono", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 200 })).toBe(500));
+  it("un bono negativo no resta", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: -50 })).toBe(300));
+  it("interna: sin límite", () => expect(aiCreditLimit({ plan: "BASIC", isInternal: true, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 0 })).toBe(Infinity));
 });
 
 describe("extendTrial", () => {
@@ -140,7 +140,7 @@ describe("statusAfterSuspension", () => {
 describe("deriveFromSubscription", () => {
   const prices = (id: string) => (id === "price_basic" ? "BASIC" : id === "price_pro" ? "PRO" : null);
   const base = { status: "TRIALING" as const, graceEndsAt: null, canceledAt: null };
-  const sub = (status: string, over: Record<string, unknown> = {}) => ({ status, priceId: "price_basic", currentPeriodEnd: 1790000000, cancelAtPeriodEnd: false, ...over });
+  const sub = (status: string, over: Record<string, unknown> = {}) => ({ status, priceId: "price_basic", quantity: 1, currentPeriodEnd: 1790000000, cancelAtPeriodEnd: false, ...over });
 
   it("activa: ACTIVE, plan del precio, periodo y gracia limpia", () => {
     const u = deriveFromSubscription(sub("active"), { ...base, graceEndsAt: days(3) }, NOW, prices);

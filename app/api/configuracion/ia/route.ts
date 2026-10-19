@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { OrganizationStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { orgAiSettingsUpdateSchema } from "@/lib/validations";
@@ -13,6 +14,8 @@ import { aiCreditLimit } from "@/lib/billing/state";
 const SELECT = {
   plan: true,
   isInternal: true,
+  status: true,
+  seatQuantity: true,
   aiCreditsUsed: true,
   aiCreditsBonus: true,
   aiCreditsPeriodStart: true,
@@ -27,6 +30,8 @@ const SELECT = {
 type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
   plan: "BASIC" | "PRO";
   isInternal: boolean;
+  status: OrganizationStatus;
+  seatQuantity: number;
   aiCreditsUsed: number;
   aiCreditsBonus: number;
 };
@@ -34,7 +39,7 @@ type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
 // El cliente nunca ve qué proveedor/modelo usan sus bots — solo sus créditos.
 function serialize(org: OrgAiRow) {
   const limit = aiCreditLimit(org);
-  const { plan: _plan, isInternal: _internal, aiCreditsUsed, aiCreditsBonus: _bonus, ...rest } = org;
+  const { plan: _plan, isInternal: _internal, status: _status, seatQuantity: _seats, aiCreditsUsed, aiCreditsBonus: _bonus, ...rest } = org;
   return {
     ...rest,
     aiCredits: { used: aiCreditsUsed, limit: Number.isFinite(limit) ? limit : null },
