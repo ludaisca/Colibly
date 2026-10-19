@@ -63,6 +63,7 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
     where: {
       accountId: { in: accountIds },
       status: { in: ["OPEN", "PENDING"] },
+      NOT: { contact: { overLimit: true } },
       // Debe haber habido conversación real — un chat que solo recibió una
       // campaña y nunca contestó no es un lead "abandonado", nunca se enganchó.
       messages: { some: { direction: "INBOUND" } },
@@ -157,6 +158,7 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
       where: {
         channelAccountId: { in: channelAccountIds },
         status: { in: ["OPEN", "PENDING"] },
+        NOT: { contact: { overLimit: true } },
         messages: { some: { direction: "INBOUND" } },
         // Sin ventana de 24h en estos canales, pero tampoco tiene sentido
         // "recuperar" silencios de semanas: hasta 48h después del último intento.

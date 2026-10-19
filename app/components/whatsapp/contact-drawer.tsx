@@ -21,6 +21,7 @@ interface ContactDetail {
   remoteJid: string;
   leadStatus: string;
   optedOutMarketing: boolean;
+  overLimit?: boolean;
   tags: Array<{ tag: { id: string; name: string; color: string } }>;
 }
 
@@ -256,6 +257,13 @@ export function ContactDrawer({
         <Banner tone="danger">{loadError ?? "No se pudo cargar el contacto"}</Banner>
       ) : (
         <div className="space-y-5">
+          {contact.overLimit && (
+            <Banner tone="danger" title="Fuera del límite de contactos">
+              Este contacto llegó cuando tu organización ya pasaba del 120 % de los contactos de su plan. Sus mensajes se guardan y puedes
+              atenderlo a mano, pero bots, automatizaciones, secuencias y calificación con IA no corren para él hasta que mejores tu plan o
+              agregues ejecutivos en <a href="/configuracion/plan" className="font-medium underline underline-offset-2">Plan y facturación</a>.
+            </Banner>
+          )}
           {contact.optedOutMarketing && (
             <Banner tone="warning">
               Este contacto se dio de baja de mensajes de marketing por WhatsApp — no recibirá futuras campañas.

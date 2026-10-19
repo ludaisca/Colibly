@@ -1,3 +1,4 @@
+import { isContactOverLimit } from "@/lib/billing/contact-limits";
 import { Prisma, type AutomationRunStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { automationRunQueue } from "@/lib/queue";
@@ -43,6 +44,9 @@ export type StartRunResult =
 // mismo contacto (p. ej. dos mensajes seguidos) no deben crear dos ejecuciones.
 export async function startRun(input: StartRunInput): Promise<StartRunResult> {
   if (!input.chat) return { started: false, reason: "El contacto no tiene conversación" };
+  if (await isContactOverLimit(input.contactId)) {
+    return { started: false, reason: "El contacto superó el 120 % del límite de contactos del plan" };
+  }
 
   const automation = await prisma.automation.findUnique({
     where: { id: input.automationId },

@@ -1,4 +1,5 @@
 import { Prisma, type Channel } from "@prisma/client";
+import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
@@ -106,6 +107,7 @@ export async function ingestChannelMessage(
     create: { channelAccountId, remoteJid: msg.externalId, name: nameCandidate ?? msg.externalId },
     update: contactNameShouldUpdate ? { name: nameCandidate! } : {},
   });
+  if (!existingContact) await afterContactCreated({ channelAccountId }, contactRecord.id);
 
   const conversation = await prisma.conversation.upsert({
     where: { channelAccountId_externalId: { channelAccountId, externalId: msg.externalId } },

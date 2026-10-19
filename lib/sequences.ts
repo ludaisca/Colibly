@@ -260,7 +260,8 @@ export async function processSequenceTick(): Promise<void> {
   const enrollments = await prisma.wASequenceEnrollment.findMany({
     // Solo organizaciones que pueden enviar: las de solo lectura esperan (sus
     // inscripciones siguen ACTIVE y retoman al reactivar el plan).
-    where: { status: "ACTIVE", nextRunAt: { lte: now }, sequence: { organization: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } } } },
+    // Contactos más allá del 120 % del límite: la inscripción espera.
+    where: { status: "ACTIVE", nextRunAt: { lte: now }, contact: { overLimit: false }, sequence: { organization: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } } } },
     // Las más atrasadas primero — sin orden, un bloque de inscripciones que
     // fallaban siempre acaparaba el lote y las demás nunca se procesaban.
     orderBy: { nextRunAt: "asc" },

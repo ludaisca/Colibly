@@ -13,6 +13,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
+import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
 
 const PAGE_SIZE = 25;
 
@@ -49,6 +50,7 @@ const LEAD_STATUS_BADGE: Record<string, { label: string; tone: "success" | "warn
 
 export default function ContactosPage() {
   const { error: toastError } = useToast();
+  const contactUsage = useContactUsage();
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,11 +136,16 @@ export default function ContactosPage() {
         title="Contactos"
         description="Etiquetas, estado de lead y notas por contacto."
         actions={
-          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchContacts}>
-            Actualizar
-          </Button>
+          <div className="flex flex-wrap items-center gap-4">
+            <ContactUsageMeter usage={contactUsage} />
+            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchContacts}>
+              Actualizar
+            </Button>
+          </div>
         }
       />
+
+      <ContactLimitBanner usage={contactUsage} />
 
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">

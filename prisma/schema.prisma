@@ -1044,6 +1044,11 @@ model Contact {
   // con fuentes automáticas), "address_book" (libreta de la app WhatsApp
   // Business — solo lo pisa el usuario) o null (perfil de WhatsApp / número).
   nameSource        String?         @map("name_source")
+  // Contacto más allá del 120 % del límite de contactos del plan (por orden de
+  // creación): se guarda y recibe mensajes, pero bots, automatizaciones,
+  // secuencias, calificación y recuperación con IA no corren para él. Lo
+  // recalcula lib/billing/contact-limits.ts (al crear contactos y en el tick).
+  overLimit         Boolean         @default(false) @map("over_limit")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -1808,6 +1813,10 @@ model Organization {
   aiCreditsPeriodStart DateTime           @default(now()) @map("ai_credits_period_start")
   // Último umbral de créditos avisado en el periodo (0, 80 o 100).
   aiCreditsAlertLevel  Int                @default(0) @map("ai_credits_alert_level")
+  // Último umbral de contactos avisado (0, 80, 100, 120) y periodo en que se
+  // avisó: se reinicia con el periodo y baja si el uso baja.
+  contactAlertLevel    Int                @default(0) @map("contact_alert_level")
+  contactAlertPeriod   String?            @map("contact_alert_period")
 
   // Operación de la organización (antes vivían por usuario en AppSettings):
   // zona horaria y horario laboral (recuperación de leads, citas del bot,

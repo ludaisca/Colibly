@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
@@ -117,6 +118,8 @@ export async function ingestInboundMessage(
   });
 
   if (bookName) await forgetAddressBookEntry(accountId, msg.remoteJid);
+  // Antes de bots/automatizaciones: marca overLimit si ya se pasó el 120 %.
+  if (!existingContact) await afterContactCreated({ waAccountId: accountId }, contactRecord.id);
 
   const chat = await prisma.wAChat.upsert({
     where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },

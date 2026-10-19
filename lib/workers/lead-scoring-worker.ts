@@ -54,6 +54,7 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
     where: {
       accountId: { in: scopedAccountIds },
       status: { in: ["OPEN", "PENDING"] },
+      NOT: { contact: { overLimit: true } },
       lastMessageAt: { not: null },
       // Otherwise a campaign-only chat the lead never replied to would be reselected as
       // "due" on every single tick forever (scoreChatWithScorer throws before creating a
@@ -120,6 +121,7 @@ async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
         status: { in: ["OPEN", "PENDING"] },
         lastMessageAt: { not: null },
         messages: { some: { direction: "INBOUND" } },
+        NOT: { contact: { overLimit: true } },
       },
       select: { id: true, lastMessageAt: true },
       orderBy: { lastMessageAt: "desc" },

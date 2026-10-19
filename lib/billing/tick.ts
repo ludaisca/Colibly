@@ -1,14 +1,15 @@
+import { checkContactAlerts, reconcileOverLimit } from "./contact-limits";
 import { prisma } from "@/lib/prisma";
 import { daysUntil, planLimits, purgeDue, tickTransition, TRIAL_ENDING_NOTICE_DAYS } from "./state";
 import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "./plans";
 import { deleteOrganizationData } from "@/lib/org-data/delete";
-import { getOrgUsage, invalidateOrgBilling } from "./gates";
-import { contactLimitNotice, notifyBillingTransition, notifyOrgAdmins, trialEndingNotice } from "./notify";
+import { invalidateOrgBilling } from "./gates";
+import { notifyBillingTransition, notifyOrgAdmins, trialEndingNotice } from "./notify";
 
 // Tick horario de facturación (cola billing-tick):
 //  1. prueba vencida o gracia vencida → READ_ONLY (con aviso);
 //  2. aviso "tu prueba termina en N días" (una vez por día restante ≤ 3);
-//  3. aviso de límite de contactos alcanzado (una vez por mes);
+//  3. contactos: overLimit más allá del 120 % y avisos de 80/100/120 % (una vez por umbral y periodo);
 //  4. purga de organizaciones canceladas o con la prueba vencida sin pago
 //     (purgeDue en state.ts).
 // lastBillingNotice guarda la clave del último aviso para no repetirlo.
@@ -48,12 +49,10 @@ export async function processBillingTick(now = new Date()): Promise<void> {
         }
       }
 
-      const maxContacts = planLimits(org).contacts;
-      if (maxContacts !== Infinity) {
-        const key = `contacts_full:${now.toISOString().slice(0, 7)}`;
-        if (org.lastBillingNotice !== key && (await getOrgUsage(org.id)).contacts >= maxContacts && (await claimNotice(org.id, org.lastBillingNotice, key))) {
-          await notifyOrgAdmins(org.id, contactLimitNotice(maxContacts));
-        }
+      // Contactos: recalcula quién está más allá del 120 % y avisa 80/100/120 %.
+      if (planLimits(org).contacts !== Infinity) {
+        const usage = await reconcileOverLimit(org.id);
+        await checkContactAlerts(org.id, usage, now);
       }
     } catch (err) {
       console.error(`[billing-tick] Organización ${org.id}:`, err);

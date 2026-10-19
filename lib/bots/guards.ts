@@ -1,3 +1,4 @@
+import { isContactOverLimit } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 
 // Reglas compartidas por los 3 bot-workers (WhatsApp, Telegram/Web,
@@ -85,6 +86,10 @@ export async function getBotSkipReason(
   triggerMessageId: string | null | undefined,
   now: Date = new Date()
 ): Promise<string | null> {
+  const owner = "waChatId" in ref
+    ? await prisma.wAChat.findUnique({ where: { id: ref.waChatId }, select: { contactId: true } })
+    : await prisma.conversation.findUnique({ where: { id: ref.conversationId }, select: { contactId: true } });
+  if (await isContactOverLimit(owner?.contactId)) return "el contacto superó el 120 % del límite de contactos del plan";
   const control = await getBotControlState(ref, now);
   if (control.kind === "automation") return "una automatización está atendiendo el chat";
   if (control.kind === "handoff") return "una automatización pasó la conversación a un humano";

@@ -49,17 +49,6 @@ export function trialEndingNotice(daysLeft: number): Notice {
   };
 }
 
-export function contactLimitNotice(max: number): Notice {
-  return {
-    title: "Llegaste al límite de contactos de tu plan",
-    paragraphs: [
-      `Tu plan incluye ${max.toLocaleString("es-MX")} contactos. Los mensajes de clientes nuevos se siguen guardando, pero ya no puedes agregar contactos a mano, por API ni con campañas.`,
-      "Mejora tu plan para seguir creciendo.",
-    ],
-    email: true,
-  };
-}
-
 // Aviso según la transición de estado (webhook de Stripe o tick horario).
 export async function notifyBillingTransition(organizationId: string, from: OrganizationStatus, to: OrganizationStatus): Promise<void> {
   const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { graceEndsAt: true } });

@@ -1,4 +1,5 @@
 import { Prisma, type WAMessageOrigin } from "@prisma/client";
+import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { mediaDownloadQueue } from "@/lib/queue";
 import { addressBookNameFor, forgetAddressBookEntry, shouldApplyAddressBookName } from "@/lib/whatsapp/address-book";
@@ -59,6 +60,7 @@ async function resolveChat(accountId: string, userPhone: string, cache: ChatCach
         select: { id: true },
       });
       contactId = contact.id;
+      await afterContactCreated({ waAccountId: accountId }, contact.id);
       if (bookName) await forgetAddressBookEntry(accountId, jid);
     }
     const created = chat

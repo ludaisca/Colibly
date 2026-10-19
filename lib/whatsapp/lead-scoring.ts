@@ -1,3 +1,4 @@
+import { isContactOverLimit } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey } from "@/lib/ai/platform";
@@ -79,6 +80,12 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
 
   if (messages.length === 0) {
     throw new LeadScoringError("La conversación no tiene mensajes");
+  }
+  const owner = channel === "TELEGRAM"
+    ? await prisma.conversation.findUnique({ where: { id: chatId }, select: { contactId: true } })
+    : await prisma.wAChat.findUnique({ where: { id: chatId }, select: { contactId: true } });
+  if (await isContactOverLimit(owner?.contactId)) {
+    throw new LeadScoringError("Este contacto superó el 120 % del límite de contactos del plan: la calificación con IA está en pausa");
   }
 
   // A chat with only campaign/outbound messages and no reply yet has nothing for the

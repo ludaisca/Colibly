@@ -1,3 +1,4 @@
+import { ContactLimitNotice } from "@/app/components/billing/contact-usage";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MessageCircle, Plus, Settings, ArrowRight } from "lucide-react";
@@ -165,6 +166,8 @@ export default async function DashboardPage() {
       <div className="animate-fade-in-up">
         <PageHeader title="Panel" description="Resumen de la actividad de tus canales" />
       </div>
+
+      <ContactLimitNotice />
 
       {showOnboarding && (
         <div className="animate-fade-in-up animation-delay-100">
