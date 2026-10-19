@@ -1,7 +1,7 @@
 import type { EmailMessage } from "./mailer";
 import { BRAND_CONTACT_EMAIL, BRAND_NAME } from "@/lib/brand";
 import { BRAND_COLORS } from "@/lib/brand-colors";
-import { PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
+import { TRIAL_DAYS, TRIAL_MAX_SEATS } from "@/lib/billing/plans";
 
 // Plantillas de correo: HTML con estilos en línea (los clientes de correo
 // ignoran <style> y variables CSS) más versión de texto plano. Los colores van
@@ -99,10 +99,9 @@ export function billingNoticeTemplate(input: { to: string; title: string; paragr
 // un cambio de límites o de TRIAL_DAYS se refleja aquí sin tocar el texto.
 export function welcomeTemplate(input: { to: string; name: string | null; appUrl: string; supportUrl: string }): EmailMessage {
   const hello = input.name ? `Hola ${input.name},` : "Hola,";
-  const pro = PLANS.PRO.limits;
-  const intro = `Tu correo quedó confirmado y tu cuenta de ${BRAND_NAME} está lista. Tienes ${TRIAL_DAYS} días gratis con el plan Pro completo (hasta ${pro.users} personas de tu equipo y ${pro.channels} canales), sin tarjeta y sin cobros automáticos.`;
+  const intro = `Tu correo quedó confirmado y tu cuenta de ${BRAND_NAME} está lista. Tienes ${TRIAL_DAYS} días gratis con el plan Pro para hasta ${TRIAL_MAX_SEATS} ejecutivos (cada uno puede conectar su propio WhatsApp), sin tarjeta y sin cobros automáticos.`;
   const steps = "Para empezar: conecta tu WhatsApp, enséñale a tu bot lo que vendes (precios, servicios, preguntas frecuentes) e invita a tu equipo.";
-  const meta = "Ten en cuenta que Meta puede cobrar algunos mensajes de WhatsApp según su categoría; esos cargos son independientes de tu suscripción a Colibly. Al terminar la prueba tú eliges un plan; si no eliges, tu cuenta pasa a solo lectura y tus datos se conservan.";
+  const meta = "Ten en cuenta que Meta cobra aparte algunos mensajes de WhatsApp según su categoría; ese cargo se paga directamente a Meta y no forma parte de tu suscripción a Colibly. Al terminar la prueba tú eliges un plan; si no eliges, tu cuenta pasa a solo lectura y tus datos se conservan.";
   const help = `¿Dudas? Escríbenos a <a href="mailto:${BRAND_CONTACT_EMAIL}" style="color:${BRAND_COLORS.accentInk}">${BRAND_CONTACT_EMAIL}</a> o visita nuestra <a href="${escapeHtml(input.supportUrl)}" style="color:${BRAND_COLORS.accentInk}">página de ayuda</a>.`;
   return {
     to: input.to,

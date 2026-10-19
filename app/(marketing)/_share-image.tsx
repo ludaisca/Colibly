@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { BRAND_NAME } from "@/lib/brand";
 import { BRAND_MARK_BG, BRAND_MARK_FG, BRAND_MARK_PATH } from "@/lib/brand-mark";
 import { BRAND_COLORS as C } from "@/lib/brand-colors";
-import { PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
+import { formatMxn, PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
 
 // Imagen que muestran WhatsApp, Facebook, X, etc. al compartir un enlace del
 // sitio público (opengraph-image.tsx y twitter-image.tsx la reutilizan).
@@ -21,7 +21,7 @@ export function BrandMarkSvg({ size }: { size: number }) {
 }
 
 export function renderShareImage() {
-  const minPrice = Math.min(...PLAN_LIST.map((p) => p.priceUsd));
+  const minPrice = Math.min(...PLAN_LIST.map((p) => p.pricePerSeatMxn));
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "72px 80px", background: C.background, color: C.ink }}>
@@ -34,7 +34,7 @@ export function renderShareImage() {
           <span style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.08, maxWidth: 980 }}>Vende por WhatsApp sin dejar a ningún cliente en visto</span>
         </div>
         <div style={{ display: "flex", gap: 16 }}>
-          <span style={{ display: "flex", background: C.accent, color: C.onAccent, borderRadius: 16, padding: "12px 24px", fontSize: 30, fontWeight: 700 }}>Desde ${minPrice} USD al mes</span>
+          <span style={{ display: "flex", background: C.accent, color: C.onAccent, borderRadius: 16, padding: "12px 24px", fontSize: 30, fontWeight: 700 }}>Desde {formatMxn(minPrice)} MXN por ejecutivo</span>
           <span style={{ display: "flex", border: `2px solid ${C.border}`, background: C.surface, borderRadius: 16, padding: "12px 24px", fontSize: 30 }}>{TRIAL_DAYS} días gratis, sin tarjeta</span>
         </div>
       </div>

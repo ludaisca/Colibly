@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
-import { GRACE_DAYS, PLAN_LIST, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_DAYS } from "@/lib/billing/plans";
+import { GRACE_DAYS, PLAN_LIST, priceSentence, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_DAYS, TRIAL_MAX_SEATS } from "@/lib/billing/plans";
+import { META_FEES_NOTE } from "@/lib/billing/plan-features";
 import { LEGAL, LegalPage } from "../_legal";
 
 export const metadata: Metadata = { title: "Términos y condiciones", alternates: { canonical: "/terminos" } };
 
 export default function TermsPage() {
-  const prices = PLAN_LIST.map((p) => `${p.name} (${p.priceUsd} USD al mes)`).join(" y ");
+  const prices = PLAN_LIST.map(priceSentence).join("; ");
   return (
     <LegalPage title="Términos y condiciones de uso">
       <p>
@@ -24,15 +25,17 @@ export default function TermsPage() {
 
       <h2>2. Prueba gratuita</h2>
       <p>
-        Cada cuenta nueva tiene {TRIAL_DAYS} días de prueba con el plan Pro, sin tarjeta. Al terminar, si no se elige un
+        Cada cuenta nueva tiene {TRIAL_DAYS} días de prueba con el plan Pro, para hasta {TRIAL_MAX_SEATS} ejecutivos y sin tarjeta. Al terminar, si no se elige un
         plan, la cuenta pasa a modo de solo lectura: los datos se conservan y los mensajes entrantes se siguen
         recibiendo, pero no se envían mensajes ni funcionan los bots, automatizaciones y campañas.
       </p>
 
       <h2>3. Planes, precios y pagos</h2>
       <ul>
-        <li>Los planes vigentes son {prices}. Los límites de cada plan (usuarios, canales, contactos, créditos de IA y automatizaciones) se muestran en la página de precios y en la cuenta.</li>
-        <li>Los precios están en dólares estadounidenses (USD) y se cobran por mes adelantado con tarjeta a través de Stripe. La suscripción se renueva automáticamente hasta que se cancele. Antes de contratar verás el precio final y si incluye impuestos; emitiremos las facturas que correspondan conforme a la ley aplicable, para lo cual podremos pedirte tus datos fiscales.</li>
+        <li>Los planes vigentes son {prices}. El precio se cobra por ejecutivo: cada usuario de la cuenta que puede atender conversaciones (incluidos el dueño y los administradores) y cada invitación pendiente ocupa un asiento. El número de asientos de la suscripción es el máximo de ejecutivos de la cuenta.</li>
+        <li>Los límites de cada plan (números de WhatsApp, contactos y créditos de IA por ejecutivo; automatizaciones, canales adicionales y API por cuenta) se muestran en la página de precios y en la cuenta.</li>
+        <li>Los precios están en pesos mexicanos (MXN) y se cobran por mes adelantado con tarjeta a través de Stripe. La suscripción se renueva automáticamente hasta que se cancele. Al agregar o quitar asientos o cambiar de plan, Stripe prorratea la diferencia en el siguiente cobro. No se pueden contratar menos asientos que los ejecutivos activos de la cuenta.</li>
+        <li>{META_FEES_NOTE}</li>
         <li>Si un cobro falla, hay {GRACE_DAYS} días de gracia con el servicio completo; después la cuenta pasa a solo lectura hasta que se regularice el pago.</li>
         <li>Podemos cambiar precios o límites avisando con al menos 30 días de anticipación; el cambio aplica a partir del siguiente periodo.</li>
         <li>Los pagos no son reembolsables salvo que la ley aplicable disponga lo contrario. Si detectas un cobro erróneo o un cobro por un servicio que no pudimos prestarte, escríbenos y lo revisaremos para corregirlo.</li>

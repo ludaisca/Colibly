@@ -23,15 +23,15 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
-import { PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
-import { planFeatures } from "@/lib/billing/plan-features";
+import { formatMxn, PLAN_LIST, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS } from "@/lib/billing/plans";
+import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures } from "@/lib/billing/plan-features";
 import { HeroDemo } from "./_hero-demo";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { siteUrl } from "@/lib/app-url";
 
 const TITLE = `${BRAND_NAME} — ${BRAND_TAGLINE}`;
-const DESCRIPTION = `Atiende WhatsApp con bots de IA, automatizaciones y seguimiento de leads. Instagram, Messenger, Telegram y chat web disponibles por habilitación. Desde 5 USD al mes, ${TRIAL_DAYS} días gratis.`;
-const MIN_PRICE = Math.min(...PLAN_LIST.map((p) => p.priceUsd));
+const MIN_PRICE = Math.min(...PLAN_LIST.map((p) => p.pricePerSeatMxn));
+const DESCRIPTION = `Atiende WhatsApp con bots de IA, automatizaciones y seguimiento de leads. Instagram, Messenger, Telegram y chat web disponibles por habilitación. Cada ejecutivo conecta su propio WhatsApp. Desde ${formatMxn(MIN_PRICE)} ${PRICE_UNIT}, ${TRIAL_DAYS} días gratis.`;
 // Un solo texto para la acción principal en toda la página (el header usa la versión corta).
 const CTA = `Prueba ${TRIAL_DAYS} días gratis`;
 
@@ -132,12 +132,16 @@ const FAQ = [
     a: "Escríbenos para habilitar el canal en tu organización. WhatsApp está disponible desde el registro; los canales adicionales se activan manualmente.",
   },
   {
+    q: "¿Cómo se cobra?",
+    a: `Por ejecutivo: cada persona de tu equipo que atiende conversaciones (incluido quien crea la cuenta) ocupa un asiento, con un precio mensual en pesos. Cada ejecutivo conecta su propio número de WhatsApp y lo sigue usando en su celular (Coexistencia). Contactos y créditos de IA se suman por ejecutivo. ${META_FEES_NOTE}`,
+  },
+  {
     q: "¿Qué es un crédito de IA?",
-    a: "Cada respuesta de un bot, sugerencia, calificación de un lead o paso de IA de una automatización usa un crédito. Cada plan incluye créditos cada mes; no necesitas contratar ni configurar ninguna IA por tu cuenta.",
+    a: "Cada respuesta de un bot, sugerencia, calificación de un lead o paso de IA de una automatización usa un crédito. Cada plan incluye créditos al mes por ejecutivo, en una bolsa compartida por tu equipo; no necesitas contratar ni configurar ninguna IA por tu cuenta.",
   },
   {
     q: "¿Puedo cambiar de plan o cancelar?",
-    a: "Sí, cuando quieras y desde tu cuenta. Los pagos son en dólares (USD) con tarjeta, procesados por Stripe.",
+    a: "Sí, cuando quieras y desde tu cuenta: cambias de plan o agregas y quitas ejecutivos, y el cambio se prorratea. Los pagos son mensuales, en pesos mexicanos (MXN), con tarjeta y procesados por Stripe.",
   },
   {
     q: "¿Qué pasa si se me olvida pagar?",
@@ -161,7 +165,7 @@ function jsonLd() {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       inLanguage: "es-MX",
-      offers: PLAN_LIST.map((p) => ({ "@type": "Offer", name: p.name, price: String(p.priceUsd), priceCurrency: "USD" })),
+      offers: PLAN_LIST.map((p) => ({ "@type": "Offer", name: p.name, price: String(p.pricePerSeatMxn), priceCurrency: "MXN", description: `${formatMxn(p.pricePerSeatMxn)} ${PRICE_UNIT}` })),
     },
     {
       "@context": "https://schema.org",
@@ -202,7 +206,7 @@ export default function LandingPage() {
               por ti. Para negocios que venden por mensaje.
             </p>
             <p className="mt-6 inline-flex flex-wrap items-baseline gap-x-2 rounded-xl border border-accent-muted bg-accent-subtle px-4 py-2">
-              <span className="font-display text-xl font-semibold tabular-nums">Desde ${MIN_PRICE} USD al mes</span>
+              <span className="font-display text-xl font-semibold tabular-nums">Desde {formatMxn(MIN_PRICE)} {PRICE_UNIT}</span>
               <span className="text-sm text-muted">con la IA incluida</span>
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -323,9 +327,9 @@ export default function LandingPage() {
       <section id="precios" className="scroll-mt-20 border-y border-border/60 bg-surface">
         <div className="mx-auto max-w-4xl px-4 py-20 md:px-6">
           <p className="text-center text-eyebrow font-medium uppercase tracking-wider text-muted">Precios</p>
-          <h2 className="reveal mt-2 text-center font-display text-3xl font-semibold tracking-tight">Precios simples, en dólares</h2>
+          <h2 className="reveal mt-2 text-center font-display text-3xl font-semibold tracking-tight">Un precio por ejecutivo, en pesos</h2>
           <p className="mt-3 text-center text-muted">
-            La IA ya viene incluida. Empieza con {TRIAL_DAYS} días gratis del plan Pro, sin tarjeta.
+            {COEXISTENCE_PITCH} La IA ya viene incluida. Empieza con {TRIAL_DAYS} días gratis del plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos, sin tarjeta.
           </p>
           <div className="mt-10 grid gap-5 md:grid-cols-2">
             {PLAN_LIST.map((plan) => {
@@ -344,8 +348,8 @@ export default function LandingPage() {
                   </div>
                   <p className="mt-1 text-sm text-muted">{plan.tagline}</p>
                   <p className="mt-5">
-                    <span className="font-display text-hero leading-none tabular-nums">${plan.priceUsd}</span>
-                    <span className="text-sm text-muted"> USD / mes</span>
+                    <span className="font-display text-hero leading-none tabular-nums">{formatMxn(plan.pricePerSeatMxn)}</span>
+                    <span className="text-sm text-muted"> {PRICE_UNIT}{PRICE_TAX_NOTE ? ` · ${PRICE_TAX_NOTE}` : ""}</span>
                   </p>
                   <ul className="mt-5 flex-1 space-y-2.5 text-sm">
                     {planFeatures(plan).map((f) => (
@@ -367,6 +371,7 @@ export default function LandingPage() {
               );
             })}
           </div>
+          <p className="mt-6 text-center text-sm text-muted">{META_FEES_NOTE}</p>
         </div>
       </section>
 

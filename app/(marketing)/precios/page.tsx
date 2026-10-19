@@ -4,11 +4,11 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
 import { BRAND_NAME } from "@/lib/brand";
-import { GRACE_DAYS, PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
-import { planFeatures } from "@/lib/billing/plan-features";
+import { formatMxn, GRACE_DAYS, PLAN_LIST, PRICE_TAX_NOTE, PRICE_UNIT, TRIAL_DAYS, TRIAL_MAX_SEATS } from "@/lib/billing/plans";
+import { COEXISTENCE_PITCH, META_FEES_NOTE, planFeatures } from "@/lib/billing/plan-features";
 import { InfoPage, LINK } from "../_page";
 
-const DESCRIPTION = `Planes y precios de ${BRAND_NAME}: Básico y Pro, en dólares, con la IA incluida. Crea tu cuenta y prueba ${TRIAL_DAYS} días gratis, sin tarjeta.`;
+const DESCRIPTION = `Planes y precios de ${BRAND_NAME}: Básico y Pro, en pesos mexicanos por ejecutivo al mes, con la IA incluida. Crea tu cuenta y prueba ${TRIAL_DAYS} días gratis, sin tarjeta.`;
 
 export const metadata: Metadata = {
   title: "Planes y precios",
@@ -23,7 +23,7 @@ export default function PricingPage() {
   return (
     <InfoPage
       title="Planes y precios"
-      intro={`El registro es abierto: crea tu cuenta y prueba ${BRAND_NAME} ${TRIAL_DAYS} días gratis con el plan Pro completo, sin tarjeta y sin cobros automáticos. Al terminar, tú eliges el plan.`}
+      intro={`Pagas por ejecutivo. ${COEXISTENCE_PITCH} Crea tu cuenta y prueba ${BRAND_NAME} ${TRIAL_DAYS} días gratis con el plan Pro para hasta ${TRIAL_MAX_SEATS} ejecutivos, sin tarjeta y sin cobros automáticos. Al terminar, tú eliges el plan y cuántos ejecutivos pagar.`}
     >
       <div className="grid gap-5 md:grid-cols-2">
         {PLAN_LIST.map((plan) => {
@@ -39,8 +39,8 @@ export default function PricingPage() {
               </div>
               <p className="mt-1 text-sm text-muted">{plan.tagline}</p>
               <p className="mt-5">
-                <span className="font-display text-hero leading-none tabular-nums">${plan.priceUsd}</span>
-                <span className="text-sm text-muted"> USD / mes</span>
+                <span className="font-display text-hero leading-none tabular-nums">{formatMxn(plan.pricePerSeatMxn)}</span>
+                <span className="text-sm text-muted"> {PRICE_UNIT}{PRICE_TAX_NOTE ? ` · ${PRICE_TAX_NOTE}` : ""}</span>
               </p>
               <ul className="mt-5 flex-1 space-y-2.5 text-sm">
                 {planFeatures(plan).map((f) => (
@@ -60,11 +60,13 @@ export default function PricingPage() {
 
       <h2>Lo que conviene saber</h2>
       <ul>
-        <li>La prueba de {TRIAL_DAYS} días incluye el plan Pro completo y no pide tarjeta. Al terminar, si no eliges un plan, tu cuenta pasa a solo lectura y tus datos se conservan.</li>
-        <li>Los precios están en dólares estadounidenses (USD), se cobran por mes con tarjeta a través de Stripe y la suscripción se renueva hasta que la cancelas. Antes de contratar verás el precio final y si incluye impuestos.</li>
-        <li>La IA ya viene incluida: cada plan trae créditos mensuales, sin que necesites contratar ni configurar una IA por tu cuenta.</li>
+        <li>Un ejecutivo es cada persona de tu equipo que puede atender conversaciones, incluido quien crea la cuenta y los administradores. Las invitaciones pendientes también ocupan un asiento. Puedes agregar o quitar ejecutivos cuando quieras; el cambio se prorratea.</li>
+        <li>Cada ejecutivo conecta 1 número de WhatsApp. Contactos y créditos de IA se suman por ejecutivo en una bolsa para todo tu equipo; las automatizaciones y la API dependen del plan.</li>
+        <li>La prueba de {TRIAL_DAYS} días incluye el plan Pro para hasta {TRIAL_MAX_SEATS} ejecutivos y no pide tarjeta. Al terminar, si no eliges un plan, tu cuenta pasa a solo lectura y tus datos se conservan.</li>
+        <li>Los precios están en pesos mexicanos (MXN) por ejecutivo, se cobran cada mes con tarjeta a través de Stripe y la suscripción se renueva hasta que la cancelas.</li>
+        <li>La IA ya viene incluida: no necesitas contratar ni configurar una IA por tu cuenta.</li>
         <li>Si un cobro falla tienes {GRACE_DAYS} días de gracia con todo funcionando antes de pasar a solo lectura.</li>
-        <li>Meta puede cobrar algunos mensajes de WhatsApp según su categoría y destino. Esos cargos son independientes de tu suscripción a {BRAND_NAME}.</li>
+        <li>{META_FEES_NOTE}</li>
       </ul>
       <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted-strong">
         <strong className="text-foreground">Precios sujetos a ajuste.</strong> Los precios finales pueden ajustarse. Si cambian, te avisamos con al
