@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { ArrowRight, Bot, Check, CircleHelp, Inbox, MessageCircle, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Bot, Check, CircleHelp, Inbox, MessageCircle, ShieldCheck, Smartphone, Users } from "lucide-react";
 import { BRAND_NAME } from "@/lib/brand";
 import { siteUrl } from "@/lib/app-url";
 import { PLANS, PLAN_LIST } from "@/lib/billing/plans";
@@ -24,6 +24,16 @@ const benefits = [
   { icon: Inbox, title: "Todos los chats, a la vista", text: "Tu equipo atiende desde una misma bandeja y sabe qué conversación necesita respuesta." },
   { icon: Bot, title: "Respuestas con tu información", text: "Preparamos un asistente con tus servicios, precios y preguntas frecuentes para ayudarte a responder." },
   { icon: Users, title: "Cada cliente tiene seguimiento", text: "Guarda sus datos, asigna la conversación y retoma oportunidades sin empezar de cero." },
+];
+
+// Coexistencia = función de Meta: el mismo número vive a la vez en la app
+// WhatsApp Business del teléfono y en la API (la que usa Colibly). Texto sin
+// promesas de más: se habilita por cuenta y depende de Meta (país, versión de
+// la app). No inventar métricas ni "100% de funciones" en la app.
+const coexistence = [
+  { icon: Smartphone, title: "Sigues usando tu app", text: "Contestas desde la app WhatsApp Business de tu teléfono, con el mismo número y los mismos chats de siempre." },
+  { icon: Inbox, title: "Tu equipo comparte la bandeja", text: "Los mensajes también aparecen en Colibly, donde varias personas pueden atenderlos, asignarlos y darles seguimiento." },
+  { icon: Bot, title: "La IA, cuando tú quieras", text: "Activa el asistente para ayudar a responder con tu información y pausa las respuestas automáticas cuando prefieras contestar tú." },
 ];
 
 const steps = [
@@ -56,7 +66,7 @@ export default function BetaPage() {
               <a href="/register" data-track="cta" data-track-location="beta_hero" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-sm font-semibold text-on-accent shadow-md transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong">Crear mi cuenta gratis <ArrowRight size={17} aria-hidden /></a>
               <a href="#como-funciona" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border bg-surface px-6 text-sm font-semibold text-foreground transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong">Ver cómo funciona</a>
             </div>
-            <p className="mt-4 text-sm text-muted">30 días sin costo · Sin tarjeta · Cancela cuando quieras</p>
+            <p className="mt-4 text-sm text-muted-strong">30 días sin costo · Sin tarjeta · Cancela cuando quieras</p>
           </div>
           <div className="relative mx-auto w-full max-w-lg" aria-label="Ejemplo ilustrativo de una conversación en Colibly">
             <div className="absolute -inset-3 rounded-[28px] bg-accent/10 blur-2xl" aria-hidden />
@@ -68,41 +78,55 @@ export default function BetaPage() {
               </div>
               <div className="grid min-h-[290px] grid-cols-[112px_1fr] sm:grid-cols-[158px_1fr]">
                 <div className="border-r border-border bg-background/70 p-2 sm:p-3">
-                  <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-muted">Conversaciones</p>
-                  <div className="rounded-xl border border-accent-muted bg-accent-subtle px-2 py-3"><p className="truncate text-xs font-semibold text-foreground">Mariana G.</p><p className="mt-1 truncate text-[11px] text-muted">Quiere una cita</p></div>
-                  <div className="mt-2 rounded-xl px-2 py-3"><p className="truncate text-xs font-medium text-foreground">Carlos R.</p><p className="mt-1 truncate text-[11px] text-muted">Pidió precios</p></div>
-                  <div className="mt-1 rounded-xl px-2 py-3"><p className="truncate text-xs font-medium text-foreground">Lucía M.</p><p className="mt-1 truncate text-[11px] text-muted">En seguimiento</p></div>
+                  <p className="px-2 pb-2 text-xs font-bold uppercase tracking-wide text-muted">Conversaciones</p>
+                  <div className="rounded-xl border border-accent-muted bg-accent-subtle px-2 py-3"><p className="truncate text-xs font-semibold text-foreground">Mariana G.</p><p className="mt-1 truncate text-xs text-muted">Quiere una cita</p></div>
+                  <div className="mt-2 rounded-xl px-2 py-3"><p className="truncate text-xs font-medium text-foreground">Carlos R.</p><p className="mt-1 truncate text-xs text-muted">Pidió precios</p></div>
+                  <div className="mt-1 rounded-xl px-2 py-3"><p className="truncate text-xs font-medium text-foreground">Lucía M.</p><p className="mt-1 truncate text-xs text-muted">En seguimiento</p></div>
                 </div>
                 <div className="flex flex-col gap-3 p-3 sm:p-5">
-                  <p className="text-[11px] font-semibold text-muted">Mariana G. · WhatsApp</p>
+                  <p className="text-xs font-semibold text-muted">Mariana G. · WhatsApp</p>
                   <div className="max-w-[88%] self-start rounded-[12px] rounded-tl-sm bg-surface-light px-3 py-2 text-xs leading-5 text-foreground">Hola, ¿tienen horarios para una consulta esta semana?</div>
                   <div className="max-w-[92%] self-end rounded-[12px] rounded-tr-sm bg-accent-subtle px-3 py-2 text-xs leading-5 text-foreground">¡Hola! Tenemos espacios el jueves y viernes. ¿Qué día te funciona mejor?</div>
-                  <div className="mt-auto flex flex-wrap gap-1.5"><span className="rounded-lg bg-info-bg px-2 py-1 text-[10px] font-medium text-info">Nueva oportunidad</span><span className="rounded-lg bg-success-bg px-2 py-1 text-[10px] font-medium text-success">Pendiente de agendar</span></div>
+                  <div className="mt-auto flex flex-wrap gap-1.5"><span className="rounded-lg bg-info-bg px-2 py-1 text-xs font-medium text-info">Nueva oportunidad</span><span className="rounded-lg bg-success-bg px-2 py-1 text-xs font-medium text-success">Pendiente de agendar</span></div>
                 </div>
               </div>
             </div>
             <div className="relative -mt-5 ml-auto mr-3 flex w-fit items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground shadow-lg"><span className="grid h-7 w-7 place-items-center rounded-lg bg-accent-subtle text-accent-ink"><Bot size={15} aria-hidden /></span> Respuesta preparada con IA</div>
-            <p className="mt-3 text-center text-xs text-muted">Ejemplo ilustrativo</p>
+            <p className="mt-3 text-center text-sm text-muted-strong">Ejemplo ilustrativo</p>
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-17 md:px-6 md:py-24" aria-labelledby="benefits-title">
-        <div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">Lo que cambia</p><h2 id="benefits-title" className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Menos chats perdidos. Más conversaciones que avanzan.</h2><p className="mt-4 text-base leading-7 text-muted">Empieza con lo esencial para atender bien, responder a tiempo y saber a quién dar seguimiento.</p></div>
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr] lg:items-end lg:gap-16"><div><p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">Lo que cambia</p><h2 id="benefits-title" className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.6rem] lg:leading-[1.1]">Menos chats perdidos. Más conversaciones que avanzan.</h2></div><p className="text-base leading-7 text-muted lg:pb-1 lg:text-lg lg:leading-8">Empieza con lo esencial para atender bien, responder a tiempo y saber a quién dar seguimiento.</p></div>
         <div className="mt-9 grid gap-4 md:grid-cols-3">
           {benefits.map(({ icon: Icon, title: itemTitle, text }) => <article key={itemTitle} className="rounded-[18px] border border-border bg-surface p-6 shadow-sm"><span className="grid h-11 w-11 place-items-center rounded-xl bg-accent-subtle text-accent-ink"><Icon size={21} aria-hidden /></span><h3 className="mt-5 font-display text-xl font-semibold">{itemTitle}</h3><p className="mt-3 text-sm leading-6 text-muted">{text}</p></article>)}
         </div>
       </section>
 
-      <section id="como-funciona" className="scroll-mt-24 border-y border-border bg-surface/70 py-17 md:py-24" aria-labelledby="steps-title">
-        <div className="mx-auto max-w-6xl px-4 md:px-6"><div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">Empezar es sencillo</p><h2 id="steps-title" className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Tú conoces tu negocio. Nosotros te ayudamos a ponerlo en marcha.</h2></div>
-          <ol className="mt-10 grid gap-4 md:grid-cols-3">{steps.map(({ number, title: stepTitle, text }) => <li key={number} className="rounded-[18px] border border-border bg-background p-6"><span className="font-display text-2xl font-semibold text-accent-ink">{number}</span><h3 className="mt-5 text-lg font-semibold">{stepTitle}</h3><p className="mt-3 text-sm leading-6 text-muted">{text}</p></li>)}</ol>
+      <section id="coexistencia" className="scroll-mt-24 border-y border-border bg-surface/70 py-17 md:py-24" aria-labelledby="coex-title">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:gap-16">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">WhatsApp Coexistence</p>
+            <h2 id="coex-title" className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Conserva tu número y tu app de WhatsApp Business.</h2>
+            <p className="mt-5 text-base leading-7 text-muted">Con la coexistencia de Meta, el mismo número funciona a la vez en la app WhatsApp Business de tu teléfono y en la API oficial. No tienes que cambiar de número ni dejar de contestar desde el celular: Colibly suma la bandeja compartida y la IA.</p>
+            <p className="mt-4 rounded-xl border border-border bg-background p-4 text-sm leading-6 text-muted-strong">Es una función de Meta y se habilita por cuenta; requiere la app WhatsApp Business (no la de uso personal) y su disponibilidad y límites los define Meta. Si quieres usarla, <a href="/contacto" className="font-medium text-accent-ink underline underline-offset-2">escríbenos</a> y lo revisamos contigo.</p>
+          </div>
+          <ul className="grid gap-4">
+            {coexistence.map(({ icon: Icon, title: itemTitle, text }) => <li key={itemTitle} className="flex gap-4 rounded-[18px] border border-border bg-background p-5 shadow-sm sm:p-6"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-accent-subtle text-accent-ink"><Icon size={21} aria-hidden /></span><div><h3 className="font-display text-lg font-semibold">{itemTitle}</h3><p className="mt-1.5 text-sm leading-6 text-muted">{text}</p></div></li>)}
+          </ul>
+        </div>
+      </section>
+
+      <section id="como-funciona" className="scroll-mt-24 py-17 md:py-24" aria-labelledby="steps-title">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[.85fr_1.15fr] lg:gap-16"><div className="lg:sticky lg:top-28 lg:self-start"><p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">Empezar es sencillo</p><h2 id="steps-title" className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.6rem] lg:leading-[1.1]">Tú conoces tu negocio. Nosotros te ayudamos a ponerlo en marcha.</h2></div>
+          <ol className="grid gap-4">{steps.map(({ number, title: stepTitle, text }) => <li key={number} className="flex gap-5 rounded-[18px] border border-border bg-surface p-6"><span className="font-display text-2xl font-semibold text-accent-ink">{number}</span><div><h3 className="text-lg font-semibold">{stepTitle}</h3><p className="mt-2 text-sm leading-6 text-muted">{text}</p></div></li>)}</ol>
         </div>
       </section>
 
       <section id="incluye" className="scroll-mt-24 mx-auto grid max-w-6xl gap-9 px-4 py-17 md:grid-cols-[.9fr_1.1fr] md:items-center md:px-6 md:py-24" aria-labelledby="offer-title">
         <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">La prueba gratis</p><h2 id="offer-title" className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Un mes para comprobarlo en tu propio negocio.</h2><p className="mt-5 text-base leading-7 text-muted">Crea tu cuenta y usa Colibly con tu equipo y tus clientes reales. Al terminar decides si sigues con un plan; si no, no pasa nada con tu tarjeta porque no la pedimos.</p><a href="/register" data-track="cta" data-track-location="beta_oferta" className="mt-6 inline-flex min-h-11 items-center gap-2 font-semibold text-accent-ink underline underline-offset-4">Crear mi cuenta gratis <ArrowRight size={16} aria-hidden /></a></div>
-        <div className="rounded-[22px] border border-accent-muted bg-[linear-gradient(145deg,var(--accent-subtle),var(--surface)_65%)] p-6 shadow-lg sm:p-8"><div className="flex flex-wrap items-center justify-between gap-2"><span className="rounded-lg bg-accent px-3 py-1 text-xs font-bold text-on-accent">REGISTRO ABIERTO</span><span className="text-sm font-semibold text-accent-ink">Sin lista de espera</span></div><p className="mt-6 font-display text-5xl font-semibold tracking-tight text-foreground">30 días <span className="text-2xl text-muted">sin costo</span></p><p className="mt-2 text-sm text-muted">La prueba comienza al crear tu cuenta.</p><ul className="mt-7 space-y-3">{["Plan Pro completo durante la prueba", `Hasta ${PLANS.PRO.limits.users} personas de tu equipo y ${PLANS.PRO.limits.channels} canales`, "Bandeja compartida y seguimiento de clientes", `Asistente de IA con tu información (${PLANS.PRO.limits.aiCreditsPerMonth.toLocaleString("es-MX")} créditos al mes)`, "Ayuda por correo cuando la necesites"].map((item) => <li key={item} className="flex gap-3 text-sm leading-6"><Check size={18} className="mt-0.5 shrink-0 text-success" aria-hidden /><span>{item}</span></li>)}</ul><p className="mt-7 border-t border-border pt-5 text-xs leading-5 text-muted">Sin tarjeta ni cobro automático. El uso de IA y canales tiene los límites del plan. Algunos mensajes de WhatsApp pueden generar cargos de Meta. <a href="/precios" className="font-medium text-accent-ink underline underline-offset-2">Ver planes y precios</a>.</p></div>
+        <div className="rounded-[22px] border border-accent-muted bg-[linear-gradient(145deg,var(--accent-subtle),var(--surface)_65%)] p-6 shadow-lg sm:p-8"><div className="flex flex-wrap items-center justify-between gap-2"><span className="rounded-lg bg-accent px-3 py-1 text-xs font-bold text-on-accent">REGISTRO ABIERTO</span><span className="text-sm font-semibold text-accent-ink">Sin lista de espera</span></div><p className="mt-6 font-display text-5xl font-semibold tracking-tight text-foreground">30 días <span className="text-2xl text-muted">sin costo</span></p><p className="mt-2 text-sm text-muted">La prueba comienza al crear tu cuenta.</p><ul className="mt-7 space-y-3">{["Plan Pro completo durante la prueba", `Hasta ${PLANS.PRO.limits.users} personas de tu equipo y ${PLANS.PRO.limits.channels} canales`, "Bandeja compartida y seguimiento de clientes", `Asistente de IA con tu información (${PLANS.PRO.limits.aiCreditsPerMonth.toLocaleString("es-MX")} créditos al mes)`, "Ayuda por correo cuando la necesites"].map((item) => <li key={item} className="flex gap-3 text-sm leading-6"><Check size={18} className="mt-0.5 shrink-0 text-success" aria-hidden /><span>{item}</span></li>)}</ul><p className="mt-7 border-t border-border pt-5 text-sm leading-6 text-muted-strong">Sin tarjeta ni cobro automático. El uso de IA y canales tiene los límites del plan. Algunos mensajes de WhatsApp pueden generar cargos de Meta. <a href="/precios" className="font-medium text-accent-ink underline underline-offset-2">Ver planes y precios</a>.</p></div>
       </section>
 
       <section id="preguntas" className="scroll-mt-24 border-y border-border bg-surface/70 py-17 md:py-24" aria-labelledby="faq-title"><div className="mx-auto grid max-w-6xl gap-8 px-4 md:grid-cols-[.8fr_1.2fr] md:px-6"><div><p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-ink">Sin sorpresas</p><h2 id="faq-title" className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Preguntas frecuentes</h2><p className="mt-4 text-sm leading-6 text-muted">¿Hay algo más que quieras saber? Escríbenos a <a href="mailto:contacto@colibly.com" className="font-medium text-accent-ink underline underline-offset-4">contacto@colibly.com</a>.</p></div><div className="space-y-3">{faq.map(({ q, a }) => <details key={q} data-track="faq" className="group rounded-xl border border-border bg-background px-5 py-4"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold marker:content-none [&::-webkit-details-marker]:hidden">{q}<CircleHelp size={17} className="shrink-0 text-accent-ink" aria-hidden /></summary><p className="pt-3 text-sm leading-6 text-muted">{a}</p></details>)}</div></div></section>
