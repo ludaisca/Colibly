@@ -7,8 +7,15 @@ import { Analytics, CookiePreferencesButton } from "@/app/components/analytics/a
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { LEGAL } from "./_legal";
-import { MobileNav } from "./_mobile-nav";
+import { SiteMobileNav } from "@/app/components/ui/site-mobile-nav";
 import { appUrl } from "@/lib/app-url";
+
+const MOBILE_LINKS = [
+  { href: "/#como-funciona", label: "Cómo funciona" },
+  { href: "/#precios", label: "Prueba gratis" },
+  { href: "/precios", label: "Precios" },
+  { href: "/#preguntas", label: "Preguntas" },
+];
 
 // 44 px de alto para tocar con el dedo; en escritorio vuelve a su altura de texto.
 const FOOTER_LINK = "inline-flex min-h-11 items-center hover:text-foreground md:min-h-0";
@@ -62,7 +69,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
               <Button href={appUrl("/login")} variant="ghost">Entrar</Button>
             </span>
             <Button href="/register" data-track="cta" data-track-location="header">Prueba gratis</Button>
-            <MobileNav loginHref={appUrl("/login")} />
+            <SiteMobileNav links={MOBILE_LINKS} loginHref={appUrl("/login")} ctaHref="/register" ctaLabel="Crear cuenta gratis" trackLocation="menu" label="Menú principal" />
           </div>
         </div>
       </header>
@@ -70,7 +77,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <main id="contenido-principal" tabIndex={-1} className="scroll-mt-20">{children}</main>
 
       <footer className="border-t border-border/60">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted md:grid-cols-[1.4fr_repeat(4,1fr)] md:px-6">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted-strong md:grid-cols-[1.4fr_repeat(4,1fr)] md:px-6">
           <div className="space-y-3">
             <Logo href="/" />
             <p className="max-w-xs">{BRAND_TAGLINE}.</p>
@@ -99,7 +106,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
           </nav>
         </div>
         <div className="border-t border-border/60">
-          <p className="mx-auto max-w-6xl px-4 py-4 text-xs text-muted md:px-6">© {new Date().getFullYear()} {BRAND_NAME}</p>
+          <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-muted-strong md:px-6">© {new Date().getFullYear()} {BRAND_NAME}</p>
         </div>
       </footer>
 
