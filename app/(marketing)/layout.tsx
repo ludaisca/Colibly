@@ -14,8 +14,9 @@ import { appUrl } from "@/lib/app-url";
 const FOOTER_LINK = "inline-flex min-h-11 items-center hover:text-foreground md:min-h-0";
 
 const FOOTER_COLUMNS = [
-  { title: "Beta", links: [{ href: "/", label: "Conocer la beta" }, { href: "/#solicitar", label: "Solicitar acceso" }, { href: "/#preguntas", label: "Preguntas frecuentes" }] },
-  { title: "Legal", links: [{ href: "/terminos", label: "Términos y condiciones" }, { href: "/privacidad", label: "Aviso de privacidad" }] },
+  { title: "Producto", links: [{ href: "/", label: "Conocer Colibly" }, { href: "/precios", label: "Planes y precios" }, { href: "/#preguntas", label: "Preguntas frecuentes" }] },
+  { title: "Soporte", links: [{ href: "/contacto", label: "Contacto y soporte" }, { href: "/eliminar-datos", label: "Eliminar mis datos" }] },
+  { title: "Legal", links: [{ href: "/terminos", label: "Términos y condiciones" }, { href: "/privacidad", label: "Aviso de privacidad" }, { href: "/privacidad#cookies", label: "Cookies y medición" }] },
 ];
 
 // Nuestro propio widget de chat web en la landing (una cuenta WEBCHAT de la
@@ -69,7 +70,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <main id="contenido-principal" tabIndex={-1} className="scroll-mt-20">{children}</main>
 
       <footer className="border-t border-border/60">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted md:grid-cols-[1.4fr_repeat(3,1fr)] md:px-6">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted md:grid-cols-[1.4fr_repeat(4,1fr)] md:px-6">
           <div className="space-y-3">
             <Logo href="/" />
             <p className="max-w-xs">{BRAND_TAGLINE}.</p>

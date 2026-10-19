@@ -81,7 +81,7 @@ export default async function proxy(req: NextRequest) {
       return NextResponse.redirect(onOrigin(process.env.APP_URL!, req), 308);
     }
   }
-  if (isAppHost && ["/beta", "/producto", "/terminos", "/privacidad"].some((r) => path === r || path.startsWith(r + "/"))) {
+  if (isAppHost && ["/beta", "/producto", "/terminos", "/privacidad", "/precios", "/contacto", "/eliminar-datos"].some((r) => path === r || path.startsWith(r + "/"))) {
     return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req, path === "/beta" ? "/" : path), 308);
   }
   if (isAppHost && path === "/sitemap.xml") return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req), 308);

@@ -35,6 +35,14 @@ export function LegalPage({ title, children }: { title: string; children: React.
       <div className="mt-8 space-y-6 text-[15px] leading-relaxed text-foreground [&_h2]:mt-10 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_li]:mt-1.5 [&_p]:text-foreground/90">
         {children}
       </div>
+      <nav aria-label="Más información" className="mt-12 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-6 text-sm text-muted">
+        <a href="/contacto" className="hover:text-foreground hover:underline">Contacto y soporte</a>
+        <a href="/eliminar-datos" className="hover:text-foreground hover:underline">Eliminar mis datos</a>
+        <a href="/precios" className="hover:text-foreground hover:underline">Planes y precios</a>
+        <a href="/terminos" className="hover:text-foreground hover:underline">Términos</a>
+        <a href="/privacidad" className="hover:text-foreground hover:underline">Privacidad</a>
+        <a href="/privacidad#cookies" className="hover:text-foreground hover:underline">Cookies y medición</a>
+      </nav>
     </article>
   );
 }

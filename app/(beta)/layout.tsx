@@ -35,8 +35,12 @@ export default async function BetaLayout({ children }: { children: React.ReactNo
           </div>
           <nav className="flex flex-wrap gap-x-5 gap-y-3 text-muted" aria-label="Enlaces del pie de página">
             <a href={`mailto:${BRAND_CONTACT_EMAIL}`} className="hover:text-foreground">{BRAND_CONTACT_EMAIL}</a>
+            <a href="/contacto" className="hover:text-foreground">Contacto</a>
+            <a href="/precios" className="hover:text-foreground">Precios</a>
+            <a href="/eliminar-datos" className="hover:text-foreground">Eliminar mis datos</a>
             <a href="/terminos" className="hover:text-foreground">Términos</a>
             <a href="/privacidad" className="hover:text-foreground">Privacidad</a>
+            <a href="/privacidad#cookies" className="hover:text-foreground">Cookies</a>
             {analytics && <CookiePreferencesButton className="cursor-pointer hover:text-foreground" />}
           </nav>
         </div>
