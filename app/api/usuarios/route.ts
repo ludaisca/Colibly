@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { pauseWebhooksOfUser } from "@/lib/webhooks/ownership";
+import { invalidateApiKeysOfUser } from "@/lib/api/auth-cache";
 import { auth, invalidateUserSessionCache } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -127,6 +128,8 @@ export async function PATCH(req: Request) {
     });
     // Aplica ya en este proceso; en los demás, en ≤ 60 s (ver lib/auth.ts).
     invalidateUserSessionCache(userId);
+    // Y sus API keys: el caché de autenticación (Redis) guarda rol y estado.
+    await invalidateApiKeysOfUser(userId);
 
     // Sus webhooks dejan de enviar datos (sus API keys ya fallan solas al
     // revisar el rol): se pausan y se avisa a los demás admins.

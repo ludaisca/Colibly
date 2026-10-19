@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { type NextRequest, NextResponse } from "next/server";
 import { getOrgAccess, readOnlyResponse } from "@/lib/billing/gates";
 import { requestHost } from "@/lib/request-host";
+import { API_MAX_BODY_BYTES } from "@/lib/api/constants";
 
 // /plataforma (panel del operador) no va en las listas de rol: su acceso lo
 // decide PLATFORM_ADMIN_EMAILS en la página y en /api/plataforma (404 al resto).
@@ -55,6 +56,16 @@ export default async function proxy(req: NextRequest) {
 
   if (EXCLUDE.some((e) => path.startsWith(e))) {
     return NextResponse.next();
+  }
+
+  // API pública: cuerpo de 1 MB como máximo. Aquí se corta lo que declara un
+  // Content-Length mayor sin que llegue al handler; lo que llega sin
+  // Content-Length (chunked) lo mide enforceBodyLimit en lib/api/respond.ts.
+  if (path.startsWith("/api/v1/") && Number(req.headers.get("content-length") ?? 0) > API_MAX_BODY_BYTES) {
+    return NextResponse.json(
+      { error: { code: "payload_too_large", message: `El cuerpo supera el máximo de ${Math.round(API_MAX_BODY_BYTES / 1024)} KB` } },
+      { status: 413 }
+    );
   }
 
   // Un único despliegue puede recibir ambos FQDN. El sitio muestra la beta en

@@ -6,7 +6,11 @@ export interface RateLimitInfo {
   remaining: number;
   /** Epoch en ms en que se libera un lugar en la ventana. */
   resetAt: number;
+  /** Qué límite se informa: el más ajustado, o el que rechazó (en el 429). */
+  scope?: RateLimitScope;
 }
+
+export type RateLimitScope = "key" | "organization" | "ip" | "endpoint" | "daily";
 
 const infoByRequest = new WeakMap<Request, RateLimitInfo>();
 
@@ -22,6 +26,21 @@ export function applyRateLimitHeaders(req: Request, res: Response): Response {
   res.headers.set("X-RateLimit-Remaining", String(Math.max(0, info.remaining)));
   // Segundos hasta que se libera un lugar (no epoch): no depende del reloj del cliente.
   res.headers.set("X-RateLimit-Reset", String(resetSeconds));
+  if (info.scope) res.headers.set("X-RateLimit-Scope", info.scope);
   if (res.status === 429) res.headers.set("Retry-After", String(resetSeconds));
   return res;
+}
+
+export function getRateLimitInfo(req: Request): RateLimitInfo | undefined {
+  return infoByRequest.get(req);
+}
+
+// Varios límites se aplican a la misma solicitud (key, organización, endpoint):
+// los headers informan el más ajustado (menos restantes), que es el que
+// rechazará primero.
+export function mergeRateLimitInfo(req: Request, info: RateLimitInfo): void {
+  const current = infoByRequest.get(req);
+  if (!current || info.remaining < current.remaining || (info.remaining === current.remaining && info.limit < current.limit)) {
+    infoByRequest.set(req, info);
+  }
 }

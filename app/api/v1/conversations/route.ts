@@ -1,6 +1,7 @@
 import type { ChatStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { authenticateApiKey } from "@/lib/api/auth";
+import { authenticateApiKey, enforceLimit } from "@/lib/api/auth";
+import { API_CONVERSATIONS_LIST_PER_MINUTE } from "@/lib/api/constants";
 import { ApiError, apiOk, decodeCursor, encodeCursor, readPageParams, withApiErrors } from "@/lib/api/respond";
 import { serializeConversation } from "@/lib/api/resources";
 
@@ -14,6 +15,8 @@ const CHANNELS = ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"] a
 // Filtros: accountId, channel, status, assignedToId, contactId.
 export const GET = withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "conversations:read");
+  // El listado más caro de la API (mezcla WhatsApp + otros canales): límite propio por key.
+  await enforceLimit(req, "endpoint", `api-conv-list:${ctx.keyId}`, API_CONVERSATIONS_LIST_PER_MINUTE);
   const url = new URL(req.url);
   const { limit, cursor } = readPageParams(url);
   const after = decodeCursor(cursor);

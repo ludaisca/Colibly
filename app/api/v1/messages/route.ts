@@ -5,6 +5,10 @@ import { findScopedContact, findScopedConversation } from "@/lib/api/resources";
 import { apiSendMessageSchema, type ApiSendMessageInput } from "@/lib/api/schemas";
 import { OutboundError, sendOutbound, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
 import { withIdempotency } from "@/lib/api/idempotency";
+import { enforceLimit, rateLimiterUnavailable } from "@/lib/api/auth";
+import { API_DAILY_SENDS_PER_ORG, API_SEND_PER_MINUTE_PER_ORG } from "@/lib/api/constants";
+import { mergeRateLimitInfo, setRateLimitInfo } from "@/lib/api/rate-headers";
+import { consumeDailyQuota, RateLimitUnavailableError, refundDailyQuota } from "@/lib/rate-limit";
 
 const OUTBOUND_STATUS: Record<OutboundError["code"], [number, ApiErrorCode]> = {
   window_closed: [422, "window_closed"],
@@ -25,23 +29,48 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
   const input = parsed.data;
 
-  const { target, openedChatId } = input.conversationId
-    ? { target: (await findScopedConversation(ctx, input.conversationId)).target, openedChatId: null }
-    : await targetForContact(ctx, input.contactId!, input.type === "template");
-
+  // Límites propios del envío (además de los de key/organización): por minuto
+  // por organización, y un cupo diario (día UTC) que protege la calidad del
+  // número de WhatsApp ante un bucle. Se consumen después de validar el cuerpo.
+  await enforceLimit(req, "endpoint", `api-send:${ctx.organizationId}`, API_SEND_PER_MINUTE_PER_ORG, 60,
+    `Límite de ${API_SEND_PER_MINUTE_PER_ORG} envíos por minuto para la organización excedido`);
+  const quotaKey = `api-sends:${ctx.organizationId}`;
+  let quota;
   try {
-    const result = await sendOutbound(target, toContent(input), { source: "api" });
-    const conversationId = target.kind === "whatsapp" ? target.chat.id : target.conversation.id;
-    return apiOk({ id: result.messageId, conversationId, externalId: result.externalId }, 201);
+    quota = await consumeDailyQuota(quotaKey, API_DAILY_SENDS_PER_ORG);
   } catch (err) {
-    // Si el chat se abrió para este envío y Meta lo rechazó, no dejar un chat
-    // vacío en el inbox.
-    if (openedChatId) await prisma.wAChat.delete({ where: { id: openedChatId } }).catch(() => {});
-    if (err instanceof OutboundError) {
-      const [status, code] = OUTBOUND_STATUS[err.code];
-      throw new ApiError(status, code, err.message);
-    }
+    if (err instanceof RateLimitUnavailableError) throw rateLimiterUnavailable();
     throw err;
+  }
+  if (!quota.allowed) {
+    setRateLimitInfo(req, { limit: API_DAILY_SENDS_PER_ORG, remaining: 0, resetAt: quota.resetAt, scope: "daily" });
+    throw new ApiError(429, "daily_limit_reached", `Cupo diario de ${API_DAILY_SENDS_PER_ORG} envíos por API alcanzado; se renueva a las 00:00 UTC`);
+  }
+  mergeRateLimitInfo(req, { limit: API_DAILY_SENDS_PER_ORG, remaining: quota.remaining, resetAt: quota.resetAt, scope: "daily" });
+  let sent = false;
+  try {
+    const { target, openedChatId } = input.conversationId
+      ? { target: (await findScopedConversation(ctx, input.conversationId)).target, openedChatId: null }
+      : await targetForContact(ctx, input.contactId!, input.type === "template");
+
+    try {
+      const result = await sendOutbound(target, toContent(input), { source: "api" });
+      sent = true;
+      const conversationId = target.kind === "whatsapp" ? target.chat.id : target.conversation.id;
+      return apiOk({ id: result.messageId, conversationId, externalId: result.externalId }, 201);
+    } catch (err) {
+      // Si el chat se abrió para este envío y Meta lo rechazó, no dejar un chat
+      // vacío en el inbox.
+      if (openedChatId) await prisma.wAChat.delete({ where: { id: openedChatId } }).catch(() => {});
+      if (err instanceof OutboundError) {
+        const [status, code] = OUTBOUND_STATUS[err.code];
+        throw new ApiError(status, code, err.message);
+      }
+      throw err;
+    }
+  } finally {
+    // Lo que no salió no gasta cupo diario.
+    if (!sent) await refundDailyQuota(quotaKey);
   }
 }));
 

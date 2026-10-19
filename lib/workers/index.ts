@@ -16,6 +16,7 @@ import { processAppointmentReminderTick } from "./appointment-reminder-worker";
 import { processSequenceTickJob } from "./sequence-worker";
 import { fanOutToWebhooks } from "@/lib/webhooks/fanout";
 import { processWebhookDelivery } from "@/lib/webhooks/deliver";
+import { WEBHOOK_WORKER_CONCURRENCY } from "@/lib/api/constants";
 import type { DomainEvent } from "@/lib/events/types";
 import { handleDomainEvent as handleAutomationEvent } from "@/lib/automations/dispatch";
 import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
@@ -180,9 +181,11 @@ export function startWorkers() {
 
   // Una entrega HTTP por job; los reintentos (backoff largo) los maneja
   // BullMQ, el registro de cada intento vive en WebhookDelivery.
-  const webhookDeliveryWorker = new Worker("webhook-deliveries", async (job) => {
-    await processWebhookDelivery(job);
-  }, { connection, concurrency: 5 });
+  // 20 en paralelo (env WEBHOOK_WORKER_CONCURRENCY), como mucho 2 por endpoint
+  // (WEBHOOK_PER_ENDPOINT_CONCURRENCY): ver lib/webhooks/deliver.ts.
+  const webhookDeliveryWorker = new Worker("webhook-deliveries", async (job, token) => {
+    await processWebhookDelivery(job, token);
+  }, { connection, concurrency: WEBHOOK_WORKER_CONCURRENCY });
 
   workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker);
 

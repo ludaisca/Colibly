@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/integrations/admin-session";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { serializeApiKey } from "@/lib/api/keys";
+import { invalidateApiKeyCache } from "@/lib/api/auth-cache";
 import { orgWhere } from "@/lib/tenancy";
 
 type Params = { params: Promise<{ id: string }> };
@@ -32,6 +33,8 @@ export async function PATCH(req: Request, { params }: Params) {
         ...(parsed.data.revoked && !existing.revokedAt ? { revokedAt: new Date() } : {}),
       },
     });
+    // Revocar (o renombrar) corta el caché de autenticación al instante.
+    await invalidateApiKeyCache(existing.keyHash);
     return NextResponse.json(serializeApiKey(updated));
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno del servidor") }, { status: 500 });
@@ -43,7 +46,10 @@ export async function DELETE(_req: Request, { params }: Params) {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
     const { id } = await params;
+    const existing = await prisma.apiKey.findFirst({ where: { id, ...(await orgWhere(admin.userId)) }, select: { keyHash: true } });
+    if (!existing) return NextResponse.json({ error: "API key no encontrada" }, { status: 404 });
     const { count } = await prisma.apiKey.deleteMany({ where: { id, ...(await orgWhere(admin.userId)) } });
+    await invalidateApiKeyCache(existing.keyHash);
     if (count === 0) return NextResponse.json({ error: "API key no encontrada" }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {

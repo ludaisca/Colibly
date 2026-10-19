@@ -112,21 +112,37 @@ export default function ApiDocsPage() {
 
         <Section id="limites" title="Límites de velocidad">
           <p>
-            Cada key admite <strong>{limits.requestsPerMinute} solicitudes por minuto</strong> (ventana móvil de 60 s). Toda respuesta autenticada informa cuánto te queda:
+            Los límites se cuentan en ventanas móviles de 60 s y se aplican en capas; gana el primero que se agote:
           </p>
+          <ParamTable
+            head={["Límite", "Valor"]}
+            rows={[
+              ["Por key", `${limits.requestsPerMinute} solicitudes por minuto`],
+              ["Por cuenta (todas sus keys juntas)", `${limits.orgRequestsPerMinute} solicitudes por minuto`],
+              ["Por IP (con o sin key)", `${limits.ipRequestsPerMinute} solicitudes por minuto`],
+              [<code key="m" className="font-mono text-sm">POST /messages</code>, `${limits.sendsPerMinutePerOrg} envíos por minuto y ${limits.dailySendsPerOrg.toLocaleString("es-MX")} por día (UTC) por cuenta`],
+              [<code key="c" className="font-mono text-sm">GET /conversations</code>, `${limits.conversationsListPerMinutePerKey} solicitudes por minuto por key`],
+              ["Tamaño del cuerpo", `${Math.round(limits.maxBodyBytes / 1024)} KB como máximo (si no, 413 payload_too_large)`],
+            ]}
+          />
+          <p>Toda respuesta autenticada informa el límite más ajustado en ese momento:</p>
           <ParamTable
             head={["Header", "Significado"]}
             rows={[
-              [<code key="l" className="font-mono text-sm">X-RateLimit-Limit</code>, `Solicitudes permitidas por minuto (${limits.requestsPerMinute}).`],
+              [<code key="l" className="font-mono text-sm">X-RateLimit-Limit</code>, "Solicitudes permitidas en la ventana del límite informado."],
               [<code key="r" className="font-mono text-sm">X-RateLimit-Remaining</code>, "Las que te quedan en la ventana actual."],
               [<code key="s" className="font-mono text-sm">X-RateLimit-Reset</code>, "Segundos hasta que se libera un lugar."],
-              [<code key="a" className="font-mono text-sm">Retry-After</code>, "Solo en el 429: segundos a esperar antes de reintentar."],
+              [<code key="sc" className="font-mono text-sm">X-RateLimit-Scope</code>, "Qué límite se informa: key, organization, ip, endpoint o daily."],
+              [<code key="a" className="font-mono text-sm">Retry-After</code>, "Solo en el 429 y el 503: segundos a esperar antes de reintentar."],
             ]}
           />
           <p>Al pasarte recibes <code className="font-mono text-sm">429 rate_limited</code>. Espera lo que indica <code className="font-mono text-sm">Retry-After</code>; reintentar antes vuelve a contar.</p>
-          <Code>{`HTTP/1.1 429 Too Many Requests\nX-RateLimit-Limit: ${limits.requestsPerMinute}\nX-RateLimit-Remaining: 0\nX-RateLimit-Reset: 12\nRetry-After: 12\n\n{ "error": { "code": "rate_limited", "message": "Límite de ${limits.requestsPerMinute} solicitudes por minuto excedido" } }`}</Code>
+          <Code>{`HTTP/1.1 429 Too Many Requests\nX-RateLimit-Limit: ${limits.requestsPerMinute}\nX-RateLimit-Remaining: 0\nX-RateLimit-Reset: 12\nX-RateLimit-Scope: key\nRetry-After: 12\n\n{ "error": { "code": "rate_limited", "message": "Límite de ${limits.requestsPerMinute} solicitudes por minuto excedido" } }`}</Code>
           <p className="text-sm text-muted-strong">
             Además, una misma IP puede hacer hasta {limits.badKeyAttemptsPerMinutePerIp} intentos por minuto con keys inválidas; después recibe 429 aunque la siguiente key sea válida.
+          </p>
+          <p className="text-sm text-muted-strong">
+            Si se agota el cupo diario de envíos recibes <code className="font-mono text-sm">429 daily_limit_reached</code>, con <code className="font-mono text-sm">Retry-After</code> hasta las 00:00 UTC. Si el servicio de límites no está disponible respondemos <code className="font-mono text-sm">503 service_unavailable</code> con <code className="font-mono text-sm">Retry-After: {limits.unavailableRetrySeconds}</code>: reintenta después.
           </p>
         </Section>
 
@@ -199,6 +215,9 @@ export default function ApiDocsPage() {
               [<code key="s" className="font-mono text-sm">X-Colibly-Signature</code>, <span key="sv"><code className="font-mono text-sm">t=&lt;unix&gt;,v1=&lt;hex&gt;</code>: HMAC-SHA256 del texto <code className="font-mono text-sm">{"{t}.{cuerpo}"}</code> con tu secreto.</span>],
               [<code key="e" className="font-mono text-sm">X-Colibly-Event</code>, "Tipo de evento, p. ej. contact.created."],
               [<code key="d" className="font-mono text-sm">X-Colibly-Delivery</code>, "Id de la entrega; es el mismo en cada reintento."],
+              [<code key="i" className="font-mono text-sm">X-Colibly-Event-Id</code>, "Id del evento (el mismo que id en el cuerpo): igual en todos tus endpoints y reintentos, útil para descartar duplicados."],
+              [<code key="n" className="font-mono text-sm">X-Colibly-Attempt</code>, "Número de intento (1 = primera entrega)."],
+              [<code key="u" className="font-mono text-sm">User-Agent</code>, "Colibly-Webhooks/1.0"],
               [<code key="c" className="font-mono text-sm">Content-Type</code>, "application/json"],
             ]}
           />
@@ -233,6 +252,7 @@ export default function ApiDocsPage() {
           <SubHeading>Reintentos, desactivación y pausa</SubHeading>
           <ul className="list-disc space-y-1.5 pl-5">
             <li>Responde con cualquier 2xx en menos de {limits.webhookTimeoutSeconds} segundos. Si tu proceso tarda, responde primero y procesa después.</li>
+            <li>A un mismo webhook le enviamos como mucho {limits.webhookPerEndpointConcurrency} entregas a la vez; las demás esperan su turno sin gastar intentos.</li>
             <li>
               Si fallas (error, timeout o status distinto de 2xx), reintentamos hasta completar {limits.webhookAttempts} intentos. La primera espera es de {limits.webhookBackoffBaseSeconds} segundos y se duplica en cada intento,
               unos {retryMinutes} minutos en total. Una URL rechazada por seguridad no se reintenta.

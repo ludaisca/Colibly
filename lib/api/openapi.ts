@@ -3,6 +3,13 @@ import { DOMAIN_EVENT_CATALOG, type DomainEventType } from "@/lib/events/types";
 import { BRAND_NAME } from "@/lib/brand";
 import {
   API_BAD_KEY_ATTEMPTS_PER_MINUTE,
+  API_CONVERSATIONS_LIST_PER_MINUTE,
+  API_DAILY_SENDS_PER_ORG,
+  API_IP_REQUESTS_PER_MINUTE,
+  API_MAX_BODY_BYTES,
+  API_ORG_REQUESTS_PER_MINUTE,
+  API_SEND_PER_MINUTE_PER_ORG,
+  API_UNAVAILABLE_RETRY_SECONDS,
   API_PAGE_DEFAULT,
   API_PAGE_MAX,
   API_REQUESTS_PER_MINUTE,
@@ -12,6 +19,7 @@ import {
   WEBHOOK_BACKOFF_BASE_MS,
   WEBHOOK_DELIVERY_ATTEMPTS,
   WEBHOOK_MAX_CONSECUTIVE_FAILURES,
+  WEBHOOK_PER_ENDPOINT_CONCURRENCY,
   WEBHOOK_TIMEOUT_SECONDS,
 } from "./constants";
 
@@ -41,6 +49,7 @@ const rateHeaders = {
   "X-RateLimit-Limit": { $ref: "#/components/headers/RateLimitLimit" },
   "X-RateLimit-Remaining": { $ref: "#/components/headers/RateLimitRemaining" },
   "X-RateLimit-Reset": { $ref: "#/components/headers/RateLimitReset" },
+  "X-RateLimit-Scope": { $ref: "#/components/headers/RateLimitScope" },
 };
 const ok = (schema: object, example?: unknown, description = "OK") => ({ description, headers: rateHeaders, content: json(schema, example) });
 const err = (name: string) => ({ $ref: `#/components/responses/${name}` });
@@ -52,8 +61,9 @@ const errors = {
   "404": err("NotFound"),
   "429": err("RateLimited"),
   "500": err("InternalError"),
+  "503": err("ServiceUnavailable"),
 };
-const writeErrors = { ...errors, "409": err("Conflict"), "422": err("Unprocessable") };
+const writeErrors = { ...errors, "409": err("Conflict"), "413": err("PayloadTooLarge"), "422": err("Unprocessable") };
 const pageParams = [
   { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: API_PAGE_MAX, default: API_PAGE_DEFAULT } },
   { name: "cursor", in: "query", schema: { type: "string" }, description: "`nextCursor` de la página anterior" },
@@ -227,9 +237,12 @@ export const API_ERROR_CODES: { code: string; status: number; description: strin
   { code: "limit_reached", status: 409, description: `Tope por cuenta: ${MAX_WEBHOOKS} webhooks.` },
   { code: "window_closed", status: 422, description: "WhatsApp: fuera de la ventana de 24 h solo se puede enviar una plantilla aprobada." },
   { code: "idempotency_conflict", status: 422, description: "La Idempotency-Key ya se usó con otro cuerpo o en otro endpoint." },
-  { code: "rate_limited", status: 429, description: "Demasiadas solicitudes; espera los segundos de `Retry-After`." },
+  { code: "payload_too_large", status: 413, description: `El cuerpo supera ${Math.round(API_MAX_BODY_BYTES / 1024)} KB.` },
+  { code: "rate_limited", status: 429, description: "Demasiadas solicitudes (por key, organización, IP o endpoint; ver `X-RateLimit-Scope`); espera los segundos de `Retry-After`." },
+  { code: "daily_limit_reached", status: 429, description: `Cupo diario de ${API_DAILY_SENDS_PER_ORG} envíos por API por organización (día UTC); \`Retry-After\` indica cuándo se renueva.` },
   { code: "internal_error", status: 500, description: "Error nuestro. Reintenta con la misma Idempotency-Key." },
   { code: "upstream_error", status: 502, description: "WhatsApp/Meta u otro canal rechazó o no respondió." },
+  { code: "service_unavailable", status: 503, description: "Servicio temporalmente no disponible (p. ej. el limitador de velocidad); reintenta tras `Retry-After`." },
 ];
 
 const errorResponse = (description: string, code: string, message: string, headers?: object) => ({
@@ -247,7 +260,8 @@ export function buildOpenApiSpec(serverUrl: string) {
       description:
         `API pública de ${BRAND_NAME} (plan Pro). ` +
         "Autenticación: `Authorization: Bearer sk_live_...` (API key creada por un admin en Configuración → API). " +
-        `Límite: ${API_REQUESTS_PER_MINUTE} solicitudes por minuto por key, informado en los headers \`X-RateLimit-*\`. ` +
+        `Límites: ${API_REQUESTS_PER_MINUTE} solicitudes por minuto por key y ${API_ORG_REQUESTS_PER_MINUTE} por organización (todas sus keys), informados en los headers \`X-RateLimit-*\`; ` +
+        `\`POST /messages\`: ${API_SEND_PER_MINUTE_PER_ORG} por minuto y ${API_DAILY_SENDS_PER_ORG} por día por organización. Cuerpo máximo: ${Math.round(API_MAX_BODY_BYTES / 1024)} KB. ` +
         "Los errores tienen la forma `{ error: { code, message } }`. Los POST aceptan `Idempotency-Key`.\n\n" +
         "**Versiones**: la versión va en la ruta (`/api/v1`). Dentro de v1 solo se agregan cosas (campos, endpoints, eventos, valores de enum); " +
         "un cambio incompatible saldría como `/api/v2` y v1 se mantendría al menos 12 meses, avisando por correo a los admins con keys activas.\n\n" +
@@ -259,6 +273,14 @@ export function buildOpenApiSpec(serverUrl: string) {
     security: [{ apiKey: [] }],
     "x-colibly-limits": {
       requestsPerMinute: API_REQUESTS_PER_MINUTE,
+      orgRequestsPerMinute: API_ORG_REQUESTS_PER_MINUTE,
+      ipRequestsPerMinute: API_IP_REQUESTS_PER_MINUTE,
+      sendsPerMinutePerOrg: API_SEND_PER_MINUTE_PER_ORG,
+      dailySendsPerOrg: API_DAILY_SENDS_PER_ORG,
+      conversationsListPerMinutePerKey: API_CONVERSATIONS_LIST_PER_MINUTE,
+      maxBodyBytes: API_MAX_BODY_BYTES,
+      unavailableRetrySeconds: API_UNAVAILABLE_RETRY_SECONDS,
+      webhookPerEndpointConcurrency: WEBHOOK_PER_ENDPOINT_CONCURRENCY,
       badKeyAttemptsPerMinutePerIp: API_BAD_KEY_ATTEMPTS_PER_MINUTE,
       pageDefault: API_PAGE_DEFAULT,
       pageMax: API_PAGE_MAX,
@@ -507,6 +529,10 @@ export function buildOpenApiSpec(serverUrl: string) {
         RateLimitRemaining: { description: "Solicitudes que quedan en la ventana actual", schema: { type: "integer" } },
         RateLimitReset: { description: "Segundos hasta que se libera un lugar", schema: { type: "integer" } },
         RetryAfter: { description: "Segundos a esperar antes de reintentar", schema: { type: "integer" } },
+        RateLimitScope: {
+          description: "Límite informado en X-RateLimit-*: el más ajustado, o el que rechazó en un 429",
+          schema: { type: "string", enum: ["key", "organization", "ip", "endpoint", "daily"] },
+        },
       },
       responses: {
         InvalidRequest: errorResponse("Solicitud inválida", "invalid_request", "phone debe tener entre 8 y 15 dígitos, con código de país"),
@@ -518,6 +544,10 @@ export function buildOpenApiSpec(serverUrl: string) {
         Unprocessable: errorResponse("window_closed o idempotency_conflict", "window_closed", "Fuera de la ventana de 24 h: envía una plantilla aprobada"),
         RateLimited: errorResponse("Demasiadas solicitudes", "rate_limited", `Límite de ${API_REQUESTS_PER_MINUTE} solicitudes por minuto excedido`, {
           ...rateHeaders,
+          "Retry-After": { $ref: "#/components/headers/RetryAfter" },
+        }),
+        PayloadTooLarge: errorResponse("Cuerpo demasiado grande", "payload_too_large", `El cuerpo supera el máximo de ${Math.round(API_MAX_BODY_BYTES / 1024)} KB`),
+        ServiceUnavailable: errorResponse("No disponible temporalmente", "service_unavailable", "Servicio temporalmente no disponible; reintenta en unos segundos", {
           "Retry-After": { $ref: "#/components/headers/RetryAfter" },
         }),
         InternalError: errorResponse("Error interno", "internal_error", "Error interno del servidor"),

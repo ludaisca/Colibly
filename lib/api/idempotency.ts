@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { getRedisClient } from "@/lib/redis";
 import { hashToken } from "@/lib/crypto";
-import { apiError } from "./respond";
+import { ApiError, apiError, bodyOverflowed, guardRequestBody } from "./respond";
 import { API_KEY_PREFIX } from "./keys";
 import { IDEMPOTENCY_TTL_HOURS } from "./constants";
 
@@ -26,7 +26,8 @@ export const IDEMPOTENCY_HEADER = "Idempotency-Key";
 export const IDEMPOTENCY_TTL_SECONDS = IDEMPOTENCY_TTL_HOURS * 60 * 60;
 const IN_FLIGHT_TTL_SECONDS = 60;
 const KEY_PATTERN = /^[\x21-\x7e]{1,255}$/;
-const NOT_STORED = new Set([401, 402, 403, 429]);
+const NOT_STORED = new Set([401, 402, 403, 413, 429]);
+const REDIS_DOWN = new Set(["reconnecting", "close", "end"]);
 
 type Stored =
   | { state: "pending"; fingerprint: string }
@@ -34,9 +35,16 @@ type Stored =
 
 export function withIdempotency<A extends [Request, ...unknown[]]>(handler: (...args: A) => Promise<Response>) {
   return async (...args: A): Promise<Response> => {
-    const req = args[0];
-    const key = req.headers.get(IDEMPOTENCY_HEADER);
+    const key = args[0].headers.get(IDEMPOTENCY_HEADER);
     if (key === null) return handler(...args);
+    // El tope de cuerpo va antes de leerlo para la huella.
+    try {
+      args[0] = guardRequestBody(args[0]);
+    } catch (err) {
+      if (err instanceof ApiError) return apiError(err.status, err.code, err.message, err.headers);
+      throw err;
+    }
+    const req = args[0];
     if (!KEY_PATTERN.test(key)) {
       return apiError(400, "invalid_request", "Idempotency-Key debe tener de 1 a 255 caracteres ASCII visibles (p. ej. un UUID)");
     }
@@ -45,12 +53,21 @@ export function withIdempotency<A extends [Request, ...unknown[]]>(handler: (...
     const organizationId = await organizationForBearer(req);
     if (!organizationId) return handler(...args);
 
-    const fingerprint = await requestFingerprint(req);
+    let fingerprint: string;
+    try {
+      fingerprint = await requestFingerprint(req);
+    } catch (err) {
+      if (bodyOverflowed(req)) return apiError(413, "payload_too_large", "El cuerpo supera el máximo permitido");
+      throw err;
+    }
     const storeKey = `idem:${organizationId}:${createHash("sha256").update(key).digest("hex")}`;
 
     let redis: ReturnType<typeof getRedisClient>;
     try {
       redis = getRedisClient();
+      // Con Redis caído ioredis encola el comando sin fallar (maxRetriesPerRequest
+      // null): el tope evita colgar la solicitud.
+      if (REDIS_DOWN.has(redis.status)) throw new Error(`Redis en estado ${redis.status}`);
       const claimed = await redis.set(storeKey, JSON.stringify({ state: "pending", fingerprint } satisfies Stored), "EX", IN_FLIGHT_TTL_SECONDS, "NX");
       if (!claimed) {
         const stored = parseStored(await redis.get(storeKey));

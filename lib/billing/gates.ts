@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Organization } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { invalidateOrgApiAccess } from "@/lib/api/auth-cache";
 import { limitsForSeats, PLANS, SEAT_CHANNEL_LABELS, SEAT_CHANNELS, type SeatChannel } from "./plans";
 import type { SeatUsage } from "./state";
 import { accessMode, channelSeatBase, planLimits, seatCap, type AccessMode, type BillingSnapshot } from "./state";
@@ -47,6 +48,8 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
 
 export function invalidateOrgBilling(organizationId: string) {
   cache.delete(organizationId);
+  // También el caché de acceso de la API pública (Redis, todas las instancias).
+  void invalidateOrgApiAccess(organizationId);
 }
 
 export async function getOrgAccess(organizationId: string): Promise<AccessMode> {

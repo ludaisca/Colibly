@@ -69,6 +69,20 @@ services:
       # Operadores de la plataforma (panel /plataforma): perímetro de acceso,
       # deliberadamente fuera de la base de datos — ver lib/platform-admin.ts.
       PLATFORM_ADMIN_EMAILS: "${PLATFORM_ADMIN_EMAILS:-}"
+      # Pool de Postgres por proceso (vacío = default de Prisma). Ver lib/prisma.ts.
+      DB_CONNECTION_LIMIT: "${DB_CONNECTION_LIMIT:-}"
+      DB_POOL_TIMEOUT: "${DB_POOL_TIMEOUT:-}"
+      # Límites de la API pública y webhooks (vacío = default de lib/api/constants.ts).
+      API_RATE_LIMIT_PER_KEY: "${API_RATE_LIMIT_PER_KEY:-}"
+      API_RATE_LIMIT_PER_ORG: "${API_RATE_LIMIT_PER_ORG:-}"
+      API_RATE_LIMIT_PER_IP: "${API_RATE_LIMIT_PER_IP:-}"
+      API_RATE_LIMIT_SEND_PER_ORG: "${API_RATE_LIMIT_SEND_PER_ORG:-}"
+      API_RATE_LIMIT_CONVERSATIONS_PER_KEY: "${API_RATE_LIMIT_CONVERSATIONS_PER_KEY:-}"
+      API_DAILY_SEND_CAP_PER_ORG: "${API_DAILY_SEND_CAP_PER_ORG:-}"
+      API_MAX_BODY_BYTES: "${API_MAX_BODY_BYTES:-}"
+      API_AUTH_CACHE_SECONDS: "${API_AUTH_CACHE_SECONDS:-}"
+      WEBHOOK_WORKER_CONCURRENCY: "${WEBHOOK_WORKER_CONCURRENCY:-}"
+      WEBHOOK_PER_ENDPOINT_CONCURRENCY: "${WEBHOOK_PER_ENDPOINT_CONCURRENCY:-}"
     healthcheck:
       # 127.0.0.1, no "localhost": dentro del contenedor localhost resuelve a
       # ::1 primero y next-server solo escucha en IPv4 — con localhost el
