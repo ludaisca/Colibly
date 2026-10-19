@@ -178,13 +178,13 @@ export default function LandingPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd() }} />
       <section className="relative isolate overflow-hidden">
-        {/* Color de marca detrás de la vista previa, sin competir con el título. */}
+        {/* Textura de puntos sutil (sin degradados ni halos), se desvanece hacia abajo. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,black_65%,transparent)]"
+          className="pointer-events-none absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,black_40%,transparent)]"
           style={{
-            background:
-              "radial-gradient(55% 60% at 80% 20%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 70%), radial-gradient(40% 45% at 5% 90%, color-mix(in oklab, var(--accent-2) 8%, transparent), transparent 70%)",
+            backgroundImage: "radial-gradient(var(--accent-muted) 1px, transparent 1.2px)",
+            backgroundSize: "22px 22px",
           }}
         />
         {/* Dos columnas desde lg: en tablet el título se partía en 5 renglones. */}

@@ -26,7 +26,7 @@ type Contact = {
 };
 
 const CONTACTS: Contact[] = [
-  { id: "sofia", name: "Sofía Ramírez", initials: "SR", company: "Casa Nómada", channel: "WhatsApp", color: "bg-violet-100 text-violet-700", last: "Perfecto, ¿podemos agendar para mañana?", time: "12:42", unread: 2, stage: "Oportunidad", note: "Interesada en automatizar las consultas de su tienda." },
+  { id: "sofia", name: "Sofía Ramírez", initials: "SR", company: "Casa Nómada", channel: "WhatsApp", color: "bg-accent-subtle text-accent-ink", last: "Perfecto, ¿podemos agendar para mañana?", time: "12:42", unread: 2, stage: "Oportunidad", note: "Interesada en automatizar las consultas de su tienda." },
   { id: "diego", name: "Diego Martínez", initials: "DM", company: "Studio Norte", channel: "Instagram", color: "bg-rose-100 text-rose-700", last: "¿Me compartes los planes?", time: "11:18", unread: 1, stage: "Nuevo", note: "Llegó desde una campaña de Instagram." },
   { id: "valeria", name: "Valeria Torres", initials: "VT", company: "Luna Dental", channel: "Messenger", color: "bg-sky-100 text-sky-700", last: "Muchas gracias, quedo pendiente.", time: "Ayer", unread: 0, stage: "En seguimiento", note: "Quiere reducir el tiempo de respuesta de su equipo." },
   { id: "andres", name: "Andrés López", initials: "AL", company: "Taller Oliva", channel: "Telegram", color: "bg-emerald-100 text-emerald-700", last: "Nos vemos el jueves.", time: "Ayer", unread: 0, stage: "Cliente", note: "Tiene una demostración programada para el jueves." },

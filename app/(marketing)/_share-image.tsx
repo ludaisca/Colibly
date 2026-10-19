@@ -24,7 +24,7 @@ export function renderShareImage() {
   const minPrice = Math.min(...PLAN_LIST.map((p) => p.priceUsd));
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "72px 80px", background: `linear-gradient(135deg, ${C.background} 55%, ${C.accentMuted} 100%)`, color: C.ink }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "72px 80px", background: C.background, color: C.ink }}>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
           <BrandMarkSvg size={64} />
           <span style={{ fontSize: 40, fontWeight: 700 }}>{BRAND_NAME}</span>

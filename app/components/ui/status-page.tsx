@@ -16,10 +16,6 @@ export function StatusPage({ code, title, description, actions, reference }: Sta
   return (
     <div
       className="theme-light flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-12 text-foreground"
-      style={{
-        backgroundImage:
-          "radial-gradient(circle at 50% 0%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 60%)",
-      }}
     >
       <main className="w-full max-w-md text-center">
         <div className="mb-8 flex justify-center">
