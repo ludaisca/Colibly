@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
 import { headers } from "next/headers";
 import { appUrl, siteUrl } from "@/lib/app-url";
@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Providers } from "./providers";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { BRAND_COLORS } from "@/lib/brand-colors";
 
 const bricolage = Bricolage_Grotesque({
   variable: "--font-display",
@@ -20,6 +21,15 @@ const hankenGrotesk = Hanken_Grotesk({
   subsets: ["latin"],
   display: "swap",
 });
+
+// Color de la barra del navegador móvil (paleta "Menta y grafito"); en modo
+// oscuro, el fondo noche del tema.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: BRAND_COLORS.accent },
+    { media: "(prefers-color-scheme: dark)", color: "#0B1514" },
+  ],
+};
 
 // El dominio de cada petición se conoce en runtime. metadataBase usa SITE_URL
 // para la web y APP_URL para el producto; Next resuelve con él las imágenes y
