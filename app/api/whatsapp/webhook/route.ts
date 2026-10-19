@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { metaSendErrorMessage } from "@/lib/whatsapp/send-errors";
 import { applyReactionStatus } from "@/lib/whatsapp/reactions";
 import { createHash } from "crypto";
 import type { RecipientStatus } from "@prisma/client";
@@ -113,6 +114,12 @@ function statusErrorDetail(status: WebhookStatus): string | null {
   return err.error_data?.details ?? err.message ?? err.title ?? (err.code ? `Error ${err.code}` : null);
 }
 
+export function failedMessageFields(status: WebhookStatus): { errorCode: number | null; errorMessage: string } {
+  const raw = status.errors?.[0]?.code;
+  const code = typeof raw === "number" ? raw : raw != null && /^\d+$/.test(String(raw)) ? Number(raw) : null;
+  return { errorCode: code, errorMessage: metaSendErrorMessage(code, statusErrorDetail(status)) };
+}
+
 async function applyStatusUpdate(accountId: string, status: WebhookStatus): Promise<void> {
   if (!status.id) return;
   if (status.status === "failed") {
@@ -141,6 +148,8 @@ async function applyStatusUpdate(accountId: string, status: WebhookStatus): Prom
     },
     data: {
       status: status.status,
+      // Motivo legible en la burbuja (lib/whatsapp/send-errors.ts).
+      ...(status.status === "failed" ? failedMessageFields(status) : {}),
     },
   });
 

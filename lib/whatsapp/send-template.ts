@@ -1,3 +1,4 @@
+import { MetaSendError } from "@/lib/whatsapp/send-errors";
 import { decrypt } from "@/lib/crypto";
 import type { WAAccount } from "@prisma/client";
 import { httpTimeout } from "@/lib/http-timeouts";
@@ -97,7 +98,8 @@ export async function sendTemplateMessage(
     const errorBody = await res.json().catch(() => ({}));
     const message =
       (errorBody as { error?: { message?: string } })?.error?.message ?? `Error HTTP ${res.status}`;
-    throw new Error(message);
+    const code = (errorBody as { error?: { code?: unknown } })?.error?.code;
+    throw new MetaSendError(message, typeof code === "number" ? code : null);
   }
 
   const responseData = (await res.json()) as { messages?: Array<{ id: string }> };

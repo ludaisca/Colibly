@@ -12,6 +12,8 @@ import { ChatAccountRail } from "@/app/components/whatsapp/chat-account-rail";
 import { ChatListPanel } from "@/app/components/whatsapp/chat-list-panel";
 import { ChatThreadPanel, MediaPreviewModal } from "@/app/components/whatsapp/chat-thread-panel";
 import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
+import { ChatWindowBanner, useChatServiceWindow } from "@/app/components/whatsapp/chat-window-banner";
+import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-modal";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import {
   CHATS_PAGE_SIZE,
@@ -357,6 +359,14 @@ export function ChatWorkspace({
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  // Último entrante cargado: al llegar uno nuevo se vuelve a consultar la ventana.
+  const latestInboundAt = useMemo(() => {
+    let latest: string | null = null;
+    for (const m of messages) if (m.direction === "INBOUND" && (!latest || m.timestamp > latest)) latest = m.timestamp;
+    return latest;
+  }, [messages]);
+  const serviceWindow = useChatServiceWindow(selectedChat?.id ?? null, selectedChat?.channel === "WHATSAPP", latestInboundAt);
 
   // Los enlaces desde Panel, Contactos y notificaciones pueden apuntar a un
   // chat anterior a la primera página. Se recupera por id dentro de la cuenta
@@ -878,7 +888,26 @@ export function ChatWorkspace({
               messagesContainerRef={messagesContainerRef}
               messagesEndRef={messagesEndRef}
             />
+            {selectedChat.channel === "WHATSAPP" && serviceWindow && (
+              <ChatWindowBanner window={serviceWindow} onSendTemplate={() => setTemplatePickerOpen(true)} />
+            )}
+            {selectedChat.channel === "WHATSAPP" && templatePickerOpen && (
+              <TemplatePickerModal
+                key={selectedChat.id}
+                open={templatePickerOpen}
+                onClose={() => setTemplatePickerOpen(false)}
+                chatId={selectedChat.id}
+                accountId={selectedChat.accountId}
+                contactName={selectedChat.name || ""}
+                windowOpen={serviceWindow?.open ?? false}
+                onSent={(message) => {
+                  setMessages((prev) => [...prev.filter((m) => m.id !== message.id), { ...message, motionKey: message.id, animateOnMount: true }]);
+                  refreshChats();
+                }}
+              />
+            )}
             <ChatComposer
+              onOpenTemplates={selectedChat.channel === "WHATSAPP" ? () => setTemplatePickerOpen(true) : undefined}
               chatId={selectedChat.id}
               channel={selectedChat.channel}
               newMessage={newMessage}

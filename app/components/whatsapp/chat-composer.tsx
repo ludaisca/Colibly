@@ -48,6 +48,10 @@ interface ChatComposerProps {
   buttonsPanelOpen: boolean;
   onToggleButtonsPanel: () => void;
   interactiveDisabled?: boolean;
+
+  // "Enviar plantilla" (solo WhatsApp): opción secundaria con la ventana de
+  // 24 h abierta; con la ventana cerrada el banner del chat la destaca.
+  onOpenTemplates?: () => void;
 }
 
 const MAX_BUTTONS = 3;
@@ -79,6 +83,7 @@ export function ChatComposer({
   onButtonsChange,
   buttonsPanelOpen,
   onToggleButtonsPanel,
+  onOpenTemplates,
   interactiveDisabled = false,
 }: ChatComposerProps) {
   const messageInputRef = useRef<HTMLInputElement>(null);
@@ -252,6 +257,18 @@ export function ChatComposer({
           >
             <ListChecks size={16} className="text-accent-ink" />
             <span>Botones{interactiveButtons.length > 0 ? ` (${interactiveButtons.length})` : ""}</span>
+          </button>
+        )}
+        {channel === "WHATSAPP" && onOpenTemplates && (
+          <button
+            type="button"
+            onClick={onOpenTemplates}
+            disabled={sending}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong"
+            title="Enviar una plantilla aprobada de WhatsApp"
+          >
+            <FileText size={16} className="text-accent-ink" />
+            <span>Plantilla</span>
           </button>
         )}
         {supportsSuggestions && <ReplySuggestionButton key={chatId} chatId={chatId} onInsert={insertSuggestion} />}

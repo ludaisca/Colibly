@@ -6,7 +6,7 @@ import { generateRecoveryReply } from "@/lib/ai/recovery";
 import type { AIProvider } from "@/lib/ai/types";
 import type { WABot, WAAccount } from "@prisma/client";
 
-const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const HISTORY_LIMIT = 12;
 
 // Meta's 24h customer-service window closes based on the LEAD's last inbound

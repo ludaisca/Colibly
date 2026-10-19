@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendInteractiveList, sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
+import { MetaSendError } from "@/lib/whatsapp/send-errors";
 import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/template-variables";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
@@ -49,7 +50,9 @@ function payloadFor(content: Extract<OutboundContent, { type: "buttons" | "list"
 export class OutboundError extends Error {
   constructor(
     public readonly code: "window_closed" | "invalid_request" | "not_found" | "upstream_error",
-    message: string
+    message: string,
+    /** Código de error de Meta cuando Graph rechazó el envío (upstream_error). */
+    public readonly metaCode: number | null = null
   ) {
     super(message);
   }
@@ -158,7 +161,11 @@ async function sendWhatsapp(
     }
   } catch (err) {
     if (err instanceof OutboundError) throw err;
-    throw new OutboundError("upstream_error", err instanceof Error ? err.message : String(err));
+    throw new OutboundError(
+      "upstream_error",
+      err instanceof Error ? err.message : String(err),
+      err instanceof MetaSendError ? err.metaCode : null
+    );
   }
 
   const message = await prisma.wAMessage.create({

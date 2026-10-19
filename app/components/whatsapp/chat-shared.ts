@@ -76,6 +76,9 @@ export interface Message {
   filename: string | null;
   bytesSize: number | null;
   status: string | null;
+  /** Motivo en español de un envío rechazado por Meta (solo WhatsApp). */
+  errorMessage?: string | null;
+  errorCode?: number | null;
   replyToWamid?: string | null;
   replyTo?: { id: string; direction: "INBOUND" | "OUTBOUND"; body: string | null; caption: string | null; messageType: string } | null;
   reactionEmoji?: string | null;

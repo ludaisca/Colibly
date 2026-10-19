@@ -218,10 +218,14 @@ function MessageBubble({
             ))}
           </div>
         )}
+        {isFailed && msg.errorMessage && (
+          <p className="mt-1 text-xs text-danger" role="note">{msg.errorMessage}</p>
+        )}
         <div className={`flex items-center justify-end gap-1 mt-1 ${
           isInbound ? "text-muted-darker" : "text-foreground/65"
         }`}>
-          {isFailed && (
+          {/* Una plantilla no se reintenta como texto libre: se reenvía desde "Enviar plantilla". */}
+          {isFailed && msg.messageType !== "template" && (
             <button
               type="button"
               onClick={() => onRetry?.(msg)}

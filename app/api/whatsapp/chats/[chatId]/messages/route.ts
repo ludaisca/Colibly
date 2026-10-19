@@ -28,6 +28,8 @@ const WA_MESSAGE_SELECT = {
   interactivePayload: true,
   wamid: true,
   replyToWamid: true,
+  errorCode: true,
+  errorMessage: true,
   reactionEmoji: true,
   agentReactionEmoji: true,
   agentReactions: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { id: true, emoji: true, status: true, error: true } },

@@ -608,6 +608,10 @@ model WAMessage {
   // en lib/whatsapp/ingest-message.ts pero solo en el create del Contact.
   referral           Json?
   status             String?
+  // Motivo de un envío rechazado por Meta (status "failed"): código de Meta
+  // y el texto en español para la bandeja (lib/whatsapp/send-errors.ts).
+  errorCode          Int?             @map("error_code")
+  errorMessage       String?          @map("error_message")
   senderId           String?
   sender             User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
   campaignId         String?
