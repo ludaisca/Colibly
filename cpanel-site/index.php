@@ -46,7 +46,7 @@ $ld = [
 <header class="site-header"><div class="container header-inner">
   <a class="brand" href="/" aria-label="Colibly, inicio"><img src="/assets/icon.svg" width="36" height="36" alt=""><span>Colibly</span></a>
   <nav class="header-nav" aria-label="Secciones"><a href="#como-funciona">Cómo funciona</a><a href="#incluye">Prueba gratis</a><a href="/precios">Precios</a><a href="#preguntas">Preguntas</a></nav>
-  <a class="login" href="<?= html(APP_URL) ?>/login">Entrar</a><a class="button button-primary header-cta" href="<?= html(APP_URL) ?>/register">Crear cuenta gratis</a>
+  <a class="login" href="<?= html(APP_URL) ?>/login">Entrar</a><a class="button button-primary header-cta" href="<?= html(APP_URL) ?>/register">Crear cuenta gratis</a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-movil" aria-label="Abrir menú"><svg class="icon-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><svg class="icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><nav class="mobile-menu" id="menu-movil" aria-label="Menú principal" data-open="false"><a href="#como-funciona">Cómo funciona</a><a href="#incluye">Prueba gratis</a><a href="/precios">Precios</a><a href="#preguntas">Preguntas</a><a class="mobile-login" href="<?= html(APP_URL) ?>/login">Entrar</a><a class="button button-primary" href="<?= html(APP_URL) ?>/register">Crear cuenta gratis</a></nav>
 </div></header>
 <main id="contenido-principal" tabindex="-1">
   <section class="hero"><div class="container hero-grid"><div class="hero-copy">
@@ -62,16 +62,24 @@ $ld = [
     </div><div class="ai-note"><span>✦</span> Respuesta preparada con IA</div><p class="demo-caption">Ejemplo ilustrativo</p>
   </div></div></section>
 
-  <section class="section"><div class="container"><p class="eyebrow">Lo que cambia</p><h2>Menos chats perdidos. Más conversaciones que avanzan.</h2><p class="section-intro">Empieza con lo esencial para atender bien, responder a tiempo y saber a quién dar seguimiento.</p><div class="cards three">
+  <section class="section"><div class="container"><div class="section-head"><div><p class="eyebrow">Lo que cambia</p><h2>Menos chats perdidos. Más conversaciones que avanzan.</h2></div><p class="section-intro">Empieza con lo esencial para atender bien, responder a tiempo y saber a quién dar seguimiento.</p></div><div class="cards three">
     <article class="card"><span class="card-icon">▣</span><h3>Todos los chats, a la vista</h3><p>Tu equipo atiende desde una misma bandeja y sabe qué conversación necesita respuesta.</p></article>
     <article class="card"><span class="card-icon">✦</span><h3>Respuestas con tu información</h3><p>Preparamos un asistente con tus servicios, precios y preguntas frecuentes para ayudarte a responder.</p></article>
     <article class="card"><span class="card-icon">◎</span><h3>Cada cliente tiene seguimiento</h3><p>Guarda sus datos, asigna la conversación y retoma oportunidades sin empezar de cero.</p></article>
   </div></div></section>
 
-  <section class="section section-tint" id="como-funciona"><div class="container"><p class="eyebrow">Empezar es sencillo</p><h2>Tú conoces tu negocio. Nosotros te ayudamos a ponerlo en marcha.</h2><ol class="cards three steps">
-    <li class="card"><span class="step-number">01</span><h3>Nos cuentas cómo atiendes</h3><p>Una conversación breve para conocer tu negocio, tus clientes y lo que te gustaría mejorar.</p></li>
-    <li class="card"><span class="step-number">02</span><h3>Lo dejamos listo contigo</h3><p>Te guiamos para conectar WhatsApp, agregar a tu equipo y preparar las primeras respuestas del asistente.</p></li>
-    <li class="card"><span class="step-number">03</span><h3>Lo pruebas en tu día a día</h3><p>Tu equipo usa Colibly con clientes reales. Revisamos contigo qué funciona y qué debemos ajustar.</p></li>
+    <section class="section section-tint" id="coexistencia"><div class="container split coexist-grid"><div><p class="eyebrow">WhatsApp Coexistence</p><h2>Conserva tu número y tu app de WhatsApp Business.</h2><p class="section-intro">Con la coexistencia de Meta, el mismo número funciona a la vez en la app WhatsApp Business de tu teléfono y en la API oficial. No tienes que cambiar de número ni dejar de contestar desde el celular: Colibly suma la bandeja compartida y la IA.</p><p class="coexist-note">Es una función de Meta y se habilita por cuenta; requiere la app WhatsApp Business (no la de uso personal) y su disponibilidad y límites los define Meta. Si quieres usarla, <a href="/contacto">escríbenos</a> y lo revisamos contigo.</p></div>
+    <ul class="coexist-list">
+      <li class="card"><span class="card-icon">☎</span><div><h3>Sigues usando tu app</h3><p>Contestas desde la app WhatsApp Business de tu teléfono, con el mismo número y los mismos chats de siempre.</p></div></li>
+      <li class="card"><span class="card-icon">▣</span><div><h3>Tu equipo comparte la bandeja</h3><p>Los mensajes también aparecen en Colibly, donde varias personas pueden atenderlos, asignarlos y darles seguimiento.</p></div></li>
+      <li class="card"><span class="card-icon">✦</span><div><h3>La IA, cuando tú quieras</h3><p>Activa el asistente para ayudar a responder con tu información y pausa las respuestas automáticas cuando prefieras contestar tú.</p></div></li>
+    </ul>
+  </div></section>
+
+  <section class="section section-tint" id="como-funciona"><div class="container split-steps"><div><p class="eyebrow">Empezar es sencillo</p><h2>Tú conoces tu negocio. Nosotros te ayudamos a ponerlo en marcha.</h2></div><ol class="cards steps">
+    <li class="card"><span class="step-number">01</span><div><h3>Nos cuentas cómo atiendes</h3><p>Una conversación breve para conocer tu negocio, tus clientes y lo que te gustaría mejorar.</p></div></li>
+    <li class="card"><span class="step-number">02</span><div><h3>Lo dejamos listo contigo</h3><p>Te guiamos para conectar WhatsApp, agregar a tu equipo y preparar las primeras respuestas del asistente.</p></div></li>
+    <li class="card"><span class="step-number">03</span><div><h3>Lo pruebas en tu día a día</h3><p>Tu equipo usa Colibly con clientes reales. Revisamos contigo qué funciona y qué debemos ajustar.</p></div></li>
   </ol></div></section>
 
   <section class="section" id="incluye"><div class="container split"><div><p class="eyebrow">La prueba gratis</p><h2>Un mes para comprobarlo en tu propio negocio.</h2><p class="section-intro">Crea tu cuenta y usa Colibly con tu equipo y tus clientes reales. Al terminar decides si sigues con un plan; si no, no pasa nada con tu tarjeta porque no la pedimos.</p><a class="text-link" href="<?= html(APP_URL) ?>/register">Crear mi cuenta gratis →</a></div>

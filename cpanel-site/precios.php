@@ -6,7 +6,7 @@ $plans = [
   ['Básico', 5, 'Para empezar a vender por chat', ['2 usuarios', '1 canal (WhatsApp; otros por habilitación)', 'Chat web disponible por habilitación', '1,000 contactos', '300 créditos de IA al mes', '5 automatizaciones activas'], ['API y webhooks'], false],
   ['Pro', 10, 'Para equipos con varios canales', ['5 usuarios', '3 canales (adicionales por habilitación)', 'Chat web disponible por habilitación', '5,000 contactos', '1,000 créditos de IA al mes', 'Automatizaciones ilimitadas', 'API y webhooks'], [], true],
 ];
-legal_header('Planes y precios', ['path' => '/precios', 'description' => 'Planes y precios de Colibly: Básico y Pro, en dólares, con la IA incluida. Crea tu cuenta y prueba 30 días gratis, sin tarjeta.']); ?>
+legal_header('Planes y precios', ['wide' => true, 'path' => '/precios', 'description' => 'Planes y precios de Colibly: Básico y Pro, en dólares, con la IA incluida. Crea tu cuenta y prueba 30 días gratis, sin tarjeta.']); ?>
 <p>El registro es abierto: crea tu cuenta y prueba Colibly 30 días gratis con el plan Pro completo, sin tarjeta y sin cobros automáticos. Al terminar, tú eliges el plan.</p>
 <div class="cards" style="display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin:24px 0">
 <?php foreach ($plans as [$name, $price, $tagline, $features, $missing, $featured]): ?>

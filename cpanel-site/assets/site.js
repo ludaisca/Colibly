@@ -1,3 +1,21 @@
+// Menú móvil: botón con aria-expanded; Escape y clic fuera lo cierran (el foco vuelve al botón).
+document.addEventListener('DOMContentLoaded', () => {
+  const toggle = document.querySelector('.menu-toggle');
+  const menu = document.querySelector('#menu-movil');
+  if (!toggle || !menu) return;
+  const set = (open, focusToggle) => {
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+    menu.dataset.open = String(open);
+    if (open) menu.querySelector('a').focus();
+    else if (focusToggle) toggle.focus();
+  };
+  toggle.addEventListener('click', () => set(menu.dataset.open !== 'true', false));
+  menu.addEventListener('click', (e) => { if (e.target.closest('a')) set(false, false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && menu.dataset.open === 'true') set(false, true); });
+  document.addEventListener('pointerdown', (e) => { if (menu.dataset.open === 'true' && !menu.contains(e.target) && !toggle.contains(e.target)) set(false, false); });
+  window.matchMedia('(min-width: 901px)').addEventListener('change', (e) => { if (e.matches) set(false, false); });
+});
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('#beta-form');
   if (!form) return;

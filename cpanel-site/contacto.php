@@ -1,7 +1,7 @@
 <?php
 define('SITE_INDEXABLE', true);
 require __DIR__ . '/legal-layout.php';
-legal_header('Contacto y soporte', ['path' => '/contacto', 'description' => 'Contacto y soporte de Colibly: escríbenos por correo para resolver dudas sobre tu cuenta, la conexión de WhatsApp, los planes o tus datos.']); ?>
+legal_header('Contacto y soporte', ['wide' => true, 'path' => '/contacto', 'description' => 'Contacto y soporte de Colibly: escríbenos por correo para resolver dudas sobre tu cuenta, la conexión de WhatsApp, los planes o tus datos.']); ?>
 <p>¿Dudas sobre tu cuenta, la conexión de WhatsApp, los planes o tus datos? Escríbenos y una persona te responde.</p>
 <h2>Correo</h2><p><a class="text-link" href="mailto:contacto@colibly.com">contacto@colibly.com</a>. Es el canal para soporte, ventas, facturación y solicitudes sobre tus datos personales.</p>
 <h2>Horario de atención</h2><p>Lunes a viernes, en horario laboral de México. Respondemos tan pronto como nos es posible, normalmente en uno o dos días hábiles.</p>
