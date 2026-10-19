@@ -11,7 +11,8 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md) | Estado y pasos siguientes de la landing beta y `cpanel-site/`. |
 | [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md) | Plan A (Contabo) y plan B (ludaisca), DNS, correo. |
 | [DOMINIOS_Y_LANDING_BETA.md](DOMINIOS_Y_LANDING_BETA.md) | Separación `colibly.com` / `app.colibly.com`. |
-| [OFERTA_BETA_COLIBLY.md](OFERTA_BETA_COLIBLY.md) | Propuesta de oferta beta (por revisar). |
+| [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md) | **Vigente**: precio por ejecutivo (asientos) en MXN, reglas, Stripe y copias públicas. |
+| [OFERTA_BETA_COLIBLY.md](OFERTA_BETA_COLIBLY.md) | Propuesta de oferta beta (superada: registro abierto y precio por ejecutivo). |
 | [RESPALDOS.md](RESPALDOS.md) | Respaldo diario de la base a S3/R2: configuración, restauración y límites. |
 
 ## Revisiones de interfaz (sept. 2026)

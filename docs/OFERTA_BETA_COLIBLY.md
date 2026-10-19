@@ -1,6 +1,6 @@
 # Propuesta de oferta beta de Colibly
 
-**Superado (2026-10-18): decisión de Luis, el registro es ABIERTO** (sin beta privada por invitación ni tope de 10 negocios): cualquiera crea su cuenta en `/register` con 30 días de prueba del plan Pro, sin tarjeta. Los precios son los de `lib/billing/plans.ts` (Básico 5 USD, Pro 10 USD, sujetos a ajuste) y se muestran en `/precios`. El formulario de solicitud pasó a ser un contacto opcional. El resto de este documento queda como referencia de la propuesta original.
+**Superado (2026-10-18): decisión de Luis, el registro es ABIERTO** (sin beta privada por invitación ni tope de 10 negocios): cualquiera crea su cuenta en `/register` con 30 días de prueba del plan Pro, sin tarjeta. Los precios son los de `lib/billing/plans.ts` y se muestran en `/precios`; **desde 2026-10-19 se cobra por ejecutivo en MXN, ver [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md)** (los 5/10 USD por organización quedaron superados). El formulario de solicitud pasó a ser un contacto opcional. El resto de este documento queda como referencia de la propuesta original.
 
 Estado original: propuesta para revisar antes de publicarla. Identidad visual actual durante la beta.
 
