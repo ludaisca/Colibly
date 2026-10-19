@@ -17,6 +17,9 @@ export async function createOrganizationWithOwner(
       plan: TRIAL_PLAN,
       status: "TRIALING",
       trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
+      // Coexistencia es la función principal: toda organización nueva nace con
+      // ella (explícito, aunque coincide con el default del schema).
+      whatsappCoexistenceEnabled: true,
     },
   });
   const owner = await tx.user.create({

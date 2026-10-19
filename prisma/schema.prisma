@@ -1761,8 +1761,10 @@ model Organization {
   // siempre disponible. Default false: una organización nueva solo tiene
   // WhatsApp hasta que se le habilite algo más.
   // Coexistencia de WhatsApp (conectar el número de la app WhatsApp Business):
-  // bandera por organización durante la beta, apagada por defecto.
-  whatsappCoexistenceEnabled Boolean       @default(false) @map("whatsapp_coexistence_enabled")
+  // función principal, ENCENDIDA por defecto desde 2026-10-19 (el operador la
+  // puede apagar por organización en /plataforma). Las organizaciones creadas
+  // antes conservan su valor: la migración no las toca.
+  whatsappCoexistenceEnabled Boolean       @default(true) @map("whatsapp_coexistence_enabled")
   channelTelegramEnabled  Boolean          @default(false) @map("channel_telegram_enabled")
   channelMessengerEnabled Boolean          @default(false) @map("channel_messenger_enabled")
   channelInstagramEnabled Boolean          @default(false) @map("channel_instagram_enabled")

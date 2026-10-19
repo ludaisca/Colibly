@@ -57,6 +57,6 @@ La pantalla "Plan y facturación" calcula lo mismo en vivo (misma función) y la
 
 ## Pendiente / por decidir
 
-- Coexistencia sigue detrás de `Organization.whatsappCoexistenceEnabled` (apagado por defecto). La copia la presenta como función principal: hay que encenderla por defecto (o para cada cliente) antes de publicar, o la copia promete algo que una cuenta nueva no tiene.
+- ~~Coexistencia apagada por defecto~~ Resuelto 2026-10-19: `whatsappCoexistenceEnabled` nace en `true` en toda organización nueva. Las de producción creadas antes conservan su valor: encenderlas desde `/plataforma`.
 - Configurar el portal de clientes de Stripe para que **no** permita cambiar cantidades (o planes): ahí no corren los bloqueos; si alguien baja asientos por el portal, el webhook lo sincroniza y la organización queda por encima del tope (nadie pierde acceso, pero no se puede agregar a nadie).
 - Crear en Stripe (modo prueba primero) los dos precios MXN por unidad y probar con `stripe listen`: alta con N asientos, +1 / −1 asiento con prorrateo, Pro → Básico.

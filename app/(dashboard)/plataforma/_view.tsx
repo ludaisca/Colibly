@@ -313,7 +313,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
             <p className="text-sm font-medium">WhatsApp: número de la app WhatsApp Business</p>
             <p className="text-xs text-muted-darker">
               Permite conectar el número que el negocio ya usa en la app WhatsApp Business (coexistencia): sigue contestando desde su
-              teléfono y todo se ve en Colibly. Apagarlo no desconecta las cuentas que ya lo usan.
+              teléfono y todo se ve en Colibly. Encendida por defecto en las organizaciones nuevas; apagarla aquí no desconecta las cuentas que ya lo usan.
             </p>
           </div>
           <div className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">

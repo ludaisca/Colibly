@@ -63,7 +63,9 @@ const server = http.createServer((req, res) => {
   let r = await api("/api/whatsapp/embedded-signup/config");
   const cfg = await r.json();
   check("config disponible con App ID y configuración", r.status === 200 && cfg.available === true && cfg.appId === "3423949611118312" && cfg.configId === "1676025620523858", JSON.stringify(cfg));
-  check("coexistencia NO permitida por defecto (bandera apagada)", cfg.coexistenceAllowed === false);
+  check("coexistencia permitida por defecto (bandera encendida)", cfg.coexistenceAllowed === true);
+  // El resto de esta sección prueba la bandera apagada por el operador.
+  await prisma.organization.update({ where: { id: user.organizationId }, data: { whatsappCoexistenceEnabled: false } });
   check("la respuesta no trae secretos", !JSON.stringify(cfg).includes("e2e-platform-secret") && !JSON.stringify(cfg).includes("verifytoken"));
   r = await fetch(BASE + "/api/whatsapp/embedded-signup/config");
   check("sin sesión → 401", r.status === 401, r.status);

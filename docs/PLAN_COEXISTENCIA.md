@@ -201,7 +201,7 @@ Mezclado en `main` (PR #2). Las ramas `feat/wa-coexistencia` y el worktree se re
 2. `/plataforma` → Configuración → "App de Meta de la plataforma": **App ID** `3423949611118312`, **ID de configuración** `1676025620523858`, **App Secret** (se copia de Meta → Configuración de la app → Básica; no pasa por el chat) y un **token de verificación** inventado (≥ 8 caracteres).
 3. Meta → app Colibly → WhatsApp → Configuración: **URL de devolución de llamada** `https://app.colibly.com/api/whatsapp/webhook` + el token del paso 2; suscribir los campos `messages`, `account_update`, `history`, `smb_app_state_sync`, `smb_message_echoes`, `phone_number_quality_update`, `user_preferences`, `message_template_status_update`.
 4. Meta → Inicio de sesión para empresas → Configurar: **URL de cancelar autorización** `https://app.colibly.com/api/meta/deauthorize` y **URL de eliminación de datos** `https://app.colibly.com/api/meta/data-deletion`. Después, en Configuración básica de la app, cambiar "Eliminación de datos de usuario" a la misma URL de callback.
-5. `/plataforma` → organización piloto → encender "Coexistencia de WhatsApp".
+5. Coexistencia viene **encendida por defecto** en las organizaciones nuevas (desde 2026-10-19). Las creadas antes conservan su valor: `/plataforma` → organización → encender "Coexistencia de WhatsApp". El operador puede apagarla ahí por organización.
 6. Entrar con un usuario que tenga rol de administrador, desarrollador o evaluador de la app (la app aún no está aprobada para terceros) y conectar el número piloto: debe ser un número de la app **WhatsApp Business** ≥ 2.24.17, abierta en el teléfono durante la conexión.
 7. Tras aprobarse la App Review, publicar la app y repetir con un cliente real.
 
