@@ -93,7 +93,7 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
   }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-6 animate-auth-in">
       <div className="flex justify-center">
         <Logo href="/" size="lg" />
       </div>

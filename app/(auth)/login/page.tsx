@@ -59,7 +59,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-6 animate-auth-in">
       <div className="flex justify-center">
         <Logo href="/" size="lg" />
       </div>
@@ -134,8 +134,9 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center py-16">
-        <Spinner />
+      <div className="space-y-6">
+        <div className="flex justify-center"><Logo href="/" size="lg" /></div>
+        <div className="flex items-center justify-center py-10"><Spinner /></div>
       </div>
     }>
       <LoginForm />
