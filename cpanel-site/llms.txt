@@ -1,6 +1,6 @@
 # Colibly
 
-> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Tiene registro abierto: 30 días de prueba sin costo y sin tarjeta, con el plan Pro completo; después, planes Básico (5 USD al mes) y Pro (10 USD al mes), sujetos a ajuste.
+> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Tiene registro abierto: 30 días de prueba sin costo y sin tarjeta, con el plan Pro; después se paga por ejecutivo, en pesos mexicanos (ver «Planes y precios»), sujeto a ajuste. Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia).
 
 Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colibly.com.
 
@@ -11,8 +11,18 @@ Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colib
 
 ## Prueba gratis y registro abierto
 - Cualquier negocio puede crear su cuenta en https://app.colibly.com/register; 30 días sin costo, sin tarjeta y sin cobro automático.
-- La prueba incluye el plan Pro: hasta 5 personas del equipo, 3 canales y créditos de IA mensuales.
-- Los 30 días empiezan al crear la cuenta. Meta puede cobrar algunos mensajes de WhatsApp; esos cargos son independientes de Colibly.
+- La prueba incluye el plan Pro para hasta 3 ejecutivos, con créditos de IA mensuales.
+- Los 30 días empiezan al crear la cuenta.
+
+<!-- precios: generado por scripts/gen-cpanel-pricing.mjs, no editar a mano -->
+## Planes y precios
+- Se cobra por ejecutivo (cada usuario que atiende conversaciones, incluido el dueño), cada mes, en pesos mexicanos: Básico: $149 MXN por ejecutivo al mes; Pro: $299 MXN por ejecutivo al mes. Sin plan anual.
+- Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia).
+- Básico: 1 número de WhatsApp por ejecutivo, con Coexistencia; 1,000 contactos por ejecutivo; 300 créditos de IA al mes por ejecutivo; 5 automatizaciones activas; 1 canal adicional (Telegram, Messenger o Instagram) por habilitación; Chat web disponible por habilitación. No incluye: API y webhooks.
+- Pro: 1 número de WhatsApp por ejecutivo, con Coexistencia; 5,000 contactos por ejecutivo; 1,000 créditos de IA al mes por ejecutivo; Automatizaciones ilimitadas; 3 canales adicionales (Telegram, Messenger o Instagram) por habilitación; Chat web disponible por habilitación; API y webhooks.
+- Prueba: 30 días gratis, sin tarjeta, con el plan Pro para hasta 3 ejecutivos.
+- Meta cobra aparte algunos mensajes de WhatsApp según su categoría y destino; ese cargo lo paga el cliente directamente a Meta y no forma parte de la suscripción.
+<!-- /precios -->
 
 ## Páginas
 - [Inicio](https://colibly.com/): descripción, prueba gratis, preguntas frecuentes y contacto.

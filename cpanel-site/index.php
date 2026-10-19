@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/config.php';
+require __DIR__ . '/pricing.generated.php'; // precios generados desde lib/billing/plans.ts
 start_site_session();
 if (!isset($_SESSION['beta_csrf'])) $_SESSION['beta_csrf'] = bin2hex(random_bytes(24));
 header('Content-Type: text/html; charset=UTF-8');
@@ -8,8 +9,8 @@ $faq = [
   ['¿Necesito saber de tecnología para empezar?', 'No. Te guiamos paso a paso en la conexión y la configuración inicial, y puedes escribirnos si te atoras. Necesitarás tener control de tu número y autorizar la conexión desde tu cuenta de negocio.'],
   ['¿Cuándo comienzan los 30 días?', 'Al crear tu cuenta. Tienes 30 días con el plan Pro completo para probar Colibly en tu negocio.'],
   ['¿Me cobrarán al terminar?', 'No. No pedimos tarjeta para crear tu cuenta ni hay cobro automático al terminar la prueba. Tú eliges si continúas con un plan; si no, tu cuenta pasa a solo lectura y tus datos se conservan.'],
-  ['¿Cuánto cuesta después de la prueba?', 'Básico 5 USD al mes y Pro 10 USD al mes, con la IA incluida. Los precios finales pueden ajustarse; consulta la página de precios.'],
-  ['¿Hay algún otro costo por usar WhatsApp?', 'Meta puede cobrar algunos mensajes de WhatsApp según el tipo de mensaje y el destino. Te ayudaremos a entenderlo antes de conectar tu número; esos cargos son independientes de Colibly.'],
+  ['¿Cuánto cuesta después de la prueba?', 'Se paga por ejecutivo: ' . COLIBLY_PRICES_SENTENCE . (COLIBLY_PRICE_TAX_NOTE !== '' ? ' (' . COLIBLY_PRICE_TAX_NOTE . ')' : '') . ', con la IA incluida. ' . COLIBLY_COEXISTENCE_PITCH . ' Los precios pueden ajustarse; consulta la página de precios.'],
+  ['¿Hay algún otro costo por usar WhatsApp?', COLIBLY_META_FEES_NOTE . ' Te ayudamos a entenderlo antes de conectar tu número.'],
   ['¿Puedo detener las respuestas de IA?', 'Sí. Tu equipo puede atender directamente y pausar el asistente cuando lo necesite. Prueba sus respuestas con tu información antes de activarlo.'],
 ];
 $ld = [
@@ -23,7 +24,7 @@ $ld = [
     ['@type' => 'SoftwareApplication', '@id' => SITE_URL . '/#software', 'name' => 'Colibly', 'applicationCategory' => 'BusinessApplication', 'operatingSystem' => 'Web',
       'description' => 'Colibly es un CRM conversacional para negocios que venden por mensaje: reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente.',
       'url' => SITE_URL . '/', 'inLanguage' => 'es', 'publisher' => ['@id' => SITE_URL . '/#organization'],
-      'offers' => ['@type' => 'Offer', 'name' => 'Prueba gratis de 30 días', 'price' => '0', 'priceCurrency' => 'USD', 'description' => 'Registro abierto: 30 días sin costo y sin tarjeta con el plan Pro; después, planes Básico (5 USD al mes) y Pro (10 USD al mes), sujetos a ajuste.']],
+      'offers' => ['@type' => 'Offer', 'name' => 'Prueba gratis de 30 días', 'price' => '0', 'priceCurrency' => COLIBLY_PRICE_CURRENCY, 'description' => 'Registro abierto: ' . COLIBLY_TRIAL_DAYS . ' días sin costo y sin tarjeta con el plan Pro para hasta ' . COLIBLY_TRIAL_MAX_SEATS . ' ejecutivos; después, precio por ejecutivo: ' . COLIBLY_PRICES_SENTENCE . ', sujeto a ajuste.']],
     ['@type' => 'FAQPage', '@id' => SITE_URL . '/#faq', 'inLanguage' => 'es-MX', 'mainEntity' => array_map(fn($f) => ['@type' => 'Question', 'name' => $f[0], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f[1]]], $faq)],
   ],
 ];
@@ -83,7 +84,7 @@ $ld = [
   </ol></div></section>
 
   <section class="section" id="incluye"><div class="container split"><div><p class="eyebrow">La prueba gratis</p><h2>Un mes para comprobarlo en tu propio negocio.</h2><p class="section-intro">Crea tu cuenta y usa Colibly con tu equipo y tus clientes reales. Al terminar decides si sigues con un plan; si no, no pasa nada con tu tarjeta porque no la pedimos.</p><a class="text-link" href="<?= html(APP_URL) ?>/register">Crear mi cuenta gratis →</a></div>
-    <div class="offer-card"><div class="offer-top"><span class="offer-badge">REGISTRO ABIERTO</span><strong>Sin lista de espera</strong></div><p class="price">30 días <span>sin costo</span></p><p>La prueba comienza al crear tu cuenta.</p><ul class="checks"><li>Plan Pro completo durante la prueba</li><li>Hasta 5 personas de tu equipo y 3 canales</li><li>Bandeja compartida y seguimiento de clientes</li><li>Asistente de IA con tu información (1,000 créditos al mes)</li><li>Ayuda por correo cuando la necesites</li></ul><p class="offer-foot">Sin tarjeta ni cobro automático. El uso de IA y canales tiene los límites del plan. Algunos mensajes de WhatsApp pueden generar cargos de Meta. <a href="/precios">Ver planes y precios</a>.</p></div>
+    <div class="offer-card"><div class="offer-top"><span class="offer-badge">REGISTRO ABIERTO</span><strong>Sin lista de espera</strong></div><p class="price">30 días <span>sin costo</span></p><p>La prueba comienza al crear tu cuenta.</p><ul class="checks"><li>Plan Pro completo durante la prueba</li><li>Hasta <?= COLIBLY_TRIAL_MAX_SEATS ?> ejecutivos, cada uno con su propio WhatsApp (Coexistencia)</li><li>Bandeja compartida y seguimiento de clientes</li><li>Asistente de IA con tu información (<?= html(COLIBLY_TRIAL_AI_CREDITS_PER_SEAT) ?> créditos al mes por ejecutivo)</li><li>Ayuda por correo cuando la necesites</li></ul><p class="offer-foot">Sin tarjeta ni cobro automático. El uso de IA y canales tiene los límites del plan. Meta cobra aparte algunos mensajes de WhatsApp; ese cargo se paga directamente a Meta. <a href="/precios">Ver planes y precios</a>.</p></div>
   </div></section>
 
   <section class="section section-tint" id="preguntas"><div class="container split faq-grid"><div><p class="eyebrow">Sin sorpresas</p><h2>Preguntas frecuentes</h2><p class="section-intro">¿Hay algo más que quieras saber? Escríbenos a <a class="text-link" href="mailto:contacto@colibly.com">contacto@colibly.com</a>.</p></div><div class="faqs">
