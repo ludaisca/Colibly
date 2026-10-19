@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { contrastRatio, readThemeTokens } from "../contrast";
+import { BRAND_COLORS as B } from "../../brand-colors";
 
 const css = readFileSync(path.resolve(__dirname, "../../../app/globals.css"), "utf8");
 const THEMES = { claro: readThemeTokens(css), oscuro: readThemeTokens(css, ".dark") };
@@ -53,5 +54,59 @@ describe("contrastRatio", () => {
   it("calcula los extremos conocidos", () => {
     expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 5);
     expect(contrastRatio("#777777", "#777777")).toBe(1);
+  });
+});
+
+// Pares fijos en hex (correos, imágenes, widget de chat, copia estática de
+// cpanel-site): no leen los tokens CSS, así que se verifican aparte.
+const HEX_PAIRS: [string, string, string, number][] = [
+  ["tinta sobre fondo", B.ink, B.background, 4.5],
+  ["tinta sobre blanco (correo)", B.ink, B.surface, 4.5],
+  ["secundario sobre fondo", B.muted, B.background, 4.5],
+  ["secundario sobre blanco (correo)", B.muted, B.surface, 4.5],
+  ["blanco sobre acento (botón)", B.onAccent, B.accent, 4.5],
+  ["blanco sobre acento hover", B.onAccent, B.accentHover, 4.5],
+  ["texto de marca sobre blanco", B.accentInk, B.surface, 4.5],
+  ["texto de marca sobre fondo", B.accentInk, B.background, 4.5],
+  ["texto de marca sobre tinte", B.accentInk, B.accentSubtle, 4.5],
+  ["grafito sobre blanco", B.graphite, B.surface, 4.5],
+  ["tinta sobre menta (decorativo)", B.ink, B.mint, 4.5],
+];
+describe("pares fijos de lib/brand-colors.ts", () => {
+  it.each(HEX_PAIRS)("%s ≥ %s", (_n, fg, bg, min) => {
+    expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(min);
+  });
+  it("la menta es solo decorativa: no sirve como texto sobre fondo claro", () => {
+    expect(contrastRatio(B.mint, B.surface)).toBeLessThan(3);
+  });
+  it("brand-colors coincide con los primitivos de globals.css", () => {
+    const t = readThemeTokens(css);
+    expect(t["accent"].toLowerCase()).toBe(B.accent.toLowerCase());
+    expect(t["foreground"].toLowerCase()).toBe(B.ink.toLowerCase());
+    expect(t["background"].toLowerCase()).toBe(B.background.toLowerCase());
+  });
+});
+
+// cpanel-site/assets/site.css usa variables propias: se leen del :root.
+const siteCss = readFileSync(path.resolve(__dirname, "../../../cpanel-site/assets/site.css"), "utf8");
+const siteVars = Object.fromEntries([...siteCss.matchAll(/--([a-z-]+):(#[0-9a-fA-F]{3,6})\b/g)].map((m) => [m[1], m[2].length === 4 ? `#${[...m[2].slice(1)].map((c) => c + c).join("")}` : m[2]]));
+describe("cpanel-site/assets/site.css", () => {
+  it.each([
+    ["foreground", "background"],
+    ["muted", "background"],
+    ["muted", "surface"],
+    ["muted-strong", "surface-light"],
+    ["accent-ink", "background"],
+    ["accent-ink", "accent-subtle"],
+    ["success", "success-bg"],
+  ])("--%s sobre --%s ≥ 4.5", (fg, bg) => {
+    expect(contrastRatio(siteVars[fg], siteVars[bg])).toBeGreaterThanOrEqual(4.5);
+  });
+  it("blanco sobre el botón primario ≥ 4.5", () => {
+    expect(contrastRatio("#ffffff", siteVars["accent"])).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio("#ffffff", siteVars["accent-hover"])).toBeGreaterThanOrEqual(4.5);
+  });
+  it("no queda violeta de la paleta anterior", () => {
+    expect(siteCss).not.toMatch(/5b34e6|4a26c9|eee9fe|d9cffc/i);
   });
 });
