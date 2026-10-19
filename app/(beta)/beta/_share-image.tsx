@@ -3,7 +3,7 @@ import { BRAND_NAME } from "@/lib/brand";
 import { BRAND_COLORS as C } from "@/lib/brand-colors";
 import { BRAND_MARK_BG, BRAND_MARK_FG, BRAND_MARK_PATH } from "@/lib/brand-mark";
 
-export const alt = "Colibly Beta: vende por WhatsApp sin perder conversaciones. 30 días sin costo.";
+export const alt = "Colibly: vende por WhatsApp sin perder conversaciones. 30 días sin costo.";
 export const size = { width: 1200, height: 630 };
 
 export function betaShareImage() {
@@ -14,12 +14,12 @@ export function betaShareImage() {
         <span style={{ fontSize: 38, fontWeight: 700 }}>{BRAND_NAME}</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <span style={{ fontSize: 26, fontWeight: 700, color: C.accentInk, letterSpacing: 2 }}>BETA PRIVADA</span>
+        <span style={{ fontSize: 26, fontWeight: 700, color: C.accentInk, letterSpacing: 2 }}>REGISTRO ABIERTO</span>
         <span style={{ maxWidth: 1020, fontSize: 65, fontWeight: 700, lineHeight: 1.08 }}>Vende por WhatsApp sin perder conversaciones.</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
         <span style={{ borderRadius: 14, padding: "12px 22px", background: C.accent, color: C.onAccent, fontSize: 27, fontWeight: 700 }}>30 días sin costo</span>
-        <span style={{ fontSize: 25 }}>Te ayudamos a empezar</span>
+        <span style={{ fontSize: 25 }}>Sin tarjeta · Cancela cuando quieras</span>
       </div>
     </div>,
     size,

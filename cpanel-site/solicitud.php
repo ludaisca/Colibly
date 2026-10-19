@@ -43,11 +43,11 @@ if (count($times) >= 3) { flock($lock, LOCK_UN); fclose($lock); reply(429, 'Reci
 $times[] = $now;
 rewind($lock); ftruncate($lock, 0); fwrite($lock, json_encode($times)); fflush($lock); flock($lock, LOCK_UN); fclose($lock);
 
-$subject = 'Solicitud de beta · ' . preg_replace('/[\r\n]+/', ' ', $business);
-$body = "Nueva solicitud para la beta de Colibly\n\nNombre: $name\nNegocio: $business\nCorreo: $email\nWhatsApp: $phone\nCómo atienden hoy: " . ($description ?: 'No indicado') . "\n";
-$headers = ['From' => FROM_EMAIL, 'Reply-To' => $email, 'Content-Type' => 'text/plain; charset=UTF-8', 'X-Mailer' => 'Colibly Beta'];
+$subject = 'Solicitud de contacto · ' . preg_replace('/[\r\n]+/', ' ', $business);
+$body = "Nueva solicitud de contacto en Colibly\n\nNombre: $name\nNegocio: $business\nCorreo: $email\nWhatsApp: $phone\nCómo atienden hoy: " . ($description ?: 'No indicado') . "\n";
+$headers = ['From' => FROM_EMAIL, 'Reply-To' => $email, 'Content-Type' => 'text/plain; charset=UTF-8', 'X-Mailer' => 'Colibly Sitio'];
 if (!mail(CONTACT_EMAIL, $subject, $body, $headers)) {
-    error_log('[colibly-beta] Falló mail() para solicitud beta');
+    error_log('[colibly-contacto] Falló mail() para solicitud de contacto');
     reply(503, 'No pudimos enviar tu solicitud. Inténtalo más tarde o escríbenos por correo.');
 }
 $_SESSION['beta_csrf'] = bin2hex(random_bytes(24));

@@ -76,7 +76,7 @@ export function BetaApplicationForm() {
       <div className="rounded-[20px] border border-success-border bg-success-bg p-7 text-center shadow-sm sm:p-10" role="status">
         <CheckCircle2 className="mx-auto text-success" size={40} aria-hidden />
         <h2 ref={successRef} tabIndex={-1} className="mt-4 font-display text-2xl font-semibold text-foreground focus:outline-none">Recibimos tu solicitud</h2>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">Revisaremos si la beta encaja con tu negocio y te escribiremos al correo que nos dejaste para dar el siguiente paso.</p>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">Te escribiremos al correo que nos dejaste. Mientras tanto, puedes crear tu cuenta gratis y empezar tu prueba cuando quieras.</p>
       </div>
     );
   }
@@ -84,9 +84,9 @@ export function BetaApplicationForm() {
   return (
     <form onSubmit={submit} noValidate className="rounded-[20px] border border-border bg-surface p-5 shadow-lg sm:p-7">
       <div className="mb-6">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-ink">Solicitud de acceso</p>
-        <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">Cuéntanos de tu negocio</h2>
-        <p className="mt-2 text-sm text-muted">Son solo tus datos de contacto. La configuración la vemos contigo después.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-ink">Contacto personal</p>
+        <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">¿Prefieres que te orientemos?</h2>
+        <p className="mt-2 text-sm text-muted">Es opcional: no necesitas enviarlo para crear tu cuenta. Déjanos tus datos de contacto y te escribimos.</p>
       </div>
       {serverError && <Banner tone="danger" className="mb-5">{serverError} <a href={`mailto:${BRAND_CONTACT_EMAIL}`} className="underline">También puedes escribirnos.</a></Banner>}
 
@@ -114,12 +114,12 @@ export function BetaApplicationForm() {
       <div className="mt-5">
         <label className="flex items-start gap-3 text-sm leading-6 text-muted">
           <input ref={privacyRef} type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} aria-invalid={!!errors.privacyAccepted} aria-describedby={errors.privacyAccepted ? "beta-privacy-error" : undefined} className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]" />
-          <span>Acepto que Colibly me contacte sobre esta beta. Leí el <a href="/privacidad" className="font-medium text-accent-ink underline underline-offset-2">aviso de privacidad</a>.</span>
+          <span>Acepto que Colibly me contacte sobre mi solicitud. Leí el <a href="/privacidad" className="font-medium text-accent-ink underline underline-offset-2">aviso de privacidad</a>.</span>
         </label>
         {errors.privacyAccepted && <p id="beta-privacy-error" role="alert" className="mt-1.5 text-xs text-danger">{errors.privacyAccepted}</p>}
       </div>
       <Button type="submit" size="lg" fullWidth loading={submitting} icon={Send} className="mt-6" data-track="cta" data-track-location="beta_formulario">
-        {submitting ? "Enviando solicitud…" : "Solicitar acceso a la beta"}
+        {submitting ? "Enviando solicitud…" : "Quiero que me contacten"}
       </Button>
       <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted"><Mail size={13} aria-hidden /> Sin tarjeta ni compromiso de pago</p>
     </form>

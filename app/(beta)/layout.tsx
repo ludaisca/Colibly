@@ -17,11 +17,12 @@ export default async function BetaLayout({ children }: { children: React.ReactNo
           <Logo href="/" size="lg" />
           <nav className="ml-auto hidden items-center gap-6 text-sm text-muted md:flex" aria-label="Secciones">
             <a href="#como-funciona" className="hover:text-foreground">Cómo funciona</a>
-            <a href="#incluye" className="hover:text-foreground">La beta</a>
+            <a href="#incluye" className="hover:text-foreground">Prueba gratis</a>
+            <a href="/precios" className="hover:text-foreground">Precios</a>
             <a href="#preguntas" className="hover:text-foreground">Preguntas</a>
           </nav>
           <a href={appUrl("/login")} className="ml-auto hidden rounded-xl px-3 py-2 text-sm font-medium text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong md:ml-0 md:inline-flex">Entrar</a>
-          <a href="#solicitar" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-on-accent shadow-sm transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong" data-track="cta" data-track-location="beta_header">Solicitar acceso</a>
+          <a href="/register" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-on-accent shadow-sm transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong" data-track="cta" data-track-location="beta_header">Crear cuenta gratis</a>
         </div>
       </header>
 

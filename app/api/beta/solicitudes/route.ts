@@ -47,9 +47,9 @@ export async function POST(req: Request) {
     await sendEmail({
       to: BRAND_CONTACT_EMAIL,
       replyTo: email,
-      subject: `Solicitud de beta · ${businessName}`,
-      text: `Nueva solicitud para la beta de Colibly\n\n${lines.join("\n")}`,
-      html: `<h1>Nueva solicitud para la beta de Colibly</h1>${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}`,
+      subject: `Solicitud de contacto · ${businessName}`,
+      text: `Nueva solicitud de contacto en Colibly\n\n${lines.join("\n")}`,
+      html: `<h1>Nueva solicitud de contacto en Colibly</h1>${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}`,
     });
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

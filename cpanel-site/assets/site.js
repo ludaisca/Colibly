@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const done = document.createElement('div');
       done.className = 'application-card';
       done.setAttribute('role', 'status');
-      done.innerHTML = '<h3 tabindex="-1">Recibimos tu solicitud</h3><p>Revisaremos si la beta encaja con tu negocio y te escribiremos al correo que nos dejaste para dar el siguiente paso.</p>';
+      done.innerHTML = '<h3 tabindex="-1">Recibimos tu solicitud</h3><p>Te escribiremos al correo que nos dejaste. Mientras tanto, puedes crear tu cuenta gratis y empezar tu prueba cuando quieras.</p>';
       form.replaceWith(done);
       done.querySelector('h3').focus();
     } catch (error) {
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
       errorBox.hidden = false;
       errorBox.focus();
       button.disabled = false;
-      button.textContent = 'Solicitar acceso a la beta';
+      button.textContent = 'Quiero que me contacten';
     }
   });
 });

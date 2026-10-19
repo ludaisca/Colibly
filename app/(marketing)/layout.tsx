@@ -53,7 +53,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
           <Logo href="/" />
           <nav className="ml-auto hidden items-center gap-6 text-sm text-muted md:flex" aria-label="Secciones">
             <Link href="/#como-funciona" className="hover:text-foreground">Cómo funciona</Link>
-            <Link href="/#incluye" className="hover:text-foreground">La beta</Link>
+            <Link href="/precios" className="hover:text-foreground">Precios</Link>
             <Link href="/#preguntas" className="hover:text-foreground">Preguntas</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2 md:ml-0">
@@ -61,7 +61,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
             <span className="hidden md:block">
               <Button href={appUrl("/login")} variant="ghost">Entrar</Button>
             </span>
-            <Button href="/#solicitar" data-track="cta" data-track-location="header">Solicitar beta</Button>
+            <Button href="/register" data-track="cta" data-track-location="header">Prueba gratis</Button>
             <MobileNav loginHref={appUrl("/login")} />
           </div>
         </div>

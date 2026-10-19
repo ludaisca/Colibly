@@ -1,6 +1,6 @@
 # Colibly
 
-> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Está en beta privada para los primeros 10 negocios: 30 días sin costo y sin tarjeta, con configuración acompañada.
+> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Tiene registro abierto: 30 días de prueba sin costo y sin tarjeta, con el plan Pro completo; después, planes Básico (5 USD al mes) y Pro (10 USD al mes), sujetos a ajuste.
 
 Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colibly.com.
 
@@ -9,11 +9,12 @@ Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colib
 - Respuestas con tu información: un asistente de IA prepara respuestas con los servicios, precios y preguntas frecuentes del negocio. El equipo puede atender directamente y pausar el asistente cuando quiera.
 - Seguimiento: cada cliente queda con su conversación asignada para retomar oportunidades.
 
-## Beta privada
-- Primeros 10 negocios; 30 días sin costo, sin tarjeta y sin cobro automático.
-- Incluye una cuenta de WhatsApp conectada con guía, hasta tres personas del equipo, un asistente de IA preparado con la información del negocio, y una sesión inicial con dos revisiones durante el mes.
-- Los 30 días empiezan cuando la cuenta está lista para usarse. Meta puede cobrar algunos mensajes de WhatsApp; esos cargos son independientes de Colibly.
+## Prueba gratis y registro abierto
+- Cualquier negocio puede crear su cuenta en https://app.colibly.com/register; 30 días sin costo, sin tarjeta y sin cobro automático.
+- La prueba incluye el plan Pro: hasta 5 personas del equipo, 3 canales y créditos de IA mensuales.
+- Los 30 días empiezan al crear la cuenta. Meta puede cobrar algunos mensajes de WhatsApp; esos cargos son independientes de Colibly.
 
 ## Páginas
-- [Inicio y solicitud de acceso](https://colibly.com/): descripción, beta, preguntas frecuentes y formulario.
+- [Inicio](https://colibly.com/): descripción, prueba gratis, preguntas frecuentes y contacto.
+- [Planes y precios](https://colibly.com/precios), [Contacto y soporte](https://colibly.com/contacto) y [Eliminación de datos](https://colibly.com/eliminar-datos).
 - [Términos](https://colibly.com/terminos) y [Privacidad](https://colibly.com/privacidad): borradores en revisión.

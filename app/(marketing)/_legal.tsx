@@ -26,8 +26,8 @@ export function LegalPage({ title, children }: { title: string; children: React.
       <div className="mb-8 flex gap-3 rounded-xl border border-warning-border bg-warning-bg p-4 text-sm">
         <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
         <p>
-          <strong>Versión provisional para la beta.</strong> Este texto se mantendrá actualizado y será reemplazado por la
-          versión revisada antes del lanzamiento general.
+          <strong>Versión provisional.</strong> Este texto se mantendrá actualizado y será reemplazado por la
+          versión revisada por un profesional legal.
         </p>
       </div>
       <h1 className="font-display text-page-title font-semibold tracking-tight">{title}</h1>
