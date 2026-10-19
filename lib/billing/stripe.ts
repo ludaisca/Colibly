@@ -9,6 +9,11 @@ import { notifyBillingTransition } from "./notify";
 // Integración con Stripe: cliente, precios por plan y sincronización de la
 // suscripción → Organization. Configuración (secret key, webhook secret,
 // price ids) editable desde /plataforma — ver lib/platform-settings.ts.
+//
+// Cobro por asiento: cada plan es UN precio recurrente mensual en MXN por
+// unidad (149 / 299 MXN), y la suscripción lleva un solo item con
+// quantity = asientos (ejecutivos). Cambiar asientos o plan actualiza ese item
+// con prorrateo (create_prorations, el default de Stripe).
 
 export async function isStripeConfigured(): Promise<boolean> {
   const s = await getPlatformSettings();
@@ -41,11 +46,27 @@ export async function planForPrice(priceId: string): Promise<PlanId | null> {
   return null;
 }
 
+export const STRIPE_PRICE_CURRENCY = "mxn";
+
+// Cambia plan y/o asientos de una suscripción existente (un solo item). El
+// prorrateo lo calcula Stripe y aparece en la siguiente factura.
+export async function updateSubscriptionItem(subscriptionId: string, opts: { priceId: string; quantity: number }): Promise<void> {
+  const stripe = await getStripe();
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  const item = sub.items.data[0];
+  if (!item) throw new Error(`La suscripción ${subscriptionId} no tiene items`);
+  await stripe.subscriptions.update(subscriptionId, {
+    items: [{ id: item.id, price: opts.priceId, quantity: opts.quantity }],
+    proration_behavior: "create_prorations",
+  });
+}
+
 export function subscriptionSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot {
   const item = sub.items.data[0];
   return {
     status: sub.status,
     priceId: item?.price.id ?? null,
+    quantity: item?.quantity ?? null,
     // Desde la API 2025-03 el periodo vive en cada item, no en la suscripción.
     currentPeriodEnd: item?.current_period_end ?? null,
     cancelAtPeriodEnd: sub.cancel_at_period_end || !!sub.cancel_at,
@@ -82,6 +103,10 @@ export async function syncSubscription(subscriptionId: string, hintOrganizationI
   }
 
   const snapshot = subscriptionSnapshot(sub);
+  const currency = sub.items.data[0]?.price.currency;
+  if (currency && currency !== STRIPE_PRICE_CURRENCY) {
+    console.warn(`[billing] La suscripción ${sub.id} usa un precio en ${currency}; los planes son en MXN (revisa los price ids en /plataforma)`);
+  }
   // deriveFromSubscription es pura y síncrona (lib/billing/state.ts, testeada
   // sin Stripe/DB) — el plan se resuelve aquí, antes de llamarla, en vez de
   // pasarle planForPrice (que ahora es async) como callback.
