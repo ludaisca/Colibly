@@ -68,6 +68,15 @@ export function seatCap(org: SeatSnapshot): number {
   return Math.max(MIN_SEATS, org.seatQuantity || MIN_SEATS);
 }
 
+// Números de WhatsApp y cuentas de Telegram/Messenger/Instagram: 1 por
+// ejecutivo que existe, sin importar el método (Coexistencia o API manual).
+// Se cuentan los usuarios activos (una invitación pendiente todavía no es un
+// ejecutivo), con tope en los asientos (en prueba, TRIAL_MAX_SEATS) y mínimo 1.
+export function channelSeatBase(org: SeatSnapshot, activeUsers: number): number {
+  if (org.isInternal) return Infinity;
+  return Math.min(seatCap(org), Math.max(MIN_SEATS, Math.floor(activeUsers)));
+}
+
 // Límites vigentes: los del plan por asiento; en prueba, contactos y créditos
 // son la bolsa plana TRIAL_POOL; las internas no tienen tope.
 export function planLimits(org: SeatSnapshot): PlanLimits {

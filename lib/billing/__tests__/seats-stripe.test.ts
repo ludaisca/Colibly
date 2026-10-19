@@ -88,7 +88,8 @@ describe("candado de asientos (evaluatePlanLimit seats)", () => {
     expect(r).toMatchObject({ max: 3 });
     expect(r?.message).toMatch(/prueba gratis incluye hasta 3/);
   });
-  it("WhatsApp: 1 número por asiento", async () => {
+  it("WhatsApp: 1 número por asiento ocupado", async () => {
+    db.users = 3;
     db.wa = 3;
     expect(await evaluatePlanLimit(ORG, "whatsapp")).toMatchObject({ limit: "whatsapp", max: 3 });
     db.wa = 2;

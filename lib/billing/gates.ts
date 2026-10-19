@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import type { Organization } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { PLANS, SEAT_CHANNEL_LABELS, SEAT_CHANNELS, type SeatChannel } from "./plans";
+import { limitsForSeats, PLANS, SEAT_CHANNEL_LABELS, SEAT_CHANNELS, type SeatChannel } from "./plans";
 import type { SeatUsage } from "./state";
-import { accessMode, planLimits, type AccessMode, type BillingSnapshot } from "./state";
+import { accessMode, channelSeatBase, planLimits, seatCap, type AccessMode, type BillingSnapshot } from "./state";
 
 // Candados de facturación del servidor: estado de la suscripción (¿puede
 // escribir y enviar?) y límites del plan. Las APIs responden 402 con un
@@ -156,6 +156,39 @@ export async function getSeatUsage(organizationId: string): Promise<SeatUsage> {
 // Adonde mandar a un admin que se quedó sin asientos.
 export const BILLING_SEATS_PATH = "/configuracion/plan#asientos";
 
+// Adonde mandar a un admin que necesita otro ejecutivo (invitarlo).
+export const USERS_PATH = "/usuarios";
+
+const PER_SEAT_KEYS: readonly LimitKey[] = ["whatsapp", ...SEAT_CHANNELS];
+const isPerSeatKey = (key: LimitKey) => PER_SEAT_KEYS.includes(key);
+
+export interface PerSeatContext {
+  trialing: boolean;
+  activeUsers: number;
+  // Asientos disponibles para sumar ejecutivos (prueba: TRIAL_MAX_SEATS).
+  seatCap: number;
+}
+
+// Mensaje para números/canales por ejecutivo: el remedio es tener otro
+// ejecutivo (invitarlo si hay asiento libre, o comprar un asiento).
+export function perSeatLimitMessage(key: LimitKey, max: number, ctx: PerSeatContext): { message: string; actionUrl: string } {
+  const what = key === "whatsapp" ? "número de WhatsApp" : `cuenta de ${SEAT_CHANNEL_LABELS[key as SeatChannel]}`;
+  const whatPlural = key === "whatsapp" ? (max === 1 ? "número" : "números") : max === 1 ? "cuenta" : "cuentas";
+  const base = `Cada ejecutivo conecta 1 ${what} (por Coexistencia o por API): tu organización tiene ${ctx.activeUsers} ${ctx.activeUsers === 1 ? "ejecutivo" : "ejecutivos"}, así que puedes tener ${max} ${whatPlural}.`;
+  if (ctx.activeUsers < ctx.seatCap) {
+    return {
+      message: `${base} Invita a otro usuario en Usuarios${ctx.trialing ? ` (la prueba gratis incluye hasta ${ctx.seatCap} ejecutivos)` : ""}; cuando acepte la invitación podrás conectar otro.`,
+      actionUrl: USERS_PATH,
+    };
+  }
+  return {
+    message: ctx.trialing
+      ? `${base} La prueba gratis incluye hasta ${ctx.seatCap} ejecutivos; elige un plan en Configuración → Plan y facturación para agregar más.`
+      : `${base} Agrega un asiento en Configuración → Plan y facturación e invita a otro ejecutivo para conectar otro.`,
+    actionUrl: BILLING_SEATS_PATH,
+  };
+}
+
 function limitMessage(key: LimitKey, planName: string, max: number, trialing: boolean): string {
   switch (key) {
     case "seats":
@@ -186,17 +219,33 @@ export interface PlanLimitExceeded {
   message: string;
   current: number;
   max: number;
+  /** Dónde se resuelve: Usuarios (invitar) o Plan y facturación (asientos). */
+  actionUrl?: string;
 }
 
 // null si cabe `adding` más; si no, el detalle para responder.
 export async function evaluatePlanLimit(organizationId: string, key: LimitKey, adding = 1): Promise<PlanLimitExceeded | null> {
   const org = await getOrgBilling(organizationId);
   if (!org) return { limit: key, message: "Organización no encontrada", current: 0, max: 0 };
+  const trialing = org.status === "TRIALING";
+  if (isPerSeatKey(key)) {
+    if (org.isInternal) return null;
+    const [usage, activeUsers] = await Promise.all([
+      getOrgUsage(organizationId),
+      prisma.user.count({ where: { organizationId, disabledAt: null } }),
+    ]);
+    // Antes la prueba usaba TRIAL_MAX_SEATS (3) aunque hubiera 1 solo ejecutivo.
+    const max = limitsForSeats(PLANS[org.plan], channelSeatBase(org, activeUsers), { trial: trialing })[key as "whatsapp" | SeatChannel];
+    const current = usage[key];
+    if (current + adding <= max) return null;
+    const { message, actionUrl } = perSeatLimitMessage(key, max, { trialing, activeUsers, seatCap: seatCap(org) });
+    return { limit: key, message, current, max, actionUrl };
+  }
   const max = planLimits(org)[key];
   if (max === Infinity) return null;
   const current = (await getOrgUsage(organizationId))[key];
   if (current + adding <= max) return null;
-  return { limit: key, message: limitMessage(key, PLANS[org.plan].name, max, org.status === "TRIALING"), current, max };
+  return { limit: key, message: limitMessage(key, PLANS[org.plan].name, max, trialing), current, max };
 }
 
 // Igual que evaluatePlanLimit, como respuesta 402 lista para devolver.
@@ -212,7 +261,7 @@ export async function checkPlanLimit(organizationId: string, key: LimitKey, addi
       max: exceeded.max,
       // Asientos, WhatsApp y los canales por ejecutivo se resuelven agregando
       // asientos: la UI enlaza aquí.
-      ...(key === "seats" || key === "whatsapp" || (SEAT_CHANNELS as readonly string[]).includes(key) ? { billingUrl: BILLING_SEATS_PATH } : {}),
+      ...(exceeded.actionUrl ? { billingUrl: exceeded.actionUrl, actionUrl: exceeded.actionUrl } : key === "seats" ? { billingUrl: BILLING_SEATS_PATH } : {}),
     },
     { status: 402 }
   );

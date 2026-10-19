@@ -15,6 +15,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
+import { ChannelLimitBanner, useChannelLimit } from "@/app/components/billing/channel-limit";
 import { CuentaFormModal } from "./_form";
 import { ConectarWhatsAppModal } from "./_conectar-whatsapp";
 
@@ -66,20 +67,26 @@ function CuentasView() {
   const [formOpen, setFormOpen] = useState(searchParams.get("nueva") === "1");
   const [connectOpen, setConnectOpen] = useState(false);
 
+  // 1 conexión por ejecutivo (mismo cálculo que el candado del servidor).
+  const { limit: channelLimit, refresh: refreshLimit } = useChannelLimit("whatsapp");
+
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
     try {
       const res = await fetch("/api/whatsapp/accounts");
       const data = await res.json();
-      if (Array.isArray(data)) setAccounts(data);
+      if (Array.isArray(data)) {
+        setAccounts(data);
+        refreshLimit();
+      }
       else throw new Error(data.error ?? "Error al cargar cuentas");
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Error al cargar cuentas");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshLimit]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAccounts also used for manual refresh
@@ -121,11 +128,13 @@ function CuentasView() {
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>
               Actualizar
             </Button>
-            <Button variant="secondary" icon={Plus} size="sm" onClick={() => setFormOpen(true)}>Conexión manual</Button>
-            <Button icon={Plus} size="sm" onClick={() => setConnectOpen(true)}>Conectar WhatsApp</Button>
+            <Button variant="secondary" icon={Plus} size="sm" disabled={channelLimit?.allowed === false} onClick={() => setFormOpen(true)}>Conexión manual</Button>
+            <Button icon={Plus} size="sm" disabled={channelLimit?.allowed === false} onClick={() => setConnectOpen(true)}>Conectar WhatsApp</Button>
           </>
         }
       />
+
+      <ChannelLimitBanner limit={channelLimit} />
 
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row">

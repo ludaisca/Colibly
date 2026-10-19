@@ -13,6 +13,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
+import { ChannelLimitBanner, useChannelLimit } from "@/app/components/billing/channel-limit";
 import { MessengerCuentaFormModal } from "./_form";
 import { useSession } from "next-auth/react";
 import { ChannelAccountShareModal } from "@/app/components/channel-accounts/share-modal";
@@ -65,20 +66,26 @@ function MessengerCuentasView() {
 
   const openNewFromUrl = available === true && searchParams.get("nueva") === "1";
 
+  // 1 conexión por ejecutivo (mismo cálculo que el candado del servidor).
+  const { limit: channelLimit, refresh: refreshLimit } = useChannelLimit("messenger");
+
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
     try {
       const res = await fetch("/api/messenger/accounts");
       const data = await res.json();
-      if (Array.isArray(data)) setAccounts(data);
+      if (Array.isArray(data)) {
+        setAccounts(data);
+        refreshLimit();
+      }
       else throw new Error(data.error ?? "Error al cargar cuentas");
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Error al cargar cuentas");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshLimit]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAccounts also used for manual refresh
@@ -120,12 +127,14 @@ function MessengerCuentasView() {
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>
               Actualizar
             </Button>
-            <Button icon={Plus} size="sm" disabled={!available} onClick={() => setFormOpen(true)}>Conectar Página</Button>
+            <Button icon={Plus} size="sm" disabled={!available || channelLimit?.allowed === false} onClick={() => setFormOpen(true)}>Conectar Página</Button>
           </>
         }
       />
 
       <ChannelAvailabilityNotice available={available} error={availabilityError} />
+
+      <ChannelLimitBanner limit={channelLimit} />
 
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row">
