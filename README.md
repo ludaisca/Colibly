@@ -1,6 +1,6 @@
 # Colibly
 
-> Dominio: [colibly.com](https://colibly.com). Antes SunflowCRM y SundayCRM; hoy todo se llama Colibly (repo, carpeta, contenedores, base de datos). Paleta "Colibrí" (violeta y rubí); el logo actual es una "C" provisional mientras se define el definitivo (ver [`docs/PLAN_LANZAMIENTO.md`](docs/PLAN_LANZAMIENTO.md)). El proyecto sigue en desarrollo.
+> Dominio: [colibly.com](https://colibly.com). Antes SunflowCRM y SundayCRM; hoy todo se llama Colibly (repo, carpeta, contenedores, base de datos). Paleta "Menta y grafito" (verde #0F766E; antes "Colibrí", violeta); el logo actual es una "C" provisional mientras se define el definitivo (ver [`docs/PLAN_LANZAMIENTO.md`](docs/PLAN_LANZAMIENTO.md)). El proyecto sigue en desarrollo.
 
 CRM conversacional multi-tenant y de pago (SaaS) para negocios que venden por mensaje: una bandeja para WhatsApp, Instagram, Messenger, Telegram y el chat de la web, con bots de IA, automatizaciones, campañas y calificación de leads.
 
