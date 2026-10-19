@@ -53,6 +53,8 @@ export async function GET(
         syncProgress: true,
         syncDeadlineAt: true,
         syncError: true,
+        historySkippedChats: true,
+        historySkippedMessages: true,
         tokenExpiresAt: true,
         disconnectedReason: true,
         createdAt: true,

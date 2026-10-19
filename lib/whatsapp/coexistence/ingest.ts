@@ -1,7 +1,8 @@
 import { Prisma, type WAMessageOrigin } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mediaDownloadQueue } from "@/lib/queue";
-import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { addressBookNameFor, forgetAddressBookEntry, shouldApplyAddressBookName } from "@/lib/whatsapp/address-book";
+import { contactsRemaining, notifyContactLimitOnce } from "@/lib/billing/contact-budget";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
 import { jidCandidates, mapHistoryStatus, type NormalizedBusinessMessage, type NormalizedStateSyncContact } from "./normalize";
 
@@ -14,13 +15,24 @@ export interface BusinessIngestResult {
   created: number;
   updated: number;
   skipped: number;
+  /** Chats del historial creados sin contacto por el tope del plan. */
+  chatsWithoutContact: number;
 }
 
-type ChatCache = Map<string, { chatId: string; contactId: string; lastMessageAt: Date | null; created: boolean }>;
+type ChatEntry = { chatId: string; contactId: string | null; lastMessageAt: Date | null; created: boolean };
+type ChatCache = Map<string, ChatEntry>;
+
+// Contactos nuevos que todavía caben en el plan durante una importación.
+interface ContactBudget {
+  remaining: number;
+}
 
 // Encuentra (o crea) Contact + WAChat del cliente final. Para números de México
 // prueba las dos formas (52… y 521…) antes de crear, para no duplicar chats.
-async function resolveChat(accountId: string, userPhone: string, cache: ChatCache) {
+// Sin cupo de contactos (historial al tope del plan) el chat se crea igual,
+// sin contacto: la conversación no se pierde y el contacto nace cuando la
+// persona vuelva a escribir (los entrantes no tienen tope).
+async function resolveChat(accountId: string, userPhone: string, cache: ChatCache, source: "whatsapp_history" | "whatsapp_echo", budget: ContactBudget) {
   const cached = cache.get(userPhone);
   if (cached) return cached;
 
@@ -30,24 +42,34 @@ async function resolveChat(accountId: string, userPhone: string, cache: ChatCach
     select: { id: true, contactId: true, lastMessageAt: true, remoteJid: true },
   });
 
-  let entry: { chatId: string; contactId: string; lastMessageAt: Date | null; created: boolean };
+  let entry: ChatEntry;
   if (chat?.contactId) {
     entry = { chatId: chat.id, contactId: chat.contactId, lastMessageAt: chat.lastMessageAt, created: false };
   } else {
     const jid = chat?.remoteJid ?? candidates[0];
-    const contact = await prisma.contact.upsert({
-      where: { accountId_remoteJid: { accountId, remoteJid: jid } },
-      create: { accountId, remoteJid: jid, name: jid },
-      update: {},
-      select: { id: true },
-    });
+    const bookName = await addressBookNameFor(accountId, jid);
+    const existingContact = await prisma.contact.findUnique({ where: { accountId_remoteJid: { accountId, remoteJid: jid } }, select: { id: true } });
+    let contactId: string | null = existingContact?.id ?? null;
+    if (!contactId && budget.remaining > 0) {
+      budget.remaining--;
+      const contact = await prisma.contact.upsert({
+        where: { accountId_remoteJid: { accountId, remoteJid: jid } },
+        create: { accountId, remoteJid: jid, name: bookName ?? jid, nameSource: bookName ? "address_book" : null, source },
+        update: {},
+        select: { id: true },
+      });
+      contactId = contact.id;
+      if (bookName) await forgetAddressBookEntry(accountId, jid);
+    }
     const created = chat
-      ? await prisma.wAChat.update({ where: { id: chat.id }, data: { contactId: contact.id }, select: { id: true, lastMessageAt: true } })
+      ? contactId
+        ? await prisma.wAChat.update({ where: { id: chat.id }, data: { contactId }, select: { id: true, lastMessageAt: true } })
+        : { id: chat.id, lastMessageAt: chat.lastMessageAt }
       : await prisma.wAChat.create({
-          data: { accountId, remoteJid: jid, name: jid, isGroup: false, contactId: contact.id, unreadCount: 0 },
+          data: { accountId, remoteJid: jid, name: bookName ?? jid, isGroup: false, contactId, unreadCount: 0 },
           select: { id: true, lastMessageAt: true },
         });
-    entry = { chatId: created.id, contactId: contact.id, lastMessageAt: created.lastMessageAt, created: !chat };
+    entry = { chatId: created.id, contactId, lastMessageAt: created.lastMessageAt, created: !chat };
   }
   cache.set(userPhone, entry);
   return entry;
@@ -58,14 +80,18 @@ export async function ingestBusinessAppMessages(
   messages: NormalizedBusinessMessage[],
   origin: Extract<WAMessageOrigin, "BUSINESS_APP_ECHO" | "HISTORY">
 ): Promise<BusinessIngestResult> {
-  const result: BusinessIngestResult = { created: 0, updated: 0, skipped: 0 };
+  const result: BusinessIngestResult = { created: 0, updated: 0, skipped: 0, chatsWithoutContact: 0 };
   const cache: ChatCache = new Map();
+  // El historial respeta el tope de contactos del plan; un eco es una
+  // conversación en vivo (como un entrante) y siempre crea su contacto.
+  const budget: ContactBudget = { remaining: origin === "HISTORY" ? await contactsRemaining(accountId) : Infinity };
+  const source = origin === "HISTORY" ? "whatsapp_history" : "whatsapp_echo";
 
   // Agrupa por conversación para guardar por lotes: un historial grande
   // (decenas de miles de mensajes) no puede costar varias consultas por mensaje.
   const byChat = new Map<string, NormalizedBusinessMessage[]>();
   for (const msg of messages) {
-    const chat = await resolveChat(accountId, msg.userPhone, cache);
+    const chat = await resolveChat(accountId, msg.userPhone, cache, source, budget);
     const list = byChat.get(chat.chatId);
     if (list) list.push(msg);
     else byChat.set(chat.chatId, [msg]);
@@ -160,6 +186,21 @@ export async function ingestBusinessAppMessages(
     await prisma.wAChat.update({ where: { id: chatId }, data: { lastMessage: last.lastMessage, lastMessageAt: last.lastMessageAt } });
   }
 
+  if (origin === "HISTORY") {
+    const contactless = Array.from(cache.values()).filter((c) => c.created && !c.contactId);
+    if (contactless.length > 0) {
+      result.chatsWithoutContact = contactless.length;
+      const ids = new Set(contactless.map((c) => c.chatId));
+      const messages = Array.from(byChat.entries()).filter(([id]) => ids.has(id)).reduce((n, [, list]) => n + list.length, 0);
+      const updated = await prisma.wAAccount.update({
+        where: { id: accountId },
+        data: { historySkippedChats: { increment: contactless.length }, historySkippedMessages: { increment: messages } },
+        select: { historySkippedChats: true },
+      });
+      await notifyContactLimitOnce(accountId, contactless.length, updated.historySkippedChats);
+    }
+  }
+
   if (origin === "BUSINESS_APP_ECHO") {
     // El dueño atendió desde el teléfono: las automatizaciones conversacionales
     // de ese chat se pausan igual que con una respuesta manual desde Colibly.
@@ -176,32 +217,50 @@ async function enqueueMediaDownload(messageId: string, accountId: string, mediaI
     .catch((err) => console.error("[coexistence] media-download enqueue failed:", err));
 }
 
-// Contactos de la libreta del teléfono (smb_app_state_sync). Solo crea o
-// completa nombres: las bajas NO borran nada del CRM (el contacto puede tener
-// notas, etiquetas y citas en Colibly).
-export async function applyStateSyncContacts(accountId: string, contacts: NormalizedStateSyncContact[]): Promise<{ upserted: number; ignoredRemovals: number }> {
-  let upserted = 0;
-  let ignoredRemovals = 0;
+// Libreta del teléfono (smb_app_state_sync). NO crea contactos: solo pone el
+// nombre de la libreta a un contacto que ya existe (mismo número, misma cuenta
+// de la organización) y guarda el resto en wa_address_book para usarlo cuando
+// esa persona escriba o aparezca en el historial. Las bajas solo borran la
+// entrada de la libreta, nunca un contacto del CRM (puede tener notas, citas…).
+export async function applyStateSyncContacts(
+  accountId: string,
+  contacts: NormalizedStateSyncContact[]
+): Promise<{ named: number; cached: number; removed: number }> {
+  let named = 0;
+  let cached = 0;
+  let removed = 0;
   for (const c of contacts) {
+    const candidates = jidCandidates(c.phone);
+    if (candidates.length === 0) continue;
     if (c.action === "remove") {
-      ignoredRemovals++;
+      const del = await prisma.wAAddressBookEntry.deleteMany({ where: { accountId, phone: { in: candidates } } });
+      removed += del.count;
       continue;
     }
-    const candidates = jidCandidates(c.phone);
+    const name = (c.fullName ?? c.firstName)?.slice(0, 200) ?? null;
+    if (!name) continue;
     const existing = await prisma.contact.findFirst({
       where: { accountId, remoteJid: { in: candidates } },
-      select: { id: true, name: true, remoteJid: true },
+      select: { id: true, name: true, nameSource: true, remoteJid: true },
     });
-    const name = c.fullName ?? c.firstName;
     if (existing) {
-      if (name && shouldUpdateName(name, existing.name, existing.remoteJid)) {
-        await prisma.contact.update({ where: { id: existing.id }, data: { name } });
-        upserted++;
+      if (shouldApplyAddressBookName(name, existing)) {
+        await prisma.contact.update({ where: { id: existing.id }, data: { name, nameSource: "address_book" } });
+        // El inbox muestra WAChat.name: se alinea si seguía con el número o el nombre anterior.
+        await prisma.wAChat.updateMany({
+          where: { accountId, contactId: existing.id, OR: [{ name: null }, { name: existing.remoteJid }, ...(existing.name ? [{ name: existing.name }] : [])] },
+          data: { name },
+        });
+        named++;
       }
     } else {
-      await prisma.contact.create({ data: { accountId, remoteJid: candidates[0], name: name ?? candidates[0] } });
-      upserted++;
+      await prisma.wAAddressBookEntry.upsert({
+        where: { accountId_phone: { accountId, phone: candidates[0] } },
+        create: { accountId, phone: candidates[0], name },
+        update: { name },
+      });
+      cached++;
     }
   }
-  return { upserted, ignoredRemovals };
+  return { named, cached, removed };
 }

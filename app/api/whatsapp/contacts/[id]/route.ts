@@ -85,7 +85,8 @@ export async function PATCH(
 
     const updated = await prisma.contact.update({
       where: { id },
-      data: parsed.data,
+      // Un nombre puesto a mano ya no lo pisan la libreta ni el perfil de WhatsApp.
+      data: { ...parsed.data, ...(parsed.data.name !== undefined ? { nameSource: "user" } : {}) },
       select: {
         id: true,
         accountId: true,

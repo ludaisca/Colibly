@@ -34,7 +34,7 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
   }
 
   if (Object.keys(fields).length > 0) {
-    await prisma.contact.update({ where: { id }, data: fields });
+    await prisma.contact.update({ where: { id }, data: { ...fields, ...("name" in fields && fields.name !== undefined ? { nameSource: "user" } : {}) } });
   }
   if (fields.leadStatus) {
     await afterLeadStatusChanged(contact, contact.leadStatus, fields.leadStatus);

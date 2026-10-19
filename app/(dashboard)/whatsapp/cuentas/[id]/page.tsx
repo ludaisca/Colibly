@@ -40,6 +40,8 @@ interface AccountDetail {
   syncProgress: number | null;
   syncDeadlineAt: string | null;
   syncError: string | null;
+  historySkippedChats: number;
+  historySkippedMessages: number;
   tokenExpiresAt: string | null;
   disconnectedReason: string | null;
   webhookUrl: string;

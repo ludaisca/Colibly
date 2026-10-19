@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
+import { addressBookNameFor, forgetAddressBookEntry, shouldApplyProfileName } from "@/lib/whatsapp/address-book";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
@@ -76,7 +77,7 @@ export async function ingestInboundMessage(
   const [existingContact, existingChat] = await Promise.all([
     prisma.contact.findUnique({
       where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
-      select: { name: true },
+      select: { name: true, nameSource: true, remoteJid: true },
     }),
     prisma.wAChat.findUnique({
       where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
@@ -84,15 +85,22 @@ export async function ingestInboundMessage(
     }),
   ]);
 
-  const contactNameShouldUpdate = shouldUpdateName(msg.contactName, existingContact?.name, msg.remoteJid);
-  const chatNameShouldUpdate = shouldUpdateName(msg.contactName, existingChat?.name, msg.remoteJid);
+  // Un nombre editado por el usuario o tomado de la libreta de la app WhatsApp
+  // Business no se pisa con el nombre de perfil (ver lib/whatsapp/address-book.ts).
+  const nameProtected = existingContact?.nameSource === "user" || existingContact?.nameSource === "address_book";
+  const contactNameShouldUpdate = shouldApplyProfileName(msg.contactName, existingContact);
+  const chatNameShouldUpdate = !nameProtected && shouldUpdateName(msg.contactName, existingChat?.name, msg.remoteJid);
+  // Contacto nuevo: si el negocio lo tenía en su libreta, nace con ese nombre.
+  const bookName = existingContact ? null : await addressBookNameFor(accountId, msg.remoteJid);
 
   const contactRecord = await prisma.contact.upsert({
     where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
     create: {
       accountId,
       remoteJid: msg.remoteJid,
-      name: msg.contactName,
+      name: bookName ?? msg.contactName,
+      nameSource: bookName ? "address_book" : null,
+      source: "whatsapp_inbound",
       // First-touch attribution: solo se setea al crear el Contact, nunca en
       // el `update` de abajo — un segundo mensaje (con o sin referral propio)
       // no debe pisar el origen real del primer contacto. Mismo principio que
@@ -108,12 +116,14 @@ export async function ingestInboundMessage(
     update: contactNameShouldUpdate ? { name: msg.contactName } : {},
   });
 
+  if (bookName) await forgetAddressBookEntry(accountId, msg.remoteJid);
+
   const chat = await prisma.wAChat.upsert({
     where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
     create: {
       accountId,
       remoteJid: msg.remoteJid,
-      name: msg.contactName,
+      name: bookName ?? msg.contactName,
       isGroup: msg.isGroup,
       lastMessage: msg.body.slice(0, 500),
       lastMessageAt: msg.timestamp,

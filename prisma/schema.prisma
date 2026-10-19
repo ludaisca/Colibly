@@ -107,6 +107,11 @@ model WAAccount {
   // { contacts?: request_id, history?: request_id } de POST /smb_app_data.
   syncRequestIds         Json?                   @map("sync_request_ids")
   syncError              String?                 @map("sync_error")
+  // Importación del historial al llegar al tope de contactos del plan: chats
+  // nuevos que no se crearon y sus mensajes (aviso en la cuenta).
+  historySkippedChats    Int                     @default(0) @map("history_skipped_chats")
+  historySkippedMessages Int                     @default(0) @map("history_skipped_messages")
+  addressBook            WAAddressBookEntry[]
   businessAppOnboardedAt DateTime?               @map("business_app_onboarded_at")
   // Token de negocio de Embedded Signup (WAAccount.accessToken): cuándo vence y
   // cuándo se avisó, para no repetir el aviso en cada tick.
@@ -1032,6 +1037,13 @@ model Contact {
   // waAccountId al momento de mandar el evento, en vez de congelarla aquí.
   metaAdsAccountId  String?
   metaAdsAccount    MetaAdsAccount? @relation(fields: [metaAdsAccountId], references: [id], onDelete: SetNull)
+  // Cómo nació el contacto (informativo, null = anterior a este campo o
+  // manual): whatsapp_inbound, whatsapp_history, whatsapp_echo, ...
+  source            String?         @map("source")
+  // Quién puso `name`: "user" (editado en Colibly o por la API — nunca se pisa
+  // con fuentes automáticas), "address_book" (libreta de la app WhatsApp
+  // Business — solo lo pisa el usuario) o null (perfil de WhatsApp / número).
+  nameSource        String?         @map("name_source")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -1982,4 +1994,20 @@ model PlatformBackupRun {
 
   @@index([startedAt])
   @@map("platform_backup_runs")
+}
+
+// Libreta de la app WhatsApp Business (smb_app_state_sync) de quienes todavía
+// no son contacto: solo el nombre, para usarlo cuando esa persona escriba o
+// aparezca en un chat. No cuenta como contacto ni contra el límite del plan.
+model WAAddressBookEntry {
+  id        String    @id @default(cuid())
+  accountId String    @map("account_id")
+  account   WAAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  // Solo dígitos, con código de país (como llega de Meta).
+  phone     String
+  name      String
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@unique([accountId, phone])
+  @@map("wa_address_book")
 }

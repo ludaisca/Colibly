@@ -14,6 +14,8 @@ export interface ConexionInfo {
   syncProgress: number | null;
   syncDeadlineAt: string | null;
   syncError: string | null;
+  historySkippedChats?: number;
+  historySkippedMessages?: number;
   tokenExpiresAt: string | null;
   disconnectedReason: string | null;
 }
@@ -60,6 +62,8 @@ export function ConexionCard({ initial }: { initial: ConexionInfo }) {
           syncProgress: data.syncProgress,
           syncDeadlineAt: data.syncDeadlineAt,
           syncError: data.syncError,
+          historySkippedChats: data.historySkippedChats,
+          historySkippedMessages: data.historySkippedMessages,
         });
       } catch {
         /* se reintenta en el siguiente ciclo */
@@ -87,6 +91,12 @@ export function ConexionCard({ initial }: { initial: ConexionInfo }) {
         <Banner tone="danger" title="La sincronización venció">
           Pasaron las 24 horas que da WhatsApp para importar los contactos y el historial. Para repetirla hay que desconectar el número y
           volver a conectarlo.
+        </Banner>
+      )}
+      {!!info.historySkippedChats && (
+        <Banner tone="warning" title="Llegaste al límite de contactos de tu plan">
+          {`${info.historySkippedChats.toLocaleString("es-MX")} ${info.historySkippedChats === 1 ? "conversación" : "conversaciones"} del historial (${(info.historySkippedMessages ?? 0).toLocaleString("es-MX")} mensajes) se importaron sin crear contacto. Siguen en la bandeja; el contacto se crea cuando esa persona vuelva a escribir. `}
+          <a href="/configuracion/plan" className="font-medium underline underline-offset-2">Ver plan</a>
         </Banner>
       )}
       {info.syncError && info.syncStatus !== "COMPLETED" && <Banner tone="warning">{info.syncError}</Banner>}

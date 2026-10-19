@@ -100,6 +100,7 @@ export const POST = withApiErrors(async (req: Request) => {
         accountId: input.accountId,
         remoteJid: input.phone,
         name: input.name ?? input.phone,
+        nameSource: input.name ? "user" : null,
         leadStatus: input.leadStatus,
       },
       select: { id: true, accountId: true, channelAccountId: true },
