@@ -35,7 +35,7 @@ export async function applyPlanChange(organizationId: string, input: { plan: Pla
     return { ok: false, status: 409, code: "confirm_required", error: `Revisa lo que cambia al pasar a ${PLANS[input.plan].name} antes de confirmar.`, impact };
   }
 
-  await updateSubscriptionItem(org.stripeSubscriptionId, { priceId: await priceIdFor(input.plan), quantity: input.seats });
+  await updateSubscriptionItem(org.stripeSubscriptionId, { priceId: await priceIdFor(input.plan), quantity: input.seats, plan: input.plan });
   // El webhook customer.subscription.updated también sincroniza; esto lo hace
   // visible de inmediato en la pantalla.
   await syncSubscription(org.stripeSubscriptionId, org.id);

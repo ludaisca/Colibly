@@ -16,6 +16,7 @@ export interface PlatformSettings {
   stripePriceEssential: string | null;
   stripePriceBusiness: string | null;
   stripePricePro: string | null;
+  stripeAutomaticTax: boolean;
   smtpHost: string | null;
   smtpPort: number;
   smtpSecure: boolean;
@@ -58,6 +59,7 @@ async function loadSettings(): Promise<PlatformSettings> {
     stripePriceEssential: row?.stripePriceEssential ?? null,
     stripePriceBusiness: row?.stripePriceBusiness ?? null,
     stripePricePro: row?.stripePricePro ?? null,
+    stripeAutomaticTax: row?.stripeAutomaticTax ?? false,
     smtpHost: row?.smtpHost ?? null,
     smtpPort: row?.smtpPort ?? 587,
     smtpSecure: row?.smtpSecure ?? false,

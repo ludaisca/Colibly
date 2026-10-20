@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { SectionHeader } from "@/app/components/ui/section-header";
+import { useEffect, useState, type ReactNode } from "react";
+import { Badge } from "@/app/components/ui/badge";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/input";
 import { Switch } from "@/app/components/ui/switch";
 import { Button } from "@/app/components/ui/button";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
-import { Card } from "@/app/components/ui/card";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { useToast } from "@/app/components/ui/toast";
 
@@ -37,6 +36,7 @@ interface ConfigResponse {
   gaMeasurementId: string | null;
   googleAdsId: string | null;
   googleAdsSignupLabel: string | null;
+  stripeAutomaticTax: boolean;
 }
 
 const SECRET_FIELDS = ["opencodeApiKey", "googleApiKey", "stripeSecretKey", "stripeWebhookSecret", "smtpPass", "turnstileSecretKey", "metaCapiAccessToken", "metaAppSecret", "metaWebhookVerifyToken"] as const;
@@ -68,7 +68,7 @@ export function SecretField({
       className="gap-1.5"
     >
       {(id) => (
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Input
             id={id}
             type="password"
@@ -76,7 +76,7 @@ export function SecretField({
             onChange={(e) => onChange(e.target.value)}
             placeholder={cleared ? "Se quitará al guardar" : hasValue ? "•••••••• (configurado)" : "Sin configurar"}
             disabled={cleared}
-            className="flex-1"
+            className="min-w-0 flex-1"
           />
           {hasValue && (
             <Button type="button" variant={cleared ? "secondary" : "ghost"} size="sm" onClick={onToggleClear}>
@@ -89,7 +89,64 @@ export function SecretField({
   );
 }
 
+
+type BlockStatus = { label: string; tone: "success" | "warning" | "neutral" };
+// Configurado = todos los datos clave presentes; Pendiente = falta alguno.
+// Los bloques opcionales (medición) sin datos se marcan "Opcional".
+export function blockStatus(checks: boolean[], optional = false): BlockStatus {
+  if (checks.every(Boolean)) return { label: "Configurado", tone: "success" };
+  if (optional && !checks.some(Boolean)) return { label: "Opcional", tone: "neutral" };
+  return { label: "Pendiente", tone: "warning" };
+}
+
+// Bloque plegable accesible (<details>/<summary>): abierto en pantallas
+// anchas, cerrado en móvil. Los campos siguen montados aunque esté cerrado, así
+// que guardar envía todo como antes.
+function SettingsBlock({ eyebrow, title, status, defaultOpen, children }: { eyebrow: string; title: string; status: BlockStatus; defaultOpen: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const [touched, setTouched] = useState(false);
+  const isOpen = touched ? open : defaultOpen;
+  return (
+    <details
+      open={isOpen}
+      onToggle={(e) => {
+        setTouched(true);
+        setOpen((e.currentTarget as HTMLDetailsElement).open);
+      }}
+      className="group min-w-0 rounded-xl border border-border bg-surface"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl p-4 sm:p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <span className="block text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{eyebrow}</span>
+          <span className="block font-display text-base font-semibold tracking-tight text-foreground sm:text-lg">{title}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <Badge tone={status.tone} size="sm">{status.label}</Badge>
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-muted transition-transform group-open:rotate-180"><path d="M6 9l6 6 6-6" /></svg>
+        </span>
+      </summary>
+      <div className="min-w-0 space-y-4 border-t border-border p-4 sm:p-5">{children}</div>
+    </details>
+  );
+}
+
+// true en pantallas ≥ 640 px (sm). En el servidor y antes de montar: false
+// (cerrado), para no abrir todo en móvil.
+function useWide(): boolean {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lee el media query al montar
+    setWide(mq.matches);
+    const on = (e: MediaQueryListEvent) => setWide(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return wide;
+}
+
 export function PlataformaConfiguracion() {
+  const wide = useWide();
   const { success, error: toastError } = useToast();
   const [data, setData] = useState<ConfigResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +175,7 @@ export function PlataformaConfiguracion() {
     gaMeasurementId: "",
     googleAdsId: "",
     googleAdsSignupLabel: "",
+    stripeAutomaticTax: false,
   });
 
   async function load() {
@@ -144,6 +202,7 @@ export function PlataformaConfiguracion() {
         gaMeasurementId: json.gaMeasurementId ?? "",
         googleAdsId: json.googleAdsId ?? "",
         googleAdsSignupLabel: json.googleAdsSignupLabel ?? "",
+        stripeAutomaticTax: json.stripeAutomaticTax ?? false,
       });
       setSecrets(Object.fromEntries(SECRET_FIELDS.map((f) => [f, ""])) as Record<SecretField, string>);
       setCleared(Object.fromEntries(SECRET_FIELDS.map((f) => [f, false])) as Record<SecretField, boolean>);
@@ -187,6 +246,7 @@ export function PlataformaConfiguracion() {
       payload.gaMeasurementId = plain.gaMeasurementId.trim() || null;
       payload.googleAdsId = plain.googleAdsId.trim() || null;
       payload.googleAdsSignupLabel = plain.googleAdsSignupLabel.trim() || null;
+      payload.stripeAutomaticTax = plain.stripeAutomaticTax;
 
       const res = await fetch("/api/plataforma/configuracion", {
         method: "PATCH",
@@ -215,14 +275,13 @@ export function PlataformaConfiguracion() {
   }
 
   return (
-    <div className="max-w-3xl space-y-10">
+    <div className="w-full min-w-0 max-w-3xl space-y-4 sm:space-y-6">
       <Banner tone="info">
         Estas credenciales sirven a todas las organizaciones de la plataforma. Un campo cifrado nunca se muestra en texto plano — escribe un valor nuevo
         para reemplazarlo, o usa &ldquo;Quitar&rdquo; para borrarlo.
       </Banner>
 
-      <Card as="section" className="space-y-4">
-        <SectionHeader eyebrow="Inteligencia artificial" title="OpenCode Go y Google" />
+      <SettingsBlock eyebrow="Inteligencia artificial" title="OpenCode Go y Google" status={blockStatus([data.hasOpencodeApiKey || data.hasGoogleApiKey])} defaultOpen={wide}>
         <SecretField
           label="API key de OpenCode Go"
           hasValue={data.hasOpencodeApiKey}
@@ -240,10 +299,9 @@ export function PlataformaConfiguracion() {
           cleared={cleared.googleApiKey}
           onToggleClear={() => toggleClear("googleApiKey")}
         />
-      </Card>
+      </SettingsBlock>
 
-      <Card as="section" className="space-y-4">
-        <SectionHeader eyebrow="Facturación" title="Stripe" />
+      <SettingsBlock eyebrow="Facturación" title="Stripe" status={blockStatus([data.hasStripeSecretKey, data.hasStripeWebhookSecret])} defaultOpen={wide}>
         <SecretField
           label="Secret key"
           hasValue={data.hasStripeSecretKey}
@@ -271,10 +329,20 @@ export function PlataformaConfiguracion() {
             {(id) => <Input id={id} value={plain.stripePricePro} onChange={(e) => setPlain((p) => ({ ...p, stripePricePro: e.target.value }))} placeholder="price_..." />}
           </FormField>
         </div>
-      </Card>
+        <p className="text-sm text-muted-darker">
+          Los precios se buscan primero en Stripe por lookup key (<code>colibly_esencial_monthly</code>, <code>colibly_negocio_monthly</code>,{" "}
+          <code>colibly_pro_monthly</code>); estos price ids son el respaldo.
+        </p>
+        <label className="flex items-start gap-3 text-sm">
+          <Switch checked={plain.stripeAutomaticTax} onCheckedChange={(v) => setPlain((p) => ({ ...p, stripeAutomaticTax: v }))} label="Calcular impuestos con Stripe Tax" />
+          <span>
+            Calcular impuestos con Stripe Tax en el pago (<code>automatic_tax</code>).{" "}
+            <span className="text-muted-darker">Déjalo apagado hasta definir el IVA con el contador y registrar el impuesto en Stripe.</span>
+          </span>
+        </label>
+      </SettingsBlock>
 
-      <Card as="section" className="space-y-4">
-        <SectionHeader eyebrow="Correo" title="SMTP" />
+      <SettingsBlock eyebrow="Correo" title="SMTP" status={blockStatus([!!data.smtpHost, !!data.smtpUser, data.hasSmtpPass])} defaultOpen={wide}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Host">
             {(id) => <Input id={id} value={plain.smtpHost} onChange={(e) => setPlain((p) => ({ ...p, smtpHost: e.target.value }))} placeholder="smtp.ejemplo.com" />}
@@ -301,10 +369,9 @@ export function PlataformaConfiguracion() {
           <Switch checked={plain.smtpSecure} onCheckedChange={(v) => setPlain((p) => ({ ...p, smtpSecure: v }))} label="Conexión segura (TLS)" />
           Conexión segura (TLS)
         </label>
-      </Card>
+      </SettingsBlock>
 
-      <Card as="section" className="space-y-4">
-        <SectionHeader eyebrow="Captcha" title="Cloudflare Turnstile" />
+      <SettingsBlock eyebrow="Captcha" title="Cloudflare Turnstile" status={blockStatus([!!data.turnstileSiteKey, data.hasTurnstileSecretKey])} defaultOpen={wide}>
         <FormField label="Site key" hint="Pública — se envía al navegador en /register.">
           {(id) => <Input id={id} value={plain.turnstileSiteKey} onChange={(e) => setPlain((p) => ({ ...p, turnstileSiteKey: e.target.value }))} />}
         </FormField>
@@ -316,10 +383,9 @@ export function PlataformaConfiguracion() {
           cleared={cleared.turnstileSecretKey}
           onToggleClear={() => toggleClear("turnstileSecretKey")}
         />
-      </Card>
+      </SettingsBlock>
 
-      <Card as="section" className="space-y-4">
-        <SectionHeader eyebrow="WhatsApp" title="App de Meta de la plataforma (Embedded Signup)" />
+      <SettingsBlock eyebrow="WhatsApp" title="App de Meta de la plataforma (Embedded Signup)" status={blockStatus([!!data.metaAppId, data.hasMetaAppSecret, !!data.metaEmbeddedSignupConfigId, data.hasMetaWebhookVerifyToken])} defaultOpen={wide}>
         <Banner tone="info">
           Datos de la app de Meta de Colibly. Con ellos los clientes conectan su WhatsApp con un botón, sin copiar tokens. El App Secret
           firma los webhooks de esas cuentas; nunca se vuelve a mostrar.
@@ -348,10 +414,9 @@ export function PlataformaConfiguracion() {
           cleared={cleared.metaWebhookVerifyToken}
           onToggleClear={() => toggleClear("metaWebhookVerifyToken")}
         />
-      </Card>
+      </SettingsBlock>
 
-      <Card as="section" className="space-y-4">
-        <SectionHeader eyebrow="Medición" title="Meta Pixel, Google Analytics y Ads" />
+      <SettingsBlock eyebrow="Medición" title="Meta Pixel, Google Analytics y Ads" status={blockStatus([!!data.metaPixelId || !!data.gaMeasurementId || !!data.googleAdsId], true)} defaultOpen={wide}>
         <FormField label="Meta Pixel ID">
           {(id) => <Input id={id} value={plain.metaPixelId} onChange={(e) => setPlain((p) => ({ ...p, metaPixelId: e.target.value }))} />}
         </FormField>
@@ -374,10 +439,10 @@ export function PlataformaConfiguracion() {
         <FormField label="Google Ads: etiqueta de conversión de registro">
           {(id) => <Input id={id} value={plain.googleAdsSignupLabel} onChange={(e) => setPlain((p) => ({ ...p, googleAdsSignupLabel: e.target.value }))} />}
         </FormField>
-      </Card>
+      </SettingsBlock>
 
       <div className="flex justify-end border-t border-border pt-6">
-        <Button onClick={handleSave} loading={saving}>
+        <Button onClick={handleSave} loading={saving} className="w-full sm:w-auto">
           Guardar configuración
         </Button>
       </div>

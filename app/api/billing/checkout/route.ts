@@ -10,6 +10,8 @@ import { getStripe, isStripeConfigured, priceIdFor } from "@/lib/billing/stripe"
 import { getSeatUsage } from "@/lib/billing/gates";
 import { planChangeImpact } from "@/lib/billing/state";
 import { MAX_SEATS, MIN_SEATS } from "@/lib/billing/plans";
+import { checkoutIdempotencyKey, checkoutSessionParams } from "@/lib/billing/stripe-rules";
+import { getPlatformSettings } from "@/lib/platform-settings";
 
 const schema = z.object({
   plan: z.enum(["ESSENTIAL", "BUSINESS", "PRO"]),
@@ -76,18 +78,20 @@ export async function POST(req: Request) {
     }
 
     const trialEnd = org.status === "TRIALING" && org.trialEndsAt && org.trialEndsAt.getTime() - Date.now() > MIN_TRIAL_MS ? org.trialEndsAt : null;
-    const checkout = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      client_reference_id: org.id,
-      line_items: [{ price: await priceIdFor(parsed.data.plan), quantity: parsed.data.seats }],
-      subscription_data: {
-        metadata: { organizationId: org.id },
-        ...(trialEnd ? { trial_end: Math.floor(trialEnd.getTime() / 1000) } : {}),
-      },
-      allow_promotion_codes: true,
-      success_url: appUrl("/configuracion/plan?checkout=ok"),
-      cancel_url: appUrl("/configuracion/plan?checkout=cancelado"),
+    const trialEndUnix = trialEnd ? Math.floor(trialEnd.getTime() / 1000) : null;
+    const params = checkoutSessionParams({
+      customerId,
+      organizationId: org.id,
+      priceId: await priceIdFor(parsed.data.plan),
+      seats: parsed.data.seats,
+      trialEnd: trialEndUnix,
+      automaticTax: (await getPlatformSettings()).stripeAutomaticTax,
+      successUrl: appUrl("/configuracion/plan?checkout=ok"),
+      cancelUrl: appUrl("/configuracion/plan?checkout=cancelado"),
+    });
+    // Doble clic o reintento: misma sesión durante 10 min (stripe-rules.ts).
+    const checkout = await stripe.checkout.sessions.create(params, {
+      idempotencyKey: checkoutIdempotencyKey({ organizationId: org.id, customerId, plan: parsed.data.plan, seats: parsed.data.seats, trialEnd: trialEndUnix }, Date.now()),
     });
     if (!checkout.url) throw new Error("Stripe no devolvió la URL de pago");
     return NextResponse.json({ url: checkout.url });

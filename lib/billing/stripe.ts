@@ -5,6 +5,7 @@ import { getPlatformSettings } from "@/lib/platform-settings";
 import { deriveFromSubscription, type SubscriptionSnapshot } from "./state";
 import { invalidateOrgBilling } from "./gates";
 import { notifyBillingTransition } from "./notify";
+import { PLAN_LOOKUP_KEYS, planForLookupKey, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "./stripe-rules";
 
 // Integración con Stripe: cliente, precios por plan y sincronización de la
 // suscripción → Organization. Configuración (secret key, webhook secret,
@@ -13,11 +14,50 @@ import { notifyBillingTransition } from "./notify";
 // Cobro por asiento: cada plan es UN precio recurrente mensual en MXN por
 // unidad (99 / 199 / 349 MXN: Esencial, Negocio, Pro), y la suscripción lleva un solo item con
 // quantity = asientos (ejecutivos). Cambiar asientos o plan actualiza ese item
-// con prorrateo (create_prorations, el default de Stripe).
+// con prorrateo: subir (más asientos o plan más caro) se cobra de inmediato
+// (always_invoice); bajar deja el crédito para la siguiente factura
+// (create_prorations). Ver lib/billing/stripe-rules.ts.
 
 export async function isStripeConfigured(): Promise<boolean> {
   const s = await getPlatformSettings();
-  return !!(s.stripeSecretKey && s.stripePriceEssential && s.stripePriceBusiness && s.stripePricePro);
+  if (!s.stripeSecretKey) return false;
+  const resolved = await resolvePriceIds();
+  return (["ESSENTIAL", "BUSINESS", "PRO"] as const).every((p) => resolved[p] || savedPriceId(s, p));
+}
+
+type PriceMap = Partial<Record<PlanId, string>>;
+type SavedPrices = { stripePriceEssential: string | null; stripePriceBusiness: string | null; stripePricePro: string | null };
+function savedPriceId(s: SavedPrices, plan: PlanId): string | null {
+  return { ESSENTIAL: s.stripePriceEssential, BUSINESS: s.stripePriceBusiness, PRO: s.stripePricePro }[plan] ?? null;
+}
+
+// Precios por lookup_key (colibly_*_monthly), en caché 10 min por secret key.
+// Si Stripe falla o no hay precios con esas llaves, se usan los price ids de
+// /plataforma.
+const PRICE_CACHE_MS = 10 * 60 * 1000;
+let priceCache: { key: string; at: number; map: PriceMap } | null = null;
+export function invalidatePriceCache(): void {
+  priceCache = null;
+}
+export async function resolvePriceIds(): Promise<PriceMap> {
+  const { stripeSecretKey } = await getPlatformSettings();
+  if (!stripeSecretKey) return {};
+  const cacheKey = stripeSecretKey.slice(-12);
+  if (priceCache && priceCache.key === cacheKey && Date.now() - priceCache.at < PRICE_CACHE_MS) return priceCache.map;
+  const map: PriceMap = {};
+  try {
+    const stripe = await getStripe();
+    const list = await stripe.prices.list({ lookup_keys: Object.values(PLAN_LOOKUP_KEYS), active: true, limit: 10 });
+    for (const price of list.data) {
+      const plan = planForLookupKey(price.lookup_key);
+      if (plan && price.currency === STRIPE_PRICE_CURRENCY && price.recurring?.interval === "month") map[plan] = price.id;
+    }
+  } catch (err) {
+    console.warn("[billing] No se pudieron resolver los precios por lookup_key; se usan los de /plataforma:", (err as Error)?.message);
+    return map; // sin caché: se reintenta en la siguiente llamada
+  }
+  priceCache = { key: cacheKey, at: Date.now(), map };
+  return map;
 }
 
 export async function getStripe(): Promise<Stripe> {
@@ -34,12 +74,17 @@ export async function getStripeWebhookSecret(): Promise<string | null> {
 
 export async function priceIdFor(plan: PlanId): Promise<string> {
   const s = await getPlatformSettings();
-  const id = { ESSENTIAL: s.stripePriceEssential, BUSINESS: s.stripePriceBusiness, PRO: s.stripePricePro }[plan];
+  const id = (await resolvePriceIds())[plan] ?? savedPriceId(s, plan);
   if (!id) throw new Error(`Falta el precio de Stripe del plan ${plan} en /plataforma`);
   return id;
 }
 
-export async function planForPrice(priceId: string): Promise<PlanId | null> {
+export async function planForPrice(priceId: string, lookupKey?: string | null): Promise<PlanId | null> {
+  const byKey = planForLookupKey(lookupKey);
+  if (byKey) return byKey;
+  const resolved = await resolvePriceIds();
+  const hit = (Object.keys(resolved) as PlanId[]).find((p) => resolved[p] === priceId);
+  if (hit) return hit;
   const { stripePriceEssential, stripePriceBusiness, stripePricePro } = await getPlatformSettings();
   if (priceId === stripePriceEssential) return "ESSENTIAL";
   if (priceId === stripePriceBusiness) return "BUSINESS";
@@ -49,17 +94,28 @@ export async function planForPrice(priceId: string): Promise<PlanId | null> {
 
 export const STRIPE_PRICE_CURRENCY = "mxn";
 
-// Cambia plan y/o asientos de una suscripción existente (un solo item). El
-// prorrateo lo calcula Stripe y aparece en la siguiente factura.
-export async function updateSubscriptionItem(subscriptionId: string, opts: { priceId: string; quantity: number }): Promise<void> {
+// Cambia plan y/o asientos de una suscripción existente (un solo item).
+// Subir se factura y cobra de inmediato; si ese cobro falla, el cambio queda
+// pendiente y no se aplica (pending_if_incomplete). Bajar deja el crédito para
+// la siguiente factura. Llave de idempotencia determinista por origen→destino.
+export async function updateSubscriptionItem(subscriptionId: string, opts: { priceId: string; quantity: number; plan: PlanId }): Promise<{ prorationBehavior: string }> {
   const stripe = await getStripe();
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const item = sub.items.data[0];
   if (!item) throw new Error(`La suscripción ${subscriptionId} no tiene items`);
-  await stripe.subscriptions.update(subscriptionId, {
-    items: [{ id: item.id, price: opts.priceId, quantity: opts.quantity }],
-    proration_behavior: "create_prorations",
-  });
+  const fromQuantity = item.quantity ?? 1;
+  const fromPlan = await planForPrice(item.price.id, item.price.lookup_key);
+  const prorationBehavior = prorationBehaviorFor({ plan: fromPlan, seats: fromQuantity }, { plan: opts.plan, seats: opts.quantity });
+  await stripe.subscriptions.update(
+    subscriptionId,
+    {
+      items: [{ id: item.id, price: opts.priceId, quantity: opts.quantity }],
+      proration_behavior: prorationBehavior,
+      ...(prorationBehavior === "always_invoice" ? { payment_behavior: "pending_if_incomplete" as const } : {}),
+    },
+    { idempotencyKey: subscriptionUpdateIdempotencyKey({ subscriptionId, fromPriceId: item.price.id, fromQuantity, toPriceId: opts.priceId, toQuantity: opts.quantity }) }
+  );
+  return { prorationBehavior };
 }
 
 export function subscriptionSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot {
@@ -111,7 +167,7 @@ export async function syncSubscription(subscriptionId: string, hintOrganizationI
   // deriveFromSubscription es pura y síncrona (lib/billing/state.ts, testeada
   // sin Stripe/DB) — el plan se resuelve aquí, antes de llamarla, en vez de
   // pasarle planForPrice (que ahora es async) como callback.
-  const plan = snapshot.priceId ? await planForPrice(snapshot.priceId) : null;
+  const plan = snapshot.priceId ? await planForPrice(snapshot.priceId, sub.items.data[0]?.price.lookup_key) : null;
   const update = deriveFromSubscription(snapshot, org, new Date(), () => plan);
   await prisma.organization.update({
     where: { id: org.id },

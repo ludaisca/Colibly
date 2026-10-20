@@ -1937,6 +1937,8 @@ model PlatformSettings {
   // Negocio (antes Básico): conserva la columna stripe_price_basic.
   stripePriceBusiness  String? @map("stripe_price_basic")
   stripePricePro      String? @map("stripe_price_pro")
+  // Stripe Tax en Checkout (automatic_tax). Apagado hasta definir el IVA con el contador.
+  stripeAutomaticTax  Boolean @default(false) @map("stripe_automatic_tax")
 
   // SMTP (lib/email/mailer.ts)
   smtpHost   String?  @map("smtp_host")
