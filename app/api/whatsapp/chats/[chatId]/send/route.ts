@@ -66,7 +66,7 @@ export async function POST(
 
     const isFirstResponse = chat.firstResponseAt === null;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = sendMessageSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -212,7 +212,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
 
   const isFirstResponse = conversation.firstResponseAt === null;
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
   const parsed = telegramSendMessageSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
@@ -302,7 +302,7 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
 
   const isFirstResponse = conversation.firstResponseAt === null;
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
   const parsed = webchatAgentSendSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
@@ -357,7 +357,7 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
 
   const isFirstResponse = conversation.firstResponseAt === null;
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
   const parsed = metaChannelSendMessageSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

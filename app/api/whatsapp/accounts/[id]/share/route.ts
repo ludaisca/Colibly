@@ -21,7 +21,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const { userId } = (await req.json()) as { userId: string };
+    const { userId } = (await req.json().catch(() => ({}))) as { userId: string };
 
     if (!userId) {
       return NextResponse.json({ error: "userId requerido" }, { status: 400 });

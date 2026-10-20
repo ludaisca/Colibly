@@ -18,7 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ message
   let locked = false;
   let operationId: string | undefined;
   try {
-    const { emoji } = await req.json();
+    const { emoji } = await req.json().catch(() => ({}));
     if (typeof emoji !== "string" || (emoji !== "" && !(REACTION_OPTIONS as readonly string[]).includes(emoji))) return NextResponse.json({ error: "Selecciona una reacción válida" }, { status: 400 });
     const message = await prisma.wAMessage.findFirst({ where: { id: messageId, chat: { accountId: { in: await getUserAccountIds(session.user.id) } } }, include: { chat: { include: { account: true } } } });
     if (!message) return NextResponse.json({ error: "Mensaje no encontrado" }, { status: 404 });

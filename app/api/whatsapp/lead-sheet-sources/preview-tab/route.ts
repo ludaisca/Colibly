@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
 
-    const { spreadsheetId, sheetName } = await req.json();
+    const { spreadsheetId, sheetName } = await req.json().catch(() => ({}));
     if (!spreadsheetId || !sheetName) {
       return NextResponse.json({ error: "Falta spreadsheetId o sheetName" }, { status: 400 });
     }

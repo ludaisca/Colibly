@@ -52,7 +52,7 @@ export async function POST(
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const tagId = body?.tagId;
     if (!tagId || typeof tagId !== "string") {
       return NextResponse.json({ error: "tagId es requerido" }, { status: 400 });

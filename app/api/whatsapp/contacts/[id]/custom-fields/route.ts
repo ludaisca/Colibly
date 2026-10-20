@@ -74,7 +74,7 @@ export async function PUT(
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = contactCustomFieldValuesSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

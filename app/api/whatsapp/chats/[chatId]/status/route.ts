@@ -24,7 +24,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const status = body?.status;
 
     if (!VALID_STATUSES.includes(status)) {

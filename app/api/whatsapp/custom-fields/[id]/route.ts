@@ -37,7 +37,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Campo no encontrado" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = contactCustomFieldDefinitionUpdateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

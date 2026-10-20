@@ -22,7 +22,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Notificación no encontrada" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const read = body?.read !== false;
 
     const updated = await prisma.notification.update({

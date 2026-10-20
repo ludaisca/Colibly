@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     const noAi = await checkAiAccess(await requireOrgId(session.user.id));
     if (noAi) return noAi;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = botSchema.safeParse(body);
 
     if (!parsed.success) {

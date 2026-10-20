@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
 
-    const { spreadsheetIdOrUrl } = await req.json();
+    const { spreadsheetIdOrUrl } = await req.json().catch(() => ({}));
     if (!spreadsheetIdOrUrl || typeof spreadsheetIdOrUrl !== "string") {
       return NextResponse.json({ error: "Falta la URL o ID de la hoja" }, { status: 400 });
     }

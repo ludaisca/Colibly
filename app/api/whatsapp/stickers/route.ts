@@ -28,8 +28,8 @@ export async function POST(req: Request) {
     let data: Buffer;
     let name: string;
     if (req.headers.get("content-type")?.includes("application/json")) {
-      const body = await req.json();
-      if (typeof body.messageId !== "string") return NextResponse.json({ error: "Mensaje requerido" }, { status: 400 });
+      const body = await req.json().catch(() => null);
+      if (typeof body?.messageId !== "string") return NextResponse.json({ error: "Mensaje requerido" }, { status: 400 });
       const message = await prisma.wAMessage.findFirst({ where: { id: body.messageId, messageType: "sticker", chat: { accountId: { in: await getUserAccountIds(session.user.id) } } }, include: { chat: { select: { accountId: true } } } });
       if (!message?.mediaUrl || !isAccountMediaPath(message.mediaUrl, message.chat.accountId)) return NextResponse.json({ error: "El sticker todavía no está disponible para guardar" }, { status: 404 });
       const path = resolveAbsolutePath(message.mediaUrl);

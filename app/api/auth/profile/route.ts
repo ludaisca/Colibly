@@ -14,7 +14,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = profileSchema.safeParse(body);
 
     if (!parsed.success) {

@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = campaignSchema.safeParse(body);
 
     if (!parsed.success) {

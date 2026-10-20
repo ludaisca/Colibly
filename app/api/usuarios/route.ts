@@ -61,7 +61,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const validated = z.object({
       userId: z.string().min(1, "userId requerido"),
       role: z.enum(["admin", "user", "ejecutivo"]).optional(),
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = createUserSchema.safeParse(body);
 
     if (!parsed.success) {

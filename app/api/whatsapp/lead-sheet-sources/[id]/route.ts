@@ -55,7 +55,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (denied) return denied;
     const { id } = await params;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = leadSheetSourceUpdateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

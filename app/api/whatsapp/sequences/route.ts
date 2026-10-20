@@ -95,7 +95,7 @@ export async function POST(req: Request) {
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = sequenceSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

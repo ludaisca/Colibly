@@ -50,7 +50,7 @@ export async function POST(
       return NextResponse.json({ error: "Bot no encontrado" }, { status: 404 });
     }
 
-    const parsed = testRequest.safeParse(await req.json());
+    const parsed = testRequest.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: "Mensaje o historial de prueba inválido" }, { status: 400 });
     }

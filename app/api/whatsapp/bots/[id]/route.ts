@@ -85,7 +85,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Bot no encontrado" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = botUpdateSchema.safeParse(body);
 
     if (!parsed.success) {

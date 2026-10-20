@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
 
-    const { waAccountId } = (await req.json()) as { waAccountId: string };
+    const { waAccountId } = (await req.json().catch(() => ({}))) as { waAccountId: string };
 
     const accountIds = await getUserAccountIds(session.user.id);
 

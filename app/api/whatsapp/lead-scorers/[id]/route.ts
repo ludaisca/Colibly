@@ -76,7 +76,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Calificador no encontrado" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = leadScorerBotUpdateSchema.safeParse(body);
 
     if (!parsed.success) {

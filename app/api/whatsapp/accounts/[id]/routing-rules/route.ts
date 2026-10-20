@@ -87,7 +87,7 @@ export async function POST(
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = routingRuleSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

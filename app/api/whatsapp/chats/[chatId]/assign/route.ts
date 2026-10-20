@@ -29,7 +29,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const assignedToId: string | null = body?.assignedToId ?? null;
 
     if (resolved.channel !== "WHATSAPP") {

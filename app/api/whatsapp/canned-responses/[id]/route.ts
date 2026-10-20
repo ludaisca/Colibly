@@ -37,7 +37,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Respuesta rápida no encontrada" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = cannedResponseUpdateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(

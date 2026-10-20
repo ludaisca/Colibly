@@ -70,7 +70,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = cannedResponseSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
