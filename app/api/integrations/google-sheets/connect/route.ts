@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { encrypt } from "@/lib/crypto";
-import { createGoogleOAuthClient, GOOGLE_SHEETS_SCOPES } from "@/lib/google/oauth-client";
+import { createGoogleOAuthClient, GOOGLE_SHEETS_SCOPES, isGoogleOAuthConfigured } from "@/lib/google/oauth-client";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
@@ -16,6 +16,9 @@ export async function GET() {
     return NextResponse.json({ error: "Demasiadas solicitudes, espera un momento" }, { status: 429 });
   }
 
+  if (!isGoogleOAuthConfigured()) {
+    return NextResponse.json({ error: "La integración con Google Sheets no está disponible todavía" }, { status: 503 });
+  }
   const oauth2Client = createGoogleOAuthClient();
   // "state" protege contra CSRF (parte del spec OAuth2) y además nos deja
   // confirmar en el callback que el code pertenece al mismo usuario que

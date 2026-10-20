@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildOutputs, LLMS_END, LLMS_PATH, LLMS_START, PHP_PATH, replaceLlmsBlock } from "../../../scripts/gen-cpanel-pricing.mjs";
+import { TRIAL_DAYS } from "../plans";
 
 // El sitio de cPanel no puede leer plans.ts: sus precios salen de
 // scripts/gen-cpanel-pricing.mjs. Si alguien cambia plans.ts y no regenera
@@ -33,6 +34,21 @@ describe("precios de cPanel = lib/billing/plans.ts", () => {
       expect(text, f).not.toMatch(/\bIVA\b|impuestos|precio final/i);
       // Precios en pesos solo vía las constantes generadas.
       expect(text, f).not.toMatch(/\$\s?(149|299)\b/);
+    }
+  });
+
+  // La duración de la prueba escrita a mano (fuera del bloque generado) ya se
+  // quedó una vez en 30 días cuando TRIAL_DAYS pasó a 14.
+  it("toda mención de la duración de la prueba coincide con TRIAL_DAYS", async () => {
+    const dir = path.dirname(PHP_PATH);
+    const files = [
+      ...(await readdir(dir)).filter((f) => /\.(php|txt)$/.test(f)),
+      ...(await readdir(path.join(dir, "assets"))).filter((f) => f.endsWith(".svg")).map((f) => path.join("assets", f)),
+    ];
+    const pattern = /(\d+) d[ií]as (?:de prueba|gratis|sin costo)|prueba (?:gratis )?de (\d+) d[ií]as/gi;
+    for (const f of files) {
+      const raw = await readFile(path.join(dir, f), "utf8");
+      for (const m of raw.matchAll(pattern)) expect(Number(m[1] ?? m[2]), `${f}: «${m[0]}»`).toBe(TRIAL_DAYS);
     }
   });
 

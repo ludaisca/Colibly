@@ -22,6 +22,8 @@ import { CanalesSection } from "./_canales";
 
 interface GoogleSheetsStatus {
   connected: boolean;
+  // false: faltan las credenciales OAuth de Google en el servidor.
+  configured?: boolean;
   googleEmail?: string;
   spreadsheetId?: string;
   lastSyncedAt?: string | null;
@@ -325,7 +327,11 @@ export default function SettingsPage() {
         </p>
         {googleStatusError && <Banner tone="danger">{googleStatusError} <button type="button" onClick={fetchGoogleStatus} className="underline">Reintentar</button></Banner>}
 
-        {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && (
+        {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && googleStatus.configured === false && (
+          <p className="text-sm text-muted">La conexión con Google Sheets todavía no está disponible.</p>
+        )}
+
+        {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && googleStatus.configured !== false && (
           <Button
             size="sm"
             icon={FileSpreadsheet}

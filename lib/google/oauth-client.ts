@@ -9,6 +9,12 @@ export const GOOGLE_SHEETS_SCOPES = [
   "openid",
 ];
 
+// Sin las tres variables la integración no está disponible: la UI oculta
+// "Conectar con Google" y /connect responde 503 en vez de un 500.
+export function isGoogleOAuthConfigured(): boolean {
+  return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_OAUTH_REDIRECT_URI);
+}
+
 export function createGoogleOAuthClient() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;

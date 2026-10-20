@@ -1,6 +1,6 @@
 # Colibly
 
-> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Tiene registro abierto: 30 días de prueba sin costo y sin tarjeta, con el plan Pro; después se paga por ejecutivo, en pesos mexicanos (ver «Planes y precios»), sujeto a ajuste. Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia).
+> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Tiene registro abierto: 14 días de prueba sin costo y sin tarjeta, con el plan Pro; después se paga por ejecutivo, en pesos mexicanos (ver «Planes y precios»), sujeto a ajuste. Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia).
 
 Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colibly.com.
 
