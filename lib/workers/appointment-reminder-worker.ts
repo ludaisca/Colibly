@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { getOrgBusinessHours } from "@/lib/organizations";
+import { DEFAULT_TIME_ZONE, formatInZone } from "@/lib/format/dates";
 
 // Tick desatendido — mismo criterio de acotar el radio de explosión que
 // lead-recovery-worker.ts/lead-scoring-worker.ts.
@@ -28,7 +30,15 @@ export async function processAppointmentReminderTick() {
       reminderMinutesBefore: true,
       assignedToId: true,
       createdById: true,
-      contact: { select: { name: true, realName: true, remoteJid: true } },
+      contact: {
+        select: {
+          name: true,
+          realName: true,
+          remoteJid: true,
+          account: { select: { organizationId: true } },
+          channelAccount: { select: { organizationId: true } },
+        },
+      },
     },
     orderBy: { scheduledAt: "asc" },
     take: CANDIDATE_POOL,
@@ -38,9 +48,19 @@ export async function processAppointmentReminderTick() {
     (a) => a.scheduledAt.getTime() - now.getTime() <= a.reminderMinutesBefore * 60_000
   );
 
+  // La hora de la cita se escribe en la zona de su organización (el
+  // contenedor corre en UTC).
+  const zoneByOrg = new Map<string, string>();
+  async function zoneFor(organizationId: string | undefined): Promise<string> {
+    if (!organizationId) return DEFAULT_TIME_ZONE;
+    if (!zoneByOrg.has(organizationId)) zoneByOrg.set(organizationId, (await getOrgBusinessHours(organizationId)).timezone);
+    return zoneByOrg.get(organizationId)!;
+  }
+
   for (const appointment of due) {
     try {
       const contactLabel = appointment.contact.realName ?? appointment.contact.name ?? appointment.contact.remoteJid;
+      const timeZone = await zoneFor(appointment.contact.account?.organizationId ?? appointment.contact.channelAccount?.organizationId);
       const userId = appointment.assignedToId ?? appointment.createdById;
 
       await prisma.notification.create({
@@ -48,7 +68,7 @@ export async function processAppointmentReminderTick() {
           userId,
           type: "APPOINTMENT_REMINDER",
           title: `Cita próxima: ${appointment.title}`,
-          body: `Con ${contactLabel} — ${appointment.scheduledAt.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}`,
+          body: `Con ${contactLabel} — ${formatInZone(appointment.scheduledAt, { dateStyle: "medium", timeStyle: "short" }, timeZone)}`,
           link: `/whatsapp/citas?id=${appointment.id}`,
         },
       });

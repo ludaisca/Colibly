@@ -2,12 +2,13 @@ import Link from "next/link";
 import { AlertTriangle, Clock } from "lucide-react";
 import type { BillingNotice } from "@/lib/billing/state";
 import { cn } from "./cn";
+import { formatInZone } from "@/lib/format/dates";
 
 // Aviso del plan a todo lo ancho (slot topBanner del AppShell). Server-safe:
 // sin estado, el layout lo arma con billingNotice().
 
 function message(notice: BillingNotice): string {
-  const date = notice.date?.toLocaleDateString("es-MX", { day: "numeric", month: "long" });
+  const date = formatInZone(notice.date, { day: "numeric", month: "long" });
   switch (notice.kind) {
     case "trial_ending":
       return notice.daysLeft === 1 ? "Tu prueba gratis termina mañana." : `Te quedan ${notice.daysLeft} días de prueba gratis.`;

@@ -31,6 +31,7 @@ import { COEXISTENCE_PITCH, planFeatures, PRICING_FOOTNOTE } from "@/lib/billing
 import { planChangeImpact, type AccessMode } from "@/lib/billing/state";
 import { DataSection } from "./_datos";
 import { OrgStatusBadge } from "@/app/components/billing/org-status-badge";
+import { formatInZone } from "@/lib/format/dates";
 
 export interface PlanViewData {
   organizationName: string;
@@ -56,7 +57,7 @@ export interface PlanViewData {
 }
 
 function formatDate(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "";
+  return formatInZone(iso, { day: "numeric", month: "long", year: "numeric" });
 }
 
 function statusLine(d: PlanViewData): string {

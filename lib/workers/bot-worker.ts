@@ -19,6 +19,7 @@ import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForContact } from "@/lib/events/refs";
 import { BillingBlockedError, isBotWritable } from "@/lib/billing/gates";
 import { getOrgBusinessHours } from "@/lib/organizations";
+import { DEFAULT_TIME_ZONE, formatInZone } from "@/lib/format/dates";
 
 interface BotMessageJob {
   botId: string;
@@ -394,6 +395,8 @@ async function handleBotMessage(job: BotMessageJob) {
         botOwnerId: bot.userId,
         proposal,
         originMessageId: job.messageId ?? null,
+        // Solo hay propuesta si la zona se resolvió (appointmentTimeZone).
+        timeZone: appointmentTimeZone ?? DEFAULT_TIME_ZONE,
       });
     }
 
@@ -501,8 +504,9 @@ async function createAiProposedAppointment(params: {
   botOwnerId: string;
   proposal: AppointmentProposal;
   originMessageId: string | null;
+  timeZone: string;
 }) {
-  const { contactId, assignedToId, botOwnerId, proposal, originMessageId } = params;
+  const { contactId, assignedToId, botOwnerId, proposal, originMessageId, timeZone } = params;
   try {
     // Idempotencia ante reintentos: si este mismo job falla DESPUÉS de que la IA
     // ya respondió (ej. un error de red al enviar el mensaje) pero antes de
@@ -549,7 +553,7 @@ async function createAiProposedAppointment(params: {
         userId: notifyUserId,
         type: "APPOINTMENT_PROPOSED",
         title: "El bot agendó una cita",
-        body: `${proposal.title} — ${proposal.scheduledAt.toLocaleString("es-MX")}`,
+        body: `${proposal.title} — ${formatInZone(proposal.scheduledAt, { dateStyle: "medium", timeStyle: "short" }, timeZone)}`,
         link: `/whatsapp/citas?id=${appointment.id}`,
       },
     });

@@ -24,6 +24,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { cn } from "@/app/components/ui/cn";
 import { OnboardingChecklist } from "@/app/components/ui/onboarding-checklist";
 import { getOnboardingSteps } from "@/lib/onboarding";
+import { formatInZone } from "@/lib/format/dates";
 
 function formatTime(ts: Date | null): string {
   if (!ts) return "—";
@@ -35,7 +36,7 @@ function formatTime(ts: Date | null): string {
   if (diffMin < 60) return `Hace ${diffMin} min`;
   const diffH = Math.floor(diffMin / 60);
   if (diffH < 24) return `Hace ${diffH}h`;
-  return ts.toLocaleDateString("es-MX", { day: "2-digit", month: "short" });
+  return formatInZone(ts, { day: "2-digit", month: "short" });
 }
 
 export default async function DashboardPage() {

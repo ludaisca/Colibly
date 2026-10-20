@@ -33,7 +33,7 @@ function formatCost(value: number): string {
   if (value < 0.01) return `$${value.toFixed(4)}`;
   if (value < 1) return `$${value.toFixed(3)}`;
   if (value < 100) return `$${value.toFixed(2)}`;
-  return `$${Math.round(value).toLocaleString()}`;
+  return `$${Math.round(value).toLocaleString("es-MX")}`;
 }
 
 export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas; canManageBots: boolean }) {

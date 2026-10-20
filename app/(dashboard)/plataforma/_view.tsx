@@ -24,6 +24,7 @@ import { BRAND_NAME } from "@/lib/brand";
 import { PlataformaConfiguracion } from "./_configuracion";
 import { PlataformaRespaldos } from "./_respaldos";
 import { HeroTabs } from "@/app/components/ui/hero-tabs";
+import { formatInZone } from "@/lib/format/dates";
 
 const TABS = ["organizaciones", "configuracion", "respaldos"] as const;
 type Tab = (typeof TABS)[number];
@@ -64,7 +65,7 @@ export interface PlatformOrgRow {
 }
 
 const n = (v: number) => v.toLocaleString("es-MX");
-const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "—");
+const date = (iso: string | null) => formatInZone(iso, { day: "numeric", month: "short", year: "numeric" }) || "—";
 
 // Línea bajo el estado: la fecha que importa para cada uno.
 function statusDetail(r: PlatformOrgRow): string | null {

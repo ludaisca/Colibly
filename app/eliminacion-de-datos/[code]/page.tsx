@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { BRAND_CONTACT_EMAIL, BRAND_NAME } from "@/lib/brand";
+import { formatInZone } from "@/lib/format/dates";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Solicitud de eliminación de datos", robots: { index: false } };
@@ -29,8 +30,8 @@ export default async function DataDeletionStatusPage({ params }: { params: Promi
       <p className="text-sm text-muted-darker">Código de confirmación: <span className="font-mono">{code}</span></p>
       <p>{STATUS[request.status] ?? request.status}</p>
       <p className="text-sm text-muted-darker">
-        Recibida el {request.receivedAt.toLocaleDateString("es-MX", { dateStyle: "long" })}
-        {request.completedAt ? ` · terminada el ${request.completedAt.toLocaleDateString("es-MX", { dateStyle: "long" })}` : ""}.
+        Recibida el {formatInZone(request.receivedAt, { dateStyle: "long" })}
+        {request.completedAt ? ` · terminada el ${formatInZone(request.completedAt, { dateStyle: "long" })}` : ""}.
       </p>
       <p className="text-sm text-muted-darker">
         ¿Dudas? Escribe a <a className="text-accent-ink underline" href={`mailto:${BRAND_CONTACT_EMAIL}`}>{BRAND_CONTACT_EMAIL}</a> ({BRAND_NAME}).
