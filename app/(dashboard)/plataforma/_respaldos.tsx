@@ -306,6 +306,7 @@ export function PlataformaRespaldos() {
               setDirty(true);
             }}
             cleared={cleared.accessKeyId}
+            revealField="backupAccessKeyId"
             onToggleClear={() => {
               setCleared((c) => ({ ...c, accessKeyId: !c.accessKeyId }));
               setAccessKeyId("");
@@ -322,6 +323,7 @@ export function PlataformaRespaldos() {
               setDirty(true);
             }}
             cleared={cleared.secretAccessKey}
+            revealField="backupSecretAccessKey"
             onToggleClear={() => {
               setCleared((c) => ({ ...c, secretAccessKey: !c.secretAccessKey }));
               setSecretAccessKey("");

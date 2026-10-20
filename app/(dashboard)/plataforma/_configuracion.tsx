@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Badge } from "@/app/components/ui/badge";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/input";
@@ -10,6 +10,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { useToast } from "@/app/components/ui/toast";
+import type { PlatformSecretField } from "@/lib/platform-settings";
 
 interface ConfigResponse {
   hasOpencodeApiKey: boolean;
@@ -42,8 +43,14 @@ interface ConfigResponse {
 const SECRET_FIELDS = ["opencodeApiKey", "googleApiKey", "stripeSecretKey", "stripeWebhookSecret", "smtpPass", "turnstileSecretKey", "metaCapiAccessToken", "metaAppSecret", "metaWebhookVerifyToken"] as const;
 type SecretField = (typeof SECRET_FIELDS)[number];
 
+// Tiempo que un secreto revelado queda en pantalla antes de ocultarse solo.
+const REVEAL_MS = 60_000;
+
 // Campo cifrado: nunca se prefila con el valor real. Vacío + no "Quitar" = no
-// se toca; "Quitar" fuerza a null; escribir algo lo reemplaza.
+// se toca; "Quitar" fuerza a null; escribir algo lo reemplaza. Con
+// `revealField`, "Mostrar" pide el valor guardado a
+// /api/plataforma/configuracion/revelar (queda en el log del servidor) y lo
+// muestra 60 s con "Copiar".
 export function SecretField({
   label,
   hint,
@@ -52,6 +59,7 @@ export function SecretField({
   onChange,
   cleared,
   onToggleClear,
+  revealField,
 }: {
   label: string;
   hint?: string;
@@ -60,7 +68,54 @@ export function SecretField({
   onChange: (v: string) => void;
   cleared: boolean;
   onToggleClear: () => void;
+  revealField?: PlatformSecretField;
 }) {
+  const { error: toastError, success } = useToast();
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function hide() {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = null;
+    setRevealed(null);
+  }
+  useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current); }, []);
+  // Un secreto marcado para quitar o que ya no existe no se sigue mostrando.
+  const shown = cleared || !hasValue ? null : revealed;
+
+  async function reveal() {
+    if (!revealField) return;
+    setRevealing(true);
+    try {
+      const res = await fetch("/api/plataforma/configuracion/revelar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field: revealField }),
+        cache: "no-store",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || typeof body.value !== "string") throw new Error(body.error || "No se pudo mostrar el secreto");
+      setRevealed(body.value);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      hideTimer.current = setTimeout(hide, REVEAL_MS);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo mostrar el secreto");
+    } finally {
+      setRevealing(false);
+    }
+  }
+
+  async function copy() {
+    if (!revealed) return;
+    try {
+      await navigator.clipboard.writeText(revealed);
+      success("Copiado");
+    } catch {
+      toastError("El navegador no permitió copiar; selecciona el texto y cópialo a mano.");
+    }
+  }
+
   return (
     <FormField
       label={label}
@@ -68,20 +123,41 @@ export function SecretField({
       className="gap-1.5"
     >
       {(id) => (
-        <div className="flex min-w-0 items-center gap-2">
-          <Input
-            id={id}
-            type="password"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={cleared ? "Se quitará al guardar" : hasValue ? "•••••••• (configurado)" : "Sin configurar"}
-            disabled={cleared}
-            className="min-w-0 flex-1"
-          />
-          {hasValue && (
-            <Button type="button" variant={cleared ? "secondary" : "ghost"} size="sm" onClick={onToggleClear}>
-              {cleared ? "Deshacer" : "Quitar"}
-            </Button>
+        <div className="min-w-0 space-y-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Input
+              id={id}
+              type="password"
+              value={value}
+              onChange={(e) => {
+                // Al escribir un reemplazo, el valor viejo deja de mostrarse.
+                hide();
+                onChange(e.target.value);
+              }}
+              placeholder={cleared ? "Se quitará al guardar" : hasValue ? "•••••••• (configurado)" : "Sin configurar"}
+              disabled={cleared}
+              className="min-w-0 flex-1"
+            />
+            {hasValue && revealField && !cleared && (
+              <Button type="button" variant="ghost" size="sm" loading={revealing} onClick={shown !== null ? hide : reveal}>
+                {shown !== null ? "Ocultar" : "Mostrar"}
+              </Button>
+            )}
+            {hasValue && (
+              <Button type="button" variant={cleared ? "secondary" : "ghost"} size="sm" onClick={onToggleClear}>
+                {cleared ? "Deshacer" : "Quitar"}
+              </Button>
+            )}
+          </div>
+          {shown !== null && (
+            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-light px-3 py-2">
+              <code className="min-w-0 flex-1 select-all break-all text-xs text-foreground" aria-label={`${label} (valor guardado)`}>
+                {shown}
+              </code>
+              <Button type="button" variant="secondary" size="sm" onClick={copy}>
+                Copiar
+              </Button>
+            </div>
           )}
         </div>
       )}
@@ -277,8 +353,8 @@ export function PlataformaConfiguracion() {
   return (
     <div className="w-full min-w-0 max-w-3xl space-y-4 sm:space-y-6">
       <Banner tone="info">
-        Estas credenciales sirven a todas las organizaciones de la plataforma. Un campo cifrado nunca se muestra en texto plano — escribe un valor nuevo
-        para reemplazarlo, o usa &ldquo;Quitar&rdquo; para borrarlo.
+        Estas credenciales sirven a todas las organizaciones de la plataforma. Los campos cifrados llegan ocultos: &ldquo;Mostrar&rdquo; enseña el valor
+        guardado durante 60 segundos (queda registrado en el log), escribe un valor nuevo para reemplazarlo o usa &ldquo;Quitar&rdquo; para borrarlo.
       </Banner>
 
       <SettingsBlock eyebrow="Inteligencia artificial" title="OpenCode Go y Google" status={blockStatus([data.hasOpencodeApiKey || data.hasGoogleApiKey])} defaultOpen={wide}>
@@ -288,6 +364,7 @@ export function PlataformaConfiguracion() {
           value={secrets.opencodeApiKey}
           onChange={(v) => setSecrets((s) => ({ ...s, opencodeApiKey: v }))}
           cleared={cleared.opencodeApiKey}
+          revealField="opencodeApiKey"
           onToggleClear={() => toggleClear("opencodeApiKey")}
         />
         <SecretField
@@ -297,6 +374,7 @@ export function PlataformaConfiguracion() {
           value={secrets.googleApiKey}
           onChange={(v) => setSecrets((s) => ({ ...s, googleApiKey: v }))}
           cleared={cleared.googleApiKey}
+          revealField="googleApiKey"
           onToggleClear={() => toggleClear("googleApiKey")}
         />
       </SettingsBlock>
@@ -308,6 +386,7 @@ export function PlataformaConfiguracion() {
           value={secrets.stripeSecretKey}
           onChange={(v) => setSecrets((s) => ({ ...s, stripeSecretKey: v }))}
           cleared={cleared.stripeSecretKey}
+          revealField="stripeSecretKey"
           onToggleClear={() => toggleClear("stripeSecretKey")}
         />
         <SecretField
@@ -316,6 +395,7 @@ export function PlataformaConfiguracion() {
           value={secrets.stripeWebhookSecret}
           onChange={(v) => setSecrets((s) => ({ ...s, stripeWebhookSecret: v }))}
           cleared={cleared.stripeWebhookSecret}
+          revealField="stripeWebhookSecret"
           onToggleClear={() => toggleClear("stripeWebhookSecret")}
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -359,6 +439,7 @@ export function PlataformaConfiguracion() {
             value={secrets.smtpPass}
             onChange={(v) => setSecrets((s) => ({ ...s, smtpPass: v }))}
             cleared={cleared.smtpPass}
+          revealField="smtpPass"
             onToggleClear={() => toggleClear("smtpPass")}
           />
           <FormField label="Remitente (From)">
@@ -381,6 +462,7 @@ export function PlataformaConfiguracion() {
           value={secrets.turnstileSecretKey}
           onChange={(v) => setSecrets((s) => ({ ...s, turnstileSecretKey: v }))}
           cleared={cleared.turnstileSecretKey}
+          revealField="turnstileSecretKey"
           onToggleClear={() => toggleClear("turnstileSecretKey")}
         />
       </SettingsBlock>
@@ -404,6 +486,7 @@ export function PlataformaConfiguracion() {
           value={secrets.metaAppSecret}
           onChange={(v) => setSecrets((s) => ({ ...s, metaAppSecret: v }))}
           cleared={cleared.metaAppSecret}
+          revealField="metaAppSecret"
           onToggleClear={() => toggleClear("metaAppSecret")}
         />
         <SecretField
@@ -412,6 +495,7 @@ export function PlataformaConfiguracion() {
           value={secrets.metaWebhookVerifyToken}
           onChange={(v) => setSecrets((s) => ({ ...s, metaWebhookVerifyToken: v }))}
           cleared={cleared.metaWebhookVerifyToken}
+          revealField="metaWebhookVerifyToken"
           onToggleClear={() => toggleClear("metaWebhookVerifyToken")}
         />
       </SettingsBlock>
@@ -426,6 +510,7 @@ export function PlataformaConfiguracion() {
           value={secrets.metaCapiAccessToken}
           onChange={(v) => setSecrets((s) => ({ ...s, metaCapiAccessToken: v }))}
           cleared={cleared.metaCapiAccessToken}
+          revealField="metaCapiAccessToken"
           onToggleClear={() => toggleClear("metaCapiAccessToken")}
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

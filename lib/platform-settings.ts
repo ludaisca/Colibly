@@ -109,7 +109,10 @@ export type PlatformSettingsInput = Partial<{
   [K in keyof PlatformSettings]: PlatformSettings[K] | null;
 }>;
 
-const ENCRYPTED_FIELDS = new Set<keyof PlatformSettings>([
+// Los secretos cifrados en reposo. El operador puede verlos uno por uno en
+// /plataforma (POST /api/plataforma/configuracion/revelar); el GET de la
+// configuración sigue sin devolverlos.
+export const PLATFORM_SECRET_FIELDS = [
   "opencodeApiKey",
   "googleApiKey",
   "stripeSecretKey",
@@ -121,7 +124,10 @@ const ENCRYPTED_FIELDS = new Set<keyof PlatformSettings>([
   "metaWebhookVerifyToken",
   "backupAccessKeyId",
   "backupSecretAccessKey",
-]);
+] as const satisfies readonly (keyof PlatformSettings)[];
+export type PlatformSecretField = (typeof PLATFORM_SECRET_FIELDS)[number];
+
+const ENCRYPTED_FIELDS = new Set<keyof PlatformSettings>(PLATFORM_SECRET_FIELDS);
 
 export async function updatePlatformSettings(input: PlatformSettingsInput, updatedByEmail: string): Promise<void> {
   const data: Record<string, unknown> = { updatedByEmail };
