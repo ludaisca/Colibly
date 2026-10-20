@@ -12,13 +12,15 @@ Hecho el 2026-10-20:
 - Fechas con zona horaria explícita (`lib/format/dates.ts`): adiós al error de hidratación de `/plataforma` y a los recordatorios de cita con la hora en UTC.
 - JSON mal formado en las rutas de la API responde 400 en vez de 500.
 - SMTP de producción arreglado (el usuario debía ser `noreply@colibly.com`, no `noreply`); recuperación de contraseña recibida.
-- **Pagos apagados en producción** (se quitó la llave de Stripe en `/plataforma`): era la del sandbox y con el registro abierto cualquiera podía "pagar" con una tarjeta de prueba. El webhook secret y los price ids se conservan; vuelve con la llave live.
+- Pagos apagados un rato en producción (la llave era la del sandbox y con el registro abierto cualquiera podía "pagar" con una tarjeta de prueba) y **luego activados en live**: llave live de la cuenta **Colibly** (`acct_1USQ9PPH…`), productos Esencial $99 / Negocio $199 / Pro $349 MXN mensuales con las lookup keys, webhook `colibly-produccion` (`we_1USjRX…`, 8 eventos, API `2026-09-30.endive`) a `/api/billing/webhook`, portal de clientes (facturas, datos con RFC, métodos de pago, cancelar al fin del periodo; sin cambio de plan/cantidad, eso se hace en Colibly). Los price ids del sandbox se borraron de `/plataforma`. El checkout live abre (`cs_live_…`).
 - Ramas: las que tenían trabajo sin fusionar quedaron archivadas como tags `archivo/crm-fase-0` (CRM con Personas, Empresas y Negocios), `archivo/probar-impeccable` y `archivo/stash-landing-arc`.
-- Widget de Cloudflare Turnstile creado para `app.colibly.com` ("Colibly - registro"); faltan sus llaves en `/plataforma`.
+- Cloudflare Turnstile activo en `/register` (widget "Colibly - registro" para `app.colibly.com`, modo Gestionado).
 
 **Bloquea el lanzamiento general:**
-- [ ] Turnstile: pegar clave del sitio y secreta en `/plataforma` → Configuración (hoy `/register` no tiene captcha).
-- [ ] Stripe live: verificar la empresa en la cuenta **Colibly** (`acct_1USQ9PPH…`; la otra, "Entorno de prueba de Colibly", es un sandbox que nunca puede cobrar), crear ahí los precios live con las mismas lookup keys, webhook y portal; pegar la llave live en `/plataforma`.
+- [x] Turnstile en el registro.
+- [x] Stripe live configurado (ver arriba). La cuenta "Entorno de prueba de Colibly" (`acct_1USQ9WAT…`) es el sandbox y se queda para dev.
+- [ ] **Una suscripción real con tarjeta propia** (Esencial, 1 asiento) para confirmar que el webhook live firma bien (Workbench → Webhooks → colibly-produccion → Entregas = 200); luego cancelar y reembolsar.
+- [ ] Stripe: activar recuperación de pagos (Smart Retries, correos de pago fallido, actualizador de tarjetas) y, cuando se defina el IVA, Stripe Tax + código fiscal SaaS en los 3 productos.
 - [ ] Respaldos de producción y monitoreo (`/api/health/respaldos` responde `disabled`).
 - [ ] Aviso de privacidad con identidad y domicilio del responsable; IVA, SAT y CFDI con el contador (sección 3).
 - [ ] Meta: método de pago del WABA (error 141006, sin él no hay plantillas), verificación del negocio, rotar App Secret, segundo administrador (sección 4).
@@ -50,7 +52,7 @@ Detalle técnico de todo lo anterior: `AGENTS.md`.
 | Dominio y correo | Dominio registrado en Hostinger; DNS y buzones en Neubox/cPanel. El propietario confirma que el correo funciona. |
 | Infraestructura beta | **Producción activa:** landing PHP en Neubox/cPanel y app aislada en Coolify sobre ludaisca. Contabo queda como migración futura opcional. |
 | Purga de datos | Canceladas y pruebas vencidas sin pago: se borran a los 60 días. Hecho. |
-| Stripe | Probado contra el sandbox el 2026-10-20. **Pagos apagados en producción** hasta tener la cuenta Colibly verificada y en live. |
+| Stripe | Live desde el 2026-10-20 en la cuenta Colibly; el sandbox "Entorno de prueba de Colibly" queda para dev. Ciclo completo probado con test clocks. |
 | Canales de Meta | **WhatsApp primero**; Messenger/Instagram en una revisión aparte, después. |
 
 ## Orden de trabajo
@@ -167,11 +169,11 @@ Probado el 2026-10-20 contra el sandbox "Entorno de prueba de Colibly" (`acct_1U
 - [x] Subir con tarjeta rechazada o con 3-D Secure: 402 `payment_pending` con la factura; al pagarla se aplica el cambio.
 - [x] Dos suscripciones vivas: gana la más reciente y se avisa por correo a `PLATFORM_ADMIN_EMAILS`.
 - [x] Eliminar la organización con suscripción activa (la cancela en Stripe antes de borrar).
-- [ ] Renovación (`invoice.paid` reinicia créditos de IA) con un ciclo real (test clock).
-- [ ] Pago fallido de una renovación → gracia de 7 días → solo lectura.
-- [ ] Cancelación desde el portal → activa hasta fin de periodo → cancelada → purga a los 60 días.
-- [ ] Reactivar desde `/plataforma` una organización suspendida que tiene suscripción.
-- [ ] Cuenta de Stripe México (cuenta **Colibly**, `acct_1USQ9PPH…`) verificada y en modo live; precios en **MXN por ejecutivo** con las lookup keys `colibly_esencial_monthly`, `colibly_negocio_monthly`, `colibly_pro_monthly`.
+- [x] Renovación con test clock: `invoice.paid (subscription_cycle)` reinicia los créditos de IA (37 → 0) y mueve `currentPeriodEnd`.
+- [x] Pago fallido de una renovación → `PAST_DUE` con 7 días de gracia (se sigue escribiendo) y correo "No pudimos cobrar"; con la gracia vencida las escrituras dan 402 `read_only` al instante, el tick la pasa a `READ_ONLY` y avisa "solo lectura"; al pagar la factura vuelve a `ACTIVE`.
+- [x] Cancelación desde el portal (clic real en el portal del sandbox) → sigue `ACTIVE` con `cancelAtPeriodEnd` → al fin del periodo `CANCELED` (solo lectura) → el tick la respeta a los 59 días y la purga a los 61.
+- [x] Suspensión: un evento de Stripe no levanta la suspensión; reactivar (misma lógica que `/plataforma`) resincroniza y deja `ACTIVE`. Probado sobre la lógica, no sobre la ruta (sin sesión de operador en dev).
+- [x] Cuenta de Stripe México (cuenta **Colibly**, `acct_1USQ9PPH…`) en modo live; precios en **MXN por ejecutivo** con las lookup keys `colibly_esencial_monthly`, `colibly_negocio_monthly`, `colibly_pro_monthly` (2026-10-20).
 - [ ] Activar recuperación de pagos en Stripe: Smart Retries, correos de pago fallido y actualizador de tarjetas.
 
 ## Fuentes (Meta, consultadas el 2026-09-27)
