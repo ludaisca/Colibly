@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { MAX_SEATS, MIN_SEATS, PLANS } from "./plans";
 import { planChangeImpact, type PlanChangeImpact } from "./state";
@@ -12,7 +13,15 @@ import type { PlanId } from "@prisma/client";
 
 export type PlanChangeResult =
   | { ok: true; changed: boolean }
-  | { ok: false; status: number; code: "not_found" | "internal" | "no_subscription" | "invalid_seats" | "blocked" | "confirm_required"; error: string; impact?: PlanChangeImpact };
+  | {
+      ok: false;
+      status: number;
+      code: "not_found" | "internal" | "no_subscription" | "invalid_seats" | "blocked" | "confirm_required" | "payment_pending";
+      error: string;
+      impact?: PlanChangeImpact;
+      // payment_pending: página de Stripe para pagar la diferencia.
+      invoiceUrl?: string | null;
+    };
 
 export async function applyPlanChange(organizationId: string, input: { plan: PlanId; seats: number; confirm: boolean }): Promise<PlanChangeResult> {
   const org = await prisma.organization.findUnique({
@@ -35,10 +44,24 @@ export async function applyPlanChange(organizationId: string, input: { plan: Pla
     return { ok: false, status: 409, code: "confirm_required", error: `Revisa lo que cambia al pasar a ${PLANS[input.plan].name} antes de confirmar.`, impact };
   }
 
-  await updateSubscriptionItem(org.stripeSubscriptionId, { priceId: await priceIdFor(input.plan), quantity: input.seats, plan: input.plan });
+  const result = await updateSubscriptionItem(org.stripeSubscriptionId, {
+    priceId: await priceIdFor(input.plan),
+    quantity: input.seats,
+    plan: input.plan,
+    requestId: randomUUID(),
+  });
   // El webhook customer.subscription.updated también sincroniza; esto lo hace
   // visible de inmediato en la pantalla.
   await syncSubscription(org.stripeSubscriptionId, org.id);
   invalidateOrgBilling(org.id);
+  if (result.pending) {
+    return {
+      ok: false,
+      status: 402,
+      code: "payment_pending",
+      error: "Stripe no pudo completar el cobro de la diferencia (la tarjeta lo rechazó o tu banco pide confirmarlo), así que el cambio todavía no se aplica. Paga la factura pendiente, con la misma u otra tarjeta, y se aplicará en cuanto quede pagada.",
+      invoiceUrl: result.pending.invoiceUrl,
+    };
+  }
   return { ok: true, changed: true };
 }

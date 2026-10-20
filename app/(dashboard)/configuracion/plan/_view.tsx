@@ -93,6 +93,8 @@ export function PlanView({ data }: { data: PlanViewData }) {
   // Con suscripción parte de lo pagado; en prueba, de lo ocupado (el tope de la prueba no se paga).
   const [seats, setSeats] = useState(() => Math.max(data.seatsUsed, (data.hasSubscription ? data.seatsPaid : null) ?? MIN_SEATS, MIN_SEATS));
   const [pendingConfirm, setPendingConfirm] = useState<{ warnings: string[]; blockers: string[] } | null>(null);
+  // Subida que Stripe no pudo cobrar: el cambio espera a que se pague la factura.
+  const [paymentPending, setPaymentPending] = useState<{ message: string; invoiceUrl: string | null } | null>(null);
 
   const plan = PLANS[selectedPlan];
   const minSeats = Math.max(data.seatsUsed, MIN_SEATS);
@@ -124,6 +126,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
   async function submit(confirm: boolean) {
     setBusy(confirm ? "confirm" : "save");
     setPendingConfirm(null);
+    setPaymentPending(null);
     try {
       const endpoint = data.hasSubscription ? "/api/billing/subscription" : "/api/billing/checkout";
       const res = await fetch(endpoint, {
@@ -134,6 +137,12 @@ export function PlanView({ data }: { data: PlanViewData }) {
       const body = await res.json();
       if (res.status === 409 && body.code === "confirm_required") {
         setPendingConfirm(body.impact ?? { warnings: [body.error], blockers: [] });
+        setBusy(null);
+        return;
+      }
+      if (res.status === 402 && body.code === "payment_pending") {
+        setPaymentPending({ message: body.error, invoiceUrl: body.invoiceUrl ?? null });
+        router.refresh();
         setBusy(null);
         return;
       }
@@ -347,6 +356,18 @@ export function PlanView({ data }: { data: PlanViewData }) {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" loading={busy === "confirm"} onClick={() => submit(true)}>Confirmar y continuar</Button>
                     <Button size="sm" variant="secondary" disabled={!!busy} onClick={() => setPendingConfirm(null)}>Cancelar</Button>
+                  </div>
+                </Banner>
+              )}
+              {paymentPending && (
+                <Banner tone="danger">
+                  <p className="text-sm">{paymentPending.message}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {paymentPending.invoiceUrl ? (
+                      <Button size="sm" href={paymentPending.invoiceUrl} external icon={ExternalLink}>Pagar la factura</Button>
+                    ) : (
+                      <Button size="sm" loading={busy === "portal"} disabled={!!busy} onClick={goPortal}>Administrar facturación</Button>
+                    )}
                   </div>
                 </Banner>
               )}

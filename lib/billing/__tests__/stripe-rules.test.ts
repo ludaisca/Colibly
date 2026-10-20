@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkoutIdempotencyKey, checkoutSessionParams, CHECKOUT_IDEMPOTENCY_WINDOW_MS, PLAN_LOOKUP_KEYS, planForLookupKey, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "../stripe-rules";
+import { checkoutIdempotencyKey, checkoutSessionParams, CHECKOUT_IDEMPOTENCY_WINDOW_MS, isLiveSubscriptionStatus, PLAN_LOOKUP_KEYS, planForLookupKey, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "../stripe-rules";
 
 describe("lookup keys", () => {
   it("una por plan", () => {
@@ -32,10 +32,24 @@ describe("idempotencia", () => {
     expect(checkoutIdempotencyKey(base, start)).not.toBe(checkoutIdempotencyKey({ ...base, seats: 4 }, start));
     expect(checkoutIdempotencyKey(base, start)).not.toBe(checkoutIdempotencyKey({ ...base, plan: "BUSINESS" }, start));
   });
-  it("cambio de suscripción: determinista por origen y destino", () => {
-    const k = { subscriptionId: "sub_1", fromPriceId: "p1", fromQuantity: 2, toPriceId: "p1", toQuantity: 3 };
-    expect(subscriptionUpdateIdempotencyKey(k)).toBe("sub-update:sub_1:p1x2->p1x3");
+  it("cambio de suscripción: origen, destino y solicitud", () => {
+    const k = { subscriptionId: "sub_1", fromPriceId: "p1", fromQuantity: 2, toPriceId: "p1", toQuantity: 3, requestId: "req_a" };
+    expect(subscriptionUpdateIdempotencyKey(k)).toBe("sub-update:sub_1:p1x2->p1x3:req_a");
     expect(subscriptionUpdateIdempotencyKey({ ...k, fromQuantity: 3, toQuantity: 2 })).not.toBe(subscriptionUpdateIdempotencyKey(k));
+  });
+  it("cambio de suscripción: repetir el mismo cambio más tarde (2→3, 3→2, 2→3) lleva otra llave", () => {
+    const k = { subscriptionId: "sub_1", fromPriceId: "p1", fromQuantity: 2, toPriceId: "p1", toQuantity: 3 };
+    expect(subscriptionUpdateIdempotencyKey({ ...k, requestId: "req_a" })).not.toBe(subscriptionUpdateIdempotencyKey({ ...k, requestId: "req_c" }));
+  });
+});
+
+describe("isLiveSubscriptionStatus", () => {
+  it("sigue cobrando: activa, prueba, impago, pausada, incompleta", () => {
+    for (const s of ["active", "trialing", "past_due", "unpaid", "paused", "incomplete"]) expect(isLiveSubscriptionStatus(s)).toBe(true);
+  });
+  it("terminada: cancelada o incompleta vencida", () => {
+    expect(isLiveSubscriptionStatus("canceled")).toBe(false);
+    expect(isLiveSubscriptionStatus("incomplete_expired")).toBe(false);
   });
 });
 

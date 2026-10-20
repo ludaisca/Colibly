@@ -5,7 +5,11 @@ import { getPlatformSettings } from "@/lib/platform-settings";
 import { deriveFromSubscription, type SubscriptionSnapshot } from "./state";
 import { invalidateOrgBilling } from "./gates";
 import { notifyBillingTransition } from "./notify";
-import { PLAN_LOOKUP_KEYS, planForLookupKey, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "./stripe-rules";
+import { isLiveSubscriptionStatus, PLAN_LOOKUP_KEYS, planForLookupKey, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "./stripe-rules";
+import { listPlatformAdminEmails } from "@/lib/platform-admin";
+import { sendEmailSafely } from "@/lib/email/mailer";
+import { billingNoticeTemplate } from "@/lib/email/templates";
+import { appUrl } from "@/lib/app-url";
 
 // Integración con Stripe: cliente, precios por plan y sincronización de la
 // suscripción → Organization. Configuración (secret key, webhook secret,
@@ -94,11 +98,23 @@ export async function planForPrice(priceId: string, lookupKey?: string | null): 
 
 export const STRIPE_PRICE_CURRENCY = "mxn";
 
+export type SubscriptionItemUpdate = {
+  prorationBehavior: string;
+  // Subir se cobra de inmediato; si ese cobro falla o pide autenticación
+  // (3-D Secure), Stripe NO aplica el cambio: lo deja en `pending_update` hasta
+  // que se pague la factura (o vence a las ~23 h). `invoiceUrl` es la página
+  // de Stripe donde el cliente puede pagarla.
+  pending: { invoiceUrl: string | null } | null;
+};
+
 // Cambia plan y/o asientos de una suscripción existente (un solo item).
 // Subir se factura y cobra de inmediato; si ese cobro falla, el cambio queda
 // pendiente y no se aplica (pending_if_incomplete). Bajar deja el crédito para
-// la siguiente factura. Llave de idempotencia determinista por origen→destino.
-export async function updateSubscriptionItem(subscriptionId: string, opts: { priceId: string; quantity: number; plan: PlanId }): Promise<{ prorationBehavior: string }> {
+// la siguiente factura. Llave de idempotencia por origen→destino + solicitud.
+export async function updateSubscriptionItem(
+  subscriptionId: string,
+  opts: { priceId: string; quantity: number; plan: PlanId; requestId: string }
+): Promise<SubscriptionItemUpdate> {
   const stripe = await getStripe();
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const item = sub.items.data[0];
@@ -106,16 +122,52 @@ export async function updateSubscriptionItem(subscriptionId: string, opts: { pri
   const fromQuantity = item.quantity ?? 1;
   const fromPlan = await planForPrice(item.price.id, item.price.lookup_key);
   const prorationBehavior = prorationBehaviorFor({ plan: fromPlan, seats: fromQuantity }, { plan: opts.plan, seats: opts.quantity });
-  await stripe.subscriptions.update(
+  const updated = await stripe.subscriptions.update(
     subscriptionId,
     {
       items: [{ id: item.id, price: opts.priceId, quantity: opts.quantity }],
       proration_behavior: prorationBehavior,
       ...(prorationBehavior === "always_invoice" ? { payment_behavior: "pending_if_incomplete" as const } : {}),
     },
-    { idempotencyKey: subscriptionUpdateIdempotencyKey({ subscriptionId, fromPriceId: item.price.id, fromQuantity, toPriceId: opts.priceId, toQuantity: opts.quantity }) }
+    {
+      idempotencyKey: subscriptionUpdateIdempotencyKey({
+        subscriptionId,
+        fromPriceId: item.price.id,
+        fromQuantity,
+        toPriceId: opts.priceId,
+        toQuantity: opts.quantity,
+        requestId: opts.requestId,
+      }),
+    }
   );
-  return { prorationBehavior };
+  if (!updated.pending_update) return { prorationBehavior, pending: null };
+
+  let invoiceUrl: string | null = null;
+  const invoiceId = idOf(updated.latest_invoice);
+  if (invoiceId) {
+    try {
+      invoiceUrl = (await stripe.invoices.retrieve(invoiceId)).hosted_invoice_url ?? null;
+    } catch (err) {
+      console.warn(`[billing] No se pudo leer la factura pendiente ${invoiceId}:`, (err as Error)?.message);
+    }
+  }
+  return { prorationBehavior, pending: { invoiceUrl } };
+}
+
+// Deja una sola Checkout Session abierta por cliente: al abrir una nueva se
+// vencen las demás, para que no se paguen dos (dos pestañas, otros asientos o
+// pasada la ventana de idempotencia) y nazcan dos suscripciones. Best-effort:
+// si falla, el pago sigue y syncSubscription() avisa si aparece un duplicado.
+export async function expireOtherOpenCheckouts(customerId: string, keepSessionId: string): Promise<void> {
+  try {
+    const stripe = await getStripe();
+    const open = await stripe.checkout.sessions.list({ customer: customerId, status: "open", limit: 20 });
+    for (const s of open.data) {
+      if (s.id !== keepSessionId) await stripe.checkout.sessions.expire(s.id);
+    }
+  } catch (err) {
+    console.warn(`[billing] No se pudieron vencer las otras sesiones de pago del cliente ${customerId}:`, (err as Error)?.message);
+  }
 }
 
 export function subscriptionSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot {
@@ -158,6 +210,18 @@ export async function syncSubscription(subscriptionId: string, hintOrganizationI
   if (org.stripeSubscriptionId && org.stripeSubscriptionId !== sub.id && ["canceled", "incomplete_expired"].includes(sub.status)) {
     return org.id;
   }
+  // Dos suscripciones vivas para la misma organización: gana la más reciente
+  // (la última acción del cliente) y un evento de la otra ya no pisa el
+  // estado, pero esa otra sigue cobrando sin que la app la vea. Se avisa al
+  // operador para que la cancele y reembolse; no se cancela sola (es dinero).
+  if (org.stripeSubscriptionId && org.stripeSubscriptionId !== sub.id && isLiveSubscriptionStatus(sub.status)) {
+    const current = await retrieveSubscriptionQuietly(org.stripeSubscriptionId);
+    if (current && isLiveSubscriptionStatus(current.status)) {
+      const [older, newer] = current.created <= sub.created ? [current, sub] : [sub, current];
+      await alertDuplicateSubscription(org.id, org.name, older, newer.id);
+      if (newer.id !== sub.id) return org.id;
+    }
+  }
 
   const snapshot = subscriptionSnapshot(sub);
   const currency = sub.items.data[0]?.price.currency;
@@ -184,4 +248,33 @@ export async function syncSubscription(subscriptionId: string, hintOrganizationI
   const next: OrganizationStatus = update.status ?? org.status;
   if (next !== org.status) await notifyBillingTransition(org.id, org.status, next);
   return org.id;
+}
+
+async function retrieveSubscriptionQuietly(subscriptionId: string): Promise<Stripe.Subscription | null> {
+  try {
+    return await (await getStripe()).subscriptions.retrieve(subscriptionId);
+  } catch (err) {
+    // Si ya no existe en Stripe, no hay nada que cobrar dos veces.
+    console.warn(`[billing] No se pudo leer la suscripción ${subscriptionId}:`, (err as Error)?.message);
+    return null;
+  }
+}
+
+async function alertDuplicateSubscription(organizationId: string, organizationName: string, older: Stripe.Subscription, newerId: string): Promise<void> {
+  console.error(`[billing] Suscripción duplicada en la organización ${organizationId}: ${older.id} (${older.status}) sigue viva junto a ${newerId}`);
+  for (const to of listPlatformAdminEmails()) {
+    await sendEmailSafely(
+      billingNoticeTemplate({
+        to,
+        title: "Suscripción duplicada en Stripe",
+        paragraphs: [
+          `La organización «${organizationName}» (${organizationId}) tiene dos suscripciones vivas en Stripe.`,
+          `La más reciente (${newerId}) es la vigente en la app. La anterior (${older.id}, estado ${older.status}) sigue cobrándose: cancélala en Stripe y reembolsa lo que corresponda.`,
+        ],
+        ctaLabel: "Abrir Plataforma",
+        url: appUrl("/plataforma"),
+      }),
+      "alerta de suscripción duplicada"
+    );
+  }
 }

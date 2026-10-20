@@ -12,7 +12,11 @@ const stripeApi = vi.hoisted(() => ({
   retrieve: vi.fn(),
   update: vi.fn(),
   pricesList: vi.fn(),
+  invoicesRetrieve: vi.fn(),
+  sessionsList: vi.fn(),
+  sessionsExpire: vi.fn(),
 }));
+const mail = vi.hoisted(() => ({ send: vi.fn() }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -34,21 +38,26 @@ vi.mock("@/lib/platform-settings", () => ({
   getPlatformSettings: vi.fn(async () => ({ stripeSecretKey: "sk_test", stripePriceBusiness: "price_basic", stripePricePro: "price_pro", stripeWebhookSecret: "whsec" })),
 }));
 vi.mock("../notify", () => ({ notifyBillingTransition: vi.fn() }));
+vi.mock("@/lib/platform-admin", () => ({ listPlatformAdminEmails: () => ["ops@colibly.test"] }));
+vi.mock("@/lib/email/mailer", () => ({ sendEmailSafely: mail.send }));
 vi.mock("stripe", () => ({
   default: class {
     subscriptions = { retrieve: stripeApi.retrieve, update: stripeApi.update };
     prices = { list: stripeApi.pricesList };
+    invoices = { retrieve: stripeApi.invoicesRetrieve };
+    checkout = { sessions: { list: stripeApi.sessionsList, expire: stripeApi.sessionsExpire } };
   },
 }));
 
 import { evaluatePlanLimit, invalidateOrgBilling } from "../gates";
-import { invalidatePriceCache, isStripeConfigured, priceIdFor, syncSubscription } from "../stripe";
+import { expireOtherOpenCheckouts, invalidatePriceCache, isStripeConfigured, priceIdFor, syncSubscription } from "../stripe";
 import { applyPlanChange } from "../seats";
 
 const ORG = "org_1";
-function subscription(quantity: number, price = "price_pro") {
+function subscription(quantity: number, price = "price_pro", id = "sub_1", created = 1_780_000_000) {
   return {
-    id: "sub_1",
+    id,
+    created,
     status: "active",
     customer: "cus_1",
     metadata: { organizationId: ORG },
@@ -119,7 +128,7 @@ describe("applyPlanChange (agregar/quitar asientos con prorrateo)", () => {
     expect(stripeApi.update).toHaveBeenCalledWith(
       "sub_1",
       { items: [{ id: "si_1", price: "price_pro", quantity: 4 }], proration_behavior: "always_invoice", payment_behavior: "pending_if_incomplete" },
-      { idempotencyKey: "sub-update:sub_1:price_prox3->price_prox4" }
+      { idempotencyKey: expect.stringMatching(/^sub-update:sub_1:price_prox3->price_prox4:[0-9a-f-]{36}$/) }
     );
   });
   it("quitar un asiento deja el crédito para la siguiente factura (create_prorations)", async () => {
@@ -129,7 +138,7 @@ describe("applyPlanChange (agregar/quitar asientos con prorrateo)", () => {
     expect(stripeApi.update).toHaveBeenCalledWith(
       "sub_1",
       { items: [{ id: "si_1", price: "price_pro", quantity: 2 }], proration_behavior: "create_prorations" },
-      { idempotencyKey: "sub-update:sub_1:price_prox3->price_prox2" }
+      { idempotencyKey: expect.stringMatching(/^sub-update:sub_1:price_prox3->price_prox2:/) }
     );
   });
   it("bajar de Pro a Negocio no cobra de inmediato", async () => {
@@ -147,6 +156,27 @@ describe("applyPlanChange (agregar/quitar asientos con prorrateo)", () => {
   it("sin suscripción manda a Checkout", async () => {
     db.org = { ...db.org!, stripeSubscriptionId: null };
     expect(await applyPlanChange(ORG, { plan: "PRO", seats: 2, confirm: false })).toMatchObject({ ok: false, code: "no_subscription" });
+  });
+  it("repetir el mismo cambio usa otra llave (Stripe no devuelve la respuesta guardada)", async () => {
+    stripeApi.retrieve.mockResolvedValue(subscription(3));
+    stripeApi.update.mockResolvedValue({});
+    await applyPlanChange(ORG, { plan: "PRO", seats: 4, confirm: false });
+    await applyPlanChange(ORG, { plan: "PRO", seats: 4, confirm: false });
+    expect(stripeApi.update.mock.calls[0][2].idempotencyKey).not.toBe(stripeApi.update.mock.calls[1][2].idempotencyKey);
+  });
+  it("si Stripe no pudo cobrar la subida, no dice que cambió y devuelve la factura por pagar", async () => {
+    stripeApi.retrieve.mockResolvedValue(subscription(3));
+    stripeApi.update.mockResolvedValue({ pending_update: { expires_at: 1_790_000_000 }, latest_invoice: "in_1" });
+    stripeApi.invoicesRetrieve.mockResolvedValue({ hosted_invoice_url: "https://invoice.stripe.com/i/in_1" });
+    const r = await applyPlanChange(ORG, { plan: "PRO", seats: 4, confirm: false });
+    expect(r).toMatchObject({ ok: false, status: 402, code: "payment_pending", invoiceUrl: "https://invoice.stripe.com/i/in_1" });
+    expect(stripeApi.invoicesRetrieve).toHaveBeenCalledWith("in_1");
+  });
+  it("cambio pendiente sin factura legible: sigue avisando, sin enlace", async () => {
+    stripeApi.retrieve.mockResolvedValue(subscription(3));
+    stripeApi.update.mockResolvedValue({ pending_update: { expires_at: 1_790_000_000 }, latest_invoice: "in_1" });
+    stripeApi.invoicesRetrieve.mockRejectedValue(new Error("red"));
+    expect(await applyPlanChange(ORG, { plan: "PRO", seats: 4, confirm: false })).toMatchObject({ code: "payment_pending", invoiceUrl: null });
   });
   it("mismo plan y asientos: no llama a Stripe", async () => {
     expect(await applyPlanChange(ORG, { plan: "PRO", seats: 3, confirm: false })).toEqual({ ok: true, changed: false });
@@ -176,5 +206,48 @@ describe("precios por lookup_key", () => {
     stripeApi.retrieve.mockResolvedValue({ ...subscription(2, "price_desconocido"), items: { data: [{ id: "si_1", quantity: 2, current_period_end: 1790000000, price: { id: "price_desconocido", currency: "mxn", lookup_key: "colibly_negocio_monthly" } }] } });
     await syncSubscription("sub_1");
     expect(db.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ plan: "BUSINESS", seatQuantity: 2 }) }));
+  });
+});
+
+describe("suscripción duplicada", () => {
+  it("una nueva viva junto a la anterior viva: gana la nueva y se avisa al operador", async () => {
+    stripeApi.retrieve.mockImplementation(async (id: string) =>
+      id === "sub_2" ? subscription(4, "price_pro", "sub_2", 1_790_000_000) : subscription(3, "price_pro", "sub_1", 1_780_000_000)
+    );
+    await syncSubscription("sub_2");
+    expect(db.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ stripeSubscriptionId: "sub_2", seatQuantity: 4 }) }));
+    expect(mail.send).toHaveBeenCalledTimes(1);
+    expect(mail.send.mock.calls[0][0]).toMatchObject({ to: "ops@colibly.test", subject: "Suscripción duplicada en Stripe" });
+  });
+  it("un evento de la anterior ya no pisa a la vigente más reciente, pero vuelve a avisar", async () => {
+    db.org = { ...db.org!, stripeSubscriptionId: "sub_2" };
+    stripeApi.retrieve.mockImplementation(async (id: string) =>
+      id === "sub_2" ? subscription(4, "price_pro", "sub_2", 1_790_000_000) : subscription(3, "price_pro", "sub_1", 1_780_000_000)
+    );
+    await syncSubscription("sub_1");
+    expect(db.update).not.toHaveBeenCalled();
+    expect(mail.send).toHaveBeenCalledTimes(1);
+  });
+  it("si la anterior ya está cancelada, no hay aviso", async () => {
+    stripeApi.retrieve.mockImplementation(async (id: string) =>
+      id === "sub_2" ? subscription(4, "price_pro", "sub_2", 1_790_000_000) : { ...subscription(3), status: "canceled" }
+    );
+    await syncSubscription("sub_2");
+    expect(db.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ stripeSubscriptionId: "sub_2" }) }));
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("expireOtherOpenCheckouts", () => {
+  it("vence las demás sesiones abiertas del cliente y deja la actual", async () => {
+    stripeApi.sessionsList.mockResolvedValue({ data: [{ id: "cs_viejo" }, { id: "cs_actual" }] });
+    await expireOtherOpenCheckouts("cus_1", "cs_actual");
+    expect(stripeApi.sessionsList).toHaveBeenCalledWith({ customer: "cus_1", status: "open", limit: 20 });
+    expect(stripeApi.sessionsExpire).toHaveBeenCalledTimes(1);
+    expect(stripeApi.sessionsExpire).toHaveBeenCalledWith("cs_viejo");
+  });
+  it("si Stripe falla no rompe el checkout", async () => {
+    stripeApi.sessionsList.mockRejectedValue(new Error("red"));
+    await expect(expireOtherOpenCheckouts("cus_1", "cs_actual")).resolves.toBeUndefined();
   });
 });

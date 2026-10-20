@@ -44,11 +44,28 @@ export function checkoutIdempotencyKey(input: { organizationId: string; plan: Pl
   return `checkout:${input.organizationId}:${input.customerId}:${input.plan}:${input.seats}:${input.trialEnd ?? "none"}:${bucket}`;
 }
 
-// Cambio de plan/asientos: determinista por estado de origen y destino. Un
-// reintento del mismo cambio (mismo origen) devuelve el resultado anterior; un
-// cambio nuevo sale de otro estado de origen y lleva otra llave.
-export function subscriptionUpdateIdempotencyKey(input: { subscriptionId: string; fromPriceId: string; fromQuantity: number; toPriceId: string; toQuantity: number }): string {
-  return `sub-update:${input.subscriptionId}:${input.fromPriceId}x${input.fromQuantity}->${input.toPriceId}x${input.toQuantity}`;
+// Cambio de plan/asientos: origen → destino más un id por solicitud. Sin el
+// id, ir de 3 a 4 asientos, volver a 3 y otra vez a 4 dentro de 24 h repetía
+// la llave del primer cambio y Stripe devolvía esa respuesta guardada sin
+// aplicar nada. Los reintentos de red del SDK reusan la misma llave, y dos
+// solicitudes al mismo destino son inofensivas (la segunda no cambia nada).
+export function subscriptionUpdateIdempotencyKey(input: {
+  subscriptionId: string;
+  fromPriceId: string;
+  fromQuantity: number;
+  toPriceId: string;
+  toQuantity: number;
+  requestId: string;
+}): string {
+  return `sub-update:${input.subscriptionId}:${input.fromPriceId}x${input.fromQuantity}->${input.toPriceId}x${input.toQuantity}:${input.requestId}`;
+}
+
+// Estados en los que una suscripción sigue cobrándose (o puede volver a
+// cobrarse). Sirve para detectar una segunda suscripción de la misma
+// organización: la anterior seguiría facturando aunque la app ya no la vea.
+const LIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "paused", "incomplete"]);
+export function isLiveSubscriptionStatus(status: string): boolean {
+  return LIVE_SUBSCRIPTION_STATUSES.has(status);
 }
 
 // Parámetros de la Checkout Session (puros para poder testearlos).

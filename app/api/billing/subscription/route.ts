@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     if (!parsed.success) return NextResponse.json({ error: `Elige un plan y entre ${MIN_SEATS} y ${MAX_SEATS} ejecutivos` }, { status: 400 });
 
     const result = await applyPlanChange(await requireOrgId(session.user.id), parsed.data);
-    if (!result.ok) return NextResponse.json({ error: result.error, code: result.code, impact: result.impact }, { status: result.status });
+    if (!result.ok) return NextResponse.json({ error: result.error, code: result.code, impact: result.impact, invoiceUrl: result.invoiceUrl }, { status: result.status });
     return NextResponse.json({ ok: true, changed: result.changed });
   } catch (error) {
     console.error("[billing/subscription]", error);

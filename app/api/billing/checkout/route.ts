@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { appUrl } from "@/lib/email/mailer";
-import { getStripe, isStripeConfigured, priceIdFor } from "@/lib/billing/stripe";
+import { expireOtherOpenCheckouts, getStripe, isStripeConfigured, priceIdFor } from "@/lib/billing/stripe";
 import { getSeatUsage } from "@/lib/billing/gates";
 import { planChangeImpact } from "@/lib/billing/state";
 import { MAX_SEATS, MIN_SEATS } from "@/lib/billing/plans";
@@ -94,6 +94,8 @@ export async function POST(req: Request) {
       idempotencyKey: checkoutIdempotencyKey({ organizationId: org.id, customerId, plan: parsed.data.plan, seats: parsed.data.seats, trialEnd: trialEndUnix }, Date.now()),
     });
     if (!checkout.url) throw new Error("Stripe no devolvió la URL de pago");
+    // Una sola sesión abierta por cliente: pagar dos crearía dos suscripciones.
+    await expireOtherOpenCheckouts(customerId, checkout.id);
     return NextResponse.json({ url: checkout.url });
   } catch (error) {
     console.error("[billing/checkout]", error);
