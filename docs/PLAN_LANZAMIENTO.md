@@ -2,11 +2,31 @@
 
 **Creado:** 2026-09-27. Documento para retomar la preparación del producto como negocio: qué está hecho, qué se decidió y en qué orden sigue. Se actualiza conforme avanza (marcar `[x]` solo lo terminado y verificado). Infraestructura y DNS verificados el 2026-10-02 en [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
 
+## Estado al 2026-10-20
+
+**Producción:** https://app.colibly.com se despliega desde **`main`** (única rama del repo desde el 2026-10-20; despliegue manual desde Coolify, el automático sigue apagado). La landing `colibly.com` (cPanel) coincide byte a byte con `cpanel-site/`. Registro abierto con prueba de **14 días** en Pro y planes por ejecutivo Esencial $99 / Negocio $199 / Pro $349 MXN ([PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md)). Bitácora del frente de lanzamiento: [BITACORA_LANZAMIENTO_2026-10-19.md](BITACORA_LANZAMIENTO_2026-10-19.md).
+
+Hecho el 2026-10-20:
+- Revisión completa del proyecto: tsc, lint, 575 tests, todas las páginas y GET de la API, y aislamiento entre organizaciones (todo 404 con ids de otra org).
+- Stripe probado contra el sandbox (tarjetas de rechazo y 3-D Secure, eventos reales firmados al webhook): subir con cobro fallido responde 402 con la factura por pagar; la llave de idempotencia lleva un id por solicitud; un Checkout nuevo vence los demás; con dos suscripciones vivas gana la más reciente y se avisa a los operadores.
+- Fechas con zona horaria explícita (`lib/format/dates.ts`): adiós al error de hidratación de `/plataforma` y a los recordatorios de cita con la hora en UTC.
+- JSON mal formado en las rutas de la API responde 400 en vez de 500.
+- SMTP de producción arreglado (el usuario debía ser `noreply@colibly.com`, no `noreply`); recuperación de contraseña recibida.
+- **Pagos apagados en producción** (se quitó la llave de Stripe en `/plataforma`): era la del sandbox y con el registro abierto cualquiera podía "pagar" con una tarjeta de prueba. El webhook secret y los price ids se conservan; vuelve con la llave live.
+- Ramas: las que tenían trabajo sin fusionar quedaron archivadas como tags `archivo/crm-fase-0` (CRM con Personas, Empresas y Negocios), `archivo/probar-impeccable` y `archivo/stash-landing-arc`.
+- Widget de Cloudflare Turnstile creado para `app.colibly.com` ("Colibly - registro"); faltan sus llaves en `/plataforma`.
+
+**Bloquea el lanzamiento general:**
+- [ ] Turnstile: pegar clave del sitio y secreta en `/plataforma` → Configuración (hoy `/register` no tiene captcha).
+- [ ] Stripe live: verificar la empresa en la cuenta **Colibly** (`acct_1USQ9PPH…`; la otra, "Entorno de prueba de Colibly", es un sandbox que nunca puede cobrar), crear ahí los precios live con las mismas lookup keys, webhook y portal; pegar la llave live en `/plataforma`.
+- [ ] Respaldos de producción y monitoreo (`/api/health/respaldos` responde `disabled`).
+- [ ] Aviso de privacidad con identidad y domicilio del responsable; IVA, SAT y CFDI con el contador (sección 3).
+- [ ] Meta: método de pago del WABA (error 141006, sin él no hay plantillas), verificación del negocio, rotar App Secret, segundo administrador (sección 4).
+- [ ] Rotar credenciales que pasaron por el chat el 2026-10-20: llave secreta del sandbox de Stripe, contraseña de `noreply@colibly.com` (actualizarla también en `/plataforma`) y contraseña del FTP.
+
 ## Estado al 2026-10-02
 
 Desde entonces: revisiones y cierres de interfaz (accesibilidad, consistencia, rendimiento, recorrido visual, modales, React Flow del 09-29 al 09-30), landing beta con separación de hosts, copia PHP para cPanel y plan de infraestructura/oferta beta. Índice en [README.md](README.md); punto de retoma en [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md).
-
-El repositorio está en preparación previa al lanzamiento. Los cambios de plataforma, proveedor de IA y habilitación de canales del 2026-09-28 están en el árbol de trabajo y requieren las comprobaciones descritas en README antes de integrarlos.
 
 **Ya construido y verificado:**
 - SaaS multi-organización (S1–S5): tenencia, correo y verificación, planes con candados de facturación, IA de la plataforma con créditos, marca y landing.
@@ -30,7 +50,7 @@ Detalle técnico de todo lo anterior: `AGENTS.md`.
 | Dominio y correo | Dominio registrado en Hostinger; DNS y buzones en Neubox/cPanel. El propietario confirma que el correo funciona. |
 | Infraestructura beta | **Producción activa:** landing PHP en Neubox/cPanel y app aislada en Coolify sobre ludaisca. Contabo queda como migración futura opcional. |
 | Purga de datos | Canceladas y pruebas vencidas sin pago: se borran a los 60 días. Hecho. |
-| Stripe | **Al final.** Las pruebas contra Stripe real se hacen en el último paso. |
+| Stripe | Probado contra el sandbox el 2026-10-20. **Pagos apagados en producción** hasta tener la cuenta Colibly verificada y en live. |
 | Canales de Meta | **WhatsApp primero**; Messenger/Instagram en una revisión aparte, después. |
 
 ## Orden de trabajo
@@ -55,7 +75,7 @@ Siguientes pasos del nombre:
 - [ ] Reservar usuarios `colibly` en Instagram, Facebook, X, TikTok, LinkedIn y YouTube (los videos del App Review y los tutoriales van ahí). Esto se revisa a mano: esas redes piden sesión.
 - [ ] Búsqueda en el IMPI (MARCia) de "Colibly" y parecidos ("Colibrí", "Colibri") en las clases 9 (software), 35 (gestión comercial/publicidad) y 42 (SaaS). Si está limpio, solicitar el registro de la marca (idealmente con un agente de marcas).
 - [x] Renombrar en el código (2026-09-27, rama `feat/rebrand-colibly`): textos con `BRAND_NAME`, dominio y correo de contacto en `lib/brand.ts` (`BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`), encabezados `X-Colibly-*`, User-Agent, clave de consentimiento, formato de exportación y remitentes. Logo provisional: una "C" (`BrandMark`, `lib/brand-mark.ts`, favicon, ícono de iOS, imagen para compartir).
-- [x] Paleta "Colibrí" aplicada (2026-09-27): violeta `#5B34E6`, rubí, neutros con tinte violeta, tema oscuro "noche"; hex para correos e imágenes en `lib/brand-colors.ts`.
+- [x] Paleta "Colibrí" aplicada (2026-09-27): violeta `#5B34E6`, rubí, neutros con tinte violeta, tema oscuro "noche"; hex para correos e imágenes en `lib/brand-colors.ts`. **Reemplazada el 2026-10-18 por "Menta y grafito"** (acento verde `#0F766E`, ver AGENTS.md → Design system); el logo final deberá diseñarse con esta paleta, no con el violeta de "Impulso".
 - [ ] Logo final "Impulso" pulido (hoy es una "C" provisional): reemplazar `BrandMark`, `lib/brand-mark.ts` y `app/icon.svg`.
 - [x] Crear el buzón `contacto@colibly.com` en Neubox y probar recepción y SMTP transaccional de producción (confirmado por el propietario el 2026-10-02).
 
@@ -80,13 +100,14 @@ Qué implicaba el cambio en el código (hecho el 2026-09-27, salvo la identidad 
 - Variables cargadas por la API de Coolify: `DB_PASSWORD`, `AUTH_SECRET`, `ENCRYPTION_KEY` (generadas, **respaldar `ENCRYPTION_KEY` aparte**), `APP_URL`, `SITE_URL`, `PLATFORM_ADMIN_EMAILS`, `MEDIA_RETENTION_DAYS`.
 - **Lecciones del despliegue:** (1) no montar archivos del repo con bind mount en el compose: Coolify clona dentro de un contenedor auxiliar y Docker crea un directorio (por eso se quitó `docker/init.sql`); (2) con el despliegue automático activo, un push lanza un despliegue por webhook que compite con uno manual y los dos fallan: se desactivó el automático (`is_auto_deploy_enabled=false`, no se pudo confirmar por la API), y los despliegues se lanzan a mano.
 - **Actualización 2026-10-04:** todo el trabajo está en `main` y la rama `feat/rebrand-colibly` **ya no existe**; la app de Coolify sigue apuntando a ella y hay que cambiarla a `main` antes del próximo despliegue. Los respaldos ya están implementados ([RESPALDOS.md](RESPALDOS.md)), falta configurarlos en producción. Punto de retoma: [CONTINUIDAD_2026-10-04.md](CONTINUIDAD_2026-10-04.md).
-- **Pendiente:** configurar los respaldos en producción (la base del compose no entra en los respaldos nativos de Coolify), claves de IA desde `/plataforma`, `/producto` no existe en la landing de cPanel y decidir si se reactiva el despliegue automático. `DB_PASSWORD` fue rotada, el token temporal de Coolify fue revocado, SMTP y el formulario público fueron probados.
+- **Actualización 2026-10-20:** Coolify ya despliega desde `main` (cambiado por Luis; desplegado `d5777b1`). SMTP de producción corregido (usuario `noreply@colibly.com`). Clave de IA de Google configurada en `/plataforma`; OpenCode Go no.
+- **Pendiente:** configurar los respaldos en producción (la base del compose no entra en los respaldos nativos de Coolify) y decidir si se reactiva el despliegue automático. `DB_PASSWORD` fue rotada, el token temporal de Coolify fue revocado, SMTP y el formulario público fueron probados.
 
 - [x] Registrar `colibly.com` y documentar la arquitectura y su alternativa de migración. Véase [plan de infraestructura](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md).
 - [x] Publicar la copia PHP de `cpanel-site/` en Neubox y una instancia de producción separada en ludaisca para `app.colibly.com`.
 - [x] Verificar externamente HTTPS, redirección de la app, salud de base/Redis y DNS de correo (SPF, DKIM y DMARC publicados).
 - [ ] Si se mueve el A raíz a otro proveedor, separar primero `mail.colibly.com` y el MX. No hace falta en la arquitectura activa.
-- [x] Correo transaccional de la aplicación configurado y probado desde `/plataforma`; los buzones y el formulario público también funcionan.
+- [x] Correo transaccional de la aplicación configurado y probado desde `/plataforma`; los buzones y el formulario público también funcionan. (Se rompió con error 535 y se corrigió el 2026-10-20: el usuario SMTP es el correo completo.)
 - [ ] Migrar a Contabo u otro VPS estático si el riesgo operativo de la conexión residencial deja de ser aceptable; no bloquea la beta inicial.
 - [ ] Respaldos de producción: base de datos y volumen `media_data`, con copia fuera del servidor.
 - [ ] Monitoreo: aviso si el sitio se cae (`/api/health`) y rastreo de errores.
@@ -110,19 +131,21 @@ Contexto (verificado en la documentación de Meta el 2026-09-27):
 
 **Frente técnico (se puede empezar antes del nombre; la app en modo desarrollo funciona sin revisión para admins y testers):**
 
+**Estado 2026-10-20:** el frente técnico está hecho (2026-10-03, ver AGENTS.md → "WhatsApp: Embedded Signup and coexistence") y la app de Meta `3423949611118312` está publicada con el webhook en `https://app.colibly.com/api/whatsapp/webhook`. Falta la prueba de punta a punta con un número real.
+
 Luis:
-- [ ] Registrarse como desarrollador en developers.facebook.com con su cuenta.
-- [ ] Crear la app (tipo negocio, caso de uso WhatsApp) vinculada a su portafolio, con nombre provisional (se puede cambiar después).
-- [ ] Pasar para el `.env`: **App ID**, **App Secret** y el **ID de configuración** de Facebook Login for Business (plantilla "WhatsApp Embedded Signup").
-- [ ] Tener un número para probar que no esté en la app normal de WhatsApp.
+- [x] Registrarse como desarrollador en developers.facebook.com con su cuenta.
+- [x] Crear la app (tipo negocio, caso de uso WhatsApp) vinculada a su portafolio.
+- [x] App ID, App Secret e ID de configuración de Embedded Signup cargados en `/plataforma` → Configuración (no en `.env`).
+- [ ] Tener un número para probar que no esté en la app normal de WhatsApp (o usar Coexistencia con uno que sí lo esté).
 
 Claude:
-- [ ] Botón "Conectar WhatsApp" con la ventana de Meta (SDK de JS + `config_id`); recibir WABA ID, phone number ID y código.
-- [ ] Servidor: intercambio de código por token (cifrado en `WAAccount.accessToken`), suscripción de webhooks, registro del número.
-- [ ] Webhooks con un solo secreto de la plataforma (`META_APP_SECRET`), manteniendo las cuentas conectadas a mano.
-- [ ] URLs obligatorias para la revisión: eliminación de datos (callback firmado de Meta, apoyado en `lib/org-data/delete.ts`) y desautorización.
-- [ ] Variables nuevas en `docker-compose.yml` y `.env.example`; CSP (`frame-src` de facebook.com para la ventana).
-- [ ] Prueba de punta a punta con túnel (ngrok, ya permitido en `allowedDevOrigins`) y número real.
+- [x] Botón "Conectar WhatsApp" con la ventana de Meta (SDK de JS + `config_id`); recibe WABA ID, phone number ID y código.
+- [x] Servidor: intercambio de código por token (cifrado en `WAAccount.accessToken`), suscripción de webhooks, registro del número (salvo Coexistencia).
+- [x] Webhooks con el secreto de la plataforma, manteniendo las cuentas conectadas a mano.
+- [x] URLs obligatorias para la revisión: eliminación de datos (callback firmado, `/api/meta/data-deletion`) y desautorización (`/api/meta/deauthorize`).
+- [x] Configuración en `PlatformSettings` y CSP (`frame-src` de facebook.com).
+- [ ] Prueba de punta a punta con número real en producción.
 
 **Frente de trámites (después del nombre y el dominio):**
 - [ ] Agregar un **segundo administrador** al portafolio de Meta (si la cuenta personal se bloquea y es el único admin, se pierde todo).
@@ -138,15 +161,18 @@ Claude:
 
 ### 6. Stripe (al final)
 
-Con llaves de modo prueba y `stripe listen --forward-to <url>/api/billing/webhook`:
-- [ ] Checkout durante la prueba (cobro diferido) y fuera de ella.
-- [ ] Renovación (`invoice.paid` reinicia créditos de IA).
-- [ ] Pago fallido → gracia de 7 días → solo lectura.
+Probado el 2026-10-20 contra el sandbox "Entorno de prueba de Colibly" (`acct_1USQ9WAT…`), con eventos reales firmados al webhook de dev (sin `stripe listen`):
+- [x] Checkout durante la prueba (sesión con `trial_end`, español, dirección y RFC); doble clic devuelve la misma sesión y abrir otra vence la anterior.
+- [x] Asientos: +1/−1 con prorrateo (subir cobra de inmediato; bajar deja el crédito para la siguiente factura), 1→2→1→2 aplica el último cambio, `customer.subscription.updated` sincroniza `seatQuantity`.
+- [x] Subir con tarjeta rechazada o con 3-D Secure: 402 `payment_pending` con la factura; al pagarla se aplica el cambio.
+- [x] Dos suscripciones vivas: gana la más reciente y se avisa por correo a `PLATFORM_ADMIN_EMAILS`.
+- [x] Eliminar la organización con suscripción activa (la cancela en Stripe antes de borrar).
+- [ ] Renovación (`invoice.paid` reinicia créditos de IA) con un ciclo real (test clock).
+- [ ] Pago fallido de una renovación → gracia de 7 días → solo lectura.
 - [ ] Cancelación desde el portal → activa hasta fin de periodo → cancelada → purga a los 60 días.
-- [ ] Eliminar la organización con suscripción activa (cancela en Stripe antes de borrar).
 - [ ] Reactivar desde `/plataforma` una organización suspendida que tiene suscripción.
-- [ ] Cuenta de Stripe México como persona física; ~~precios en USD~~ precios en **MXN por ejecutivo** (superado 2026-10-19, ver [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md)).
-- [ ] Asientos: alta con N ejecutivos, +1/−1 asiento con prorrateo, Pro → Negocio → Esencial, `customer.subscription.updated` sincroniza `seatQuantity`.
+- [ ] Cuenta de Stripe México (cuenta **Colibly**, `acct_1USQ9PPH…`) verificada y en modo live; precios en **MXN por ejecutivo** con las lookup keys `colibly_esencial_monthly`, `colibly_negocio_monthly`, `colibly_pro_monthly`.
+- [ ] Activar recuperación de pagos en Stripe: Smart Retries, correos de pago fallido y actualizador de tarjetas.
 
 ## Fuentes (Meta, consultadas el 2026-09-27)
 

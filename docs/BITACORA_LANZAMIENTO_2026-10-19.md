@@ -121,8 +121,8 @@ Documentos relacionados: [AUDITORIA_API_WEBHOOKS_2026-10-19.md](AUDITORIA_API_WE
 - `974b5f7` (2026-10-19) Stripe: idempotencia en checkout y cambios, checkout en español con dirección y RFC, cobro inmediato al subir asientos/plan, precios por lookup_key, interruptor de Stripe Tax; /plataforma: bloques plegables con estado
 
 ## 12. Pendientes
-- [ ] Limpiar caché NGINX en cPanel.
-- [ ] Corregir SMTP de producción (error 535).
+- [x] Limpiar caché NGINX en cPanel (2026-10-20; la landing coincide con `cpanel-site/`).
+- [x] Corregir SMTP de producción (error 535): el usuario debía ser `noreply@colibly.com` (2026-10-20).
 - [ ] Stripe revenue recovery: Smart Retries (~7 días), correos de pago fallido, actualizador de tarjetas, "marcar como impaga".
 - [ ] Decidir cuenta de Stripe y pasar a live (llave live, recrear precios y webhook).
 - [ ] Rotar App Secret de Meta.
@@ -136,3 +136,6 @@ Documentos relacionados: [AUDITORIA_API_WEBHOOKS_2026-10-19.md](AUDITORIA_API_WE
 - [ ] Rotación de llaves API en un clic.
 - [ ] Evaluar flexible billing mode de Stripe.
 - [ ] Probar en vivo la concurrencia de webhooks por endpoint.
+
+## 13. Seguimiento del 2026-10-20
+Resumen en [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) → "Estado al 2026-10-20": revisión completa, arreglos de Stripe probados contra el sandbox, fechas con zona horaria, JSON mal formado → 400, SMTP corregido, pagos apagados en producción, solo queda `main` (ramas sin fusionar archivadas como tags `archivo/*`), `llms.txt` de la landing en 14 días y widget de Turnstile creado.
