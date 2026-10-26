@@ -13,6 +13,7 @@ import {
 import { COEXISTENCE_PITCH, META_FEES_NOTE, PRICING_FOOTNOTE } from "@/lib/billing/plan-features";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { appUrl, siteUrl } from "@/lib/app-url";
+import { HeroHeadline } from "./_hero-headline";
 import { HowSteps } from "./_how-steps";
 import { PlanCards } from "./_plan-cards";
 import { ProductTour } from "./_product-tour";
@@ -112,40 +113,39 @@ export default function LandingPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd() }} />
 
-      {/* ── Hero: marca + promesa + mock a sangre ── */}
+      {/* ── Hero: marca + promesa (el mock vive en ProductTour debajo) ── */}
       <section className="relative isolate overflow-hidden">
         <div
           aria-hidden
           className="landing-hero-glow pointer-events-none absolute inset-0 -z-10"
           style={{
             background: `
-              radial-gradient(ellipse 90% 60% at 78% -10%, color-mix(in oklab, var(--teal-200) 60%, transparent), transparent 68%),
-              radial-gradient(ellipse 45% 35% at 8% 25%, color-mix(in oklab, var(--teal-100) 75%, transparent), transparent 60%),
-              linear-gradient(180deg, var(--ink-25) 0%, var(--ink-0) 42%, var(--ink-25) 100%)
+              radial-gradient(ellipse 70% 55% at 50% -5%, color-mix(in oklab, var(--accent-muted) 45%, transparent), transparent 70%),
+              radial-gradient(ellipse 40% 30% at 20% 70%, color-mix(in oklab, var(--accent-2-bg) 70%, transparent), transparent 65%),
+              radial-gradient(ellipse 35% 28% at 82% 55%, color-mix(in oklab, var(--accent-subtle) 80%, transparent), transparent 60%),
+              linear-gradient(180deg, var(--background) 0%, var(--surface) 48%, var(--background) 100%)
             `,
           }}
         />
-        <div className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:px-6 md:pt-16 lg:pt-20">
+        <div className="mx-auto max-w-3xl px-4 pb-12 pt-12 text-center sm:pb-14 sm:pt-14 md:px-6 md:pb-16 md:pt-20 lg:pb-20 lg:pt-24">
           <p
             className="landing-hero-in font-display text-2xl font-semibold tracking-tight text-accent-ink min-[400px]:text-3xl sm:text-4xl"
             style={{ "--landing-delay": "0ms" } as CSSProperties}
           >
             {BRAND_NAME}
           </p>
-          <h1
-            className="landing-hero-in mt-4 max-w-3xl text-pretty font-display text-[clamp(1.85rem,8.2vw,2.4rem)] font-semibold leading-[1.08] tracking-tight text-foreground sm:mt-5 sm:text-5xl sm:leading-[1.04] lg:text-[3.4rem]"
+          <HeroHeadline
+            className="landing-hero-in mt-4 font-display text-[clamp(1.85rem,8.2vw,2.4rem)] font-semibold leading-[1.08] tracking-tight text-foreground sm:mt-5 sm:text-5xl sm:leading-[1.04] lg:text-[3.4rem]"
             style={{ "--landing-delay": "90ms" } as CSSProperties}
-          >
-            Potencia tus chats. Cierra sin el caos.
-          </h1>
+          />
           <p
-            className="landing-hero-in mt-4 max-w-xl text-pretty text-base leading-relaxed text-muted sm:mt-5 sm:text-lg"
+            className="landing-hero-in mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-muted sm:mt-5 sm:text-lg"
             style={{ "--landing-delay": "180ms" } as CSSProperties}
           >
             Una bandeja para WhatsApp y tus otros canales, con bots que responden al instante y un pipeline que no deja leads en visto.
           </p>
           <div
-            className="landing-hero-in mt-7 flex flex-col gap-3 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center sm:mt-8"
+            className="landing-hero-in mt-7 flex flex-col items-stretch justify-center gap-3 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center sm:mt-8"
             style={{ "--landing-delay": "270ms" } as CSSProperties}
           >
             <Button href="/register" size="lg" className="w-full min-[400px]:w-auto" data-track="cta" data-track-location="hero">
@@ -162,7 +162,6 @@ export default function LandingPage() {
             Sin tarjeta · Desde {formatMxn(MIN_PRICE)} {PRICE_UNIT} · API oficial de WhatsApp
           </p>
         </div>
-
       </section>
 
       {/* ── Tour: bandeja → pipeline → automatizaciones (debajo del hero) ── */}

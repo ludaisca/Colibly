@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
+import { ThemeToggle } from "@/app/components/theme-toggle";
 
 export interface SiteNavLink {
   href: string;
@@ -86,6 +87,10 @@ export function SiteMobileNav({ links, loginHref, ctaHref, ctaLabel, trackLocati
             ))}
             <li><a href={loginHref} onClick={() => close(false)} className={item}>Entrar</a></li>
           </ul>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2 sm:hidden">
+            <span className="text-sm text-muted">Apariencia</span>
+            <ThemeToggle />
+          </div>
           <a
             href={ctaHref}
             data-track="cta"

@@ -1,36 +1,42 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
-   TOKENS — paleta "Laguna" de Colibly (2026-10-24): teal azulado
-   #0E7490 como acento, cian #67E8F9 solo decorativo, tinta #0C1A22 y
-   fondos con tinte cielo. Reemplaza a "Menta y grafito" (2026-10-18) y
-   antes a "Colibrí" (violeta).
+   TOKENS — paleta "Laguna + coral" de Colibly (2026-10-25): teal
+   #0E7490 como acento, coral #C21E4C como --accent-2, cian #67E8F9
+   solo decorativo, tinta #0C1A22 y neutros fríos (sin cielo en fondos/
+   bordes). Reemplaza Laguna monocroma (2026-10-24), antes "Menta y
+   grafito" y "Colibrí" (violeta).
    Dos capas:
-   1. Primitivos (--teal-*, --graphite-*, --ink-*, estados): solo se usan aquí
-      dentro, nunca desde componentes. Los nombres --teal-* se conservan;
-      los valores son los de Laguna.
-   2. Semánticos (--accent, --surface, --muted…): lo único que consumen los
-      componentes vía las utilidades de Tailwind (@theme inline, abajo).
+   1. Primitivos (--teal-*, --coral-*, --graphite-*, --ink-*, estados):
+      solo se usan aquí dentro, nunca desde componentes. Los nombres
+      --teal-* se conservan; los valores son los de Laguna.
+   2. Semánticos (--accent, --surface, --muted…): lo único que consumen
+      los componentes vía las utilidades de Tailwind (@theme inline).
    El acento conserva sus cuatro usos separados:
      accent        relleno (botón principal, switch, barras) con texto --on-accent
      accent-strong bordes, anillos de foco y trazos de gráficas (≥ 3:1)
      accent-ink    texto e iconos en color de marca (≥ 4.5:1)
      accent-subtle / accent-muted  fondos suaves y bordes decorativos
    El cian decorativo (--teal-300) no pasa como texto sobre fondo claro;
-   el acento de apoyo (--accent-2) es grafito frío.
+   el acento de apoyo (--accent-2) es coral (badges, highlights — no CTA).
    Hex espejo: lib/brand-colors.ts. Contraste: lib/design/__tests__/contrast.test.ts.
    Temas: `:root, .theme-light` claro; .dark remapea solo semánticos.
    ───────────────────────────────────────────────── */
 :root {
-  /* ── Primitivos (Laguna) ── */
+  /* ── Primitivos (Laguna + coral) ── */
   --teal-50:  #F0F9FF;
-  --teal-100: #E0F2FE;
-  --teal-200: #7DD3FC;
+  --teal-100: #DDF0F5;
+  --teal-200: #9BD0DE;
   --teal-300: #67E8F9;  /* cian: solo decorativo (puntos, trazos, texto sobre fondo oscuro) */
   --teal-400: #38BDF8;
   --teal-600: #0E7490;
   --teal-700: #0C5F75;
   --teal-800: #0A4A5C;
+
+  /* Coral de apoyo: #E11D48 (lab) oscurecido a #C21E4C para AA sobre el tinte. */
+  --coral-50:  #FFE4EA;
+  --coral-600: #C21E4C;
+  --coral-700: #9F1840;
 
   --graphite-50:  #E2E8F0;
   --graphite-500: #64748B;
@@ -38,12 +44,12 @@
   --graphite-800: #1E293B;
 
   --ink-0:   #FFFFFF;
-  --ink-25:  #F0F9FF;
-  --ink-50:  #E0F2FE;
-  --ink-100: #BAE6FD;
+  --ink-25:  #F3F6F8;
+  --ink-50:  #ECF0F3;
+  --ink-100: #D5DCE3;
   --ink-400: #7A96A8;
-  --ink-600: #475569;
-  --ink-700: #334155;
+  --ink-600: #5B6B7A;
+  --ink-700: #3D4B58;
   --ink-950: #0C1A22;
 
   --green-700: #17663F;  --green-50:  #E3F4EA;  --green-200: #B9E0C9;
@@ -70,14 +76,14 @@
   --accent-hover:  var(--teal-700);
   --on-accent:     var(--ink-0);
   --accent-strong: var(--teal-600);
-  --accent-ink:    var(--teal-700);
+  --accent-ink:    #0A5A6E;
   --accent-subtle: var(--teal-100);
   --accent-muted:  var(--teal-200);
 
-  /* Acento de apoyo: grafito (iconos secundarios, destacados). No es CTA. */
-  --accent-2:       var(--graphite-700);
-  --accent-2-hover: var(--graphite-800);
-  --accent-2-bg:    var(--graphite-50);
+  /* Acento de apoyo: coral (badges, highlights). No es CTA. */
+  --accent-2:       var(--coral-600);
+  --accent-2-hover: var(--coral-700);
+  --accent-2-bg:    var(--coral-50);
 
   /* Estados. */
   --success:        var(--green-700);
@@ -151,9 +157,9 @@
   --accent-subtle: #0C2A38;
   --accent-muted:  #164A5E;
 
-  --accent-2:       #B4C7D0;
-  --accent-2-hover: #D0DEE6;
-  --accent-2-bg:    #162530;
+  --accent-2:       #FB7185;
+  --accent-2-hover: #FDA4AF;
+  --accent-2-bg:    #3A1520;
 
   --success:        #74CC8F;
   --success-bg:     #18301F;
@@ -593,6 +599,29 @@ body {
   .landing-spark {
     animation: landing-spark 3.2s ease-in-out infinite;
   }
+
+  /* Hero: subrayado que dibuja bajo la palabra resaltada. */
+  @keyframes hero-highlight-draw {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  .hero-highlight-bar {
+    transform-origin: left center;
+    animation: hero-highlight-draw 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+  }
+}
+
+/* Barra del resalte (estática; la animación solo en no-preference arriba). */
+.hero-highlight-bar {
+  position: absolute;
+  left: 0.02em;
+  right: 0.02em;
+  bottom: 0.06em;
+  height: 0.16em;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent-2) 65%, var(--accent-muted));
+  opacity: 0.9;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -603,5 +632,10 @@ body {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  .hero-highlight-bar {
+    animation: none;
+    transform: none;
   }
 }

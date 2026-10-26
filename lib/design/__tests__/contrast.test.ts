@@ -69,7 +69,8 @@ const HEX_PAIRS: [string, string, string, number][] = [
   ["texto de marca sobre blanco", B.accentInk, B.surface, 4.5],
   ["texto de marca sobre fondo", B.accentInk, B.background, 4.5],
   ["texto de marca sobre tinte", B.accentInk, B.accentSubtle, 4.5],
-  ["grafito sobre blanco", B.graphite, B.surface, 4.5],
+  ["coral sobre blanco", B.coral, B.surface, 4.5],
+  ["coral sobre tinte", B.coral, B.coralBg, 4.5],
   ["tinta sobre cian decorativo", B.ink, B.mint, 4.5],
 ];
 describe("pares fijos de lib/brand-colors.ts", () => {
@@ -82,6 +83,7 @@ describe("pares fijos de lib/brand-colors.ts", () => {
   it("brand-colors coincide con los primitivos de globals.css", () => {
     const t = readThemeTokens(css);
     expect(t["accent"].toLowerCase()).toBe(B.accent.toLowerCase());
+    expect(t["accent-2"].toLowerCase()).toBe(B.coral.toLowerCase());
     expect(t["foreground"].toLowerCase()).toBe(B.ink.toLowerCase());
     expect(t["background"].toLowerCase()).toBe(B.background.toLowerCase());
   });

@@ -167,9 +167,9 @@ export function PromoPopup() {
         )}
         style={{
           backgroundImage: `
-            radial-gradient(ellipse 70% 80% at 100% 0%, color-mix(in oklab, var(--teal-100) 85%, transparent), transparent 55%),
-            radial-gradient(ellipse 50% 60% at 0% 100%, color-mix(in oklab, var(--teal-50) 90%, transparent), transparent 50%),
-            linear-gradient(165deg, var(--ink-0), var(--ink-25))
+            radial-gradient(ellipse 70% 80% at 100% 0%, color-mix(in oklab, var(--accent-subtle) 85%, transparent), transparent 55%),
+            radial-gradient(ellipse 50% 60% at 0% 100%, color-mix(in oklab, var(--accent-2-bg) 70%, transparent), transparent 50%),
+            linear-gradient(165deg, var(--surface), var(--background))
           `,
         }}
       >

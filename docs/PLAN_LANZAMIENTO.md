@@ -77,7 +77,7 @@ Siguientes pasos del nombre:
 - [ ] Reservar usuarios `colibly` en Instagram, Facebook, X, TikTok, LinkedIn y YouTube (los videos del App Review y los tutoriales van ahí). Esto se revisa a mano: esas redes piden sesión.
 - [ ] Búsqueda en el IMPI (MARCia) de "Colibly" y parecidos ("Colibrí", "Colibri") en las clases 9 (software), 35 (gestión comercial/publicidad) y 42 (SaaS). Si está limpio, solicitar el registro de la marca (idealmente con un agente de marcas).
 - [x] Renombrar en el código (2026-09-27, rama `feat/rebrand-colibly`): textos con `BRAND_NAME`, dominio y correo de contacto en `lib/brand.ts` (`BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`), encabezados `X-Colibly-*`, User-Agent, clave de consentimiento, formato de exportación y remitentes.
-- [x] Paleta Laguna aplicada (`#0E7490`; historia: Colibrí violeta → Menta y grafito → Laguna). Hex en `lib/brand-colors.ts`.
+- [x] Paleta Laguna + coral aplicada (2026-10-25: teal `#0E7490` + coral `#C21E4C` de apoyo, neutros fríos; historia: Colibrí violeta → Menta y grafito → Laguna monocroma → Laguna + coral). Hex en `lib/brand-colors.ts`; lab en `docs/COLOR.md`.
 - [x] Logo Nexo aplicado (2026-10-25): `BrandMark`, `lib/brand-mark.ts`, `app/icon.svg`, apple-icon, share image, cpanel `assets/icon.svg` + `favicon.ico`.
 - [x] Crear el buzón `contacto@colibly.com` en Neubox y probar recepción y SMTP transaccional de producción (confirmado por el propietario el 2026-10-02).
 
@@ -87,7 +87,7 @@ Criterios usados para elegir:
 - Usuario libre en Instagram, Facebook, X y LinkedIn.
 - Fácil de decir y escribir en español; sin letras ambiguas al dictarlo.
 - **Sin "WhatsApp", "Whats" ni "WA"** en el nombre: las guías de marca de Meta no permiten usar su marca en nombres de producto, y eso se revisa en el App Review.
-- Identidad visual: paleta Laguna + logo Nexo aplicados (2026-10-25).
+- Identidad visual: paleta Laguna + coral + logo Nexo aplicados (2026-10-25).
 
 Qué implicaba el cambio en el código (hecho el 2026-09-27, salvo la identidad visual):
 - `lib/brand.ts` (`BRAND_NAME`, `BRAND_TAGLINE`) y ~48 menciones literales de "SunflowCRM" en ~40 archivos (correos, landing, textos legales, documentación de la API, panel): pasarlas a `BRAND_NAME` donde se pueda.

@@ -3,6 +3,7 @@ import Script from "next/script";
 import { connection } from "next/server";
 import { Logo } from "@/app/components/ui/logo";
 import { Button } from "@/app/components/ui/button";
+import { ThemeToggle } from "@/app/components/theme-toggle";
 import { Analytics, CookiePreferencesButton } from "@/app/components/analytics/analytics";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { getAnalyticsConfig } from "@/lib/analytics/config";
@@ -39,8 +40,8 @@ function landingWebchatAccountId(): string | null {
 const contactEmail = LEGAL.email.startsWith("[") ? null : LEGAL.email;
 
 // Sitio público: landing, términos y privacidad. Sin sesión ni shell del panel.
-// Siempre en tema claro: .theme-light restablece los tokens claros aunque el
-// visitante haya elegido el oscuro en el panel (next-themes pone .dark en <html>).
+// Sigue el tema de next-themes (claro por defecto; toggle en el header).
+// Los hex de marca viven en los primitivos; .dark solo remapea semánticos.
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   // Los ids de medición viven en PlatformSettings y se leen por petición.
   // Evita consultar PostgreSQL al prerenderizar el build aislado.
@@ -49,7 +50,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
   const webchatId = landingWebchatAccountId();
 
   return (
-    <div className="theme-light min-h-dvh bg-background text-foreground">
+    <div className="min-h-dvh bg-background text-foreground">
       <a
         href="#contenido-principal"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100001] focus:rounded-[12px] focus:bg-surface focus:px-4 focus:py-3 focus:text-foreground focus:shadow-lg"
@@ -78,6 +79,9 @@ export default async function MarketingLayout({ children }: { children: React.Re
             >
               Prueba gratis
             </Button>
+            <span className="hidden sm:contents">
+              <ThemeToggle />
+            </span>
             <SiteMobileNav links={MOBILE_LINKS} loginHref={appUrl("/login")} ctaHref="/register" ctaLabel="Crear cuenta gratis" trackLocation="menu" label="Menú principal" />
           </div>
         </div>

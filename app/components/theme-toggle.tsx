@@ -3,25 +3,30 @@
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { useHasMounted } from "@/app/hooks/use-has-mounted";
+import { cn } from "@/app/components/ui/cn";
 
 export function ThemeToggle({ className }: { className?: string }) {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const mounted = useHasMounted();
 
   if (!mounted) {
-    return <div className={`h-9 w-9 ${className ?? ""}`} />;
+    return <div className={cn("h-9 w-9", className)} aria-hidden />;
   }
 
-  const isDark = theme === "dark";
+  const isDark = resolvedTheme === "dark";
 
   return (
     <button
+      type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className={`flex h-9 w-9 items-center justify-center rounded-lg text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground ${className ?? ""}`}
+      className={cn(
+        "flex h-9 w-9 items-center justify-center rounded-lg text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground",
+        className
+      )}
       aria-label={isDark ? "Activar modo claro" : "Activar modo oscuro"}
       title={isDark ? "Modo claro" : "Modo oscuro"}
     >
-      {isDark ? <Sun size={18} /> : <Moon size={18} />}
+      {isDark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
     </button>
   );
 }
