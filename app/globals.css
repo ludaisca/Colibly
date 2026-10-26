@@ -1,53 +1,50 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
-   TOKENS — paleta "Menta y grafito" de Colibly (2026-10-18): verde profundo
-   #0F766E como acento, menta #5EEAD4 solo decorativa, tinta casi negra
-   #0F1A1A y fondos con tinte menta. Reemplaza a "Colibrí" (violeta).
+   TOKENS — paleta "Laguna" de Colibly (2026-10-24): teal azulado
+   #0E7490 como acento, cian #67E8F9 solo decorativo, tinta #0C1A22 y
+   fondos con tinte cielo. Reemplaza a "Menta y grafito" (2026-10-18) y
+   antes a "Colibrí" (violeta).
    Dos capas:
    1. Primitivos (--teal-*, --graphite-*, --ink-*, estados): solo se usan aquí
-      dentro, nunca desde componentes.
+      dentro, nunca desde componentes. Los nombres --teal-* se conservan;
+      los valores son los de Laguna.
    2. Semánticos (--accent, --surface, --muted…): lo único que consumen los
       componentes vía las utilidades de Tailwind (@theme inline, abajo).
-   El acento conserva sus cuatro usos separados (vienen de cuando el amarillo
-   no servía como texto; con el violeta casi coinciden, pero los componentes
-   ya dependen de esos nombres):
+   El acento conserva sus cuatro usos separados:
      accent        relleno (botón principal, switch, barras) con texto --on-accent
      accent-strong bordes, anillos de foco y trazos de gráficas (≥ 3:1)
      accent-ink    texto e iconos en color de marca (≥ 4.5:1)
      accent-subtle / accent-muted  fondos suaves y bordes decorativos
-   La menta (--teal-300) no pasa como texto sobre fondo claro: solo
-   decorativa; el acento de apoyo (--accent-2) es grafito.
-   Los mismos valores en hex para lo que no lee CSS (correos, imágenes,
-   widget de chat web): lib/brand-colors.ts — cambiarlos juntos.
-   lib/design/__tests__/contrast.test.ts verifica los pares texto/fondo.
-   Temas: `:root, .theme-light` es el claro; .dark (abajo) remapea solo los
-   semánticos.
+   El cian decorativo (--teal-300) no pasa como texto sobre fondo claro;
+   el acento de apoyo (--accent-2) es grafito frío.
+   Hex espejo: lib/brand-colors.ts. Contraste: lib/design/__tests__/contrast.test.ts.
+   Temas: `:root, .theme-light` claro; .dark remapea solo semánticos.
    ───────────────────────────────────────────────── */
 :root {
-  /* ── Primitivos ── */
-  --teal-50:  #F2F9F7;
-  --teal-100: #DDF3EE;
-  --teal-200: #A9E3D6;
-  --teal-300: #5EEAD4;  /* menta: solo decorativo (puntos, trazos, texto sobre fondo oscuro) */
-  --teal-400: #2DD4BF;
-  --teal-600: #0F766E;
-  --teal-700: #0B5F58;
-  --teal-800: #084A45;
+  /* ── Primitivos (Laguna) ── */
+  --teal-50:  #F0F9FF;
+  --teal-100: #E0F2FE;
+  --teal-200: #7DD3FC;
+  --teal-300: #67E8F9;  /* cian: solo decorativo (puntos, trazos, texto sobre fondo oscuro) */
+  --teal-400: #38BDF8;
+  --teal-600: #0E7490;
+  --teal-700: #0C5F75;
+  --teal-800: #0A4A5C;
 
-  --graphite-50:  #E4F1EE;
-  --graphite-500: #5E7370;
-  --graphite-700: #2F3F3F;
-  --graphite-800: #1F2B2B;
+  --graphite-50:  #E2E8F0;
+  --graphite-500: #64748B;
+  --graphite-700: #334155;
+  --graphite-800: #1E293B;
 
   --ink-0:   #FFFFFF;
-  --ink-25:  #F2F9F7;
-  --ink-50:  #E4F1EE;
-  --ink-100: #D3E6E2;
-  --ink-400: #7A8F8C;
-  --ink-600: #465757;
-  --ink-700: #2F3F3F;
-  --ink-950: #0F1A1A;
+  --ink-25:  #F0F9FF;
+  --ink-50:  #E0F2FE;
+  --ink-100: #BAE6FD;
+  --ink-400: #7A96A8;
+  --ink-600: #475569;
+  --ink-700: #334155;
+  --ink-950: #0C1A22;
 
   --green-700: #17663F;  --green-50:  #E3F4EA;  --green-200: #B9E0C9;
   --orange-700:#9A4307;  --orange-50: #FDEFE3;  --orange-200:#F6CBA8;
@@ -130,35 +127,33 @@
 
 /* ─────────────────────────────────────────────────
    TEMA OSCURO — solo remapea la capa semántica (next-themes pone .dark en
-   <html>). Fondo "noche" verde casi negro; el acento de relleno se aclara un
-   poco pero conserva texto blanco encima, y los tonos de texto/borde se
-   aclaran para leerse sobre fondo oscuro. Los pares se verifican en
-   contrast.test.ts.
+   <html>). Fondo "noche" azul casi negro; el acento de relleno conserva
+   texto blanco encima; texto/borde se aclaran. Pares en contrast.test.ts.
    ───────────────────────────────────────────────── */
 .dark {
   color-scheme: dark;
 
-  --background:    #0B1514;
-  --foreground:    #EAF4F2;
-  --surface:       #12201E;
-  --surface-light: #1A2D2A;
-  --border:        #2B4440;
+  --background:    #0A1218;
+  --foreground:    #E8F4FA;
+  --surface:       #101C24;
+  --surface-light: #162530;
+  --border:        #243848;
 
-  --muted:         #A9C0BC;
-  --muted-darker:  #84A09B;
-  --muted-strong:  #C5D8D4;
+  --muted:         #9BB4C4;
+  --muted-darker:  #7A96A8;
+  --muted-strong:  #C5D8E4;
 
-  --accent:        #0F766E;
-  --accent-hover:  #0D6B64;
+  --accent:        #0E7490;
+  --accent-hover:  #0C5F75;
   --on-accent:     #FFFFFF;
-  --accent-strong: #2DD4BF;
-  --accent-ink:    #5EEAD4;
-  --accent-subtle: #11302C;
-  --accent-muted:  #1D4D47;
+  --accent-strong: #38BDF8;
+  --accent-ink:    #67E8F9;
+  --accent-subtle: #0C2A38;
+  --accent-muted:  #164A5E;
 
-  --accent-2:       #B4CAC6;
-  --accent-2-hover: #CFE0DD;
-  --accent-2-bg:    #1A2D2A;
+  --accent-2:       #B4C7D0;
+  --accent-2-hover: #D0DEE6;
+  --accent-2-bg:    #162530;
 
   --success:        #74CC8F;
   --success-bg:     #18301F;
@@ -499,30 +494,114 @@ body {
 }
 .typing-dot { animation: typing-dot 1s ease-in-out infinite; }
 
-/* Revelado al entrar en pantalla, ligado al scroll (sin JS). Firefox aún no
-   soporta animation-timeline: ahí simplemente no hay efecto (mejora
-   progresiva, sin polyfill). Úsese en bloques cortos (tarjetas, encabezados),
-   no en secciones más altas que la pantalla. */
+/* ── Landing motion ─────────────────────────────────────────────
+   Tres familias: (1) entrada del hero escalonada, (2) revelado al scroll
+   vía .landing-reveal + IntersectionObserver, (3) micro-movimiento en mocks.
+   Todo bajo prefers-reduced-motion: no-preference. */
+
 @media (prefers-reduced-motion: no-preference) {
+  @keyframes landing-mock-enter {
+    from { opacity: 0; translate: 0 1.5rem; }
+    to { opacity: 1; translate: 0 0; }
+  }
+  .landing-mock-enter {
+    animation: landing-mock-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+  }
+
+  @keyframes landing-hero-in {
+    from { opacity: 0; translate: 0 1.1rem; }
+    to { opacity: 1; translate: 0 0; }
+  }
+  .landing-hero-in {
+    animation: landing-hero-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--landing-delay, 0ms);
+  }
+
+  @keyframes landing-glow {
+    0%, 100% { opacity: 0.55; scale: 1; }
+    50% { opacity: 0.9; scale: 1.04; }
+  }
+  .landing-hero-glow {
+    animation: landing-glow 10s ease-in-out infinite;
+  }
+
+  /* Revelado genérico (JS añade .is-in). */
+  .landing-reveal {
+    opacity: 0;
+    transition:
+      opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1) var(--landing-delay, 0ms),
+      transform 0.65s cubic-bezier(0.22, 1, 0.36, 1) var(--landing-delay, 0ms);
+  }
+  .landing-reveal--up { transform: translateY(1.25rem); }
+  .landing-reveal--left { transform: translateX(-1.1rem); }
+  .landing-reveal--right { transform: translateX(1.1rem); }
+  .landing-reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Compat: clase .reveal antigua (Chromium con view-timeline). */
   @supports ((animation-timeline: view()) and (animation-range: entry)) {
     @keyframes reveal-up {
       from { opacity: 0; translate: 0 1.5rem; }
     }
-    .reveal {
+    .reveal:not(.landing-reveal) {
       animation: reveal-up auto linear backwards;
       animation-timeline: view();
       animation-range: entry 0% entry 70%;
     }
+  }
 
-    /* Línea de "Cómo funciona": se llena conforme la lista cruza la pantalla. */
-    @keyframes steps-fill {
-      from { scale: 0 1; }
-    }
-    .steps-track { view-timeline: --steps block; }
-    .steps-fill {
-      animation: steps-fill auto linear both;
-      animation-timeline: --steps;
-      animation-range: entry 40% cover 55%;
-    }
+  @keyframes landing-channel-in {
+    from { opacity: 0; translate: 0 0.4rem; }
+    to { opacity: 1; translate: 0 0; }
+  }
+  .landing-channel {
+    animation: landing-channel-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--landing-delay, 0ms);
+  }
+
+  @keyframes landing-bubble-in {
+    from { opacity: 0; translate: 0 0.55rem; scale: 0.97; }
+    to { opacity: 1; translate: 0 0; scale: 1; }
+  }
+  .landing-bubble {
+    animation: landing-bubble-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--landing-delay, 0ms);
+  }
+
+  @keyframes landing-flow-pulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 1; }
+  }
+  .landing-flow-line {
+    animation: landing-flow-pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes landing-score-fill {
+    from { width: 0; }
+  }
+  .landing-score-fill {
+    animation: landing-score-fill 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes landing-spark {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    40% { transform: scale(1.08) rotate(-6deg); }
+    70% { transform: scale(0.96) rotate(4deg); }
+  }
+  .landing-spark {
+    animation: landing-spark 3.2s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-reveal,
+  .landing-reveal--up,
+  .landing-reveal--left,
+  .landing-reveal--right {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }

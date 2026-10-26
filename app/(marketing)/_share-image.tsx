@@ -10,12 +10,12 @@ import { formatMxn, PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
 export const SHARE_IMAGE_SIZE = { width: 1200, height: 630 };
 export const SHARE_IMAGE_ALT = `${BRAND_NAME}: el CRM de WhatsApp con IA para negocios que venden por chat`;
 
-// La marca provisional ("C") para imágenes generadas (también la usa app/apple-icon.tsx).
+// Nexo para imágenes generadas (también la usa app/apple-icon.tsx).
 export function BrandMarkSvg({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32">
       <rect width="32" height="32" rx="9" fill={BRAND_MARK_BG} />
-      <path d={BRAND_MARK_PATH} fill="none" stroke={BRAND_MARK_FG} strokeWidth="3.6" strokeLinecap="round" />
+      <path d={BRAND_MARK_PATH} fill={BRAND_MARK_FG} fillRule="evenodd" />
     </svg>
   );
 }

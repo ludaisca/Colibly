@@ -67,7 +67,7 @@ Revisión del 2026-09-27:
 - GitHub y npm: `colibly` y `kolibly` libres.
 - **Riesgo a revisar en el IMPI:** "Colibly" se parece en sonido a "Colibrí", palabra común con marcas probables en México, y existe **Colibri.ai** (software de inteligencia de conversaciones para ventas, mismo sector). La ortografía distinta ayuda, pero el IMPI evalúa el parecido fonético.
 
-**Logo elegido (2026-09-27): concepto D "Impulso"**: colibrí original en picada diagonal (velocidad), degradado violeta (`#5B34E6` → `#8E6BFF`), pico rubí (`#FF4F7B`), con versión plana de un color para tamaños chicos. Dibujado desde cero en el lienzo de identidad (https://claude.ai/artifact/4fnEnuHXBTvPTaa4fSZGHF), inspirado en el estilo de una referencia de Magnific pero sin calcar pose ni formas. Paleta: violeta colibrí `#5B34E6` (principal, admite texto blanco 6.8:1), rubí `#FF4F7B` (acento, solo rellenos), tinta `#17132B`, suelo `#F8F6FC`, noche `#100D1F`; tipografía Bricolage Grotesque (títulos) + Hanken Grotesk (texto), la que usa la beta y la app (decisión 2026-10-01; antes se planeó Sora + Figtree). Contrastes AA verificados en el lienzo.
+**Logo elegido (2026-10-25): concepto "Nexo"** — C anular geométrica + triángulo equilátero al este (conexión / avance), en paleta Laguna (`#0E7490`). Reemplaza la "C" provisional y el concepto "Impulso" (colibrí) que quedó en el archivo histórico. Tipografía (2026-10-25): Newsreader (títulos) + Figtree (texto); reserva Syne + DM Sans — `docs/TIPOGRAFIA.md`. Masters: `tmp/logo-design/kit/`.
 - Los `.eps` de referencia de Magnific están fuera del repo (contenido con licencia), en `/data/Proyectos/colibly-marca/referencias-magnific/` del servidor.
 - Luis obtuvo del autor de la referencia la cesión de derechos: conseguirla **por escrito y firmada** (cesión total y exclusiva de derechos patrimoniales, con permiso para registro de marca). Impulso no depende de ella por ser original.
 - [ ] Pulir el trazo final con un diseñador antes del registro (curvas, proporciones, grosor óptico); Claude prepara el brief.
@@ -76,9 +76,9 @@ Siguientes pasos del nombre:
 - [x] Registrar `colibly.com` (Hostinger). `kolibly.com`, `colibly.mx` y `colibly.com.mx` siguen siendo opciones futuras, no prerequisitos de la beta.
 - [ ] Reservar usuarios `colibly` en Instagram, Facebook, X, TikTok, LinkedIn y YouTube (los videos del App Review y los tutoriales van ahí). Esto se revisa a mano: esas redes piden sesión.
 - [ ] Búsqueda en el IMPI (MARCia) de "Colibly" y parecidos ("Colibrí", "Colibri") en las clases 9 (software), 35 (gestión comercial/publicidad) y 42 (SaaS). Si está limpio, solicitar el registro de la marca (idealmente con un agente de marcas).
-- [x] Renombrar en el código (2026-09-27, rama `feat/rebrand-colibly`): textos con `BRAND_NAME`, dominio y correo de contacto en `lib/brand.ts` (`BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`), encabezados `X-Colibly-*`, User-Agent, clave de consentimiento, formato de exportación y remitentes. Logo provisional: una "C" (`BrandMark`, `lib/brand-mark.ts`, favicon, ícono de iOS, imagen para compartir).
-- [x] Paleta "Colibrí" aplicada (2026-09-27): violeta `#5B34E6`, rubí, neutros con tinte violeta, tema oscuro "noche"; hex para correos e imágenes en `lib/brand-colors.ts`. **Reemplazada el 2026-10-18 por "Menta y grafito"** (acento verde `#0F766E`, ver AGENTS.md → Design system); el logo final deberá diseñarse con esta paleta, no con el violeta de "Impulso".
-- [ ] Logo final "Impulso" pulido (hoy es una "C" provisional): reemplazar `BrandMark`, `lib/brand-mark.ts` y `app/icon.svg`.
+- [x] Renombrar en el código (2026-09-27, rama `feat/rebrand-colibly`): textos con `BRAND_NAME`, dominio y correo de contacto en `lib/brand.ts` (`BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`), encabezados `X-Colibly-*`, User-Agent, clave de consentimiento, formato de exportación y remitentes.
+- [x] Paleta Laguna aplicada (`#0E7490`; historia: Colibrí violeta → Menta y grafito → Laguna). Hex en `lib/brand-colors.ts`.
+- [x] Logo Nexo aplicado (2026-10-25): `BrandMark`, `lib/brand-mark.ts`, `app/icon.svg`, apple-icon, share image, cpanel `assets/icon.svg` + `favicon.ico`.
 - [x] Crear el buzón `contacto@colibly.com` en Neubox y probar recepción y SMTP transaccional de producción (confirmado por el propietario el 2026-10-02).
 
 Criterios usados para elegir:
@@ -87,7 +87,7 @@ Criterios usados para elegir:
 - Usuario libre en Instagram, Facebook, X y LinkedIn.
 - Fácil de decir y escribir en español; sin letras ambiguas al dictarlo.
 - **Sin "WhatsApp", "Whats" ni "WA"** en el nombre: las guías de marca de Meta no permiten usar su marca en nombres de producto, y eso se revisa en el App Review.
-- Identidad visual: la paleta "Colibrí" ya está aplicada y el logo actual es provisional; el logo final "Impulso" sigue pendiente.
+- Identidad visual: paleta Laguna + logo Nexo aplicados (2026-10-25).
 
 Qué implicaba el cambio en el código (hecho el 2026-09-27, salvo la identidad visual):
 - `lib/brand.ts` (`BRAND_NAME`, `BRAND_TAGLINE`) y ~48 menciones literales de "SunflowCRM" en ~40 archivos (correos, landing, textos legales, documentación de la API, panel): pasarlas a `BRAND_NAME` donde se pueda.

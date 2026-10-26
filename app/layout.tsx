@@ -3,31 +3,33 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { appUrl, siteUrl } from "@/lib/app-url";
 import { requestHost } from "@/lib/request-host";
-import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
+import { Figtree, Newsreader } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Providers } from "./providers";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { BRAND_COLORS } from "@/lib/brand-colors";
 
-const bricolage = Bricolage_Grotesque({
+// Tipografía de marca (2026-10-25): Newsreader (display) + Figtree (body).
+// Reserva documentada: Syne + DM Sans — ver docs/TIPOGRAFIA.md.
+const newsreader = Newsreader({
   variable: "--font-display",
   subsets: ["latin"],
   display: "swap",
 });
 
-const hankenGrotesk = Hanken_Grotesk({
+const figtree = Figtree({
   variable: "--font-body",
   subsets: ["latin"],
   display: "swap",
 });
 
-// Color de la barra del navegador móvil (paleta "Menta y grafito"); en modo
-// oscuro, el fondo noche del tema.
+// Color de la barra del navegador móvil (paleta "Laguna"); en modo oscuro,
+// el fondo noche del tema.
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: BRAND_COLORS.accent },
-    { media: "(prefers-color-scheme: dark)", color: "#0B1514" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A1218" },
   ],
 };
 
@@ -56,7 +58,7 @@ export default function RootLayout({
     <html
       lang="es"
       data-scroll-behavior="smooth"
-      className={`${bricolage.variable} ${hankenGrotesk.variable} antialiased`}
+      className={`${newsreader.variable} ${figtree.variable} antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-dvh flex flex-col bg-background text-foreground">

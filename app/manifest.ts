@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { BRAND_COLORS } from "@/lib/brand-colors";
 
-// Manifiesto PWA: colores de la paleta "Menta y grafito".
+// Manifiesto PWA: colores de la paleta "Laguna".
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: BRAND_NAME,

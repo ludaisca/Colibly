@@ -49,7 +49,7 @@ export default function ApiDocsPage() {
   return (
     // Monoespaciada real solo aquí: en el panel font-mono es la tipografía de
     // texto a propósito (globals.css), pero el código necesita columnas alineadas.
-    <div className="mx-auto max-w-6xl px-4 py-10 md:px-6 [&_code]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] [&_h4]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-12 lg:py-14">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:py-10 md:px-6 [&_code]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] [&_h4]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-12 lg:py-14">
       <nav aria-label="Contenido de la documentación" className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-strong">En esta página</p>
         <ol className="mt-3 space-y-1.5 border-l border-border text-sm">
@@ -66,22 +66,40 @@ export default function ApiDocsPage() {
         </p>
       </nav>
 
-      <article className="min-w-0 text-[15px] leading-relaxed text-foreground">
+      <article className="min-w-0 overflow-x-clip text-[15px] leading-relaxed text-foreground">
+        {/* TOC móvil: chips con scroll horizontal (el aside solo aparece en lg). */}
+        <nav aria-label="Secciones" className="-mx-1 mb-8 overflow-x-auto overscroll-x-contain px-1 pb-1 lg:hidden">
+          <ol className="flex w-max gap-2">
+            {toc.map(([id, label]) => (
+              <li key={id}>
+                <a
+                  href={`#${id}`}
+                  className="inline-flex min-h-9 items-center whitespace-nowrap rounded-full border border-border bg-surface px-3 text-xs font-medium text-muted-strong hover:border-accent-muted hover:text-foreground"
+                >
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+
         <header id="introduccion" className="scroll-mt-24 border-b border-border pb-8">
           <p className="text-sm font-medium text-accent-ink">Para desarrolladores</p>
-          <h1 className="mt-1 font-display text-page-title font-semibold tracking-tight lg:text-4xl lg:leading-tight">API y webhooks de {BRAND_NAME}</h1>
-          <p className="mt-4 max-w-3xl text-lg text-muted-strong">
+          <h1 className="mt-1 text-balance font-display text-page-title font-semibold tracking-tight lg:text-4xl lg:leading-tight">
+            API y webhooks de {BRAND_NAME}
+          </h1>
+          <p className="mt-4 max-w-3xl text-pretty text-base text-muted-strong sm:text-lg">
             Con la API tu sistema consulta y actualiza contactos, lee conversaciones, envía mensajes de WhatsApp y arranca automatizaciones.
             Con los webhooks, {BRAND_NAME} avisa a tu servidor cada vez que llega un mensaje, se crea un contacto o cambia la etapa de un lead.
             Ambos están incluidos en el plan Pro y en la prueba gratuita.
           </p>
-          <dl className="mt-6 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
+          <dl className="mt-6 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
             <dt className="font-semibold">URL base</dt>
-            <dd><code className="break-all font-mono">{base}</code></dd>
+            <dd className="min-w-0"><code className="break-all font-mono">{base}</code></dd>
             <dt className="font-semibold">Formato</dt>
-            <dd>JSON en UTF-8. Fechas en ISO 8601 (UTC). Ids opacos de texto.</dd>
+            <dd className="min-w-0 text-pretty">JSON en UTF-8. Fechas en ISO 8601 (UTC). Ids opacos de texto.</dd>
             <dt className="font-semibold">Especificación</dt>
-            <dd>
+            <dd className="min-w-0 text-pretty">
               OpenAPI 3.1 en <a href="/api/v1/openapi.json" className={LINK}>/api/v1/openapi.json</a>, para generar clientes o importarla en Postman o Insomnia.
             </dd>
           </dl>

@@ -10,15 +10,17 @@ const SIZE = {
   lg: { box: "h-9 w-9", text: "text-lg"  },
 };
 
-// Marca provisional de Colibly: una "C" sobre el acento, mientras se define el
-// logo final (concepto "Impulso", ver docs/PLAN_LANZAMIENTO.md). Colores por
-// token, así sigue a la paleta y al tema sin tocar el SVG. La misma figura en
-// colores fijos vive en lib/brand-mark.ts (favicon, ícono de iOS, imágenes).
+// Marca Nexo (C anular + triángulo al este) sobre el acento Laguna. Colores por
+// token; la misma geometría en hex vive en lib/brand-mark.ts (favicon, iOS, OG).
 export function BrandMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={cn("shrink-0", className)} aria-hidden>
       <rect width="32" height="32" rx="9" fill="var(--accent)" />
-      <path d="M21.1 11.2 A7 7 0 1 0 21.1 20.8" fill="none" stroke="var(--on-accent)" strokeWidth="3.6" strokeLinecap="round" />
+      <path
+        fill="var(--on-accent)"
+        fillRule="evenodd"
+        d="M21.57 20.68A8.26 8.26 0 1 1 21.57 10.52L18.86 12.63A4.82 4.82 0 1 0 18.86 18.57ZM22.26 13.79L25.18 15.47L22.26 17.16Z"
+      />
     </svg>
   );
 }

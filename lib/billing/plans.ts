@@ -1,4 +1,5 @@
 import type { PlanId } from "@prisma/client";
+export type { PlanId };
 
 // Catálogo de planes — ÚNICO lugar para cambiar precios y límites. Lo leen la
 // landing (precios), los candados del servidor (lib/billing/gates.ts), la
@@ -27,8 +28,8 @@ export const PRICE_CURRENCY_NOTE = "Precios en MXN.";
 // Leyenda fiscal junto a cada precio público. null = no se muestra ninguna:
 // hoy no se factura, así que la copia NO dice "incluye IVA" ni "verás el precio
 // final con impuestos". Si eso cambia, se escribe aquí (p. ej. "más IVA") y
-// aparece en la landing, /precios, /beta, términos, cPanel y la pantalla del
-// plan a la vez.
+// aparece en la landing, /precios, términos, cPanel y la pantalla del plan a
+// la vez.
 export const PRICE_TAX_NOTE: string | null = null;
 
 // Por asiento (se multiplica por los asientos de la organización).

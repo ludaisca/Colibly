@@ -2,8 +2,8 @@ import type React from "react";
 
 export function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="mt-12 scroll-mt-24 space-y-4 [&_p]:max-w-3xl [&_ul]:max-w-3xl">
-      <h2 className="font-display text-2xl font-semibold tracking-tight">{title}</h2>
+    <section id={id} className="mt-10 scroll-mt-24 space-y-4 sm:mt-12 [&_p]:max-w-3xl [&_p]:text-pretty [&_ul]:max-w-3xl">
+      <h2 className="text-pretty font-display text-xl font-semibold tracking-tight sm:text-2xl">{title}</h2>
       {children}
     </section>
   );
@@ -17,7 +17,7 @@ export function SubHeading({ children }: { children: React.ReactNode }) {
 // para que una línea larga no rompa el ancho en el celular.
 export function Code({ children }: { children: string }) {
   return (
-    <pre className="mt-2 max-w-full overflow-x-auto rounded-lg bg-accent-2 px-4 py-3 font-mono text-[13px] leading-relaxed text-white">
+    <pre className="mt-2 max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-accent-2 px-3 py-3 font-mono text-[12px] leading-relaxed text-white sm:px-4 sm:text-[13px]">
       <code>{children}</code>
     </pre>
   );
@@ -25,15 +25,15 @@ export function Code({ children }: { children: string }) {
 
 export function ParamTable({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   return (
-    <div className="mt-3 max-w-full overflow-x-auto rounded-lg border border-border">
-      <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
+    <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-border">
+      <table className="w-full min-w-[28rem] border-collapse text-left text-sm sm:min-w-[32rem]">
         <thead className="bg-surface-light text-muted-strong">
-          <tr>{head.map((h) => <th key={h} scope="col" className="px-3 py-2 font-semibold">{h}</th>)}</tr>
+          <tr>{head.map((h) => <th key={h} scope="col" className="px-2.5 py-2 font-semibold sm:px-3">{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={i} className="border-t border-border align-top">
-              {r.map((c, j) => <td key={j} className="px-3 py-2">{c}</td>)}
+              {r.map((c, j) => <td key={j} className="px-2.5 py-2 sm:px-3">{c}</td>)}
             </tr>
           ))}
         </tbody>

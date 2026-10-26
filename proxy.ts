@@ -68,9 +68,9 @@ export default async function proxy(req: NextRequest) {
     );
   }
 
-  // Un único despliegue puede recibir ambos FQDN. El sitio muestra la beta en
-  // la raíz; las rutas de cuenta y panel conservan su propia sesión en app.*.
-  // Sin las dos URL configuradas (DEV), se pueden visitar / y /beta por separado.
+  // Un único despliegue puede recibir ambos FQDN. La raíz del sitio es la
+  // landing de marketing; cuenta y panel viven en app.* con su propia sesión.
+  // Sin SITE_URL/APP_URL distintas (DEV), / sirve la landing en el mismo host.
   const siteHost = configuredHost(process.env.SITE_URL);
   const appHost = configuredHost(process.env.APP_URL);
   const host = requestHost(req.headers, req.nextUrl.host);
@@ -81,9 +81,12 @@ export default async function proxy(req: NextRequest) {
   if (splitDomains && host === `www.${siteHost}`) {
     return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req), 308);
   }
+  // URLs antiguas de la beta / vista previa: siempre a la raíz del sitio.
+  if (path === "/beta" || path === "/producto") {
+    if (isAppHost) return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req, "/"), 308);
+    return NextResponse.redirect(new URL("/", req.url), 308);
+  }
   if (isSiteHost) {
-    if (path === "/") return NextResponse.rewrite(new URL("/beta", req.url));
-    if (path === "/beta") return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req, "/"), 308);
     if (path.startsWith("/api/") && path !== "/api/beta/solicitudes") {
       return NextResponse.redirect(onOrigin(process.env.APP_URL!, req), 308);
     }
@@ -96,8 +99,8 @@ export default async function proxy(req: NextRequest) {
       return NextResponse.redirect(onOrigin(process.env.APP_URL!, req), 308);
     }
   }
-  if (isAppHost && ["/beta", "/producto", "/terminos", "/privacidad", "/precios", "/contacto", "/eliminar-datos"].some((r) => path === r || path.startsWith(r + "/"))) {
-    return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req, path === "/beta" ? "/" : path), 308);
+  if (isAppHost && ["/terminos", "/privacidad", "/precios", "/contacto", "/eliminar-datos"].some((r) => path === r || path.startsWith(r + "/"))) {
+    return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req), 308);
   }
   if (isAppHost && path === "/sitemap.xml") return NextResponse.redirect(onOrigin(process.env.SITE_URL!, req), 308);
 

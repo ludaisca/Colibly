@@ -9,10 +9,10 @@ export const contentType = "image/png";
 export default function AppleIcon() {
   return new ImageResponse(
     (
-      // La "C" a sangre completa: iOS redondea las esquinas por su cuenta.
+      // Nexo a sangre: iOS redondea las esquinas por su cuenta.
       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: BRAND_MARK_BG }}>
         <svg width={180} height={180} viewBox="0 0 32 32">
-          <path d={BRAND_MARK_PATH} fill="none" stroke={BRAND_MARK_FG} strokeWidth="3.6" strokeLinecap="round" />
+          <path d={BRAND_MARK_PATH} fill={BRAND_MARK_FG} fillRule="evenodd" />
         </svg>
       </div>
     ),

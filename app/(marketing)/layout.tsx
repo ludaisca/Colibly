@@ -7,12 +7,13 @@ import { Analytics, CookiePreferencesButton } from "@/app/components/analytics/a
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { LEGAL } from "./_legal";
+import { PromoPopup } from "./_promo-popup";
 import { SiteMobileNav } from "@/app/components/ui/site-mobile-nav";
 import { appUrl } from "@/lib/app-url";
 
 const MOBILE_LINKS = [
+  { href: "/#producto", label: "Producto" },
   { href: "/#como-funciona", label: "Cómo funciona" },
-  { href: "/#precios", label: "Prueba gratis" },
   { href: "/precios", label: "Precios" },
   { href: "/#preguntas", label: "Preguntas" },
 ];
@@ -56,19 +57,27 @@ export default async function MarketingLayout({ children }: { children: React.Re
         Saltar al contenido principal
       </a>
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-sm">
-        <div className="relative mx-auto flex max-w-6xl items-center gap-2 px-4 py-2 md:gap-4 md:px-6">
-          <Logo href="/" />
-          <nav className="ml-auto hidden items-center gap-6 text-sm text-muted md:flex" aria-label="Secciones">
-            <Link href="/#como-funciona" className="hover:text-foreground">Cómo funciona</Link>
+        <div className="relative mx-auto flex max-w-6xl items-center gap-1.5 px-3 py-2 min-[400px]:gap-2 min-[400px]:px-4 md:gap-4 md:px-6">
+          <Logo href="/" className="min-w-0 shrink max-[360px]:[&_span.font-display]:sr-only" />
+          <nav className="ml-auto hidden items-center gap-5 text-sm text-muted lg:gap-6 md:flex" aria-label="Secciones">
+            <Link href="/#producto" className="hover:text-foreground">Producto</Link>
+            <Link href="/#como-funciona" className="whitespace-nowrap hover:text-foreground">Cómo funciona</Link>
             <Link href="/precios" className="hover:text-foreground">Precios</Link>
             <Link href="/#preguntas" className="hover:text-foreground">Preguntas</Link>
           </nav>
-          <div className="ml-auto flex items-center gap-2 md:ml-0">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 min-[400px]:gap-2 md:ml-0">
             {/* En móvil "Entrar" vive en el menú para que quepan logo, botón y menú en 360 px. */}
             <span className="hidden md:block">
               <Button href={appUrl("/login")} variant="ghost">Entrar</Button>
             </span>
-            <Button href="/register" data-track="cta" data-track-location="header">Prueba gratis</Button>
+            <Button
+              href="/register"
+              data-track="cta"
+              data-track-location="header"
+              className="!h-9 !px-3 !text-xs min-[400px]:!h-10 min-[400px]:!px-4 min-[400px]:!text-sm"
+            >
+              Prueba gratis
+            </Button>
             <SiteMobileNav links={MOBILE_LINKS} loginHref={appUrl("/login")} ctaHref="/register" ctaLabel="Crear cuenta gratis" trackLocation="menu" label="Menú principal" />
           </div>
         </div>
@@ -77,20 +86,20 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <main id="contenido-principal" tabIndex={-1} className="scroll-mt-20">{children}</main>
 
       <footer className="border-t border-border/60">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted-strong md:grid-cols-[1.4fr_repeat(4,1fr)] md:px-6">
-          <div className="space-y-3">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted-strong sm:grid-cols-2 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))] lg:px-6 md:px-6">
+          <div className="space-y-3 sm:col-span-2 lg:col-span-1">
             <Logo href="/" />
-            <p className="max-w-xs">{BRAND_TAGLINE}.</p>
+            <p className="max-w-xs text-pretty">{BRAND_TAGLINE}.</p>
             {contactEmail && (
-              <p>
+              <p className="break-words">
                 Escríbenos: <a href={`mailto:${contactEmail}`} className="font-medium text-foreground hover:underline">{contactEmail}</a>
               </p>
             )}
           </div>
           {FOOTER_COLUMNS.map((col) => (
-            <nav key={col.title} aria-label={col.title}>
+            <nav key={col.title} aria-label={col.title} className="min-w-0">
               <p className="mb-2 font-semibold text-foreground">{col.title}</p>
-              <ul className="flex flex-col md:gap-2">
+              <ul className="flex flex-col gap-0.5 md:gap-2">
                 {col.links.map((l) => (
                   <li key={l.href}><Link href={l.href} className={FOOTER_LINK}>{l.label}</Link></li>
                 ))}
@@ -100,7 +109,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
               </ul>
             </nav>
           ))}
-          <nav aria-label="Cuenta">
+          <nav aria-label="Cuenta" className="min-w-0">
             <p className="mb-2 font-semibold text-foreground">Cuenta</p>
             <a href={appUrl("/login")} className={FOOTER_LINK}>Entrar al producto</a>
           </nav>
@@ -110,6 +119,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
         </div>
       </footer>
 
+      <PromoPopup />
       {analytics && <Analytics config={analytics} />}
       {webchatId && <Script src={`/api/webchat/${webchatId}/widget.js`} strategy="lazyOnload" />}
     </div>

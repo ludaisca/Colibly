@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 256" width="720" height="256" role="img" aria-labelledby="t">
+  <title id="t">Colibly Nexo v3 lockup</title>
+  <g transform="translate(4,28) scale(0.78)">
+    <path fill="#000000" fill-rule="evenodd" d="
+      M192.8 185.1
+      A96 96 0 1 1 192.8 66.9
+      L161.3 91.5
+      A56 56 0 1 0 161.3 160.5
+      Z
+      M200.8 104.9
+      L234.8 124.5
+      L200.8 144.1
+      Z"/>
+  </g>
+  <!-- Exploration lockup: live text; master kit will outline the wordmark. -->
+  <text x="230" y="168" fill="#000000" font-family="system-ui, sans-serif" font-size="92" font-weight="700" letter-spacing="-2">Colibly</text>
+</svg>

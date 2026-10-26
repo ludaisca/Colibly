@@ -8,6 +8,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 |---|---|
 | [CONTINUIDAD_2026-10-04.md](CONTINUIDAD_2026-10-04.md) | **Empieza aquí**: estado, pendientes en orden y cómo retomar (coexistencia, respaldos, ramas). |
 | [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) | Plan maestro: decisiones, marca, dominio, legal, Meta, Stripe. |
+| [TIPOGRAFIA.md](TIPOGRAFIA.md) | Fuentes en producción (Newsreader + Figtree) y reserva (Syne + DM Sans). |
 | [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md) | Estado y pasos siguientes de la landing beta y `cpanel-site/`. |
 | [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md) | Plan A (Contabo) y plan B (ludaisca), DNS, correo. |
 | [DOMINIOS_Y_LANDING_BETA.md](DOMINIOS_Y_LANDING_BETA.md) | Separación `colibly.com` / `app.colibly.com`. |

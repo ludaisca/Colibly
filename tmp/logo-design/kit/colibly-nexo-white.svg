@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg fill="#ffffff" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="t"><title>Colibly</title>
+  <title id="t">Colibly Nexo v3</title>
+  <!--
+    Construction (unit 8 on 256):
+    - Annular C: Ro=96, Ri=56 (stroke 40), centre optical (112.8, 126)
+    - Opening half-angle 38 deg east; ends cut on true radii
+    - Equilateral triangle height 34, gap 8 after outer chord; tip east
+    - Whole mark shifted for equal L/R margins and optical lift
+  -->
+  <path fill="#ffffff" fill-rule="evenodd" d="
+    M192.8 185.1
+    A96 96 0 1 1 192.8 66.9
+    L161.3 91.5
+    A56 56 0 1 0 161.3 160.5
+    Z
+    M200.8 104.9
+    L234.8 124.5
+    L200.8 144.1
+    Z"/>
+</svg>

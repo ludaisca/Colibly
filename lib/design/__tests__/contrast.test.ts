@@ -70,13 +70,13 @@ const HEX_PAIRS: [string, string, string, number][] = [
   ["texto de marca sobre fondo", B.accentInk, B.background, 4.5],
   ["texto de marca sobre tinte", B.accentInk, B.accentSubtle, 4.5],
   ["grafito sobre blanco", B.graphite, B.surface, 4.5],
-  ["tinta sobre menta (decorativo)", B.ink, B.mint, 4.5],
+  ["tinta sobre cian decorativo", B.ink, B.mint, 4.5],
 ];
 describe("pares fijos de lib/brand-colors.ts", () => {
   it.each(HEX_PAIRS)("%s ≥ %s", (_n, fg, bg, min) => {
     expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(min);
   });
-  it("la menta es solo decorativa: no sirve como texto sobre fondo claro", () => {
+  it("el cian es solo decorativo: no sirve como texto sobre fondo claro", () => {
     expect(contrastRatio(B.mint, B.surface)).toBeLessThan(3);
   });
   it("brand-colors coincide con los primitivos de globals.css", () => {

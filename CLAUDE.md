@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). Repo, folder, containers, database and npm package are all named Colibly. Use `lib/brand.ts` (`BRAND_NAME`, `BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`) in user-facing text, never a literal, and colors only through the semantic tokens (palette "Colibrí"; hex copy for emails/images in `lib/brand-colors.ts`). The logo is still a provisional "C" — see `docs/PLAN_LANZAMIENTO.md`.
+The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). Repo, folder, containers, database and npm package are all named Colibly. Use `lib/brand.ts` (`BRAND_NAME`, `BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`) in user-facing text, never a literal, and colors only through the semantic tokens (palette "Colibrí"; hex copy for emails/images in `lib/brand-colors.ts`). The logo is **Nexo** (geometric C + east triangle) — `BrandMark` / `lib/brand-mark.ts`; see `docs/PLAN_LANZAMIENTO.md`.
 
 @AGENTS.md
 
@@ -85,7 +85,7 @@ What the two worlds share:
 
 ## Beta landing and host split (prepared in DEV, not deployed)
 
-Three copies of the public landing coexist; see `docs/CONTINUIDAD_LANDING_CPANEL_2026-10-01.md` for state and next steps: `app/(marketing)/page.tsx` (original), `app/(beta)/beta/` (beta, Next.js) and `cpanel-site/` (independent PHP copy for `colibly.com` on Neubox/cPanel — no Next.js, no DB; its text must be kept in sync with the Next.js beta by hand, **except prices**: `node scripts/gen-cpanel-pricing.mjs` (in the app container) writes `cpanel-site/pricing.generated.php` + the marked block of `llms.txt` from `lib/billing/plans.ts`, and `lib/billing/__tests__/cpanel-pricing.test.ts` fails if they diverge). With `SITE_URL` set (`colibly.com`) next to `APP_URL` (`app.colibly.com`), `proxy.ts` splits hosts: the app host redirects landing paths to the site host and vice versa. The trial is 14 days everywhere (`TRIAL_DAYS = 14` in `lib/billing/plans.ts`; the landing and terms read it, `cpanel-site/terminos.php` reads it from the generated `pricing.generated.php`; any hand-written mention in `cpanel-site/` is checked against it by `cpanel-pricing.test.ts`). The beta typography is Bricolage Grotesque (display) + Hanken Grotesk (body), the same as the app; `cpanel-site/assets/site.css` mirrors it. Index of all planning/audit documents: `docs/README.md`.
+The public landing lives in `app/(marketing)/page.tsx` (canonical `/`). `/beta` and `/producto` redirect to `/`. With `SITE_URL` (`colibly.com`) next to `APP_URL` (`app.colibly.com`), `proxy.ts` splits hosts: marketing on the site host, auth/app on the app host. `cpanel-site/` is legacy PHP (no longer required when `colibly.com` points at Next); price sync via `scripts/gen-cpanel-pricing.mjs` + `cpanel-pricing.test.ts` remains until that folder is removed. Trial is 14 days (`TRIAL_DAYS` in `lib/billing/plans.ts`). Typography: Newsreader + Figtree (reserve Syne + DM Sans — `docs/TIPOGRAFIA.md`). Docs index: `docs/README.md`.
 
 ## Navigation
 

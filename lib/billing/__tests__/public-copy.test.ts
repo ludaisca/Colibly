@@ -11,7 +11,6 @@ const PAGES = [
   "app/(marketing)/precios/page.tsx",
   "app/(marketing)/terminos/page.tsx",
   "app/(marketing)/_share-image.tsx",
-  "app/(beta)/beta/page.tsx",
   "app/(dashboard)/configuracion/plan/_view.tsx",
   "lib/billing/plan-features.ts",
 ];
