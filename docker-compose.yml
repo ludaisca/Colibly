@@ -12,9 +12,13 @@ services:
       # con ese nombre y Postgres falla al ejecutarlo. La extensión vector la crea
       # el servicio db-init de abajo.
     healthcheck:
+      # El primer arranque de pgvector inicializa el volumen; sin start_period
+      # Compose lo marca unhealthy a los ~25 s y aborta el despliegue.
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
-      retries: 5
+      timeout: 5s
+      retries: 12
+      start_period: 40s
     restart: unless-stopped
 
   db-init:
