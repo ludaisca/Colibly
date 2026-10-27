@@ -125,22 +125,33 @@ export function Analytics({ config }: { config: AnalyticsConfig }) {
     document.addEventListener("click", onClick);
     document.addEventListener("toggle", onToggle, true);
 
-    let observer: IntersectionObserver | null = null;
-    const pricing = document.getElementById("precios");
-    if (pricing) {
-      observer = new IntersectionObserver((entries) => {
-        if (entries.some((en) => en.isIntersecting)) {
-          track({ name: "view_pricing" });
-          observer?.disconnect();
-        }
-      }, { threshold: 0.3 });
-      observer.observe(pricing);
-    }
     return () => {
       document.removeEventListener("click", onClick);
       document.removeEventListener("toggle", onToggle, true);
-      observer?.disconnect();
     };
+  }, [consent, pathname]);
+
+  // La landing mide cuando la sección #precios entra en pantalla; la página
+  // /precios no tiene esa sección, así que se mide al montar.
+  useEffect(() => {
+    if (consent !== "granted") return;
+    if (pathname === "/precios") {
+      track({ name: "view_pricing" });
+      return;
+    }
+    const pricing = document.getElementById("precios");
+    if (!pricing) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((en) => en.isIntersecting)) {
+          track({ name: "view_pricing" });
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(pricing);
+    return () => observer.disconnect();
   }, [consent, pathname]);
 
   const decide = (value: Consent) => writeConsent(value);

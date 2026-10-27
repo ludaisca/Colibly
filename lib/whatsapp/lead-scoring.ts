@@ -9,6 +9,7 @@ import type { ScoreDetails } from "@/lib/whatsapp/export-columns";
 import type { WALeadScorerBot } from "@prisma/client";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
+import { hasLeadScoringAccess } from "@/lib/billing/gates";
 import { reserveAiCredit } from "@/lib/ai/credits";
 
 // Five-phase funnel (replaces the old frio/tibio/caliente 3-tier system) —
@@ -99,6 +100,9 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
   const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     throw new LeadScoringError("La IA no está disponible en este momento");
+  }
+  if (!(await hasLeadScoringAccess(scorer.organizationId))) {
+    throw new LeadScoringError("La calificación de leads está en el plan Pro");
   }
   if (!(await reserveAiCredit(scorer.organizationId))) {
     throw new LeadScoringError("Se acabaron los créditos de IA de este mes");

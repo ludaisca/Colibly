@@ -9,7 +9,7 @@ $faq = [
   ['¿Necesito saber de tecnología para empezar?', 'No. Te guiamos paso a paso en la conexión y la configuración inicial, y puedes escribirnos si te atoras. Necesitarás tener control de tu número y autorizar la conexión desde tu cuenta de negocio.'],
   ['¿Cuándo comienzan los ' . COLIBLY_TRIAL_DAYS . ' días?', 'Al crear tu cuenta. Tienes ' . COLIBLY_TRIAL_DAYS . ' días con el plan Pro completo para probar Colibly en tu negocio. Si al terminar no eliges un plan, ese mismo día tu cuenta pasa a solo lectura.'],
   ['¿Me cobrarán al terminar?', 'No. No pedimos tarjeta para crear tu cuenta ni hay cobro automático al terminar la prueba. Tú eliges si continúas con un plan; si no, tu cuenta pasa a solo lectura y tus datos se conservan.'],
-  ['¿Cuánto cuesta después de la prueba?', 'Se paga por ejecutivo: ' . COLIBLY_PRICES_SENTENCE . (COLIBLY_PRICE_TAX_NOTE !== '' ? ' (' . COLIBLY_PRICE_TAX_NOTE . ')' : '') . '; la IA viene incluida en Negocio y Pro. ' . COLIBLY_PRICING_FOOTNOTE . ' ' . COLIBLY_COEXISTENCE_PITCH . ' Los precios pueden ajustarse; consulta la página de precios.'],
+  ['¿Cuánto cuesta después de la prueba?', 'Se paga por usuario: ' . COLIBLY_PRICES_SENTENCE . (COLIBLY_PRICE_TAX_NOTE !== '' ? ' (' . COLIBLY_PRICE_TAX_NOTE . ')' : '') . '. La IA de asistencia viene incluida; los agentes que responden solos empiezan en Avanzado. ' . COLIBLY_PRICING_FOOTNOTE . ' ' . COLIBLY_COEXISTENCE_PITCH . ' Los precios pueden ajustarse; consulta la página de precios.'],
   ['¿Hay algún otro costo por usar WhatsApp?', COLIBLY_META_FEES_NOTE . ' Te ayudamos a entenderlo antes de conectar tu número.'],
   ['¿Puedo detener las respuestas de IA?', 'Sí. Tu equipo puede atender directamente y pausar el asistente cuando lo necesite. Prueba sus respuestas con tu información antes de activarlo.'],
 ];
@@ -24,7 +24,7 @@ $ld = [
     ['@type' => 'SoftwareApplication', '@id' => SITE_URL . '/#software', 'name' => 'Colibly', 'applicationCategory' => 'BusinessApplication', 'operatingSystem' => 'Web',
       'description' => 'Colibly es un CRM conversacional para negocios que venden por mensaje: reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente.',
       'url' => SITE_URL . '/', 'inLanguage' => 'es', 'publisher' => ['@id' => SITE_URL . '/#organization'],
-      'offers' => ['@type' => 'Offer', 'name' => 'Prueba gratis de ' . COLIBLY_TRIAL_DAYS . ' días', 'price' => '0', 'priceCurrency' => COLIBLY_PRICE_CURRENCY, 'description' => 'Registro abierto: ' . COLIBLY_TRIAL_DAYS . ' días sin costo y sin tarjeta con el plan Pro para hasta ' . COLIBLY_TRIAL_MAX_SEATS . ' ejecutivos y ' . COLIBLY_TRIAL_POOL_TEXT . '; después, precio por ejecutivo: ' . COLIBLY_PRICES_SENTENCE . ', sujeto a ajuste.']],
+      'offers' => ['@type' => 'Offer', 'name' => 'Prueba gratis de ' . COLIBLY_TRIAL_DAYS . ' días', 'price' => '0', 'priceCurrency' => COLIBLY_PRICE_CURRENCY, 'description' => 'Registro abierto: ' . COLIBLY_TRIAL_DAYS . ' días sin costo y sin tarjeta con el plan Pro para hasta ' . COLIBLY_TRIAL_MAX_SEATS . ' usuarios y ' . COLIBLY_TRIAL_POOL_TEXT . '; después, precio por usuario: ' . COLIBLY_PRICES_SENTENCE . ', sujeto a ajuste.']],
     ['@type' => 'FAQPage', '@id' => SITE_URL . '/#faq', 'inLanguage' => 'es-MX', 'mainEntity' => array_map(fn($f) => ['@type' => 'Question', 'name' => $f[0], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f[1]]], $faq)],
   ],
 ];

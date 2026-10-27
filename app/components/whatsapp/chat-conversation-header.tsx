@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ArrowLeft, Check, ChevronDown, MessageCircle, Send, Camera, Globe, RotateCw, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Phone, RotateCw, SlidersHorizontal, X } from "lucide-react";
+import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
@@ -13,12 +14,12 @@ import { ChatCostBadge } from "./chat-cost-badge";
 import { AutomationChip } from "./automation-chip";
 import { STATUS_BADGE, type Channel, type ChatItem, type ChatStatus } from "./chat-shared";
 
-const CHANNELS: Record<Channel, { label: string; icon: typeof MessageCircle }> = {
-  WHATSAPP: { label: "WhatsApp", icon: MessageCircle },
-  TELEGRAM: { label: "Telegram", icon: Send },
-  MESSENGER: { label: "Messenger", icon: MessageCircle },
-  INSTAGRAM: { label: "Instagram", icon: Camera },
-  WEBCHAT: { label: "Chat web", icon: Globe },
+const CHANNELS: Record<Channel, { label: string }> = {
+  WHATSAPP: { label: "WhatsApp" },
+  TELEGRAM: { label: "Telegram" },
+  MESSENGER: { label: "Messenger" },
+  INSTAGRAM: { label: "Instagram" },
+  WEBCHAT: { label: "Chat web" },
 };
 
 interface Props {
@@ -35,7 +36,7 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
   const [changingStatus, setChangingStatus] = useState(false);
   const detailsId = useId();
   const channel = CHANNELS[chat.channel];
-  const ChannelIcon = channel.icon;
+  const ChannelIcon = CHANNEL_ICONS[chat.channel];
   const name = chat.name || chat.remoteJid;
   const resolved = chat.status === "RESOLVED";
 
@@ -65,6 +66,17 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
             </div>
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            {chat.channel === "WHATSAPP" && !chat.isGroup && chat.account.callingEnabled && !chat.account.coexistence && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={Phone}
+                onClick={() => window.dispatchEvent(new CustomEvent("colibly-whatsapp-call", { detail: { chatId: chat.id, name: name } }))}
+              >
+                Llamar
+              </Button>
+            )}
             <ChatAssigneePicker chatId={chat.id} assignedTo={chat.assignedTo} onAssigned={onAssigned} />
             <Button type="button" variant="secondary" size="sm" icon={resolved ? RotateCw : Check} loading={changingStatus} onClick={() => changeStatus(resolved ? "OPEN" : "RESOLVED")}>
               {resolved ? "Reabrir" : "Resolver"}

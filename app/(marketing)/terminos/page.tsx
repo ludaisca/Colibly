@@ -25,7 +25,7 @@ export default function TermsPage() {
 
       <h2>2. Prueba gratuita</h2>
       <p>
-        Cada cuenta nueva tiene {TRIAL_DAYS} días de prueba con el plan Pro, para hasta {TRIAL_MAX_SEATS} ejecutivos, con {TRIAL_POOL_TEXT}, y sin tarjeta. Al terminar, si no se elige un
+        Cada cuenta nueva tiene {TRIAL_DAYS} días de prueba con el plan Pro, para hasta {TRIAL_MAX_SEATS} usuarios, con {TRIAL_POOL_TEXT}, y sin tarjeta. Al terminar, si no se elige un
         plan, la cuenta pasa a modo de solo lectura ese mismo día, sin periodo de gracia: los datos se conservan y los mensajes entrantes se siguen
         recibiendo, pero no se envían mensajes ni funcionan los bots, automatizaciones y campañas.
       </p>

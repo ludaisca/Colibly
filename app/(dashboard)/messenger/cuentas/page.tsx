@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Plus, RefreshCw, MessageCircle, Trash2, Share2 } from "lucide-react";
+import { Search, Plus, RefreshCw, Trash2, Share2 } from "lucide-react";
+import { MessengerIcon } from "@/app/components/ui/channel-icons";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { Badge } from "@/app/components/ui/badge";
@@ -166,7 +167,7 @@ function MessengerCuentasView() {
           loading={loading}
           error={fetchError}
           onRetry={fetchAccounts}
-          emptyIcon={MessageCircle}
+          emptyIcon={MessengerIcon}
           emptyTitle={accounts.length === 0 ? "Sin Páginas conectadas" : "Sin resultados"}
           emptyDescription={
             accounts.length === 0

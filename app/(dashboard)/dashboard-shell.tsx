@@ -10,23 +10,18 @@ import {
   BarChart3,
   FileText,
   Contact,
-  Phone,
-  Send,
   Target,
   KanbanSquare,
-  MessageCircle,
-  Camera,
   CalendarClock,
   Workflow,
   Zap,
-  Globe,
   Building2,
 } from "lucide-react";
-// Meta (feedback loop de calificación de leads) usa el mismo ícono que
-// Difusión WhatsApp para no introducir un cuarto ícono de "anuncios" — la
-// etiqueta ya distingue el propósito.
+import { InstagramIcon, MessengerIcon, TelegramIcon, WebchatIcon, WhatsAppIcon } from "@/app/components/ui/channel-icons";
+import { MetaIcon } from "@/app/components/ui/brand-marks";
 import { AppShell, type NavItem, type NavGroup } from "@/app/components/ui/app-shell";
 import { NotificationBell } from "@/app/components/ui/notification-bell";
+import { CallDock } from "@/app/components/whatsapp/call-dock";
 
 export function DashboardShell({
   children,
@@ -44,9 +39,9 @@ export function DashboardShell({
   topBanner?: React.ReactNode;
   // Operador de la plataforma (PLATFORM_ADMIN_EMAILS): ve el grupo "Plataforma".
   platformAdmin?: boolean;
-  // Canales adicionales a WhatsApp, como feature por organización — el
-  // operador los activa desde /plataforma (ver lib/channel-flags.ts). Un
-  // canal sin habilitar no aparece en el nav (a menos que la organización ya
+  // Canales adicionales a WhatsApp. Están disponibles por defecto; el
+  // operador puede desactivarlos desde /plataforma (ver lib/channel-flags.ts).
+  // Un canal desactivado no aparece en el nav (a menos que la organización ya
   // tuviera cuentas ahí).
   channels?: { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean };
 }) {
@@ -106,18 +101,18 @@ export function DashboardShell({
         {
           title: "Canales",
           items: [
-            { href: "/whatsapp/cuentas",        label: "Cuentas WhatsApp", icon: Phone },
-            // Los demás canales son una feature por organización que activa
-            // el operador desde /plataforma — sin habilitar (y sin cuentas ya
-            // conectadas ahí) ni aparecen en el menú.
-            ...(channels?.messenger ? [{ href: "/messenger/cuentas" as const, label: "Cuentas Messenger", icon: MessageCircle as React.ElementType }] : []),
-            ...(channels?.instagram ? [{ href: "/instagram/cuentas" as const, label: "Cuentas Instagram", icon: Camera as React.ElementType }] : []),
-            ...(channels?.telegram ? [{ href: "/telegram/cuentas" as const, label: "Cuentas Telegram", icon: Send as React.ElementType }] : []),
-            ...(channels?.webchat ? [{ href: "/webchat/cuentas" as const, label: "Cuentas Web", icon: Globe as React.ElementType }] : []),
+            { href: "/whatsapp/cuentas",        label: "Cuentas WhatsApp", icon: WhatsAppIcon },
+            // Los demás canales están disponibles por defecto; el operador
+            // puede desactivarlos por organización desde /plataforma. Si están
+            // desactivados (y no hay cuentas ya conectadas) no aparecen aquí.
+            ...(channels?.messenger ? [{ href: "/messenger/cuentas" as const, label: "Cuentas Messenger", icon: MessengerIcon as React.ElementType }] : []),
+            ...(channels?.instagram ? [{ href: "/instagram/cuentas" as const, label: "Cuentas Instagram", icon: InstagramIcon as React.ElementType }] : []),
+            ...(channels?.telegram ? [{ href: "/telegram/cuentas" as const, label: "Cuentas Telegram", icon: TelegramIcon as React.ElementType }] : []),
+            ...(channels?.webchat ? [{ href: "/webchat/cuentas" as const, label: "Cuentas Web", icon: WebchatIcon as React.ElementType }] : []),
             // Admin-only: credenciales de negocio sensibles (mandan datos
             // reales al ad account en producción), sin equivalente de
             // WAAccountShare — mismo criterio que Bots IA/Usuarios.
-            ...(isAdmin ? [{ href: "/meta-ads" as const, label: "Meta Ads", icon: Megaphone as React.ElementType }] : []),
+            ...(isAdmin ? [{ href: "/meta-ads" as const, label: "Meta Ads", icon: MetaIcon as React.ElementType }] : []),
           ],
         },
         {
@@ -138,6 +133,7 @@ export function DashboardShell({
   return (
     <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
       {children}
+      <CallDock />
     </AppShell>
   );
 }

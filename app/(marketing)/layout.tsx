@@ -77,12 +77,12 @@ export default async function MarketingLayout({ children }: { children: React.Re
               data-track-location="header"
               className="!h-9 !px-3 !text-xs min-[400px]:!h-10 min-[400px]:!px-4 min-[400px]:!text-sm"
             >
-              Prueba gratis
+              Probar 14 días
             </Button>
             <span className="hidden sm:contents">
               <ThemeToggle />
             </span>
-            <SiteMobileNav links={MOBILE_LINKS} loginHref={appUrl("/login")} ctaHref="/register" ctaLabel="Crear cuenta gratis" trackLocation="menu" label="Menú principal" />
+            <SiteMobileNav links={MOBILE_LINKS} loginHref={appUrl("/login")} ctaHref="/register" ctaLabel="Prueba 14 días de Pro" trackLocation="menu" label="Menú principal" />
           </div>
         </div>
       </header>

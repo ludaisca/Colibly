@@ -10,6 +10,7 @@ import { getMediaInfo, getMessageBody } from "@/lib/whatsapp/message-content";
 import { validateWhatsAppWebhookSignature, verifyTokenMatches } from "@/lib/meta/platform-app";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import { COEXISTENCE_FIELDS, handleCoexistenceChange, type CoexistenceField } from "@/lib/whatsapp/coexistence/webhook";
+import { handleCallsWebhook } from "@/lib/whatsapp/calling/ingest";
 import { applyConnectionLifecycle } from "@/lib/whatsapp/coexistence/lifecycle";
 
 interface WebhookMessage {
@@ -465,6 +466,26 @@ export async function POST(req: Request) {
 
         if (field && COEXISTENCE_FIELDS.includes(field)) {
           await handleCoexistenceChange({ field: field as CoexistenceField, value: change.value, rawBody, signature });
+          continue;
+        }
+
+        if (field === "calls") {
+          const eventValue = change.value as { metadata?: { phone_number_id?: string } } | null;
+          const phoneNumberId = eventValue?.metadata?.phone_number_id;
+          const account = phoneNumberId
+            ? await prisma.wAAccount.findFirst({ where: { phoneNumberId } })
+            : null;
+          if (account && (account.connectionType !== "MANUAL" || account.appSecret)) {
+            const sigValid = await validateWhatsAppWebhookSignature(rawBody, signature, account);
+            if (sigValid) {
+              await prisma.wAAccount.update({ where: { id: account.id }, data: { lastActivity: new Date() } });
+              await handleCallsWebhook(account, eventValue).catch((error) => {
+                console.error("[calls] no se pudo registrar la llamada", { accountId: account.id, error });
+              });
+            } else {
+              console.warn(`[webhook] Firma inválida en calls para la cuenta "${account.name}" (${account.id})`);
+            }
+          }
           continue;
         }
 

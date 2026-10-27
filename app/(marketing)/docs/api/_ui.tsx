@@ -1,4 +1,5 @@
 import type React from "react";
+import { CopyButton } from "./_copy-button";
 
 export function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -13,11 +14,12 @@ export function SubHeading({ children }: { children: React.ReactNode }) {
   return <h3 className="pt-4 font-display text-lg font-semibold">{children}</h3>;
 }
 
-// Bloque de código en grafito (paleta "Menta y grafito"), con scroll propio
-// para que una línea larga no rompa el ancho en el celular.
+// Bloque de código en grafito, con scroll propio para que una línea larga no
+// rompa el ancho en el celular. El botón de copiar deja aire arriba.
 export function Code({ children }: { children: string }) {
   return (
-    <pre className="mt-2 max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-accent-2 px-3 py-3 font-mono text-[12px] leading-relaxed text-white sm:px-4 sm:text-[13px]">
+    <pre className="relative mt-2 max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-code px-3 pb-3 pt-10 font-mono text-[12px] leading-relaxed text-code-foreground sm:px-4 sm:text-[13px]">
+      <CopyButton text={children} />
       <code>{children}</code>
     </pre>
   );

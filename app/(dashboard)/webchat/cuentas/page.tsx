@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Globe, Trash2, Share2 } from "lucide-react";
+import { Plus, Trash2, Share2 } from "lucide-react";
+import { WebchatIcon } from "@/app/components/ui/channel-icons";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
@@ -102,7 +103,7 @@ export default function WebchatCuentasPage() {
         loading={loading}
         error={fetchError}
         onRetry={fetchAccounts}
-        emptyIcon={Globe}
+        emptyIcon={WebchatIcon}
         emptyTitle="Sin cuentas web"
         emptyDescription="Crea una cuenta para obtener el script embebible del widget de chat en vivo."
         onRowClick={(a) => {

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { contactCustomFieldDefinitionSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { checkPlanLimit } from "@/lib/billing/gates";
 
 // CRUD de definiciones — mismo shape que /api/whatsapp/canned-responses
 // (dual waAccountId/channelAccountId, ?waAccountId=/?channelAccountId= para
@@ -89,6 +91,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
       }
     }
+
+    const overFields = await checkPlanLimit(await requireOrgId(session.user.id), "customFields");
+    if (overFields) return overFields;
 
     const definition = await prisma.contactCustomFieldDefinition.create({
       data: {

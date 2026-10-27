@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { User, Lock, CalendarDays, Brain, FileSpreadsheet, ExternalLink, RefreshCw, Unlink, Plug, CreditCard } from "lucide-react";
+import { User, Lock, CalendarDays, Brain, ExternalLink, RefreshCw, Unlink, Plug } from "lucide-react";
+import { GoogleSheetsButtonIcon, GoogleSheetsIcon, StripeIcon } from "@/app/components/ui/brand-marks";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { PasswordInput } from "@/app/components/ui/password-input";
@@ -280,11 +281,14 @@ export default function SettingsPage() {
 
       {isAdmin && (
         <Card as="section" className="space-y-4">
-          <SectionHeader title="Plan y facturación" />
+          <div className="flex items-center gap-2.5">
+            <StripeIcon size={22} className="shrink-0" />
+            <SectionHeader title="Plan y facturación" className="min-w-0 flex-1" />
+          </div>
           <p className="text-sm text-muted">
             Tu plan, el consumo contra sus límites, tus pagos y facturas.
           </p>
-          <Button href="/configuracion/plan" variant="secondary" size="sm" icon={CreditCard}>
+          <Button href="/configuracion/plan" variant="secondary" size="sm" icon={StripeIcon}>
             Ver plan
           </Button>
         </Card>
@@ -321,7 +325,10 @@ export default function SettingsPage() {
       <CamposPersonalizadosSection />
 
       <Card as="section" className="space-y-4">
-        <SectionHeader title="Google Sheets" />
+        <div className="flex items-center gap-2.5">
+          <GoogleSheetsIcon size={22} className="shrink-0" />
+          <SectionHeader title="Google Sheets" className="min-w-0 flex-1" />
+        </div>
         <p className="text-sm text-muted">
           Sincroniza automáticamente tus leads calificados y resultados de campaña a una hoja de Google, cada 15 minutos.
         </p>
@@ -334,7 +341,7 @@ export default function SettingsPage() {
         {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && googleStatus.configured !== false && (
           <Button
             size="sm"
-            icon={FileSpreadsheet}
+            icon={GoogleSheetsButtonIcon}
             // Ruta API que responde 302 hacia el consentimiento OAuth de Google —
             // necesita navegación completa, router.push no sigue redirects externos.
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination

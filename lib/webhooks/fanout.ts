@@ -4,7 +4,7 @@ import { webhookDeliveryQueue } from "@/lib/queue";
 import type { DomainEvent } from "@/lib/events/types";
 import { resolveIntegrationScope, scopeIncludes, type ResolvedScope } from "@/lib/integrations/account-scope";
 import { buildPublicEvent, type PublicEvent } from "./payload";
-import { hasApiAccess, isOrgWritable, orgIdForAccount } from "@/lib/billing/gates";
+import { hasWebhookAccess, isOrgWritable, orgIdForAccount } from "@/lib/billing/gates";
 
 // Worker de domain-events → una WebhookDelivery por endpoint que coincide
 // (tipo de evento + alcance de cuentas de su dueño) y un job de entrega por
@@ -34,11 +34,11 @@ export async function fanOutToWebhooks(event: DomainEvent): Promise<number> {
   let payload: PublicEvent | null = null;
   let created = 0;
 
-  // Webhooks salientes: solo en planes con API y con la cuenta al corriente.
+  // Webhooks salientes: solo en planes que los incluyen y con la cuenta al corriente.
   const deliverable = new Map<string, Promise<boolean>>();
   const orgCanReceive = (organizationId: string) => {
     if (!deliverable.has(organizationId)) {
-      deliverable.set(organizationId, Promise.all([hasApiAccess(organizationId), isOrgWritable(organizationId)]).then(([api, ok]) => api && ok));
+      deliverable.set(organizationId, Promise.all([hasWebhookAccess(organizationId), isOrgWritable(organizationId)]).then(([hooks, ok]) => hooks && ok));
     }
     return deliverable.get(organizationId)!;
   };

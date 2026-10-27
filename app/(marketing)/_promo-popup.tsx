@@ -12,7 +12,9 @@ const STORAGE_KEY = "colibly_promo_dismissed";
 /** No volver a mostrar hasta pasados estos días. */
 const DISMISS_DAYS = 7;
 /** Espera tras cargar la página antes de abrir (ms). */
-const SHOW_DELAY_MS = 9_000;
+const SHOW_DELAY_MS = 12_000;
+/** Solo en las páginas donde el popup tiene sentido comercial. */
+const SHOW_ON_PATHS = new Set(["/", "/precios"]);
 
 const LEADS = [
   { name: "María Rodríguez", meta: "Facial hidratante", tag: "oportunidad", score: 72 },
@@ -104,6 +106,8 @@ export function PromoPopup() {
   const titleId = useId();
   const descId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -115,12 +119,11 @@ export function PromoPopup() {
 
   useEffect(() => {
     if (wasDismissedRecently()) return;
-    // No interrumpir si el visitante ya va a registrarse / entrar.
-    if (typeof window !== "undefined") {
-      const path = window.location.pathname;
-      if (path.startsWith("/docs")) return;
-    }
+    // Solo landing y precios: en legales/contacto/docs no interrumpe.
+    if (!SHOW_ON_PATHS.has(window.location.pathname)) return;
     const t = window.setTimeout(() => {
+      // La ruta pudo cambiar durante la espera (el layout no se remonta).
+      if (!SHOW_ON_PATHS.has(window.location.pathname)) return;
       setOpen(true);
       requestAnimationFrame(() => setVisible(true));
     }, SHOW_DELAY_MS);
@@ -129,16 +132,45 @@ export function PromoPopup() {
 
   useEffect(() => {
     if (!open) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
+
+    // El resto de la página queda inerte mientras el diálogo está abierto.
+    const roots = Array.from(document.querySelectorAll<HTMLElement>("header, main, footer"));
+    roots.forEach((el) => el.setAttribute("inert", ""));
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        close();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusables = Array.from(
+        dialog.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')
+      ).filter((el) => el.offsetParent !== null && !el.hasAttribute("disabled"));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
+
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
+      roots.forEach((el) => el.removeAttribute("inert"));
+      const previous = previousFocusRef.current;
+      if (previous && document.contains(previous)) previous.focus();
     };
   }, [open, close]);
 
@@ -148,6 +180,7 @@ export function PromoPopup() {
     <div className="fixed inset-0 z-[60] flex items-end justify-center p-3 sm:items-center sm:p-6" role="presentation">
       <button
         type="button"
+        tabIndex={-1}
         aria-label="Cerrar promoción"
         className={cn(
           "absolute inset-0 bg-foreground/45 transition-opacity duration-200",
@@ -157,6 +190,7 @@ export function PromoPopup() {
       />
 
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -201,7 +235,7 @@ export function PromoPopup() {
               data-track-location="promo_popup"
               onClick={close}
             >
-              Prueba {TRIAL_DAYS} días gratis
+              Prueba {TRIAL_DAYS} días de Pro
             </Button>
             <Link
               href="/precios"

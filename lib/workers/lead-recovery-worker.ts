@@ -4,7 +4,7 @@ import { sendTelegramRecoveryMessage } from "@/lib/telegram/lead-recovery";
 import { sendMetaChannelRecoveryMessage } from "@/lib/meta-messaging/lead-recovery";
 import { hasAiCredits, reserveAiCredit } from "@/lib/ai/credits";
 import type { Organization, WABot, WAAccount, ChannelAccount } from "@prisma/client";
-import { isOrgWritable } from "@/lib/billing/gates";
+import { hasBotsAccess, isOrgWritable } from "@/lib/billing/gates";
 
 // Scheduled runs are unattended, so keep each tick's blast radius bounded —
 // same reasoning as lead-scoring-worker.ts's CANDIDATE_POOL/BATCH_SIZE.
@@ -41,6 +41,7 @@ export async function processLeadRecoveryTick() {
 
 async function runRecoveryForOrg(settings: Organization, now: Date) {
   if (!(await isOrgWritable(settings.id))) return;
+  if (!(await hasBotsAccess(settings.id))) return;
   if (!(await hasAiCredits(settings.id, now))) {
     console.log(`[lead-recovery] Sin créditos de IA, se omite la recuperación de la organización ${settings.id} en este ciclo`);
     return;

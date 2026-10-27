@@ -1,20 +1,13 @@
 import { appUrl } from "@/lib/app-url";
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
-import {
-  GRACE_DAYS,
-  PRICE_CURRENCY_NOTE,
-  TRIAL_DAYS,
-  TRIAL_MAX_SEATS,
-  TRIAL_POOL_TEXT,
-} from "@/lib/billing/plans";
-import { COEXISTENCE_PITCH, META_FEES_NOTE } from "@/lib/billing/plan-features";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
+import { META_FEES_NOTE } from "@/lib/billing/plan-features";
 import { LINK } from "../_page";
-import { PlanCards } from "../_plan-cards";
-import { PricingTools } from "../_pricing-tools";
+import { LandingOffer } from "../_landing-offer";
 
-const DESCRIPTION = `Planes y precios de ${BRAND_NAME}: Esencial, Negocio y Pro, en pesos mexicanos por ejecutivo al mes. Crea tu cuenta y prueba ${TRIAL_DAYS} días gratis, sin tarjeta.`;
-const CTA = `Prueba ${TRIAL_DAYS} días gratis`;
+const DESCRIPTION = `Planes y precios de ${BRAND_NAME}: Básico $59, Avanzado $89 y Pro $149 MXN por usuario al mes. Empresarial a la medida. Prueba ${TRIAL_DAYS} días gratis, sin tarjeta.`;
+const CTA = `Prueba ${TRIAL_DAYS} días de Pro`;
 
 export const metadata: Metadata = {
   title: "Planes y precios",
@@ -30,8 +23,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Página canónica de precios (nav, pie, términos, SEO). La landing solo resume
-// las 3 cards y enlaza aquí para calculadora, matriz y notas.
 export default function PricingPage() {
   return (
     <div>
@@ -40,14 +31,13 @@ export default function PricingPage() {
           Planes y precios
         </h1>
         <p className="mt-4 text-pretty text-base leading-relaxed text-muted sm:text-lg">
-          Pagas por ejecutivo. {COEXISTENCE_PITCH} Prueba {TRIAL_DAYS} días gratis con Pro (hasta{" "}
-          {TRIAL_MAX_SEATS} ejecutivos), sin tarjeta.
+          Pagas por usuario, cada mes, en pesos. Básico $59, Avanzado $89 y Pro $149. Empresarial es a la
+          medida. Prueba {TRIAL_DAYS} días, sin tarjeta.
         </p>
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:py-10 md:px-6 md:py-14">
-        <PlanCards cta={CTA} trackPrefix="precios" titleAs="h2" />
-        <PricingTools registerCta={CTA} />
+        <LandingOffer cta={CTA} compare />
       </div>
 
       <section className="border-t border-border/60 bg-surface">
@@ -59,43 +49,40 @@ export default function PricingPage() {
             <li className="flex gap-2.5">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
               <span className="min-w-0 text-pretty">
-                Un ejecutivo es cada persona que atiende conversaciones (dueño y admins incluidos). Las
-                invitaciones pendientes también ocupan asiento. Puedes agregar o quitar cuando quieras; se
-                prorratea.
+                El precio es por usuario al mes. Todos los usuarios de la cuenta van en el mismo plan y puedes
+                agregar o quitar cuando quieras. El pago es mensual.
               </span>
             </li>
             <li className="flex gap-2.5">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
               <span className="min-w-0 text-pretty">
-                Cada ejecutivo conecta 1 WhatsApp; en Negocio y Pro, por habilitación, también 1 Telegram, 1
-                Messenger, 1 Instagram y el chat web. Esencial es solo WhatsApp, sin IA, hasta 3 ejecutivos.
-                Contactos y créditos de IA se suman por ejecutivo; automatizaciones y API dependen del plan (
+                Los leads y los créditos de IA son por usuario y se multiplican por el equipo. Básico incluye
+                2,500 leads y 750 créditos al mes; Avanzado, 5,000 y 1,250; Pro, 10,000 y 2,250. Los créditos
+                que no usas no pasan al mes siguiente.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
+              <span className="min-w-0 text-pretty">
+                Básico incluye 1 WhatsApp y 1 Instagram; cada usuario adicional desbloquea un canal. Avanzado
+                incluye 3 de cada uno. Pro y Empresarial no tienen tope. Facebook y Telegram van en todos los
+                planes.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
+              <span className="min-w-0 text-pretty">
+                La prueba de {TRIAL_DAYS} días incluye todas las funciones, sin tarjeta. La API está documentada
+                en{" "}
                 <a href={appUrl("/docs/api")} className="font-medium text-accent-ink underline underline-offset-2">
-                  API
+                  la referencia para desarrolladores
                 </a>
-                ).
+                .
               </span>
             </li>
             <li className="flex gap-2.5">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
-              <span className="min-w-0 text-pretty">
-                La prueba de {TRIAL_DAYS} días incluye Pro para hasta {TRIAL_MAX_SEATS} ejecutivos, con{" "}
-                {TRIAL_POOL_TEXT}, sin tarjeta. Si no eliges plan al terminar, la cuenta pasa a solo lectura ese
-                mismo día.
-              </span>
-            </li>
-            <li className="flex gap-2.5">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
-              <span className="min-w-0 text-pretty">
-                {PRICE_CURRENCY_NOTE} Cobro mensual con tarjeta vía Stripe. En Negocio y Pro la IA ya viene
-                incluida.
-              </span>
-            </li>
-            <li className="flex gap-2.5">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
-              <span className="min-w-0 text-pretty">
-                Si un cobro falla tras haber pagado, tienes {GRACE_DAYS} días de gracia. {META_FEES_NOTE}
-              </span>
+              <span className="min-w-0 text-pretty">{META_FEES_NOTE}</span>
             </li>
           </ul>
 

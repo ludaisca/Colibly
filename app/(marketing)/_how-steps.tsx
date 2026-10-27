@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/app/components/ui/cn";
 import { Reveal } from "./_reveal";
 
@@ -19,31 +19,12 @@ const STEPS = [
   },
 ] as const;
 
-/** Tres pasos con resalte al foco/hover, autoavance suave y pista de progreso. */
+/** Tres pasos con resalte al foco/hover. Sin autoavance: el usuario manda. */
 export function HowSteps() {
   const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
-    if (paused) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return;
-    const id = window.setInterval(() => {
-      setActive((i) => (i + 1) % STEPS.length);
-    }, 4200);
-    return () => window.clearInterval(id);
-  }, [paused]);
 
   return (
-    <ol
-      className="steps-track relative mt-8 grid gap-4 sm:mt-12 sm:gap-6 md:grid-cols-3 md:gap-8"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
-      onBlurCapture={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setPaused(false);
-      }}
-    >
+    <ol className="steps-track relative mt-8 grid gap-4 sm:mt-12 sm:gap-6 md:grid-cols-3 md:gap-8">
       <span
         aria-hidden
         className="pointer-events-none absolute left-[8%] right-[8%] top-5 hidden h-px bg-border md:block"
@@ -72,7 +53,7 @@ export function HowSteps() {
               <p
                 className={cn(
                   "font-display text-3xl font-semibold tabular-nums transition-colors duration-300 sm:text-4xl",
-                  on ? "text-accent-ink" : "text-accent-ink/35"
+                  on ? "text-accent-ink" : "text-muted"
                 )}
               >
                 {String(i + 1).padStart(2, "0")}

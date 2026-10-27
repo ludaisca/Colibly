@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, CreditCard, ExternalLink, Minus, Plus, X } from "lucide-react";
+import { Check, ExternalLink, Minus, Plus, X } from "lucide-react";
+import { StripeButtonIcon, StripeIcon } from "@/app/components/ui/brand-marks";
 import type { OrganizationStatus, PlanId } from "@prisma/client";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SectionHeader } from "@/app/components/ui/section-header";
@@ -64,7 +65,7 @@ function statusLine(d: PlanViewData): string {
   if (d.isInternal) return "Cuenta interna: sin cobro ni límites.";
   if (d.status === "TRIALING") {
     if (d.access !== "full") return `Tu prueba terminó. Elige un plan para reactivar tu cuenta; sin plan, tus datos se eliminan ${RETENTION_DAYS_AFTER_TRIAL} días después de terminar la prueba.`;
-    return `Prueba gratis de ${TRIAL_DAYS} días con el plan Pro (hasta ${TRIAL_MAX_SEATS} ejecutivos, con ${TRIAL_POOL_TEXT}), hasta el ${formatDate(d.trialEndsAt)}. Si no eliges un plan, ese día tu cuenta pasa a solo lectura.`;
+    return `Prueba gratis de ${TRIAL_DAYS} días con el plan Pro (hasta ${TRIAL_MAX_SEATS} usuarios, con ${TRIAL_POOL_TEXT}), hasta el ${formatDate(d.trialEndsAt)}. Si no eliges un plan, ese día tu cuenta pasa a solo lectura.`;
   }
   if (d.status === "ACTIVE") {
     if (d.cancelAtPeriodEnd) return `Cancelado: sigue activo hasta el ${formatDate(d.currentPeriodEnd)}.`;
@@ -110,14 +111,18 @@ export function PlanView({ data }: { data: PlanViewData }) {
       instagram: data.usage.find((u) => u.key === "instagram")?.used ?? 0,
       webchat: data.webchat,
       contacts: data.usage.find((u) => u.key === "contacts")?.used ?? 0,
+      activeLeads: data.usage.find((u) => u.key === "leads")?.used ?? 0,
       activeAutomations: data.usage.find((u) => u.key === "automations")?.used ?? 0,
+      funnels: data.usage.find((u) => u.key === "funnels")?.used ?? 0,
+      customFields: data.usage.find((u) => u.key === "fields")?.used ?? 0,
+      aiAgents: data.usage.find((u) => u.key === "agents")?.used ?? 0,
       apiKeys: data.apiKeys,
       webhooks: data.webhooks,
     };
     return planChangeImpact(selectedPlan, seats, usage);
   }, [data, selectedPlan, seats]);
 
-  // Tope del plan elegido (Esencial: 3 ejecutivos).
+  // Tope del plan elegido.
   const planMaxSeats = maxSeatsFor(plan);
   function clampSeats(n: number) {
     return Math.min(planMaxSeats, Math.max(minSeats, n));
@@ -257,7 +262,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
         <section id="asientos" className="space-y-4 scroll-mt-24">
           <SectionHeader eyebrow="Planes" title={data.hasSubscription ? "Cambiar plan o asientos" : "Elige tu plan"} />
           <p className="text-sm text-muted">
-            Se cobra por ejecutivo: cada persona de tu equipo que puede atender conversaciones (incluido el dueño) ocupa un asiento. Contactos y créditos de IA se suman por asiento. {PRICING_FOOTNOTE}
+            Se cobra por usuario: cada persona de tu equipo (incluido el dueño) ocupa un asiento. Contactos, leads activos y créditos de IA se suman por usuario. {PRICING_FOOTNOTE}
           </p>
           <div className="grid gap-4 md:grid-cols-3">
             {PLAN_LIST.map((p) => {
@@ -373,7 +378,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
               )}
               {!pendingConfirm && (
                 <Button
-                  icon={CreditCard}
+                  icon={StripeButtonIcon}
                   loading={busy === "save"}
                   disabled={!canPay || !!busy || preview.blockers.length > 0}
                   onClick={() => submit(false)}
@@ -383,12 +388,14 @@ export function PlanView({ data }: { data: PlanViewData }) {
               )}
               {!canPay && <p className="text-xs text-muted-darker">Los pagos en línea se habilitarán muy pronto; mientras tanto puedes calcular tu total.</p>}
               {canPay && !data.hasSubscription && data.chargeDeferredToTrialEnd && (
-                <p className="text-xs text-muted-darker">
+                <p className="flex items-center gap-1.5 text-xs text-muted-darker">
+                  <StripeIcon size={14} className="shrink-0" />
                   Si eliges un plan durante la prueba, el primer cobro se hace al terminar la prueba. Pagos seguros con Stripe.
                 </p>
               )}
               {data.hasSubscription && (
-                <p className="text-xs text-muted-darker">
+                <p className="flex items-center gap-1.5 text-xs text-muted-darker">
+                  <StripeIcon size={14} className="shrink-0" />
                   Al agregar o quitar asientos Stripe prorratea el cambio. La tarjeta y las facturas se administran en “Administrar facturación”.
                 </p>
               )}

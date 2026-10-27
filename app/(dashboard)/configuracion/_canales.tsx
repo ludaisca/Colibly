@@ -33,7 +33,9 @@ export function CanalesSection() {
   return (
     <Card as="section" className="space-y-4">
       <SectionHeader title="Canales disponibles" />
-      <p className="text-sm text-muted">WhatsApp está disponible para todas las organizaciones. El equipo de Colibly habilita los demás canales cuando los solicitas.</p>
+      <p className="text-sm text-muted">
+        Todos los canales están disponibles desde el inicio. Conéctalos con tus propias credenciales; tu plan define cuántos puedes usar.
+      </p>
       {error && <Banner tone="danger">{error}</Banner>}
       <div className="divide-y divide-border border-y border-border">
         <div className="flex items-center justify-between gap-3 py-3 text-sm">
@@ -43,14 +45,18 @@ export function CanalesSection() {
           <div key={key} className="flex items-center justify-between gap-3 py-3 text-sm">
             <span>{label}</span>
             <Badge tone={flags?.[key] ? "success" : "neutral"} size="sm">
-              {flags ? flags[key] ? "Disponible" : "Por solicitud" : "Cargando…"}
+              {flags ? flags[key] ? "Disponible" : "Desactivado" : "Cargando…"}
             </Badge>
           </div>
         ))}
       </div>
       {flags && Object.values(flags).some((enabled) => !enabled) && (
         <p className="text-sm text-muted">
-          Para solicitar un canal, escribe a <a className="text-accent-ink underline" href={`mailto:${BRAND_CONTACT_EMAIL}?subject=Activar%20canal%20en%20Colibly`}>{BRAND_CONTACT_EMAIL}</a>.
+          Si tu organización tiene un canal desactivado, escribe a{" "}
+          <a className="text-accent-ink underline" href={`mailto:${BRAND_CONTACT_EMAIL}?subject=Reactivar%20canal%20en%20Colibly`}>
+            {BRAND_CONTACT_EMAIL}
+          </a>
+          .
         </p>
       )}
     </Card>

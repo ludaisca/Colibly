@@ -13,6 +13,7 @@ import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
+import { ContactTasks } from "@/app/components/whatsapp/contact-tasks";
 import "./contact-drawer.css";
 
 interface ContactDetail {
@@ -383,6 +384,8 @@ export function ContactDrawer({
               </Button>
             )}
           </div>
+
+          <ContactTasks contactId={contactId} />
 
           <div>
             <label className="block text-xs font-medium text-muted-darker mb-1.5">Notas internas</label>

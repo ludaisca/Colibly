@@ -20,10 +20,11 @@ export function FeatureHint({
   }
 
   return (
-    <span className={cn("relative inline", muted && "text-muted")}>
+    <span className={cn("relative block max-w-full", muted && "text-muted")}>
       <button
         type="button"
-        className="border-b border-dotted border-accent-ink/50 text-left hover:border-accent-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+        className="border-b border-dotted border-accent-muted text-left hover:border-accent-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+        aria-expanded={open}
         aria-describedby={open ? id : undefined}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
@@ -36,7 +37,7 @@ export function FeatureHint({
         <span
           id={id}
           role="tooltip"
-          className="absolute left-0 top-[calc(100%+0.4rem)] z-20 w-[min(16rem,calc(100vw-2rem))] max-w-[min(16rem,70vw)] rounded-lg border border-border bg-surface px-2.5 py-2 text-pretty text-xs font-normal leading-relaxed text-muted shadow-lg sm:max-w-none"
+          className="mt-1 block w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-pretty text-xs font-normal leading-relaxed text-muted shadow-lg sm:absolute sm:left-0 sm:top-[calc(100%+0.4rem)] sm:mt-0 sm:w-[min(16rem,calc(100vw-2rem))]"
         >
           {hint}
         </span>

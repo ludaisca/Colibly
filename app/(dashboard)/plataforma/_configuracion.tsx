@@ -399,13 +399,13 @@ export function PlataformaConfiguracion() {
           onToggleClear={() => toggleClear("stripeWebhookSecret")}
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <FormField label="Price id Esencial ($99 MXN por ejecutivo/mes)" hint="Precio recurrente mensual en MXN, por unidad: la cantidad de la suscripción = ejecutivos.">
+          <FormField label="Price id Básico ($59 MXN por usuario/mes)" hint="Precio recurrente mensual en MXN, por unidad: la cantidad de la suscripción = usuarios.">
             {(id) => <Input id={id} value={plain.stripePriceEssential} onChange={(e) => setPlain((p) => ({ ...p, stripePriceEssential: e.target.value }))} placeholder="price_..." />}
           </FormField>
-          <FormField label="Price id Negocio ($199 MXN por ejecutivo/mes)" hint="Antes «Básico». Precio recurrente mensual en MXN, por unidad.">
+          <FormField label="Price id Avanzado ($89 MXN por usuario/mes)" hint="Precio recurrente mensual en MXN, por unidad.">
             {(id) => <Input id={id} value={plain.stripePriceBusiness} onChange={(e) => setPlain((p) => ({ ...p, stripePriceBusiness: e.target.value }))} placeholder="price_..." />}
           </FormField>
-          <FormField label="Price id Pro ($349 MXN por ejecutivo/mes)" hint="Precio recurrente mensual en MXN, por unidad.">
+          <FormField label="Price id Pro ($149 MXN por usuario/mes)" hint="Precio recurrente mensual en MXN, por unidad.">
             {(id) => <Input id={id} value={plain.stripePricePro} onChange={(e) => setPlain((p) => ({ ...p, stripePricePro: e.target.value }))} placeholder="price_..." />}
           </FormField>
         </div>

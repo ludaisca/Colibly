@@ -30,6 +30,9 @@ vi.mock("@/lib/prisma", () => ({
     channelAccount: { count: vi.fn(async () => 0) },
     contact: { count: vi.fn(async () => 0) },
     automation: { count: vi.fn(async () => 0) },
+    pipeline: { count: vi.fn(async () => 0) },
+    contactCustomFieldDefinition: { count: vi.fn(async () => 0) },
+    wABot: { count: vi.fn(async () => 0) },
     apiKey: { count: vi.fn(async () => 0) },
     webhookEndpoint: { count: vi.fn(async () => 0) },
   },
@@ -102,7 +105,8 @@ describe("candado de asientos (evaluatePlanLimit seats)", () => {
     expect(r).toMatchObject({ max: 3 });
     expect(r?.message).toMatch(/prueba gratis incluye hasta 3/);
   });
-  it("WhatsApp: 1 número por asiento ocupado", async () => {
+  it("WhatsApp en Básico: 1 número por usuario", async () => {
+    db.org = { ...db.org!, plan: "ESSENTIAL" };
     db.users = 3;
     db.wa = 3;
     expect(await evaluatePlanLimit(ORG, "whatsapp")).toMatchObject({ limit: "whatsapp", max: 3 });

@@ -13,7 +13,7 @@ import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
 import { botSendQueue } from "@/lib/queue";
 import type { AIProvider, AIMessage, ContentPart } from "@/lib/ai/types";
-import { BillingBlockedError, isBotWritable } from "@/lib/billing/gates";
+import { BillingBlockedError, hasBotsAccess, isBotWritable } from "@/lib/billing/gates";
 
 // Hermano de lib/workers/bot-worker.ts, no una bifurcación dentro de él: ese
 // archivo toca ~10 puntos acoplados a WAAccount/WAChat/WAMessage (historial,
@@ -145,6 +145,8 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
     await failBotAndNotify(botId, conversationId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
     return;
   }
+
+  if (!(await hasBotsAccess(bot.organizationId))) return;
 
   // Un crédito de IA por respuesta; sin créditos el bot calla (sin marcar
   // ERROR — no es una falla del bot) y el admin ya recibió el aviso del 100 %.

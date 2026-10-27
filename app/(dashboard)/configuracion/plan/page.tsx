@@ -30,7 +30,7 @@ export default async function PlanPage() {
   const finite = (n: number) => (Number.isFinite(n) ? n : null);
   const paidSeats = seatCap(org);
   const trialing = org.status === "TRIALING" && !org.isInternal;
-  const poolHint = (what: string) => (trialing ? `Bolsa fija de la prueba para toda la organización (no se multiplica por ${what})` : `Bolsa de la organización: ${what} por ejecutivo × asientos`);
+  const poolHint = (what: string) => `Bolsa de la organización: ${what} por usuario × ${trialing ? "los usuarios de la prueba" : "usuarios pagados"}`;
 
   const data: PlanViewData = {
     organizationName: org.name,
@@ -54,21 +54,25 @@ export default async function PlanPage() {
     webchat: usage.webchat,
     seatsPaid: Number.isFinite(paidSeats) ? paidSeats : null,
     usage: [
-      { key: "seats", label: "Ejecutivos (asientos)", hint: "Usuarios activos e invitaciones pendientes; dueño y admins cuentan", used: usage.seats, max: finite(limits.seats) },
-      { key: "whatsapp", label: "Números de WhatsApp", hint: "1 por ejecutivo, con Coexistencia", used: usage.whatsapp, max: finite(limits.whatsapp) },
+      { key: "seats", label: "Usuarios (asientos)", hint: "Usuarios activos e invitaciones pendientes; dueño y admins cuentan", used: usage.seats, max: finite(limits.seats) },
+      { key: "whatsapp", label: "Números de WhatsApp", hint: "Según el plan: incluidos más uno por usuario adicional, o sin tope", used: usage.whatsapp, max: finite(limits.whatsapp) },
       ...SEAT_CHANNELS.map((ch) => ({
         key: ch,
         label: `Cuentas de ${SEAT_CHANNEL_LABELS[ch]}`,
-        hint: "1 por ejecutivo, por habilitación",
+        hint: "Según el plan",
         used: usage[ch],
         max: finite(limits[ch]),
       })),
-      { key: "contacts", label: "Contactos", hint: trialing ? poolHint("ejecutivos") : poolHint("contactos"), used: usage.contacts, max: finite(limits.contacts) },
+      { key: "leads", label: "Leads activos", hint: trialing ? poolHint("leads activos") : poolHint("leads activos"), used: usage.activeLeads, max: finite(limits.activeLeads) },
+      { key: "contacts", label: "Contactos", hint: trialing ? poolHint("contactos") : poolHint("contactos"), used: usage.contacts, max: finite(limits.contacts) },
       { key: "automations", label: "Automatizaciones activas", hint: null, used: usage.activeAutomations, max: finite(limits.activeAutomations) },
+      { key: "funnels", label: "Embudos", hint: "Por organización", used: usage.funnels, max: finite(limits.funnels) },
+      { key: "fields", label: "Campos personalizados", hint: "En todas las cuentas", used: usage.customFields, max: finite(limits.customFields) },
+      { key: "agents", label: "Agentes de IA", hint: limits.aiAgents === 0 ? "Desde Avanzado" : "Bots configurados", used: usage.aiAgents, max: finite(limits.aiAgents) },
       {
         key: "ai",
         label: "Créditos de IA este mes",
-        hint: !limits.aiAccess ? "Tu plan no incluye IA: cambia a Negocio o Pro para usar bots y calificadores" : `1 crédito = 1 respuesta o análisis de IA. ${trialing ? poolHint("ejecutivos") : poolHint("créditos")}${
+        hint: !limits.aiAccess ? "Tu plan no incluye IA." : `1 crédito = 1 respuesta o análisis de IA. ${poolHint("créditos")}${
           org.aiCreditsBonus > 0 ? `, más ${org.aiCreditsBonus.toLocaleString("es-MX")} créditos extra de este periodo` : ""
         }`,
         used: org.aiCreditsUsed,

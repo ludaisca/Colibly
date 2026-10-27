@@ -8,6 +8,7 @@ import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { buildAppointmentMarkerContract, parseAppointmentMarker } from "@/lib/ai/appointment-marker";
 import type { AppointmentProposal } from "@/lib/ai/appointment-marker";
 import { reserveAiCredit } from "@/lib/ai/credits";
+import { hasBotsAccess } from "@/lib/billing/gates";
 import { getBotSkipReason } from "@/lib/bots/guards";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
@@ -163,6 +164,8 @@ async function handleBotMessage(job: BotMessageJob) {
     await failBotAndNotify(botId, waChatId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
     return;
   }
+
+  if (!(await hasBotsAccess(bot.organizationId))) return;
 
   // Un crédito de IA por respuesta; sin créditos el bot calla (sin marcar
   // ERROR — no es una falla del bot) y el admin ya recibió el aviso del 100 %.

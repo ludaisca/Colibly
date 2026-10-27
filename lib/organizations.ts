@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { TRIAL_DAYS, TRIAL_PLAN } from "@/lib/billing/plans";
+import { createDefaultPipeline } from "@/lib/pipeline/ensure";
 
 // Alta de un cliente nuevo (SaaS): la organización nace en prueba (plan Pro,
 // TRIAL_DAYS días, sin tarjeta) y su primer usuario es admin y DUEÑO — el
@@ -20,12 +21,19 @@ export async function createOrganizationWithOwner(
       // Coexistencia es la función principal: toda organización nueva nace con
       // ella (explícito, aunque coincide con el default del schema).
       whatsappCoexistenceEnabled: true,
+      // Canales disponibles desde el alta: el usuario los conecta con sus
+      // credenciales. El plan sigue limitando cuántos puede usar.
+      channelTelegramEnabled: true,
+      channelMessengerEnabled: true,
+      channelInstagramEnabled: true,
+      channelWebchatEnabled: true,
     },
   });
   const owner = await tx.user.create({
     data: { name: input.name, email: input.email, password: input.hashedPassword, role: "admin", organizationId: organization.id },
   });
   await tx.organization.update({ where: { id: organization.id }, data: { ownerId: owner.id } });
+  await createDefaultPipeline(tx, organization.id);
   return { organization, owner };
 }
 

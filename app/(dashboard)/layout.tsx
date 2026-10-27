@@ -32,9 +32,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     },
   });
 
-  // Un canal se ve en el nav si el operador lo habilitó, o si la organización
-  // ya tiene cuentas ahí (desactivar el flag después no le esconde lo que ya
-  // tenía conectado — ver lib/channel-flags.ts).
+  // Un canal se ve en el nav si está habilitado (por defecto) o si la
+  // organización ya tiene cuentas ahí (desactivar el flag después no le esconde
+  // lo que ya tenía conectado — ver lib/channel-flags.ts).
   const channelCounts = user
     ? await prisma.channelAccount.groupBy({ by: ["channel"], where: { organizationId: user.organizationId }, _count: true })
     : [];

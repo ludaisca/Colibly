@@ -39,7 +39,7 @@ export interface ChatItem {
   status: ChatStatus;
   assignedToId: string | null;
   assignedTo: { id: string; name: string | null } | null;
-  account: { id: string; name: string; phoneNumber: string | null };
+  account: { id: string; name: string; phoneNumber: string | null; coexistence?: boolean; callingEnabled?: boolean };
   campaign: { id: string; name: string } | null;
   channel: Channel;
 }

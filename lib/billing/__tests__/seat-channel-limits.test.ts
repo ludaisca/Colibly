@@ -8,6 +8,9 @@ const db = vi.hoisted(() => ({
   channelAccount: { count: vi.fn() },
   contact: { count: vi.fn() },
   automation: { count: vi.fn() },
+  pipeline: { count: vi.fn() },
+  contactCustomFieldDefinition: { count: vi.fn() },
+  wABot: { count: vi.fn() },
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 
@@ -37,8 +40,8 @@ describe("perSeatLimitMessage", () => {
   it("con asiento libre manda a invitar", () => {
     const r = perSeatLimitMessage("whatsapp", 1, { trialing: true, activeUsers: 1, seatCap: 3 });
     expect(r.actionUrl).toBe("/usuarios");
-    expect(r.message).toMatch(/Coexistencia o por API/);
-    expect(r.message).toMatch(/hasta 3 ejecutivos/);
+    expect(r.message).toMatch(/ya los tienes/);
+    expect(r.message).toMatch(/hasta 3 usuarios/);
   });
   it("sin asientos libres manda a Plan y facturación", () => {
     expect(perSeatLimitMessage("telegram", 3, { trialing: true, activeUsers: 3, seatCap: 3 }).actionUrl).toBe("/configuracion/plan#asientos");
@@ -52,26 +55,33 @@ describe("evaluatePlanLimit (dry run, sin conectar nada)", () => {
     n++;
     invalidateOrgBilling(orgId());
     vi.clearAllMocks();
-    db.organization.findUnique.mockResolvedValue({ id: orgId(), name: "Vamex", plan: "PRO", status: "TRIALING", isInternal: false, seatQuantity: 1, trialEndsAt: new Date(Date.now() + 864e5), graceEndsAt: null, cancelAtPeriodEnd: false, currentPeriodEnd: null, aiCreditsUsed: 0, aiCreditsBonus: 0, aiCreditsPeriodStart: null, stripeCustomerId: null, stripeSubscriptionId: null, canceledAt: null });
+    db.organization.findUnique.mockResolvedValue({ id: orgId(), name: "Vamex", plan: "ESSENTIAL", status: "TRIALING", isInternal: false, seatQuantity: 1, trialEndsAt: new Date(Date.now() + 864e5), graceEndsAt: null, cancelAtPeriodEnd: false, currentPeriodEnd: null, aiCreditsUsed: 0, aiCreditsBonus: 0, aiCreditsPeriodStart: null, stripeCustomerId: null, stripeSubscriptionId: null, canceledAt: null });
     db.user.count.mockResolvedValue(1);
     db.authToken.count.mockResolvedValue(1); // invitación pendiente: no cuenta
     db.wAAccount.count.mockResolvedValue(1);
     db.channelAccount.count.mockResolvedValue(0);
     db.contact.count.mockResolvedValue(71);
     db.automation.count.mockResolvedValue(0);
+    db.pipeline.count.mockResolvedValue(1);
+    db.contactCustomFieldDefinition.count.mockResolvedValue(0);
+    db.wABot.count.mockResolvedValue(0);
   });
 
-  it("prueba con 1 ejecutivo y 1 número: bloquea el segundo (Coexistencia o API)", async () => {
+  it("prueba de Básico con 1 usuario y 1 número: bloquea el segundo", async () => {
     const r = await evaluatePlanLimit(orgId(), "whatsapp");
     expect(r).toMatchObject({ limit: "whatsapp", current: 1, max: 1, actionUrl: "/usuarios" });
   });
-  it("con 2 ejecutivos permite el segundo número", async () => {
+  it("con 2 usuarios permite el segundo número", async () => {
     db.user.count.mockResolvedValue(2);
     expect(await evaluatePlanLimit(orgId(), "whatsapp")).toBeNull();
   });
-  it("mismo criterio para Telegram en prueba", async () => {
+  it("mismo criterio para Instagram en Básico", async () => {
     db.channelAccount.count.mockResolvedValue(1);
-    expect(await evaluatePlanLimit(orgId(), "telegram")).toMatchObject({ max: 1 });
+    expect(await evaluatePlanLimit(orgId(), "instagram")).toMatchObject({ max: 1 });
+  });
+  it("Telegram no tiene tope en Básico", async () => {
+    db.channelAccount.count.mockResolvedValue(8);
+    expect(await evaluatePlanLimit(orgId(), "telegram")).toBeNull();
   });
   it("los asientos de la prueba siguen siendo 3", async () => {
     expect(await evaluatePlanLimit(orgId(), "seats")).toBeNull();

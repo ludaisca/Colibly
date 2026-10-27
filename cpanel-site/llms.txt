@@ -1,6 +1,6 @@
 # Colibly
 
-> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Tiene registro abierto: 14 días de prueba sin costo y sin tarjeta, con el plan Pro; después se paga por ejecutivo, en pesos mexicanos (ver «Planes y precios»), sujeto a ajuste. Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia).
+> Colibly es un CRM conversacional para negocios que venden por mensaje. Reúne WhatsApp, clientes y equipo en una sola bandeja, con un asistente de IA que responde con la información del negocio y seguimiento de cada cliente. Tiene registro abierto: 14 días de prueba sin costo y sin tarjeta, con el plan Pro; después se paga por usuario, en pesos mexicanos (ver «Planes y precios»), sujeto a ajuste. Cada usuario puede conectar su propio WhatsApp y seguirlo usando en su celular (Coexistencia).
 
 Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colibly.com.
 
@@ -11,17 +11,17 @@ Idioma: español (México). Sitio: https://colibly.com. Contacto: contacto@colib
 
 ## Prueba gratis y registro abierto
 - Cualquier negocio puede crear su cuenta en https://app.colibly.com/register; 14 días sin costo, sin tarjeta y sin cobro automático.
-- La prueba incluye el plan Pro para hasta 3 ejecutivos, con 5,000 contactos y 1,000 créditos de IA al mes para todo el equipo (no se multiplican por ejecutivo).
+- La prueba incluye el plan Pro para hasta 3 usuarios, con los límites de ese plan (contactos, leads activos y créditos de IA se multiplican por esos usuarios).
 - Los 14 días empiezan al crear la cuenta. Al terminar, si no se elige un plan, la cuenta pasa a solo lectura ese mismo día (sin días de gracia).
 
 <!-- precios: generado por scripts/gen-cpanel-pricing.mjs, no editar a mano -->
 ## Planes y precios
-- Se cobra por ejecutivo (cada usuario que atiende conversaciones, incluido el dueño), cada mes, en pesos mexicanos: Esencial: $99 MXN por ejecutivo al mes; Negocio: $199 MXN por ejecutivo al mes; Pro: $349 MXN por ejecutivo al mes. Sin plan anual.
-- Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia). En Negocio y Pro, Telegram, Messenger e Instagram (por habilitación): 1 cuenta de cada uno por ejecutivo; Esencial es solo WhatsApp.
-- Esencial: 1 número de WhatsApp por ejecutivo, con Coexistencia; 500 contactos por ejecutivo; 1 automatización activa; Hasta 3 ejecutivos. No incluye: Bots y asistentes de IA, Telegram, Messenger e Instagram, Chat web, Integración con tus sistemas vía API o webhooks.
-- Negocio: 1 número de WhatsApp por ejecutivo, con Coexistencia; 2,000 contactos por ejecutivo; 300 créditos de IA al mes por ejecutivo; 5 automatizaciones activas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación. No incluye: Integración con tus sistemas vía API o webhooks.
-- Pro: 1 número de WhatsApp por ejecutivo, con Coexistencia; 5,000 contactos por ejecutivo; 1,000 créditos de IA al mes por ejecutivo; Automatizaciones ilimitadas; 1 cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación; Chat web disponible por habilitación; Integración con tus sistemas vía API o webhooks.
-- Prueba: 14 días gratis, sin tarjeta, con el plan Pro para hasta 3 ejecutivos y 5,000 contactos y 1,000 créditos de IA al mes para todo el equipo.
+- Se cobra por usuario (cada persona del equipo, incluido el dueño), cada mes, en pesos mexicanos: Básico: $59 MXN por usuario al mes; Avanzado: $89 MXN por usuario al mes; Pro: $149 MXN por usuario al mes. Sin plan anual.
+- Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia). WhatsApp e Instagram siguen la fórmula del plan (incluidos + 1 por usuario adicional, o sin tope en Pro). Telegram, Messenger y el chat web no tienen tope.
+- Básico: 1 número de WhatsApp incluido y 1 más por cada usuario adicional, con Coexistencia; 1 cuenta de Instagram incluida y 1 más por cada usuario adicional; Telegram, Messenger y chat web; 12,500 contactos por usuario; 2,500 leads activos por usuario; 750 créditos de IA al mes por usuario; API; 50 embudos; 100 campos personalizados. No incluye: Automatizaciones, Bots que responden solos, Difusiones de WhatsApp, Calificación de leads, Webhooks, Agentes de IA.
+- Avanzado: 3 números de WhatsApp incluidos y 1 más por cada usuario adicional, con Coexistencia; 3 cuentas de Instagram incluidas y 1 más por cada usuario adicional; Telegram, Messenger y chat web; 25,000 contactos por usuario; 5,000 leads activos por usuario; 1,250 créditos de IA al mes por usuario; Automatizaciones sin tope; Bots que responden solos; Difusiones de WhatsApp; API; Webhooks; 50 embudos; 200 campos personalizados; Hasta 3 agentes de IA. No incluye: Calificación de leads.
+- Pro: números de WhatsApp sin tope, con Coexistencia; cuentas de Instagram sin tope; Telegram, Messenger y chat web; 50,000 contactos por usuario; 10,000 leads activos por usuario; 2,250 créditos de IA al mes por usuario; Automatizaciones sin tope; Bots que responden solos; Difusiones de WhatsApp; Calificación de leads; API; Webhooks; 50 embudos; 400 campos personalizados; Hasta 50 agentes de IA.
+- Prueba: 14 días gratis, sin tarjeta, con el plan Pro para hasta 3 usuarios y los límites de ese plan, incluidos contactos, leads activos y créditos de IA.
 - Precios en MXN. Meta cobra aparte algunos mensajes de WhatsApp según su categoría y destino; ese cargo lo paga el cliente directamente a Meta y no forma parte de la suscripción.
 <!-- /precios -->
 

@@ -36,6 +36,7 @@ interface AccountDetail {
   hasAppSecret: boolean;
   usesPlatformApp: boolean;
   coexistence: boolean;
+  callingEnabled: boolean;
   syncStatus: string;
   syncProgress: number | null;
   syncDeadlineAt: string | null;
@@ -351,6 +352,23 @@ export default function CuentaDetailPage() {
     }
   }
 
+  async function handleToggleCalling(enabled: boolean) {
+    if (!account) return;
+    setAccount({ ...account, callingEnabled: enabled });
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}/calling`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "No se pudo cambiar las llamadas");
+    } catch (err) {
+      setAccount((prev) => prev && { ...prev, callingEnabled: !enabled });
+      toastError(err instanceof Error ? err.message : "No se pudo cambiar las llamadas");
+    }
+  }
+
   async function handleToggleAutoAssign(enabled: boolean) {
     if (!account) return;
     setAccount({ ...account, autoAssignEnabled: enabled });
@@ -541,6 +559,25 @@ export default function CuentaDetailPage() {
             </Button>
           </div>
         </section>
+
+        {canManage && <section className="space-y-4">
+          <SectionHeader title="Llamadas de WhatsApp" />
+          {account.coexistence ? (
+            <p className="text-sm text-muted-darker">
+              Este número sigue en la app de WhatsApp. Las llamadas se contestan en el celular, no en Colibly.
+            </p>
+          ) : (
+            <div className="flex items-center justify-between gap-4 py-1">
+              <div>
+                <p className="text-sm font-medium text-foreground">Recibir y hacer llamadas en la bandeja</p>
+                <p className="text-xs text-muted-darker">
+                  Muestra el botón de llamada en el chat del cliente. En la app de Meta, el webhook tiene que incluir el campo calls. Quien llama tiene que autorizar antes de que podamos devolverle la llamada. Meta cobra las llamadas que hacemos nosotros. Al contestar o al marcar, WhatsApp avisa que la llamada se graba y se transcribe; el audio y el texto quedan en el chat.
+                </p>
+              </div>
+              <Switch checked={account.callingEnabled} onCheckedChange={handleToggleCalling} label="Llamadas de WhatsApp" />
+            </div>
+          )}
+        </section>}
 
         {canManage && <section className="space-y-4">
           <SectionHeader title="Asignación de chats" />

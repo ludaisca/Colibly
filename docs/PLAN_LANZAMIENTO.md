@@ -38,7 +38,7 @@ Desde entonces: revisiones y cierres de interfaz (accesibilidad, consistencia, r
 - Captcha opcional del registro (Cloudflare Turnstile) y CSP corregida (antes bloqueaba el Pixel de Meta y Google).
 - CI: tsc, lint, tests y build de producción.
 - Configuración de negocio de plataforma desde `/plataforma` (`PlatformSettings`): claves de IA (OpenCode Go/Google), Stripe, SMTP, Turnstile y medición; los secretos se cifran en base de datos.
-- Habilitación por organización de Telegram, Messenger, Instagram y webchat desde el panel del operador. Las organizaciones que ya tenían cuentas conservan esos canales.
+- Canales Telegram, Messenger, Instagram y webchat disponibles por defecto desde el alta: cada usuario los conecta con sus propias credenciales. El operador conserva un interruptor por organización como excepción.
 - Proveedor/modelos de IA curados y asignados por la plataforma; los clientes ya no eligen proveedor ni modelo.
 
 Detalle técnico de todo lo anterior: `AGENTS.md`.

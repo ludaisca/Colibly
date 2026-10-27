@@ -2,8 +2,8 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { labelText } from "@/lib/whatsapp/export-columns";
-import { GripVertical, Phone, Clock, MessageCircle } from "lucide-react";
-import { PIPELINE_STAGES, STAGE_LABEL } from "@/lib/pipeline/stages";
+import { GripVertical, Clock } from "lucide-react";
+import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
@@ -14,6 +14,7 @@ export interface LeadCardData {
   name: string | null;
   remoteJid: string;
   leadStatus: LeadStatus;
+  stageId: string;
   accountId: string | null;
   channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
   tags: { tag: { id: string; name: string; color: string } }[];
@@ -21,6 +22,8 @@ export interface LeadCardData {
   lastMessageAt: string | null;
   unreadCount: number;
 }
+
+export type StageOption = { id: string; name: string };
 
 function formatTime(ts: string | null): string {
   if (!ts) return "—";
@@ -49,10 +52,11 @@ function scoreLabelClass(label: string): string {
   return "bg-surface-light text-muted";
 }
 
-export function LeadCard({ data, onOpen, onStageChange }: {
+export function LeadCard({ data, stages, onOpen, onStageChange }: {
   data: LeadCardData;
+  stages?: StageOption[];
   onOpen?: (id: string) => void;
-  onStageChange?: (id: string, stage: LeadStatus) => void;
+  onStageChange?: (id: string, stageId: string) => void;
 }) {
   const displayName = data.name ?? data.remoteJid ?? "Desconocido";
   const phoneShort =
@@ -64,9 +68,10 @@ export function LeadCard({ data, onOpen, onStageChange }: {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: data.id,
-      data: { leadStatus: data.leadStatus },
+      data: { stageId: data.stageId },
     });
 
+  const Mark = CHANNEL_ICONS[data.channel];
   const style = transform
     ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
@@ -98,7 +103,7 @@ export function LeadCard({ data, onOpen, onStageChange }: {
           </div>
 
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-darker">
-            {data.channel === "WHATSAPP" ? <Phone size={10} className="shrink-0" /> : <MessageCircle size={10} className="shrink-0" />}
+            <Mark size={12} className="shrink-0" />
             <span className="truncate font-mono tabular-nums" title={data.remoteJid}>
               {data.channel === "WHATSAPP" ? phoneShort : `${channelLabel} · ${data.remoteJid}`}
             </span>
@@ -160,14 +165,14 @@ export function LeadCard({ data, onOpen, onStageChange }: {
           <button type="button" onClick={() => onOpen(data.id)} className="text-xs font-semibold text-accent-ink hover:underline">
             Ver contacto
           </button>
-          {onStageChange && (
+          {onStageChange && stages && (
             <select
               aria-label={`Etapa de ${displayName}`}
-              value={data.leadStatus}
-              onChange={(event) => onStageChange(data.id, event.target.value as LeadStatus)}
+              value={data.stageId}
+              onChange={(event) => onStageChange(data.id, event.target.value)}
               className="ml-auto max-w-36 rounded border border-border bg-surface px-2 py-1 text-xs text-foreground"
             >
-              {PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{STAGE_LABEL[stage]}</option>)}
+              {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
             </select>
           )}
         </div>

@@ -11,8 +11,8 @@ vi.mock("@/lib/tenancy", () => ({ orgWhere: vi.fn(async () => ({ organizationId:
 vi.mock("@/lib/billing/gates", async () => {
   const { NextResponse } = await import("next/server");
   return {
-    checkApiAccess: vi.fn(async () =>
-      db.apiAccess ? null : NextResponse.json({ error: "La API y los webhooks están incluidos en el plan Pro.", code: "plan_limit" }, { status: 402 })
+    checkWebhookAccess: vi.fn(async () =>
+      db.apiAccess ? null : NextResponse.json({ error: "Los webhooks salientes están en Avanzado y Pro.", code: "plan_limit" }, { status: 402 })
     ),
   };
 });
@@ -27,7 +27,7 @@ describe("botón Probar webhook: candado del plan Pro", () => {
     db.apiAccess = true;
   });
 
-  it("en Negocio responde 402 y no crea ni encola ninguna entrega", async () => {
+  it("sin webhooks en el plan responde 402 y no crea ni encola ninguna entrega", async () => {
     db.apiAccess = false;
     const res = await call();
     expect(res.status).toBe(402);

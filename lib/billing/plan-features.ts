@@ -1,4 +1,4 @@
-import type { Plan, PlanId } from "./plans";
+import type { Plan, PlanId, SeatQuota } from "./plans";
 import { PLAN_LIST } from "./plans";
 
 // Lo que incluye cada plan, en texto para la landing, /precios, la pantalla
@@ -13,64 +13,56 @@ export const META_FEES_NOTE =
 
 export type PlanFeature = { text: string; included: boolean; hint?: string };
 
+function quotaLine(quota: SeatQuota, one: string, many: string, feminine = false): { text: string; included: boolean } {
+  if (quota.kind === "none") return { text: many, included: false };
+  if (quota.kind === "unlimited") return { text: `${many} sin tope`, included: true };
+  if (quota.kind === "perSeat") {
+    const n = quota.each;
+    return { text: `${n.toLocaleString("es-MX")} ${n === 1 ? one : many} por usuario`, included: true };
+  }
+  const n = quota.included;
+  const adj = n === 1 ? (feminine ? "incluida" : "incluido") : feminine ? "incluidas" : "incluidos";
+  return {
+    text: `${n.toLocaleString("es-MX")} ${n === 1 ? one : many} ${adj} y 1 más por cada usuario adicional`,
+    included: true,
+  };
+}
+
 export function planFeatures(plan: Plan): PlanFeature[] {
   const s = plan.perSeat;
   const o = plan.perOrg;
   const n = (v: number) => v.toLocaleString("es-MX");
-  const otherChannels = s.channelsPerType > 0;
+  const wa = quotaLine(s.whatsapp, "número de WhatsApp", "números de WhatsApp");
+    const ig = quotaLine(s.instagram, "cuenta de Instagram", "cuentas de Instagram", true);
   return [
-    {
-      text: `${s.whatsappNumbers} número de WhatsApp por ejecutivo, con Coexistencia`,
-      included: true,
-      hint: "El mismo número sigue en el celular (WhatsApp Business) y en Colibly a la vez.",
-    },
-    { text: `${n(s.contacts)} contactos por ejecutivo`, included: true },
+    { text: `${wa.text}, con Coexistencia`, included: wa.included, hint: "El mismo número sigue en el celular (WhatsApp Business) y en Colibly a la vez." },
+    { text: ig.text, included: ig.included },
+    { text: "Telegram, Messenger y chat web", included: o.webchat },
+    { text: `${n(s.contacts)} contactos por usuario`, included: true },
+    { text: `${n(s.activeLeads)} leads activos por usuario`, included: true, hint: "Contactos que todavía no están en Cliente ni Perdido." },
     o.aiAccess
       ? {
-          text: `${n(s.aiCreditsPerMonth)} créditos de IA al mes por ejecutivo`,
+          text: `${n(s.aiCreditsPerMonth)} créditos de IA al mes por usuario`,
           included: true,
-          hint: "1 crédito ≈ 1 respuesta de bot, sugerencia, calificación o paso de IA en una automatización. Se suman en una bolsa del equipo.",
+          hint: "1 crédito ≈ 1 respuesta de bot, sugerencia, calificación o paso de IA. Se suman en una bolsa del equipo.",
         }
-      : {
-          text: "Bots y asistentes de IA",
-          included: false,
-          hint: "Disponible desde Negocio: bots, sugerencias y calificación de leads.",
-        },
+      : { text: "Créditos de IA", included: false },
     {
-      text: Number.isFinite(o.activeAutomations)
-        ? `${o.activeAutomations} ${o.activeAutomations === 1 ? "automatización activa" : "automatizaciones activas"}`
-        : "Automatizaciones ilimitadas",
-      included: true,
-      hint: "Flujos con botones, seguimiento y pasos de IA publicados a la vez.",
+      text: o.activeAutomations === 0 ? "Automatizaciones" : Number.isFinite(o.activeAutomations) ? `${o.activeAutomations} automatizaciones activas` : "Automatizaciones sin tope",
+      included: o.activeAutomations !== 0,
     },
-    otherChannels
-      ? {
-          text: `${s.channelsPerType} cuenta de Telegram, de Messenger y de Instagram por ejecutivo, por habilitación`,
-          included: true,
-          hint: "Los activa el operador de Colibly en tu organización cuando los necesites.",
-        }
-      : {
-          text: "Telegram, Messenger e Instagram",
-          included: false,
-          hint: "Incluidos en Negocio y Pro, por habilitación.",
-        },
-    o.webchat
-      ? {
-          text: "Chat web disponible por habilitación",
-          included: true,
-          hint: "Widget para tu sitio; también lo activa el operador cuando lo pidas.",
-        }
-      : { text: "Chat web", included: false, hint: "Incluido en Negocio y Pro." },
+    { text: "Bots que responden solos", included: o.bots, hint: o.bots ? "Un bot activo por cuenta." : "Disponible desde Avanzado. En Básico quedan las sugerencias y los resúmenes." },
+    { text: "Difusiones de WhatsApp", included: o.campaigns },
+    { text: "Calificación de leads", included: o.leadScoring, hint: o.leadScoring ? undefined : "Disponible en Pro." },
+    { text: "API", included: o.apiAccess },
+    { text: "Webhooks", included: o.webhooks, hint: o.webhooks ? undefined : "Disponibles desde Avanzado." },
+    { text: `${n(o.funnels)} embudos`, included: true, hint: "Cada uno con sus etapas." },
+    { text: `${n(o.customFields)} campos personalizados`, included: true },
     {
-      text: "Integración con tus sistemas vía API o webhooks",
-      included: o.apiAccess,
-      hint: o.apiAccess
-        ? "API pública y webhooks salientes para conectar tu stack."
-        : "Disponible en el plan Pro.",
+      text: o.aiAgents === 0 ? "Agentes de IA" : `Hasta ${n(o.aiAgents)} agentes de IA`,
+      included: o.aiAgents > 0,
+      hint: o.aiAgents === 0 ? "Disponibles desde Avanzado. En Básico quedan sugerencias, resúmenes y reescritura." : "Un agente activo por cuenta.",
     },
-    ...(o.maxSeats < 100
-      ? [{ text: `Hasta ${o.maxSeats} ejecutivos`, included: true, hint: "Tope del plan Esencial." }]
-      : []),
   ];
 }
 
@@ -100,18 +92,28 @@ export function planCompareRows(): PlanCompareRow[] {
   return [
     {
       id: "whatsapp",
-      label: "WhatsApp por ejecutivo",
+      label: "WhatsApp",
       hint: "Con Coexistencia: el número sigue en el celular",
-      values: cell((p) => `${p.perSeat.whatsappNumbers}`),
+      values: cell((p) => quotaLine(p.perSeat.whatsapp, "número", "números").text),
+    },
+    {
+      id: "instagram",
+      label: "Instagram",
+      values: cell((p) => quotaLine(p.perSeat.instagram, "cuenta", "cuentas", true).text),
     },
     {
       id: "contacts",
-      label: "Contactos por ejecutivo",
+      label: "Contactos por usuario",
       values: cell((p) => fmtNum(p.perSeat.contacts)),
     },
     {
+      id: "leads",
+      label: "Leads activos por usuario",
+      values: cell((p) => fmtNum(p.perSeat.activeLeads)),
+    },
+    {
       id: "ai",
-      label: "Créditos de IA / mes por ejecutivo",
+      label: "Créditos de IA / mes por usuario",
       hint: "1 crédito ≈ 1 respuesta de bot, sugerencia o calificación",
       values: cell((p) => (p.perOrg.aiAccess ? fmtNum(p.perSeat.aiCreditsPerMonth) : false)),
     },
@@ -119,14 +121,23 @@ export function planCompareRows(): PlanCompareRow[] {
       id: "automations",
       label: "Automatizaciones activas",
       values: cell((p) =>
-        Number.isFinite(p.perOrg.activeAutomations) ? String(p.perOrg.activeAutomations) : "Ilimitadas"
+        p.perOrg.activeAutomations === 0 ? false : Number.isFinite(p.perOrg.activeAutomations) ? String(p.perOrg.activeAutomations) : "Sin tope"
       ),
     },
     {
-      id: "channels",
-      label: "Telegram, Messenger e Instagram",
-      hint: "1 cuenta de cada tipo por ejecutivo, por habilitación",
-      values: cell((p) => (p.perSeat.channelsPerType > 0 ? `${p.perSeat.channelsPerType} de cada uno` : false)),
+      id: "bots",
+      label: "Bots que responden solos",
+      values: cell((p) => p.perOrg.bots),
+    },
+    {
+      id: "scoring",
+      label: "Calificación de leads",
+      values: cell((p) => p.perOrg.leadScoring),
+    },
+    {
+      id: "campaigns",
+      label: "Difusiones de WhatsApp",
+      values: cell((p) => p.perOrg.campaigns),
     },
     {
       id: "webchat",
@@ -135,12 +146,17 @@ export function planCompareRows(): PlanCompareRow[] {
     },
     {
       id: "api",
-      label: "API y webhooks",
+      label: "API",
       values: cell((p) => p.perOrg.apiAccess),
     },
     {
+      id: "webhooks",
+      label: "Webhooks",
+      values: cell((p) => p.perOrg.webhooks),
+    },
+    {
       id: "seats",
-      label: "Máximo de ejecutivos",
+      label: "Máximo de usuarios",
       values: cell((p) => fmtNum(p.perOrg.maxSeats)),
     },
   ];
@@ -148,4 +164,4 @@ export function planCompareRows(): PlanCompareRow[] {
 
 // Nota pública junto a los precios: moneda (sin afirmar nada de IVA, ver
 // PRICE_CURRENCY_NOTE en plans.ts) y cargos de Meta aparte.
-export const PRICING_FOOTNOTE = "Precios en MXN, por ejecutivo al mes. Los cargos de Meta por mensajes de WhatsApp se pagan aparte, directamente a Meta.";
+export const PRICING_FOOTNOTE = "Precios en MXN, por usuario al mes. Los cargos de Meta por mensajes de WhatsApp se pagan aparte, directamente a Meta.";

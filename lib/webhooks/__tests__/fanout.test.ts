@@ -7,7 +7,7 @@ const db = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({ prisma: { webhookEndpoint: { findMany: (a: unknown) => db.findMany(a) }, webhookDelivery: { create: vi.fn() } } }));
 vi.mock("@/lib/queue", () => ({ webhookDeliveryQueue: { add: vi.fn() } }));
 vi.mock("@/lib/billing/gates", () => ({
-  hasApiAccess: vi.fn(async () => true),
+  hasWebhookAccess: vi.fn(async () => true),
   isOrgWritable: vi.fn(async () => true),
   orgIdForAccount: vi.fn(async () => db.orgForAccount),
 }));

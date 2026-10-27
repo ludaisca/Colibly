@@ -13,59 +13,59 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { LeadCard, type LeadCardData } from "@/app/components/pipeline/lead-card";
-import {
-  PIPELINE_STAGES,
-  STAGE_LABEL,
-  STAGE_COLOR_BORDER,
-  STAGE_COLOR_BG,
-  STAGE_DOT_COLOR,
-} from "@/lib/pipeline/stages";
+import { LeadCard, type LeadCardData, type StageOption } from "@/app/components/pipeline/lead-card";
+import { stageChrome, type StageOutcome } from "@/lib/pipeline/stages";
 import { cn } from "@/app/components/ui/cn";
-import type { LeadStatus } from "@prisma/client";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { Select } from "@/app/components/ui/select";
+import { Button } from "@/app/components/ui/button";
 
-export type BoardData = Record<LeadStatus, LeadCardData[]>;
+export type BoardStage = StageOption & { outcome: StageOutcome; locked: boolean };
 
-interface PipelineBoardProps {
-  initialData: BoardData;
+export type BoardData = Record<string, LeadCardData[]>;
+
+interface PipelineOption {
+  id: string;
+  name: string;
+  isDefault: boolean;
 }
 
 function Column({
   stage,
+  index,
   contacts,
+  stages,
   visibleOnMobile,
   onOpen,
   onStageChange,
 }: {
-  stage: LeadStatus;
+  stage: BoardStage;
+  index: number;
   contacts: LeadCardData[];
+  stages: StageOption[];
   visibleOnMobile: boolean;
   onOpen: (id: string) => void;
-  onStageChange: (id: string, stage: LeadStatus) => void;
+  onStageChange: (id: string, stageId: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `column-${stage}` });
+  const { setNodeRef, isOver } = useDroppable({ id: `column-${stage.id}` });
+  const chrome = stageChrome(stage.outcome, index);
 
   return (
-    <div data-stage={stage} className={cn(visibleOnMobile ? "flex" : "hidden sm:flex", "min-w-full flex-col sm:min-w-[300px] sm:max-w-[360px] sm:flex-1")}>
+    <div data-stage={stage.id} className={cn(visibleOnMobile ? "flex" : "hidden sm:flex", "min-w-full flex-col sm:min-w-[300px] sm:max-w-[360px] sm:flex-1")}>
       <div className="mb-3 flex items-center gap-2 px-1">
-        <span className={cn("h-2.5 w-2.5 rounded-full", STAGE_DOT_COLOR[stage])} />
-        <h3 className="text-sm font-semibold text-foreground">
-          {STAGE_LABEL[stage]}
-        </h3>
+        <span className={cn("h-2.5 w-2.5 rounded-full", chrome.dot)} />
+        <h3 className="text-sm font-semibold text-foreground">{stage.name}</h3>
         <span className="ml-auto rounded-full bg-surface-light px-2 py-0.5 text-xs font-mono tabular-nums text-muted">
           {contacts.length}
         </span>
       </div>
-
       <div
         ref={setNodeRef}
         className={cn(
           "flex flex-1 flex-col gap-3 rounded-xl border p-3 transition-colors min-h-[200px]",
-          STAGE_COLOR_BORDER[stage],
-          STAGE_COLOR_BG[stage],
+          chrome.border,
+          chrome.bg,
           isOver && "ring-2 ring-accent-muted border-accent-muted"
         )}
       >
@@ -74,23 +74,36 @@ function Column({
             <p className="text-xs text-muted">Sin leads</p>
           </div>
         )}
-
         {contacts.map((contact) => (
-          <LeadCard key={contact.id} data={contact} onOpen={onOpen} onStageChange={onStageChange} />
+          <LeadCard key={contact.id} data={contact} stages={stages} onOpen={onOpen} onStageChange={onStageChange} />
         ))}
       </div>
     </div>
   );
 }
 
-export function PipelineBoard({ initialData }: PipelineBoardProps) {
+export function PipelineBoard({
+  pipelines,
+  pipelineId,
+  stages,
+  initialData,
+}: {
+  pipelines: PipelineOption[];
+  pipelineId: string;
+  stages: BoardStage[];
+  initialData: BoardData;
+}) {
   const router = useRouter();
-  const { error: toastError } = useToast();
+  const { error: toastError, success } = useToast();
   const [boardData, setBoardData] = useState<BoardData>(initialData);
   const [activeCard, setActiveCard] = useState<LeadCardData | null>(null);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
-  const [stageInView, setStageInView] = useState<LeadStatus>(() => PIPELINE_STAGES.find((stage) => initialData[stage]?.length > 0) ?? PIPELINE_STAGES[0]);
+  const [stageInView, setStageInView] = useState(stages.find((stage) => initialData[stage.id]?.length)?.id ?? stages[0]?.id ?? "");
   const [prevInitialData, setPrevInitialData] = useState(initialData);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [stageName, setStageName] = useState("");
   if (initialData !== prevInitialData) {
     setPrevInitialData(initialData);
     setBoardData(initialData);
@@ -100,79 +113,234 @@ export function PipelineBoard({ initialData }: PipelineBoardProps) {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor)
   );
+  const options: StageOption[] = stages.map(({ id, name }) => ({ id, name }));
+  const current = pipelines.find((item) => item.id === pipelineId);
 
-  const moveCard = useCallback(async (id: string, targetStage: LeadStatus) => {
-    const sourceStage = PIPELINE_STAGES.find((stage) => boardData[stage]?.some((c) => c.id === id));
-    if (!sourceStage || sourceStage === targetStage) return;
-    const card = boardData[sourceStage].find((c) => c.id === id)!;
-    setBoardData((current) => ({
-      ...current,
-      [sourceStage]: current[sourceStage].filter((c) => c.id !== id),
-      [targetStage]: [...current[targetStage], { ...card, leadStatus: targetStage }],
+  const moveCard = useCallback(async (id: string, targetStageId: string) => {
+    const sourceStageId = stages.find((stage) => boardData[stage.id]?.some((card) => card.id === id))?.id;
+    if (!sourceStageId || sourceStageId === targetStageId) return;
+    const card = boardData[sourceStageId].find((item) => item.id === id)!;
+    setBoardData((currentBoard) => ({
+      ...currentBoard,
+      [sourceStageId]: currentBoard[sourceStageId].filter((item) => item.id !== id),
+      [targetStageId]: [...(currentBoard[targetStageId] ?? []), { ...card, stageId: targetStageId }],
     }));
-    setStageInView(targetStage);
+    setStageInView(targetStageId);
     try {
       const response = await fetch(`/api/whatsapp/contacts/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadStatus: targetStage }),
+        body: JSON.stringify({ pipelineStageId: targetStageId }),
       });
       if (!response.ok) throw new Error();
       router.refresh();
     } catch {
-      setBoardData((current) => ({
-        ...current,
-        [targetStage]: current[targetStage].filter((c) => c.id !== id),
-        [sourceStage]: [...current[sourceStage], card],
+      setBoardData((currentBoard) => ({
+        ...currentBoard,
+        [targetStageId]: (currentBoard[targetStageId] ?? []).filter((item) => item.id !== id),
+        [sourceStageId]: [...(currentBoard[sourceStageId] ?? []), card],
       }));
-      setStageInView(sourceStage);
+      setStageInView(sourceStageId);
       toastError("No se pudo guardar la nueva etapa");
     }
-  }, [boardData, router, toastError]);
+  }, [boardData, router, stages, toastError]);
 
-  const handleDragStart = useCallback(
-    (event: DragStartEvent) => {
-      const { active } = event;
-      const stage = active.data.current?.leadStatus as LeadStatus;
-      const card = boardData[stage]?.find((c) => c.id === active.id);
-      if (card) setActiveCard(card);
-    },
-    [boardData]
-  );
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const stageId = event.active.data.current?.stageId as string | undefined;
+    const card = stageId ? boardData[stageId]?.find((item) => item.id === event.active.id) : undefined;
+    if (card) setActiveCard(card);
+  }, [boardData]);
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      setActiveCard(null);
-      if (!over) return;
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveCard(null);
+    if (!over) return;
+    const targetStageId = over.id.toString().replace("column-", "");
+    if (!stages.some((stage) => stage.id === targetStageId)) return;
+    void moveCard(String(active.id), targetStageId);
+  }, [moveCard, stages]);
 
-      const targetStage = over.id.toString().replace("column-", "") as LeadStatus;
-      if (!PIPELINE_STAGES.includes(targetStage)) return;
+  async function createPipeline() {
+    const name = newName.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      const response = await fetch("/api/pipelines", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toastError(typeof body.error === "string" ? body.error : "No se pudo crear el embudo");
+        return;
+      }
+      setNewName("");
+      success("Embudo creado");
+      router.push(`/ventas?pipeline=${body.id}`);
+      router.refresh();
+    } finally {
+      setCreating(false);
+    }
+  }
 
-      void moveCard(String(active.id), targetStage);
-    },
-    [moveCard]
-  );
+  async function addStage() {
+    const name = stageName.trim();
+    if (!name) return;
+    const response = await fetch(`/api/pipelines/${pipelineId}/stages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, outcome: "OPEN" }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      toastError(typeof body.error === "string" ? body.error : "No se pudo agregar la etapa");
+      return;
+    }
+    setStageName("");
+    success("Etapa agregada");
+    router.refresh();
+  }
+
+  async function renameStage(stageId: string, name: string) {
+    const response = await fetch(`/api/pipelines/${pipelineId}/stages/${stageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      toastError(typeof body.error === "string" ? body.error : "No se pudo renombrar");
+      return;
+    }
+    router.refresh();
+  }
+
+  async function removeStage(stageId: string) {
+    const response = await fetch(`/api/pipelines/${pipelineId}/stages/${stageId}`, { method: "DELETE" });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      toastError(typeof body.error === "string" ? body.error : "No se pudo quitar la etapa");
+      return;
+    }
+    router.refresh();
+  }
+
+  async function removePipeline() {
+    const response = await fetch(`/api/pipelines/${pipelineId}`, { method: "DELETE" });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      toastError(typeof body.error === "string" ? body.error : "No se pudo eliminar el embudo");
+      return;
+    }
+    router.push("/ventas");
+    router.refresh();
+  }
 
   return (
-    <DndContext
-      // id fijo: sin él dnd-kit numera su contador distinto en servidor y
-      // cliente (aria-describedby="DndDescribedBy-N") y React avisa de un
-      // desajuste de hidratación.
-      id="pipeline-board"
-      sensors={sensors}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
+    <DndContext id="pipeline-board" sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="min-w-0 flex-1">
+          <label htmlFor="pipeline-picker" className="mb-1 block text-xs font-medium text-muted-darker">Embudo</label>
+          <Select
+            id="pipeline-picker"
+            value={pipelineId}
+            onChange={(event) => router.push(`/ventas?pipeline=${event.target.value}`)}
+          >
+            {pipelines.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </Select>
+        </div>
+        <form
+          className="flex min-w-0 flex-1 gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void createPipeline();
+          }}
+        >
+          <input
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+            placeholder="Nuevo embudo"
+            aria-label="Nombre del embudo"
+            maxLength={60}
+            className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
+          />
+          <Button type="submit" size="sm" disabled={creating || !newName.trim()}>Crear</Button>
+        </form>
+        <Button type="button" size="sm" variant="secondary" onClick={() => setEditing((open) => !open)}>
+          {editing ? "Cerrar etapas" : "Editar etapas"}
+        </Button>
+      </div>
+
+      {editing && (
+        <div className="mb-4 space-y-3 rounded-xl border border-border bg-surface p-4">
+          <p className="text-sm text-muted-darker">
+            {current?.name}. Las etapas del embudo principal que corresponden a un estado del lead se pueden renombrar.
+          </p>
+          <ul className="space-y-2">
+            {stages.map((stage) => (
+              <li key={stage.id} className="flex items-center gap-2">
+                <input
+                  defaultValue={stage.name}
+                  aria-label={`Nombre de ${stage.name}`}
+                  maxLength={40}
+                  onBlur={(event) => {
+                    const name = event.target.value.trim();
+                    if (name && name !== stage.name) void renameStage(stage.id, name);
+                  }}
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                />
+                {!stage.locked && (
+                  <button type="button" className="text-xs font-medium text-danger" onClick={() => void removeStage(stage.id)}>
+                    Quitar
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void addStage();
+            }}
+          >
+            <input
+              value={stageName}
+              onChange={(event) => setStageName(event.target.value)}
+              placeholder="Nueva etapa"
+              aria-label="Nueva etapa"
+              maxLength={40}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+            />
+            <Button type="submit" size="sm" variant="secondary" disabled={!stageName.trim()}>Agregar</Button>
+          </form>
+          {current && !current.isDefault && (
+            <button type="button" className="text-xs font-medium text-danger" onClick={() => void removePipeline()}>
+              Eliminar este embudo
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="mb-3 flex items-center gap-3 sm:hidden">
         <label htmlFor="pipeline-stage" className="text-sm font-medium">Ir a etapa</label>
-        <Select id="pipeline-stage" value={stageInView} onChange={(event) => setStageInView(event.target.value as LeadStatus)} className="min-w-0 flex-1">
-          {PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{STAGE_LABEL[stage]} ({boardData[stage]?.length ?? 0})</option>)}
+        <Select id="pipeline-stage" value={stageInView} onChange={(event) => setStageInView(event.target.value)} className="min-w-0 flex-1">
+          {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name} ({boardData[stage.id]?.length ?? 0})</option>)}
         </Select>
       </div>
       <div className="flex gap-4 overflow-hidden pb-4 sm:overflow-x-auto">
-        {PIPELINE_STAGES.map((stage) => (
-          <Column key={stage} stage={stage} contacts={boardData[stage] ?? []} visibleOnMobile={stage === stageInView} onOpen={setSelectedContactId} onStageChange={(id, targetStage) => void moveCard(id, targetStage)} />
+        {stages.map((stage, index) => (
+          <Column
+            key={stage.id}
+            stage={stage}
+            index={index}
+            contacts={boardData[stage.id] ?? []}
+            stages={options}
+            visibleOnMobile={stage.id === stageInView}
+            onOpen={setSelectedContactId}
+            onStageChange={(id, target) => void moveCard(id, target)}
+          />
         ))}
       </div>
 

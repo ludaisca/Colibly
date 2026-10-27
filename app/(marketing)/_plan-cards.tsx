@@ -16,6 +16,8 @@ import { planFeatures } from "@/lib/billing/plan-features";
 import { FeatureHint } from "./_feature-hint";
 
 const FEATURED: PlanId = "PRO";
+/** Plan en el que arranca el carrusel móvil: el intermedio, para comparar. */
+const INITIAL_PLAN: PlanId = "BUSINESS";
 
 function PlanCard({
   planId,
@@ -103,7 +105,7 @@ export function PlanCards({
   className?: string;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(() => PLAN_LIST.findIndex((p) => p.id === FEATURED));
+  const [active, setActive] = useState(() => PLAN_LIST.findIndex((p) => p.id === INITIAL_PLAN));
 
   const syncActive = useCallback(() => {
     const root = scrollerRef.current;
@@ -136,12 +138,13 @@ export function PlanCards({
     };
   }, [syncActive]);
 
-  // Arranca centrado en Pro (el plan destacado).
+  // Arranca centrado en Negocio (el plan intermedio): deja ver un poco de
+  // Esencial y de Pro a los lados, así se entiende que hay más planes.
   useEffect(() => {
     const root = scrollerRef.current;
-    if (!root) return;
-    const featuredIdx = PLAN_LIST.findIndex((p) => p.id === FEATURED);
-    const slide = root.children[featuredIdx] as HTMLElement | undefined;
+    if (!root || root.clientWidth === 0) return;
+    const initialIdx = PLAN_LIST.findIndex((p) => p.id === INITIAL_PLAN);
+    const slide = root.children[initialIdx] as HTMLElement | undefined;
     if (!slide) return;
     const left = slide.offsetLeft - (root.clientWidth - slide.offsetWidth) / 2;
     root.scrollTo({ left: Math.max(0, left) });
@@ -157,28 +160,33 @@ export function PlanCards({
 
   return (
     <div className={cn(className)}>
-      {/* Móvil / tablet: carrusel */}
+      {/* Móvil / tablet: carrusel con un borde difuminado para que la tarjeta
+          vecina se lea como “hay más”, no como un corte. */}
       <div className="lg:hidden">
-        <div
-          ref={scrollerRef}
-          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          aria-roledescription="carrusel"
-          aria-label="Planes"
-        >
-          {PLAN_LIST.map((plan, i) => (
-            <div
-              key={plan.id}
-              className="w-[min(20.5rem,calc(100vw-3.25rem))] shrink-0 snap-center"
-              aria-current={i === active ? "true" : undefined}
-            >
-              <PlanCard
-                planId={plan.id}
-                cta={cta}
-                trackLocation={`${trackPrefix}_${plan.id.toLowerCase()}`}
-                titleAs={titleAs}
-              />
-            </div>
-          ))}
+        <div className="relative">
+          <div
+            ref={scrollerRef}
+            className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            aria-roledescription="carrusel"
+            aria-label="Planes"
+          >
+            {PLAN_LIST.map((plan, i) => (
+              <div
+                key={plan.id}
+                className="w-[min(20.5rem,calc(100vw-3.25rem))] shrink-0 snap-center"
+                aria-current={i === active ? "true" : undefined}
+              >
+                <PlanCard
+                  planId={plan.id}
+                  cta={cta}
+                  trackLocation={`${trackPrefix}_${plan.id.toLowerCase()}`}
+                  titleAs={titleAs}
+                />
+              </div>
+            ))}
+          </div>
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-5 bg-gradient-to-r from-background to-transparent" />
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-background to-transparent" />
         </div>
         <div className="mt-4 flex items-center justify-center gap-2" role="tablist" aria-label="Planes">
           {PLAN_LIST.map((plan, i) => (

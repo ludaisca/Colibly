@@ -5,6 +5,8 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { contactUpdateSchema } from "@/lib/validations";
 import { afterLeadStatusChanged } from "@/lib/contacts/side-effects";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { requireOrgId } from "@/lib/tenancy";
+import { leadStatusForStage } from "@/lib/pipeline/stages";
 
 export async function GET(
   _req: Request,
@@ -84,24 +86,48 @@ export async function PATCH(
       );
     }
 
+    const organizationId = await requireOrgId(session.user.id);
+    let leadStatus = parsed.data.leadStatus;
+    let pipelineStageId: string | undefined;
+    if (parsed.data.pipelineStageId) {
+      const stage = await prisma.pipelineStage.findFirst({
+        where: { id: parsed.data.pipelineStageId, pipeline: { organizationId } },
+      });
+      if (!stage) return NextResponse.json({ error: "Etapa no encontrada" }, { status: 404 });
+      leadStatus = leadStatusForStage(stage, existing.leadStatus);
+      pipelineStageId = stage.id;
+    } else if (leadStatus && leadStatus !== existing.leadStatus) {
+      const stage = await prisma.pipelineStage.findFirst({
+        where: { leadStatus, pipeline: { organizationId, isDefault: true } },
+      });
+      if (stage) pipelineStageId = stage.id;
+    }
+
+    const { pipelineStageId: _ignored, ...rest } = parsed.data;
     const updated = await prisma.contact.update({
       where: { id },
       // Un nombre puesto a mano ya no lo pisan la libreta ni el perfil de WhatsApp.
-      data: { ...parsed.data, ...(parsed.data.name !== undefined ? { nameSource: "user" } : {}) },
+      data: {
+        ...rest,
+        ...(leadStatus ? { leadStatus } : {}),
+        ...(pipelineStageId ? { pipelineStageId } : {}),
+        ...(parsed.data.name !== undefined ? { nameSource: "user" } : {}),
+      },
       select: {
         id: true,
         accountId: true,
         remoteJid: true,
         name: true,
         leadStatus: true,
+        pipelineStageId: true,
         updatedAt: true,
       },
     });
 
     // Meta Ads (CAPI), secuencias y evento de dominio — compartido con la API
     // pública y las automatizaciones.
-    if (parsed.data.leadStatus) {
-      await afterLeadStatusChanged(existing, existing.leadStatus, parsed.data.leadStatus);
+    if (leadStatus) {
+      await afterLeadStatusChanged(existing, existing.leadStatus, leadStatus);
     }
 
     return NextResponse.json(updated);

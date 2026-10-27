@@ -276,10 +276,11 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
 
         <div className="space-y-3 border-t border-border pt-5">
           <div>
-            <p className="text-sm font-medium">Canales habilitados</p>
+            <p className="text-sm font-medium">Canales (disponibles por defecto)</p>
             <p className="text-xs text-muted-darker">
-              WhatsApp siempre está disponible. Los demás son una feature por organización — desactivar uno no apaga las
-              cuentas que ya tenga conectadas, solo bloquea agregar cuentas nuevas de ese canal.
+              WhatsApp siempre está disponible. Los demás vienen activados desde el alta y el usuario los conecta con sus
+              credenciales; usa estos interruptores solo como excepción. Desactivar uno no apaga las cuentas que ya tenga
+              conectadas, solo bloquea agregar cuentas nuevas de ese canal.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

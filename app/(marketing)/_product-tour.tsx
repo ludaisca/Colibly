@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Pause, Play } from "lucide-react";
 import { cn } from "@/app/components/ui/cn";
 import { AutomationMock, InboxMock, PipelineMock } from "./_product-mock";
 
@@ -31,22 +32,24 @@ const INTERVAL_MS = 5500;
 export function ProductTour({ className }: { className?: string }) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  // El autoavance se detiene en cuanto el visitante elige una vista. El botón
+  // de pausa da el control explícito que pide WCAG 2.2.2.
+  const [auto, setAuto] = useState(true);
 
   useEffect(() => {
-    if (paused) return;
+    if (!auto || paused) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const id = window.setInterval(() => {
       setActive((i) => (i + 1) % VIEWS.length);
     }, INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [paused]);
+  }, [auto, paused]);
 
   const current = VIEWS[active] ?? VIEWS[0];
 
   return (
     <section
       className={cn("scroll-mt-20 border-b border-border/50", className)}
-      aria-roledescription="carrusel"
       aria-label="Vistas del producto"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -68,22 +71,24 @@ export function ProductTour({ className }: { className?: string }) {
 
           <div
             className="flex gap-1 rounded-xl border border-border bg-surface p-1"
-            role="tablist"
+            role="group"
             aria-label="Vista del producto"
           >
             {VIEWS.map((view, i) => (
               <button
                 key={view.id}
                 type="button"
-                role="tab"
-                aria-selected={i === active}
+                aria-pressed={i === active}
                 className={cn(
                   "min-h-10 flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors sm:flex-none sm:px-4 sm:text-sm",
                   i === active
                     ? "bg-accent-subtle text-accent-ink"
                     : "text-muted hover:text-foreground"
                 )}
-                onClick={() => setActive(i)}
+                onClick={() => {
+                  setActive(i);
+                  setAuto(false);
+                }}
               >
                 {view.label}
               </button>
@@ -91,42 +96,60 @@ export function ProductTour({ className }: { className?: string }) {
           </div>
         </div>
 
-        <div className="relative mt-6 sm:mt-8">
+        <div className="relative mt-6 h-[36rem] sm:mt-8 lg:h-[34rem]">
           {VIEWS.map((view, i) => {
             const Mock = view.Mock;
             const on = i === active;
             return (
               <div
                 key={view.id}
-                role="tabpanel"
+                role="group"
+                aria-label={view.label}
                 aria-hidden={!on}
                 className={cn(
-                  "transition-[opacity,transform] duration-300 ease-out",
+                  "h-full transition-[opacity,transform] duration-300 ease-out",
                   on
                     ? "relative opacity-100"
                     : "pointer-events-none absolute inset-0 translate-y-2 opacity-0"
                 )}
               >
                 {/* Montamos las 3 para que el cambio sea instantáneo; oculta las inactivas. */}
-                <Mock className="w-full min-w-0" />
+                <Mock className="h-full w-full min-w-0" />
               </div>
             );
           })}
         </div>
 
-        <div className="mt-5 flex items-center justify-center gap-2" aria-hidden>
-          {VIEWS.map((view, i) => (
-            <button
-              key={view.id}
-              type="button"
-              aria-label={view.label}
-              className={cn(
-                "h-1.5 rounded-full transition-all",
-                i === active ? "w-6 bg-accent-strong" : "w-1.5 bg-border hover:bg-muted"
-              )}
-              onClick={() => setActive(i)}
-            />
-          ))}
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <div className="flex items-center gap-2" aria-hidden>
+            {VIEWS.map((view, i) => (
+              <button
+                key={view.id}
+                type="button"
+                tabIndex={-1}
+                aria-label={view.label}
+                className={cn(
+                  "h-1.5 rounded-full transition-all",
+                  i === active ? "w-6 bg-accent-strong" : "w-1.5 bg-border hover:bg-muted"
+                )}
+                onClick={() => {
+                  setActive(i);
+                  setAuto(false);
+                }}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setAuto((value) => !value)}
+            aria-label={auto ? "Pausar recorrido automático" : "Reanudar recorrido automático"}
+            aria-pressed={!auto}
+            title={auto ? "Pausar recorrido" : "Reanudar recorrido"}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 text-[11px] font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+          >
+            {auto ? <Pause size={12} aria-hidden /> : <Play size={12} aria-hidden />}
+            {auto ? "Pausar" : "Reanudar"}
+          </button>
         </div>
       </div>
     </section>

@@ -60,9 +60,9 @@ export async function buildOutputs() {
     COLIBLY_PRICE_TAX_NOTE: c.PRICE_TAX_NOTE ?? "",
     COLIBLY_MIN_PRICE_LABEL: c.formatMxn(Math.min(...c.PLAN_LIST.map((p) => p.pricePerSeatMxn))),
     COLIBLY_PRICES_SENTENCE: pricesSentence,
-    // Bolsa plana de la prueba (no se multiplica por ejecutivos).
-    COLIBLY_TRIAL_AI_CREDITS: c.TRIAL_POOL.aiCreditsPerMonth.toLocaleString("es-MX"),
-    COLIBLY_TRIAL_CONTACTS: c.TRIAL_POOL.contacts.toLocaleString("es-MX"),
+    // Límites de la prueba: Pro × TRIAL_MAX_SEATS.
+    COLIBLY_TRIAL_AI_CREDITS: c.limitsForSeats(c.PLANS.PRO, c.TRIAL_MAX_SEATS).aiCreditsPerMonth.toLocaleString("es-MX"),
+    COLIBLY_TRIAL_CONTACTS: c.limitsForSeats(c.PLANS.PRO, c.TRIAL_MAX_SEATS).contacts.toLocaleString("es-MX"),
     COLIBLY_TRIAL_POOL_TEXT: c.TRIAL_POOL_TEXT,
     COLIBLY_COEXISTENCE_PITCH: c.COEXISTENCE_PITCH,
     COLIBLY_META_FEES_NOTE: c.META_FEES_NOTE,
@@ -82,10 +82,10 @@ export async function buildOutputs() {
   const llmsBlock = [
     LLMS_START,
     "## Planes y precios",
-    `- Se cobra por ejecutivo (cada usuario que atiende conversaciones, incluido el dueño), cada mes, en pesos mexicanos: ${pricesSentence}${c.PRICE_TAX_NOTE ? ` (${c.PRICE_TAX_NOTE})` : ""}. Sin plan anual.`,
-    `- ${c.COEXISTENCE_PITCH} En Negocio y Pro, Telegram, Messenger e Instagram (por habilitación): 1 cuenta de cada uno por ejecutivo; Esencial es solo WhatsApp.`,
+    `- Se cobra por usuario (cada persona del equipo, incluido el dueño), cada mes, en pesos mexicanos: ${pricesSentence}${c.PRICE_TAX_NOTE ? ` (${c.PRICE_TAX_NOTE})` : ""}. Sin plan anual.`,
+    `- ${c.COEXISTENCE_PITCH} WhatsApp e Instagram siguen la fórmula del plan (incluidos + 1 por usuario adicional, o sin tope en Pro). Telegram, Messenger y el chat web no tienen tope.`,
     ...plans.map((p) => `- ${p.name}: ${p.features.join("; ")}${p.missing.length ? `. No incluye: ${p.missing.join(", ")}` : ""}.`),
-    `- Prueba: ${c.TRIAL_DAYS} días gratis, sin tarjeta, con el plan ${pro.name} para hasta ${c.TRIAL_MAX_SEATS} ejecutivos y ${c.TRIAL_POOL_TEXT}.`,
+    `- Prueba: ${c.TRIAL_DAYS} días gratis, sin tarjeta, con el plan ${pro.name} para hasta ${c.TRIAL_MAX_SEATS} usuarios y ${c.TRIAL_POOL_TEXT}.`,
     `- ${c.PRICE_CURRENCY_NOTE} ${c.META_FEES_NOTE}`,
     LLMS_END,
   ].join("\n");

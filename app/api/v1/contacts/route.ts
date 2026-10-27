@@ -93,6 +93,11 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
 
   const exceeded = await evaluatePlanLimit(ctx.organizationId, "contacts");
   if (exceeded) throw new ApiError(402, "plan_limit", exceeded.message);
+  const status = input.leadStatus ?? "NEW";
+  if (status !== "CUSTOMER" && status !== "LOST") {
+    const leads = await evaluatePlanLimit(ctx.organizationId, "activeLeads");
+    if (leads) throw new ApiError(402, "plan_limit", leads.message);
+  }
 
   let created;
   try {
@@ -102,7 +107,7 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
         remoteJid: input.phone,
         name: input.name ?? input.phone,
         nameSource: input.name ? "user" : null,
-        leadStatus: input.leadStatus,
+        leadStatus: status,
       },
       select: { id: true, accountId: true, channelAccountId: true },
     });

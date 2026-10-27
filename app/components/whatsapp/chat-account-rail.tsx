@@ -1,6 +1,7 @@
 "use client";
 
-import { Inbox, Send, MessageCircle, Camera } from "lucide-react";
+import { Inbox } from "lucide-react";
+import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { cn } from "@/app/components/ui/cn";
 import type { AccountOption, Channel } from "./chat-shared";
@@ -80,6 +81,7 @@ function RailButton({
   channel?: Channel;
   children: React.ReactNode;
 }) {
+  const Mark = channel && channel !== "WHATSAPP" ? CHANNEL_ICONS[channel] : null;
   return (
     <button
       type="button"
@@ -101,21 +103,9 @@ function RailButton({
           {unread > 99 ? "99+" : unread}
         </span>
       )}
-      {/* WhatsApp es el canal por defecto/mayoritario y no necesita
-          distinguirse a sí mismo — los otros 3 llevan marca de canal. */}
-      {channel === "TELEGRAM" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-info text-surface ring-2 ring-background">
-          <Send size={9} />
-        </span>
-      )}
-      {channel === "MESSENGER" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent-2 text-surface ring-2 ring-background">
-          <MessageCircle size={9} />
-        </span>
-      )}
-      {channel === "INSTAGRAM" && (
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-surface ring-2 ring-background">
-          <Camera size={9} />
+      {Mark && (
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-surface ring-2 ring-background">
+          <Mark size={11} />
         </span>
       )}
     </button>

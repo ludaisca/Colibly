@@ -26,7 +26,9 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${[...META, ...GOOGLE_BEACON].join(" ")}`,
   "font-src 'self'",
-  `connect-src 'self' ${[...META, ...GOOGLE_BEACON].join(" ")}`,
+  // stun: lo usa el navegador al armar la llamada de WhatsApp (WebRTC). El audio
+  // va a las IPs que Meta manda dentro del SDP; connect-src no las lista.
+  `connect-src 'self' stun:stun.l.google.com:19302 ${[...META, ...GOOGLE_BEACON].join(" ")}`,
   `frame-src ${TURNSTILE} ${META_FRAMES.join(" ")} https://td.doubleclick.net https://www.googletagmanager.com`,
 ].join("; ");
 
@@ -57,7 +59,9 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "geolocation=(), microphone=(), camera=()" },
+          // microphone=(self): la llamada de WhatsApp pide el micrófono en esta misma
+          // página. Vacío lo bloquea el navegador aunque la persona lo permita.
+          { key: "Permissions-Policy", value: "geolocation=(), microphone=(self), camera=()" },
           { key: "Content-Security-Policy", value: CSP },
           ...(process.env.NODE_ENV === "production"
             ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]

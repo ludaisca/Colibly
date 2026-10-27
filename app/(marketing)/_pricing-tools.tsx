@@ -156,6 +156,9 @@ function SeatCalculator({ registerCta }: { registerCta: string }) {
           >
             {registerCta}
           </Button>
+          <p className="text-center text-xs leading-relaxed text-muted">
+            La prueba es de Pro; al terminar eliges Esencial, Negocio o Pro.
+          </p>
         </div>
       </div>
     </section>

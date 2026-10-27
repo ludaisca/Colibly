@@ -49,6 +49,7 @@ export async function GET(
         appSecret: true,
         connectionType: true,
         coexistence: true,
+        callingEnabled: true,
         syncStatus: true,
         syncProgress: true,
         syncDeadlineAt: true,

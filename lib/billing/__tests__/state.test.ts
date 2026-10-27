@@ -29,7 +29,9 @@ describe("accessMode", () => {
 
 describe("planLimits", () => {
   it("usa el catálogo del plan", () => {
-    expect(planLimits({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 2 })).toMatchObject({ seats: 2, whatsapp: 2, telegram: 2, messenger: 2, instagram: 2, apiAccess: false });
+    expect(planLimits({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 2 })).toMatchObject({
+      seats: 2, whatsapp: 4, telegram: Infinity, messenger: Infinity, instagram: 4, apiAccess: true, webhooks: true,
+    });
     expect(planLimits({ plan: "PRO", isInternal: false, status: "ACTIVE", seatQuantity: 1 }).activeAutomations).toBe(Infinity);
   });
   it("interna: sin topes", () => expect(planLimits({ plan: "BUSINESS", isInternal: true, status: "ACTIVE", seatQuantity: 1 }).contacts).toBe(Infinity));
@@ -94,8 +96,8 @@ describe("purgeDue", () => {
 });
 
 describe("aiCreditLimit", () => {
-  it("plan más bono", () => expect(aiCreditLimit({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 200 })).toBe(500));
-  it("un bono negativo no resta", () => expect(aiCreditLimit({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: -50 })).toBe(300));
+  it("plan más bono", () => expect(aiCreditLimit({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 200 })).toBe(1_450));
+  it("un bono negativo no resta", () => expect(aiCreditLimit({ plan: "BUSINESS", isInternal: false, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: -50 })).toBe(1_250));
   it("interna: sin límite", () => expect(aiCreditLimit({ plan: "BUSINESS", isInternal: true, status: "ACTIVE", seatQuantity: 1, aiCreditsBonus: 0 })).toBe(Infinity));
 });
 

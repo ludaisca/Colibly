@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Megaphone, Plus, RefreshCw, Trash2, Settings2, AlertTriangle } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Settings2, AlertTriangle } from "lucide-react";
+import { MetaIcon } from "@/app/components/ui/brand-marks";
 import { Input } from "@/app/components/ui/input";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -143,7 +144,7 @@ export default function MetaAdsPage() {
           error={fetchError}
           onRetry={fetchAccounts}
           onRowClick={(a) => openEdit(a)}
-          emptyIcon={Megaphone}
+          emptyIcon={MetaIcon}
           emptyTitle={accounts.length === 0 ? "Sin cuentas" : "Sin resultados"}
           emptyDescription={
             accounts.length === 0

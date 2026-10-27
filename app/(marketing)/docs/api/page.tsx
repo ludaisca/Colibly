@@ -67,9 +67,9 @@ export default function ApiDocsPage() {
       </nav>
 
       <article className="min-w-0 overflow-x-clip text-[15px] leading-relaxed text-foreground">
-        {/* TOC móvil: chips con scroll horizontal (el aside solo aparece en lg). */}
-        <nav aria-label="Secciones" className="-mx-1 mb-8 overflow-x-auto overscroll-x-contain px-1 pb-1 lg:hidden">
-          <ol className="flex w-max gap-2">
+        {/* TOC móvil: chips en varias filas para que se vean todas las secciones. */}
+        <nav aria-label="Secciones" className="mb-8 lg:hidden">
+          <ol className="flex flex-wrap gap-2">
             {toc.map(([id, label]) => (
               <li key={id}>
                 <a

@@ -88,7 +88,7 @@ export async function GET(req: Request) {
       createdAt: true,
       updatedAt: true,
       account: {
-        select: { id: true, name: true, phoneNumber: true },
+        select: { id: true, name: true, phoneNumber: true, coexistence: true, callingEnabled: true },
       },
       // Most recent campaign- or lead-source-attributed message, if any —
       // powers the campaign badge in the chat list without a separate round

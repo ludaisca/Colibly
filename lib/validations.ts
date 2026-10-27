@@ -376,6 +376,7 @@ export type TemplateCreateInput = z.infer<typeof templateCreateSchema>;
 export const contactUpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   leadStatus: z.enum(["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"]).optional(),
+  pipelineStageId: z.string().min(1).max(64).optional(),
 });
 
 export const noteSchema = z.object({

@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Search, Plus, RefreshCw, Phone, Trash2, Settings2 } from "lucide-react";
+import { Search, Plus, RefreshCw, Trash2, Settings2 } from "lucide-react";
+import { WhatsAppIcon } from "@/app/components/ui/channel-icons";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { Badge } from "@/app/components/ui/badge";
@@ -167,7 +168,7 @@ function CuentasView() {
           error={fetchError}
           onRetry={fetchAccounts}
           onRowClick={(a) => router.push(`/whatsapp/cuentas/${a.id}`)}
-          emptyIcon={Phone}
+          emptyIcon={WhatsAppIcon}
           emptyTitle={accounts.length === 0 ? "Sin cuentas" : "Sin resultados"}
           emptyDescription={
             accounts.length === 0

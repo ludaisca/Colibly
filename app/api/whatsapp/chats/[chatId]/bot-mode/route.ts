@@ -44,7 +44,7 @@ async function modeFor(ctx: NonNullable<Awaited<ReturnType<typeof context>>>) {
   }
   const billing = await getOrgBilling(bot.organizationId);
   if (billing && aiCreditLimit(billing) === 0) {
-    return { mode: "OFF", detail: "La IA no está incluida en el plan Esencial", until: null, canResume: false };
+    return { mode: "OFF", detail: "Tu plan no incluye IA", until: null, canResume: false };
   }
   if (billing && billing.aiCreditsUsed >= aiCreditLimit(billing)) {
     return { mode: "OFF", detail: "Los créditos de IA de este periodo se agotaron", until: null, canResume: false };

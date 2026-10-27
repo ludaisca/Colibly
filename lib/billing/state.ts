@@ -50,11 +50,19 @@ const UNLIMITED: PlanLimits = {
   messenger: Infinity,
   instagram: Infinity,
   contacts: Infinity,
+  activeLeads: Infinity,
   aiCreditsPerMonth: Infinity,
   activeAutomations: Infinity,
   apiAccess: true,
+  webhooks: true,
+  campaigns: true,
+  bots: true,
+  leadScoring: true,
   aiAccess: true,
   webchat: true,
+  funnels: Infinity,
+  customFields: Infinity,
+  aiAgents: Infinity,
 };
 
 export type SeatSnapshot = Pick<BillingSnapshot, "plan" | "isInternal" | "status" | "seatQuantity">;
@@ -67,7 +75,7 @@ export type SeatSnapshot = Pick<BillingSnapshot, "plan" | "isInternal" | "status
 export function seatCap(org: SeatSnapshot): number {
   if (org.isInternal) return Infinity;
   if (org.status === "TRIALING") return TRIAL_MAX_SEATS;
-  // Nunca más que el tope del plan (Esencial: 3), aunque Stripe diga otra cosa.
+  // Nunca más que el tope del plan, aunque Stripe diga otra cosa.
   return Math.min(PLANS[org.plan].perOrg.maxSeats, Math.max(MIN_SEATS, org.seatQuantity || MIN_SEATS));
 }
 
@@ -80,11 +88,11 @@ export function channelSeatBase(org: SeatSnapshot, activeUsers: number): number 
   return Math.min(seatCap(org), Math.max(MIN_SEATS, Math.floor(activeUsers)));
 }
 
-// Límites vigentes: los del plan por asiento; en prueba, contactos y créditos
-// son la bolsa plana TRIAL_POOL; las internas no tienen tope.
+// Límites vigentes: los del plan por usuario (en prueba, TRIAL_MAX_SEATS).
+// Las organizaciones internas no tienen tope.
 export function planLimits(org: SeatSnapshot): PlanLimits {
   if (org.isInternal) return UNLIMITED;
-  return limitsForSeats(PLANS[org.plan], seatCap(org), { trial: org.status === "TRIALING" });
+  return limitsForSeats(PLANS[org.plan], seatCap(org));
 }
 
 export type NoticeKind = "trial_ending" | "trial_expired" | "past_due" | "read_only" | "canceled" | "canceling";
@@ -169,7 +177,7 @@ export function purgeDue(org: PurgeSnapshot, now: Date): boolean {
 // (se reinicia con el periodo, igual que el consumo).
 export function aiCreditLimit(org: SeatSnapshot & { aiCreditsBonus: number }): number {
   const limits = planLimits(org);
-  // Plan sin IA (Esencial): ni el bono la habilita.
+  // Plan sin IA: ni el bono la habilita.
   if (!limits.aiAccess) return 0;
   return limits.aiCreditsPerMonth + Math.max(0, org.aiCreditsBonus);
 }
@@ -286,7 +294,11 @@ export interface SeatUsage {
   instagram: number;
   webchat: number; // cuentas de chat web
   contacts: number;
+  activeLeads: number; // contactos que no están en Cliente ni Perdido
   activeAutomations: number;
+  funnels: number;
+  customFields: number;
+  aiAgents: number;
   apiKeys: number; // claves de API activas
   webhooks: number; // webhooks salientes activos
 }
@@ -304,26 +316,22 @@ const fmt = (n: number) => n.toLocaleString("es-MX");
 // lo que la organización usa hoy. Regla:
 //  - no se puede bajar de los asientos ocupados (usuarios activos + invitaciones):
 //    primero se desactiva a alguien o se revoca una invitación;
-//  - no se puede tener más números de WhatsApp que asientos (1 por ejecutivo),
-//    ni más cuentas de Telegram, Messenger o Instagram (1 de cada tipo por
-//    ejecutivo);
-//  - no más ejecutivos que el tope del plan (Esencial: 3);
-//  - Esencial no incluye Telegram, Messenger, Instagram ni chat web: hay que
-//    desconectarlos antes;
-//  - Esencial permite 1 automatización activa y Negocio 5: hay que pausar las de sobra;
-//  - avisos (no bloquean): la API y los webhooks dejan de funcionar fuera de Pro,
-//    la IA deja de funcionar en Esencial, los contactos por encima del nuevo
-//    tope se conservan pero no se agregan nuevos.
+//  - no se puede superar el cupo de WhatsApp o de Instagram del plan destino;
+//  - no más usuarios que el tope del plan;
+//  - si el plan no incluye automatizaciones activas, hay que pausarlas antes;
+//  - avisos (no bloquean): webhooks, difusiones, bots o calificación que el
+//    plan destino no incluye; contactos o leads por encima del nuevo tope se
+//    conservan pero no se agregan nuevos.
 export function planChangeImpact(targetPlan: PlanId, targetSeats: number, usage: SeatUsage): PlanChangeImpact {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const plan = PLANS[targetPlan];
   if (!Number.isInteger(targetSeats) || targetSeats < MIN_SEATS) {
-    blockers.push(`Necesitas al menos ${MIN_SEATS} ejecutivo.`);
+    blockers.push(`Necesitas al menos ${MIN_SEATS} usuario.`);
     return { blockers, warnings };
   }
   if (targetSeats > plan.perOrg.maxSeats) {
-    blockers.push(`${plan.name} admite hasta ${fmt(plan.perOrg.maxSeats)} ejecutivos. Elige ${fmt(plan.perOrg.maxSeats)} o menos, o un plan mayor.`);
+    blockers.push(`${plan.name} admite hasta ${fmt(plan.perOrg.maxSeats)} usuarios. Elige ${fmt(plan.perOrg.maxSeats)} o menos, o un plan mayor.`);
     return { blockers, warnings };
   }
   const l = limitsForSeats(plan, targetSeats);
@@ -332,35 +340,64 @@ export function planChangeImpact(targetPlan: PlanId, targetSeats: number, usage:
       `Tu equipo ocupa ${fmt(usage.seats)} ${usage.seats === 1 ? "asiento" : "asientos"} (usuarios activos e invitaciones pendientes). Desactiva usuarios o revoca invitaciones hasta quedar en ${fmt(targetSeats)}.`
     );
   }
-  if (usage.whatsapp > l.whatsapp) {
-    blockers.push(`Tienes ${fmt(usage.whatsapp)} números de WhatsApp y cada ejecutivo conecta 1. Desconecta números hasta quedar en ${fmt(l.whatsapp)}.`);
+  if (Number.isFinite(l.whatsapp) && usage.whatsapp > l.whatsapp) {
+    blockers.push(`Tienes ${fmt(usage.whatsapp)} números de WhatsApp y ${plan.name} permite ${fmt(l.whatsapp)}. Desconecta números hasta quedar en ${fmt(l.whatsapp)}.`);
   }
   for (const ch of SEAT_CHANNELS) {
-    if (usage[ch] > l[ch]) {
-      const label = SEAT_CHANNEL_LABELS[ch];
-      if (l[ch] === 0) {
-        blockers.push(`${plan.name} no incluye ${label}: desconecta tus ${fmt(usage[ch])} ${usage[ch] === 1 ? "cuenta" : "cuentas"} de ${label} antes de cambiar.`);
-        continue;
-      }
-      blockers.push(`Tienes ${fmt(usage[ch])} cuentas de ${label} y cada ejecutivo conecta 1. Desconecta cuentas de ${label} hasta quedar en ${fmt(l[ch])}.`);
+    if (!Number.isFinite(l[ch]) || usage[ch] <= l[ch]) continue;
+    const label = SEAT_CHANNEL_LABELS[ch];
+    if (l[ch] === 0) {
+      blockers.push(`${plan.name} no incluye ${label}: desconecta tus ${fmt(usage[ch])} ${usage[ch] === 1 ? "cuenta" : "cuentas"} de ${label} antes de cambiar.`);
+      continue;
     }
+    blockers.push(`Tienes ${fmt(usage[ch])} cuentas de ${label} y ${plan.name} permite ${fmt(l[ch])}. Desconecta cuentas de ${label} hasta quedar en ${fmt(l[ch])}.`);
   }
   if (!l.webchat && usage.webchat > 0) {
     blockers.push(`${plan.name} no incluye el chat web: elimina tus ${fmt(usage.webchat)} ${usage.webchat === 1 ? "cuenta" : "cuentas"} de chat web antes de cambiar.`);
   }
-  if (Number.isFinite(l.activeAutomations) && usage.activeAutomations > l.activeAutomations) {
+  if (l.activeAutomations === 0 && usage.activeAutomations > 0) {
+    blockers.push(`${plan.name} no incluye automatizaciones activas y tienes ${fmt(usage.activeAutomations)}. Pausa todas antes de cambiar.`);
+  } else if (Number.isFinite(l.activeAutomations) && usage.activeAutomations > l.activeAutomations) {
     blockers.push(
       `${plan.name} permite ${l.activeAutomations} ${l.activeAutomations === 1 ? "automatización activa" : "automatizaciones activas"} y tienes ${fmt(usage.activeAutomations)}. Pausa las que sobran antes de cambiar.`
     );
   }
   if (!l.aiAccess) {
-    warnings.push(`${plan.name} no incluye IA: tus bots de IA, calificadores de leads, sugerencias y recuperación de leads dejarán de funcionar (su configuración se conserva).`);
+    warnings.push(`${plan.name} no incluye IA: sugerencias, resúmenes, bots y calificadores dejarán de funcionar (su configuración se conserva).`);
   }
-  if (!l.apiAccess && (usage.apiKeys > 0 || usage.webhooks > 0)) {
-    warnings.push(`La API y los webhooks son del plan Pro: tus ${fmt(usage.apiKeys)} claves de API y ${fmt(usage.webhooks)} webhooks dejarán de funcionar.`);
+  if (!l.bots) {
+    warnings.push(`${plan.name} no incluye bots que responden solos ni recuperación de leads: dejarán de contestar (su configuración se conserva).`);
+  }
+  if (!l.leadScoring) {
+    warnings.push(`${plan.name} no incluye calificación de leads: los calificadores dejarán de correr.`);
+  }
+  if (!l.campaigns) {
+    warnings.push(`${plan.name} no incluye difusiones de WhatsApp: no podrás crear ni enviar campañas.`);
+  }
+  if (!l.apiAccess && usage.apiKeys > 0) {
+    warnings.push(`La API no está en ${plan.name}: tus ${fmt(usage.apiKeys)} claves de API dejarán de funcionar.`);
+  }
+  if (!l.webhooks && usage.webhooks > 0) {
+    warnings.push(`Los webhooks no están en ${plan.name}: tus ${fmt(usage.webhooks)} webhooks dejarán de funcionar.`);
   }
   if (usage.contacts > l.contacts) {
     warnings.push(`Tienes ${fmt(usage.contacts)} contactos y el nuevo tope es ${fmt(l.contacts)}: se conservan todos, pero no podrás agregar nuevos (los mensajes entrantes se siguen guardando).`);
+  }
+  if (usage.activeLeads > l.activeLeads) {
+    warnings.push(`Tienes ${fmt(usage.activeLeads)} leads activos y el nuevo tope es ${fmt(l.activeLeads)}: se conservan, pero no podrás agregar más hasta archivarlos como cliente o perdido.`);
+  }
+  if (Number.isFinite(l.funnels) && usage.funnels > l.funnels) {
+    warnings.push(`Tienes ${fmt(usage.funnels)} embudos y ${plan.name} permite ${fmt(l.funnels)}: se conservan, pero no podrás crear más.`);
+  }
+  if (Number.isFinite(l.customFields) && usage.customFields > l.customFields) {
+    warnings.push(`Tienes ${fmt(usage.customFields)} campos personalizados y ${plan.name} permite ${fmt(l.customFields)}: se conservan, pero no podrás crear más.`);
+  }
+  if (usage.aiAgents > l.aiAgents) {
+    warnings.push(
+      l.aiAgents === 0
+        ? `${plan.name} no incluye agentes de IA y tienes ${fmt(usage.aiAgents)}: dejarán de responder solos (su configuración se conserva).`
+        : `Tienes ${fmt(usage.aiAgents)} agentes de IA y ${plan.name} permite ${fmt(l.aiAgents)}: los que sobran dejarán de poder activarse.`
+    );
   }
   return { blockers, warnings };
 }

@@ -6,6 +6,7 @@ import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { ReplySuggestionButton } from "./reply-suggestion-button";
+import { RewriteButton } from "./rewrite-button";
 import { StickerPicker } from "./sticker-picker";
 import type { CannedResponseItem, Channel, Message } from "./chat-shared";
 
@@ -272,6 +273,7 @@ export function ChatComposer({
           </button>
         )}
         {supportsSuggestions && <ReplySuggestionButton key={chatId} chatId={chatId} onInsert={insertSuggestion} />}
+        <RewriteButton key={`rewrite-${chatId}`} chatId={chatId} draft={newMessage} onInsert={insertSuggestion} />
         {channel === "WHATSAPP" && <StickerPicker key={`stickers-${chatId}`} disabled={sending || !!attachment || interactiveButtons.length > 0} onSend={onSendSticker} />}
       </div>
       <div className="flex items-end gap-2">

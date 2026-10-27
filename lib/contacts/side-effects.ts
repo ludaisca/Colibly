@@ -1,4 +1,5 @@
 import type { LeadOrigin, LeadStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { metaConversionsQueue } from "@/lib/queue";
 import { enrollContactInTrigger } from "@/lib/sequences";
 import { emitDomainEvent } from "@/lib/events/emit";
@@ -13,6 +14,35 @@ export async function afterLeadStatusChanged(
   to: LeadStatus
 ): Promise<void> {
   if (from === to) return;
+
+  const placed = await prisma.contact.findUnique({
+    where: { id: contact.id },
+    select: {
+      pipelineStageId: true,
+      pipelineStage: { select: { pipeline: { select: { isDefault: true } } } },
+      account: { select: { organizationId: true } },
+      channelAccount: { select: { organizationId: true } },
+    },
+  });
+  const organizationId = placed?.account?.organizationId ?? placed?.channelAccount?.organizationId;
+  const onCustomFunnel = !!placed?.pipelineStage && !placed.pipelineStage.pipeline.isDefault;
+  if (organizationId && !onCustomFunnel) {
+    const stage = await prisma.pipelineStage.findFirst({
+      where: { leadStatus: to, pipeline: { organizationId, isDefault: true } },
+      select: { id: true },
+    });
+    if (stage && stage.id !== placed?.pipelineStageId) {
+      await prisma.contact.update({ where: { id: contact.id }, data: { pipelineStageId: stage.id } });
+    }
+  }
+
+  const fromOutcome = from === "CUSTOMER" ? "WON" : from === "LOST" ? "LOST" : "OPEN";
+  const toOutcome = to === "CUSTOMER" ? "WON" : to === "LOST" ? "LOST" : "OPEN";
+  if (fromOutcome !== toOutcome && organizationId) {
+    await prisma.leadOutcomeEvent
+      .create({ data: { organizationId, contactId: contact.id, outcome: toOutcome } })
+      .catch((err) => console.error("[contacts] lead outcome event failed:", err));
+  }
 
   // Feedback loop hacia Meta Ads: solo leads que vinieron de un anuncio. La
   // resolución de la MetaAdsAccount vive en sendLeadConversionEvent; el jobId

@@ -99,9 +99,10 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="mb-2">
           <CardTitle>Crear cuenta</CardTitle>
         </CardHeader>
+        <p className="mb-4 text-sm text-muted">14 días gratis con Pro, sin tarjeta.</p>
         <CardBody>
           {serverError && (
             <Banner tone="danger" className="mb-4">
@@ -142,7 +143,7 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
               )}
             </FormField>
 
-            <FormField label="Email" required error={errors.email}>
+            <FormField label="Correo electrónico" required error={errors.email}>
               {(id, describedBy) => (
                 <Input
                   ref={emailRef}
@@ -151,7 +152,7 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
+                  placeholder="tu@correo.com"
                   autoComplete="email"
                   error={errors.email}
                   showErrorMessage={false}

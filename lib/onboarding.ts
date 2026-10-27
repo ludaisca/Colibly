@@ -38,7 +38,7 @@ export async function getOnboardingSteps(userId: string): Promise<OnboardingStep
     {
       key: "channel",
       title: "Conecta un canal",
-      description: "Empieza con WhatsApp. Los demás canales se habilitan por solicitud.",
+      description: "Empieza con WhatsApp o conecta tus otros canales con tus credenciales.",
       href: "/whatsapp/cuentas",
       done: wa + channels > 0,
     },

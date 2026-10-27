@@ -28,7 +28,7 @@ El log muestra una URL `https://...trycloudflare.com`. Guardarla **solo en el `.
 podman compose up -d --no-deps --force-recreate app
 ```
 
-Conectar el bot desde `/telegram/cuentas` en la interfaz de DEV. El token se introduce allí; no se guarda en estos archivos. La organización debe tener Telegram habilitado desde `/plataforma` y el correo de su administrador debe estar verificado. Cada bot de Telegram admite **un solo webhook activo**: usar uno exclusivo de DEV. La cuenta `Telegram QA DEV` de `@TheCocoBlue_Bot` ya quedó vinculada al espacio **Colibly de DEV** el 2026-10-02; el bot IA «Ventas» se vinculó y activó en esa cuenta para probar respuestas.
+Conectar el bot desde `/telegram/cuentas` en la interfaz de DEV. El token se introduce allí; no se guarda en estos archivos. Telegram está habilitado por defecto (el operador puede desactivarlo desde `/plataforma`) y el correo de su administrador debe estar verificado. Cada bot de Telegram admite **un solo webhook activo**: usar uno exclusivo de DEV. La cuenta `Telegram QA DEV` de `@TheCocoBlue_Bot` ya quedó vinculada al espacio **Colibly de DEV** el 2026-10-02; el bot IA «Ventas» se vinculó y activó en esa cuenta para probar respuestas.
 
 ## Verificación
 

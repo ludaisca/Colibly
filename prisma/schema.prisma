@@ -43,6 +43,7 @@ model User {
   sharedAccounts        WAAccountShare[]
   notes                 WANote[]
   assignedChats         WAChat[]               @relation("ChatAssignments")
+  answeredCalls         WACall[]               @relation("CallAnsweredBy")
   notifications         Notification[]
   sentMessages          WAMessage[]
   leadSheetSources      LeadSheetSource[]
@@ -113,6 +114,10 @@ model WAAccount {
   historySkippedMessages Int                     @default(0) @map("history_skipped_messages")
   addressBook            WAAddressBookEntry[]
   businessAppOnboardedAt DateTime?               @map("business_app_onboarded_at")
+  // Llamadas de Cloud API (no Coexistencia: esas se contestan en el celular).
+  // Se enciende con POST /{phone-number-id}/settings. El webhook `calls` tiene
+  // que estar suscrito en la app de Meta para que suenen aquí.
+  callingEnabled         Boolean                 @default(false) @map("calling_enabled")
   // Token de negocio de Embedded Signup (WAAccount.accessToken): cuándo vence y
   // cuándo se avisó, para no repetir el aviso en cada tick.
   tokenExpiresAt         DateTime?               @map("token_expires_at")
@@ -150,6 +155,7 @@ model WAAccount {
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
   chats      WAChat[]
+  calls      WACall[]
   templates  WATemplate[]
   campaigns  WACampaign[]
   bots       WABot[]
@@ -485,6 +491,7 @@ model WAChat {
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
   messages         WAMessage[]
+  calls            WACall[]
   botConversations WABotConversation[]
   automationRuns   AutomationRun[]
   chatTags         ChatTag[]
@@ -496,6 +503,60 @@ model WAChat {
   @@index([accountId, lastMessageAt])
   @@index([accountId, status])
   @@map("wa_chats")
+}
+
+// Llamada de la Calling API de WhatsApp. La señal (SDP) pasa por el webhook
+// `calls` y por Graph; el audio es WebRTC en el navegador de quien contesta.
+// En un número de Coexistencia Meta no entrega estas llamadas a Cloud API.
+enum WACallDirection {
+  USER_INITIATED
+  BUSINESS_INITIATED
+}
+
+enum WACallStatus {
+  RINGING
+  CONNECTING
+  ACTIVE
+  ENDED
+  MISSED
+  REJECTED
+  FAILED
+}
+
+model WACall {
+  id              String          @id @default(cuid())
+  organizationId  String          @map("organization_id")
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accountId       String
+  account         WAAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  chatId          String?
+  chat            WAChat?         @relation(fields: [chatId], references: [id], onDelete: SetNull)
+  contactId       String?
+  contact         Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  metaCallId      String          @unique @map("meta_call_id")
+  direction       WACallDirection
+  status          WACallStatus    @default(RINGING)
+  peerWaId        String?         @map("peer_wa_id")
+  peerName        String?         @map("peer_name")
+  sdpOffer        String?         @db.Text
+  sdpAnswer       String?         @db.Text
+  answeredById    String?         @map("answered_by_id")
+  answeredBy      User?           @relation("CallAnsweredBy", fields: [answeredById], references: [id], onDelete: SetNull)
+  startedAt       DateTime?       @map("started_at")
+  endedAt         DateTime?       @map("ended_at")
+  durationSeconds   Int?            @map("duration_seconds")
+  endStatus         String?         @map("end_status")
+  // Grabación y transcripción que pide Meta al contestar o al marcar. El audio
+  // vive en MEDIA_ROOT; el texto es el JSON ya convertido a líneas.
+  recordingPath     String?         @map("recording_path")
+  recordingMimeType String?         @map("recording_mime_type")
+  transcript        String?         @db.Text
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([accountId, status])
+  @@index([organizationId, createdAt])
+  @@map("wa_calls")
 }
 
 model WALeadScorerBot {
@@ -989,6 +1050,47 @@ enum LeadStatus {
   LOST
 }
 
+enum PipelineStageOutcome {
+  OPEN
+  WON
+  LOST
+}
+
+// Embudo de ventas de la organización. El primero (isDefault) nace con las
+// cinco etapas que ya usaba el tablero y conserva el LeadStatus de cada una
+// para que automatizaciones, Meta y el conteo de leads activos sigan igual.
+model Pipeline {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  position       Int             @default(0)
+  isDefault      Boolean         @default(false) @map("is_default")
+  stages         PipelineStage[]
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("pipelines")
+}
+
+model PipelineStage {
+  id         String               @id @default(cuid())
+  pipelineId String               @map("pipeline_id")
+  pipeline   Pipeline             @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  name       String
+  position   Int
+  outcome    PipelineStageOutcome @default(OPEN)
+  // Solo en el embudo por defecto: el estado CRM que esta columna ya tenía.
+  leadStatus LeadStatus?          @map("lead_status")
+  contacts   Contact[]
+  createdAt  DateTime             @default(now()) @map("created_at")
+  updatedAt  DateTime             @updatedAt @map("updated_at")
+
+  @@index([pipelineId, position])
+  @@map("pipeline_stages")
+}
+
 model Contact {
   id                String          @id @default(cuid())
   // accountId/channelAccountId son mutuamente excluyentes (a nivel de
@@ -1008,6 +1110,10 @@ model Contact {
   // Null hasta que algún calificador detecte un nombre real.
   realName          String?
   leadStatus        LeadStatus      @default(NEW)
+  // Etapa del embudo. Null = todavía no se asignó: el embudo por defecto
+  // la resuelve con leadStatus.
+  pipelineStageId   String?         @map("pipeline_stage_id")
+  pipelineStage     PipelineStage?  @relation(fields: [pipelineStageId], references: [id], onDelete: SetNull)
   // Reportado por el webhook `user_preferences` de Meta cuando el lead usa el
   // mecanismo nativo de WhatsApp para darse de baja de mensajes de marketing
   // (category "marketing_messages", value "stop"/"resume"). campaign-worker.ts
@@ -1061,10 +1167,14 @@ model Contact {
   customFieldValues    ContactCustomFieldValue[]
   sequenceEnrollments  WASequenceEnrollment[]
   automationRuns       AutomationRun[]
+  tasks                ContactTask[]
+  outcomeEvents        LeadOutcomeEvent[]
+  calls                WACall[]
 
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
   @@index([accountId, leadStatus])
+  @@index([pipelineStageId])
   // Un Contact de Instant Form nace sin `chat` (no ha escrito por WhatsApp
   // todavía) bajo el `waAccountId` vinculado en su MetaAdsAccount — este
   // índice soporta el reporte de "leads de Instant Form sin conversación
@@ -1074,6 +1184,38 @@ model Contact {
   // mensajes — no se resuelve con un merge automático en esta fase).
   @@index([metaAdsAccountId, leadOrigin])
   @@map("contacts")
+}
+
+model ContactTask {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contactId      String       @map("contact_id")
+  contact        Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  title          String
+  done           Boolean      @default(false)
+  dueAt          DateTime?    @map("due_at")
+  createdById    String?      @map("created_by_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@index([contactId, done])
+  @@index([organizationId])
+  @@map("contact_tasks")
+}
+
+// Cruce a ganado, perdido o reabierto. Alimenta el reporte del tablero.
+model LeadOutcomeEvent {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contactId      String               @map("contact_id")
+  contact        Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  outcome        PipelineStageOutcome
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@map("lead_outcome_events")
 }
 
 enum LeadOrigin {
@@ -1478,6 +1620,9 @@ enum NotificationType {
   INTEGRATION_ERROR
   // Prueba por vencer, pago fallido, solo lectura, límite del plan alcanzado.
   BILLING
+  // Llamada de WhatsApp entrante (Cloud API). La campana es un aviso; el
+  // timbre real es el poll de la bandeja, porque hay ~30–60 s para contestar.
+  WHATSAPP_CALL
 }
 
 model Notification {
@@ -1783,19 +1928,20 @@ model Organization {
   // Organizaciones de la casa (la instalación original, demos): sin cobro ni
   // candados de facturación.
   isInternal           Boolean            @default(false) @map("is_internal")
-  // Canales adicionales como feature por organización — el operador los
-  // activa desde /plataforma (lib/channel-flags.ts). WhatsApp no tiene flag,
-  // siempre disponible. Default false: una organización nueva solo tiene
-  // WhatsApp hasta que se le habilite algo más.
+  // Canales adicionales: DISPONIBLES POR DEFECTO desde el alta, como Kommo.
+  // El usuario los conecta con sus propias credenciales (lib/channel-flags.ts);
+  // el plan sigue limitando cuántos puede usar. El operador conserva el
+  // interruptor por organización en /plataforma como medida de excepción.
+  // WhatsApp no tiene flag, siempre disponible.
   // Coexistencia de WhatsApp (conectar el número de la app WhatsApp Business):
   // función principal, ENCENDIDA por defecto desde 2026-10-19 (el operador la
   // puede apagar por organización en /plataforma). Las organizaciones creadas
   // antes conservan su valor: la migración no las toca.
   whatsappCoexistenceEnabled Boolean       @default(true) @map("whatsapp_coexistence_enabled")
-  channelTelegramEnabled  Boolean          @default(false) @map("channel_telegram_enabled")
-  channelMessengerEnabled Boolean          @default(false) @map("channel_messenger_enabled")
-  channelInstagramEnabled Boolean          @default(false) @map("channel_instagram_enabled")
-  channelWebchatEnabled   Boolean          @default(false) @map("channel_webchat_enabled")
+  channelTelegramEnabled  Boolean          @default(true) @map("channel_telegram_enabled")
+  channelMessengerEnabled Boolean          @default(true) @map("channel_messenger_enabled")
+  channelInstagramEnabled Boolean          @default(true) @map("channel_instagram_enabled")
+  channelWebchatEnabled   Boolean          @default(true) @map("channel_webchat_enabled")
   trialEndsAt          DateTime?          @map("trial_ends_at")
   currentPeriodEnd     DateTime?          @map("current_period_end")
   graceEndsAt          DateTime?          @map("grace_ends_at")
@@ -1851,6 +1997,10 @@ model Organization {
   campaigns        WACampaign[]
   leadSheetSources LeadSheetSource[]
   authTokens       AuthToken[]
+  pipelines        Pipeline[]
+  contactTasks     ContactTask[]
+  leadOutcomeEvents LeadOutcomeEvent[]
+  waCalls          WACall[]
 
   @@index([status])
   @@map("organizations")

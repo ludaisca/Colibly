@@ -4,7 +4,7 @@ import { webhookDeliveryQueue } from "@/lib/queue";
 import { requireAdmin } from "@/lib/integrations/admin-session";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
-import { checkApiAccess } from "@/lib/billing/gates";
+import { checkWebhookAccess } from "@/lib/billing/gates";
 
 type Params = { params: Promise<{ deliveryId: string }> };
 
@@ -17,8 +17,8 @@ export async function POST(_req: Request, { params }: Params) {
     if (admin instanceof NextResponse) return admin;
     // Las entregas son del plan Pro: sin esto, una cuenta que bajó a Esencial o Negocio
     // seguiría mandando eventos a sus webhooks viejos con este botón.
-    const noApi = await checkApiAccess(await requireOrgId(admin.userId));
-    if (noApi) return noApi;
+    const noHooks = await checkWebhookAccess(await requireOrgId(admin.userId));
+    if (noHooks) return noHooks;
     const { deliveryId } = await params;
     const delivery = await prisma.webhookDelivery.findFirst({
       where: { id: deliveryId, endpoint: await orgWhere(admin.userId) },

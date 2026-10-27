@@ -28,9 +28,10 @@ export function Reveal({
   as: Tag = "div",
 }: RevealProps) {
   const ref = useRef<HTMLElement | null>(null);
-  const [shown, setShown] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+  // Arranca en false en servidor y cliente para no romper la hidratación.
+  // El CSS de prefers-reduced-motion ya muestra el contenido sin animación;
+  // no hace falta cambiar el estado en ese caso.
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -46,7 +47,9 @@ export function Reveal({
           setShown(false);
         }
       },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 }
+      // Umbral 0: un bloque más alto que la pantalla (la comparación de planes)
+      // nunca llega a ocupar el 12 % del viewport, y se quedaba invisible.
+      { rootMargin: "0px 0px -8% 0px", threshold: 0 }
     );
     io.observe(el);
     return () => io.disconnect();

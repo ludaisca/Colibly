@@ -42,6 +42,7 @@ const PAIRS: [string, string, number][] = [
   ["danger", "danger-bg", 4.5],
   ["info", "surface", 4.5],
   ["info", "info-bg", 4.5],
+  ["code-fg", "code-bg", 4.5],
 ];
 
 describe.each(Object.entries(THEMES))("contraste de los tokens — tema %s", (_theme, tokens) => {
