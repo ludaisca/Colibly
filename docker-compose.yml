@@ -6,19 +6,22 @@ services:
       POSTGRES_PASSWORD: "${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}"
       POSTGRES_DB: colibly_db
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      # Sin montar docker/init.sql: en Coolify el repo se clona dentro de un contenedor
-      # auxiliar, así que ese archivo no existe en el host, Docker crea un DIRECTORIO
-      # con ese nombre y Postgres falla al ejecutarlo. La extensión vector la crea
-      # el servicio db-init de abajo.
+      # pgdata_v2: el volumen anterior quedó a medias (el primer arranque se
+      # marcó unhealthy a mitad del initdb). Postgres ya no vuelve a crear
+      # colibly_db en un directorio inicializado, y psql sale con código 2.
+      - pgdata_v2:/var/lib/postgresql/data
+    # Sin montar docker/init.sql: en Coolify el repo se clona dentro de un contenedor
+    # auxiliar, así que ese archivo no existe en el host, Docker crea un DIRECTORIO
+    # con ese nombre y Postgres falla al ejecutarlo. La extensión vector la crea
+    # el servicio db-init de abajo.
     healthcheck:
       # El primer arranque de pgvector inicializa el volumen; sin start_period
       # Compose lo marca unhealthy a los ~25 s y aborta el despliegue.
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d colibly_db"]
       interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 40s
+      retries: 20
+      start_period: 60s
     restart: unless-stopped
 
   db-init:
@@ -26,8 +29,25 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: >
-      sh -c "PGPASSWORD=${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno} psql -h db -U postgres -d colibly_db -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
+    environment:
+      PGPASSWORD: "${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}"
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        i=0
+        until pg_isready -h db -U postgres -d postgres; do
+          i=$$((i+1))
+          if [ "$$i" -gt 30 ]; then
+            echo "db-init: no hay conexión a db" >&2
+            exit 2
+          fi
+          sleep 2
+        done
+        psql -h db -U postgres -d postgres -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname = 'colibly_db'" | grep -q 1 \
+          || psql -h db -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE colibly_db"
+        psql -h db -U postgres -d colibly_db -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS vector;"
     restart: "no"
 
   redis:
@@ -106,5 +126,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  pgdata:
+  pgdata_v2:
   media_data:
