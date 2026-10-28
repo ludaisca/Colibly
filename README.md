@@ -6,13 +6,13 @@ CRM conversacional multi-tenant y de pago (SaaS) para negocios que venden por me
 
 ## Funcionalidad
 
-- **Bandeja multicanal**: WhatsApp (API oficial de Meta, Cloud API), Messenger, Instagram, Telegram y un widget de chat para la web del cliente. Asignación de agentes (manual, automática o por reglas), etiquetas, notas, respuestas rápidas, adjuntos con proxy seguro de medios.
+- **Bandeja multicanal**: WhatsApp (API oficial de Meta, Cloud API, con llamadas desde el navegador cuando el número lo permite), Messenger, Instagram, Telegram y un widget de chat para la web del cliente. Asignación de agentes (manual, automática o por reglas), etiquetas, notas, respuestas rápidas, adjuntos con proxy seguro de medios.
 - **Bots de IA**: respuestas multimodales con RAG sobre una base de conocimiento propia (pgvector), agendado de citas desde la conversación y humanización de respuestas. La IA la provee la plataforma: cada plan incluye créditos mensuales.
 - **Automatizaciones**: un solo motor para chatbots de botones, reglas evento → acción y seguimientos, en todos los canales, con versiones publicadas y modo de prueba.
 - **Campañas y plantillas** de WhatsApp (Meta), con segmentación por etiqueta, variables por destinatario y métricas.
-- **CRM**: contactos con campos personalizados, pipeline Kanban, citas con recordatorios, calificadores de leads por IA, recuperación de leads en visto, feedback a Meta Ads (Conversions API).
+- **CRM**: contactos con campos personalizados, embudos Kanban configurables con tareas por contacto, citas con recordatorios, calificadores de leads por IA, recuperación de leads en visto, feedback a Meta Ads (Conversions API).
 - **Integraciones**: API pública v1 con API keys, webhooks salientes firmados, Google Sheets.
-- **SaaS**: organizaciones aisladas entre sí, planes Esencial, Negocio y Pro con límites, cobro con Stripe, prueba de 14 días, exportar y eliminar datos, purga automática de cuentas canceladas o sin pago, panel del operador (`/plataforma`).
+- **SaaS**: organizaciones aisladas entre sí, planes Básico, Avanzado y Pro por usuario con límites, cobro con Stripe, prueba de 14 días, exportar y eliminar datos, purga automática de cuentas canceladas o sin pago, panel del operador (`/plataforma`).
 - **Roles**: `admin`, `user` y `ejecutivo`, aplicados en la navegación, en `proxy.ts` y en cada endpoint.
 
 ## Stack
