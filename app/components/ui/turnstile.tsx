@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { TURNSTILE_ACTION } from "@/lib/turnstile-shared";
 
 // Widget de Cloudflare Turnstile (captcha del registro). Carga el script una
 // sola vez y renderiza en modo explícito. Cada token sirve una vez: tras un
@@ -68,6 +69,9 @@ export function Turnstile({
         if (cancelled || !ref.current) return;
         widgetId = api.render(ref.current, {
           sitekey: siteKey,
+          // Siteverify compara esta acción: cambiarla aquí sin cambiarla en el
+          // servidor (lib/turnstile.ts) rechaza todos los registros.
+          action: TURNSTILE_ACTION,
           language: "es",
           appearance: "always",
           callback: (token: string) => onTokenRef.current(token),
