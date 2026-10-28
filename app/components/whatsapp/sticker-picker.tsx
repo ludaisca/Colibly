@@ -61,7 +61,7 @@ export function StickerPicker({ disabled, onSend }: { disabled: boolean; onSend:
     finally { setBusy(false); }
   }
   return <>
-    <button type="button" disabled={disabled} onClick={() => { setOpen(true); setSelectedId(null); setConfirmDelete(false); load(); }} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium hover:bg-surface-light disabled:opacity-50"><Sticker size={16} className="text-accent-ink" /> Stickers</button>
+    <button type="button" disabled={disabled} onClick={() => { setOpen(true); setSelectedId(null); setConfirmDelete(false); load(); }} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong" title="Stickers" aria-label="Stickers"><Sticker size={18} /></button>
     <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} title="Stickers del equipo" size="md">
       <div className="space-y-4">
         <p className="text-xs text-muted-darker">Biblioteca compartida por tu organización · {items.length}/100. WebP de 512 × 512 px: hasta 100 KB estáticos o 500 KB animados.</p>

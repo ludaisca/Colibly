@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Send, Paperclip, X, FileAudio, Video, FileText, ListChecks, Plus, Reply } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -8,7 +8,7 @@ import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shar
 import { ReplySuggestionButton } from "./reply-suggestion-button";
 import { RewriteButton } from "./rewrite-button";
 import { StickerPicker } from "./sticker-picker";
-import type { CannedResponseItem, Channel, Message } from "./chat-shared";
+import { displayMessageText, type CannedResponseItem, type Channel, type Message } from "./chat-shared";
 
 // Input + adjuntos + respuestas rápidas — extraído de chat-workspace.tsx sin
 // tocar el envío optimista (vive en el orquestador, que sigue siendo dueño de
@@ -53,10 +53,15 @@ interface ChatComposerProps {
   // "Enviar plantilla" (solo WhatsApp): opción secundaria con la ventana de
   // 24 h abierta; con la ventana cerrada el banner del chat la destaca.
   onOpenTemplates?: () => void;
+
+  // WhatsApp rechazó el número (nombre para mostrar sin aprobar). El borrador
+  // se puede escribir; nada sale hasta que Meta lo apruebe.
+  sendBlockedReason?: string | null;
 }
 
 const MAX_BUTTONS = 3;
 const MAX_BUTTON_LENGTH = 20;
+const TOOL_BUTTON = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 export function ChatComposer({
   chatId,
@@ -86,8 +91,15 @@ export function ChatComposer({
   onToggleButtonsPanel,
   onOpenTemplates,
   interactiveDisabled = false,
+  sendBlockedReason = null,
 }: ChatComposerProps) {
-  const messageInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const field = messageInputRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, 128)}px`;
+  }, [newMessage]);
   const supportsAttachments = channel !== "WEBCHAT";
   const supportsButtons = channel === "WHATSAPP";
   const supportsSuggestions = channel === "WHATSAPP" || channel === "TELEGRAM";
@@ -113,7 +125,7 @@ export function ChatComposer({
           <Reply size={16} className="shrink-0 text-accent-ink" />
           <div className="min-w-0 flex-1 border-l-2 border-accent-strong pl-2 text-xs">
             <p className="font-semibold text-accent-ink">Respondiendo a {replyTo.direction === "OUTBOUND" ? "tu mensaje" : leadName}</p>
-            <p className="truncate text-muted-darker">{replyTo.body || replyTo.caption || `[${replyTo.messageType}]`}</p>
+            <p className="truncate text-muted-darker">{displayMessageText(replyTo.body) || replyTo.caption || `[${replyTo.messageType}]`}</p>
           </div>
           <button type="button" onClick={onCancelReply} className="rounded-lg p-1 text-muted-darker hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent" aria-label="Cancelar respuesta citada"><X size={16} /></button>
         </div>
@@ -233,52 +245,52 @@ export function ChatComposer({
         accept="image/*,audio/*,video/*,application/pdf,text/plain"
         className="hidden"
       />
-      <div className="flex flex-wrap items-center gap-2" aria-label="Herramientas del mensaje">
-        {supportsAttachments && (
-          <button
-            type="button"
-            onClick={onPickFile}
-            disabled={sending || attachmentsDisabled}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong"
-            title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar archivo"}
-          >
-            <Paperclip size={16} className="text-accent-ink" />
-            <span>Adjuntar</span>
-          </button>
-        )}
-        {supportsButtons && (
-          <button
-            type="button"
-            onClick={toggleButtons}
-            disabled={sending || interactiveDisabled}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong data-[active=true]:border-accent-strong data-[active=true]:bg-accent-subtle"
-            title={interactiveDisabled ? "Quita el archivo adjunto para usar botones" : buttonsPanelOpen ? "Cerrar y quitar botones" : "Añadir botones de respuesta rápida"}
-            aria-expanded={buttonsPanelOpen}
-            data-active={buttonsPanelOpen}
-          >
-            <ListChecks size={16} className="text-accent-ink" />
-            <span>Botones{interactiveButtons.length > 0 ? ` (${interactiveButtons.length})` : ""}</span>
-          </button>
-        )}
-        {channel === "WHATSAPP" && onOpenTemplates && (
-          <button
-            type="button"
-            onClick={onOpenTemplates}
-            disabled={sending}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong"
-            title="Enviar una plantilla aprobada de WhatsApp"
-          >
-            <FileText size={16} className="text-accent-ink" />
-            <span>Plantilla</span>
-          </button>
-        )}
-        {supportsSuggestions && <ReplySuggestionButton key={chatId} chatId={chatId} onInsert={insertSuggestion} />}
-        <RewriteButton key={`rewrite-${chatId}`} chatId={chatId} draft={newMessage} onInsert={insertSuggestion} />
-        {channel === "WHATSAPP" && <StickerPicker key={`stickers-${chatId}`} disabled={sending || !!attachment || interactiveButtons.length > 0} onSend={onSendSticker} />}
-      </div>
-      <div className="flex items-end gap-2">
-        <input
+      <div className="flex items-end gap-1">
+        <div className="flex min-w-0 items-center overflow-x-auto scrollbar-thin" aria-label="Herramientas del mensaje">
+          {supportsAttachments && (
+            <button
+              type="button"
+              onClick={onPickFile}
+              disabled={sending || attachmentsDisabled || !!sendBlockedReason}
+              className={TOOL_BUTTON}
+              title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar"}
+              aria-label="Adjuntar archivo"
+            >
+              <Paperclip size={18} />
+            </button>
+          )}
+          {supportsButtons && (
+            <button
+              type="button"
+              onClick={toggleButtons}
+              disabled={sending || interactiveDisabled || !!sendBlockedReason}
+              className={`${TOOL_BUTTON} ${buttonsPanelOpen ? "bg-accent-subtle text-accent-ink" : ""}`}
+              title={interactiveDisabled ? "Quita el archivo adjunto para usar botones" : buttonsPanelOpen ? "Cerrar botones" : "Botones de respuesta"}
+              aria-label="Botones de respuesta"
+              aria-expanded={buttonsPanelOpen}
+            >
+              <ListChecks size={18} />
+            </button>
+          )}
+          {channel === "WHATSAPP" && onOpenTemplates && (
+            <button
+              type="button"
+              onClick={onOpenTemplates}
+              disabled={sending || !!sendBlockedReason}
+              className={TOOL_BUTTON}
+              title={sendBlockedReason ?? "Plantilla"}
+              aria-label="Enviar plantilla"
+            >
+              <FileText size={18} />
+            </button>
+          )}
+          {supportsSuggestions && <ReplySuggestionButton key={chatId} chatId={chatId} onInsert={insertSuggestion} />}
+          <RewriteButton key={`rewrite-${chatId}`} chatId={chatId} draft={newMessage} onInsert={insertSuggestion} />
+          {channel === "WHATSAPP" && <StickerPicker key={`stickers-${chatId}`} disabled={sending || !!attachment || interactiveButtons.length > 0 || !!sendBlockedReason} onSend={onSendSticker} />}
+        </div>
+        <textarea
           ref={messageInputRef}
+          rows={1}
           value={newMessage}
           aria-label="Mensaje"
           onChange={(e) => { onMessageChange(e.target.value); onCannedIndexChange(0); }}
@@ -296,8 +308,6 @@ export function ChatComposer({
                 return;
               }
               if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
-                // Con el dropdown abierto, Enter selecciona la sugerencia
-                // resaltada en lugar de enviar el atajo a medias.
                 e.preventDefault();
                 onInsertCanned(cannedSuggestions[Math.min(cannedIndex, max - 1)].content);
                 return;
@@ -309,13 +319,15 @@ export function ChatComposer({
             }
           }}
           placeholder={
-            interactiveButtons.length > 0
-              ? "Escribe el mensaje que acompaña a los botones..."
+            sendBlockedReason
+              ? "El envío se habilita cuando WhatsApp apruebe el nombre."
+              : interactiveButtons.length > 0
+              ? "Mensaje que acompaña a los botones"
               : attachment
-                ? "Añadir comentario (opcional)..."
-                : "Escribe un mensaje... (usa /atajo para respuestas rápidas)"
+                ? "Comentario (opcional)"
+                : "Escribe un mensaje"
           }
-          className="min-w-0 flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted transition-colors"
+          className="max-h-32 min-h-10 min-w-[8rem] flex-1 resize-none rounded-[12px] border border-border bg-background px-3 py-2.5 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted"
           disabled={sending}
         />
         <Button
@@ -323,12 +335,14 @@ export function ChatComposer({
           aria-label="Enviar mensaje"
           icon={sending ? undefined : Send}
           size="md"
-          className="px-3"
+          className="shrink-0 px-3"
           disabled={
+            !!sendBlockedReason ||
             (!newMessage.trim() && !attachment && interactiveButtons.length === 0) ||
             (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((t) => !t.trim()))) ||
             sending
           }
+          title={sendBlockedReason ?? "Enviar"}
         >
           {sending ? <Spinner /> : ""}
         </Button>

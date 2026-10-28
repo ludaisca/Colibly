@@ -13,6 +13,10 @@ describe("metaSendErrorMessage", () => {
     expect(metaSendErrorMessage(132001)).toMatch(/idioma/);
     expect(metaSendErrorMessage(132999, "raw")).toMatch(/plantilla/);
   });
+  it("traduce el nombre para mostrar sin aprobar (131037), también si el código solo viene en el texto", () => {
+    expect(metaSendErrorMessage(131037)).toMatch(/nombre para mostrar/);
+    expect(metaSendErrorMessage(null, "(#131037) WhatsApp provided number needs display name approval before message can be sent.")).toMatch(/nombre para mostrar/);
+  });
   it("conserva el detalle de Meta para códigos desconocidos", () => {
     expect(metaSendErrorMessage(999999, "Detalle de Meta")).toBe("Detalle de Meta");
     expect(metaSendErrorMessage(null, "  ")).toBe("WhatsApp no pudo enviar el mensaje.");

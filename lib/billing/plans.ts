@@ -298,14 +298,10 @@ export const RETENTION_DAYS_AFTER_CANCEL = 60;
 export const RETENTION_DAYS_AFTER_TRIAL = 60;
 
 // ── IA incluida ──
-// Modelos curados que la plataforma asigna sola a bots/calificadores/pasos de
-// IA (nunca elegidos por el cliente, ver lib/ai/platform.ts:pickCuratedModel())
-// — lista corta y económica a propósito: la IA la paga la plataforma, y con
-// créditos por llamada (no por token) un modelo caro se comería el margen.
-// `provider` debe tener su key de plataforma configurada para aparecer
-// (lib/ai/platform.ts). `vision` decide qué modelos son candidatos para un bot
-// que puede recibir imágenes (WhatsApp/Telegram) — un calificador (solo texto)
-// no lo necesita.
+// Modelos recomendados. El operador elige el de texto y el de imágenes en
+// /plataforma; el cliente no elige. OpenCode es suscripción plana, así que
+// cualquier modelo de ese catálogo vale. Gemini se reserva para notas de voz.
+// `vision` marca candidatos cuando no hay una elección guardada.
 export interface AiModelOption {
   id: string;
   provider: "opencode" | "google";
@@ -315,13 +311,13 @@ export interface AiModelOption {
 }
 
 export const AI_MODELS: AiModelOption[] = [
-  { id: "opencode-go/glm-5.3-flash", provider: "opencode", label: "GLM 5.3 Flash", description: "Recomendado: rápido y barato", vision: false },
-  { id: "opencode-go/deepseek-v4-flash-vision-exp", provider: "opencode", label: "DeepSeek V4 Flash Vision", description: "Con visión, para WhatsApp multimodal", vision: true },
-  { id: "gemini-3.8-flash", provider: "google", label: "Gemini 3.8 Flash", description: "Recomendado: entiende imágenes y audios", vision: true },
+  { id: "glm-5.3-flash", provider: "opencode", label: "GLM 5.3 Flash", description: "Recomendado", vision: false },
+  { id: "deepseek-v4.1-flash", provider: "opencode", label: "DeepSeek V4.1 Flash", description: "Alternativa para imágenes", vision: true },
+  { id: "gemini-3.8-flash", provider: "google", label: "Gemini 3.8 Flash", description: "Solo para notas de voz. El resto lo atiende OpenCode", vision: true },
 ];
 
 export const DEFAULT_AI_MODEL: Record<AiModelOption["provider"], string> = {
-  opencode: "opencode-go/glm-5.3-flash",
+  opencode: "glm-5.3-flash",
   google: "gemini-3.8-flash",
 };
 

@@ -46,6 +46,7 @@ interface TelegramMessagePayload {
   date: number;
   chat: TelegramChat;
   from?: TelegramFrom;
+  reply_to_message?: { message_id: number };
   text?: string;
   caption?: string;
   photo?: TelegramPhotoSize[];
@@ -70,6 +71,12 @@ interface TelegramUpdate {
   update_id: number;
   callback_query?: TelegramCallbackQuery;
   message?: TelegramMessagePayload;
+  message_reaction?: {
+    chat: TelegramChat;
+    message_id: number;
+    user?: TelegramFrom;
+    new_reaction?: { type?: string; emoji?: string }[];
+  };
 }
 
 interface ExtractedMessageInfo {
@@ -185,6 +192,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
       return NextResponse.json({ ok: true });
     }
 
+    const reaction = update.message_reaction;
+    if (reaction && !reaction.user?.is_bot) {
+      const emoji = reaction.new_reaction?.find((item) => item.type === "emoji" && item.emoji)?.emoji ?? null;
+      const conversation = await prisma.conversation.findUnique({
+        where: { channelAccountId_externalId: { channelAccountId: accountId, externalId: String(reaction.chat.id) } },
+        select: { id: true },
+      });
+      if (conversation) {
+        await prisma.channelMessage.updateMany({
+          where: { conversationId: conversation.id, externalMessageId: String(reaction.message_id) },
+          data: { reactionEmoji: emoji },
+        });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const msg = update.message;
     if (!msg) {
       // Otros tipos de update (edited_message, my_chat_member, etc.) llegan a
@@ -208,6 +231,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ account
       mimeType: info.mimeType,
       filename: info.filename,
       caption: info.caption,
+      replyToExternalId: msg.reply_to_message ? String(msg.reply_to_message.message_id) : null,
     });
 
     return NextResponse.json({ ok: true });

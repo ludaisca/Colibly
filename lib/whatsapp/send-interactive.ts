@@ -2,6 +2,7 @@ import { decrypt } from "@/lib/crypto";
 import type { WAAccount } from "@prisma/client";
 import { httpTimeout } from "@/lib/http-timeouts";
 import { assertOrgCanSend } from "@/lib/billing/gates";
+import { MetaSendError } from "@/lib/whatsapp/send-errors";
 
 export interface InteractiveButton {
   id: string; // generado por el caller (btn_1, btn_2...), nunca confiado del cliente
@@ -92,9 +93,8 @@ async function postInteractive(account: WAAccount, to: string, interactive: Reco
 
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
-    const message =
-      (errorBody as { error?: { message?: string } })?.error?.message ?? `Error HTTP ${res.status}`;
-    throw new Error(message);
+    const meta = (errorBody as { error?: { message?: string; code?: number } })?.error;
+    throw new MetaSendError(meta?.message ?? `Error HTTP ${res.status}`, typeof meta?.code === "number" ? meta.code : null);
   }
 
   const responseData = (await res.json()) as { messages?: Array<{ id: string }> };

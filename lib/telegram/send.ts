@@ -6,6 +6,7 @@ import { assertOrgCanSend } from "@/lib/billing/gates";
 interface SendParams {
   to: string;
   body: string;
+  replyToMessageId?: string;
 }
 
 // Unified outbound sender for Telegram accounts — paralelo a
@@ -16,7 +17,7 @@ export async function sendTelegramMessage(
 ): Promise<{ externalMessageId: string | null }> {
   await assertOrgCanSend(account.organizationId);
   const { botToken } = JSON.parse(decrypt(account.credentials)) as { botToken: string };
-  const result = await sendTextMessage(botToken, params.to, params.body);
+  const result = await sendTextMessage(botToken, params.to, params.body, params.replyToMessageId);
   return { externalMessageId: String(result.message_id) };
 }
 
@@ -34,6 +35,7 @@ interface SendMediaParams {
   filename: string;
   mimeType: string;
   caption?: string;
+  replyToMessageId?: string;
 }
 
 export async function sendTelegramMedia(
@@ -43,7 +45,7 @@ export async function sendTelegramMedia(
   await assertOrgCanSend(account.organizationId);
   const { botToken } = JSON.parse(decrypt(account.credentials)) as { botToken: string };
   const kind = KIND_MAP[params.type];
-  const result = await sendMediaMessage(botToken, params.to, kind, params.buffer, params.filename, params.mimeType, params.caption);
+  const result = await sendMediaMessage(botToken, params.to, kind, params.buffer, params.filename, params.mimeType, params.caption, params.replyToMessageId);
   let fileId: string | null = null;
   if (kind === "photo") fileId = result.photo?.at(-1)?.file_id ?? null;
   else if (kind === "document") fileId = result.document?.file_id ?? null;

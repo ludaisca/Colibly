@@ -42,7 +42,12 @@ export async function getMe(botToken: string): Promise<TelegramBotInfo> {
 }
 
 export async function setWebhook(botToken: string, url: string, secretToken: string): Promise<void> {
-  await callTelegramApi<boolean>(botToken, "setWebhook", { url, secret_token: secretToken });
+  await callTelegramApi<boolean>(botToken, "setWebhook", {
+    url,
+    secret_token: secretToken,
+    // Sin message_reaction Telegram no avisa cuando alguien reacciona.
+    allowed_updates: ["message", "callback_query", "message_reaction"],
+  });
 }
 
 // Sin esto, al eliminar la cuenta el bot sigue apuntando a nuestra URL: Telegram
@@ -61,8 +66,14 @@ interface TelegramMessage {
 // El bot de IA sigue generando solo texto (ver AGENTS.md, "Bot reply stays
 // text-only") — sendMediaMessage más abajo es solo para el envío manual desde
 // el composer.
-export async function sendTextMessage(botToken: string, chatId: string, text: string): Promise<TelegramMessage> {
-  return callTelegramApi<TelegramMessage>(botToken, "sendMessage", { chat_id: chatId, text });
+export function replyParameters(messageId: string | undefined): { message_id: number } | null {
+  if (!messageId || !/^\d+$/.test(messageId)) return null;
+  return { message_id: Number(messageId) };
+}
+
+export async function sendTextMessage(botToken: string, chatId: string, text: string, replyToMessageId?: string): Promise<TelegramMessage> {
+  const reply = replyParameters(replyToMessageId);
+  return callTelegramApi<TelegramMessage>(botToken, "sendMessage", { chat_id: chatId, text, ...(reply ? { reply_parameters: reply } : {}) });
 }
 
 // Opciones como teclado inline (una por fila): el toque llega como
@@ -77,6 +88,33 @@ export async function sendKeyboardMessage(
     chat_id: chatId,
     text,
     reply_markup: { inline_keyboard: options.map((o) => [{ text: o.title, callback_data: o.id }]) },
+  });
+}
+
+// Telegram no acepta todos los emoji de WhatsApp. 😂 y 😮 se cambian por
+// equivalentes de la lista oficial; ❤️ va sin el selector de variación.
+const TELEGRAM_REACTION: Record<string, string> = {
+  "👍": "👍",
+  "❤️": "❤",
+  "❤": "❤",
+  "😂": "🤣",
+  "😮": "😱",
+  "😢": "😢",
+  "🙏": "🙏",
+};
+
+export function telegramReactionEmoji(emoji: string): string | null {
+  if (!emoji) return null;
+  return TELEGRAM_REACTION[emoji] ?? null;
+}
+
+export async function setMessageReaction(botToken: string, chatId: string, messageId: string, emoji: string): Promise<void> {
+  const mapped = emoji ? telegramReactionEmoji(emoji) : null;
+  if (emoji && !mapped) throw new Error("Telegram no admite esa reacción");
+  await callTelegramApi<boolean>(botToken, "setMessageReaction", {
+    chat_id: chatId,
+    message_id: Number(messageId),
+    reaction: mapped ? [{ type: "emoji", emoji: mapped }] : [],
   });
 }
 
@@ -105,7 +143,8 @@ export async function sendMediaMessage(
   buffer: Buffer,
   filename: string,
   mimeType: string,
-  caption?: string
+  caption?: string,
+  replyToMessageId?: string
 ): Promise<TelegramSentMedia> {
   const method = `send${kind[0].toUpperCase()}${kind.slice(1)}`;
   const url = `${BASE_URL}/bot${botToken}/${method}`;
@@ -114,6 +153,8 @@ export async function sendMediaMessage(
   formData.append("chat_id", chatId);
   formData.append(kind, new Blob([new Uint8Array(buffer)], { type: mimeType }), filename);
   if (caption) formData.append("caption", caption);
+  const reply = replyParameters(replyToMessageId);
+  if (reply) formData.append("reply_parameters", JSON.stringify(reply));
 
   const res = await fetch(url, { method: "POST", body: formData, signal: httpTimeout(HTTP_TRANSFER_TIMEOUT_MS), });
   const data = (await res.json()) as TelegramApiResponse<TelegramSentMedia>;

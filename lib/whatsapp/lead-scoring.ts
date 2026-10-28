@@ -1,10 +1,9 @@
 import { isContactOverLimit } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
-import { getPlatformApiKey } from "@/lib/ai/platform";
+import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { wrapUserPrompt } from "@/lib/ai/prompt-sanitizer";
 import { estimateCost } from "@/lib/ai/pricing";
-import type { AIProvider } from "@/lib/ai/types";
 import type { ScoreDetails } from "@/lib/whatsapp/export-columns";
 import type { WALeadScorerBot } from "@prisma/client";
 import { emitDomainEvent } from "@/lib/events/emit";
@@ -96,7 +95,11 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
     throw new LeadScoringError("El lead todavía no ha respondido — no se puede calificar todavía");
   }
 
-  const provider = scorer.provider as AIProvider;
+  const picked = await resolvePlatformModel();
+  if (!picked) {
+    throw new LeadScoringError("La IA no está disponible en este momento");
+  }
+  const { provider, model } = picked;
   const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     throw new LeadScoringError("La IA no está disponible en este momento");
@@ -117,7 +120,7 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
 
   const client = getAIProvider(provider, apiKey);
   const result = await client.complete({
-    model: scorer.model,
+    model: model,
     temperature: 0.2,
     maxTokens: 600,
     messages: [
@@ -155,7 +158,7 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
       summary: parsed.summary,
       reasons: JSON.stringify(parsed.reasons),
       details: parsed.details as object,
-      model: scorer.model,
+      model: model,
     },
     update: {
       score: parsed.score,
@@ -163,7 +166,7 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
       summary: parsed.summary,
       reasons: JSON.stringify(parsed.reasons),
       details: parsed.details as object,
-      model: scorer.model,
+      model: model,
     },
     include: { scorer: { select: { id: true, name: true } } },
   });
@@ -203,13 +206,13 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
     const promptTokens = result.usage.promptTokens;
     const completionTokens = result.usage.completionTokens;
     const totalTokens = promptTokens + completionTokens;
-    const cost = await estimateCost(scorer.model, promptTokens, completionTokens, provider);
+    const cost = await estimateCost(model, promptTokens, completionTokens, provider);
 
     await prisma.wALeadScorerUsage.create({
       data: {
         scorerId: scorer.id,
         ...(channel === "TELEGRAM" ? { conversationId: chatId } : { waChatId: chatId }),
-        model: scorer.model,
+        model: model,
         promptTokens,
         completionTokens,
         totalTokens,

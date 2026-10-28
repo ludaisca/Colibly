@@ -16,6 +16,9 @@ export interface AICompletionParams {
   messages: AIMessage[];
   temperature?: number;
   maxTokens?: number;
+  // Identificador estable de la conversación. OpenCode Go lo pide en
+  // x-opencode-session para enrutar y reusar el caché del prompt.
+  sessionId?: string;
 }
 
 export interface AICompletionResponse {

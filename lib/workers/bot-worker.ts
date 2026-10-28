@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { getAIProvider } from "@/lib/ai/factory";
 import { searchKnowledge } from "@/lib/ai/rag";
-import { getPlatformApiKey } from "@/lib/ai/platform";
+import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { buildAppointmentMarkerContract, parseAppointmentMarker } from "@/lib/ai/appointment-marker";
 import type { AppointmentProposal } from "@/lib/ai/appointment-marker";
@@ -157,7 +157,15 @@ async function handleBotMessage(job: BotMessageJob) {
     return;
   }
 
-  const provider = bot.provider as AIProvider;
+  const picked = await resolvePlatformModel({
+    needsVision: job.messageType === "image",
+    needsAudio: job.messageType === "audio",
+  });
+  if (!picked) {
+    await failBotAndNotify(botId, waChatId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
+    return;
+  }
+  const { provider, model } = picked;
   const apiKey = await getPlatformApiKey(provider);
 
   if (!apiKey) {
@@ -303,15 +311,16 @@ async function handleBotMessage(job: BotMessageJob) {
 
   const client = getAIProvider(provider, apiKey);
   const result = await client.complete({
-    model: bot.model,
+    model,
     messages,
     temperature: bot.temperature,
     maxTokens: bot.maxTokens,
+    sessionId: waChatId,
   });
 
   // El gasto de IA se registra en cuanto ocurre: si el envío de abajo falla y
   // BullMQ reintenta, esa llamada ya se hizo y debe contar en el presupuesto.
-  await recordBotUsage({ botId, userId: bot.userId, model: bot.model, provider, usage: result.usage, waChatId }).catch((err) =>
+  await recordBotUsage({ botId, userId: bot.userId, model, provider, usage: result.usage, waChatId }).catch((err) =>
     console.error("[bot-worker] No se pudo registrar el uso de IA:", err instanceof Error ? err.message : err)
   );
 

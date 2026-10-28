@@ -9,11 +9,23 @@ export interface WhatsAppMessageContent {
   audio?: { id: string; mime_type: string };
   document?: { id: string; mime_type: string; caption?: string; filename?: string };
   interactive?: {
-    type: string;
+    type?: string;
+    body?: { text?: string };
     button_reply?: { id: string; title: string };
     list_reply?: { id: string; title: string; description?: string };
+    action?: {
+      button?: string;
+      buttons?: { reply?: { id?: string; title?: string } }[];
+      sections?: { rows?: { id?: string; title?: string }[] }[];
+    };
   };
   button?: { payload: string; text: string };
+}
+
+export interface StoredInteractivePayload {
+  buttons: { id: string; title: string }[];
+  style?: "list";
+  buttonLabel?: string;
 }
 
 export function getMessageBody(msg: WhatsAppMessageContent): string {
@@ -24,7 +36,30 @@ export function getMessageBody(msg: WhatsAppMessageContent): string {
   if (msg.interactive?.button_reply?.title) return msg.interactive.button_reply.title;
   if (msg.interactive?.list_reply?.title) return msg.interactive.list_reply.title;
   if (msg.button) return msg.button.text;
+  if (msg.interactive?.body?.text) return msg.interactive.body.text;
   return `[${msg.type}]`;
+}
+
+// Botones o filas de un mensaje interactivo que el negocio envió (historial y
+// ecos de la app de WhatsApp). La respuesta del cliente ya viene como título
+// en getMessageBody y no se convierte en botones.
+export function interactivePayloadOf(msg: WhatsAppMessageContent): StoredInteractivePayload | null {
+  const action = msg.interactive?.action;
+  if (!action) return null;
+  const replyButtons = (action.buttons ?? [])
+    .map((b, i) => ({ id: b.reply?.id || `btn_${i + 1}`, title: b.reply?.title?.trim() ?? "" }))
+    .filter((b) => b.title);
+  if (replyButtons.length > 0) return { buttons: replyButtons.slice(0, 3) };
+  const rows = (action.sections ?? [])
+    .flatMap((section) => section.rows ?? [])
+    .map((row, i) => ({ id: row.id || `row_${i + 1}`, title: row.title?.trim() ?? "" }))
+    .filter((row) => row.title);
+  if (rows.length === 0) return null;
+  return {
+    buttons: rows.slice(0, 10),
+    style: "list",
+    ...(action.button?.trim() ? { buttonLabel: action.button.trim().slice(0, 20) } : {}),
+  };
 }
 
 export function getMediaInfo(msg: WhatsAppMessageContent): {

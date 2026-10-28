@@ -1,4 +1,4 @@
-import { getMediaInfo, getMessageBody, type WhatsAppMessageContent } from "@/lib/whatsapp/message-content";
+import { getMediaInfo, getMessageBody, interactivePayloadOf, type StoredInteractivePayload, type WhatsAppMessageContent } from "@/lib/whatsapp/message-content";
 
 // Normalizadores PUROS de los webhooks de coexistencia de Meta
 // (smb_message_echoes, history, smb_app_state_sync). Reciben el `value` del
@@ -23,6 +23,7 @@ export interface NormalizedBusinessMessage {
   mimeType: string | null;
   filename: string | null;
   caption: string | null;
+  interactivePayload: StoredInteractivePayload | null;
   // Estado de entrega del historial (SENT, DELIVERED, READ, PLAYED, PENDING, ERROR).
   historyStatus: string | null;
 }
@@ -50,13 +51,13 @@ function toDate(ts: unknown): Date {
 
 type RawMessage = Record<string, unknown> & { id?: string; timestamp?: string | number; type?: string; from?: string; to?: string };
 
-function contentOf(raw: RawMessage): Pick<NormalizedBusinessMessage, "type" | "body" | "mediaId" | "mimeType" | "filename" | "caption"> {
+function contentOf(raw: RawMessage): Pick<NormalizedBusinessMessage, "type" | "body" | "mediaId" | "mimeType" | "filename" | "caption" | "interactivePayload"> {
   const type = typeof raw.type === "string" ? raw.type : "unknown";
   const content = { type, [type]: raw[type] } as unknown as WhatsAppMessageContent;
   // `interactive`/`button` y los tipos con objeto propio ya vienen bajo su
   // nombre; el resto (text, image, …) se lee con las mismas funciones del webhook.
   const { mediaId, mimeType, filename, caption } = getMediaInfo(content);
-  return { type, body: getMessageBody(content), mediaId, mimeType, filename, caption };
+  return { type, body: getMessageBody(content), mediaId, mimeType, filename, caption, interactivePayload: interactivePayloadOf(content) };
 }
 
 // smb_message_echoes: mensajes que el negocio escribió en la app del teléfono

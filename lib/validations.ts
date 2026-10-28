@@ -152,6 +152,7 @@ export const telegramSendMessageSchema = z.object({
   filename: z.string().optional(),
   localMediaPath: z.string().nullable().optional(),
   bytesSize: z.number().optional(),
+  replyToMessageId: z.string().optional(),
 }).refine(
   (d) => d.type === "text" ? !!d.body : !!d.localMediaPath,
   { message: "Se requiere body para texto o localMediaPath para medios", path: ["body"] }

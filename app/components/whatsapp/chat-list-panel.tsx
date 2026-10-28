@@ -12,6 +12,7 @@ import { hueClassFor } from "@/app/components/ui/hue";
 import { cn } from "@/app/components/ui/cn";
 import { ChatFiltersPanel } from "./chat-filters-panel";
 import {
+  displayMessageText,
   formatTime,
   campaignTone,
   type AccountOption,
@@ -182,16 +183,16 @@ export function ChatListPanel({
           <div>
             {Object.entries(groupedChats).map(([accountId, accountChats]) => (
               <div key={accountId}>
-                <div className={`flex items-center gap-1.5 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-darker bg-surface/50 border-b border-border ${hueClassFor(accountId)}`}>
-                  <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-entity animate-pulse-live" />
+                <div className={`flex items-center gap-1.5 border-b border-border bg-surface/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-darker ${hueClassFor(accountId)}`}>
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-entity" />
                   {accountChats[0]?.account?.name ?? accountId}
                 </div>
                 {accountChats.map((chat) => (
                   <button
                     key={chat.id}
                     onClick={() => onChatSelect(chat)}
-                    className={`chat-list-row w-full text-left px-4 py-3 border-b border-border transition-colors hover:bg-surface-light ${
-                      selectedChatId === chat.id ? "bg-surface-light" : ""
+                    className={`chat-list-row w-full border-b border-border px-4 py-3 text-left transition-colors hover:bg-surface-light ${
+                      selectedChatId === chat.id ? "bg-accent-subtle shadow-[inset_3px_0_0_var(--accent-strong)]" : ""
                     }`}
                     aria-current={selectedChatId === chat.id ? "true" : undefined}
                   >
@@ -203,11 +204,11 @@ export function ChatListPanel({
                         className="mt-0.5"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">
+                        <p className={`truncate text-sm ${chat.unreadCount > 0 ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
                           {chat.name ?? chat.remoteJid}
                         </p>
-                        <p className="text-xs text-muted-darker truncate mt-0.5">
-                          {chat.lastMessage ?? "Sin mensajes"}
+                        <p className={`mt-0.5 truncate text-xs ${chat.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-darker"}`}>
+                          {displayMessageText(chat.lastMessage) ?? "Sin mensajes"}
                         </p>
                         {(chat.assignedTo || chat.campaign) && (
                           <div className="flex flex-wrap items-center gap-1 mt-1">
@@ -226,7 +227,7 @@ export function ChatListPanel({
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         {chat.lastMessageAt && (
-                          <span className="text-[10px] text-muted-darker">
+                          <span className={`text-[10px] ${chat.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted-darker"}`}>
                             {formatTime(chat.lastMessageAt)}
                           </span>
                         )}

@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage } from "@/lib/telegram/send";
-import { getPlatformApiKey } from "@/lib/ai/platform";
+import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
 import { generateRecoveryReply } from "@/lib/ai/recovery";
-import type { AIProvider } from "@/lib/ai/types";
 import type { WABot, ChannelAccount } from "@prisma/client";
 
 const HISTORY_LIMIT = 12;
@@ -29,7 +28,11 @@ export async function sendTelegramRecoveryMessage(
     throw new Error(`Bot "${bot.name}" no tiene una cuenta de Telegram asociada`);
   }
 
-  const provider = bot.provider as AIProvider;
+  const picked = await resolvePlatformModel();
+  if (!picked) {
+    throw new Error(`Bot "${bot.name}" sin API key configurada — no se puede generar el mensaje de reactivación`);
+  }
+  const { provider, model } = picked;
   const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     throw new Error(`Bot "${bot.name}" sin API key configurada — no se puede generar el mensaje de reactivación`);
@@ -46,7 +49,7 @@ export async function sendTelegramRecoveryMessage(
     systemPrompt: bot.systemPrompt,
     provider,
     apiKey,
-    model: bot.model,
+    model: model,
     temperature: bot.temperature,
     maxTokens: bot.maxTokens,
     history: rawHistory.reverse().map((msg) => ({ direction: msg.direction, text: msg.caption ?? msg.body })),
@@ -78,7 +81,7 @@ export async function sendTelegramRecoveryMessage(
   const promptTokens = result.usage?.promptTokens ?? 0;
   const completionTokens = result.usage?.completionTokens ?? 0;
   const cost = result.usage
-    ? await estimateCost(bot.model, promptTokens, completionTokens, provider)
+    ? await estimateCost(model, promptTokens, completionTokens, provider)
     : 0;
 
   await prisma.wALeadRecoveryAttempt.create({
@@ -86,7 +89,7 @@ export async function sendTelegramRecoveryMessage(
       conversationId: conversation.id,
       attemptNumber,
       channelMessageId: message.id,
-      model: bot.model,
+      model: model,
       promptTokens,
       completionTokens,
       totalTokens: promptTokens + completionTokens,

@@ -1,14 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
-import { enabledProviders, getPlatformApiKey } from "@/lib/ai/platform";
+import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
 import { reserveAiCredit } from "@/lib/ai/credits";
-import { DEFAULT_AI_MODEL } from "@/lib/billing/plans";
 import { SCOPE_GUARDRAIL, wrapUserPrompt } from "@/lib/ai/prompt-sanitizer";
-import type { AIProvider } from "@/lib/ai/types";
 
-// IA de los pasos de automatización: el modelo recomendado del primer
-// proveedor que la plataforma tenga configurado, y un crédito de la
+// IA de los pasos de automatización: OpenCode por defecto, y un crédito de la
 // organización por llamada. Devuelve null en vez de lanzar si no hay IA
 // disponible (sin créditos, sin proveedor, respuesta ilegible): los pasos
 // tienen una rama "otro" / seguir sin el dato para ese caso.
@@ -23,9 +20,9 @@ export interface AiCallContext {
 }
 
 async function complete(ctx: AiCallContext, system: string, user: string, maxTokens: number): Promise<string | null> {
-  const provider: AIProvider | undefined = (await enabledProviders())[0];
-  if (!provider) return null;
-  const model = DEFAULT_AI_MODEL[provider];
+  const picked = await resolvePlatformModel();
+  if (!picked) return null;
+  const { provider, model } = picked;
   const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) return null;
   if (!(await reserveAiCredit(ctx.organizationId))) return null;
@@ -34,6 +31,7 @@ async function complete(ctx: AiCallContext, system: string, user: string, maxTok
     model,
     temperature: 0,
     maxTokens,
+    sessionId: ctx.conversationId ?? ctx.waChatId ?? ctx.runId ?? ctx.automationId,
     messages: [
       { role: "system", content: system },
       { role: "system", content: SCOPE_GUARDRAIL },

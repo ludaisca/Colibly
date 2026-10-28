@@ -7,7 +7,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { REACTION_OPTIONS, canReactToMessage } from "@/lib/whatsapp/reaction-options";
 import type { Message, AgentReaction } from "./chat-shared";
 
-export function ChatMessageActions({ message, onReply, onReaction }: { message: Message; onReply?: (message: Message) => void; onReaction: (id: string, reaction: AgentReaction) => void }) {
+export function ChatMessageActions({ message, onReply, onReaction, canReact = true }: { message: Message; onReply?: (message: Message) => void; onReaction: (id: string, reaction: AgentReaction) => void; canReact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -43,8 +43,8 @@ export function ChatMessageActions({ message, onReply, onReaction }: { message: 
 
   return (
     <div className="mb-2 flex shrink-0 flex-col items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-      <button type="button" onClick={() => onReply?.(message)} className={actionClass} aria-label="Responder a este mensaje" title="Responder"><Reply size={15} /></button>
-      {canReactToMessage(message.timestamp) && message.status !== "failed" && (
+      {onReply && <button type="button" onClick={() => onReply(message)} className={actionClass} aria-label="Responder a este mensaje" title="Responder"><Reply size={15} /></button>}
+      {canReact && canReactToMessage(message.timestamp) && message.status !== "failed" && (
         <Dropdown portal open={open} onOpenChange={setOpen} closeOnSelect={false} trigger={<button type="button" className={actionClass} aria-expanded={open} aria-label="Reaccionar al mensaje" title="Reaccionar"><Smile size={15} /></button>}>
           <div className="p-2">
             <p className="px-1 pb-2 text-xs text-muted-darker">Reacción del equipo</p>

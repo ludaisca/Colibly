@@ -18,8 +18,7 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
   "gemini-2.5-flash-lite":        { input: 0.10,  output: 0.40 },
   "gemini-2.5-pro":               { input: 1.25,  output: 10.00 },
   "gemini-3.8-flash":             { input: 0.75,  output: 3.75 },
-  "opencode-go/glm-5.3-flash":              { input: 0, output: 0 },
-  "opencode-go/deepseek-v4-flash-vision-exp": { input: 0, output: 0 },
+  "glm-5.3-flash": { input: 0, output: 0 },
 };
 
 export async function estimateCost(
@@ -34,6 +33,8 @@ export async function estimateCost(
   const pricing: ModelPricing | undefined = model === "gemini-3.8-flash" && Date.now() >= Date.UTC(2027, 0, 1)
     ? { input: 1.50, output: 7.50 }
     : MODEL_PRICING[model];
+
+  if (provider === "opencode") return 0;
 
   if (!pricing) {
     // Surface this instead of silently logging $0 forever — a model missing

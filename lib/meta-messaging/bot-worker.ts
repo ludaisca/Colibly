@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { getAIProvider } from "@/lib/ai/factory";
 import { searchKnowledge } from "@/lib/ai/rag";
-import { getPlatformApiKey } from "@/lib/ai/platform";
+import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { reserveAiCredit } from "@/lib/ai/credits";
 import { getBotSkipReason } from "@/lib/bots/guards";
@@ -137,7 +137,15 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
     return;
   }
 
-  const provider = bot.provider as AIProvider;
+  const picked = await resolvePlatformModel({
+    needsVision: job.messageType === "image" || job.messageType === "sticker",
+    needsAudio: job.messageType === "audio",
+  });
+  if (!picked) {
+    await failBotAndNotify(botId, conversationId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
+    return;
+  }
+  const { provider, model } = picked;
   const apiKey = await getPlatformApiKey(provider);
 
   if (!apiKey) {
@@ -212,15 +220,16 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
 
   const client = getAIProvider(provider, apiKey);
   const result = await client.complete({
-    model: bot.model,
+    model,
     messages,
     temperature: bot.temperature,
     maxTokens: bot.maxTokens,
+    sessionId: conversationId,
   });
 
   // El gasto de IA se registra en cuanto ocurre: si el envío de abajo falla y
   // BullMQ reintenta, esa llamada ya se hizo y debe contar en el presupuesto.
-  await recordBotUsage({ botId, userId: bot.userId, model: bot.model, provider, usage: result.usage, conversationId }).catch((err) =>
+  await recordBotUsage({ botId, userId: bot.userId, model, provider, usage: result.usage, conversationId }).catch((err) =>
     console.error("[meta-messaging bot-worker] No se pudo registrar el uso de IA:", err instanceof Error ? err.message : err)
   );
 

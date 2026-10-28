@@ -20,6 +20,7 @@ import { decrypt } from "@/lib/crypto";
 import { saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { assertOrgCanSend } from "@/lib/billing/gates";
+import { isWhatsAppDisplayNameApproved } from "@/lib/whatsapp/display-name";
 
 export async function POST(
   req: Request,
@@ -90,6 +91,12 @@ export async function POST(
       : null;
     if (replyToMessageId && !replyTarget?.wamid) {
       return NextResponse.json({ error: "El mensaje citado ya no está disponible para responder" }, { status: 400 });
+    }
+    if (replyTarget?.wamid && !(await isWhatsAppDisplayNameApproved(chat.account))) {
+      return NextResponse.json(
+        { error: "Citar un mensaje se habilita cuando Meta apruebe el nombre para mostrar de este número. Envía el texto sin citar." },
+        { status: 422 }
+      );
     }
 
     // Ventana de 24 h de Meta (misma regla que lib/messaging/outbound.ts): fuera
@@ -218,9 +225,21 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+  const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize, replyToMessageId } = parsed.data;
   if (localMediaPath && !isAccountMediaPath(localMediaPath, conversation.channelAccountId)) {
     return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
+  }
+
+  let replyToExternalId: string | null = null;
+  if (replyToMessageId) {
+    const target = await prisma.channelMessage.findFirst({
+      where: { id: replyToMessageId, conversationId: conversation.id, externalMessageId: { not: null } },
+      select: { externalMessageId: true },
+    });
+    if (!target?.externalMessageId || !/^\d+$/.test(target.externalMessageId)) {
+      return NextResponse.json({ error: "Ese mensaje no se puede citar en Telegram" }, { status: 400 });
+    }
+    replyToExternalId = target.externalMessageId;
   }
 
   let externalMessageId: string | null;
@@ -230,6 +249,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
     const result = await sendTelegramMessage(conversation.channelAccount, {
       to: conversation.externalId,
       body: textBody!,
+      replyToMessageId: replyToExternalId ?? undefined,
     });
     externalMessageId = result.externalMessageId;
   } else {
@@ -241,6 +261,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
       filename: filename ?? `media-${Date.now()}`,
       mimeType: mimeType ?? "application/octet-stream",
       caption: textBody,
+      replyToMessageId: replyToExternalId ?? undefined,
     });
     externalMessageId = result.externalMessageId;
     mediaId = result.fileId;
@@ -264,6 +285,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
       bytesSize: type === "text" ? null : (bytesSize ?? null),
       status: "sent",
       senderId: userId,
+      replyToExternalId,
       timestamp: now,
     },
   });
@@ -284,7 +306,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
 
   await emitAgentMessageSent(conversation.id, newMessage, userId);
 
-  return NextResponse.json(newMessage);
+  return NextResponse.json({ ...newMessage, wamid: newMessage.externalMessageId, replyToWamid: newMessage.replyToExternalId });
 }
 
 // Roadmap P3-f — a diferencia de los demás canales, no hay ninguna API

@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
-import { getPlatformApiKey } from "@/lib/ai/platform";
+import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { searchKnowledge } from "@/lib/ai/rag";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { estimateCost } from "@/lib/ai/pricing";
 import { reserveAiCredit } from "@/lib/ai/credits";
-import type { AIProvider, AIMessage } from "@/lib/ai/types";
+import type { AIMessage } from "@/lib/ai/types";
 import type { WABot } from "@prisma/client";
 
 // Roadmap P3-d... P3-e (docs/ROADMAP_PANCAKE.md) — copiloto de IA: el bot
@@ -38,7 +38,11 @@ export async function suggestReply(
   bot: WABot,
   channel: "WHATSAPP" | "TELEGRAM"
 ): Promise<{ suggestion: string }> {
-  const provider = bot.provider as AIProvider;
+  const picked = await resolvePlatformModel();
+  if (!picked) {
+    throw new ReplySuggestionError("La IA no está disponible en este momento.");
+  }
+  const { provider, model } = picked;
   const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {
     throw new ReplySuggestionError("La IA no está disponible en este momento.");
@@ -98,7 +102,7 @@ export async function suggestReply(
 
   const client = getAIProvider(provider, apiKey);
   const result = await client.complete({
-    model: bot.model,
+    model: model,
     messages,
     temperature: bot.temperature,
     maxTokens: bot.maxTokens,
@@ -107,13 +111,13 @@ export async function suggestReply(
   if (result.usage) {
     const promptTokens = result.usage.promptTokens;
     const completionTokens = result.usage.completionTokens;
-    const cost = await estimateCost(bot.model, promptTokens, completionTokens, provider);
+    const cost = await estimateCost(model, promptTokens, completionTokens, provider);
 
     await prisma.wABotUsage.create({
       data: {
         botId: bot.id,
         ...(channel === "TELEGRAM" ? { conversationId: chatId } : { waChatId: chatId }),
-        model: bot.model,
+        model: model,
         promptTokens,
         completionTokens,
         totalTokens: promptTokens + completionTokens,

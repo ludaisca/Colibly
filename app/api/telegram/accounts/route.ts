@@ -68,13 +68,16 @@ export async function POST(req: Request) {
       select: { id: true, name: true, channel: true, status: true, createdAt: true },
     });
 
-    // DEV puede recibir el webhook a través de un túnel HTTPS que solo publica
-    // esta ruta, mientras la interfaz sigue accesible en localhost:15100.
-    const origin = process.env.TELEGRAM_WEBHOOK_BASE_URL || new URL(req.url).origin;
+    // El navegador puede estar en un puerto que Telegram no acepta (1443).
+    // El webhook usa la URL pública HTTPS: el override del túnel, si no APP_URL.
+    const origin = (process.env.TELEGRAM_WEBHOOK_BASE_URL || process.env.APP_URL || new URL(req.url).origin).replace(/\/$/, "");
     try {
       const webhookUrl = new URL(`/api/telegram/webhook/${account.id}`, origin);
       if (webhookUrl.protocol !== "https:") {
         throw new Error("Telegram requiere una URL pública HTTPS para el webhook");
+      }
+      if (webhookUrl.port && !["80", "88", "443", "8443"].includes(webhookUrl.port)) {
+        throw new Error("Telegram solo acepta el webhook en el puerto 443 o 8443");
       }
       await setWebhook(botToken, webhookUrl.toString(), webhookSecret);
       const connected = await prisma.channelAccount.update({

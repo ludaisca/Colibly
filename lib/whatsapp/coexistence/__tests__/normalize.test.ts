@@ -45,6 +45,34 @@ describe("normalizeEchoes", () => {
     expect(image).toMatchObject({ type: "image", mediaId: "m1", mimeType: "image/jpeg", caption: "foto", body: "foto" });
   });
   it("descarta ecos sin destinatario o sin id", () => expect(normalizeEchoes(value)).toHaveLength(2));
+  it("un eco con botones guarda el texto y los títulos", () => {
+    const [msg] = normalizeEchoes({
+      message_echoes: [{
+        from: "15550783881",
+        to: "16505551234",
+        id: "wamid.BTN",
+        timestamp: "1739321024",
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: { text: "¿Seguimos con la cotización?" },
+          action: {
+            buttons: [
+              { type: "reply", reply: { id: "si", title: "Sí" } },
+              { type: "reply", reply: { id: "no", title: "Ahora no" } },
+            ],
+          },
+        },
+      }],
+    });
+    expect(msg.body).toBe("¿Seguimos con la cotización?");
+    expect(msg.interactivePayload).toEqual({
+      buttons: [
+        { id: "si", title: "Sí" },
+        { id: "no", title: "Ahora no" },
+      ],
+    });
+  });
   it("forma inesperada → vacío", () => {
     expect(normalizeEchoes(null)).toEqual([]);
     expect(normalizeEchoes({ message_echoes: "x" })).toEqual([]);

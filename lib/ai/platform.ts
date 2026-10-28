@@ -2,11 +2,16 @@ import type { AIProvider } from "./types";
 import { AI_MODELS, DEFAULT_AI_MODEL, isCuratedModel, type AiModelOption } from "@/lib/billing/plans";
 import { getPlatformSettings } from "@/lib/platform-settings";
 
-// La IA la provee la plataforma: una key por proveedor, configurada desde
-// /plataforma (PlatformSettings.opencodeApiKey/googleApiKey). El cliente no
-// solo no configura keys — tampoco elige proveedor ni modelo (ver
-// pickCuratedModel() abajo): eso es enteramente responsabilidad de la
-// plataforma, el cliente solo ve sus créditos consumidos (lib/ai/credits.ts).
+// La IA la provee la plataforma: una key por proveedor y el modelo elegido,
+// configurados desde /plataforma. El cliente no elige proveedor ni modelo;
+// solo ve sus créditos consumidos (lib/ai/credits.ts).
+
+const OPENCODE_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,80}$/;
+
+export function normalizeOpenCodeModel(model: string): string {
+  const bare = model.replace(/^opencode-go\//, "");
+  return OPENCODE_MODEL_ID.test(bare) ? bare : DEFAULT_AI_MODEL.opencode;
+}
 
 export async function getPlatformApiKey(provider: AIProvider): Promise<string | null> {
   const settings = await getPlatformSettings();
@@ -27,6 +32,7 @@ export async function availableModels(): Promise<AiModelOption[]> {
 // Un modelo guardado que ya no está en la lista (bots viejos, un modelo que se
 // retiró) corre con el recomendado de su proveedor en vez de fallar.
 export function curateModel(provider: AIProvider, model: string): string {
+  if (provider === "opencode") return normalizeOpenCodeModel(model);
   return isCuratedModel(provider, model) ? model : DEFAULT_AI_MODEL[provider];
 }
 
@@ -36,16 +42,50 @@ export function curateModel(provider: AIProvider, model: string): string {
 export async function modelChoiceError(provider: string, model: string): Promise<string | null> {
   if (provider !== "opencode" && provider !== "google") return "Proveedor de IA inválido";
   if (!(await getPlatformApiKey(provider))) return "Ese proveedor de IA no está disponible";
+  if (provider === "opencode") {
+    if (!OPENCODE_MODEL_ID.test(model.replace(/^opencode-go\//, ""))) return "Elige uno de los modelos disponibles";
+    return null;
+  }
   if (!isCuratedModel(provider, model)) return "Elige uno de los modelos disponibles";
   return null;
 }
 
-// Asigna sola un modelo curado de un proveedor habilitado — el cliente nunca
-// elige. `needsVision: true` para bots (pueden recibir imágenes en WhatsApp/
-// Telegram); `false` para calificadores/pasos de automatización (solo texto).
-// null = ningún proveedor de IA está configurado en /plataforma.
+// OpenCode es el proveedor por defecto: la suscripción es plana y cada crédito
+// extra no se cobra por token. Gemini solo entra si OpenCode no tiene llave, o
+// si la llamada trae audio (el modelo de OpenCode no acepta audio).
+export interface ModelPrefs {
+  text?: string | null;
+  vision?: string | null;
+}
+
+export function selectCuratedModel(
+  enabled: ReadonlySet<AIProvider>,
+  opts: { needsVision?: boolean; needsAudio?: boolean } = {},
+  prefs: ModelPrefs = {},
+): { provider: AIProvider; model: string } | null {
+  if (opts.needsAudio && enabled.has("google")) {
+    return { provider: "google", model: DEFAULT_AI_MODEL.google };
+  }
+  if (enabled.has("opencode")) {
+    const chosen = opts.needsVision ? prefs.vision || prefs.text : prefs.text;
+    return { provider: "opencode", model: chosen ? normalizeOpenCodeModel(chosen) : DEFAULT_AI_MODEL.opencode };
+  }
+  const google = AI_MODELS.find((m) => m.provider === "google" && enabled.has("google") && (!opts.needsVision || m.vision));
+  return google ? { provider: "google", model: google.id } : null;
+}
+
+async function modelPrefs(): Promise<ModelPrefs> {
+  const settings = await getPlatformSettings();
+  return { text: settings.aiTextModel, vision: settings.aiVisionModel };
+}
+
+// El modelo que eligió el operador en /plataforma. `needsVision` para una
+// imagen; `needsAudio` para una nota de voz (Gemini). null = ningún proveedor
+// está configurado.
+export async function resolvePlatformModel(opts: { needsVision?: boolean; needsAudio?: boolean } = {}): Promise<{ provider: AIProvider; model: string } | null> {
+  return selectCuratedModel(new Set(await enabledProviders()), opts, await modelPrefs());
+}
+
 export async function pickCuratedModel(needsVision: boolean): Promise<{ provider: AIProvider; model: string } | null> {
-  const enabled = new Set(await enabledProviders());
-  const candidate = AI_MODELS.find((m) => enabled.has(m.provider) && (!needsVision || m.vision));
-  return candidate ? { provider: candidate.provider, model: candidate.id } : null;
+  return resolvePlatformModel({ needsVision });
 }

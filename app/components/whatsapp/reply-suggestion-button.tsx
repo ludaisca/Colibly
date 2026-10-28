@@ -85,12 +85,12 @@ export function ReplySuggestionButton({ chatId, onInsert }: { chatId: string; on
       trigger={
         <button
           type="button"
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong"
-          aria-label="Sugerir respuesta con IA"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
+          aria-label="Sugerir respuesta"
+          title="Sugerir respuesta"
           aria-expanded={open}
         >
-          <Sparkles size={16} className="text-accent-ink" />
-          <span>Sugerir con IA</span>
+          <Sparkles size={18} />
         </button>
       }
     >

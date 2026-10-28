@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PenLine } from "lucide-react";
+import { Loader2, PenLine } from "lucide-react";
 import { useToast } from "@/app/components/ui/toast";
 
 export function RewriteButton({ chatId, draft, onInsert }: { chatId: string; draft: string; onInsert: (text: string) => void }) {
@@ -34,11 +34,11 @@ export function RewriteButton({ chatId, draft, onInsert }: { chatId: string; dra
       type="button"
       onClick={() => void rewrite()}
       disabled={!ready || loading}
-      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-surface-light disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent-strong"
-      title="Reescribir el borrador con IA"
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong"
+      title={loading ? "Reescribiendo…" : "Reescribir"}
+      aria-label="Reescribir el borrador"
     >
-      <PenLine size={16} className="text-accent-ink" />
-      <span>{loading ? "Reescribiendo…" : "Reescribir"}</span>
+      {loading ? <Loader2 size={18} className="animate-spin" /> : <PenLine size={18} />}
     </button>
   );
 }

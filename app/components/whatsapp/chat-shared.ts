@@ -107,11 +107,25 @@ export interface PreviewMedia {
   mimeType: string | null;
 }
 
+// `[interactive]` es la etiqueta interna cuando el aviso de WhatsApp no trajo
+// el texto del mensaje con botones. En la interfaz se lee así.
+export function displayMessageText(body: string | null | undefined): string | null {
+  if (!body) return null;
+  if (body === "[interactive]") return "Mensaje con botones";
+  return body;
+}
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
 export function formatTime(ts: string): string {
   const d = new Date(ts);
   const now = new Date();
-  const isToday = d.toDateString() === now.toDateString();
-  if (isToday) return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+  if (diffDays <= 0) return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 1) return "Ayer";
+  if (diffDays < 7) return d.toLocaleDateString("es-MX", { weekday: "short" });
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short" });
 }
 
@@ -120,10 +134,6 @@ export function formatTime(ts: string): string {
 // so a message from last week doesn't just silently lose its time-of-day.
 export function formatBubbleTime(ts: string): string {
   return new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
-}
-
-function startOfDay(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
 export function formatDayDivider(ts: string): string {

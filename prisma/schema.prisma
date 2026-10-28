@@ -461,6 +461,12 @@ model ChannelMessage {
   // Botones/lista enviados (OUTBOUND) o la opción elegida (INBOUND:
   // { replyId }) — paridad con WAMessage.interactivePayload.
   interactivePayload Json?          @map("interactive_payload")
+  // Cita y reacciones. El id citado es el message_id de Telegram (único por
+  // chat, igual que externalMessageId). reactionEmoji es la del cliente;
+  // agentReactionEmoji la del equipo.
+  replyToExternalId  String?         @map("reply_to_external_id")
+  reactionEmoji      String?         @map("reaction_emoji")
+  agentReactionEmoji String?         @map("agent_reaction_emoji")
   timestamp         DateTime
   createdAt         DateTime         @default(now()) @map("created_at")
 
@@ -2079,6 +2085,10 @@ model PlatformSettings {
   // IA (lib/ai/platform.ts)
   opencodeApiKey String? @map("opencode_api_key") // cifrado
   googleApiKey   String? @map("google_api_key") // cifrado
+  // Modelo de OpenCode elegido en /plataforma. Null = el recomendado
+  // (glm-5.3-flash). El de visión se usa cuando el mensaje trae una imagen.
+  aiTextModel   String? @map("ai_text_model")
+  aiVisionModel String? @map("ai_vision_model")
 
   // Stripe (lib/billing/stripe.ts)
   stripeSecretKey     String? @map("stripe_secret_key") // cifrado

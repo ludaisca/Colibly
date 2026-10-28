@@ -1,4 +1,5 @@
 import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+import { MetaSendError } from "@/lib/whatsapp/send-errors";
 
 const API_VERSION = "v21.0";
 const BASE_URL = "https://graph.facebook.com";
@@ -54,6 +55,19 @@ export async function validateToken(
   return res.json() as Promise<PhoneNumberInfo>;
 }
 
+// APPROVED habilita citar un mensaje. PENDING_REVIEW, DECLINED y el resto no:
+// Meta responde 131037 si el envío lleva context.message_id.
+export async function getDisplayNameStatus(phoneNumberId: string, accessToken: string): Promise<string | null> {
+  const url = `${BASE_URL}/${API_VERSION}/${phoneNumberId}?fields=name_status`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: httpTimeout(),
+  });
+  if (!res.ok) return null;
+  const body = (await res.json().catch(() => null)) as { name_status?: string } | null;
+  return body?.name_status ?? null;
+}
+
 export async function sendMessage(
   phoneNumberId: string,
   accessToken: string,
@@ -76,12 +90,13 @@ export async function sendMessage(
   } else if (params.type === "sticker") {
     payload.sticker = { id: params.mediaId };
   } else {
-    payload[params.type] = {
-      ...(params.mediaId ? { id: params.mediaId } : {}),
-      ...(params.caption ? { caption: params.caption } : {}),
-      ...(params.mimeType ? { mime_type: params.mimeType } : {}),
-      ...(params.filename ? { filename: params.filename } : {}),
-    };
+    // Graph no acepta mime_type aquí: el tipo queda fijado al subir el archivo.
+    // filename solo existe en document; en imagen, audio o video es una clave de más.
+    const media: Record<string, string> = {};
+    if (params.mediaId) media.id = params.mediaId;
+    if (params.caption && params.type !== "audio" && params.type !== "sticker") media.caption = params.caption;
+    if (params.filename && params.type === "document") media.filename = params.filename;
+    payload[params.type] = media;
   }
 
   const res = await fetch(url, {
@@ -96,8 +111,10 @@ export async function sendMessage(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(
-      body?.error?.message ?? `Send message failed (HTTP ${res.status})`
+    const meta = body?.error as { message?: string; code?: number } | undefined;
+    throw new MetaSendError(
+      meta?.message ?? `Send message failed (HTTP ${res.status})`,
+      typeof meta?.code === "number" ? meta.code : null,
     );
   }
 

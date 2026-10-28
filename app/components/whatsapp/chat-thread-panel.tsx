@@ -25,6 +25,7 @@ import { ChatConversationHeader } from "./chat-conversation-header";
 import { ChatBubblesSkeleton } from "@/app/components/whatsapp/chat-skeletons";
 import { mediaEndpointFor } from "@/lib/whatsapp/media-shared";
 import {
+  displayMessageText,
   formatBubbleTime,
   formatDayDivider,
   formatBytes,
@@ -153,6 +154,8 @@ function MessageBubble({
   onReply,
   onReaction,
   canReply,
+  canQuote,
+  canReact,
   leadName,
   reduceMotion,
 }: {
@@ -162,6 +165,8 @@ function MessageBubble({
   onReply?: (msg: Message) => void;
   onReaction: (id: string, reaction: AgentReaction) => void;
   canReply: boolean;
+  canQuote: boolean;
+  canReact: boolean;
   leadName: string;
   reduceMotion: boolean;
 }) {
@@ -177,12 +182,12 @@ function MessageBubble({
 
   return (
     <div className={`group flex items-end gap-1.5 ${isInbound ? "justify-start" : "justify-end"}`}>
-      {!isInbound && canReply && <ChatMessageActions message={msg} onReply={onReply} onReaction={onReaction} />}
+      {!isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
       <div
         className={`relative max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
           msg.messageType === "sticker" ? "rounded-xl bg-transparent text-foreground" : isInbound
-            ? "rounded-2xl rounded-tl-sm bg-surface text-foreground"
-            : "rounded-2xl rounded-tr-sm bg-accent-muted text-foreground"
+            ? "rounded-2xl rounded-tl-sm border border-border bg-surface text-foreground shadow-sm"
+            : "rounded-2xl rounded-tr-sm bg-accent-muted text-foreground shadow-sm"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
@@ -194,7 +199,7 @@ function MessageBubble({
         {msg.replyToWamid && (
           <div className="mb-2 max-w-full border-l-2 border-accent-strong bg-background/50 px-2.5 py-1.5 rounded-r-lg text-xs">
             <span className="block font-semibold text-accent-ink">{msg.replyTo?.direction === "OUTBOUND" ? "Tú" : msg.replyTo?.direction === "INBOUND" ? leadName : "Mensaje citado"}</span>
-            <span className="block truncate text-muted-darker">{msg.replyTo ? (msg.replyTo.body || msg.replyTo.caption || `[${msg.replyTo.messageType}]`) : "Mensaje anterior"}</span>
+            <span className="block truncate text-muted-darker">{msg.replyTo ? (displayMessageText(msg.replyTo.body) || msg.replyTo.caption || `[${msg.replyTo.messageType}]`) : "Mensaje anterior"}</span>
           </div>
         )}
         {hasMedia && (
@@ -203,7 +208,10 @@ function MessageBubble({
             {caption && <p className="whitespace-pre-wrap break-words">{caption}</p>}
           </div>
         )}
-        {!hasMedia && msg.body}
+        {!hasMedia && msg.body && msg.body !== "[interactive]" && (
+          <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+        )}
+        {!hasMedia && msg.body === "[interactive]" && !(buttons && buttons.length > 0) && "Mensaje con botones"}
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
         {buttons && buttons.length > 0 && (
           // Un mensaje interactivo siempre es OUTBOUND (lo arma el agente), y
@@ -257,7 +265,7 @@ function MessageBubble({
           {reactionFailed && <span role="status" className="text-xs text-danger" title={latestReaction.error ?? "WhatsApp rechazó la reacción"}>No se pudo actualizar la reacción</span>}
         </div>}
       </div>
-      {isInbound && canReply && <ChatMessageActions message={msg} onReply={onReply} onReaction={onReaction} />}
+      {isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
     </div>
   );
 }
@@ -307,6 +315,8 @@ interface ChatThreadPanelProps {
   onPreview: (media: PreviewMedia) => void;
   onRetry: (msg: Message) => void;
   onReply: (msg: Message) => void;
+  canQuote: boolean;
+  canReact: boolean;
   onReaction: (id: string, reaction: AgentReaction) => void;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
@@ -326,6 +336,8 @@ export function ChatThreadPanel({
   onPreview,
   onRetry,
   onReply,
+  canQuote,
+  canReact,
   onReaction,
   messagesContainerRef,
   messagesEndRef,
@@ -345,7 +357,7 @@ export function ChatThreadPanel({
         onAssigned={onAssigned}
       />
 
-      <div ref={messagesContainerRef} className="scrollbar-thin flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div ref={messagesContainerRef} className="scrollbar-thin flex-1 overflow-y-auto bg-surface-light px-4 py-4 space-y-3">
         {loadingMessages ? (
           <ChatBubblesSkeleton className="h-full" />
         ) : messages.length === 0 ? (
@@ -380,7 +392,7 @@ export function ChatThreadPanel({
                         </span>
                       </div>
                     )}
-                    <MessageBubble msg={msg} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={selectedChat.channel === "WHATSAPP" && !!msg.wamid} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} />
+                    <MessageBubble msg={msg} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} />
                   </motion.div>
                 );
               })}

@@ -178,6 +178,7 @@ export async function ingestBusinessAppMessages(
       filename: m.filename,
       status: mapHistoryStatus(m.historyStatus),
       timestamp: m.timestamp,
+      ...(m.interactivePayload ? { interactivePayload: m.interactivePayload } : {}),
     });
     const needsDownload = (m: NormalizedBusinessMessage) => !!m.mediaId && m.type !== "text";
 

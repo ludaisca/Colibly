@@ -34,7 +34,15 @@ const WA_MESSAGE_SELECT = {
   agentReactionEmoji: true,
   agentReactions: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { id: true, emoji: true, status: true, error: true } },
 } satisfies Prisma.WAMessageSelect;
-const CHANNEL_MESSAGE_SELECT = { ...MESSAGE_SELECT, interactivePayload: true, isFromComment: true } as const;
+const CHANNEL_MESSAGE_SELECT = {
+  ...MESSAGE_SELECT,
+  interactivePayload: true,
+  isFromComment: true,
+  externalMessageId: true,
+  replyToExternalId: true,
+  reactionEmoji: true,
+  agentReactionEmoji: true,
+} as const;
 
 export async function GET(
   req: Request,
@@ -72,7 +80,21 @@ export async function GET(
         take: limit,
       });
       await prisma.conversation.update({ where: { id: chatId }, data: { unreadCount: 0 } });
-      return NextResponse.json(messages.reverse());
+      const ordered = messages.reverse();
+      const quotedIds = [...new Set(ordered.map((message) => message.replyToExternalId).filter((id): id is string => !!id))];
+      const quoted = quotedIds.length
+        ? await prisma.channelMessage.findMany({
+            where: { conversationId: chatId, externalMessageId: { in: quotedIds } },
+            select: { externalMessageId: true, id: true, direction: true, body: true, caption: true, messageType: true },
+          })
+        : [];
+      const quotedById = new Map(quoted.map((message) => [message.externalMessageId, message]));
+      return NextResponse.json(ordered.map((message) => ({
+        ...message,
+        wamid: message.externalMessageId,
+        replyToWamid: message.replyToExternalId,
+        replyTo: message.replyToExternalId ? quotedById.get(message.replyToExternalId) ?? null : null,
+      })));
     }
 
     const messages = await prisma.wAMessage.findMany({

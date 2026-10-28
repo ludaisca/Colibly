@@ -30,6 +30,14 @@ export function useChatServiceWindow(chatId: string | null, enabled: boolean, re
   return enabled && state?.chatId === chatId ? state.value : null;
 }
 
+export function ChatDisplayNameBanner() {
+  return (
+    <Banner tone="warning" title="Nombre para mostrar en revisión" className="mx-3 mb-2">
+      WhatsApp todavía no aprueba el nombre de este número. Los mensajes, las plantillas y las reacciones no salen hasta que el Administrador de WhatsApp lo marque como aprobado.
+    </Banner>
+  );
+}
+
 export function ChatWindowBanner({ window, onSendTemplate }: { window: ChatWindowState; onSendTemplate: () => void }) {
   if (window.open) return null;
   return (

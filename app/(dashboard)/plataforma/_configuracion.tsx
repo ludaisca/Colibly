@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Badge } from "@/app/components/ui/badge";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/input";
+import { Select } from "@/app/components/ui/select";
+import { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/billing/plans";
 import { Switch } from "@/app/components/ui/switch";
 import { Button } from "@/app/components/ui/button";
 import { Banner } from "@/app/components/ui/banner";
@@ -15,6 +17,8 @@ import type { PlatformSecretField } from "@/lib/platform-settings";
 interface ConfigResponse {
   hasOpencodeApiKey: boolean;
   hasGoogleApiKey: boolean;
+  aiTextModel: string | null;
+  aiVisionModel: string | null;
   hasStripeSecretKey: boolean;
   hasStripeWebhookSecret: boolean;
   stripePriceEssential: string | null;
@@ -252,7 +256,13 @@ export function PlataformaConfiguracion() {
     googleAdsId: "",
     googleAdsSignupLabel: "",
     stripeAutomaticTax: false,
+    aiTextModel: "",
+    aiVisionModel: "",
   });
+  const [opencodeModels, setOpencodeModels] = useState<{ id: string; label: string }[]>(
+    AI_MODELS.filter((m) => m.provider === "opencode").map((m) => ({ id: m.id, label: m.label }))
+  );
+  const [modelsNote, setModelsNote] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -279,7 +289,23 @@ export function PlataformaConfiguracion() {
         googleAdsId: json.googleAdsId ?? "",
         googleAdsSignupLabel: json.googleAdsSignupLabel ?? "",
         stripeAutomaticTax: json.stripeAutomaticTax ?? false,
+        aiTextModel: json.aiTextModel ?? "",
+        aiVisionModel: json.aiVisionModel ?? "",
       });
+      if (json.hasOpencodeApiKey) {
+        const modelsRes = await fetch("/api/plataforma/configuracion/modelos");
+        if (modelsRes.ok) {
+          const catalog: { models: { id: string; label: string }[]; source: string; error?: string } = await modelsRes.json();
+          if (catalog.models?.length) setOpencodeModels(catalog.models);
+          setModelsNote(
+            catalog.source === "opencode"
+              ? `La API key de OpenCode responde. Hay ${catalog.models.length} modelos.`
+              : catalog.error ?? null
+          );
+        }
+      } else {
+        setModelsNote(null);
+      }
       setSecrets(Object.fromEntries(SECRET_FIELDS.map((f) => [f, ""])) as Record<SecretField, string>);
       setCleared(Object.fromEntries(SECRET_FIELDS.map((f) => [f, false])) as Record<SecretField, boolean>);
     } catch {
@@ -323,6 +349,8 @@ export function PlataformaConfiguracion() {
       payload.googleAdsId = plain.googleAdsId.trim() || null;
       payload.googleAdsSignupLabel = plain.googleAdsSignupLabel.trim() || null;
       payload.stripeAutomaticTax = plain.stripeAutomaticTax;
+      payload.aiTextModel = plain.aiTextModel.trim() || null;
+      payload.aiVisionModel = plain.aiVisionModel.trim() || null;
 
       const res = await fetch("/api/plataforma/configuracion", {
         method: "PATCH",
@@ -337,6 +365,13 @@ export function PlataformaConfiguracion() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function modelOptions(current: string) {
+    if (current && !opencodeModels.some((m) => m.id === current)) {
+      return [{ id: current, label: current }, ...opencodeModels];
+    }
+    return opencodeModels;
   }
 
   if (loading) {
@@ -377,6 +412,30 @@ export function PlataformaConfiguracion() {
           revealField="googleApiKey"
           onToggleClear={() => toggleClear("googleApiKey")}
         />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Modelo de texto" hint="Respuestas, calificación, recuperación y automatizaciones. Vacío usa GLM 5.3 Flash.">
+            {(id) => (
+              <Select id={id} value={plain.aiTextModel} onChange={(e) => setPlain((p) => ({ ...p, aiTextModel: e.target.value }))}>
+                <option value="">Recomendado ({DEFAULT_AI_MODEL.opencode})</option>
+                {modelOptions(plain.aiTextModel).map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+          <FormField label="Modelo para imágenes" hint="Cuando el mensaje trae una foto. Vacío usa el de texto.">
+            {(id) => (
+              <Select id={id} value={plain.aiVisionModel} onChange={(e) => setPlain((p) => ({ ...p, aiVisionModel: e.target.value }))}>
+                <option value="">El mismo que el de texto</option>
+                {modelOptions(plain.aiVisionModel).map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+        </div>
+        {modelsNote && <p className="text-sm text-muted-darker">{modelsNote}</p>}
+        <p className="text-sm text-muted-darker">Las notas de voz siguen en Gemini 3.8 Flash y necesitan la API key de Google.</p>
       </SettingsBlock>
 
       <SettingsBlock eyebrow="Facturación" title="Stripe" status={blockStatus([data.hasStripeSecretKey, data.hasStripeWebhookSecret])} defaultOpen={wide}>

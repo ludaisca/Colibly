@@ -109,7 +109,7 @@ function SidebarContent({
         )}
       </div>
 
-      <nav className={cn("scrollbar-thin flex-1 overflow-y-auto w-full", collapsed ? "px-1" : "px-3")}>
+      <nav className={cn("scrollbar-thin w-full flex-1 overflow-y-auto overflow-x-hidden", collapsed ? "px-1" : "px-3")}>
         <div className="flex flex-col gap-5 w-full">
           {nav.map((groupOrItem, index) => {
             const isGroup = "items" in groupOrItem;

@@ -43,6 +43,7 @@ export interface NormalizedChannelMessage {
   // Id de la opción elegida al tocar un botón (callback_data de Telegram,
   // quick_reply.payload de Messenger/Instagram, replyId del widget web).
   interactiveReplyId?: string | null;
+  replyToExternalId?: string | null;
 }
 
 export interface IngestChannelResult {
@@ -153,6 +154,7 @@ export async function ingestChannelMessage(
         bytesSize: msg.bytesSize ?? null,
         isFromComment: msg.isFromComment ?? false,
         interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
+        replyToExternalId: msg.replyToExternalId ?? null,
         timestamp: msg.timestamp,
       },
     });

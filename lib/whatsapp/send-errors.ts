@@ -4,6 +4,7 @@
 // https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes
 const MESSAGES: Record<number, string> = {
   131047: "Pasaron más de 24 h desde el último mensaje del cliente: solo puedes enviarle una plantilla aprobada.",
+  131037: "WhatsApp todavía no aprueba el nombre para mostrar de este número. Hasta que lo apruebe no se pueden enviar mensajes. Revísalo en el Administrador de WhatsApp.",
   141006: "Meta rechazó el envío por un problema con el método de pago de la cuenta de WhatsApp Business. Revísalo en el Administrador comercial de Meta.",
   131042: "Meta rechazó el envío por un problema con el método de pago de la cuenta de WhatsApp Business. Revísalo en el Administrador comercial de Meta.",
   131026: "No se pudo entregar: el número no tiene WhatsApp o no aceptó las condiciones más recientes.",
@@ -28,9 +29,19 @@ const MESSAGES: Record<number, string> = {
   470: "Pasaron más de 24 h desde el último mensaje del cliente: solo puedes enviarle una plantilla aprobada.",
 };
 
+const CODE_IN_MESSAGE = /\(#(\d+)\)/;
+
+export function metaCodeFromMessage(message: string | null | undefined): number | null {
+  const match = message?.match(CODE_IN_MESSAGE);
+  if (!match) return null;
+  const code = Number(match[1]);
+  return Number.isInteger(code) ? code : null;
+}
+
 export function metaSendErrorMessage(code: number | null | undefined, fallback?: string | null): string {
-  if (code != null && MESSAGES[code]) return MESSAGES[code];
-  if (code != null && code >= 132000 && code < 133000) return "Meta rechazó la plantilla. Revisa que siga aprobada y que las variables sean correctas.";
+  const resolved = code ?? metaCodeFromMessage(fallback);
+  if (resolved != null && MESSAGES[resolved]) return MESSAGES[resolved];
+  if (resolved != null && resolved >= 132000 && resolved < 133000) return "Meta rechazó la plantilla. Revisa que siga aprobada y que las variables sean correctas.";
   return fallback?.trim() || "WhatsApp no pudo enviar el mensaje.";
 }
 

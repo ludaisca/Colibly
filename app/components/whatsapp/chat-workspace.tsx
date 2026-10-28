@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -12,7 +12,7 @@ import { ChatAccountRail } from "@/app/components/whatsapp/chat-account-rail";
 import { ChatListPanel } from "@/app/components/whatsapp/chat-list-panel";
 import { ChatThreadPanel, MediaPreviewModal } from "@/app/components/whatsapp/chat-thread-panel";
 import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
-import { ChatWindowBanner, useChatServiceWindow } from "@/app/components/whatsapp/chat-window-banner";
+import { ChatDisplayNameBanner, ChatWindowBanner, useChatServiceWindow } from "@/app/components/whatsapp/chat-window-banner";
 import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-modal";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import {
@@ -66,7 +66,6 @@ export function ChatWorkspace({
   initialSearch,
 }: ChatWorkspaceProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const { error: toastError } = useToast();
   const resizable = useSyncExternalStore(
     (onChange) => { const query = window.matchMedia("(min-width: 1024px)"); query.addEventListener("change", onChange); return () => query.removeEventListener("change", onChange); },
@@ -287,12 +286,6 @@ export function ChatWorkspace({
     return params;
   }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch]);
 
-  useEffect(() => {
-    const qs = buildFilterSearchParams().toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo resincroniza cuando cambian los filtros, no en cada render por pathname/router
-  }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch]);
-
   // Campaign list for the filter dropdown — fetched once, doesn't depend on the
   // current chat filters.
   useEffect(() => {
@@ -359,6 +352,34 @@ export function ChatWorkspace({
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
+  const [quoteAccount, setQuoteAccount] = useState<{ accountId: string; approved: boolean } | null>(null);
+  const quoteEnabled = selectedChat?.channel === "WHATSAPP" && quoteAccount?.accountId === selectedChat.accountId && quoteAccount.approved;
+  const displayNameBlocked = selectedChat?.channel === "WHATSAPP" && quoteAccount?.accountId === selectedChat.accountId && !quoteAccount.approved;
+  useEffect(() => {
+    if (selectedChat?.channel !== "WHATSAPP") return;
+    const accountId = selectedChat.accountId;
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch(`/api/whatsapp/accounts/${accountId}/display-name`);
+        const data = await res.json().catch(() => null);
+        const approved = res.ok && data?.approved === true;
+        if (cancelled) return;
+        setQuoteAccount({ accountId, approved });
+        if (!approved) setReplyTo(null);
+      } catch {
+        if (cancelled) return;
+        setQuoteAccount({ accountId, approved: false });
+        setReplyTo(null);
+      }
+    }
+    load();
+    const timer = setInterval(load, 120_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [selectedChat?.channel, selectedChat?.accountId]);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   // Último entrante cargado: al llegar uno nuevo se vuelve a consultar la ventana.
   const latestInboundAt = useMemo(() => {
@@ -684,7 +705,7 @@ export function ChatWorkspace({
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (sending) return;
+    if (sending || displayNameBlocked) return;
     if (!newMessage.trim() && !attachment && interactiveButtons.length === 0) return;
     if (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((title) => !title.trim()))) return;
     if (!selectedChatId || !selectedChat) return;
@@ -694,7 +715,7 @@ export function ChatWorkspace({
     const file = attachment;
     const filePreviewUrl = file ? attachmentPreview : null;
     const buttons = interactiveButtons;
-    const quotedMessage = selectedChat.channel === "WHATSAPP" ? replyTo : null;
+    const quotedMessage = selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM" ? replyTo : null;
 
     const optimisticMessage: Message = {
       id: tempId,
@@ -738,6 +759,7 @@ export function ChatWorkspace({
   }
 
   async function sendSticker(stickerId: string) {
+    if (displayNameBlocked) throw new Error("WhatsApp todavía no aprueba el nombre para mostrar de este número.");
     if (!selectedChatId || selectedChat?.channel !== "WHATSAPP" || sending) throw new Error("Selecciona una conversación de WhatsApp disponible");
     const targetChatId = selectedChatId;
     const quotedMessage = replyTo;
@@ -884,11 +906,14 @@ export function ChatWorkspace({
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
               onReply={setReplyTo}
+              canQuote={selectedChat.channel === "TELEGRAM" || quoteEnabled}
+              canReact={selectedChat.channel === "TELEGRAM" || !displayNameBlocked}
               onReaction={(id, reaction) => setMessages((previous) => previous.map((message) => message.id === id ? { ...message, agentReactions: [reaction] } : message))}
               messagesContainerRef={messagesContainerRef}
               messagesEndRef={messagesEndRef}
             />
-            {selectedChat.channel === "WHATSAPP" && serviceWindow && (
+            {displayNameBlocked && <ChatDisplayNameBanner />}
+            {selectedChat.channel === "WHATSAPP" && serviceWindow && !displayNameBlocked && (
               <ChatWindowBanner window={serviceWindow} onSendTemplate={() => setTemplatePickerOpen(true)} />
             )}
             {selectedChat.channel === "WHATSAPP" && templatePickerOpen && (
@@ -937,6 +962,7 @@ export function ChatWorkspace({
               buttonsPanelOpen={buttonsPanelOpen}
               onToggleButtonsPanel={() => setButtonsPanelOpen((v) => !v)}
               interactiveDisabled={selectedChat.channel !== "WHATSAPP" || !!attachment}
+              sendBlockedReason={displayNameBlocked ? "WhatsApp todavía no aprueba el nombre para mostrar de este número." : null}
             />
           </>
         ) : missingChat ? (
