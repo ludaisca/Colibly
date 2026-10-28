@@ -178,7 +178,12 @@ export async function ingestBusinessAppMessages(
       filename: m.filename,
       status: mapHistoryStatus(m.historyStatus),
       timestamp: m.timestamp,
-      ...(m.interactivePayload ? { interactivePayload: m.interactivePayload } : {}),
+      // El payload lleva props opcionales (style/buttonLabel), que Prisma no
+      // admite en un JSON de entrada; mismo casteo que usa el resto del repo
+      // en el límite de Prisma (automations/publish.ts, webhooks/fanout.ts).
+      ...(m.interactivePayload
+        ? { interactivePayload: m.interactivePayload as unknown as Prisma.InputJsonValue }
+        : {}),
     });
     const needsDownload = (m: NormalizedBusinessMessage) => !!m.mediaId && m.type !== "text";
 

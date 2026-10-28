@@ -51,7 +51,6 @@ export function resolveQuota(quota: SeatQuota, seats: number): number {
   return quota.included + quota.perExtra * Math.max(0, n - 1);
 }
 
-const perUser = (each: number): SeatQuota => ({ kind: "perSeat", each });
 const includedPlus = (included: number): SeatQuota => ({ kind: "includedPlus", included, perExtra: 1 });
 const UNLIMITED_QUOTA: SeatQuota = { kind: "unlimited" };
 

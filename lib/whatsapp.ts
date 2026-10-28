@@ -94,7 +94,7 @@ export async function sendMessage(
     // filename solo existe en document; en imagen, audio o video es una clave de más.
     const media: Record<string, string> = {};
     if (params.mediaId) media.id = params.mediaId;
-    if (params.caption && params.type !== "audio" && params.type !== "sticker") media.caption = params.caption;
+    if (params.caption && params.type !== "audio") media.caption = params.caption;
     if (params.filename && params.type === "document") media.filename = params.filename;
     payload[params.type] = media;
   }

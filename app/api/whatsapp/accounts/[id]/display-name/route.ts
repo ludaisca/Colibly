@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
-import { isWhatsAppDisplayNameApproved } from "@/lib/whatsapp/display-name";
+import { getDisplayNameState } from "@/lib/whatsapp/display-name";
 
 export async function GET(
   _req: Request,
@@ -22,6 +22,8 @@ export async function GET(
   });
   if (!account) return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
 
-  const approved = await isWhatsAppDisplayNameApproved(account);
-  return NextResponse.json({ approved });
+  const state = await getDisplayNameState(account);
+  // `known` distingue "Meta dijo que no" de "no se pudo preguntar": la UI solo
+  // bloquea la conversación en el primer caso.
+  return NextResponse.json({ approved: state === "approved", known: state !== "unknown" });
 }

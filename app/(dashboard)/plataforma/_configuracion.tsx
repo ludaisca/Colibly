@@ -369,7 +369,10 @@ export function PlataformaConfiguracion() {
 
   function modelOptions(current: string) {
     if (current && !opencodeModels.some((m) => m.id === current)) {
-      return [{ id: current, label: current }, ...opencodeModels];
+      // Un id guardado que el catálogo ya no ofrece se muestra marcado en vez
+      // de desaparecer: así el operador ve que hay que cambiarlo (al guardar,
+      // el servidor lo rechaza).
+      return [{ id: current, label: `${current} (no está en el catálogo)` }, ...opencodeModels];
     }
     return opencodeModels;
   }

@@ -9,6 +9,46 @@ import type { AICompletionParams, AICompletionResponse, AIEmbeddingParams, AIEmb
 export const OPENCODE_API_BASE = "https://opencode.ai/inference/go/openai/v1";
 export const OPENCODE_MODELS_URL = "https://opencode.ai/inference/go/v1/models";
 
+// Formato de los ids que acepta /v1/chat/completions en Go.
+export const OPENCODE_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,80}$/;
+
+export interface OpenCodeModelOption {
+  id: string;
+  label: string;
+}
+
+const CATALOG_TTL_MS = 5 * 60 * 1000;
+let catalogCache: { apiKey: string; models: OpenCodeModelOption[]; expiresAt: number } | null = null;
+
+// Catálogo en vivo de OpenCode Go. null = no se pudo consultar (sin red, key
+// rechazada, respuesta vacía): el llamador decide si cae a los recomendados o
+// si solo valida el formato del id. Se cachea 5 min para no consultarlo en cada
+// guardado de /plataforma ni en cada carga del panel.
+export async function fetchOpenCodeModelCatalog(apiKey: string): Promise<OpenCodeModelOption[] | null> {
+  if (catalogCache && catalogCache.apiKey === apiKey && catalogCache.expiresAt > Date.now()) {
+    return catalogCache.models;
+  }
+  try {
+    const res = await fetch(OPENCODE_MODELS_URL, {
+      headers: { Authorization: `Bearer ${apiKey}`, "User-Agent": "Colibly/1.0" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const parsed = await res.json();
+    const list = Array.isArray(parsed) ? parsed : parsed.data ?? [];
+    const models = list
+      .map((m: { id?: unknown }) => (typeof m?.id === "string" ? m.id : ""))
+      .filter((id: string) => OPENCODE_MODEL_ID.test(id))
+      .sort()
+      .map((id: string) => ({ id, label: id }));
+    if (models.length === 0) return null;
+    catalogCache = { apiKey, models, expiresAt: Date.now() + CATALOG_TTL_MS };
+    return models;
+  } catch {
+    return null;
+  }
+}
+
 export function createOpenCodeClient(apiKey: string) {
   const client = new OpenAI({
     baseURL: OPENCODE_API_BASE,

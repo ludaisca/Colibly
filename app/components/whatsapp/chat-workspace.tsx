@@ -286,6 +286,15 @@ export function ChatWorkspace({
     return params;
   }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch]);
 
+  // Sincroniza la URL sin navegar. `router.replace()` volvía a renderizar el
+  // árbol del servidor y recargaba la conversación (por eso se había quitado y
+  // los filtros dejaron de sobrevivir a un F5); el History API solo cambia la
+  // barra de direcciones.
+  useEffect(() => {
+    const qs = buildFilterSearchParams().toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+  }, [buildFilterSearchParams]);
+
   // Campaign list for the filter dropdown — fetched once, doesn't depend on the
   // current chat filters.
   useEffect(() => {
@@ -352,9 +361,12 @@ export function ChatWorkspace({
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
-  const [quoteAccount, setQuoteAccount] = useState<{ accountId: string; approved: boolean } | null>(null);
-  const quoteEnabled = selectedChat?.channel === "WHATSAPP" && quoteAccount?.accountId === selectedChat.accountId && quoteAccount.approved;
-  const displayNameBlocked = selectedChat?.channel === "WHATSAPP" && quoteAccount?.accountId === selectedChat.accountId && !quoteAccount.approved;
+  // `known` separa "Meta dice que el nombre no está aprobado" de "no se pudo
+  // consultar". Solo el primer caso bloquea el envío: antes un timeout de
+  // Graph dejaba la conversación muda y culpaba al nombre para mostrar.
+  const [quoteAccount, setQuoteAccount] = useState<{ accountId: string; approved: boolean; known: boolean } | null>(null);
+  const displayNameBlocked = selectedChat?.channel === "WHATSAPP" && quoteAccount?.accountId === selectedChat.accountId && quoteAccount.known && !quoteAccount.approved;
+  const quoteEnabled = selectedChat?.channel === "WHATSAPP" && quoteAccount?.accountId === selectedChat.accountId && !displayNameBlocked;
   useEffect(() => {
     if (selectedChat?.channel !== "WHATSAPP") return;
     const accountId = selectedChat.accountId;
@@ -364,13 +376,14 @@ export function ChatWorkspace({
         const res = await fetch(`/api/whatsapp/accounts/${accountId}/display-name`);
         const data = await res.json().catch(() => null);
         const approved = res.ok && data?.approved === true;
+        const known = res.ok && data?.known === true;
         if (cancelled) return;
-        setQuoteAccount({ accountId, approved });
-        if (!approved) setReplyTo(null);
+        setQuoteAccount({ accountId, approved, known });
+        if (known && !approved) setReplyTo(null);
       } catch {
         if (cancelled) return;
-        setQuoteAccount({ accountId, approved: false });
-        setReplyTo(null);
+        // Fallo de red: se permite escribir; si Meta rechaza, el error se ve.
+        setQuoteAccount({ accountId, approved: false, known: false });
       }
     }
     load();

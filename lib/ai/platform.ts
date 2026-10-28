@@ -7,9 +7,14 @@ import { getPlatformSettings } from "@/lib/platform-settings";
 // solo ve sus créditos consumidos (lib/ai/credits.ts).
 
 const OPENCODE_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,80}$/;
+// Ids de Google colados en el campo de OpenCode: se guardaron por API antes de
+// que el PATCH los validara. En OpenCode no existen, así que se cae al
+// recomendado en vez de fallar en cada respuesta.
+const GOOGLE_MODEL_ID = /^gemini[-.]/i;
 
 export function normalizeOpenCodeModel(model: string): string {
   const bare = model.replace(/^opencode-go\//, "");
+  if (GOOGLE_MODEL_ID.test(bare)) return DEFAULT_AI_MODEL.opencode;
   return OPENCODE_MODEL_ID.test(bare) ? bare : DEFAULT_AI_MODEL.opencode;
 }
 

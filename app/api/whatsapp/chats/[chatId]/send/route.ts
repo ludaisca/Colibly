@@ -20,7 +20,7 @@ import { decrypt } from "@/lib/crypto";
 import { saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { assertOrgCanSend } from "@/lib/billing/gates";
-import { isWhatsAppDisplayNameApproved } from "@/lib/whatsapp/display-name";
+import { getDisplayNameState } from "@/lib/whatsapp/display-name";
 
 export async function POST(
   req: Request,
@@ -92,7 +92,10 @@ export async function POST(
     if (replyToMessageId && !replyTarget?.wamid) {
       return NextResponse.json({ error: "El mensaje citado ya no está disponible para responder" }, { status: 400 });
     }
-    if (replyTarget?.wamid && !(await isWhatsAppDisplayNameApproved(chat.account))) {
+    // Solo bloquea cuando Meta confirmó que el nombre no está aprobado. Si la
+    // consulta falló ("unknown") se intenta el envío: Meta responderá con el
+    // motivo real (131037) en vez de culpar al nombre por un timeout.
+    if (replyTarget?.wamid && (await getDisplayNameState(chat.account)) === "not_approved") {
       return NextResponse.json(
         { error: "Citar un mensaje se habilita cuando Meta apruebe el nombre para mostrar de este número. Envía el texto sin citar." },
         { status: 422 }

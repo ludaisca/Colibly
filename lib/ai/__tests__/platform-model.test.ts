@@ -27,6 +27,17 @@ describe("selectCuratedModel", () => {
     });
   });
 
+  it("no manda a OpenCode un id de Gemini guardado por error", () => {
+    expect(selectCuratedModel(both, {}, { text: "gemini-3.8-flash" })).toEqual({
+      provider: "opencode",
+      model: "glm-5.3-flash",
+    });
+    expect(selectCuratedModel(both, { needsVision: true }, { text: "kimi-k3", vision: "gemini-3.8-flash" })).toEqual({
+      provider: "opencode",
+      model: "glm-5.3-flash",
+    });
+  });
+
   it("deja el audio en Gemini", () => {
     expect(selectCuratedModel(both, { needsAudio: true })).toEqual({
       provider: "google",
