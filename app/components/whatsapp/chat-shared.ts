@@ -80,7 +80,7 @@ export interface Message {
   errorMessage?: string | null;
   errorCode?: number | null;
   replyToWamid?: string | null;
-  replyTo?: { id: string; direction: "INBOUND" | "OUTBOUND"; body: string | null; caption: string | null; messageType: string; filename?: string | null } | null;
+  replyTo?: { id: string; direction: "INBOUND" | "OUTBOUND"; body: string | null; caption: string | null; messageType: string; filename?: string | null; mediaUrl?: string | null } | null;
   reactionEmoji?: string | null;
   agentReactionEmoji?: string | null;
   agentReactions?: AgentReaction[];

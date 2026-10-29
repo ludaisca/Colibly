@@ -24,6 +24,7 @@ import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Modal } from "@/app/components/ui/modal";
+import { useToast } from "@/app/components/ui/toast";
 import { ChatConversationHeader } from "./chat-conversation-header";
 import { ChatBubblesSkeleton } from "@/app/components/whatsapp/chat-skeletons";
 import { mediaEndpointFor, isPdfMime, type MediaChannel } from "@/lib/whatsapp/media-shared";
@@ -188,6 +189,7 @@ function MessageBubble({
   canReact,
   leadName,
   reduceMotion,
+  onJumpToMessage,
 }: {
   msg: Message;
   channel: MediaChannel;
@@ -200,6 +202,7 @@ function MessageBubble({
   canReact: boolean;
   leadName: string;
   reduceMotion: boolean;
+  onJumpToMessage: (id: string) => void;
 }) {
   const isInbound = msg.direction === "INBOUND";
   const hasMedia = msg.messageType !== "text" && (msg.mediaUrl || msg.mediaId || msg.localPreviewUrl);
@@ -211,19 +214,26 @@ function MessageBubble({
   const ownEmoji = reactionPending ? latestReaction.emoji : msg.agentReactionEmoji;
   const reactionFailed = latestReaction?.status === "failed";
   const hasReaction = Boolean(msg.reactionEmoji || ownEmoji || reactionPending || reactionFailed);
-  // Un mensaje que solo trae media puede mostrar la hora sobre el propio medio
-  // (como WhatsApp) y prescindir del padding de burbuja.
+  // Solo imagen/video sin caption usan la hora superpuesta sobre el medio.
+  // Audio (controles nativos) y documentos (tarjeta) llevan la hora debajo;
+  // si no, el pill negro de la hora aparecía encima del PDF.
   const mediaOnly =
     hasMedia &&
-    msg.messageType !== "sticker" &&
-    // El audio usa controles nativos que ocupan el pie de la burbuja: la hora
-    // va debajo, no encima del reproductor.
-    msg.messageType !== "audio" &&
+    (msg.messageType === "image" || msg.messageType === "video") &&
     !caption &&
     !(buttons && buttons.length > 0) &&
     !msg.replyToWamid &&
     !msg.isFromComment &&
     !isFailed;
+  const quoted = msg.replyTo;
+  const quotedThumb = quoted?.mediaUrl && (quoted.messageType === "image" || quoted.messageType === "sticker")
+    ? mediaEndpointFor(quoted.id, channel)
+    : null;
+  const quotedIcon = quoted?.messageType === "document" ? <FileText size={16} />
+    : quoted?.messageType === "audio" ? <FileAudio size={16} />
+    : quoted?.messageType === "video" ? <Video size={16} />
+    : quoted?.messageType === "image" || quoted?.messageType === "sticker" ? <ImageIcon size={16} />
+    : null;
 
   const metaRow = (overlay: boolean) => (
     <div className={`flex items-center justify-end gap-1 ${overlay ? "text-white/90" : "text-muted-strong"}`}>
@@ -275,10 +285,23 @@ function MessageBubble({
           </div>
         )}
         {msg.replyToWamid && (
-          <div className="mb-2 max-w-full border-l-2 border-accent-strong bg-background/50 px-2.5 py-1.5 rounded-r-lg text-xs">
-            <span className="block font-semibold text-accent-ink">{msg.replyTo?.direction === "OUTBOUND" ? "Tú" : msg.replyTo?.direction === "INBOUND" ? leadName : "Mensaje citado"}</span>
-            <span className="block truncate text-muted-darker">{msg.replyTo ? messagePreview(msg.replyTo) : "Mensaje anterior"}</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => quoted && onJumpToMessage(quoted.id)}
+            title="Ir al mensaje citado"
+            className="mb-2 flex w-full max-w-full items-center gap-2 rounded-lg border-l-2 border-accent-strong bg-background/50 px-2 py-1.5 text-left text-xs transition-colors hover:bg-background/75 focus-visible:outline-2 focus-visible:outline-accent-strong"
+          >
+            {quotedThumb ? (
+              // eslint-disable-next-line @next/next/no-img-element -- proxied media, runtime URL
+              <img src={quotedThumb} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+            ) : quotedIcon ? (
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface text-muted-darker">{quotedIcon}</span>
+            ) : null}
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-accent-ink">{quoted?.direction === "OUTBOUND" ? "Tú" : quoted?.direction === "INBOUND" ? leadName : "Mensaje citado"}</span>
+              <span className="block truncate text-muted-darker">{quoted ? messagePreview(quoted) : "Mensaje anterior"}</span>
+            </span>
+          </button>
         )}
         {hasMedia && (
           <div className={`${mediaOnly ? "" : "mb-1"} space-y-1`}>
@@ -422,6 +445,7 @@ export function ChatThreadPanel({
 }: ChatThreadPanelProps) {
   // Motion no responde a las reglas CSS de reduced-motion: se ajusta aquí.
   const shouldReduceMotion = useReducedMotion();
+  const { error: toastError } = useToast();
   const [atBottom, setAtBottom] = useState(true);
   const atBottomRef = useRef(true);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -471,6 +495,23 @@ export function ChatThreadPanel({
     setAtBottom((previous) => (previous === atEnd ? previous : atEnd));
   }
 
+  // Lleva al mensaje citado y lo ilumina un momento. Si la cita es más vieja
+  // que el lote cargado, se avisa en vez de fingir que se saltó.
+  function jumpToMessage(id: string) {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const target = container.querySelector<HTMLElement>(`[data-message-id="${id}"]`);
+    if (!target) {
+      toastError("El mensaje citado no está cargado. Usa «Ver mensajes anteriores» para llegar a él.");
+      return;
+    }
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    const bubble = target.querySelector<HTMLElement>(".rounded-2xl") ?? target;
+    const ring = ["ring-2", "ring-accent-strong", "ring-offset-2", "ring-offset-background"];
+    bubble.classList.add(...ring);
+    window.setTimeout(() => bubble.classList.remove(...ring), 1600);
+  }
+
   return (
     <>
       <ChatConversationHeader
@@ -510,12 +551,13 @@ export function ChatThreadPanel({
                   {group.items.map(({ msg, grouped }) => (
                     <motion.div
                       key={msg.motionKey ?? msg.id}
+                      data-message-id={msg.id}
                       className={grouped ? "mt-0.5" : "mt-2"}
                       initial={shouldReduceMotion || !msg.animateOnMount ? false : { opacity: 0, x: msg.direction === "INBOUND" ? -12 : 12, y: 4, scale: 0.985 }}
                       animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                       transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} />
+                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} onJumpToMessage={jumpToMessage} />
                     </motion.div>
                   ))}
                 </div>

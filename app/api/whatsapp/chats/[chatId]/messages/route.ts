@@ -85,7 +85,7 @@ export async function GET(
       const quoted = quotedIds.length
         ? await prisma.channelMessage.findMany({
             where: { conversationId: chatId, externalMessageId: { in: quotedIds } },
-            select: { externalMessageId: true, id: true, direction: true, body: true, caption: true, messageType: true, filename: true },
+            select: { externalMessageId: true, id: true, direction: true, body: true, caption: true, messageType: true, filename: true, mediaUrl: true },
           })
         : [];
       const quotedById = new Map(quoted.map((message) => [message.externalMessageId, message]));
@@ -113,7 +113,7 @@ export async function GET(
     const quoted = quotedIds.length
       ? await prisma.wAMessage.findMany({
           where: { chatId, wamid: { in: quotedIds } },
-          select: { wamid: true, id: true, direction: true, body: true, caption: true, messageType: true, filename: true },
+          select: { wamid: true, id: true, direction: true, body: true, caption: true, messageType: true, filename: true, mediaUrl: true },
         })
       : [];
     const quotedByWamid = new Map(quoted.map((message) => [message.wamid, message]));

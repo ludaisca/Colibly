@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check } from "lucide-react";
+import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
-import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
+import { isImageMime, isAudioMime, isVideoMime, mediaEndpointFor } from "@/lib/whatsapp/media-shared";
 import { ChatAiMenu, ChatMoreMenu } from "./chat-composer-tools";
 import { messagePreview, type CannedResponseItem, type Channel, type Message } from "./chat-shared";
 
@@ -239,11 +239,26 @@ export function ChatComposer({
     messageInputRef.current?.focus();
   }
 
+  const replyThumb = replyTo?.mediaUrl && (replyTo.messageType === "image" || replyTo.messageType === "sticker")
+    ? mediaEndpointFor(replyTo.id, channel)
+    : null;
+  const replyIcon = !replyTo ? <Reply size={16} />
+    : replyTo.messageType === "document" ? <FileText size={16} />
+    : replyTo.messageType === "audio" ? <FileAudio size={16} />
+    : replyTo.messageType === "video" ? <Video size={16} />
+    : replyTo.messageType === "image" || replyTo.messageType === "sticker" ? <ImageIcon size={16} />
+    : <Reply size={16} />;
+
   return (
     <form onSubmit={onSubmit} className="relative flex shrink-0 flex-col gap-1.5 border-t border-border bg-surface px-3 py-1.5">
       {replyTo && (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
-          <Reply size={16} className="shrink-0 text-accent-ink" />
+          {replyThumb ? (
+            // eslint-disable-next-line @next/next/no-img-element -- proxied media, runtime URL
+            <img src={replyThumb} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+          ) : (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface text-accent-ink">{replyIcon}</span>
+          )}
           <div className="min-w-0 flex-1 border-l-2 border-accent-strong pl-2 text-xs">
             <p className="font-semibold text-accent-ink">Respondiendo a {replyTo.direction === "OUTBOUND" ? "tu mensaje" : leadName}</p>
             <p className="truncate text-muted-darker">{messagePreview(replyTo)}</p>
