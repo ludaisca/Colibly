@@ -94,8 +94,8 @@ export function ChatListPanel({
 
   return (
     <div className={`${selectedChatId ? "hidden lg:flex" : "flex"} lg:flex flex-col w-full ${resizable ? "" : "lg:w-80 xl:w-96 shrink-0"} min-w-0 border-r border-border`}>
-      <div className="p-4 border-b border-border space-y-3">
-        <h1 className="text-lg font-bold tracking-tight">Chats</h1>
+      <div className="space-y-2 border-b border-border px-3 py-2">
+        <h1 className="text-sm font-semibold tracking-tight">Chats</h1>
 
         {accountOptions.length > 1 && (
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 lg:hidden scrollbar-thin">
@@ -130,31 +130,35 @@ export function ChatListPanel({
           </div>
         )}
 
-        <Combobox.Root items={suggestions} inputValue={search}
-          onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
-          onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
-          <Combobox.InputGroup className="flex h-10 items-center gap-2 rounded-[12px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
-            <Search size={16} className="shrink-0 text-muted-darker" />
-            <Combobox.Input aria-label="Buscar chat" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
-          </Combobox.InputGroup>
-          <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
-            <Combobox.Popup className="max-h-72 overflow-y-auto rounded-[12px] border border-border bg-surface p-1.5 shadow-lg">
-              <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
-              <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
-                <span className="truncate font-medium">{item.chat.name ?? item.chat.remoteJid}</span>
-                <span className="truncate text-[11px] text-muted">{item.chat.account.name} · {item.chat.remoteJid}</span>
-              </Combobox.Item>}</Combobox.List>
-            </Combobox.Popup>
-          </Combobox.Positioner></Combobox.Portal>
-        </Combobox.Root>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <Combobox.Root items={suggestions} inputValue={search}
+              onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
+              onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
+              <Combobox.InputGroup className="flex h-9 items-center gap-2 rounded-[12px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
+                <Search size={16} className="shrink-0 text-muted-darker" />
+                <Combobox.Input aria-label="Buscar chat" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
+              </Combobox.InputGroup>
+              <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
+                <Combobox.Popup className="max-h-72 overflow-y-auto rounded-[12px] border border-border bg-surface p-1.5 shadow-lg">
+                  <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
+                  <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
+                    <span className="truncate font-medium">{item.chat.name ?? item.chat.remoteJid}</span>
+                    <span className="truncate text-[11px] text-muted">{item.chat.account.name} · {item.chat.remoteJid}</span>
+                  </Combobox.Item>}</Combobox.List>
+                </Combobox.Popup>
+              </Combobox.Positioner></Combobox.Portal>
+            </Combobox.Root>
+          </div>
 
-        <ChatFiltersPanel
-          campaigns={campaigns}
-          campaignFilter={campaignFilter}
-          onCampaignFilterChange={onCampaignFilterChange}
-          hasRepliedFilter={hasRepliedFilter}
-          onHasRepliedFilterChange={onHasRepliedFilterChange}
-        />
+          <ChatFiltersPanel
+            campaigns={campaigns}
+            campaignFilter={campaignFilter}
+            onCampaignFilterChange={onCampaignFilterChange}
+            hasRepliedFilter={hasRepliedFilter}
+            onHasRepliedFilterChange={onHasRepliedFilterChange}
+          />
+        </div>
       </div>
       <div className="scrollbar-thin flex-1 overflow-y-auto">
         {loadingChats ? (
@@ -183,7 +187,7 @@ export function ChatListPanel({
           <div>
             {Object.entries(groupedChats).map(([accountId, accountChats]) => (
               <div key={accountId}>
-                <div className={`flex items-center gap-1.5 border-b border-border bg-surface/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-darker ${hueClassFor(accountId)}`}>
+                <div className={`flex items-center gap-1.5 border-b border-border bg-surface/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-darker ${hueClassFor(accountId)}`}>
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-entity" />
                   {accountChats[0]?.account?.name ?? accountId}
                 </div>
@@ -191,7 +195,7 @@ export function ChatListPanel({
                   <button
                     key={chat.id}
                     onClick={() => onChatSelect(chat)}
-                    className={`chat-list-row w-full border-b border-border px-4 py-3 text-left transition-colors hover:bg-surface-light ${
+                    className={`chat-list-row w-full border-b border-border px-3 py-2 text-left transition-colors hover:bg-surface-light ${
                       selectedChatId === chat.id ? "bg-accent-subtle shadow-[inset_3px_0_0_var(--accent-strong)]" : ""
                     }`}
                     aria-current={selectedChatId === chat.id ? "true" : undefined}
@@ -204,14 +208,14 @@ export function ChatListPanel({
                         className="mt-0.5"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className={`truncate text-sm ${chat.unreadCount > 0 ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
+                        <p className={`truncate text-[13px] ${chat.unreadCount > 0 ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
                           {chat.name ?? chat.remoteJid}
                         </p>
-                        <p className={`mt-0.5 truncate text-xs ${chat.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-darker"}`}>
+                        <p className={`mt-0.5 truncate text-[11px] ${chat.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-darker"}`}>
                           {displayMessageText(chat.lastMessage) ?? "Sin mensajes"}
                         </p>
                         {(chat.assignedTo || chat.campaign) && (
-                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                          <div className="mt-0.5 flex flex-wrap items-center gap-1">
                             {chat.assignedTo && (
                               <Badge tone="info" size="sm">
                                 {chat.assignedTo.name ?? "Asignado"}

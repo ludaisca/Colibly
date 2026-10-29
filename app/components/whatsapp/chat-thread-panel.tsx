@@ -481,7 +481,7 @@ export function ChatThreadPanel({
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={messagesContainerRef} onScroll={handleScroll} className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+        <div ref={messagesContainerRef} onScroll={handleScroll} className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           {loadingMessages ? (
             <ChatBubblesSkeleton className="h-full" />
           ) : messages.length === 0 ? (

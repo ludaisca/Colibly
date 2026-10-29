@@ -57,17 +57,17 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
 
   return (
     <header className="shrink-0 border-b border-border bg-surface">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <button type="button" onClick={onCloseChat} aria-label="Volver a la lista de chats" className="shrink-0 rounded-xl p-2 text-muted-darker hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong lg:hidden">
+      <div className="flex items-center gap-2.5 px-3 py-1">
+        <button type="button" onClick={onCloseChat} aria-label="Volver a la lista de chats" className="shrink-0 rounded-xl p-1.5 text-muted-darker hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong lg:hidden">
           <ArrowLeft size={18} />
         </button>
-        <EntityAvatar id={chat.accountId} name={name} size="md" />
+        <EntityAvatar id={chat.accountId} name={name} size="sm" />
         <div className="min-w-0 flex-1">
           {chat.contactId ? (
-            <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-base font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>
-          ) : <p className="truncate text-base font-semibold text-foreground">{name}</p>}
-          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-darker" title={subtitle}>
-            <ChannelIcon size={12} className="shrink-0" />
+            <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-sm font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>
+          ) : <p className="truncate text-sm font-semibold text-foreground">{name}</p>}
+          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-darker" title={subtitle}>
+            <ChannelIcon size={11} className="shrink-0" />
             <span className="truncate">{subtitle}</span>
             {resolved && <span className="shrink-0 rounded-full bg-success-bg px-1.5 text-[10px] font-medium text-success">Resuelto</span>}
           </p>
@@ -80,9 +80,9 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
               type="button"
               aria-label="Acciones de la conversación"
               title="Acciones"
-              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-accent-subtle text-accent-ink" : "text-muted-darker hover:bg-surface-light hover:text-foreground"}`}
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-accent-subtle text-accent-ink" : "text-muted-darker hover:bg-surface-light hover:text-foreground"}`}
             >
-              <MoreVertical size={18} />
+              <MoreVertical size={17} />
             </button>
           }
         >

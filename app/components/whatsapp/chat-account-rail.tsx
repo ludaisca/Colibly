@@ -27,16 +27,16 @@ export function ChatAccountRail({ accounts, selectedAccountId, onSelect, unreadB
   const totalUnread = Object.values(unreadByAccount).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="hidden w-16 min-h-0 shrink-0 flex-col items-center gap-2 border-r border-border bg-surface/40 py-3 lg:flex">
+    <div className="hidden w-14 min-h-0 shrink-0 flex-col items-center gap-1.5 border-r border-border bg-surface/40 py-2 lg:flex">
       <div className="shrink-0">
         <RailButton active={selectedAccountId === ""} label="Todas las cuentas" unread={totalUnread} onClick={() => onSelect("")}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-light text-muted-darker">
-            <Inbox size={18} />
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-light text-muted-darker">
+            <Inbox size={17} />
           </span>
         </RailButton>
       </div>
 
-      <div className="my-1 h-px w-8 shrink-0 bg-border" />
+      <div className="my-0.5 h-px w-7 shrink-0 bg-border" />
 
       {/* flex-1 min-h-0: solo así el div realmente se acota a lo que sobra
           del rail y overflow-y-auto dispara nada más cuando hay más cuentas

@@ -62,7 +62,7 @@ interface ChatComposerProps {
 
 const MAX_BUTTONS = 3;
 const MAX_BUTTON_LENGTH = 20;
-const TOOL_BUTTON = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
+const TOOL_BUTTON = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 export function ChatComposer({
   chatId,
@@ -240,7 +240,7 @@ export function ChatComposer({
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-2 px-4 py-3 border-t border-border bg-surface shrink-0 relative">
+    <form onSubmit={onSubmit} className="relative flex shrink-0 flex-col gap-1.5 border-t border-border bg-surface px-3 py-1.5">
       {replyTo && (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
           <Reply size={16} className="shrink-0 text-accent-ink" />
@@ -455,7 +455,7 @@ export function ChatComposer({
                 ? "Comentario (opcional)"
                 : "Escribe un mensaje"
           }
-          className="max-h-32 min-h-10 min-w-[8rem] flex-1 resize-none rounded-2xl border border-border bg-background px-3.5 py-2.5 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="max-h-32 min-h-9 min-w-[8rem] flex-1 resize-none rounded-2xl border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           disabled={sending}
         />
         {canRecord && !attachment && interactiveButtons.length === 0 && (
@@ -474,7 +474,7 @@ export function ChatComposer({
           type="submit"
           aria-label="Enviar mensaje"
           icon={sending ? undefined : Send}
-          size="md"
+          size="sm"
           className="shrink-0 px-3"
           disabled={
             !!sendBlockedReason ||
