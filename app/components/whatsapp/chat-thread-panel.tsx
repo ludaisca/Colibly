@@ -17,6 +17,7 @@ import {
   Maximize2,
   CornerUpLeft,
   ArrowDown,
+  Eye,
 } from "lucide-react";
 import { ChatMessageActions } from "./chat-message-actions";
 import { Button } from "@/app/components/ui/button";
@@ -25,7 +26,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { Modal } from "@/app/components/ui/modal";
 import { ChatConversationHeader } from "./chat-conversation-header";
 import { ChatBubblesSkeleton } from "@/app/components/whatsapp/chat-skeletons";
-import { mediaEndpointFor, type MediaChannel } from "@/lib/whatsapp/media-shared";
+import { mediaEndpointFor, isPdfMime, type MediaChannel } from "@/lib/whatsapp/media-shared";
 import {
   displayMessageText,
   formatBubbleTime,
@@ -86,11 +87,11 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
       );
     }
     return (
-      <div className="flex items-center gap-1.5">
-        <audio controls src={mediaSrc} className="w-full max-w-xs" />
+      <div className="flex w-[260px] max-w-full items-center gap-1.5">
+        <audio controls src={mediaSrc} className="h-10 min-w-0 flex-1" />
         <a
           href={mediaSrc}
-          download={msg.filename ?? undefined}
+          download={msg.filename ?? "audio.ogg"}
           className="text-muted-darker hover:text-foreground shrink-0"
           title="Descargar audio"
         >
@@ -133,16 +134,42 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
         </div>
       );
     }
+    const pdf = isPdfMime(msg.mimeType) || /\.pdf$/i.test(msg.filename ?? "");
     return (
-      <a
-        href={mediaSrc}
-        download={msg.filename ?? undefined}
-        className="flex items-center gap-2 text-xs hover:underline"
-      >
-        <FileText size={14} />
-        <span className="truncate">{msg.filename ?? "Documento"}</span>
-        {msg.bytesSize ? <span className="text-muted-darker">({formatBytes(msg.bytesSize)})</span> : null}
-      </a>
+      <div className="w-[260px] max-w-full space-y-2">
+        <div className="flex items-start gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-accent-ink">
+            <FileText size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground" title={msg.filename ?? undefined}>
+              {msg.filename ?? "Documento"}
+            </p>
+            <p className="text-[11px] text-muted-darker">
+              {pdf ? "PDF" : "Documento"}{msg.bytesSize ? ` · ${formatBytes(msg.bytesSize)}` : ""}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {pdf && (
+            <a
+              href={mediaSrc}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-surface px-2.5 text-xs font-medium text-accent-ink hover:bg-accent-subtle"
+            >
+              <Eye size={14} /> Ver
+            </a>
+          )}
+          <a
+            href={mediaSrc}
+            download={msg.filename ?? undefined}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-surface px-2.5 text-xs font-medium text-foreground hover:bg-surface-light"
+          >
+            <Download size={14} /> Descargar
+          </a>
+        </div>
+      </div>
     );
   }
 

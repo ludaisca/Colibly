@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { resolveAbsolutePath, mediaReadStream, isInlineSafeMime } from "@/lib/whatsapp/media-store";
-import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { resolveChannelMedia } from "@/lib/channel-media";
 import { publicErrorMessage } from "@/lib/api-errors";
 
+// Misma lógica que Messenger/Instagram: el helper genérico resuelve permisos,
+// MIME, inline/descarga (PDF incluido) y el stream de disco.
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ messageId: string }> }
@@ -16,56 +16,12 @@ export async function GET(
     }
 
     const { messageId } = await params;
-
-    const message = await prisma.channelMessage.findFirst({
-      where: { id: messageId, conversation: { channelAccountId: { in: await getUserChannelAccountIds(session.user.id) } } },
-      select: {
-        id: true,
-        mediaUrl: true,
-        mimeType: true,
-        filename: true,
-        messageType: true,
-      },
-    });
-
-    if (!message) {
-      return NextResponse.json({ error: "Mensaje no encontrado" }, { status: 404 });
+    const result = await resolveChannelMedia(session.user.id, messageId);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    if (!message.mediaUrl) {
-      return NextResponse.json({ error: "Medio no disponible" }, { status: 404 });
-    }
-
-    let stat;
-    try {
-      const { promises: fs } = await import("fs");
-      stat = await fs.stat(resolveAbsolutePath(message.mediaUrl));
-    } catch {
-      return NextResponse.json({ error: "Archivo no encontrado" }, { status: 404 });
-    }
-
-    const stream = mediaReadStream(message.mediaUrl);
-    const headers = new Headers();
-    headers.set("Content-Type", message.mimeType ?? "application/octet-stream");
-    headers.set("Content-Length", String(stat.size));
-    headers.set("Cache-Control", "private, max-age=3600");
-
-    // Inline solo imagen/audio/video de tipos seguros (nunca SVG/HTML); la CSP
-    // `sandbox` de estas rutas vive en next.config.ts (la CSP global la pisaría).
-    const isInline =
-      (message.messageType === "image" || message.messageType === "audio" || message.messageType === "video") &&
-      isInlineSafeMime(message.mimeType);
-
-    if (!isInline && message.filename) {
-      headers.set(
-        "Content-Disposition",
-        `attachment; filename="${encodeURIComponent(message.filename)}"`
-      );
-    } else if (!isInline) {
-      headers.set("Content-Disposition", "attachment");
-    }
-
-    return new Response(stream as unknown as ReadableStream, { headers });
+    return new Response(result.stream as unknown as ReadableStream, { headers: result.headers });
   } catch (error) {
     const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });

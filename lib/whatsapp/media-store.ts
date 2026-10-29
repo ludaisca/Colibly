@@ -20,6 +20,8 @@ export {
   isDocumentMime,
   mediaEndpointFor,
   isInlineSafeMime,
+  isPdfMime,
+  contentDisposition,
 } from "@/lib/whatsapp/media-shared";
 
 async function ensureAccountDir(accountId: string): Promise<string> {

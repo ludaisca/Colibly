@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
-import { saveMediaFromBuffer, resolveAbsolutePath, mediaReadStream, isInlineSafeMime } from "@/lib/whatsapp/media-store";
+import { saveMediaFromBuffer, resolveAbsolutePath, mediaReadStream, isInlineSafeMime, isPdfMime, contentDisposition } from "@/lib/whatsapp/media-store";
 
 // Lógica genérica de media para cualquier canal sobre ChannelAccount/
 // ChannelMessage — extraída de lo que ya era app/api/telegram/media y
@@ -64,17 +64,25 @@ export async function resolveChannelMedia(userId: string, messageId: string): Pr
   const headers = new Headers();
   headers.set("Content-Type", message.mimeType ?? "application/octet-stream");
   headers.set("Content-Length", String(stat.size));
-  headers.set("Cache-Control", "private, max-age=3600");
+  // Los documentos cambiaron de "descarga" a "ver inline": no-store evita que
+  // un navegador con la respuesta vieja cacheada siga descargándolos.
+  headers.set("Cache-Control", message.messageType === "document" ? "private, no-cache" : "private, max-age=3600");
 
-  // Inline solo imagen/audio/video de tipos seguros (nunca SVG/HTML); la CSP
-  // `sandbox` de estas rutas vive en next.config.ts (la CSP global la pisaría).
+  // PDF: se sirve inline para que el visor del navegador lo abra (la CSP
+  // `sandbox` de estas rutas impide que ejecute nada). El resto de documentos
+  // se descarga. Los PDF viejos descargados de Meta pueden tener MIME
+  // octet-stream: se detectan por el nombre y se corrigen al servir.
+  const pdfByName = message.messageType === "document" && /\.pdf$/i.test(message.filename ?? "");
+  const isPdf = isPdfMime(message.mimeType) || pdfByName;
+  if (isPdf && !isPdfMime(message.mimeType)) headers.set("Content-Type", "application/pdf");
   const isInline =
-    (message.messageType === "image" || message.messageType === "audio" || message.messageType === "video") &&
-    isInlineSafeMime(message.mimeType);
-  if (!isInline && message.filename) {
-    headers.set("Content-Disposition", `attachment; filename="${encodeURIComponent(message.filename)}"`);
+    isPdf ||
+    ((message.messageType === "image" || message.messageType === "audio" || message.messageType === "video") &&
+      isInlineSafeMime(message.mimeType));
+  if (isPdf) {
+    headers.set("Content-Disposition", contentDisposition(message.filename, true));
   } else if (!isInline) {
-    headers.set("Content-Disposition", "attachment");
+    headers.set("Content-Disposition", contentDisposition(message.filename, false));
   }
 
   return { ok: true, stream, headers };

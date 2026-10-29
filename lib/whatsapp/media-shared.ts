@@ -27,7 +27,10 @@ const EXT_BY_MIME: Record<string, string> = {
 
 export function mimeTypeToExtension(mimeType: string | null | undefined): string {
   if (!mimeType) return "bin";
-  return EXT_BY_MIME[mimeType.toLowerCase()] ?? "bin";
+  // Los MIME pueden traer parámetros ("audio/ogg; codecs=opus"): el tipo base
+  // es lo que determina la extensión.
+  const base = mimeType.toLowerCase().split(";")[0].trim();
+  return EXT_BY_MIME[base] ?? "bin";
 }
 
 export function isImageMime(mimeType: string | null | undefined): boolean {
@@ -77,4 +80,20 @@ const INLINE_SAFE_MIME = /^(image\/(jpeg|png|gif|webp|avif|heic|heif)|audio\/[\w
 
 export function isInlineSafeMime(mimeType: string | null | undefined): boolean {
   return !!mimeType && INLINE_SAFE_MIME.test(mimeType.toLowerCase().split(";")[0].trim());
+}
+
+export function isPdfMime(mimeType: string | null | undefined): boolean {
+  return !!mimeType && mimeType.toLowerCase().split(";")[0].trim() === "application/pdf";
+}
+
+// Cabecera de descarga correcta: `filename=` solo admite ASCII y no debe ir
+// URL-encoded (los navegadores no lo decodifican); el nombre real viaja en
+// filename* (RFC 5987).
+export function contentDisposition(filename: string | null | undefined, inline: boolean): string {
+  const type = inline ? "inline" : "attachment";
+  if (!filename) return type;
+  const fallback = filename.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
+  // encodeURIComponent deja ' ( ) * sin escapar y RFC 5987 no los admite.
+  const encoded = encodeURIComponent(filename).replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `${type}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
 }

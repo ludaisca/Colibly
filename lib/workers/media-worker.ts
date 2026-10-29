@@ -103,10 +103,19 @@ async function processMetaChannelMediaDownload(job: MediaDownloadJob) {
   if (!res.ok) throw new Error(`Descarga de medio ${account.channel} fallida (HTTP ${res.status})`);
   const buffer = Buffer.from(await res.arrayBuffer());
 
-  const stored = await saveMediaFromBuffer(job.accountId, buffer, message.mimeType);
+  // El webhook de Meta no trae MIME: se adivina por el tipo de adjunto. La CDN
+  // sí responde con el real (PDF, audio/mp4…), que es el que necesita el visor
+  // del navegador. Si la CDN no lo dice, se detecta el PDF por su firma.
+  const responseType = res.headers.get("content-type")?.split(";")[0].trim() || null;
+  let mimeType = responseType && responseType !== "application/octet-stream" ? responseType : message.mimeType;
+  if ((!mimeType || mimeType === "application/octet-stream") && buffer.subarray(0, 5).toString() === "%PDF-") {
+    mimeType = "application/pdf";
+  }
+
+  const stored = await saveMediaFromBuffer(job.accountId, buffer, mimeType);
 
   await prisma.channelMessage.update({
     where: { id: job.messageId },
-    data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize },
+    data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize, mimeType },
   });
 }
