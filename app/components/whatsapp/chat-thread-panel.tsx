@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   MessageSquare,
@@ -15,6 +16,7 @@ import {
   Download,
   Maximize2,
   CornerUpLeft,
+  ArrowDown,
 } from "lucide-react";
 import { ChatMessageActions } from "./chat-message-actions";
 import { Button } from "@/app/components/ui/button";
@@ -23,7 +25,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { Modal } from "@/app/components/ui/modal";
 import { ChatConversationHeader } from "./chat-conversation-header";
 import { ChatBubblesSkeleton } from "@/app/components/whatsapp/chat-skeletons";
-import { mediaEndpointFor } from "@/lib/whatsapp/media-shared";
+import { mediaEndpointFor, type MediaChannel } from "@/lib/whatsapp/media-shared";
 import {
   displayMessageText,
   formatBubbleTime,
@@ -45,8 +47,8 @@ const MESSAGE_STATUS_LABEL: Record<string, string> = {
   delivered: "Entregado", read: "Leído",
 };
 
-function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: PreviewMedia) => void }) {
-  const mediaSrc = msg.localPreviewUrl ?? (msg.mediaUrl ? mediaEndpointFor(msg.id) : null);
+function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: MediaChannel; onPreview: (media: PreviewMedia) => void }) {
+  const mediaSrc = msg.localPreviewUrl ?? (msg.mediaUrl ? mediaEndpointFor(msg.id, channel) : null);
 
   if (msg.messageType === "image" || msg.messageType === "sticker") {
     if (!mediaSrc) {
@@ -149,6 +151,7 @@ function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: Pre
 
 function MessageBubble({
   msg,
+  channel,
   onPreview,
   onRetry,
   onReply,
@@ -160,6 +163,7 @@ function MessageBubble({
   reduceMotion,
 }: {
   msg: Message;
+  channel: MediaChannel;
   onPreview: (media: PreviewMedia) => void;
   onRetry?: (msg: Message) => void;
   onReply?: (msg: Message) => void;
@@ -248,7 +252,7 @@ function MessageBubble({
         )}
         {hasMedia && (
           <div className={`${mediaOnly ? "" : "mb-1"} space-y-1`}>
-            <MediaContent msg={msg} onPreview={onPreview} />
+            <MediaContent msg={msg} channel={channel} onPreview={onPreview} />
             {caption && <p className="whitespace-pre-wrap break-words">{caption}</p>}
           </div>
         )}
@@ -388,6 +392,54 @@ export function ChatThreadPanel({
 }: ChatThreadPanelProps) {
   // Motion no responde a las reglas CSS de reduced-motion: se ajusta aquí.
   const shouldReduceMotion = useReducedMotion();
+  const [atBottom, setAtBottom] = useState(true);
+  const atBottomRef = useRef(true);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Si el usuario está al final, las imágenes/videos que terminan de cargar
+  // alargan el hilo: sin esto el scroll se queda a media conversación (el
+  // salto inicial ocurre antes de que el medio tenga altura).
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    const content = contentRef.current;
+    if (!container || !content || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (atBottomRef.current) container.scrollTop = container.scrollHeight;
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [messagesContainerRef, messages.length]);
+
+  // Los mensajes se agrupan por día para que el separador pueda quedarse
+  // pegado arriba mientras se lee ese día (como WhatsApp) y sea reemplazado
+  // por el del día siguiente. Dentro de cada día se conserva la agrupación
+  // por emisor/tiempo de 2 px.
+  const groups = useMemo(() => {
+    const result: { key: string; label: string; items: { msg: Message; grouped: boolean }[] }[] = [];
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const prev = messages[i - 1];
+      const sameDay = !!prev && new Date(prev.timestamp).toDateString() === new Date(msg.timestamp).toDateString();
+      if (!prev || !sameDay) {
+        result.push({ key: new Date(msg.timestamp).toDateString(), label: formatDayDivider(msg.timestamp), items: [] });
+      }
+      const grouped =
+        !!prev &&
+        sameDay &&
+        prev.direction === msg.direction &&
+        Math.abs(new Date(msg.timestamp).getTime() - new Date(prev.timestamp).getTime()) <= 5 * 60 * 1000;
+      result[result.length - 1].items.push({ msg, grouped });
+    }
+    return result;
+  }, [messages]);
+
+  function handleScroll() {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    atBottomRef.current = atEnd;
+    setAtBottom((previous) => (previous === atEnd ? previous : atEnd));
+  }
 
   return (
     <>
@@ -401,58 +453,58 @@ export function ChatThreadPanel({
         onAssigned={onAssigned}
       />
 
-      <div ref={messagesContainerRef} className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-4 sm:px-4">
-        {loadingMessages ? (
-          <ChatBubblesSkeleton className="h-full" />
-        ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <EmptyState icon={MessageSquare} title="Sin mensajes" description="Aún no hay mensajes en este chat." />
-          </div>
-        ) : (
-          <>
-            {hasOlderMessages && (
-              <div className="flex justify-center pb-1">
-                <Button variant="secondary" size="sm" onClick={onLoadOlder} disabled={loadingOlder}>
-                  {loadingOlder ? <Spinner /> : "Ver mensajes anteriores"}
-                </Button>
-              </div>
-            )}
-            <AnimatePresence initial={false}>
-              {messages.map((msg, i) => {
-                const prev = messages[i - 1];
-                const sameDay = !prev || new Date(prev.timestamp).toDateString() === new Date(msg.timestamp).toDateString();
-                const showDivider = !sameDay;
-                // Mensajes seguidos del mismo lado y a menos de 5 minutos se leen
-                // como un bloque (2 px de aire), en vez de tarjetas sueltas.
-                const groupedWithPrev =
-                  !!prev &&
-                  sameDay &&
-                  prev.direction === msg.direction &&
-                  Math.abs(new Date(msg.timestamp).getTime() - new Date(prev.timestamp).getTime()) <= 5 * 60 * 1000;
-                return (
-                  <motion.div
-                    key={msg.motionKey ?? msg.id}
-                    className={groupedWithPrev ? "mt-0.5" : "mt-3"}
-                    initial={shouldReduceMotion || !msg.animateOnMount ? false : { opacity: 0, x: msg.direction === "INBOUND" ? -12 : 12, y: 4, scale: 0.985 }}
-                    animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-                    exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.98 }}
-                    transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    {showDivider && (
-                      <div className="flex justify-center my-3">
-                        <span className="text-[11px] font-medium text-muted-darker bg-surface border border-border px-2.5 py-1 rounded-full">
-                          {formatDayDivider(msg.timestamp)}
-                        </span>
-                      </div>
-                    )}
-                    <MessageBubble msg={msg} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} />
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </>
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div ref={messagesContainerRef} onScroll={handleScroll} className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+          {loadingMessages ? (
+            <ChatBubblesSkeleton className="h-full" />
+          ) : messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <EmptyState icon={MessageSquare} title="Sin mensajes" description="Aún no hay mensajes en este chat." />
+            </div>
+          ) : (
+            <div ref={contentRef}>
+              {hasOlderMessages && (
+                <div className="flex justify-center pb-1">
+                  <Button variant="secondary" size="sm" onClick={onLoadOlder} disabled={loadingOlder}>
+                    {loadingOlder ? <Spinner /> : "Ver mensajes anteriores"}
+                  </Button>
+                </div>
+              )}
+              {groups.map((group) => (
+                <div key={group.key}>
+                  <div className="sticky top-2 z-10 flex justify-center py-2">
+                    <span className="rounded-full border border-border bg-surface/95 px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm backdrop-blur-sm">
+                      {group.label}
+                    </span>
+                  </div>
+                  {group.items.map(({ msg, grouped }) => (
+                    <motion.div
+                      key={msg.motionKey ?? msg.id}
+                      className={grouped ? "mt-0.5" : "mt-2"}
+                      initial={shouldReduceMotion || !msg.animateOnMount ? false : { opacity: 0, x: msg.direction === "INBOUND" ? -12 : 12, y: 4, scale: 0.985 }}
+                      animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                      transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} />
+                    </motion.div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        {!atBottom && (
+          <button
+            type="button"
+            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })}
+            aria-label="Ir al final de la conversación"
+            title="Ir al final"
+            className="absolute bottom-3 right-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-muted-darker shadow-md transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
+          >
+            <ArrowDown size={18} />
+          </button>
         )}
-        <div ref={messagesEndRef} />
       </div>
     </>
   );

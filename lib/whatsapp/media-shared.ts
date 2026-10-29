@@ -52,8 +52,21 @@ export function isDocumentMime(mimeType: string | null | undefined): boolean {
   );
 }
 
-export function mediaEndpointFor(messageId: string): string {
-  return `/api/whatsapp/messages/${encodeURIComponent(messageId)}/media`;
+export type MediaChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+
+// Cada canal sirve sus medios desde su propio endpoint (el id es un WAMessage
+// en WhatsApp y un ChannelMessage en el resto). El widget web no tiene medios.
+const MEDIA_ROUTE: Record<MediaChannel, string | null> = {
+  WHATSAPP: "/api/whatsapp/messages",
+  TELEGRAM: "/api/telegram/messages",
+  MESSENGER: "/api/messenger/messages",
+  INSTAGRAM: "/api/instagram/messages",
+  WEBCHAT: null,
+};
+
+export function mediaEndpointFor(messageId: string, channel: MediaChannel = "WHATSAPP"): string | null {
+  const base = MEDIA_ROUTE[channel];
+  return base ? `${base}/${encodeURIComponent(messageId)}/media` : null;
 }
 
 // Tipos que el navegador puede mostrar inline desde el dominio de la app sin

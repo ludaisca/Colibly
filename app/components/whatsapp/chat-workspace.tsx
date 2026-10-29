@@ -121,6 +121,10 @@ export function ChatWorkspace({
   // scrollHeight previo a un prepend de historial — permite restaurar la
   // posición de lectura en vez de que el contenido "salte" hacia abajo.
   const prependHeightRef = useRef<number | null>(null);
+  // Chat cuyo primer lote de mensajes aún no se ha llevado al final. Sin esto
+  // el hilo abría en el mensaje más viejo, porque scrollTop=0 hace que la
+  // condición de "cerca del final" nunca se cumpla en la carga inicial.
+  const initialScrollRef = useRef<string | null>(null);
   // Payload original de cada mensaje optimista, por tempId — permite
   // reintentar un envío fallido sin pedirle al usuario que lo reescriba.
   const pendingSendsRef = useRef<Map<string, { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[]; replyTo: Message | null }>>(new Map());
@@ -463,6 +467,7 @@ export function ChatWorkspace({
         const data = await res.json();
         if (controller.signal.aborted) return;
         if (Array.isArray(data)) {
+          initialScrollRef.current = selectedChatId;
           setMessages(data);
           setHasOlderMessages(data.length >= 50);
         }
@@ -510,11 +515,18 @@ export function ChatWorkspace({
       prependHeightRef.current = null;
       return;
     }
+    // Primer lote de este chat: saltar al final sin animación (el hilo debe
+    // abrir en el último mensaje, como WhatsApp).
+    if (initialScrollRef.current === selectedChatId && messages.length > 0) {
+      initialScrollRef.current = null;
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      return;
+    }
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     if (distanceFromBottom < 200) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, selectedChatId]);
 
   // Message polling
   useEffect(() => {
@@ -620,12 +632,9 @@ export function ChatWorkspace({
     fileInputRef.current?.click();
   }
 
-  function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileSelected = useCallback((file: File) => {
     if (file.size > 20 * 1024 * 1024) {
       toastError("El archivo supera el límite de 20MB");
-      e.target.value = "";
       return;
     }
     setAttachment(file);
@@ -633,6 +642,12 @@ export function ChatWorkspace({
       if (previous) URL.revokeObjectURL(previous);
       return URL.createObjectURL(file);
     });
+  }, [toastError]);
+
+  function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    handleFileSelected(file);
     e.target.value = "";
   }
 
@@ -960,6 +975,7 @@ export function ChatWorkspace({
               attachmentPreview={attachmentPreview}
               onPickFile={pickFile}
               onFileChosen={onFileChosen}
+              onFileSelected={handleFileSelected}
               onClearAttachment={clearAttachment}
               fileInputRef={fileInputRef}
               cannedSuggestions={cannedSuggestions}

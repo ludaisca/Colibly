@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
+import { useToast } from "@/app/components/ui/toast";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { ChatAiMenu, ChatMoreMenu } from "./chat-composer-tools";
 import { displayMessageText, type CannedResponseItem, type Channel, type Message } from "./chat-shared";
@@ -28,6 +29,8 @@ interface ChatComposerProps {
   attachmentPreview: string | null;
   onPickFile: () => void;
   onFileChosen: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Un archivo elegido fuera del input (p. ej. una nota de voz grabada). */
+  onFileSelected: (file: File) => void;
   onClearAttachment: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
 
@@ -76,6 +79,7 @@ export function ChatComposer({
   attachmentPreview,
   onPickFile,
   onFileChosen,
+  onFileSelected,
   onClearAttachment,
   fileInputRef,
   cannedSuggestions,
@@ -92,12 +96,131 @@ export function ChatComposer({
   sendBlockedReason = null,
 }: ChatComposerProps) {
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
+  const { error: toastError } = useToast();
+  // Client-only: en SSR no existe MediaRecorder y el snapshot del servidor es
+  // false para que la hidratación coincida.
+  const canRecord = useSyncExternalStore(
+    () => () => {},
+    () => typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia,
+    () => false
+  );
+  const [recording, setRecording] = useState<{ seconds: number } | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const startedAtRef = useRef<number | null>(null);
+  const discardRef = useRef(false);
+
   useEffect(() => {
     const field = messageInputRef.current;
     if (!field) return;
     field.style.height = "auto";
     field.style.height = `${Math.min(field.scrollHeight, 128)}px`;
   }, [newMessage]);
+
+  // Si se desmonta el chat grabando, se suelta el micrófono y no queda el
+  // indicador encendido en el navegador.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        discardRef.current = true;
+        recorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  const RECORD_MAX_SECONDS = 5 * 60;
+
+  function cleanupRecording() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    startedAtRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }
+
+  async function startRecording() {
+    if (recording || sending || sendBlockedReason || attachment || interactiveButtons.length > 0) return;
+    const candidates = channel === "WHATSAPP"
+      // WhatsApp acepta OGG/OPUS y MP4/AAC; WebM no. MP4 es lo que graba
+      // Chrome/Edge hoy (OGG lo soporta Firefox).
+      ? ["audio/ogg;codecs=opus", "audio/mp4"]
+      : ["audio/ogg;codecs=opus", "audio/mp4", "audio/webm;codecs=opus"];
+    const mime = candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
+    if (!mime) {
+      toastError("Tu navegador no puede grabar audio en un formato compatible con este canal.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: mime });
+      chunksRef.current = [];
+      discardRef.current = false;
+      recorderRef.current = recorder;
+      streamRef.current = stream;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const chunks = chunksRef.current;
+        const discard = discardRef.current;
+        chunksRef.current = [];
+        discardRef.current = false;
+        recorderRef.current = null;
+        cleanupRecording();
+        setRecording(null);
+        if (discard) return;
+        const baseMime = mime.split(";")[0].trim();
+        const blob = new Blob(chunks, { type: baseMime });
+        if (blob.size === 0) {
+          toastError("La grabación quedó vacía.");
+          return;
+        }
+        const ext = baseMime === "audio/ogg" ? "ogg" : baseMime === "audio/mp4" ? "m4a" : "webm";
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+        onFileSelected(new File([blob], `audio-${stamp}.${ext}`, { type: baseMime }));
+      };
+      recorder.start(500);
+      startedAtRef.current = Date.now();
+      setRecording({ seconds: 0 });
+      timerRef.current = window.setInterval(() => {
+        const started = startedAtRef.current;
+        if (!started) return;
+        const seconds = Math.floor((Date.now() - started) / 1000);
+        setRecording({ seconds });
+        if (seconds >= RECORD_MAX_SECONDS) finishRecording(false);
+      }, 500);
+    } catch {
+      cleanupRecording();
+      toastError("No pudimos acceder al micrófono. Revisa los permisos del navegador.");
+    }
+  }
+
+  function finishRecording(discard: boolean) {
+    const recorder = recorderRef.current;
+    discardRef.current = discard;
+    if (!recorder) {
+      cleanupRecording();
+      setRecording(null);
+      return;
+    }
+    if (recorder.state !== "inactive") recorder.stop();
+    else {
+      cleanupRecording();
+      setRecording(null);
+    }
+  }
+
+  function formatDuration(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return `${minutes}:${String(rest).padStart(2, "0")}`;
+  }
   const supportsAttachments = channel !== "WEBCHAT";
   const supportsButtons = channel === "WHATSAPP";
   const supportsSuggestions = channel === "WHATSAPP" || channel === "TELEGRAM";
@@ -153,7 +276,11 @@ export function ChatComposer({
             // eslint-disable-next-line @next/next/no-img-element -- local preview blob
             <img src={attachmentPreview} alt={attachment.name} className="h-12 w-12 rounded object-cover animate-fade-in" />
           ) : isAudioMime(attachment.type) ? (
-            <FileAudio size={18} className="text-muted-darker shrink-0" />
+            attachmentPreview ? (
+              <audio controls src={attachmentPreview} className="h-10 w-44 shrink-0" />
+            ) : (
+              <FileAudio size={18} className="text-muted-darker shrink-0" />
+            )
           ) : isVideoMime(attachment.type) ? (
             <Video size={18} className="text-muted-darker shrink-0" />
           ) : (
@@ -243,6 +370,17 @@ export function ChatComposer({
         accept="image/*,audio/*,video/*,application/pdf,text/plain"
         className="hidden"
       />
+      {recording ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-danger-border bg-danger-bg px-3 py-2" role="status" aria-live="polite">
+          <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-danger" />
+          <span className="tabular-nums text-sm font-semibold text-foreground">{formatDuration(recording.seconds)}</span>
+          <span className="flex-1 text-xs text-muted-darker">Grabando audio…</span>
+          <button type="button" onClick={() => finishRecording(true)} className={TOOL_BUTTON} aria-label="Cancelar grabación" title="Cancelar">
+            <X size={18} />
+          </button>
+          <Button type="button" size="sm" icon={Check} onClick={() => finishRecording(false)}>Adjuntar</Button>
+        </div>
+      ) : (
       <div className="flex items-end gap-1">
         <div className="flex min-w-0 items-center" aria-label="Herramientas del mensaje">
           {supportsAttachments && (
@@ -320,6 +458,18 @@ export function ChatComposer({
           className="max-h-32 min-h-10 min-w-[8rem] flex-1 resize-none rounded-2xl border border-border bg-background px-3.5 py-2.5 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           disabled={sending}
         />
+        {canRecord && !attachment && interactiveButtons.length === 0 && (
+          <button
+            type="button"
+            onClick={() => void startRecording()}
+            disabled={sending || !!sendBlockedReason}
+            className={TOOL_BUTTON}
+            aria-label="Grabar audio"
+            title={sendBlockedReason ?? "Grabar audio"}
+          >
+            <Mic size={18} />
+          </button>
+        )}
         <Button
           type="submit"
           aria-label="Enviar mensaje"
@@ -337,6 +487,7 @@ export function ChatComposer({
           {sending ? <Spinner /> : ""}
         </Button>
       </div>
+      )}
     </form>
   );
 }
