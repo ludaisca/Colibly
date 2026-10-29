@@ -26,9 +26,10 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${[...META, ...GOOGLE_BEACON].join(" ")}`,
   "font-src 'self'",
-  // stun: lo usa el navegador al armar la llamada de WhatsApp (WebRTC). El audio
-  // va a las IPs que Meta manda dentro del SDP; connect-src no las lista.
-  `connect-src 'self' stun:stun.l.google.com:19302 ${[...META, ...GOOGLE_BEACON].join(" ")}`,
+  // WebRTC (llamadas de WhatsApp) no pasa por connect-src: el STUN y el audio
+  // los resuelve el navegador fuera de CSP. Poner "stun:" aquí era una fuente
+  // inválida que Chrome ignoraba y reportaba en consola en cada carga.
+  `connect-src 'self' ${[...META, ...GOOGLE_BEACON].join(" ")}`,
   `frame-src ${TURNSTILE} ${META_FRAMES.join(" ")} https://td.doubleclick.net https://www.googletagmanager.com`,
 ].join("; ");
 
