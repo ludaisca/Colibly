@@ -188,16 +188,18 @@ describe("applyPlanChange (agregar/quitar asientos con prorrateo)", () => {
   });
 });
 
-describe("precios por lookup_key", () => {
-  it("usa el precio con lookup_key y cae a /plataforma si falta", async () => {
-    stripeApi.pricesList.mockResolvedValue({ data: [{ id: "price_lk_pro", lookup_key: "colibly_pro_monthly", currency: "mxn", recurring: { interval: "month" } }] });
-    expect(await priceIdFor("PRO")).toBe("price_lk_pro");
+describe("precios por plan", () => {
+  it("usa el price id guardado y cae a la lookup_key si falta", async () => {
+    stripeApi.pricesList.mockResolvedValue({ data: [{ id: "price_lk_ess", lookup_key: "colibly_esencial_monthly", currency: "mxn", recurring: { interval: "month" } }] });
+    expect(await priceIdFor("PRO")).toBe("price_pro");
     expect(await priceIdFor("BUSINESS")).toBe("price_basic");
-    expect(stripeApi.pricesList).toHaveBeenCalledTimes(1); // en caché
+    expect(await priceIdFor("ESSENTIAL")).toBe("price_lk_ess");
+    expect(stripeApi.pricesList).toHaveBeenCalledTimes(1); // solo para el plan sin id
   });
-  it("si Stripe falla, usa los price ids guardados", async () => {
+  it("con id guardado no consulta Stripe", async () => {
     stripeApi.pricesList.mockRejectedValue(new Error("red"));
     expect(await priceIdFor("PRO")).toBe("price_pro");
+    expect(stripeApi.pricesList).not.toHaveBeenCalled();
   });
   it("configurado solo si cada plan tiene precio (lookup_key o /plataforma)", async () => {
     // El mock de /plataforma no trae Esencial.

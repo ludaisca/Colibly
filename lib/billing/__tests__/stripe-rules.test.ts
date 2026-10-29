@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkoutIdempotencyKey, checkoutSessionParams, CHECKOUT_IDEMPOTENCY_WINDOW_MS, isLiveSubscriptionStatus, PLAN_LOOKUP_KEYS, planForLookupKey, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "../stripe-rules";
+import { checkoutIdempotencyKey, checkoutSessionParams, CHECKOUT_IDEMPOTENCY_WINDOW_MS, isLiveSubscriptionStatus, PLAN_LOOKUP_KEYS, planForLookupKey, priceMatchesPlan, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "../stripe-rules";
 
 describe("lookup keys", () => {
   it("una por plan", () => {
@@ -7,6 +7,26 @@ describe("lookup keys", () => {
     expect(planForLookupKey("colibly_pro_monthly")).toBe("PRO");
     expect(planForLookupKey("otra")).toBeNull();
     expect(planForLookupKey(null)).toBeNull();
+  });
+});
+
+describe("priceMatchesPlan", () => {
+  it("acepta exactamente la oferta 59/89/149 MXN mensual", () => {
+    expect(priceMatchesPlan("ESSENTIAL", { unit_amount: 5900, currency: "mxn", recurring: { interval: "month" } })).toBe(true);
+    expect(priceMatchesPlan("BUSINESS", { unit_amount: 8900, currency: "MXN", recurring: { interval: "month" } })).toBe(true);
+    expect(priceMatchesPlan("PRO", { unit_amount: 14900, currency: "mxn", recurring: { interval: "month" } })).toBe(true);
+  });
+
+  it("rechaza precios viejos 99/199/349", () => {
+    expect(priceMatchesPlan("ESSENTIAL", { unit_amount: 9900, currency: "mxn", recurring: { interval: "month" } })).toBe(false);
+    expect(priceMatchesPlan("BUSINESS", { unit_amount: 19900, currency: "mxn", recurring: { interval: "month" } })).toBe(false);
+    expect(priceMatchesPlan("PRO", { unit_amount: 34900, currency: "mxn", recurring: { interval: "month" } })).toBe(false);
+  });
+
+  it("rechaza otra moneda, otro intervalo o precio sin monto", () => {
+    expect(priceMatchesPlan("BUSINESS", { unit_amount: 8900, currency: "usd", recurring: { interval: "month" } })).toBe(false);
+    expect(priceMatchesPlan("BUSINESS", { unit_amount: 8900, currency: "mxn", recurring: { interval: "year" } })).toBe(false);
+    expect(priceMatchesPlan("BUSINESS", { unit_amount: null, currency: "mxn", recurring: { interval: "month" } })).toBe(false);
   });
 });
 

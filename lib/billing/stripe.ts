@@ -5,18 +5,19 @@ import { getPlatformSettings } from "@/lib/platform-settings";
 import { deriveFromSubscription, type SubscriptionSnapshot } from "./state";
 import { invalidateOrgBilling } from "./gates";
 import { notifyBillingTransition } from "./notify";
-import { isLiveSubscriptionStatus, PLAN_LOOKUP_KEYS, planForLookupKey, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "./stripe-rules";
+import { isLiveSubscriptionStatus, PLAN_LOOKUP_KEYS, planForLookupKey, priceMatchesPlan, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "./stripe-rules";
 import { listPlatformAdminEmails } from "@/lib/platform-admin";
 import { sendEmailSafely } from "@/lib/email/mailer";
 import { billingNoticeTemplate } from "@/lib/email/templates";
 import { appUrl } from "@/lib/app-url";
+import { PLANS } from "./plans";
 
 // Integración con Stripe: cliente, precios por plan y sincronización de la
 // suscripción → Organization. Configuración (secret key, webhook secret,
 // price ids) editable desde /plataforma — ver lib/platform-settings.ts.
 //
 // Cobro por asiento: cada plan es UN precio recurrente mensual en MXN por
-// unidad (99 / 199 / 349 MXN: Esencial, Negocio, Pro), y la suscripción lleva un solo item con
+// unidad (59 / 89 / 149 MXN: Básico, Avanzado, Pro), y la suscripción lleva un solo item con
 // quantity = asientos (ejecutivos). Cambiar asientos o plan actualiza ese item
 // con prorrateo: subir (más asientos o plan más caro) se cobra de inmediato
 // (always_invoice); bajar deja el crédito para la siguiente factura
@@ -36,8 +37,9 @@ function savedPriceId(s: SavedPrices, plan: PlanId): string | null {
 }
 
 // Precios por lookup_key (colibly_*_monthly), en caché 10 min por secret key.
-// Si Stripe falla o no hay precios con esas llaves, se usan los price ids de
-// /plataforma.
+// Los price ids de /plataforma mandan; las lookup keys son el respaldo cuando
+// falta un id (y permiten que un cambio de precio en Stripe no exija editar
+// el panel si el operador no configuró ids).
 const PRICE_CACHE_MS = 10 * 60 * 1000;
 let priceCache: { key: string; at: number; map: PriceMap } | null = null;
 export function invalidatePriceCache(): void {
@@ -78,9 +80,27 @@ export async function getStripeWebhookSecret(): Promise<string | null> {
 
 export async function priceIdFor(plan: PlanId): Promise<string> {
   const s = await getPlatformSettings();
-  const id = (await resolvePriceIds())[plan] ?? savedPriceId(s, plan);
+  // El id configurado en /plataforma es la fuente de verdad (es el que el
+  // operador verificó); la lookup key queda como respaldo si falta el id.
+  const id = savedPriceId(s, plan) ?? (await resolvePriceIds())[plan];
   if (!id) throw new Error(`Falta el precio de Stripe del plan ${plan} en /plataforma`);
   return id;
+}
+
+// Valida el precio resuelto contra la oferta. Un catálogo desalineado (un
+// precio viejo bajo la misma lookup key, un id de otro plan) nunca debe
+// llegar a Checkout: es mejor bloquear con un mensaje claro que cobrar mal.
+export async function planPriceError(plan: PlanId): Promise<string | null> {
+  try {
+    const priceId = await priceIdFor(plan);
+    const stripe = await getStripe();
+    const price = await stripe.prices.retrieve(priceId);
+    if (priceMatchesPlan(plan, price)) return null;
+    return `El precio de ${PLANS[plan].name} en Stripe no coincide con la oferta (${PLANS[plan].pricePerSeatMxn} MXN/mes por usuario). Revisa /plataforma → Stripe.`;
+  } catch (error) {
+    console.error("[billing] no se pudo validar el precio de Stripe", error);
+    return `No se pudo validar el precio de ${PLANS[plan].name} en Stripe. Intenta de nuevo.`;
+  }
 }
 
 export async function planForPrice(priceId: string, lookupKey?: string | null): Promise<PlanId | null> {

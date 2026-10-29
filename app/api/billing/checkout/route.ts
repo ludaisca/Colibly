@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { appUrl } from "@/lib/email/mailer";
-import { expireOtherOpenCheckouts, getStripe, isStripeConfigured, priceIdFor } from "@/lib/billing/stripe";
+import { expireOtherOpenCheckouts, getStripe, isStripeConfigured, planPriceError, priceIdFor } from "@/lib/billing/stripe";
 import { getSeatUsage } from "@/lib/billing/gates";
 import { planChangeImpact } from "@/lib/billing/state";
 import { MAX_SEATS, MIN_SEATS } from "@/lib/billing/plans";
@@ -43,6 +43,9 @@ export async function POST(req: Request) {
 
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: `Elige un plan y entre ${MIN_SEATS} y ${MAX_SEATS} ejecutivos` }, { status: 400 });
+
+    const priceError = await planPriceError(parsed.data.plan);
+    if (priceError) return NextResponse.json({ error: priceError, code: "price_mismatch" }, { status: 503 });
 
     const organizationId = await requireOrgId(session.user.id);
     const org = await prisma.organization.findUniqueOrThrow({

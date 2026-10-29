@@ -472,8 +472,8 @@ export function PlataformaConfiguracion() {
           </FormField>
         </div>
         <p className="text-sm text-muted-darker">
-          Los precios se buscan primero en Stripe por lookup key (<code>colibly_esencial_monthly</code>, <code>colibly_negocio_monthly</code>,{" "}
-          <code>colibly_pro_monthly</code>); estos price ids son el respaldo.
+          Estos price ids son los que usa el checkout. Si dejas uno vacío, se busca en Stripe por su lookup key (<code>colibly_esencial_monthly</code>, <code>colibly_negocio_monthly</code>,{" "}
+          <code>colibly_pro_monthly</code>). El checkout se bloquea si el monto, la moneda o el intervalo no coinciden con la oferta (59/89/149 MXN mensuales por usuario).
         </p>
         <label className="flex items-start gap-3 text-sm">
           <Switch checked={plain.stripeAutomaticTax} onCheckedChange={(v) => setPlain((p) => ({ ...p, stripeAutomaticTax: v }))} label="Calcular impuestos con Stripe Tax" />

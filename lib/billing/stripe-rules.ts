@@ -21,6 +21,20 @@ export function planForLookupKey(lookupKey: string | null | undefined): PlanId |
   return hit ?? null;
 }
 
+// Un precio es válido solo si es exactamente el de la oferta: mismo monto,
+// moneda MXN y recurrencia mensual. Evita cobrar un precio viejo que quedó
+// bajo la misma lookup key o un price id mal pegado en /plataforma.
+export function priceMatchesPlan(
+  plan: PlanId,
+  price: { unit_amount: number | null; currency: string; recurring?: { interval?: string } | null }
+): boolean {
+  return (
+    price.unit_amount === PLANS[plan].pricePerSeatMxn * 100 &&
+    price.currency.toLowerCase() === "mxn" &&
+    price.recurring?.interval === "month"
+  );
+}
+
 export type ProrationBehavior = "always_invoice" | "create_prorations";
 
 // Subir (más asientos o un plan más caro: el total mensual crece) se cobra de
