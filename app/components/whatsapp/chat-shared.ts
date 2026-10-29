@@ -80,7 +80,7 @@ export interface Message {
   errorMessage?: string | null;
   errorCode?: number | null;
   replyToWamid?: string | null;
-  replyTo?: { id: string; direction: "INBOUND" | "OUTBOUND"; body: string | null; caption: string | null; messageType: string } | null;
+  replyTo?: { id: string; direction: "INBOUND" | "OUTBOUND"; body: string | null; caption: string | null; messageType: string; filename?: string | null } | null;
   reactionEmoji?: string | null;
   agentReactionEmoji?: string | null;
   agentReactions?: AgentReaction[];
@@ -113,6 +113,31 @@ export function displayMessageText(body: string | null | undefined): string | nu
   if (!body) return null;
   if (body === "[interactive]") return "Mensaje con botones";
   return body;
+}
+
+// Texto corto para una cita o un preview. Los medios sin caption no tienen
+// body: antes se citaban como "[document]"/"[image]"; ahora se usa el nombre
+// del archivo o una etiqueta legible.
+export function messagePreview(message: {
+  messageType: string;
+  body?: string | null;
+  caption?: string | null;
+  filename?: string | null;
+}): string {
+  const raw = displayMessageText(message.body);
+  const placeholder = raw ? /^\[(image|video|audio|document|sticker)\]$/i.test(raw) : true;
+  const text = !placeholder ? raw : message.caption?.trim() || null;
+  if (text) return text;
+  switch (message.messageType) {
+    case "image": return "Imagen";
+    case "video": return "Video";
+    case "audio": return "Audio";
+    case "sticker": return "Sticker";
+    case "document": return message.filename ?? "Documento";
+    case "interactive": return "Mensaje con botones";
+    case "template": return "Plantilla";
+    default: return `[${message.messageType}]`;
+  }
 }
 
 function startOfDay(d: Date): number {

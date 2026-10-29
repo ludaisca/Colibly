@@ -28,7 +28,7 @@ import { ChatConversationHeader } from "./chat-conversation-header";
 import { ChatBubblesSkeleton } from "@/app/components/whatsapp/chat-skeletons";
 import { mediaEndpointFor, isPdfMime, type MediaChannel } from "@/lib/whatsapp/media-shared";
 import {
-  displayMessageText,
+  messagePreview,
   formatBubbleTime,
   formatDayDivider,
   formatBytes,
@@ -216,6 +216,9 @@ function MessageBubble({
   const mediaOnly =
     hasMedia &&
     msg.messageType !== "sticker" &&
+    // El audio usa controles nativos que ocupan el pie de la burbuja: la hora
+    // va debajo, no encima del reproductor.
+    msg.messageType !== "audio" &&
     !caption &&
     !(buttons && buttons.length > 0) &&
     !msg.replyToWamid &&
@@ -274,7 +277,7 @@ function MessageBubble({
         {msg.replyToWamid && (
           <div className="mb-2 max-w-full border-l-2 border-accent-strong bg-background/50 px-2.5 py-1.5 rounded-r-lg text-xs">
             <span className="block font-semibold text-accent-ink">{msg.replyTo?.direction === "OUTBOUND" ? "Tú" : msg.replyTo?.direction === "INBOUND" ? leadName : "Mensaje citado"}</span>
-            <span className="block truncate text-muted-darker">{msg.replyTo ? (displayMessageText(msg.replyTo.body) || msg.replyTo.caption || `[${msg.replyTo.messageType}]`) : "Mensaje anterior"}</span>
+            <span className="block truncate text-muted-darker">{msg.replyTo ? messagePreview(msg.replyTo) : "Mensaje anterior"}</span>
           </div>
         )}
         {hasMedia && (

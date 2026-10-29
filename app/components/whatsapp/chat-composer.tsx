@@ -7,7 +7,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { ChatAiMenu, ChatMoreMenu } from "./chat-composer-tools";
-import { displayMessageText, type CannedResponseItem, type Channel, type Message } from "./chat-shared";
+import { messagePreview, type CannedResponseItem, type Channel, type Message } from "./chat-shared";
 
 // Input + adjuntos + respuestas rápidas — extraído de chat-workspace.tsx sin
 // tocar el envío optimista (vive en el orquestador, que sigue siendo dueño de
@@ -246,7 +246,7 @@ export function ChatComposer({
           <Reply size={16} className="shrink-0 text-accent-ink" />
           <div className="min-w-0 flex-1 border-l-2 border-accent-strong pl-2 text-xs">
             <p className="font-semibold text-accent-ink">Respondiendo a {replyTo.direction === "OUTBOUND" ? "tu mensaje" : leadName}</p>
-            <p className="truncate text-muted-darker">{displayMessageText(replyTo.body) || replyTo.caption || `[${replyTo.messageType}]`}</p>
+            <p className="truncate text-muted-darker">{messagePreview(replyTo)}</p>
           </div>
           <button type="button" onClick={onCancelReply} className="rounded-lg p-1 text-muted-darker hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent" aria-label="Cancelar respuesta citada"><X size={16} /></button>
         </div>

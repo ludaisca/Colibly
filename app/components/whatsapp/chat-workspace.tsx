@@ -717,7 +717,7 @@ export function ChatWorkspace({
           const optimistic = prev.find((m) => m.id === tempId);
           return [
             ...prev.filter((m) => m.id !== tempId && m.id !== data.id),
-            { ...data, replyTo: opts.replyTo ? { id: opts.replyTo.id, direction: opts.replyTo.direction, body: opts.replyTo.body, caption: opts.replyTo.caption, messageType: opts.replyTo.messageType } : null, motionKey: optimistic?.motionKey ?? data.id },
+            { ...data, replyTo: opts.replyTo ? { id: opts.replyTo.id, direction: opts.replyTo.direction, body: opts.replyTo.body, caption: opts.replyTo.caption, messageType: opts.replyTo.messageType, filename: opts.replyTo.filename } : null, motionKey: optimistic?.motionKey ?? data.id },
           ];
         });
         if (opts.filePreviewUrl) URL.revokeObjectURL(opts.filePreviewUrl);
@@ -765,7 +765,7 @@ export function ChatWorkspace({
           : undefined,
       status: "sending",
       replyToWamid: quotedMessage?.wamid ?? null,
-      replyTo: quotedMessage ? { id: quotedMessage.id, direction: quotedMessage.direction, body: quotedMessage.body, caption: quotedMessage.caption, messageType: quotedMessage.messageType } : null,
+      replyTo: quotedMessage ? { id: quotedMessage.id, direction: quotedMessage.direction, body: quotedMessage.body, caption: quotedMessage.caption, messageType: quotedMessage.messageType, filename: quotedMessage.filename } : null,
       timestamp: new Date().toISOString(),
     };
 
