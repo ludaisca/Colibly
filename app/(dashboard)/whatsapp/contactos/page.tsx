@@ -148,13 +148,13 @@ export default function ContactosPage() {
       <ContactLimitBanner usage={contactUsage} />
 
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-2">
           <Input
             icon={Search}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Buscar por nombre o identificador..."
-            className="sm:max-w-xs flex-1"
+            className="min-w-0 flex-1"
           />
           <FiltersPanel
             panelTitle="Filtrar contactos"
