@@ -248,7 +248,7 @@ export default function NewLeadSheetSourcePage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-5 max-w-3xl mx-auto">
       <Link href="/whatsapp/campanas" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors mb-3">
         <ArrowLeft size={14} /> Volver a campañas
       </Link>
@@ -388,7 +388,7 @@ export default function NewLeadSheetSourcePage() {
                       </table>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-2">
                       <FormField label="Columna de teléfono" required error={errors.phoneColumn}>
                         {(id) => (
                           <Select id={id} value={phoneColumn} onChange={(e) => setPhoneColumn(e.target.value)} placeholder="Seleccionar" error={errors.phoneColumn}>
@@ -409,7 +409,7 @@ export default function NewLeadSheetSourcePage() {
                       <div className="space-y-3">
                         <p className="text-sm font-medium">Variables del cuerpo de la plantilla</p>
                         {errors.bodyColumns && <p className="text-xs text-danger">{errors.bodyColumns}</p>}
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-3 sm:grid-cols-2">
                           {Array.from({ length: bodyParamCount }).map((_, idx) => (
                             <FormField key={idx} label={`Variable {{${idx + 1}}}`} required>
                               {(id) => (

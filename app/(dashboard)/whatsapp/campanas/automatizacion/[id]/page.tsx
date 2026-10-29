@@ -208,11 +208,11 @@ export default function LeadSheetSourceDetailPage() {
         <Banner tone="danger">{source.lastError}</Banner>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-4">
           <SectionHeader title="Configuración" />
           <dl className="space-y-3 text-sm">
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-3">
               <dt className="text-muted-darker">Hoja</dt>
               <dd>
                 <a
@@ -225,31 +225,31 @@ export default function LeadSheetSourceDetailPage() {
                 </a>
               </dd>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-3">
               <dt className="text-muted-darker">Columna de teléfono</dt>
               <dd className="font-mono text-xs">{source.phoneColumn}</dd>
             </div>
             {source.nameColumn && (
-              <div className="flex justify-between gap-4">
+              <div className="flex justify-between gap-3">
                 <dt className="text-muted-darker">Columna de nombre</dt>
                 <dd className="font-mono text-xs">{source.nameColumn}</dd>
               </div>
             )}
             {source.bodyColumns.length > 0 && (
-              <div className="flex justify-between gap-4">
+              <div className="flex justify-between gap-3">
                 <dt className="text-muted-darker">Variables del cuerpo</dt>
                 <dd className="font-mono text-xs text-right">{source.bodyColumns.map((c, i) => `{{${i + 1}}}=${c}`).join(", ")}</dd>
               </div>
             )}
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-3">
               <dt className="text-muted-darker">Última corrida</dt>
               <dd className="text-xs">{source.lastRunAt ? new Date(source.lastRunAt).toLocaleString("es-MX") : "Nunca"}</dd>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-3">
               <dt className="text-muted-darker">Enviados en la última corrida</dt>
               <dd className="text-xs">{source.lastImportedCount}</dd>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-3">
               <dt className="text-muted-darker">Filas vistas al conectar, sin enviar</dt>
               <dd className="text-xs">{seededCount}</dd>
             </div>
@@ -262,7 +262,7 @@ export default function LeadSheetSourceDetailPage() {
         <section className="min-w-0 space-y-4">
           <SectionHeader title="Actividad reciente" />
           <Table
-            className="rounded-xl border border-border bg-surface p-5 shadow-sm"
+            className="rounded-xl border border-border bg-surface p-4 shadow-sm"
             columns={rowColumns}
             rows={source.recentRows}
             rowKey={(r) => r.id}

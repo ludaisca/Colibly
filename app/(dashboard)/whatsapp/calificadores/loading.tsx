@@ -3,7 +3,7 @@ import { Skeleton, SkeletonRow } from "@/app/components/ui/skeleton";
 
 export default function CalificadoresLoading() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Calificadores de Leads"
         description="Crea agentes de IA que analizan una conversación y la califican con tu propio criterio — cada uno con su prompt libre, para el negocio que vendas."

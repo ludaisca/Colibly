@@ -9,7 +9,7 @@ export default function EstadisticasLoading() {
       {/* Franja KPI */}
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="space-y-2 rounded-xl border border-border bg-surface p-5 shadow-sm">
+          <div key={i} className="space-y-2 rounded-xl border border-border bg-surface p-4 shadow-sm">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-7 w-20" />
           </div>
@@ -50,7 +50,7 @@ export default function EstadisticasLoading() {
           {/* Chats calificados (dona) */}
           <div className="space-y-3">
             <Skeleton className="h-6 w-36" />
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Skeleton className="h-28 w-28 shrink-0 rounded-full" />
               <div className="flex-1 space-y-2">
                 {Array.from({ length: 3 }).map((_, i) => (

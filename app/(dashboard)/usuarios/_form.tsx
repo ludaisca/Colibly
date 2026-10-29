@@ -116,7 +116,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
           </Banner>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Nombre" required error={fieldErrors.name}>
             {(id) => (
               <Input
@@ -141,7 +141,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
             )}
           </FormField>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Contraseña" required error={fieldErrors.password}>
             {(id) => (
               <Input

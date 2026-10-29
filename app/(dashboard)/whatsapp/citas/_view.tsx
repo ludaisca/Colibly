@@ -190,7 +190,7 @@ export function CitasView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Citas"
         description="Agenda de citas por contacto — recordatorios automáticos incluidos."
@@ -243,7 +243,7 @@ export function CitasView() {
           action={<Button size="sm" icon={Plus} onClick={() => { setEditing(null); setModalOpen(true); }}>Nueva cita</Button>}
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {groups.map(([key, rows]) => (
             <div key={key} className="space-y-2">
               <SectionHeader title={dayLabel(rows[0].scheduledAt)} />

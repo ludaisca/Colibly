@@ -142,7 +142,7 @@ export function WebhookFormModal({
         </FormField>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-foreground">Todos los eventos</p>
               <p className="text-xs text-muted-darker">Incluye los que se agreguen en el futuro.</p>

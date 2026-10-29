@@ -142,7 +142,7 @@ export function WebchatCuentaFormModal({ open, onClose, editId = null, onSaved }
       }
     >
       {loading ? (
-        <div className="flex justify-center py-8"><Spinner /></div>
+        <div className="flex justify-center py-6"><Spinner /></div>
       ) : showSnippet ? (
         <div className="space-y-3">
           <p className="text-sm text-muted">

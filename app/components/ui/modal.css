@@ -34,10 +34,10 @@
   box-shadow: var(--shadow-lg);
   outline: none;
 }
-.colibly-modal-header, .colibly-modal-footer { flex: none; padding: 16px; }
+.colibly-modal-header, .colibly-modal-footer { flex: none; padding: 14px; }
 .colibly-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); }
-.colibly-modal-body { min-height: 0; flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; padding: 16px; }
-.colibly-modal-footer { display: flex; flex-direction: column-reverse; gap: 8px; border-top: 1px solid var(--border); padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.colibly-modal-body { min-height: 0; flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; padding: 14px; }
+.colibly-modal-footer { display: flex; flex-direction: column-reverse; gap: 8px; border-top: 1px solid var(--border); padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
 .colibly-modal-footer > * { width: 100%; }
 .colibly-modal-close { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 12px; color: var(--muted); cursor: pointer; }
 .colibly-modal-close:hover { background: var(--surface-light); color: var(--foreground); }
@@ -57,8 +57,8 @@
   .colibly-modal-dialog[data-colibly-size="md"] { max-width: 448px; }
   .colibly-modal-dialog[data-colibly-size="lg"] { max-width: 512px; }
   .colibly-modal-dialog[data-colibly-size="xl"] { max-width: 672px; }
-  .colibly-modal-header, .colibly-modal-footer { padding: 20px 24px; }
-  .colibly-modal-body { padding: 20px 24px; }
+  .colibly-modal-header, .colibly-modal-footer { padding: 16px 20px; }
+  .colibly-modal-body { padding: 16px 20px; }
   .colibly-modal-footer { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
   .colibly-modal-footer > * { width: auto; }
 }

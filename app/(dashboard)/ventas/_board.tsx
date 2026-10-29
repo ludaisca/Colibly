@@ -70,7 +70,7 @@ function Column({
         )}
       >
         {contacts.length === 0 && (
-          <div className="flex flex-1 items-center justify-center py-8">
+          <div className="flex flex-1 items-center justify-center py-6">
             <p className="text-xs text-muted">Sin leads</p>
           </div>
         )}
@@ -329,7 +329,7 @@ export function PipelineBoard({
           {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name} ({boardData[stage.id]?.length ?? 0})</option>)}
         </Select>
       </div>
-      <div className="flex gap-4 overflow-hidden pb-4 sm:overflow-x-auto">
+      <div className="flex gap-3 overflow-hidden pb-4 sm:overflow-x-auto">
         {stages.map((stage, index) => (
           <Column
             key={stage.id}

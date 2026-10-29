@@ -22,7 +22,7 @@ export function SectionHeader({ title, eyebrow, action, className }: SectionHead
             {eyebrow}
           </p>
         )}
-        <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
+        <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
           {title}
         </h2>
       </div>

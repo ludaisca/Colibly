@@ -145,7 +145,7 @@ export function PlatformView({
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Plataforma" description={`Todas las organizaciones de ${BRAND_NAME}, su cobro y acciones de soporte.`} />
 
       <HeroTabs items={TABS.map((id) => ({ id, label: TAB_LABEL[id] }))} value={tab} onChange={setTab} label="Secciones de Plataforma">
@@ -195,7 +195,7 @@ export function PlatformView({
 
             <p className="text-sm text-muted">{n(total)} organización(es)</p>
             <Table
-              className="rounded-xl border border-border bg-surface p-5 shadow-sm"
+              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
               columns={columns}
               rows={rows}
               rowKey={(r) => r.id}
@@ -263,7 +263,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
 
   return (
     <Modal open onClose={onClose} title={org.name} size="xl">
-      <div className="space-y-6">
+      <div className="space-y-5">
         {error && <Banner tone="danger">{error}</Banner>}
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
           {detail.map(([k, v]) => (
@@ -274,7 +274,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
           ))}
         </dl>
 
-        <div className="space-y-3 border-t border-border pt-5">
+        <div className="space-y-3 border-t border-border pt-4">
           <div>
             <p className="text-sm font-medium">Canales (disponibles por defecto)</p>
             <p className="text-xs text-muted-darker">
@@ -310,7 +310,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
           </div>
         </div>
 
-        <div className="space-y-3 border-t border-border pt-5">
+        <div className="space-y-3 border-t border-border pt-4">
           <div>
             <p className="text-sm font-medium">WhatsApp: número de la app WhatsApp Business</p>
             <p className="text-xs text-muted-darker">
@@ -332,8 +332,8 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
         </div>
 
         {!org.isInternal && (
-          <div className="space-y-4 border-t border-border pt-5">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-4 border-t border-border pt-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <form
                 className="space-y-2"
                 onSubmit={(e) => {

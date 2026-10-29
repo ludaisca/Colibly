@@ -46,7 +46,7 @@ export function ApiDocsSection() {
   const base = `${origin}/api/v1`;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <Card as="section" className="space-y-3">
         <SectionHeader
           eyebrow="Referencia"

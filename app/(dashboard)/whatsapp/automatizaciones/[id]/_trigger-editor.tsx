@@ -148,14 +148,14 @@ export function TriggerEditor({
       )}
 
       <div className="space-y-4 border-t border-border pt-5">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-foreground">Puede repetirse para el mismo contacto</p>
             <p className="text-xs text-muted-darker">Si está apagado, cada contacto pasa una sola vez.</p>
           </div>
           <Switch checked={settings.allowReentry} onCheckedChange={(allowReentry) => onSettingsChange({ ...settings, allowReentry })} label="Puede repetirse" />
         </div>
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-foreground">Salir si el contacto escribe durante una espera</p>
             <p className="text-xs text-muted-darker">Útil en seguimientos: no seguir el guion con alguien que ya está conversando.</p>

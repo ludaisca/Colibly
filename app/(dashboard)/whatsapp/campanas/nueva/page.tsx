@@ -406,13 +406,13 @@ export default function NewCampaignPage() {
   const totalRecipients = recipients.filter(r => r.phoneNumber.trim()).length + csvRows.length;
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-5 max-w-4xl mx-auto">
       <Link href="/whatsapp/campanas" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors mb-3">
         <ArrowLeft size={14} /> Volver a campañas
       </Link>
       <h1 className="text-2xl font-bold tracking-tight">Nueva campaña</h1>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px] items-start">
+      <div className="grid gap-5 lg:grid-cols-[1fr_320px] items-start">
         <Card>
           <form onSubmit={handleSubmit}>
             <CardBody>
@@ -714,7 +714,7 @@ export default function NewCampaignPage() {
           {selectedTemplate ? (
             <TemplatePreview components={selectedTemplate.components} headerImagePreview={headerPreviewUrl} />
           ) : (
-            <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-darker">
+            <div className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-darker">
               Selecciona una plantilla para ver la vista previa
             </div>
           )}

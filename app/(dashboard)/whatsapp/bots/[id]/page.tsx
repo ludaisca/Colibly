@@ -301,7 +301,7 @@ export default function BotDetailPage() {
       )}
 
       {tab === "knowledge" && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {knowledgeError && <Banner tone="danger">{knowledgeError} <button onClick={fetchKnowledge} className="underline">Reintentar</button></Banner>}
           <section className="space-y-4">
             <SectionHeader title="Subir documento" />
@@ -397,7 +397,7 @@ export default function BotDetailPage() {
       )}
 
       {tab === "uso" && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           <KpiStrip
             size="compact"
             items={[
@@ -410,7 +410,7 @@ export default function BotDetailPage() {
           <section className="space-y-4">
             <SectionHeader title={`Últimas interacciones (${usageData?.total.interactions ?? 0} total)`} />
             <Table
-              className="rounded-xl border border-border bg-surface p-5 shadow-sm"
+              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
               columns={usageColumns}
               rows={usageData?.recent ?? []}
               rowKey={(u) => `${u.createdAt}-${u.totalTokens}-${u.estimatedCost}`}

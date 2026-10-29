@@ -58,7 +58,7 @@ export default function CampaignsPage() {
   const [tab, setTab] = useState<Tab>("campanas");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Campañas"
         description="Envía mensajes masivos usando plantillas de WhatsApp, manualmente o disparados en automático desde una hoja de Google Sheets."
@@ -277,7 +277,7 @@ function AutomationTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-darker max-w-xl">
           Conecta una hoja de Google Sheets (por ejemplo, la que Facebook Lead Ads sincroniza por ti) y dispara
           automáticamente una plantilla apenas aparezca un lead nuevo. Se revisa cada 5 minutos, dentro del horario

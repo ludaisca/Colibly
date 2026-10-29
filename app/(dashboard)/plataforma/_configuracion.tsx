@@ -195,17 +195,17 @@ function SettingsBlock({ eyebrow, title, status, defaultOpen, children }: { eyeb
       }}
       className="group min-w-0 rounded-xl border border-border bg-surface"
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl p-4 sm:p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
           <span className="block text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{eyebrow}</span>
-          <span className="block font-display text-base font-semibold tracking-tight text-foreground sm:text-lg">{title}</span>
+          <span className="block font-display text-base font-semibold tracking-tight text-foreground text-base">{title}</span>
         </span>
         <span className="flex shrink-0 items-center gap-2">
           <Badge tone={status.tone} size="sm">{status.label}</Badge>
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-muted transition-transform group-open:rotate-180"><path d="M6 9l6 6 6-6" /></svg>
         </span>
       </summary>
-      <div className="min-w-0 space-y-4 border-t border-border p-4 sm:p-5">{children}</div>
+      <div className="min-w-0 space-y-4 border-t border-border p-4">{children}</div>
     </details>
   );
 }
@@ -389,7 +389,7 @@ export function PlataformaConfiguracion() {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-3xl space-y-4 sm:space-y-6">
+    <div className="w-full min-w-0 max-w-3xl space-y-4 sm:space-y-5">
       <Banner tone="info">
         Estas credenciales sirven a todas las organizaciones de la plataforma. Los campos cifrados llegan ocultos: &ldquo;Mostrar&rdquo; enseña el valor
         guardado durante 60 segundos (queda registrado en el log), escribe un valor nuevo para reemplazarlo o usa &ldquo;Quitar&rdquo; para borrarlo.
@@ -415,7 +415,7 @@ export function PlataformaConfiguracion() {
           revealField="googleApiKey"
           onToggleClear={() => toggleClear("googleApiKey")}
         />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FormField label="Modelo de texto" hint="Respuestas, calificación, recuperación y automatizaciones. Vacío usa GLM 5.3 Flash.">
             {(id) => (
               <Select id={id} value={plain.aiTextModel} onChange={(e) => setPlain((p) => ({ ...p, aiTextModel: e.target.value }))}>
@@ -460,7 +460,7 @@ export function PlataformaConfiguracion() {
           revealField="stripeWebhookSecret"
           onToggleClear={() => toggleClear("stripeWebhookSecret")}
         />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <FormField label="Price id Básico ($59 MXN por usuario/mes)" hint="Precio recurrente mensual en MXN, por unidad: la cantidad de la suscripción = usuarios.">
             {(id) => <Input id={id} value={plain.stripePriceEssential} onChange={(e) => setPlain((p) => ({ ...p, stripePriceEssential: e.target.value }))} placeholder="price_..." />}
           </FormField>
@@ -485,7 +485,7 @@ export function PlataformaConfiguracion() {
       </SettingsBlock>
 
       <SettingsBlock eyebrow="Correo" title="SMTP" status={blockStatus([!!data.smtpHost, !!data.smtpUser, data.hasSmtpPass])} defaultOpen={wide}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FormField label="Host">
             {(id) => <Input id={id} value={plain.smtpHost} onChange={(e) => setPlain((p) => ({ ...p, smtpHost: e.target.value }))} placeholder="smtp.ejemplo.com" />}
           </FormField>
@@ -534,7 +534,7 @@ export function PlataformaConfiguracion() {
           Datos de la app de Meta de Colibly. Con ellos los clientes conectan su WhatsApp con un botón, sin copiar tokens. El App Secret
           firma los webhooks de esas cuentas; nunca se vuelve a mostrar.
         </Banner>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FormField label="App ID" hint="Panel de Meta → Configuración de la app → Básica.">
             {(id) => <Input id={id} value={plain.metaAppId} inputMode="numeric" onChange={(e) => setPlain((p) => ({ ...p, metaAppId: e.target.value }))} />}
           </FormField>
@@ -575,7 +575,7 @@ export function PlataformaConfiguracion() {
           revealField="metaCapiAccessToken"
           onToggleClear={() => toggleClear("metaCapiAccessToken")}
         />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FormField label="GA4 Measurement ID">
             {(id) => <Input id={id} value={plain.gaMeasurementId} onChange={(e) => setPlain((p) => ({ ...p, gaMeasurementId: e.target.value }))} placeholder="G-XXXXXXXXXX" />}
           </FormField>

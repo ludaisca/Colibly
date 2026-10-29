@@ -119,7 +119,7 @@ function InstagramCuentasView() {
   }), [accounts, search, statusFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Cuentas Instagram"
         description="Administra las cuentas profesionales de Instagram conectadas para mensajería directa."

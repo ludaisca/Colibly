@@ -95,7 +95,7 @@ export function Table<T>({
 
   return (
     <div className={className}>
-      <div className="-mx-5 hidden overflow-x-auto sm:block" role="region" aria-label="Tabla desplazable horizontalmente" tabIndex={0}>
+      <div className="-mx-4 hidden overflow-x-auto sm:block" role="region" aria-label="Tabla desplazable horizontalmente" tabIndex={0}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-y border-border">
@@ -106,7 +106,7 @@ export function Table<T>({
                     ? sort?.key === col.key ? sort.direction === "asc" ? "ascending" : "descending" : "none"
                     : undefined}
                   className={cn(
-                    "px-4 py-2.5 text-left text-xs font-medium text-muted-darker uppercase tracking-wider first:pl-5",
+                    "px-3 py-2 text-left text-xs font-medium text-muted-darker uppercase tracking-wider first:pl-4",
                     col.hideBelow && HIDE_BELOW_CLASS[col.hideBelow],
                     col.headerClassName
                   )}
@@ -124,7 +124,7 @@ export function Table<T>({
                 </th>
               ))}
               {rowActions && (
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-darker uppercase tracking-wider w-12"><span className="sr-only">Acciones</span></th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-muted-darker uppercase tracking-wider w-12"><span className="sr-only">Acciones</span></th>
               )}
             </tr>
           </thead>
@@ -139,7 +139,7 @@ export function Table<T>({
                   <td
                     key={col.key}
                     className={cn(
-                      "px-4 py-3 first:pl-5",
+                      "px-3 py-2 first:pl-4",
                       col.hideBelow && HIDE_BELOW_CLASS[col.hideBelow],
                       col.cellClassName
                     )}
@@ -148,7 +148,7 @@ export function Table<T>({
                   </td>
                 ))}
                 {rowActions && (
-                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                     <Dropdown
                       align="right"
                       trigger={
@@ -167,12 +167,12 @@ export function Table<T>({
         </table>
       </div>
 
-      <div className="sm:hidden divide-y divide-border -mx-5">
+      <div className="sm:hidden divide-y divide-border -mx-4">
         {rows.map((row) => (
           <div
             key={rowKey(row)}
             className={cn(
-              "px-5 py-4 flex items-start justify-between gap-3 hover:bg-surface-light/20 transition-colors",
+              "px-4 py-3 flex items-start justify-between gap-3 hover:bg-surface-light/20 transition-colors",
               onRowClick && "cursor-pointer"
             )}
             onClick={onRowClick ? () => onRowClick(row) : undefined}

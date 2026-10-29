@@ -21,7 +21,7 @@ function SkeletonCard() {
 
 export default function VentasLoading() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="animate-pulse space-y-2">
         <div className="h-8 w-36 rounded bg-surface-light" />
         <div className="h-4 w-56 rounded bg-surface-light" />
@@ -29,7 +29,7 @@ export default function VentasLoading() {
 
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="rounded-xl border border-border bg-surface p-5 shadow-sm animate-pulse space-y-2">
+          <div key={i} className="rounded-xl border border-border bg-surface p-4 shadow-sm animate-pulse space-y-2">
             <div className="h-3 w-16 rounded bg-surface-light" />
             <div className="h-7 w-12 rounded bg-surface-light" />
             <div className="h-3 w-20 rounded bg-surface-light" />
@@ -37,7 +37,7 @@ export default function VentasLoading() {
         ))}
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-3 overflow-x-auto pb-4">
         {PIPELINE_STAGES.map((stage) => (
           <div key={stage} className="flex min-w-[300px] max-w-[360px] flex-1 flex-col">
             <div className="mb-3 flex items-center gap-2 px-1">

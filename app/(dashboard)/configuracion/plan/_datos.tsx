@@ -46,7 +46,7 @@ export function DataSection({ organizationName, isOwner, isInternal }: { organiz
     <section className="space-y-4">
       <SectionHeader eyebrow="Tus datos" title="Exportar o eliminar" />
       <div className="divide-y divide-border rounded-xl border border-border bg-surface">
-        <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium">Descargar todos los datos</p>
             <p className="mt-1 text-sm text-muted">
@@ -59,7 +59,7 @@ export function DataSection({ organizationName, isOwner, isInternal }: { organiz
           </Button>
         </div>
         {!isInternal && (
-          <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium">Eliminar la organización</p>
               <p className="mt-1 text-sm text-muted">

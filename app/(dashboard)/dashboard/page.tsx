@@ -163,7 +163,7 @@ export default async function DashboardPage() {
   const showOnboarding = onboarding.some((step) => !step.done);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="animate-fade-in-up">
         <PageHeader title="Panel" description="Resumen de la actividad de tus canales" />
       </div>
@@ -180,11 +180,11 @@ export default async function DashboardPage() {
           un mensaje verde de "todo en orden" daría una señal equivocada. */}
       <div
         className={cn(
-          "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-4 rounded-xl px-6 py-5 shadow-sm",
+          "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 shadow-sm",
           needsSetup ? "bg-info-bg" : needsAttention ? "bg-warning-bg" : "bg-success-bg"
         )}
       >
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-3">
           <span
             className={cn(
               "h-2.5 w-2.5 shrink-0 rounded-full",
@@ -192,7 +192,7 @@ export default async function DashboardPage() {
             )}
           />
           <div>
-            <p className={cn("font-display text-lg font-bold", needsSetup ? "text-info" : needsAttention ? "text-warning" : "text-success")}>
+            <p className={cn("font-display text-base font-bold", needsSetup ? "text-info" : needsAttention ? "text-warning" : "text-success")}>
               {needsSetup ? "Prepara tu bandeja" : needsAttention ? "Necesita tu atención" : "Todo en orden"}
             </p>
             <p className="mt-0.5 text-sm text-muted">
@@ -213,7 +213,7 @@ export default async function DashboardPage() {
       <Workbench>
         <WorkbenchMain>
           <section className="animate-fade-in-up animation-delay-300 rounded-xl border border-border bg-surface shadow-sm">
-            <div className="flex items-baseline justify-between gap-3 px-5 py-4">
+            <div className="flex items-baseline justify-between gap-3 px-4 py-3">
               <SectionHeader
                 eyebrow="Actividad"
                 title="Chats recientes"
@@ -231,7 +231,7 @@ export default async function DashboardPage() {
             </div>
 
             {chats.length === 0 ? (
-              <div className="px-5 py-10 text-center">
+              <div className="px-4 py-10 text-center">
                 <p className="text-sm text-muted-darker">No hay conversaciones aún.</p>
                 <p className="text-xs text-muted mt-1">
                   Conecta un canal para empezar a recibir mensajes.
@@ -243,7 +243,7 @@ export default async function DashboardPage() {
                   <Link
                     key={chat.id}
                     href={`/whatsapp/chat/${chat.accountId}/${chat.id}`}
-                    className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-5 py-3 transition-colors hover:bg-surface-light sm:flex sm:items-center sm:gap-3"
+                    className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-surface-light sm:flex sm:items-center sm:gap-3"
                   >
                     <div className="row-span-2 sm:row-span-1"><EntityAvatar id={chat.accountId} name={chat.name} size="sm" /></div>
                     <div className="min-w-0 flex-1">
@@ -267,14 +267,14 @@ export default async function DashboardPage() {
 
         <WorkbenchAside>
           <section className="animate-fade-in-up animation-delay-400 rounded-xl border border-border bg-surface shadow-sm">
-            <div className="px-5 py-4">
+            <div className="px-4 py-3">
               <SectionHeader eyebrow="Atajos" title="Acceso rápido" />
             </div>
 
             <div className="divide-y divide-border">
               <Link
                 href="/whatsapp/cuentas?nueva=1"
-                className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-light"
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-light"
               >
                 <IconBox icon={Plus} size="sm" tone="accent-2" />
                 <div className="min-w-0">
@@ -285,7 +285,7 @@ export default async function DashboardPage() {
 
               <Link
                 href="/whatsapp/chat"
-                className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-light"
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-light"
               >
                 <IconBox icon={MessageCircle} size="sm" tone="accent-2" />
                 <div className="min-w-0">
@@ -296,7 +296,7 @@ export default async function DashboardPage() {
 
               <Link
                 href="/configuracion"
-                className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-light"
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-light"
               >
                 <IconBox icon={Settings} size="sm" tone="accent-2" />
                 <div className="min-w-0">

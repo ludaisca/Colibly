@@ -107,7 +107,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Pipeline"
         description={`${pipelines.length} ${pipelines.length === 1 ? "embudo" : "embudos"} · ${conversionPct}% en etapas ganadas`}

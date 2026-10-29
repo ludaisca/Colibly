@@ -432,7 +432,7 @@ export default function CuentaDetailPage() {
         </Banner>
       )}
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         <ConexionCard initial={account} />
         <section className="space-y-4">
           <SectionHeader title="Información de la cuenta" />
@@ -567,7 +567,7 @@ export default function CuentaDetailPage() {
               Este número sigue en la app de WhatsApp. Las llamadas se contestan en el celular, no en Colibly.
             </p>
           ) : (
-            <div className="flex items-center justify-between gap-4 py-1">
+            <div className="flex items-center justify-between gap-3 py-1">
               <div>
                 <p className="text-sm font-medium text-foreground">Recibir y hacer llamadas en la bandeja</p>
                 <p className="text-xs text-muted-darker">

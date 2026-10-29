@@ -84,7 +84,7 @@ export function DemoShowcase() {
   };
 
   return <div className="demo-showcase mx-auto max-w-[1650px] space-y-5 pb-12">
-    <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
       <div><span className="demo-eyebrow"><Sparkles size={13} /> Laboratorio de diseño · desarrollo</span><h1 className="mt-3 font-display text-2xl font-bold text-foreground sm:text-3xl">Colibly, pantalla por pantalla</h1><p className="mt-1 max-w-3xl text-sm text-muted">Explora una propuesta visual de 21 vistas. Combina la bandeja interactiva, filtros y controles accesibles, con tarjetas y transiciones inspiradas en Watermelon UI. Todos los datos son ficticios.</p></div>
       <div className="flex gap-2"><a href="https://ui.watermelon.sh/" target="_blank" rel="noreferrer" className="demo-source">Watermelon UI ↗</a><a href="https://heroui.com/" target="_blank" rel="noreferrer" className="demo-source">HeroUI ↗</a><a href="https://ui.spectrumhq.in/" target="_blank" rel="noreferrer" className="demo-source">Spectrum UI ↗</a></div>
     </div>

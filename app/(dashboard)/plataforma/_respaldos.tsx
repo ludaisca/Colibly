@@ -258,7 +258,7 @@ export function PlataformaRespaldos() {
             </Button>
           }
         />
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
             <dt className="text-eyebrow uppercase text-muted">Programación</dt>
             <dd className="mt-1">
@@ -283,7 +283,7 @@ export function PlataformaRespaldos() {
           Cada respaldo <strong>sobrescribe al anterior</strong> en {data.objectKeys.db}. Compatible con AWS S3, Cloudflare R2, Backblaze B2, MinIO y similares. La clave
           necesita permiso de lectura y escritura sobre el bucket.
         </Banner>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FormField label="Endpoint" hint="R2: https://<id-de-cuenta>.r2.cloudflarestorage.com. Vacío para AWS S3.">
             {(id) => <Input id={id} value={form.endpoint} onChange={(e) => change("endpoint", e.target.value)} placeholder="https://…" />}
           </FormField>
@@ -339,7 +339,7 @@ export function PlataformaRespaldos() {
           <Switch checked={form.enabled} onCheckedChange={(v) => change("enabled", v)} label="Respaldo diario activado" />
           Respaldo diario activado
         </label>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FormField label="Hora del respaldo" hint="Hora de Ciudad de México. Al activarlo, el primer respaldo sale de inmediato.">
             {(id) => (
               <Select id={id} value={form.hour} onChange={(e) => change("hour", e.target.value)}>

@@ -39,7 +39,7 @@ export function Banner({
     <div
       role={isDestructive ? "alert" : "status"}
       className={cn(
-        "flex gap-3 rounded-lg border px-4 py-3 text-sm",
+        "flex gap-2.5 rounded-lg border px-3 py-2.5 text-sm",
         bg,
         border,
         className
@@ -49,7 +49,7 @@ export function Banner({
       <div className="flex-1 min-w-0">
         {title && <p className={cn("font-medium mb-0.5", text)}>{title}</p>}
         <div className="text-foreground/80">{children}</div>
-        {action && <div className="mt-2">{action}</div>}
+        {action && <div className="mt-1.5">{action}</div>}
       </div>
       {onClose && (
         <button

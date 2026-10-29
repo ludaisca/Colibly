@@ -168,7 +168,7 @@ export function HorizontalBarChart({
   const reducedMotion = useReducedMotion();
 
   if (data.length === 0) {
-    return <p className="py-6 text-center text-sm text-muted">{emptyLabel}</p>;
+    return <p className="py-5 text-center text-sm text-muted">{emptyLabel}</p>;
   }
 
   const height = Math.max(data.length * 34, 64);
@@ -212,7 +212,7 @@ export function DeliveryComparisonChart({ data }: { data: Estadisticas["campaign
   const hasData = data.some((d) => d.total > 0);
 
   if (!hasData) {
-    return <p className="py-6 text-center text-sm text-muted">Sin envíos todavía</p>;
+    return <p className="py-5 text-center text-sm text-muted">Sin envíos todavía</p>;
   }
 
   const chartData = data.map((d) => ({
@@ -271,7 +271,7 @@ export function QualifiedLabelDonut({
   const reducedMotion = useReducedMotion();
 
   if (data.length === 0) {
-    return <p className="py-6 text-center text-sm text-muted">Sin calificaciones todavía</p>;
+    return <p className="py-5 text-center text-sm text-muted">Sin calificaciones todavía</p>;
   }
 
   const chartData = data.map((d) => ({
@@ -281,7 +281,7 @@ export function QualifiedLabelDonut({
   }));
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-3">
       <div
         className="relative h-28 w-28 shrink-0"
         role="img"

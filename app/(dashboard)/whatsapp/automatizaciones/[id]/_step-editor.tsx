@@ -461,7 +461,7 @@ function OptionsEditor({ step, channel, onChange }: { step: StepOf<"send_buttons
           </Select>
         )}
       </FormField>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-foreground">Entender respuestas escritas con IA</p>
           <p className="text-xs text-muted-darker">Si escribe “quiero relajarme” en vez de tocar un botón, la IA elige la opción.</p>

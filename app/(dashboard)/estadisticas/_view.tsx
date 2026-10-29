@@ -261,7 +261,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
             <SectionHeader eyebrow="Inteligencia artificial" title="Inversión en IA" />
             <div className="mt-3 space-y-4">
               <div>
-                <p className="font-mono text-hero font-semibold tracking-tight">{formatCost(stats.totalCost)}</p>
+                <p className="font-mono text-3xl font-semibold tracking-tight">{formatCost(stats.totalCost)}</p>
                 <p className="text-xs text-muted">costo estimado histórico</p>
               </div>
               <div className="flex items-baseline gap-2">

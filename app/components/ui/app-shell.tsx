@@ -79,7 +79,7 @@ function SidebarContent({
           aria-current={active ? "page" : undefined}
           className={cn(
             "flex items-center text-sm font-medium transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
-            collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2.5",
+            collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
             // Radio cercano al de la marca (rx=9 sobre 32): el item mide 40px
             // de alto, así que 12px conserva la misma proporción visual.
             active
@@ -96,7 +96,7 @@ function SidebarContent({
 
   return (
     <div className={cn("flex flex-col h-full transition-all", collapsed ? "items-center px-2" : "")}>
-      <div className={cn("shrink-0 transition-all", collapsed ? "px-0 py-5" : "px-4 py-5")}>
+      <div className={cn("shrink-0 transition-all", collapsed ? "px-0 py-5" : "px-4 py-4")}>
         {logoArea ?? (
           <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2">
             <BrandMark className="h-8 w-8" />
@@ -110,7 +110,7 @@ function SidebarContent({
       </div>
 
       <nav className={cn("scrollbar-thin w-full flex-1 overflow-y-auto overflow-x-hidden", collapsed ? "px-1" : "px-3")}>
-        <div className="flex flex-col gap-5 w-full">
+        <div className="flex flex-col gap-3.5 w-full">
           {nav.map((groupOrItem, index) => {
             const isGroup = "items" in groupOrItem;
             if (isGroup) {
@@ -223,7 +223,7 @@ export function AppShell({
       <aside
         className={cn(
           "hidden md:flex border-r border-border/60 bg-background flex-col shrink-0 transition-all duration-200",
-          collapsed ? "w-16" : "w-60 lg:w-64"
+          collapsed ? "w-14" : "w-56 lg:w-60"
         )}
       >
         <SidebarContent
@@ -252,10 +252,7 @@ export function AppShell({
             el header (y sus dropdowns z-50) en una capa atómica — sin elevar el
             header completo, el contenido de <main> (posterior en el DOM) pinta
             encima de los menús de usuario/notificaciones y les roba los clicks. */}
-        <header className={cn(
-          "relative z-40 flex shrink-0 items-center gap-2 bg-background/80 px-3 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6",
-          fullBleed ? "py-1" : "py-3"
-        )}>
+        <header className="relative z-40 flex shrink-0 items-center gap-2 bg-background/80 px-3 py-1 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6">
           <button
             onClick={() => setDrawerOpen(true)}
             className="md:hidden text-foreground hover:text-muted transition-colors"
@@ -301,7 +298,7 @@ export function AppShell({
           tabIndex={-1}
           className={cn(
             "flex-1 animate-fade-in",
-            fullBleed ? "flex flex-col min-h-0 overflow-hidden" : "p-4 md:p-6 lg:p-8"
+            fullBleed ? "flex flex-col min-h-0 overflow-hidden" : "p-3 md:p-5 lg:p-6"
           )}
         >
           {children}

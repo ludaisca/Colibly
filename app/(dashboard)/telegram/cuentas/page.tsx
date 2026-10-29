@@ -119,7 +119,7 @@ function TelegramCuentasView() {
   }), [accounts, search, statusFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Cuentas Telegram"
         description="Administra los bots de Telegram conectados."

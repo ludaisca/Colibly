@@ -131,12 +131,12 @@ export default function ContactosPage() {
   }, [fetchAccounts]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Contactos"
         description="Etiquetas, estado de lead y notas por contacto."
         actions={
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <ContactUsageMeter usage={contactUsage} />
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchContacts}>
               Actualizar

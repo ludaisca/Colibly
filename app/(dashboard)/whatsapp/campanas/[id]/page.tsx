@@ -191,7 +191,7 @@ export default function CampaignDetailPage() {
         </>
       }
     >
-      <div className="space-y-8">
+      <div className="space-y-6">
         <KpiStrip
           size="compact"
           items={[
@@ -232,7 +232,7 @@ export default function CampaignDetailPage() {
         <section className="space-y-4">
           <SectionHeader title={`Destinatarios (${campaign.recipientCount})`} />
           <Table
-            className="rounded-xl border border-border bg-surface p-5 shadow-sm"
+            className="rounded-xl border border-border bg-surface p-4 shadow-sm"
             columns={recipientColumns}
             rows={recipients}
             rowKey={(r) => r.id}

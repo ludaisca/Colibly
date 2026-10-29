@@ -119,7 +119,7 @@ function MessengerCuentasView() {
   }), [accounts, search, statusFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Cuentas Messenger"
         description="Administra las Páginas de Facebook conectadas para mensajería de Messenger."

@@ -283,7 +283,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
       description="Crea una plantilla que será enviada a revisión por Meta."
       maxWidth="max-w-6xl"
     >
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
         {/* FORM */}
         <Card as="section" className="min-w-0 space-y-5">
           {error && <Banner tone="danger">{error}</Banner>}
@@ -298,7 +298,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
             )}
           </FormField>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             <FormField label="Nombre" required hint="Ej: promo_junio_2026">
               {(id) => (
                 <Input

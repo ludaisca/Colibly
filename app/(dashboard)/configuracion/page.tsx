@@ -199,10 +199,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader title="Configuración" description="Administra tu cuenta y preferencias." />
 
-      <Card className="flex items-center gap-4">
+      <Card className="flex items-center gap-3">
         <EntityAvatar id={user?.id ?? email} name={name} size="lg" />
         <div>
           <h2 className="text-lg font-semibold">{name}</h2>

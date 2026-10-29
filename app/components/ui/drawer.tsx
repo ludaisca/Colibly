@@ -35,7 +35,7 @@ export function Drawer({
           <BaseDrawer.Popup className={cn("colibly-drawer-popup", className)} data-side={side}>
             <BaseDrawer.Content className="flex h-full min-h-0 flex-col">
               {title ? (
-                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-4">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
                   <BaseDrawer.Title className="min-w-0 truncate text-sm font-semibold text-foreground">{title}</BaseDrawer.Title>
                   <BaseDrawer.Close aria-label="Cerrar panel" className="colibly-drawer-close"><X size={18} /></BaseDrawer.Close>
                 </div>

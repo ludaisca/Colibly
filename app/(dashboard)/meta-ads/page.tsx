@@ -113,7 +113,7 @@ export default function MetaAdsPage() {
   }), [accounts, search]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Meta Ads"
         description="Cuentas de Página/Business para el feedback loop de calificación de leads (Instant Forms + click-to-WhatsApp)."

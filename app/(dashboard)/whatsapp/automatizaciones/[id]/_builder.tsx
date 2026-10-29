@@ -44,7 +44,7 @@ export function Builder(props: BuilderProps) {
   }, [props.selectedId]);
 
   return (
-    <div ref={canvasRef} className="relative overflow-x-auto rounded-2xl border border-border bg-surface-light/40 p-6">
+    <div ref={canvasRef} className="relative overflow-x-auto rounded-2xl border border-border bg-surface-light/40 p-4">
       <div className="mx-auto flex w-max min-w-full flex-col items-center">
         <button
           type="button"
@@ -104,7 +104,7 @@ function StepList(props: BuilderProps & { listId: string; steps: Step[] }) {
 
 function Branches(props: BuilderProps & { step: Step; branches: Branch[] }) {
   return (
-    <div className="flex items-start gap-6 pt-3">
+    <div className="flex items-start gap-5 pt-3">
       {props.branches.map((b) => (
         <div key={b.id} className="flex min-w-[280px] flex-col items-center">
           <span

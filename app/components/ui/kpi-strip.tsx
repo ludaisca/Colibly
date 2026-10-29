@@ -35,7 +35,7 @@ function KpiContent({ item, hero }: { item: KpiItem; hero: boolean }) {
         <span
           className={cn(
             "font-display font-extrabold tabular-nums tracking-tight text-foreground",
-            hero ? "text-hero" : "text-2xl"
+            hero ? "text-3xl" : "text-xl"
           )}
         >
           {item.value}
@@ -65,7 +65,7 @@ export function KpiStrip({ items, size = "hero", className }: KpiStripProps) {
   return (
     <div
       className={cn(
-        "grid gap-3.5 grid-cols-2",
+        "grid gap-3 grid-cols-2",
         desktopColumns,
         className
       )}
@@ -73,7 +73,7 @@ export function KpiStrip({ items, size = "hero", className }: KpiStripProps) {
       {items.map((item) => {
         const inner = <KpiContent item={item} hero={hero} />;
         const cellClass = cn(
-          "flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow",
+          "flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow",
           oddMobile && "last:col-span-2 lg:last:col-span-1",
         );
         return item.href ? (

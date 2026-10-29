@@ -84,7 +84,7 @@ export function NewAutomationModal({ open, onClose }: { open: boolean; onClose: 
         {accounts.length === 0 && !error && (
           <Banner tone="info">Conecta una cuenta antes de crear una automatización. Puedes empezar desde <Link href="/whatsapp/cuentas" className="underline">Cuentas WhatsApp</Link> o desde otro canal del menú.</Banner>
         )}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Nombre" required>
             {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Menú de bienvenida" maxLength={120} autoFocus />}
           </FormField>

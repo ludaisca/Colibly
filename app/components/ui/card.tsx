@@ -5,9 +5,9 @@ type Padding = "none" | "sm" | "md" | "lg";
 
 const PAD: Record<Padding, string> = {
   none: "",
-  sm:   "p-4",
-  md:   "p-5",
-  lg:   "p-6",
+  sm:   "p-3",
+  md:   "p-4",
+  lg:   "p-5",
 };
 
 interface CardProps {
@@ -37,7 +37,7 @@ export function Card({ padding = "md", interactive = false, className, children,
 
 export function CardHeader({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={cn("flex items-center justify-between gap-3 mb-4", className)}>
+    <div className={cn("flex items-center justify-between gap-3 mb-3", className)}>
       {children}
     </div>
   );
@@ -57,7 +57,7 @@ export function CardBody({ className, children }: { className?: string; children
 
 export function CardFooter({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={cn("mt-4 pt-4 border-t border-border flex items-center gap-3", className)}>
+    <div className={cn("mt-3 pt-3 border-t border-border flex items-center gap-3", className)}>
       {children}
     </div>
   );

@@ -173,7 +173,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Usuarios"
         description="Tu equipo y sus roles en este espacio."

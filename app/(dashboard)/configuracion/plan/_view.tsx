@@ -183,7 +183,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
   const canPay = data.stripeConfigured;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6">
       <PageHeader
         title="Plan y facturación"
         description="Asientos (ejecutivos), consumo del mes y pagos."
@@ -208,7 +208,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
         </Banner>
       )}
 
-      <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
+      <section className="rounded-xl border border-border bg-surface p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-display text-xl font-semibold">Plan {PLANS[data.plan].name}</p>
           {!data.isInternal && <OrgStatusBadge status={data.status} />}
@@ -237,7 +237,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
 
       <section className="space-y-4">
         <SectionHeader eyebrow="Consumo" title="Uso de tu plan" />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {data.usage.map((u) => {
             const pct = u.max ? Math.round((u.used / u.max) * 100) : 0;
             const tone = u.max && pct >= 100 ? "danger" : u.max && pct >= 80 ? "warning" : "accent";
@@ -264,7 +264,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
           <p className="text-sm text-muted">
             Se cobra por usuario: cada persona de tu equipo (incluido el dueño) ocupa un asiento. Contactos, leads activos y créditos de IA se suman por usuario. {PRICING_FOOTNOTE}
           </p>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3">
             {PLAN_LIST.map((p) => {
               const current = data.plan === p.id && (data.hasSubscription || data.status === "TRIALING");
               const selected = selectedPlan === p.id;
@@ -275,7 +275,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                   disabled={!canEdit}
                   onClick={() => canEdit && setSelectedPlan(p.id)}
                   className={cn(
-                    "flex flex-col rounded-xl border bg-surface p-5 text-left shadow-sm transition",
+                    "flex flex-col rounded-xl border bg-surface p-4 text-left shadow-sm transition",
                     selected ? "border-accent-strong ring-1 ring-accent-strong" : "border-border",
                     canEdit ? "hover:border-accent-strong" : "opacity-90"
                   )}
@@ -289,7 +289,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                   </div>
                   <p className="mt-1 text-sm text-muted">{p.tagline}</p>
                   <p className="mt-4">
-                    <span className="font-display text-hero leading-none tabular-nums">{formatMxn(p.pricePerSeatMxn)}</span>
+                    <span className="font-display text-3xl leading-none tabular-nums">{formatMxn(p.pricePerSeatMxn)}</span>
                     <span className="text-sm text-muted"> {PRICE_UNIT}</span>
                   </p>
                   <ul className="mt-4 flex-1 space-y-2 text-sm">
@@ -306,7 +306,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
           </div>
 
           {canEdit && (
-            <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
+            <div className="rounded-xl border border-border bg-surface p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">Ejecutivos (asientos)</p>

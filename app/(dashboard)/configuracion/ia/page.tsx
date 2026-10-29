@@ -198,7 +198,7 @@ export default function IASettingsPage() {
 
       <Card as="section" className="space-y-5">
         <SectionHeader title="Recuperación de leads" />
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium">Reactivar leads que dejan de responder</p>
             <p className="text-xs text-muted-darker">
