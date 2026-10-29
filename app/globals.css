@@ -85,8 +85,10 @@
      --foreground. Pares en contrast.test.ts. */
   --bubble-in:  var(--surface);
   --bubble-out: #D5EEF4;
-  /* Puntos del fondo del hilo (chat-canvas). Muy bajo a propósito. */
-  --chat-pattern: rgba(15, 26, 26, 0.055);
+  /* Puntos del fondo del hilo (chat-canvas) + un lavado de acento muy suave.
+     Deben notarse al mirar, sin competir con las burbujas. */
+  --chat-pattern: rgba(12, 26, 34, 0.09);
+  --chat-glow:    rgba(14, 116, 144, 0.07);
 
   /* Acento de apoyo: coral (badges, highlights). No es CTA. */
   --accent-2:       var(--coral-600);
@@ -171,7 +173,8 @@
 
   --bubble-in:  #1B2B36;
   --bubble-out: #0C4C5E;
-  --chat-pattern: rgba(232, 244, 250, 0.04);
+  --chat-pattern: rgba(232, 244, 250, 0.09);
+  --chat-glow:    rgba(56, 189, 248, 0.06);
 
   --accent-2:       #FB7185;
   --accent-2-hover: #FDA4AF;
@@ -314,13 +317,15 @@
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
 }
 
-/* Lienzo del hilo de chat: fondo con puntos muy tenues (no es el doodle de
-   WhatsApp; es un patrón propio de 1 px). El color sale de --chat-pattern,
-   que cambia con el tema. */
+/* Lienzo del hilo de chat: puntos tenues + un lavado de acento arriba (no es
+   el doodle de WhatsApp; es un patrón propio). Los colores salen de
+   --chat-pattern/--chat-glow, que cambian con el tema. */
 @utility chat-canvas {
   background-color: var(--surface-light);
-  background-image: radial-gradient(var(--chat-pattern) 1px, transparent 1px);
-  background-size: 22px 22px;
+  background-image:
+    radial-gradient(var(--chat-pattern) 1.4px, transparent 1.4px),
+    radial-gradient(circle at 50% 0%, var(--chat-glow) 0%, transparent 55%);
+  background-size: 18px 18px, 100% 100%;
 }
 
 /* ─────────────────────────────────────────────────
