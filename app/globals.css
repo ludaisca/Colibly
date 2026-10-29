@@ -80,6 +80,14 @@
   --accent-subtle: var(--teal-100);
   --accent-muted:  var(--teal-200);
 
+  /* Burbujas del chat. Entrante y saliente deben separarse del lienzo
+     (surface-light) sin competir con el acento; el texto sigue siendo
+     --foreground. Pares en contrast.test.ts. */
+  --bubble-in:  var(--surface);
+  --bubble-out: #D5EEF4;
+  /* Puntos del fondo del hilo (chat-canvas). Muy bajo a propósito. */
+  --chat-pattern: rgba(15, 26, 26, 0.055);
+
   /* Acento de apoyo: coral (badges, highlights). No es CTA. */
   --accent-2:       var(--coral-600);
   --accent-2-hover: var(--coral-700);
@@ -161,6 +169,10 @@
   --accent-subtle: #0C2A38;
   --accent-muted:  #164A5E;
 
+  --bubble-in:  #1B2B36;
+  --bubble-out: #0C4C5E;
+  --chat-pattern: rgba(232, 244, 250, 0.04);
+
   --accent-2:       #FB7185;
   --accent-2-hover: #FDA4AF;
   --accent-2-bg:    #3A1520;
@@ -239,6 +251,9 @@
   --color-accent-subtle: var(--accent-subtle);
   --color-accent-muted:  var(--accent-muted);
 
+  --color-bubble-in:  var(--bubble-in);
+  --color-bubble-out: var(--bubble-out);
+
   --color-accent-2:       var(--accent-2);
   --color-accent-2-hover: var(--accent-2-hover);
   --color-accent-2-bg:    var(--accent-2-bg);
@@ -297,6 +312,15 @@
 }
 @utility rounded-bubble-br {
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+}
+
+/* Lienzo del hilo de chat: fondo con puntos muy tenues (no es el doodle de
+   WhatsApp; es un patrón propio de 1 px). El color sale de --chat-pattern,
+   que cambia con el tema. */
+@utility chat-canvas {
+  background-color: var(--surface-light);
+  background-image: radial-gradient(var(--chat-pattern) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
 /* ─────────────────────────────────────────────────

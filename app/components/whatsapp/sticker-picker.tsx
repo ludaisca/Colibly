@@ -1,14 +1,23 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sticker, Upload, Star, Send, Trash2 } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { useToast } from "@/app/components/ui/toast";
 
 interface Item { id: string; name: string; favorite: boolean; animated: boolean; lastUsedAt: string | null }
-export function StickerPicker({ disabled, onSend }: { disabled: boolean; onSend: (id: string) => Promise<void> }) {
-  const [open, setOpen] = useState(false);
+export function StickerPicker({ disabled, onSend, open: controlledOpen, onOpenChange, hideTrigger = false }: {
+  disabled: boolean;
+  onSend: (id: string) => Promise<void>;
+  /** Controlado desde el menú "+" del composer. Sin estas props usa su botón. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [items, setItems] = useState<Item[]>([]);
   const [filter, setFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -30,6 +39,13 @@ export function StickerPicker({ disabled, onSend }: { disabled: boolean; onSend:
     } catch { setFailed(true); }
     finally { setLoading(false); }
   }
+  // El menú "+" abre el modal por props: ahí no pasa por el onClick del botón.
+  // Solo carga la biblioteca; la selección se limpia al cerrar.
+  useEffect(() => {
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch al abrir el modal (mismo patrón que /plataforma)
+    void load();
+  }, [open]);
   async function upload(file: File) {
     setBusy(true);
     try {
@@ -56,13 +72,13 @@ export function StickerPicker({ disabled, onSend }: { disabled: boolean; onSend:
   async function send() {
     if (!selected || busy) return;
     setBusy(true);
-    try { await onSend(selected.id); setOpen(false); }
+    try { await onSend(selected.id); setOpen(false); setSelectedId(null); }
     catch (err) { toastError(err instanceof Error ? err.message : "No se pudo enviar el sticker"); }
     finally { setBusy(false); }
   }
   return <>
-    <button type="button" disabled={disabled} onClick={() => { setOpen(true); setSelectedId(null); setConfirmDelete(false); load(); }} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong" title="Stickers" aria-label="Stickers"><Sticker size={18} /></button>
-    <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} title="Stickers del equipo" size="md">
+    {!hideTrigger && <button type="button" disabled={disabled} onClick={() => setOpen(true)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong" title="Stickers" aria-label="Stickers"><Sticker size={18} /></button>}
+    <Modal open={open} onClose={() => { if (!busy) { setOpen(false); setSelectedId(null); setConfirmDelete(false); } }} title="Stickers del equipo" size="md">
       <div className="space-y-4">
         <p className="text-xs text-muted-darker">Biblioteca compartida por tu organización · {items.length}/100. WebP de 512 × 512 px: hasta 100 KB estáticos o 500 KB animados.</p>
         <div className="flex flex-wrap items-center gap-2">

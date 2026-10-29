@@ -67,7 +67,7 @@ function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: Pre
         <img
           src={mediaSrc}
           alt={msg.caption ?? "imagen"}
-          className={msg.messageType === "sticker" ? "h-36 w-36 max-w-full object-contain sm:h-44 sm:w-44" : "max-w-full max-h-72 rounded-lg object-cover"}
+          className={msg.messageType === "sticker" ? "h-36 w-36 max-w-full object-contain sm:h-44 sm:w-44" : "max-h-[320px] max-w-full rounded-xl object-cover"}
           loading="lazy"
         />
       </button>
@@ -109,7 +109,7 @@ function MediaContent({ msg, onPreview }: { msg: Message; onPreview: (media: Pre
     }
     return (
       <div className="relative group max-w-full">
-        <video controls src={mediaSrc} className="max-w-full max-h-72 rounded-lg" />
+        <video controls src={mediaSrc} className="max-h-[320px] max-w-full rounded-xl" />
         <button
           type="button"
           onClick={() => onPreview({ type: "video", src: mediaSrc, filename: msg.filename, mimeType: msg.mimeType })}
@@ -179,15 +179,59 @@ function MessageBubble({
   const reactionPending = latestReaction && ["pending", "accepted"].includes(latestReaction.status);
   const ownEmoji = reactionPending ? latestReaction.emoji : msg.agentReactionEmoji;
   const reactionFailed = latestReaction?.status === "failed";
+  const hasReaction = Boolean(msg.reactionEmoji || ownEmoji || reactionPending || reactionFailed);
+  // Un mensaje que solo trae media puede mostrar la hora sobre el propio medio
+  // (como WhatsApp) y prescindir del padding de burbuja.
+  const mediaOnly =
+    hasMedia &&
+    msg.messageType !== "sticker" &&
+    !caption &&
+    !(buttons && buttons.length > 0) &&
+    !msg.replyToWamid &&
+    !msg.isFromComment &&
+    !isFailed;
+
+  const metaRow = (overlay: boolean) => (
+    <div className={`flex items-center justify-end gap-1 ${overlay ? "text-white/90" : "text-muted-strong"}`}>
+      {/* Una plantilla no se reintenta como texto libre: se reenvía desde "Enviar plantilla". */}
+      {isFailed && msg.messageType !== "template" && (
+        <button
+          type="button"
+          onClick={() => onRetry?.(msg)}
+          className="mr-1 flex items-center gap-1 text-[10px] font-medium text-danger hover:underline"
+        >
+          <RotateCw size={10} /> Reintentar
+        </button>
+      )}
+      <span className="text-[10px]">{formatBubbleTime(msg.timestamp)}</span>
+      {!isInbound && msg.status && (
+        <AnimatePresence initial={false} mode="wait">
+          <motion.span key={msg.status} className="text-[10px]" role="img" aria-label={MESSAGE_STATUS_LABEL[msg.status] ?? msg.status}
+            initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={reduceMotion ? undefined : { opacity: 0, scale: 0.8 }}
+            transition={{ duration: reduceMotion ? 0 : 0.12 }}>
+            {msg.status === "sending" && <Clock size={11} />}
+            {msg.status === "failed" && <AlertCircle size={11} className="text-danger" />}
+            {msg.status === "sent" && <Check size={11} />}
+            {msg.status === "delivered" && <CheckCheck size={11} />}
+            {msg.status === "read" && <CheckCheck size={11} className={overlay ? "text-white" : "text-info"} />}
+          </motion.span>
+        </AnimatePresence>
+      )}
+    </div>
+  );
 
   return (
-    <div className={`group flex items-end gap-1.5 ${isInbound ? "justify-start" : "justify-end"}`}>
+    <div className={`group flex items-end gap-1.5 ${isInbound ? "justify-start" : "justify-end"} ${hasReaction ? "mb-3" : ""}`}>
       {!isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
       <div
-        className={`relative max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed transition-opacity duration-base ${
+        className={`relative max-w-[75%] text-sm leading-[1.4] transition-opacity duration-base lg:max-w-[65%] ${
+          mediaOnly ? "p-1" : "px-3 py-2"
+        } ${
           msg.messageType === "sticker" ? "rounded-xl bg-transparent text-foreground" : isInbound
-            ? "rounded-2xl rounded-tl-sm border border-border bg-surface text-foreground shadow-sm"
-            : "rounded-2xl rounded-tr-sm bg-accent-muted text-foreground shadow-sm"
+            ? "rounded-2xl border border-border bg-bubble-in text-foreground shadow-sm"
+            : "rounded-2xl bg-bubble-out text-foreground shadow-sm"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
@@ -203,7 +247,7 @@ function MessageBubble({
           </div>
         )}
         {hasMedia && (
-          <div className="mb-1 space-y-1">
+          <div className={`${mediaOnly ? "" : "mb-1"} space-y-1`}>
             <MediaContent msg={msg} onPreview={onPreview} />
             {caption && <p className="whitespace-pre-wrap break-words">{caption}</p>}
           </div>
@@ -229,41 +273,41 @@ function MessageBubble({
         {isFailed && msg.errorMessage && (
           <p className="mt-1 text-xs text-danger" role="note">{msg.errorMessage}</p>
         )}
-        <div className={`flex items-center justify-end gap-1 mt-1 ${
-          isInbound ? "text-muted-darker" : "text-foreground/65"
-        }`}>
-          {/* Una plantilla no se reintenta como texto libre: se reenvía desde "Enviar plantilla". */}
-          {isFailed && msg.messageType !== "template" && (
-            <button
-              type="button"
-              onClick={() => onRetry?.(msg)}
-              className="flex items-center gap-1 text-[10px] font-medium text-danger hover:underline mr-1"
-            >
-              <RotateCw size={10} /> Reintentar
-            </button>
-          )}
-          <span className="text-[10px]">{formatBubbleTime(msg.timestamp)}</span>
-          {!isInbound && msg.status && (
-            <AnimatePresence initial={false} mode="wait">
-              <motion.span key={msg.status} className="text-[10px]" role="img" aria-label={MESSAGE_STATUS_LABEL[msg.status] ?? msg.status}
-                initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={reduceMotion ? undefined : { opacity: 0, scale: 0.8 }}
-                transition={{ duration: reduceMotion ? 0 : 0.12 }}>
-                {msg.status === "sending" && <Clock size={10} />}
-                {msg.status === "failed" && <AlertCircle size={10} className="text-danger" />}
-                {msg.status === "sent" && <Check size={10} />}
-                {msg.status === "delivered" && <CheckCheck size={10} />}
-                {msg.status === "read" && <CheckCheck size={10} className="text-info" />}
-              </motion.span>
-            </AnimatePresence>
-          )}
-        </div>
-        {(msg.reactionEmoji || ownEmoji || reactionPending || reactionFailed) && <div className="mt-1 flex flex-wrap justify-end gap-1" aria-live="polite">
-          {msg.reactionEmoji && <span className="rounded-xl border border-border bg-surface px-1.5 py-0.5 text-sm leading-none shadow-sm" aria-label={`${leadName} reaccionó con ${msg.reactionEmoji}`} title={`Reacción de ${leadName}`}>{msg.reactionEmoji}</span>}
-          {(ownEmoji || reactionPending) && <span className="inline-flex items-center gap-1 rounded-xl border border-accent-muted bg-surface px-1.5 py-0.5 text-xs" title={reactionPending ? "Reacción enviada a WhatsApp; pendiente de confirmación" : "Reacción del equipo"}>{ownEmoji || "Quitar reacción"} <span className="text-[10px] text-muted-darker">Equipo</span>{reactionPending && <Clock size={10} />}</span>}
-          {reactionFailed && <span role="status" className="text-xs text-danger" title={latestReaction.error ?? "WhatsApp rechazó la reacción"}>No se pudo actualizar la reacción</span>}
-        </div>}
+        {mediaOnly ? (
+          <div className={`pointer-events-none absolute z-10 rounded-md bg-black/55 px-1.5 py-0.5 backdrop-blur-[2px] ${msg.messageType === "video" ? "left-2 top-2" : "bottom-2 right-2"}`}>
+            {metaRow(true)}
+          </div>
+        ) : (
+          <div className="mt-1">{metaRow(false)}</div>
+        )}
+        {hasReaction && (
+          <div className={`absolute -bottom-3 z-20 flex items-center gap-1 ${isInbound ? "left-2" : "right-2"}`} aria-live="polite">
+            {msg.reactionEmoji && (
+              <span
+                className="rounded-full border border-border bg-surface px-1.5 py-0.5 text-sm leading-none shadow-sm"
+                aria-label={`${leadName} reaccionó con ${msg.reactionEmoji}`}
+                title={`Reacción de ${leadName}`}
+              >
+                {msg.reactionEmoji}
+              </span>
+            )}
+            {(ownEmoji || reactionPending) && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-1.5 py-0.5 text-sm leading-none shadow-sm"
+                title={reactionPending ? "Reacción enviada a WhatsApp; pendiente de confirmación" : "Reacción del equipo"}
+                aria-label={reactionPending ? "Reacción del equipo pendiente de confirmación" : "Reacción del equipo"}
+              >
+                {ownEmoji || "…"}
+                {reactionPending && <Clock size={10} className="text-muted-darker" />}
+              </span>
+            )}
+            {reactionFailed && (
+              <span className="rounded-full border border-danger-border bg-surface p-1 text-danger shadow-sm" title={latestReaction.error ?? "WhatsApp rechazó la reacción"} aria-label="No se pudo actualizar la reacción">
+                <AlertCircle size={12} />
+              </span>
+            )}
+          </div>
+        )}
       </div>
       {isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
     </div>
@@ -357,7 +401,7 @@ export function ChatThreadPanel({
         onAssigned={onAssigned}
       />
 
-      <div ref={messagesContainerRef} className="scrollbar-thin flex-1 overflow-y-auto bg-surface-light px-4 py-4 space-y-3">
+      <div ref={messagesContainerRef} className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-4 sm:px-4">
         {loadingMessages ? (
           <ChatBubblesSkeleton className="h-full" />
         ) : messages.length === 0 ? (
@@ -376,10 +420,19 @@ export function ChatThreadPanel({
             <AnimatePresence initial={false}>
               {messages.map((msg, i) => {
                 const prev = messages[i - 1];
-                const showDivider = !prev || new Date(prev.timestamp).toDateString() !== new Date(msg.timestamp).toDateString();
+                const sameDay = !prev || new Date(prev.timestamp).toDateString() === new Date(msg.timestamp).toDateString();
+                const showDivider = !sameDay;
+                // Mensajes seguidos del mismo lado y a menos de 5 minutos se leen
+                // como un bloque (2 px de aire), en vez de tarjetas sueltas.
+                const groupedWithPrev =
+                  !!prev &&
+                  sameDay &&
+                  prev.direction === msg.direction &&
+                  Math.abs(new Date(msg.timestamp).getTime() - new Date(prev.timestamp).getTime()) <= 5 * 60 * 1000;
                 return (
                   <motion.div
                     key={msg.motionKey ?? msg.id}
+                    className={groupedWithPrev ? "mt-0.5" : "mt-3"}
                     initial={shouldReduceMotion || !msg.animateOnMount ? false : { opacity: 0, x: msg.direction === "INBOUND" ? -12 : 12, y: 4, scale: 0.985 }}
                     animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                     exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.98 }}

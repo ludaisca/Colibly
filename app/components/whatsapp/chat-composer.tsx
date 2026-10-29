@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Send, Paperclip, X, FileAudio, Video, FileText, ListChecks, Plus, Reply } from "lucide-react";
+import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
-import { ReplySuggestionButton } from "./reply-suggestion-button";
-import { RewriteButton } from "./rewrite-button";
-import { StickerPicker } from "./sticker-picker";
+import { ChatAiMenu, ChatMoreMenu } from "./chat-composer-tools";
 import { displayMessageText, type CannedResponseItem, type Channel, type Message } from "./chat-shared";
 
 // Input + adjuntos + respuestas rápidas — extraído de chat-workspace.tsx sin
@@ -246,7 +244,7 @@ export function ChatComposer({
         className="hidden"
       />
       <div className="flex items-end gap-1">
-        <div className="flex min-w-0 items-center overflow-x-auto scrollbar-thin" aria-label="Herramientas del mensaje">
+        <div className="flex min-w-0 items-center" aria-label="Herramientas del mensaje">
           {supportsAttachments && (
             <button
               type="button"
@@ -259,34 +257,26 @@ export function ChatComposer({
               <Paperclip size={18} />
             </button>
           )}
-          {supportsButtons && (
-            <button
-              type="button"
-              onClick={toggleButtons}
-              disabled={sending || interactiveDisabled || !!sendBlockedReason}
-              className={`${TOOL_BUTTON} ${buttonsPanelOpen ? "bg-accent-subtle text-accent-ink" : ""}`}
-              title={interactiveDisabled ? "Quita el archivo adjunto para usar botones" : buttonsPanelOpen ? "Cerrar botones" : "Botones de respuesta"}
-              aria-label="Botones de respuesta"
-              aria-expanded={buttonsPanelOpen}
-            >
-              <ListChecks size={18} />
-            </button>
-          )}
-          {channel === "WHATSAPP" && onOpenTemplates && (
-            <button
-              type="button"
-              onClick={onOpenTemplates}
+          <ChatAiMenu
+            chatId={chatId}
+            draft={newMessage}
+            supportsSuggestions={supportsSuggestions}
+            disabled={sending}
+            onInsert={insertSuggestion}
+          />
+          {(channel === "WHATSAPP" || !!onOpenTemplates) && (
+            <ChatMoreMenu
+              channel={channel}
               disabled={sending || !!sendBlockedReason}
-              className={TOOL_BUTTON}
-              title={sendBlockedReason ?? "Plantilla"}
-              aria-label="Enviar plantilla"
-            >
-              <FileText size={18} />
-            </button>
+              supportsButtons={supportsButtons}
+              buttonsPanelOpen={buttonsPanelOpen}
+              buttonsDisabled={interactiveDisabled}
+              onToggleButtons={toggleButtons}
+              onOpenTemplates={onOpenTemplates}
+              onSendSticker={onSendSticker}
+              stickersDisabled={sending || !!attachment || interactiveButtons.length > 0 || !!sendBlockedReason}
+            />
           )}
-          {supportsSuggestions && <ReplySuggestionButton key={chatId} chatId={chatId} onInsert={insertSuggestion} />}
-          <RewriteButton key={`rewrite-${chatId}`} chatId={chatId} draft={newMessage} onInsert={insertSuggestion} />
-          {channel === "WHATSAPP" && <StickerPicker key={`stickers-${chatId}`} disabled={sending || !!attachment || interactiveButtons.length > 0 || !!sendBlockedReason} onSend={onSendSticker} />}
         </div>
         <textarea
           ref={messageInputRef}
@@ -327,7 +317,7 @@ export function ChatComposer({
                 ? "Comentario (opcional)"
                 : "Escribe un mensaje"
           }
-          className="max-h-32 min-h-10 min-w-[8rem] flex-1 resize-none rounded-[12px] border border-border bg-background px-3 py-2.5 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted"
+          className="max-h-32 min-h-10 min-w-[8rem] flex-1 resize-none rounded-2xl border border-border bg-background px-3.5 py-2.5 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           disabled={sending}
         />
         <Button

@@ -1,10 +1,11 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ArrowLeft, Check, Phone, RotateCw, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X } from "lucide-react";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
+import { Dropdown } from "@/app/components/ui/dropdown";
 import { Select } from "@/app/components/ui/select";
 import { ChatAssigneePicker } from "./chat-assignee-picker";
 import { ChatBotMode } from "./chat-bot-mode";
@@ -39,6 +40,14 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
   const ChannelIcon = CHANNEL_ICONS[chat.channel];
   const name = chat.name || chat.remoteJid;
   const resolved = chat.status === "RESOLVED";
+  // "Telegram · Telegram" se leía como un error: el segundo valor es el nombre
+  // de la cuenta, que suele repetir el canal. Solo se muestra si aporta algo.
+  const accountName = chat.account.name.trim();
+  const subtitle = accountName.toLowerCase() === channel.label.toLowerCase()
+    ? channel.label
+    : `${channel.label} · ${accountName}`;
+  const canCall = chat.channel === "WHATSAPP" && !chat.isGroup && chat.account.callingEnabled && !chat.account.coexistence;
+  const MENU_ITEM = "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong disabled:opacity-50";
 
   async function changeStatus(status: ChatStatus) {
     if (changingStatus) return;
@@ -57,17 +66,50 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
           {chat.contactId ? (
             <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-base font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>
           ) : <p className="truncate text-base font-semibold text-foreground">{name}</p>}
-          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-darker" title={`${channel.label} · ${chat.account.name}`}>
+          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-darker" title={subtitle}>
             <ChannelIcon size={12} className="shrink-0" />
-            <span className="truncate">{channel.label} · {chat.account.name}</span>
+            <span className="truncate">{subtitle}</span>
+            {resolved && <span className="shrink-0 rounded-full bg-success-bg px-1.5 text-[10px] font-medium text-success">Resuelto</span>}
           </p>
         </div>
-        <button type="button" aria-expanded={detailsOpen} aria-controls={detailsId} aria-label="Detalles de la conversación" title="Detalles" onClick={() => setDetailsOpen((open) => !open)} className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-accent-subtle text-accent-ink" : "text-muted-darker hover:bg-surface-light hover:text-foreground"}`}>
-          <SlidersHorizontal size={16} />
-        </button>
-        <Button type="button" variant="secondary" size="sm" icon={resolved ? RotateCw : Check} loading={changingStatus} onClick={() => changeStatus(resolved ? "OPEN" : "RESOLVED")}>
-          {resolved ? "Reabrir" : "Resolver"}
-        </Button>
+        <Dropdown
+          align="right"
+          portal
+          trigger={
+            <button
+              type="button"
+              aria-label="Acciones de la conversación"
+              title="Acciones"
+              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-accent-subtle text-accent-ink" : "text-muted-darker hover:bg-surface-light hover:text-foreground"}`}
+            >
+              <MoreVertical size={18} />
+            </button>
+          }
+        >
+          <div className="w-56 p-1">
+            <button type="button" className={MENU_ITEM} onClick={() => setDetailsOpen((open) => !open)}>
+              <SlidersHorizontal size={15} /> {detailsOpen ? "Ocultar detalles" : "Detalles"}
+            </button>
+            {canCall && (
+              <button
+                type="button"
+                className={MENU_ITEM}
+                onClick={() => window.dispatchEvent(new CustomEvent("colibly-whatsapp-call", { detail: { chatId: chat.id, name } }))}
+              >
+                <Phone size={15} /> Llamar
+              </button>
+            )}
+            <button
+              type="button"
+              className={MENU_ITEM}
+              disabled={changingStatus}
+              onClick={() => void changeStatus(resolved ? "OPEN" : "RESOLVED")}
+            >
+              {changingStatus ? <Loader2 size={15} className="animate-spin" /> : resolved ? <RotateCw size={15} /> : <Check size={15} />}
+              {resolved ? "Reabrir" : "Resolver"}
+            </button>
+          </div>
+        </Dropdown>
       </div>
       {detailsOpen && (
         <div className="border-t border-border bg-surface-light px-3 py-3 sm:px-4">

@@ -23,6 +23,8 @@ const PAIRS: [string, string, number][] = [
   ["on-accent", "accent-hover", 4.5],
   ["foreground", "accent-muted", 4.5],
   ["foreground", "accent-subtle", 4.5],
+  ["foreground", "bubble-in", 4.5],
+  ["foreground", "bubble-out", 4.5],
   ["accent-ink", "surface", 4.5],
   ["accent-ink", "background", 4.5],
   ["accent-ink", "accent-subtle", 4.5],
