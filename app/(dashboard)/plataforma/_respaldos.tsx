@@ -14,6 +14,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { Card } from "@/app/components/ui/card";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
+import { PageContainer } from "@/app/components/ui/page-container";
 import { useToast } from "@/app/components/ui/toast";
 import { SecretField } from "./_configuracion";
 
@@ -211,12 +212,20 @@ export function PlataformaRespaldos() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-3 py-12 text-sm text-muted-darker">
-        <Spinner /> Cargando respaldos…
-      </div>
+      <PageContainer width="4xl">
+        <div className="flex items-center gap-3 py-12 text-sm text-muted-darker">
+          <Spinner /> Cargando respaldos…
+        </div>
+      </PageContainer>
     );
   }
-  if (loadError || !data) return <ListErrorState message={loadError ?? "No se pudo cargar."} onRetry={() => load()} />;
+  if (loadError || !data) {
+    return (
+      <PageContainer width="4xl">
+        <ListErrorState message={loadError ?? "No se pudo cargar."} onRetry={() => load()} />
+      </PageContainer>
+    );
+  }
 
   const tz = data.timeZone;
   const latest = data.runs[0];
@@ -241,7 +250,7 @@ export function PlataformaRespaldos() {
   ];
 
   return (
-    <div className="max-w-4xl space-y-10">
+    <PageContainer width="4xl">
       {latest?.status === "FAILED" && (
         <Banner tone="danger" title="El último respaldo falló">
           {latest.error ?? "Sin detalle."}
@@ -384,6 +393,6 @@ export function PlataformaRespaldos() {
           emptyDescription="Activa el respaldo diario o usa “Respaldar ahora”."
         />
       </Card>
-    </div>
+    </PageContainer>
   );
 }

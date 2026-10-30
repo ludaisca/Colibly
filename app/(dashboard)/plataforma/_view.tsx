@@ -6,6 +6,7 @@ import { Building2, CalendarPlus, Search, ShieldOff, ShieldCheck, Sparkles } fro
 import type { OrganizationStatus, PlanId } from "@prisma/client";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
+import { PageContainer } from "@/app/components/ui/page-container";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
@@ -157,9 +158,10 @@ export function PlatformView({
       ) : tab === "operacion" ? (
         <PlataformaOperacion />
       ) : (
-        <>
+        <PageContainer width="4xl">
           <KpiStrip
             size="compact"
+            columns={2}
             items={[
               { label: "Ingreso mensual", value: `$${n(summary.mrrMxn)} MXN`, hint: "Suscripciones activas × asientos" },
               { label: "Pagando", value: n(summary.paying), delta: summary.pastDue ? `${n(summary.pastDue)} con pago pendiente` : undefined, deltaTone: "danger" },
@@ -211,7 +213,7 @@ export function PlatformView({
           </div>
 
           {selected && <OrgModal org={selected} onClose={() => setSelectedId(null)} onChanged={() => router.refresh()} />}
-        </>
+        </PageContainer>
       )}
       </HeroTabs>
     </div>

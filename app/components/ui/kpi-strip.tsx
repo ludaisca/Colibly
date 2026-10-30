@@ -56,11 +56,26 @@ interface KpiStripProps {
   /** "hero" agranda las cifras (overviews); "compact" para contextos embebidos. */
   size?: "hero" | "compact";
   className?: string;
+  /** Fuerza columnas en desktop (p. ej. 2 dentro de un contenedor 4XL). */
+  columns?: 2 | 3 | 4 | 5;
 }
 
-export function KpiStrip({ items, size = "hero", className }: KpiStripProps) {
+const DESKTOP_COLUMNS: Record<2 | 3 | 4 | 5, string> = {
+  2: "lg:grid-cols-2",
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-4",
+  5: "lg:grid-cols-5",
+};
+
+export function KpiStrip({ items, size = "hero", className, columns }: KpiStripProps) {
   const hero = size === "hero";
-  const desktopColumns = items.length === 5 ? "lg:grid-cols-5" : items.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4";
+  const desktopColumns = columns
+    ? DESKTOP_COLUMNS[columns]
+    : items.length === 5
+      ? "lg:grid-cols-5"
+      : items.length === 3
+        ? "lg:grid-cols-3"
+        : "lg:grid-cols-4";
   const oddMobile = items.length % 2 === 1;
   return (
     <div

@@ -11,6 +11,7 @@ import { Button } from "@/app/components/ui/button";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
+import { PageContainer } from "@/app/components/ui/page-container";
 import { useToast } from "@/app/components/ui/toast";
 import type { PlatformSecretField } from "@/lib/platform-settings";
 
@@ -379,17 +380,23 @@ export function PlataformaConfiguracion() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-3 py-12 text-sm text-muted-darker">
-        <Spinner /> Cargando configuración…
-      </div>
+      <PageContainer width="4xl">
+        <div className="flex items-center gap-3 py-12 text-sm text-muted-darker">
+          <Spinner /> Cargando configuración…
+        </div>
+      </PageContainer>
     );
   }
   if (loadError || !data) {
-    return <ListErrorState message={loadError ?? "No se pudo cargar la configuración."} onRetry={load} />;
+    return (
+      <PageContainer width="4xl">
+        <ListErrorState message={loadError ?? "No se pudo cargar la configuración."} onRetry={load} />
+      </PageContainer>
+    );
   }
 
   return (
-    <div className="w-full min-w-0 max-w-3xl space-y-4 sm:space-y-5">
+    <PageContainer width="4xl">
       <Banner tone="info">
         Estas credenciales sirven a todas las organizaciones de la plataforma. Los campos cifrados llegan ocultos: &ldquo;Mostrar&rdquo; enseña el valor
         guardado durante 60 segundos (queda registrado en el log), escribe un valor nuevo para reemplazarlo o usa &ldquo;Quitar&rdquo; para borrarlo.
@@ -593,6 +600,6 @@ export function PlataformaConfiguracion() {
           Guardar configuración
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 }

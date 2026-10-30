@@ -10,6 +10,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Input } from "@/app/components/ui/input";
 import { Modal } from "@/app/components/ui/modal";
 import { FormField } from "@/app/components/ui/form-field";
+import { PageContainer } from "@/app/components/ui/page-container";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { PLATFORM_SCOPES, PLATFORM_SCOPE_LABELS, type PlatformScope } from "@/lib/platform/scopes";
@@ -190,7 +191,7 @@ export function PlataformaOperacion() {
   }
 
   return (
-    <div className="space-y-8">
+    <PageContainer width="4xl">
       <section className="space-y-4">
         <SectionHeader eyebrow="Producción" title="Diagnóstico" action={
           <Button variant="secondary" size="sm" icon={RefreshCw} loading={reportLoading} onClick={() => void loadReport(true)}>
@@ -347,6 +348,6 @@ export function PlataformaOperacion() {
           </div>
         )}
       </Modal>
-    </div>
+    </PageContainer>
   );
 }
