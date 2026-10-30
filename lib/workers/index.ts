@@ -23,7 +23,8 @@ import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
 import { processBillingTick } from "@/lib/billing/tick";
 import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
 import { processBackupTick, runBackup, BackupAlreadyRunningError } from "@/lib/backups/runner";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue } from "@/lib/queue";
+import { processPlatformHealthTick } from "./platform-health-worker";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue, platformHealthQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -179,6 +180,11 @@ export function startWorkers() {
     }
   }, { connection, concurrency: 1 });
 
+  // Doctor diario de la plataforma: corre checks live y avisa solo cambios.
+  const platformHealthWorker = new Worker("platform-health", async () => {
+    await processPlatformHealthTick();
+  }, { connection, concurrency: 1 });
+
   // Una entrega HTTP por job; los reintentos (backoff largo) los maneja
   // BullMQ, el registro de cada intento vive en WebhookDelivery.
   // 20 en paralelo (env WEBHOOK_WORKER_CONCURRENCY), como mucho 2 por endpoint
@@ -187,7 +193,7 @@ export function startWorkers() {
     await processWebhookDelivery(job, token);
   }, { connection, concurrency: WEBHOOK_WORKER_CONCURRENCY });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker);
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker, platformHealthWorker);
 
   mediaCleanupQueue
     .add(
@@ -299,6 +305,11 @@ export function startWorkers() {
   platformBackupQueue
     .add("tick", {}, { jobId: "platform-backup-tick", repeat: { pattern: "11,26,41,56 * * * *" } })
     .catch((err) => console.error("[workers] No se pudo programar platform-backup:", err));
+
+  // Doctor de la plataforma: 14:00 UTC = 08:00 America/Mexico_City.
+  platformHealthQueue
+    .add("tick", {}, { jobId: "platform-health-tick", repeat: { pattern: "0 14 * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar platform-health:", err));
 
   console.log("[workers] BullMQ workers started");
 }

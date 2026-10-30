@@ -23,12 +23,13 @@ import { PLANS } from "@/lib/billing/plans";
 import { BRAND_NAME } from "@/lib/brand";
 import { PlataformaConfiguracion } from "./_configuracion";
 import { PlataformaRespaldos } from "./_respaldos";
+import { PlataformaOperacion } from "./_operacion";
 import { HeroTabs } from "@/app/components/ui/hero-tabs";
 import { formatInZone } from "@/lib/format/dates";
 
-const TABS = ["organizaciones", "configuracion", "respaldos"] as const;
+const TABS = ["organizaciones", "configuracion", "respaldos", "operacion"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = { organizaciones: "Organizaciones", configuracion: "Configuración", respaldos: "Respaldos" };
+const TAB_LABEL: Record<Tab, string> = { organizaciones: "Organizaciones", configuracion: "Configuración", respaldos: "Respaldos", operacion: "Operación" };
 
 export interface PlatformSummary {
   total: number;
@@ -153,6 +154,8 @@ export function PlatformView({
         <PlataformaConfiguracion />
       ) : tab === "respaldos" ? (
         <PlataformaRespaldos />
+      ) : tab === "operacion" ? (
+        <PlataformaOperacion />
       ) : (
         <>
           <KpiStrip

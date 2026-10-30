@@ -2190,3 +2190,111 @@ model WAAddressBookEntry {
   @@unique([accountId, phone])
   @@map("wa_address_book")
 }
+
+// ── Operación de la plataforma: tokens, auditoría y OAuth del MCP ──────────
+// Todo esto es de la plataforma (quien vende Colibly), no de una organización.
+// Los tokens no se mezclan con ApiKey (esa es por organización y para /api/v1).
+
+model PlatformApiToken {
+  id             String    @id @default(cuid())
+  name           String
+  // Primeros caracteres visibles ("plt_production_ab12") para reconocerlo.
+  prefix         String
+  tokenHash      String    @unique @map("token_hash")
+  scopes         String[]  @default(["platform:read"])
+  environment    String    // "dev" | "production" (etiqueta operativa)
+  // Vacío = cualquier IP. Obligatorio para el scope secret:write.
+  allowedCidrs   String[]  @default([]) @map("allowed_cidrs")
+  createdByEmail String    @map("created_by_email")
+  lastUsedAt     DateTime? @map("last_used_at")
+  expiresAt      DateTime? @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([revokedAt])
+  @@map("platform_api_tokens")
+}
+
+model PlatformAuditLog {
+  id          String   @id @default(cuid())
+  actorType   String   @map("actor_type") // user | token | system
+  actorEmail  String?  @map("actor_email")
+  tokenId     String?  @map("token_id")
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  before      Json?
+  after       Json?
+  ip          String?
+  requestId   String?  @map("request_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([targetId])
+  @@map("platform_audit_log")
+}
+
+model PlatformOAuthClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique @map("client_id")
+  clientName   String   @map("client_name")
+  redirectUris String[] @map("redirect_uris")
+  grantTypes   String[] @default(["authorization_code", "refresh_token"]) @map("grant_types")
+  scopes       String[] @default([])
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("platform_oauth_clients")
+}
+
+model PlatformOAuthCode {
+  id                  String    @id @default(cuid())
+  codeHash            String    @unique @map("code_hash")
+  clientId            String    @map("client_id")
+  redirectUri         String    @map("redirect_uri")
+  scopes              String[]  @default([])
+  operatorEmail       String    @map("operator_email")
+  codeChallenge       String    @map("code_challenge")
+  codeChallengeMethod String    @default("S256") @map("code_challenge_method")
+  resource            String?
+  expiresAt           DateTime  @map("expires_at")
+  consumedAt          DateTime? @map("consumed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("platform_oauth_codes")
+}
+
+model PlatformOAuthToken {
+  id               String    @id @default(cuid())
+  accessHash       String    @unique @map("access_hash")
+  refreshHash      String?   @unique @map("refresh_hash")
+  familyId         String    @map("family_id")
+  clientId         String    @map("client_id")
+  operatorEmail    String    @map("operator_email")
+  scopes           String[]  @default([])
+  resource         String?
+  accessExpiresAt  DateTime  @map("access_expires_at")
+  refreshExpiresAt DateTime? @map("refresh_expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  lastUsedAt       DateTime? @map("last_used_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([clientId])
+  @@index([familyId])
+  @@index([revokedAt])
+  @@map("platform_oauth_tokens")
+}
+
+model PlatformHealthRun {
+  id         String    @id @default(cuid())
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  status     String    // ok | warn | fail | error
+  checks     Json
+  notifiedAt DateTime? @map("notified_at")
+  error      String?   @db.Text
+
+  @@index([startedAt])
+  @@map("platform_health_runs")
+}

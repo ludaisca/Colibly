@@ -1,9 +1,19 @@
 # Plan: API de plataforma + MCP para operar Colibly en producción
 
-- **Estado:** borrador para revisión
+- **Estado:** implementado (2026-10-30); ver "Estado de implementación"
 - **Fecha:** 2026-10-29
 - **Alcance:** operación de la plataforma (no API de clientes)
 - **Relacionado:** `AGENTS.md` → "Platform operator panel", "Billing", "Platform backups"
+
+## 0. Estado de implementación (2026-10-30)
+
+Ya está en el código:
+
+- **Fase 1:** doctor (`GET /api/plataforma/diagnostico`), pestaña **Operación** en `/plataforma`, `PlatformHealthRun` y tick diario `platform-health` con alertas solo por cambio.
+- **Fase 2:** modelos de tokens/auditoría, creación y revocación de tokens, API `/api/plataforma/v1/*` para status, organizaciones, trial, créditos, billing, reconciliación de precios, rotación/prueba del webhook, auditoría, configuración y escritura de secretos; auditoría con retención de 90 días.
+- **Fase 3:** MCP remoto en `/api/mcp` (Streamable HTTP), Bearer y OAuth 2.1 + PKCE + DCR, consentimiento de operador y las 15 tools (más `colibly_set_secret` si se habilita).
+
+Pendiente de la superficie REST (hoy disponible por MCP/UI): suspender/reactivar, respaldos y prueba de SMTP. No hay pruebas E2E de navegador; sí unitarias y un E2E manual del flujo MCP/OAuth.
 
 ---
 
@@ -62,8 +72,8 @@ No falta una API: `/api/plataforma` ya existe y cubre casi todo. Falta **verific
                             └──────────────────────────────┘
 ```
 
-- La UI y el MCP comparten la misma lógica de negocio; las rutas solo validan y responden.
-- El MCP es un cliente delgado del API v1. No habla con Prisma ni con Stripe directamente.
+- La UI, el API v1 y el MCP comparten `lib/platform/ops.ts` y el resto de `lib/platform/*`; ningún camino duplica la lógica.
+- El MCP corre en la misma app y llama a `ops.ts` directamente (no se hace fetch a su propio API). El API v1 existe para CLI, scripts y clientes HTTP.
 
 ---
 

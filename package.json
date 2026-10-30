@@ -18,6 +18,7 @@
     "@heroui/react": "^3.2.6",
     "@heroui/styles": "^3.2.6",
     "@internationalized/date": "^3.12.4",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@prisma/client": "^5.22.0",
     "@tailwindcss/postcss": "^4",
     "@xyflow/react": "^12.12.0",

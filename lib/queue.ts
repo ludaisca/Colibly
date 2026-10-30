@@ -87,6 +87,10 @@ export const coexistenceTickQueue = new Queue("coexistence-tick", { connection, 
 // Sin reintentos de BullMQ: el tick reintenta con su propia lógica (lib/backups/schedule.ts).
 export const platformBackupQueue = new Queue("platform-backup", { connection, defaultJobOptions: { ...defaultJobOptions, attempts: 1 } });
 
+// Doctor de plataforma: una corrida diaria; guarda PlatformHealthRun y avisa
+// solo cuando un check cambia. Sin reintentos de BullMQ (ya corre a diario).
+export const platformHealthQueue = new Queue("platform-health", { connection, defaultJobOptions: { ...defaultJobOptions, attempts: 1 } });
+
 export const billingTickQueue = new Queue("billing-tick", { connection, defaultJobOptions });
 // Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a
 // propósito: el receptor suele estar caído por minutos, no por segundos
