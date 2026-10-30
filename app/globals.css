@@ -373,6 +373,14 @@
   background-color: var(--muted-darker);
 }
 
+/* Sin barra visible, pero conservando el scroll (nav del sidebar). */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ─────────────────────────────────────────────────
    GLOBAL BASE
    ───────────────────────────────────────────────── */
