@@ -25,11 +25,18 @@ function LoginForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendNotice, setResendNotice] = useState("");
+  const [resendError, setResendError] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setServerError("");
     setErrors({});
+    setUnverified(false);
+    setResendNotice("");
+    setResendError(false);
 
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
@@ -50,12 +57,39 @@ function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
+      if (result.code === "email_not_verified") {
+        setUnverified(true);
+        setServerError("Tu correo aún no está confirmado. Revisa tu bandeja de entrada (y spam).");
+        return;
+      }
       setServerError("Email o contraseña incorrectos.");
       return;
     }
 
     router.push(callbackUrl || "/dashboard");
     router.refresh();
+  }
+
+  async function resendVerification() {
+    if (!email.trim()) return;
+    setResending(true);
+    setResendNotice("");
+    setResendError(false);
+    try {
+      const res = await fetch("/api/auth/verify-email/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "No se pudo reenviar el enlace");
+      setResendNotice(data?.message || "Si la cuenta existe y no está verificada, te enviamos un enlace.");
+    } catch (err) {
+      setResendError(true);
+      setResendNotice(err instanceof Error ? err.message : "No se pudo reenviar el enlace");
+    } finally {
+      setResending(false);
+    }
   }
 
   return (
@@ -78,6 +112,14 @@ function LoginForm() {
               {notice}
             </Banner>
           ) : null}
+          {unverified && (
+            <div className="mb-4 space-y-2">
+              <Button type="button" variant="secondary" size="sm" fullWidth loading={resending} onClick={() => void resendVerification()}>
+                Reenviar enlace de confirmación
+              </Button>
+              {resendNotice && <Banner tone={resendError ? "danger" : "info"}>{resendNotice}</Banner>}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <FormField label="Email" required error={errors.email}>
               {(id) => (

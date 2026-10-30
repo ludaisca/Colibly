@@ -52,8 +52,8 @@ function VerifyEmail() {
           {state.status === "error" && <Banner tone="danger">{state.message}</Banner>}
           {state.status !== "loading" && (
             <p className="text-sm">
-              <Link href="/dashboard" className="text-accent-ink underline underline-offset-2">
-                Ir a {BRAND_NAME}
+              <Link href="/login" className="text-accent-ink underline underline-offset-2">
+                Iniciar sesión en {BRAND_NAME}
               </Link>
             </p>
           )}

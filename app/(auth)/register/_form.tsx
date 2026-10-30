@@ -1,8 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { UserPlus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardBody, CardFooter } from "@/app/components/ui/card";
@@ -20,7 +18,6 @@ import { Turnstile } from "@/app/components/ui/turnstile";
 // `turnstileSiteKey`: captcha activo (lo decide page.tsx en el servidor con
 // lib/turnstile.ts). null = registro sin captcha.
 export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | null }) {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,6 +25,10 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendNotice, setResendNotice] = useState("");
+  const [resendError, setResendError] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
   const [captchaError, setCaptchaError] = useState(false);
@@ -74,15 +75,9 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
 
       if (analyticsEventId) track({ name: "sign_up", eventId: analyticsEventId });
 
-      // Entra directo a su espacio de prueba; el correo de verificación ya va
-      // en camino y el aviso superior del panel lo recuerda.
-      const login = await signIn("credentials", { email: parsed.data.email, password, redirect: false });
-      if (login?.error) {
-        router.push("/login");
-        return;
-      }
-      router.push("/dashboard");
-      router.refresh();
+      // No se inicia sesión: la cuenta queda pendiente de confirmar el correo.
+      // El usuario ve el aviso y puede reenviar el enlace desde aquí.
+      setRegisteredEmail(parsed.data.email);
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Error al registrar");
       // El token ya se gastó en este intento: pedir uno nuevo.
@@ -90,6 +85,63 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
     } finally {
       setLoading(false);
     }
+  }
+
+  async function resendVerification() {
+    if (!registeredEmail) return;
+    setResending(true);
+    setResendNotice("");
+    setResendError(false);
+    try {
+      const res = await fetch("/api/auth/verify-email/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: registeredEmail }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "No se pudo reenviar el enlace");
+      setResendNotice(data?.message || "Si la cuenta existe y no está verificada, te enviamos un enlace.");
+    } catch (err) {
+      setResendError(true);
+      setResendNotice(err instanceof Error ? err.message : "No se pudo reenviar el enlace");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  if (registeredEmail) {
+    return (
+      <div className="space-y-6 animate-auth-in">
+        <div className="flex justify-center">
+          <Logo href="/" size="lg" />
+        </div>
+        <Card>
+          <CardHeader className="mb-2">
+            <CardTitle>Confirma tu correo</CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-4">
+            <Banner tone="success">
+              Te enviamos un enlace a <strong>{registeredEmail}</strong>. Ábrelo para activar tu cuenta.
+            </Banner>
+            <p className="text-sm text-muted-darker">
+              Por seguridad, no podrás iniciar sesión hasta confirmarlo. Si no llega en unos minutos, revisa spam o reenvíalo.
+            </p>
+            <Button type="button" variant="secondary" fullWidth loading={resending} onClick={() => void resendVerification()}>
+              Reenviar enlace
+            </Button>
+            {resendNotice && <Banner tone={resendError ? "danger" : "info"}>{resendNotice}</Banner>}
+          </CardBody>
+          <CardFooter>
+            <p className="text-sm text-muted-darker">
+              ¿Ya lo confirmaste?{" "}
+              <Link href="/login" className="text-accent-ink underline underline-offset-2">
+                Inicia sesión
+              </Link>
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (

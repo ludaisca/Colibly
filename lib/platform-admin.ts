@@ -1,25 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { isPlatformAdminEmailIn, parsePlatformAdminEmails } from "./platform-admin-emails";
 
 // Operadores de la plataforma (quien vende Colibly, no un rol dentro de una
 // organización): los correos de PLATFORM_ADMIN_EMAILS, separados por comas.
 // Sin la variable no hay operadores y /plataforma no existe para nadie.
 
-function platformAdminEmails(): Set<string> {
-  return new Set(
-    (process.env.PLATFORM_ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean)
-  );
-}
-
 export function listPlatformAdminEmails(): string[] {
-  return [...platformAdminEmails()];
+  return parsePlatformAdminEmails(process.env.PLATFORM_ADMIN_EMAILS);
 }
 
 export function isPlatformAdminEmail(email: string | null | undefined): boolean {
-  return !!email && platformAdminEmails().has(email.trim().toLowerCase());
+  return isPlatformAdminEmailIn(process.env.PLATFORM_ADMIN_EMAILS, email);
 }
 
 // Para rutas /api/plataforma: 404 (no 403) a quien no es operador, para no

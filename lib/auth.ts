@@ -1,10 +1,11 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { rateLimit } from "./rate-limit";
 import { invalidateTenantCache } from "./tenancy";
 import { clientIp } from "@/lib/net/client-ip";
+import { emailAllowsSignIn, EMAIL_NOT_VERIFIED_CODE } from "./auth-policy";
 
 // El JWT guarda rol y versión de sesión al iniciar sesión. Sin revalidar, un
 // cambio de rol o la desactivación de un usuario no surtían efecto hasta que el
@@ -12,6 +13,12 @@ import { clientIp } from "@/lib/net/client-ip";
 // usuario; el caché en memoria evita una consulta por request cuando la cookie
 // no se puede reescribir (p. ej. dentro de un Server Component).
 const SESSION_REVALIDATE_MS = 60_000;
+
+// NextAuth incluye `code` en el redirect; la pantalla de login lo lee para
+// distinguir "contraseña incorrecta" de "falta confirmar el correo".
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = EMAIL_NOT_VERIFIED_CODE;
+}
 
 interface UserSessionState {
   role: string;
@@ -27,7 +34,15 @@ async function loadUserSessionState(userId: string): Promise<UserSessionState | 
   if (cached && Date.now() - cached.loadedAt < SESSION_REVALIDATE_MS) return cached;
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, disabledAt: true, sessionVersion: true, organizationId: true, organization: { select: { status: true } } },
+    select: {
+      email: true,
+      emailVerifiedAt: true,
+      role: true,
+      disabledAt: true,
+      sessionVersion: true,
+      organizationId: true,
+      organization: { select: { status: true } },
+    },
   });
   if (!user) {
     userStateCache.delete(userId);
@@ -35,10 +50,19 @@ async function loadUserSessionState(userId: string): Promise<UserSessionState | 
   }
   // Una organización suspendida por la plataforma no puede entrar (solo lectura
   // o cancelada sí: ven sus datos, los candados de facturación bloquean lo demás).
+  // Un correo sin confirmar tampoco: la sesión emitida antes del cambio se cae
+  // en la siguiente revalidación (60 s), salvo para el dueño del SaaS.
   const state = {
     role: user.role,
     organizationId: user.organizationId,
-    disabled: !!user.disabledAt || user.organization.status === "SUSPENDED",
+    disabled:
+      !!user.disabledAt ||
+      user.organization.status === "SUSPENDED" ||
+      !emailAllowsSignIn({
+        email: user.email,
+        emailVerifiedAt: user.emailVerifiedAt,
+        platformAdminEmails: process.env.PLATFORM_ADMIN_EMAILS,
+      }),
     sessionVersion: user.sessionVersion,
     loadedAt: Date.now(),
   };
@@ -78,6 +102,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
+
+        // Bloqueo anti-bots: sin correo confirmado no hay sesión. El dueño del
+        // SaaS (PLATFORM_ADMIN_EMAILS) está exento.
+        if (
+          !emailAllowsSignIn({
+            email: user.email,
+            emailVerifiedAt: user.emailVerifiedAt,
+            platformAdminEmails: process.env.PLATFORM_ADMIN_EMAILS,
+          })
+        ) {
+          throw new EmailNotVerifiedError();
+        }
 
         return {
           id: user.id,
