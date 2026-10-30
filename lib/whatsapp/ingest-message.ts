@@ -147,8 +147,14 @@ export async function ingestInboundMessage(
   // quedaba RESOLVED y fuera de la calificación programada, la recuperación de
   // leads (ambas filtran OPEN/PENDING) y las métricas de resolución. PENDING no
   // se toca: puede significar otra cosa para el equipo.
-  if (chat.status === "RESOLVED") {
-    await prisma.wAChat.update({ where: { id: chat.id }, data: { status: "OPEN", resolvedAt: null } });
+  if (chat.status === "RESOLVED" || chat.snoozedUntil) {
+    await prisma.wAChat.update({
+      where: { id: chat.id },
+      data: {
+        ...(chat.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null } : {}),
+        snoozedUntil: null,
+      },
+    });
   }
 
   let createdMessage;

@@ -44,24 +44,46 @@ export async function GET(req: Request) {
       if (statuses.length > 0) where.status = { in: statuses };
     }
 
+    // Filtros de trabajo del agente. "me" y "unassigned" cubren las dos vistas
+    // que más se usan; un id arbitrario se rechaza para no filtrar por usuarios
+    // fuera del alcance del caller.
+    const assignedParam = searchParams.get("assigned");
+    if (assignedParam === "me") where.assignedToId = session.user.id;
+    else if (assignedParam === "unassigned") where.assignedToId = null;
+
+    const priorityParam = searchParams.get("priority");
+    if (priorityParam && ["LOW", "NORMAL", "HIGH", "URGENT"].includes(priorityParam)) {
+      where.priority = priorityParam;
+    }
+
     // Ambos filtros son sobre la relación messages[] — se combinan vía AND en
     // lugar de asignar dos veces where.messages, que se pisarían entre sí.
-    const messageFilters: Record<string, unknown>[] = [];
+    const andFilters: Record<string, unknown>[] = [];
 
     const campaignIdParam = searchParams.get("campaignId");
     if (campaignIdParam) {
-      messageFilters.push({ messages: { some: { campaignId: campaignIdParam } } });
+      andFilters.push({ messages: { some: { campaignId: campaignIdParam } } });
     }
 
     const hasRepliedParam = searchParams.get("hasReplied");
     if (hasRepliedParam === "yes") {
-      messageFilters.push({ messages: { some: { direction: "INBOUND" } } });
+      andFilters.push({ messages: { some: { direction: "INBOUND" } } });
     } else if (hasRepliedParam === "no") {
-      messageFilters.push({ messages: { none: { direction: "INBOUND" } } });
+      andFilters.push({ messages: { none: { direction: "INBOUND" } } });
     }
 
-    if (messageFilters.length > 0) {
-      where.AND = messageFilters;
+    // Pospuestos: por defecto se ocultan (la bandeja activa); "only" los
+    // muestra exclusivamente y "all" desactiva el filtro. Un snooze vencido
+    // cuenta como activo sin necesidad de limpiar la columna.
+    const snoozedParam = searchParams.get("snoozed");
+    if (snoozedParam === "only") {
+      andFilters.push({ snoozedUntil: { gt: new Date() } });
+    } else if (snoozedParam !== "all") {
+      andFilters.push({ OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: new Date() } }] });
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
     }
 
     // Paginación opt-in: sin `page`/`pageSize` en la query se preserva el
@@ -83,6 +105,8 @@ export async function GET(req: Request) {
       unreadCount: true,
       contactId: true,
       status: true,
+      priority: true,
+      snoozedUntil: true,
       assignedToId: true,
       assignedTo: { select: { id: true, name: true } },
       createdAt: true,

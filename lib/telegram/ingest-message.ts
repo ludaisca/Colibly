@@ -134,8 +134,14 @@ export async function ingestChannelMessage(
 
   // Mismo criterio que lib/whatsapp/ingest-message.ts: un mensaje nuevo
   // reabre una conversación RESUELTA.
-  if (conversation.status === "RESOLVED") {
-    await prisma.conversation.update({ where: { id: conversation.id }, data: { status: "OPEN", resolvedAt: null } });
+  if (conversation.status === "RESOLVED" || conversation.snoozedUntil) {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        ...(conversation.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null } : {}),
+        snoozedUntil: null,
+      },
+    });
   }
 
   let createdMessage;

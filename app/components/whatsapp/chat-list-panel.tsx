@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, MessageSquare, Inbox } from "lucide-react";
+import { Search, MessageSquare, Inbox, Flag, Clock } from "lucide-react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
@@ -10,14 +10,18 @@ import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { hueClassFor } from "@/app/components/ui/hue";
 import { cn } from "@/app/components/ui/cn";
-import { ChatFiltersPanel } from "./chat-filters-panel";
+import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./chat-filters-panel";
+import { useNowMs } from "./use-now";
 import {
   displayMessageText,
   formatTime,
+  formatSnoozeUntil,
+  PRIORITY_META,
   campaignTone,
   type AccountOption,
   type ChatItem,
   type CampaignOption,
+  type ChatPriority,
 } from "./chat-shared";
 
 // Lista de conversaciones — buscador, filtros de campaña/respuesta, y las
@@ -49,6 +53,13 @@ interface ChatListPanelProps {
   hasRepliedFilter: "" | "yes" | "no";
   onHasRepliedFilterChange: (value: "" | "yes" | "no") => void;
 
+  assignedFilter: AssignedFilter;
+  onAssignedFilterChange: (value: AssignedFilter) => void;
+  priorityFilter: ChatPriority | "";
+  onPriorityFilterChange: (value: ChatPriority | "") => void;
+  snoozedFilter: SnoozedFilter;
+  onSnoozedFilterChange: (value: SnoozedFilter) => void;
+
   loadingChats: boolean;
   loadError: string | null;
   onRetry: () => void;
@@ -74,6 +85,12 @@ export function ChatListPanel({
   onCampaignFilterChange,
   hasRepliedFilter,
   onHasRepliedFilterChange,
+  assignedFilter,
+  onAssignedFilterChange,
+  priorityFilter,
+  onPriorityFilterChange,
+  snoozedFilter,
+  onSnoozedFilterChange,
   loadingChats,
   loadError,
   onRetry,
@@ -83,6 +100,7 @@ export function ChatListPanel({
   loadingMoreChats,
   onLoadMore,
 }: ChatListPanelProps) {
+  const now = useNowMs();
   const hasResults = Object.keys(groupedChats).length > 0;
   // Las sugerencias salen de la misma lista autorizada y filtrada que se ve
   // debajo; el texto sigue pasando por la búsqueda paginada del servidor.
@@ -157,6 +175,12 @@ export function ChatListPanel({
             onCampaignFilterChange={onCampaignFilterChange}
             hasRepliedFilter={hasRepliedFilter}
             onHasRepliedFilterChange={onHasRepliedFilterChange}
+            assignedFilter={assignedFilter}
+            onAssignedFilterChange={onAssignedFilterChange}
+            priorityFilter={priorityFilter}
+            onPriorityFilterChange={onPriorityFilterChange}
+            snoozedFilter={snoozedFilter}
+            onSnoozedFilterChange={onSnoozedFilterChange}
           />
         </div>
       </div>
@@ -173,11 +197,14 @@ export function ChatListPanel({
               icon={MessageSquare}
               title={totalChatsLoaded === 0 ? "Sin chats" : "Sin resultados"}
               description={totalChatsLoaded === 0 ? "No tienes chats activos. Cuando recibas mensajes aparecerán aquí." : "No se encontraron chats con ese filtro."}
-              action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter) ? (
+              action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter) ? (
                 <Button variant="secondary" size="sm" onClick={() => {
                   onSearchChange("");
                   onCampaignFilterChange("");
                   onHasRepliedFilterChange("");
+                  onAssignedFilterChange("");
+                  onPriorityFilterChange("");
+                  onSnoozedFilterChange("");
                   onAccountFilterChange("");
                 }}>Limpiar búsqueda y filtros</Button>
               ) : undefined}
@@ -230,11 +257,29 @@ export function ChatListPanel({
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        {chat.lastMessageAt && (
-                          <span className={`text-[10px] ${chat.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted-darker"}`}>
-                            {formatTime(chat.lastMessageAt)}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1">
+                          {chat.priority !== "NORMAL" && (
+                            <span
+                              title={`Prioridad ${PRIORITY_META[chat.priority].label.toLowerCase()}`}
+                              className={PRIORITY_META[chat.priority].text}
+                            >
+                              <Flag size={10} fill="currentColor" />
+                            </span>
+                          )}
+                          {chat.snoozedUntil && new Date(chat.snoozedUntil).getTime() > now && (
+                            <span
+                              title={`Pospuesto hasta ${formatSnoozeUntil(chat.snoozedUntil)}`}
+                              className="text-muted-darker"
+                            >
+                              <Clock size={10} />
+                            </span>
+                          )}
+                          {chat.lastMessageAt && (
+                            <span className={`text-[10px] ${chat.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted-darker"}`}>
+                              {formatTime(chat.lastMessageAt)}
+                            </span>
+                          )}
+                        </span>
                         {chat.unreadCount > 0 && (
                           <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-accent text-on-accent text-[10px] font-bold">
                             {chat.unreadCount > 99 ? "99+" : chat.unreadCount}

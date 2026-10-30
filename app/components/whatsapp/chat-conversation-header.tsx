@@ -10,10 +10,12 @@ import { Select } from "@/app/components/ui/select";
 import { ChatAssigneePicker } from "./chat-assignee-picker";
 import { ChatBotMode } from "./chat-bot-mode";
 import { ChatTagPicker } from "./chat-tag-picker";
+import { ChatPriorityPicker } from "./chat-priority-picker";
+import { ChatSnoozeControls } from "./chat-snooze-controls";
 import { LeadScoreBadge } from "./lead-score-badge";
 import { ChatCostBadge } from "./chat-cost-badge";
 import { AutomationChip } from "./automation-chip";
-import { STATUS_BADGE, type Channel, type ChatItem, type ChatStatus } from "./chat-shared";
+import { STATUS_BADGE, type Channel, type ChatItem, type ChatPriority, type ChatStatus } from "./chat-shared";
 
 const CHANNELS: Record<Channel, { label: string }> = {
   WHATSAPP: { label: "WhatsApp" },
@@ -30,9 +32,11 @@ interface Props {
   onOpenContactDrawer: () => void;
   onStatusChange: (status: ChatStatus) => void | Promise<void>;
   onAssigned: (assignee: { id: string; name: string | null } | null) => void;
+  onPriorityChange: (priority: ChatPriority) => void;
+  onSnoozedChange: (until: string | null) => void;
 }
 
-export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned }: Props) {
+export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned, onPriorityChange, onSnoozedChange }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const detailsId = useId();
@@ -128,6 +132,10 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
                 <ChatAssigneePicker chatId={chat.id} assignedTo={chat.assignedTo} onAssigned={onAssigned} />
               </section>
               <section className="min-w-0 space-y-2">
+                <h3 className="text-xs font-semibold text-muted-darker">Prioridad</h3>
+                <ChatPriorityPicker chatId={chat.id} priority={chat.priority} onChanged={onPriorityChange} />
+              </section>
+              <section className="min-w-0 space-y-2">
                 <h3 className="text-xs font-semibold text-muted-darker">Atención</h3>
                 <ChatBotMode chatId={chat.id} refreshKey={refreshKey} />
               </section>
@@ -151,6 +159,12 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
                   {(Object.keys(STATUS_BADGE) as ChatStatus[]).map((status) => <option key={status} value={status}>{STATUS_BADGE[status].label}</option>)}
                 </Select>
               </section>
+              {!resolved && (
+                <section className="min-w-0 space-y-2">
+                  <h3 className="text-xs font-semibold text-muted-darker">Posponer</h3>
+                  <ChatSnoozeControls chatId={chat.id} snoozedUntil={chat.snoozedUntil} onChanged={onSnoozedChange} />
+                </section>
+              )}
               <section className="min-w-0 space-y-2">
                 <h3 className="text-xs font-semibold text-muted-darker">Etiquetas</h3>
                 <ChatTagPicker chatId={chat.id} />

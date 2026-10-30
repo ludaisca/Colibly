@@ -322,6 +322,16 @@ enum ChatStatus {
   RESOLVED
 }
 
+// Prioridad operativa del chat, independiente de la etapa del lead. No cambia
+// el orden natural de la bandeja (lastMessageAt): se usa para filtrar y para
+// pintar una señal visual compacta en la fila.
+enum ChatPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 // Canales adicionales a WhatsApp — capa de adaptador deliberadamente
 // separada de WAAccount/WAChat/WAMessage: ese esquema es de producción y no
 // se toca. ChannelAccount/Conversation/ChannelMessage son tablas genéricas
@@ -416,6 +426,10 @@ model Conversation {
   lastMessageAt    DateTime?
   unreadCount      Int            @default(0)
   status           ChatStatus     @default(OPEN)
+  priority         ChatPriority   @default(NORMAL)
+  // Fecha futura = pospuesto. El chat sigue en su estado (OPEN/PENDING) y
+  // vuelve a la bandeja activa solo; un inbound lo despierta antes.
+  snoozedUntil     DateTime?      @map("snoozed_until")
   assignedToId     String?
   assignedTo       User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   resolvedAt       DateTime?
@@ -431,6 +445,8 @@ model Conversation {
   @@unique([channelAccountId, externalId])
   @@index([assignedToId])
   @@index([channelAccountId, lastMessageAt])
+  @@index([channelAccountId, status, priority])
+  @@index([channelAccountId, snoozedUntil])
   @@map("conversations")
 }
 
@@ -484,17 +500,19 @@ model WAChat {
   isGroup         Boolean    @default(false)
   lastMessage     String?
   lastMessageAt   DateTime?
-  unreadCount     Int        @default(0)
-  contactId       String?    @unique
-  contact         Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  unreadCount     Int          @default(0)
+  contactId       String?      @unique
+  contact         Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
   assignedToId    String?
-  assignedTo      User?      @relation("ChatAssignments", fields: [assignedToId], references: [id], onDelete: SetNull)
-  status          ChatStatus @default(OPEN)
+  assignedTo      User?        @relation("ChatAssignments", fields: [assignedToId], references: [id], onDelete: SetNull)
+  status          ChatStatus   @default(OPEN)
+  priority        ChatPriority @default(NORMAL)
+  snoozedUntil    DateTime?    @map("snoozed_until")
   resolvedAt      DateTime?
   firstResponseAt DateTime?
   botResumedAt    DateTime?
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   messages         WAMessage[]
   calls            WACall[]
@@ -508,6 +526,8 @@ model WAChat {
   @@index([assignedToId])
   @@index([accountId, lastMessageAt])
   @@index([accountId, status])
+  @@index([accountId, status, priority])
+  @@index([accountId, snoozedUntil])
   @@map("wa_chats")
 }
 

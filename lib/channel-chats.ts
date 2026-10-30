@@ -49,6 +49,15 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
     if (statuses.length > 0) where.status = { in: statuses };
   }
 
+  const assignedParam = searchParams.get("assigned");
+  if (assignedParam === "me") where.assignedToId = userId;
+  else if (assignedParam === "unassigned") where.assignedToId = null;
+
+  const priorityParam = searchParams.get("priority");
+  if (priorityParam && ["LOW", "NORMAL", "HIGH", "URGENT"].includes(priorityParam)) {
+    where.priority = priorityParam;
+  }
+
   // hasReplied: sin campañas en estos canales, "yes" es simplemente cualquier
   // conversación con al menos un mensaje INBOUND — mismo criterio que
   // WhatsApp, sin el filtro adicional de campaignId (fuera de alcance).
@@ -57,6 +66,13 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
     where.messages = { some: { direction: "INBOUND" } };
   } else if (hasRepliedParam === "no") {
     where.messages = { none: { direction: "INBOUND" } };
+  }
+
+  const snoozedParam = searchParams.get("snoozed");
+  if (snoozedParam === "only") {
+    where.snoozedUntil = { gt: new Date() };
+  } else if (snoozedParam !== "all") {
+    where.AND = [{ OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: new Date() } }] }];
   }
 
   const pageParam = searchParams.get("page");
@@ -75,6 +91,8 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
     unreadCount: true,
     contactId: true,
     status: true,
+    priority: true,
+    snoozedUntil: true,
     assignedToId: true,
     assignedTo: { select: { id: true, name: true } },
     createdAt: true,
@@ -106,6 +124,8 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
     unreadCount: c.unreadCount,
     contactId: c.contactId,
     status: c.status,
+    priority: c.priority,
+    snoozedUntil: c.snoozedUntil,
     assignedToId: c.assignedToId,
     assignedTo: c.assignedTo,
     createdAt: c.createdAt,

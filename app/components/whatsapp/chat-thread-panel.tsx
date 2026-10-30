@@ -34,6 +34,7 @@ import {
   formatDayDivider,
   formatBytes,
   type ChatItem,
+  type ChatPriority,
   type ChatStatus,
   type Message,
   type AgentReaction,
@@ -413,6 +414,8 @@ interface ChatThreadPanelProps {
   onOpenContactDrawer: () => void;
   onStatusChange: (status: ChatStatus) => void | Promise<void>;
   onAssigned: (assignee: { id: string; name: string | null } | null) => void;
+  onPriorityChange: (priority: ChatPriority) => void;
+  onSnoozedChange: (until: string | null) => void;
   onPreview: (media: PreviewMedia) => void;
   onRetry: (msg: Message) => void;
   onReply: (msg: Message) => void;
@@ -434,6 +437,8 @@ export function ChatThreadPanel({
   onOpenContactDrawer,
   onStatusChange,
   onAssigned,
+  onPriorityChange,
+  onSnoozedChange,
   onPreview,
   onRetry,
   onReply,
@@ -522,6 +527,8 @@ export function ChatThreadPanel({
         onOpenContactDrawer={onOpenContactDrawer}
         onStatusChange={onStatusChange}
         onAssigned={onAssigned}
+        onPriorityChange={onPriorityChange}
+        onSnoozedChange={onSnoozedChange}
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col">

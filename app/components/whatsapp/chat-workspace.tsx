@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { MessageSquare } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -13,6 +14,7 @@ import { ChatListPanel } from "@/app/components/whatsapp/chat-list-panel";
 import { ChatThreadPanel, MediaPreviewModal } from "@/app/components/whatsapp/chat-thread-panel";
 import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
 import { ChatClaimBanner } from "@/app/components/whatsapp/chat-claim-banner";
+import { useNowMs } from "@/app/components/whatsapp/use-now";
 import { ChatDisplayNameBanner, ChatWindowBanner, useChatServiceWindow } from "@/app/components/whatsapp/chat-window-banner";
 import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-modal";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
@@ -21,6 +23,7 @@ import {
   CHATS_LIST_POLL_MS,
   type Channel,
   type ChatItem,
+  type ChatPriority,
   type ChatStatus,
   type Message,
   type PreviewMedia,
@@ -55,6 +58,9 @@ interface ChatWorkspaceProps {
   initialChatId?: string;
   initialCampaignId?: string;
   initialHasReplied?: "" | "yes" | "no";
+  initialAssigned?: "" | "me" | "unassigned";
+  initialPriority?: ChatPriority | "";
+  initialSnoozed?: "" | "only" | "all";
   initialSearch?: string;
 }
 
@@ -64,9 +70,14 @@ export function ChatWorkspace({
   initialChatId,
   initialCampaignId,
   initialHasReplied,
+  initialAssigned,
+  initialPriority,
+  initialSnoozed,
   initialSearch,
 }: ChatWorkspaceProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id ?? null;
   const { error: toastError } = useToast();
   const resizable = useSyncExternalStore(
     (onChange) => { const query = window.matchMedia("(min-width: 1024px)"); query.addEventListener("change", onChange); return () => query.removeEventListener("change", onChange); },
@@ -95,6 +106,9 @@ export function ChatWorkspace({
   const [accountFilter, setAccountFilter] = useState(initialAccountId || "");
   const [campaignFilter, setCampaignFilter] = useState(initialCampaignId || "");
   const [hasRepliedFilter, setHasRepliedFilter] = useState<"" | "yes" | "no">(initialHasReplied || "");
+  const [assignedFilter, setAssignedFilter] = useState<"" | "me" | "unassigned">(initialAssigned || "");
+  const [priorityFilter, setPriorityFilter] = useState<ChatPriority | "">(initialPriority || "");
+  const [snoozedFilter, setSnoozedFilter] = useState<"" | "only" | "all">(initialSnoozed || "");
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const accounts = initialAccounts;
   // Las cuentas llegan del servidor: un filtro de cuenta ya conoce su canal
@@ -154,10 +168,13 @@ export function ChatWorkspace({
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (channel === "WHATSAPP" && campaignFilter) params.set("campaignId", campaignFilter);
     if (hasRepliedFilter) params.set("hasReplied", hasRepliedFilter);
+    if (assignedFilter) params.set("assigned", assignedFilter);
+    if (priorityFilter) params.set("priority", priorityFilter);
+    if (snoozedFilter) params.set("snoozed", snoozedFilter);
     if (accountFilter) params.set("accountId", accountFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
-  }, [campaignFilter, hasRepliedFilter, accountFilter, debouncedSearch]);
+  }, [campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, accountFilter, debouncedSearch]);
 
   // Mezcla las 4 fuentes en una sola página ordenada por lastMessageAt. No es
   // paginación combinada real a nivel de DB (cada fuente pagina por su cuenta
@@ -255,6 +272,9 @@ export function ChatWorkspace({
   const [prevInitialAccountId, setPrevInitialAccountId] = useState(initialAccountId);
   const [prevInitialCampaignId, setPrevInitialCampaignId] = useState(initialCampaignId);
   const [prevInitialHasReplied, setPrevInitialHasReplied] = useState(initialHasReplied);
+  const [prevInitialAssigned, setPrevInitialAssigned] = useState(initialAssigned);
+  const [prevInitialPriority, setPrevInitialPriority] = useState(initialPriority);
+  const [prevInitialSnoozed, setPrevInitialSnoozed] = useState(initialSnoozed);
   const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
   if (initialChatId !== prevInitialChatId) {
     setPrevInitialChatId(initialChatId);
@@ -272,6 +292,18 @@ export function ChatWorkspace({
     setPrevInitialHasReplied(initialHasReplied);
     setHasRepliedFilter(initialHasReplied || "");
   }
+  if (initialAssigned !== prevInitialAssigned) {
+    setPrevInitialAssigned(initialAssigned);
+    setAssignedFilter(initialAssigned || "");
+  }
+  if (initialPriority !== prevInitialPriority) {
+    setPrevInitialPriority(initialPriority);
+    setPriorityFilter(initialPriority || "");
+  }
+  if (initialSnoozed !== prevInitialSnoozed) {
+    setPrevInitialSnoozed(initialSnoozed);
+    setSnoozedFilter(initialSnoozed || "");
+  }
   if (initialSearch !== prevInitialSearch) {
     setPrevInitialSearch(initialSearch);
     setSearch(initialSearch || "");
@@ -287,9 +319,12 @@ export function ChatWorkspace({
     if (accountFilter) params.set("accountId", accountFilter);
     if (campaignFilter) params.set("campaignId", campaignFilter);
     if (hasRepliedFilter) params.set("hasReplied", hasRepliedFilter);
+    if (assignedFilter) params.set("assigned", assignedFilter);
+    if (priorityFilter) params.set("priority", priorityFilter);
+    if (snoozedFilter) params.set("snoozed", snoozedFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
-  }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch]);
+  }, [accountFilter, campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, debouncedSearch]);
 
   // Sincroniza la URL sin navegar. `router.replace()` volvía a renderizar el
   // árbol del servidor y recargaba la conversación (por eso se había quitado y
@@ -420,7 +455,9 @@ export function ChatWorkspace({
       return;
     }
     const controller = new AbortController();
-    const params = new URLSearchParams({ accountId: initialAccountId, chatId: initialChatId, page: "1", pageSize: "1" });
+    // `snoozed=all` para que un enlace directo a un chat pospuesto lo abra
+    // igual: la lista normal lo oculta, pero el hilo debe poder mostrarse.
+    const params = new URLSearchParams({ accountId: initialAccountId, chatId: initialChatId, page: "1", pageSize: "1", snoozed: "all" });
     fetch(`${source.endpoint}?${params}`, { signal: controller.signal })
       .then(async (response) => {
         const data = await response.json();
@@ -838,6 +875,16 @@ export function ChatWorkspace({
     ));
   }
 
+  function handlePriorityChange(priority: ChatPriority) {
+    if (!selectedChatId) return;
+    setChats((prev) => prev.map((c) => c.id === selectedChatId ? { ...c, priority } : c));
+  }
+
+  function handleSnoozedChange(snoozedUntil: string | null) {
+    if (!selectedChatId) return;
+    setChats((prev) => prev.map((c) => c.id === selectedChatId ? { ...c, snoozedUntil } : c));
+  }
+
   const accountOptions = accounts.length > 0
     ? accounts
     : Array.from(new Map(chats.map((c) => [c.account.id, c.account])).values());
@@ -856,8 +903,17 @@ export function ChatWorkspace({
   // El servidor ya aplica cuenta + búsqueda (debounced); este filtro replica el
   // criterio en el cliente solo para dar respuesta instantánea mientras el
   // debounce/fetch está en vuelo.
+  const now = useNowMs();
   const filteredChats = chats.filter((c) => {
     if (accountFilter && c.accountId !== accountFilter) return false;
+    const snoozed = c.snoozedUntil ? new Date(c.snoozedUntil).getTime() > now : false;
+    if (snoozedFilter === "only" && !snoozed) return false;
+    // El chat abierto se conserva aunque se acabe de posponer: cerrar el hilo
+    // de golpe al pulsar "Posponer" sería peor que verlo con su reloj.
+    if (snoozedFilter === "" && snoozed && c.id !== selectedChatId) return false;
+    if (assignedFilter === "me" && currentUserId && c.assignedToId !== currentUserId) return false;
+    if (assignedFilter === "unassigned" && c.assignedToId) return false;
+    if (priorityFilter && c.priority !== priorityFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -901,6 +957,12 @@ export function ChatWorkspace({
         onCampaignFilterChange={setCampaignFilter}
         hasRepliedFilter={hasRepliedFilter}
         onHasRepliedFilterChange={setHasRepliedFilter}
+        assignedFilter={assignedFilter}
+        onAssignedFilterChange={setAssignedFilter}
+        priorityFilter={priorityFilter}
+        onPriorityFilterChange={setPriorityFilter}
+        snoozedFilter={snoozedFilter}
+        onSnoozedFilterChange={setSnoozedFilter}
         loadingChats={loadingChats}
         loadError={chatsError}
         onRetry={retryChats}
@@ -935,6 +997,8 @@ export function ChatWorkspace({
               onOpenContactDrawer={() => setContactDrawerOpen(true)}
               onStatusChange={handleStatusChange}
               onAssigned={handleAssigned}
+              onPriorityChange={handlePriorityChange}
+              onSnoozedChange={handleSnoozedChange}
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
               onReply={setReplyTo}
