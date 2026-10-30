@@ -198,7 +198,7 @@ export function AppShell({
   const immersive = pathname.startsWith("/whatsapp/chat");
   const automationEditor =
     segments.length === 3 && segments[0] === "whatsapp" && segments[1] === "automatizaciones";
-  const wideContent = immersive || pathname === "/ventas" || pathname.startsWith("/ventas/") || automationEditor;
+  const wideContent = immersive || automationEditor;
 
   useEffect(() => {
     if (!collapsible) return;
