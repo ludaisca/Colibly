@@ -231,7 +231,7 @@ export function AppShell({
       </Suspense>
       <aside
         className={cn(
-          "hidden md:flex border-r border-border/60 bg-background flex-col shrink-0 transition-all duration-200",
+          "hidden md:flex sticky top-0 self-start h-svh overflow-hidden border-r border-border/60 bg-background flex-col shrink-0 transition-all duration-200",
           collapsed ? "w-16" : "w-56 lg:w-60"
         )}
       >
