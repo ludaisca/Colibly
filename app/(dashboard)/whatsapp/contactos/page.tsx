@@ -69,6 +69,15 @@ export default function ContactosPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  // Deep link del buscador global: /whatsapp/contactos?search=teléfono
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("search");
+    if (!q) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lectura única de la URL al montar
+    setSearchInput(q);
+    setSearch(q);
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination when filters change
     setPage(1);
@@ -138,7 +147,7 @@ export default function ContactosPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <ContactUsageMeter usage={contactUsage} />
-            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchContacts}>
+            <Button variant="secondary" size="md" icon={RefreshCw} onClick={fetchContacts}>
               Actualizar
             </Button>
           </div>

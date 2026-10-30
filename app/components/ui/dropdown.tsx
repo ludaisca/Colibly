@@ -105,7 +105,7 @@ export function Dropdown({
     <div
       ref={menuRef}
       className={cn(
-        "z-[70] mt-1.5 min-w-[180px] rounded-xl border border-border bg-surface shadow-lg py-1",
+        "z-[70] mt-1.5 min-w-[180px] rounded-lg border border-border bg-surface shadow-lg py-1",
         portal ? "fixed max-h-[calc(100dvh-16px)] max-w-[calc(100vw-16px)] overflow-y-auto" : "absolute",
         isOpen ? "animate-scale-in" : "animate-scale-out",
         !portal && (align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left")

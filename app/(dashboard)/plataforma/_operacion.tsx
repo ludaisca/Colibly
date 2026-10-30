@@ -240,7 +240,7 @@ export function PlataformaOperacion() {
         ) : tokens.length === 0 ? (
           <Banner tone="info">Todavía no hay tokens. Crea uno para conectar el MCP.</Banner>
         ) : (
-          <div className="divide-y divide-border rounded-xl border border-border">
+          <div className="divide-y divide-border rounded-lg border border-border">
             {tokens.map((token) => {
               const expired = token.expiresAt ? new Date(token.expiresAt).getTime() <= now : false;
               const active = !token.revokedAt && !expired;

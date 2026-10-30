@@ -30,7 +30,7 @@ export function Alert({ tone = "info", title, children, onClose, className, icon
     <div
       role={tone === "danger" || tone === "warning" ? "alert" : "status"}
       className={cn(
-        "flex items-start gap-3 rounded-xl border px-4 py-3 text-sm",
+        "flex items-start gap-3 rounded-lg border px-4 py-3 text-sm",
         style.bg,
         style.border,
         className

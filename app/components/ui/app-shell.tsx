@@ -83,8 +83,8 @@ function SidebarContent({
             // Radio cercano al de la marca (rx=9 sobre 32): el item mide 40px
             // de alto, así que 12px conserva la misma proporción visual.
             active
-              ? cn("rounded-[12px]", activeClass(accent ?? "accent"))
-              : "rounded-[12px] text-muted hover:bg-surface-light hover:text-foreground"
+              ? cn("rounded-[9px]", activeClass(accent ?? "accent"))
+              : "rounded-[9px] text-muted hover:bg-surface-light hover:text-foreground"
           )}
         >
           <Icon size={18} className="shrink-0" />

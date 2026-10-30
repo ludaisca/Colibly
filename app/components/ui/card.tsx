@@ -23,7 +23,7 @@ export function Card({ padding = "md", interactive = false, className, children,
   return (
     <Tag
       className={cn(
-        "rounded-xl border border-border bg-surface",
+        "rounded-lg border border-border bg-surface",
         PAD[padding],
         interactive && "transition-shadow cursor-pointer hover:shadow-md hover:border-border",
         className

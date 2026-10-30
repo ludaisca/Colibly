@@ -153,7 +153,7 @@ export function DatePicker({
           min={min}
           max={max}
           className={cn(
-            "w-full h-10 rounded-lg border bg-surface-light px-4 pl-10 pr-8 text-sm text-foreground",
+            "w-full h-[38px] rounded-[9px] border bg-surface-light px-4 pl-10 pr-8 text-sm text-foreground",
             "placeholder:text-muted-darker outline-none transition-colors",
             "focus:border-accent-strong focus:ring-1 focus:ring-accent-muted",
             error ? "border-danger-border" : "border-border",
@@ -179,7 +179,7 @@ export function DatePicker({
           ref={panelRef}
           style={{ left: panelOffset }}
           className={cn(
-            "absolute z-50 mt-1.5 rounded-xl border border-border bg-surface shadow-lg p-3 w-[280px]",
+            "absolute z-50 mt-1.5 rounded-lg border border-border bg-surface shadow-lg p-3 w-[280px]",
             "animate-fade-in"
           )}
         >

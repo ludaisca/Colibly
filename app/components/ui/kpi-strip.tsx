@@ -88,7 +88,7 @@ export function KpiStrip({ items, size = "hero", className, columns }: KpiStripP
       {items.map((item) => {
         const inner = <KpiContent item={item} hero={hero} />;
         const cellClass = cn(
-          "flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow",
+          "flex flex-col gap-1.5 rounded-lg border border-border bg-surface p-4 shadow-sm transition-shadow",
           oddMobile && "last:col-span-2 lg:last:col-span-1",
         );
         return item.href ? (

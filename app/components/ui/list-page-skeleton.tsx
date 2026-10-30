@@ -26,7 +26,7 @@ export function ListPageSkeleton({
         <Skeleton className="h-10 w-32" />
       </div>
 
-      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
         {Array.from({ length: rows }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3.5">
             <Skeleton className="h-10 w-10 rounded-lg shrink-0" />

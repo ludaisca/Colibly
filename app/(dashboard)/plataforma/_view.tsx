@@ -199,7 +199,7 @@ export function PlatformView({
 
             <p className="text-sm text-muted">{n(total)} organización(es)</p>
             <Table
-              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+              className="rounded-lg border border-border bg-surface p-4 shadow-sm"
               columns={columns}
               rows={rows}
               rowKey={(r) => r.id}
@@ -368,7 +368,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
               </form>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted">
                 {org.status === "SUSPENDED"
                   ? "Suspendida: nadie de la organización puede entrar. Al reactivarla vuelve al estado que le corresponde (Stripe o su prueba)."

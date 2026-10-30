@@ -87,7 +87,7 @@ export function MultiSelect({
           }
         }}
         className={cn(
-          "w-full min-h-10 rounded-lg border bg-surface-light px-3 py-2 text-left text-sm transition-colors cursor-pointer",
+          "w-full min-h-[38px] rounded-[9px] border bg-surface-light px-3 py-2 text-left text-sm transition-colors cursor-pointer",
           "focus:outline-none focus:border-accent-strong focus:ring-1 focus:ring-accent-muted",
           error ? "border-danger-border" : "border-border",
           disabled && "opacity-50 cursor-not-allowed"
@@ -130,7 +130,7 @@ export function MultiSelect({
       {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
 
       {open && (
-        <div className="absolute z-50 mt-1.5 w-full rounded-xl border border-border bg-surface shadow-lg py-1 max-h-56 overflow-y-auto animate-fade-in">
+        <div className="absolute z-50 mt-1.5 w-full rounded-lg border border-border bg-surface shadow-lg py-1 max-h-56 overflow-y-auto animate-fade-in">
           {options.map((opt) => {
             const isSelected = selectedSet.has(opt.value);
             return (

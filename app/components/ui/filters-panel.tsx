@@ -106,7 +106,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
         aria-controls={open ? panelId : undefined}
         onClick={() => (open ? setOpen(false) : openPanel())}
         className={cn(
-          "relative flex items-center gap-1.5 rounded-[12px] border px-3 py-1.5 text-xs font-semibold transition-colors",
+          "relative flex h-[38px] items-center gap-1.5 rounded-[9px] border px-3 text-xs font-semibold transition-colors",
           appliedCount > 0
             ? "border-accent-strong bg-accent-subtle text-accent-ink"
             : "border-border bg-surface text-muted hover:bg-surface-light"
@@ -122,7 +122,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
       </button>
 
       {open && (
-        <div id={panelId} className="absolute z-30 mt-1.5 w-[min(20rem,calc(100vw-2rem))] origin-top-left animate-scale-in rounded-xl border border-border bg-surface p-4 shadow-lg" style={{ left: panelLeft }}>
+        <div id={panelId} className="absolute z-30 mt-1.5 w-[min(20rem,calc(100vw-2rem))] origin-top-left animate-scale-in rounded-lg border border-border bg-surface p-4 shadow-lg" style={{ left: panelLeft }}>
           <p className="mb-3 text-sm font-bold">{panelTitle}</p>
 
           {visibleKeys.length === 0 ? (
@@ -152,7 +152,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
                       type="button"
                       onClick={() => removeField(key)}
                       aria-label={`Quitar condición ${field.label}`}
-                      className="shrink-0 rounded-lg p-1.5 text-muted-darker transition-colors hover:bg-danger-bg hover:text-danger"
+                      className="shrink-0 rounded-[9px] p-1.5 text-muted-darker transition-colors hover:bg-danger-bg hover:text-danger"
                     >
                       <Trash2 size={14} />
                     </button>

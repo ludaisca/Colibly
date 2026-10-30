@@ -194,9 +194,9 @@ function SettingsBlock({ eyebrow, title, status, defaultOpen, children }: { eyeb
         setTouched(true);
         setOpen((e.currentTarget as HTMLDetailsElement).open);
       }}
-      className="group min-w-0 rounded-xl border border-border bg-surface"
+      className="group min-w-0 rounded-lg border border-border bg-surface"
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
           <span className="block text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{eyebrow}</span>
           <span className="block font-display text-base font-semibold tracking-tight text-foreground text-base">{title}</span>

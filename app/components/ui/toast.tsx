@@ -73,7 +73,7 @@ function ToastItem({
       role="status"
       aria-live={toast.tone === "danger" ? "assertive" : "polite"}
       className={cn(
-        "flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md",
+        "flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-md",
         "bg-surface",
         border,
         exiting ? "animate-slide-down" : "animate-slide-up",

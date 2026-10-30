@@ -48,7 +48,7 @@ export function ChatAccountRail({ accounts, selectedAccountId, onSelect, unreadB
           heredar los 64px del rail — con cero margen a los lados, el aro de
           selección (ring-offset + ring) no tenía dónde pintarse y se
           recortaba contra el propio borde del contenedor. */}
-      <div className="scrollbar-thin flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto py-1">
+      <div className="scrollbar-none flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto py-1">
         {accounts.map((acc) => (
           <RailButton
             key={acc.id}

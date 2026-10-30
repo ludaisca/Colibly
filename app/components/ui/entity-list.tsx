@@ -51,7 +51,7 @@ export function EntityList<T>({
 }: EntityListProps<T>) {
   if (loading) {
     return (
-      <div className={cn("divide-y divide-border rounded-xl border border-border bg-surface px-3", className)} role="status" aria-label="Cargando datos">
+      <div className={cn("divide-y divide-border rounded-lg border border-border bg-surface px-3", className)} role="status" aria-label="Cargando datos">
         {Array.from({ length: skeletonCount }).map((_, i) => (
           <SkeletonRow key={i} cols={3} />
         ))}
@@ -76,7 +76,7 @@ export function EntityList<T>({
   }
 
   return (
-    <div className={cn("divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface", className)}>
+    <div className={cn("divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface", className)}>
       {rows.map((row) => (
         <div
           key={rowKey(row)}

@@ -16,7 +16,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           aria-invalid={!!error}
           className={cn(
-            "w-full appearance-none rounded-lg border bg-surface-light pl-3 pr-9 py-2 text-sm text-foreground",
+            "w-full appearance-none rounded-[9px] border bg-surface-light pl-3 pr-9 py-2 text-sm text-foreground",
             "transition-colors",
             "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
             error ? "border-danger-border" : "border-border"

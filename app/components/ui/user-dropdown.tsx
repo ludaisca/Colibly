@@ -47,7 +47,7 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-border bg-surface shadow-lg z-50 overflow-hidden">
+          <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-surface shadow-lg z-50 overflow-hidden">
             <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-on-accent font-bold text-sm shrink-0 select-none">

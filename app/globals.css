@@ -123,6 +123,7 @@
   --ring-offset: var(--background);
 
   /* Radius */
+  --radius-control: 9px;   /* botones, inputs, selects y chips */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;

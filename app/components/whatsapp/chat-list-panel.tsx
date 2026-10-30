@@ -98,7 +98,7 @@ export function ChatListPanel({
         <h1 className="text-sm font-semibold tracking-tight">Chats</h1>
 
         {accountOptions.length > 1 && (
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 lg:hidden scrollbar-thin">
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 lg:hidden scrollbar-none">
             <button
               type="button"
               onClick={() => onAccountFilterChange("")}

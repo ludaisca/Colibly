@@ -122,7 +122,7 @@ export function SearchableSelect({
           }
         }}
         className={cn(
-          "w-full flex items-center gap-2 rounded-lg border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 sm:py-2.5 text-sm text-left transition-colors cursor-pointer relative",
+          "w-full flex items-center gap-2 rounded-[9px] border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 text-sm text-left transition-colors cursor-pointer relative",
           "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
           error ? "border-danger-border" : "border-border",
           disabled && "opacity-50 cursor-not-allowed"
@@ -147,7 +147,7 @@ export function SearchableSelect({
       )}
 
       {open && (
-        <div className="absolute z-50 mt-1.5 w-full rounded-xl border border-border bg-surface shadow-lg animate-fade-in overflow-hidden">
+        <div className="absolute z-50 mt-1.5 w-full rounded-lg border border-border bg-surface shadow-lg animate-fade-in overflow-hidden">
           <div className="relative border-b border-border">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker" />
             <input
