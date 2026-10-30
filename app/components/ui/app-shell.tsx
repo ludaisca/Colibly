@@ -4,7 +4,7 @@ import React, { Suspense, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Menu, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { Menu, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Drawer } from "./drawer";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
@@ -118,6 +118,9 @@ function SidebarContent({
               if (group.items.length === 0) return null;
               return (
                 <div key={group.title || index} className="flex flex-col gap-1 w-full">
+                  {collapsed && index > 0 && (
+                    <div className="mx-auto my-1 h-px w-8 bg-border/70" aria-hidden="true" />
+                  )}
                   {!collapsed && group.title && (
                     <div className="px-3 text-[10px] font-bold text-muted-darker tracking-wider uppercase mb-1">
                       {group.title}
@@ -199,7 +202,7 @@ export function AppShell({
 
   useEffect(() => {
     if (!collapsible) return;
-    const stored = localStorage.getItem("sidebar-collapsed");
+    const stored = localStorage.getItem("colibly:sidebar-collapsed");
     // Deliberately set state after mount: localStorage is unavailable during
     // SSR, so reading it during render would mismatch the server-rendered
     // markup. Reading it post-hydration in an effect is the correct fix here.
@@ -210,7 +213,7 @@ export function AppShell({
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
-      localStorage.setItem("sidebar-collapsed", String(next));
+      localStorage.setItem("colibly:sidebar-collapsed", String(next));
       return next;
     });
   }, []);
@@ -229,7 +232,7 @@ export function AppShell({
       <aside
         className={cn(
           "hidden md:flex border-r border-border/60 bg-background flex-col shrink-0 transition-all duration-200",
-          collapsed ? "w-14" : "w-56 lg:w-60"
+          collapsed ? "w-16" : "w-56 lg:w-60"
         )}
       >
         <SidebarContent
@@ -272,8 +275,10 @@ export function AppShell({
               onClick={toggleCollapsed}
               className="hidden md:flex text-muted-darker hover:text-foreground transition-colors p-1 rounded-md"
               aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+              aria-expanded={!collapsed}
+              title={collapsed ? "Expandir menú" : "Colapsar menú"}
             >
-              {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
           )}
 
