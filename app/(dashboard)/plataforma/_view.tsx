@@ -147,7 +147,7 @@ export function PlatformView({
   ];
 
   return (
-    <div className="space-y-6">
+    <PageContainer width="6xl">
       <PageHeader title="Plataforma" description={`Todas las organizaciones de ${BRAND_NAME}, su cobro y acciones de soporte.`} />
 
       <HeroTabs items={TABS.map((id) => ({ id, label: TAB_LABEL[id] }))} value={tab} onChange={setTab} label="Secciones de Plataforma">
@@ -158,10 +158,9 @@ export function PlatformView({
       ) : tab === "operacion" ? (
         <PlataformaOperacion />
       ) : (
-        <PageContainer width="4xl">
+        <PageContainer width="6xl">
           <KpiStrip
             size="compact"
-            columns={2}
             items={[
               { label: "Ingreso mensual", value: `$${n(summary.mrrMxn)} MXN`, hint: "Suscripciones activas × asientos" },
               { label: "Pagando", value: n(summary.paying), delta: summary.pastDue ? `${n(summary.pastDue)} con pago pendiente` : undefined, deltaTone: "danger" },
@@ -216,7 +215,7 @@ export function PlatformView({
         </PageContainer>
       )}
       </HeroTabs>
-    </div>
+    </PageContainer>
   );
 }
 

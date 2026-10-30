@@ -380,7 +380,7 @@ export function PlataformaConfiguracion() {
 
   if (loading) {
     return (
-      <PageContainer width="4xl">
+      <PageContainer width="6xl">
         <div className="flex items-center gap-3 py-12 text-sm text-muted-darker">
           <Spinner /> Cargando configuración…
         </div>
@@ -389,14 +389,14 @@ export function PlataformaConfiguracion() {
   }
   if (loadError || !data) {
     return (
-      <PageContainer width="4xl">
+      <PageContainer width="6xl">
         <ListErrorState message={loadError ?? "No se pudo cargar la configuración."} onRetry={load} />
       </PageContainer>
     );
   }
 
   return (
-    <PageContainer width="4xl">
+    <PageContainer width="6xl">
       <Banner tone="info">
         Estas credenciales sirven a todas las organizaciones de la plataforma. Los campos cifrados llegan ocultos: &ldquo;Mostrar&rdquo; enseña el valor
         guardado durante 60 segundos (queda registrado en el log), escribe un valor nuevo para reemplazarlo o usa &ldquo;Quitar&rdquo; para borrarlo.

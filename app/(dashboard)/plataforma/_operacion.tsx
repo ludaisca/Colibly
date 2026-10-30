@@ -191,7 +191,7 @@ export function PlataformaOperacion() {
   }
 
   return (
-    <PageContainer width="4xl">
+    <PageContainer width="6xl">
       <section className="space-y-4">
         <SectionHeader eyebrow="Producción" title="Diagnóstico" action={
           <Button variant="secondary" size="sm" icon={RefreshCw} loading={reportLoading} onClick={() => void loadReport(true)}>

@@ -212,7 +212,7 @@ export function PlataformaRespaldos() {
 
   if (loading) {
     return (
-      <PageContainer width="4xl">
+      <PageContainer width="6xl">
         <div className="flex items-center gap-3 py-12 text-sm text-muted-darker">
           <Spinner /> Cargando respaldos…
         </div>
@@ -221,7 +221,7 @@ export function PlataformaRespaldos() {
   }
   if (loadError || !data) {
     return (
-      <PageContainer width="4xl">
+      <PageContainer width="6xl">
         <ListErrorState message={loadError ?? "No se pudo cargar."} onRetry={() => load()} />
       </PageContainer>
     );
@@ -250,7 +250,7 @@ export function PlataformaRespaldos() {
   ];
 
   return (
-    <PageContainer width="4xl">
+    <PageContainer width="6xl">
       {latest?.status === "FAILED" && (
         <Banner tone="danger" title="El último respaldo falló">
           {latest.error ?? "Sin detalle."}
