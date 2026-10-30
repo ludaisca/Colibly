@@ -35,6 +35,12 @@ export const PRIORITY_OPTIONS: Array<{ value: ChatPriority; label: string }> = [
   { value: "URGENT", label: "Urgente" },
 ];
 
+export type ChatBulkAction =
+  | { type: "assign"; self?: boolean; assignedToId?: string | null }
+  | { type: "status"; status: "OPEN" | "RESOLVED" }
+  | { type: "priority"; priority: ChatPriority }
+  | { type: "snooze"; until: string | null };
+
 export function snoozeUntilFor(preset: "1h" | "tomorrow" | "week"): string {
   const date = new Date();
   if (preset === "1h") {

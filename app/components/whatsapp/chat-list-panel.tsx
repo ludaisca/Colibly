@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, MessageSquare, Inbox, Flag, Clock } from "lucide-react";
+import type { ElementType, ReactNode } from "react";
+import { Search, MessageSquare, Inbox, Flag, Clock, ListChecks, UserCheck, Check, X } from "lucide-react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
@@ -11,14 +12,17 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { hueClassFor } from "@/app/components/ui/hue";
 import { cn } from "@/app/components/ui/cn";
 import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./chat-filters-panel";
+import { ChatViewsMenu } from "./chat-views-menu";
 import { useNowMs } from "./use-now";
 import {
   displayMessageText,
   formatTime,
   formatSnoozeUntil,
+  snoozeUntilFor,
   PRIORITY_META,
   campaignTone,
   type AccountOption,
+  type ChatBulkAction,
   type ChatItem,
   type CampaignOption,
   type ChatPriority,
@@ -33,6 +37,30 @@ import {
 // + constructor de condiciones aplicar/limpiar) en vez de mostrarse siempre
 // como controles sueltos. Extraído de chat-workspace.tsx sin tocar su lógica
 // de datos/handlers.
+
+function BulkButton({
+  icon: Icon,
+  children,
+  onClick,
+  disabled,
+}: {
+  icon: ElementType;
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-7 items-center gap-1 rounded-[9px] border border-accent-muted bg-surface px-2 text-[11px] font-semibold text-accent-ink transition-colors hover:bg-accent-subtle disabled:opacity-50"
+    >
+      <Icon size={12} />
+      {children}
+    </button>
+  );
+}
 
 interface ChatListPanelProps {
   resizable?: boolean;
@@ -59,6 +87,15 @@ interface ChatListPanelProps {
   onPriorityFilterChange: (value: ChatPriority | "") => void;
   snoozedFilter: SnoozedFilter;
   onSnoozedFilterChange: (value: SnoozedFilter) => void;
+
+  selectionMode: boolean;
+  onToggleSelectionMode: () => void;
+  selectedChatIds: Set<string>;
+  onToggleSelect: (chatId: string) => void;
+  onBulkAction: (action: ChatBulkAction) => void;
+  bulkBusy: boolean;
+  currentViewQuery: string;
+  onApplyView: (query: string) => void;
 
   loadingChats: boolean;
   loadError: string | null;
@@ -91,6 +128,14 @@ export function ChatListPanel({
   onPriorityFilterChange,
   snoozedFilter,
   onSnoozedFilterChange,
+  selectionMode,
+  onToggleSelectionMode,
+  selectedChatIds,
+  onToggleSelect,
+  onBulkAction,
+  bulkBusy,
+  currentViewQuery,
+  onApplyView,
   loadingChats,
   loadError,
   onRetry,
@@ -121,7 +166,7 @@ export function ChatListPanel({
               type="button"
               onClick={() => onAccountFilterChange("")}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-[12px] border px-3 py-1.5 text-xs font-semibold transition-colors",
+                "flex shrink-0 items-center gap-1.5 rounded-[9px] border px-3 py-1.5 text-xs font-semibold transition-colors",
                 accountFilter === ""
                   ? "border-accent-strong bg-accent text-on-accent"
                   : "border-border bg-surface text-muted hover:bg-surface-light"
@@ -135,7 +180,7 @@ export function ChatListPanel({
                 type="button"
                 onClick={() => onAccountFilterChange(acc.id)}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-[12px] border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
+                  "flex shrink-0 items-center gap-1.5 rounded-[9px] border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
                   accountFilter === acc.id
                     ? "border-accent-strong bg-accent text-on-accent"
                     : "border-border bg-surface text-muted hover:bg-surface-light"
@@ -153,12 +198,12 @@ export function ChatListPanel({
             <Combobox.Root items={suggestions} inputValue={search}
               onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
               onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
-              <Combobox.InputGroup className="flex h-9 items-center gap-2 rounded-[12px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
+              <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-[9px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
                 <Search size={16} className="shrink-0 text-muted-darker" />
                 <Combobox.Input aria-label="Buscar chat" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
               </Combobox.InputGroup>
               <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
-                <Combobox.Popup className="max-h-72 overflow-y-auto rounded-[12px] border border-border bg-surface p-1.5 shadow-lg">
+                <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">
                   <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
                   <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
                     <span className="truncate font-medium">{item.chat.name ?? item.chat.remoteJid}</span>
@@ -168,6 +213,24 @@ export function ChatListPanel({
               </Combobox.Positioner></Combobox.Portal>
             </Combobox.Root>
           </div>
+
+          <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} />
+
+          <button
+            type="button"
+            aria-label={selectionMode ? "Cancelar selección" : "Seleccionar chats"}
+            title={selectionMode ? "Cancelar selección" : "Seleccionar chats"}
+            aria-pressed={selectionMode}
+            onClick={onToggleSelectionMode}
+            className={cn(
+              "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] border transition-colors",
+              selectionMode
+                ? "border-accent-strong bg-accent-subtle text-accent-ink"
+                : "border-border bg-surface text-muted hover:bg-surface-light hover:text-foreground"
+            )}
+          >
+            {selectionMode ? <X size={15} /> : <ListChecks size={15} />}
+          </button>
 
           <ChatFiltersPanel
             campaigns={campaigns}
@@ -183,6 +246,30 @@ export function ChatListPanel({
             onSnoozedFilterChange={onSnoozedFilterChange}
           />
         </div>
+
+        {selectionMode && (
+          <div className="flex flex-wrap items-center gap-1.5 rounded-[9px] bg-accent-subtle px-2 py-1.5">
+            <span className="mr-1 text-[11px] font-semibold text-accent-ink">
+              {selectedChatIds.size > 0 ? `${selectedChatIds.size} seleccionados` : "Selecciona chats"}
+            </span>
+            {selectedChatIds.size > 0 && (
+              <>
+                <BulkButton icon={UserCheck} disabled={bulkBusy} onClick={() => onBulkAction({ type: "assign", self: true })}>
+                  Asignarme
+                </BulkButton>
+                <BulkButton icon={Check} disabled={bulkBusy} onClick={() => onBulkAction({ type: "status", status: "RESOLVED" })}>
+                  Resolver
+                </BulkButton>
+                <BulkButton icon={Clock} disabled={bulkBusy} onClick={() => onBulkAction({ type: "snooze", until: snoozeUntilFor("1h") })}>
+                  1 h
+                </BulkButton>
+                <BulkButton icon={Flag} disabled={bulkBusy} onClick={() => onBulkAction({ type: "priority", priority: "HIGH" })}>
+                  Alta
+                </BulkButton>
+              </>
+            )}
+          </div>
+        )}
       </div>
       <div className="scrollbar-thin flex-1 overflow-y-auto">
         {loadingChats ? (
@@ -219,14 +306,26 @@ export function ChatListPanel({
                   {accountChats[0]?.account?.name ?? accountId}
                 </div>
                 {accountChats.map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => onChatSelect(chat)}
-                    className={`chat-list-row w-full border-b border-border px-3 py-2 text-left transition-colors hover:bg-surface-light ${
-                      selectedChatId === chat.id ? "bg-accent-subtle shadow-[inset_3px_0_0_var(--accent-strong)]" : ""
-                    }`}
-                    aria-current={selectedChatId === chat.id ? "true" : undefined}
-                  >
+                  <div key={chat.id} className="relative">
+                    {selectionMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedChatIds.has(chat.id)}
+                        onChange={() => onToggleSelect(chat.id)}
+                        aria-label={`Seleccionar ${chat.name ?? chat.remoteJid}`}
+                        className="absolute left-3 top-4 z-10 h-4 w-4 cursor-pointer rounded border-border accent-[var(--accent)]"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => selectionMode ? onToggleSelect(chat.id) : onChatSelect(chat)}
+                      className={cn(
+                        "chat-list-row w-full border-b border-border py-2 text-left transition-colors hover:bg-surface-light",
+                        selectionMode ? "pl-9 pr-3" : "px-3",
+                        selectedChatId === chat.id && "bg-accent-subtle shadow-[inset_3px_0_0_var(--accent-strong)]"
+                      )}
+                      aria-current={selectedChatId === chat.id ? "true" : undefined}
+                    >
                     <div className="flex items-start justify-between gap-2">
                       <EntityAvatar
                         id={chat.accountId}
@@ -287,7 +386,8 @@ export function ChatListPanel({
                         )}
                       </div>
                     </div>
-                  </button>
+                    </button>
+                  </div>
                 ))}
               </div>
             ))}

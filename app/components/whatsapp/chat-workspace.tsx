@@ -22,6 +22,7 @@ import {
   CHATS_PAGE_SIZE,
   CHATS_LIST_POLL_MS,
   type Channel,
+  type ChatBulkAction,
   type ChatItem,
   type ChatPriority,
   type ChatStatus,
@@ -78,7 +79,17 @@ export function ChatWorkspace({
   const router = useRouter();
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? null;
-  const { error: toastError } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
+  const draftKey = useCallback(
+    (chatId: string) => currentUserId ? `colibly_chat_draft:${currentUserId}:${chatId}` : null,
+    [currentUserId]
+  );
+  const writeDraft = useCallback((chatId: string, value: string) => {
+    const key = draftKey(chatId);
+    if (!key) return;
+    if (value.trim()) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
+  }, [draftKey]);
   const resizable = useSyncExternalStore(
     (onChange) => { const query = window.matchMedia("(min-width: 1024px)"); query.addEventListener("change", onChange); return () => query.removeEventListener("change", onChange); },
     () => window.matchMedia("(min-width: 1024px)").matches,
@@ -119,6 +130,14 @@ export function ChatWorkspace({
   // Sugerencia de respuesta rápida resaltada — navegable con ↑/↓, se inserta
   // con Enter o Tab.
   const [cannedIndex, setCannedIndex] = useState(0);
+  // Selección múltiple de la lista para asignar/resolver/priorizar/posponer
+  // en lote. Se activa explícitamente para no llenar cada fila de checkboxes.
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Array<{ id: string; name: string | null }>>([]);
+  const lastTypingSentRef = useRef(0);
+  const hydratedDraftRef = useRef<string | null>(null);
 
   // Media attachments state
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -151,6 +170,30 @@ export function ChatWorkspace({
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Borrador persistente por usuario y chat. El ref en memoria ya cubre el
+  // cambio de chat dentro de la sesión; localStorage sobrevive a un F5.
+  useEffect(() => {
+    if (!selectedChatId || !currentUserId || hydratedDraftRef.current === selectedChatId) return;
+    hydratedDraftRef.current = selectedChatId;
+    if (messageDraftsRef.current.has(selectedChatId)) return;
+    const key = draftKey(selectedChatId);
+    const stored = key ? window.localStorage.getItem(key) : null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hidratación única del borrador guardado
+    if (stored) setNewMessage(stored);
+  }, [selectedChatId, currentUserId, draftKey]);
+
+  useEffect(() => {
+    if (!selectedChatId) return;
+    const key = draftKey(selectedChatId);
+    if (!key) return;
+    const value = newMessage;
+    const timer = window.setTimeout(() => {
+      if (value.trim()) window.localStorage.setItem(key, value);
+      else window.localStorage.removeItem(key);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [newMessage, selectedChatId, draftKey]);
 
   // Una fuente por canal — recorrida con .map() en vez de variables nombradas
   // por canal (el patrón viejo, waPage/tgPage, no escalaba a 4 canales). Solo
@@ -619,6 +662,30 @@ export function ChatWorkspace({
     };
   }, [selectedChatId, refreshChats]);
 
+  // Indicador de "está escribiendo" — TTL corto en Redis; se consulta con el
+  // mismo ritmo del poll de mensajes.
+  useEffect(() => {
+    if (!selectedChatId) return;
+    let cancelled = false;
+    async function load() {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/typing`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setTypingUsers(Array.isArray(data.users) ? data.users : []);
+      } catch {
+        // efímero: el siguiente tick reintenta
+      }
+    }
+    load();
+    const interval = setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [selectedChatId]);
+
   const clearAttachment = useCallback(() => {
     setAttachment(null);
     setAttachmentPreview((prev) => {
@@ -632,21 +699,31 @@ export function ChatWorkspace({
   // por accidente al cambiar de chat.
   const handleChatSelect = useCallback((chat: ChatItem) => {
     if (chat.id === selectedChatId) return;
-    if (selectedChatId) messageDraftsRef.current.set(selectedChatId, newMessage);
+    if (selectedChatId) {
+      messageDraftsRef.current.set(selectedChatId, newMessage);
+      writeDraft(selectedChatId, newMessage);
+    }
     setSelectedChatId(chat.id);
-    setNewMessage(messageDraftsRef.current.get(chat.id) ?? "");
+    const key = draftKey(chat.id);
+    const stored = key ? window.localStorage.getItem(key) : null;
+    setNewMessage(messageDraftsRef.current.get(chat.id) ?? stored ?? "");
     setReplyTo(null);
     setCannedResponses([]);
     setCannedIndex(0);
     setInteractiveButtons([]);
     setButtonsPanelOpen(false);
+    lastTypingSentRef.current = 0;
+    setTypingUsers([]);
     clearAttachment();
     const qs = buildFilterSearchParams().toString();
     router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}${qs ? `?${qs}` : ""}`);
-  }, [selectedChatId, newMessage, router, buildFilterSearchParams, clearAttachment]);
+  }, [selectedChatId, newMessage, router, buildFilterSearchParams, clearAttachment, draftKey, writeDraft]);
 
   const handleCloseChat = useCallback(() => {
-    if (selectedChatId) messageDraftsRef.current.set(selectedChatId, newMessage);
+    if (selectedChatId) {
+      messageDraftsRef.current.set(selectedChatId, newMessage);
+      writeDraft(selectedChatId, newMessage);
+    }
     setSelectedChatId(null);
     setNewMessage("");
     setReplyTo(null);
@@ -654,10 +731,12 @@ export function ChatWorkspace({
     setCannedIndex(0);
     setInteractiveButtons([]);
     setButtonsPanelOpen(false);
+    lastTypingSentRef.current = 0;
+    setTypingUsers([]);
     clearAttachment();
     const qs = buildFilterSearchParams().toString();
     router.push(`/whatsapp/chat${qs ? `?${qs}` : ""}`);
-  }, [selectedChatId, newMessage, router, clearAttachment, buildFilterSearchParams]);
+  }, [selectedChatId, newMessage, router, clearAttachment, buildFilterSearchParams, writeDraft]);
 
   function detectMessageType(file: File): "image" | "audio" | "video" | "document" | "sticker" {
     if (isImageMime(file.type)) return "image";
@@ -769,6 +848,15 @@ export function ChatWorkspace({
     [selectedChatId, selectedChat, toastError, refreshChats]
   );
 
+  function handleMessageChange(value: string) {
+    setNewMessage(value);
+    if (!selectedChatId || !value.trim()) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 3000) return;
+    lastTypingSentRef.current = now;
+    fetch(`/api/whatsapp/chats/${selectedChatId}/typing`, { method: "POST" }).catch(() => {});
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (sending || displayNameBlocked) return;
@@ -811,6 +899,9 @@ export function ChatWorkspace({
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
     messageDraftsRef.current.delete(selectedChatId);
+    const draftStorageKey = draftKey(selectedChatId);
+    if (draftStorageKey) window.localStorage.removeItem(draftStorageKey);
+    lastTypingSentRef.current = 0;
     setReplyTo(null);
     // Reset del composer sin revocar el object URL todavía — la burbuja
     // optimista lo sigue usando hasta que el envío se confirme o falle.
@@ -885,6 +976,63 @@ export function ChatWorkspace({
     setChats((prev) => prev.map((c) => c.id === selectedChatId ? { ...c, snoozedUntil } : c));
   }
 
+  function toggleSelectionMode() {
+    setSelectionMode((current) => {
+      if (current) setSelectedChatIds(new Set());
+      return !current;
+    });
+  }
+
+  function toggleSelected(chatId: string) {
+    setSelectedChatIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(chatId)) next.delete(chatId);
+      else next.add(chatId);
+      return next;
+    });
+  }
+
+  async function handleBulkAction(action: ChatBulkAction) {
+    if (selectedChatIds.size === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch("/api/whatsapp/chats/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatIds: Array.from(selectedChatIds), action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al actualizar chats");
+      toastSuccess(`${data.updated ?? selectedChatIds.size} chat(s) actualizados`);
+      setSelectedChatIds(new Set());
+      setSelectionMode(false);
+      await refreshChats();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al actualizar chats");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  function applySavedView(query: string) {
+    const params = new URLSearchParams(query);
+    setAccountFilter(params.get("accountId") ?? "");
+    setCampaignFilter(params.get("campaignId") ?? "");
+    const replied = params.get("hasReplied");
+    setHasRepliedFilter(replied === "yes" || replied === "no" ? replied : "");
+    const assigned = params.get("assigned");
+    setAssignedFilter(assigned === "me" || assigned === "unassigned" ? assigned : "");
+    const priority = params.get("priority");
+    setPriorityFilter(priority === "LOW" || priority === "NORMAL" || priority === "HIGH" || priority === "URGENT" ? priority : "");
+    const snoozed = params.get("snoozed");
+    setSnoozedFilter(snoozed === "only" || snoozed === "all" ? snoozed : "");
+    const q = params.get("search") ?? "";
+    setSearch(q);
+    setDebouncedSearch(q);
+    setSelectedChatIds(new Set());
+    setSelectionMode(false);
+  }
+
   const accountOptions = accounts.length > 0
     ? accounts
     : Array.from(new Map(chats.map((c) => [c.account.id, c.account])).values());
@@ -942,6 +1090,7 @@ export function ChatWorkspace({
     setCannedIndex(0);
   }
 
+  const currentViewQuery = buildFilterSearchParams().toString();
   const listPane = (
       <ChatListPanel
         resizable={resizable}
@@ -963,6 +1112,14 @@ export function ChatWorkspace({
         onPriorityFilterChange={setPriorityFilter}
         snoozedFilter={snoozedFilter}
         onSnoozedFilterChange={setSnoozedFilter}
+        selectionMode={selectionMode}
+        onToggleSelectionMode={toggleSelectionMode}
+        selectedChatIds={selectedChatIds}
+        onToggleSelect={toggleSelected}
+        onBulkAction={handleBulkAction}
+        bulkBusy={bulkBusy}
+        currentViewQuery={currentViewQuery}
+        onApplyView={applySavedView}
         loadingChats={loadingChats}
         loadError={chatsError}
         onRetry={retryChats}
@@ -989,6 +1146,7 @@ export function ChatWorkspace({
             <ChatThreadPanel
               selectedChat={selectedChat}
               messages={messages}
+              typingUsers={typingUsers}
               loadingMessages={loadingMessages}
               hasOlderMessages={hasOlderMessages}
               loadingOlder={loadingOlder}
@@ -1035,7 +1193,7 @@ export function ChatWorkspace({
               chatId={selectedChat.id}
               channel={selectedChat.channel}
               newMessage={newMessage}
-              onMessageChange={setNewMessage}
+              onMessageChange={handleMessageChange}
               sending={sending}
               onSubmit={handleSend}
               onSendSticker={sendSticker}

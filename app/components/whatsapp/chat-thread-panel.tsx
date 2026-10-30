@@ -406,6 +406,7 @@ export function MediaPreviewModal({ media, onClose }: { media: PreviewMedia | nu
 interface ChatThreadPanelProps {
   selectedChat: ChatItem;
   messages: Message[];
+  typingUsers: Array<{ id: string; name: string | null }>;
   loadingMessages: boolean;
   hasOlderMessages: boolean;
   loadingOlder: boolean;
@@ -429,6 +430,7 @@ interface ChatThreadPanelProps {
 export function ChatThreadPanel({
   selectedChat,
   messages,
+  typingUsers,
   loadingMessages,
   hasOlderMessages,
   loadingOlder,
@@ -523,6 +525,7 @@ export function ChatThreadPanel({
         key={selectedChat.id}
         chat={selectedChat}
         refreshKey={messages.at(-1)?.id ?? ""}
+        typingUsers={typingUsers}
         onCloseChat={onCloseChat}
         onOpenContactDrawer={onOpenContactDrawer}
         onStatusChange={onStatusChange}

@@ -28,6 +28,7 @@ const CHANNELS: Record<Channel, { label: string }> = {
 interface Props {
   chat: ChatItem;
   refreshKey: string;
+  typingUsers: Array<{ id: string; name: string | null }>;
   onCloseChat: () => void;
   onOpenContactDrawer: () => void;
   onStatusChange: (status: ChatStatus) => void | Promise<void>;
@@ -36,7 +37,7 @@ interface Props {
   onSnoozedChange: (until: string | null) => void;
 }
 
-export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned, onPriorityChange, onSnoozedChange }: Props) {
+export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned, onPriorityChange, onSnoozedChange }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const detailsId = useId();
@@ -51,6 +52,13 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
     ? channel.label
     : `${channel.label} · ${accountName}`;
   const canCall = chat.channel === "WHATSAPP" && !chat.isGroup && chat.account.callingEnabled && !chat.account.coexistence;
+  const typingLabel = typingUsers.length === 0
+    ? null
+    : typingUsers.length === 1
+      ? `${typingUsers[0]?.name ?? "Alguien"} está escribiendo…`
+      : typingUsers.length === 2
+        ? `${typingUsers[0]?.name ?? "Alguien"} y ${typingUsers[1]?.name ?? "otra persona"} están escribiendo…`
+        : `${typingUsers[0]?.name ?? "Alguien"} y ${typingUsers.length - 1} más están escribiendo…`;
   const MENU_ITEM = "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong disabled:opacity-50";
 
   async function changeStatus(status: ChatStatus) {
@@ -75,6 +83,9 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
             <span className="truncate">{subtitle}</span>
             {resolved && <span className="shrink-0 rounded-full bg-success-bg px-1.5 text-[10px] font-medium text-success">Resuelto</span>}
           </p>
+          {typingLabel && (
+            <p className="mt-0.5 truncate text-[10px] font-medium text-accent-ink motion-safe:animate-pulse">{typingLabel}</p>
+          )}
         </div>
         <Dropdown
           align="right"

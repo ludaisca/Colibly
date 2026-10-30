@@ -17,7 +17,9 @@ function getSnapshot() {
 }
 
 export function useNowBucket(): number {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  // 0 en el servidor: un valor estable evita un mismatch de hidratación si el
+  // render del servidor y el cliente caen en buckets distintos.
+  return useSyncExternalStore(subscribe, getSnapshot, () => 0);
 }
 
 export function useNowMs(): number {
