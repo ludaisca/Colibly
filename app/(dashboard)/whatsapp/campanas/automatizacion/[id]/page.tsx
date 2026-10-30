@@ -190,7 +190,6 @@ export default function LeadSheetSourceDetailPage() {
       title={source.name}
       badge={<Badge tone={source.enabled ? "success" : "neutral"} size="sm">{source.enabled ? "Activa" : "Pausada"}</Badge>}
       description={`${source.waAccount.name} · Plantilla: ${source.waTemplate.name} (${source.waTemplate.language})`}
-      maxWidth="max-w-4xl"
       actions={
         <>
           <Switch checked={source.enabled} onCheckedChange={handleToggle} disabled={toggling} label="Activar fuente" />

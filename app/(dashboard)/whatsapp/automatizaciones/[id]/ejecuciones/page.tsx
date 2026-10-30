@@ -107,7 +107,7 @@ export default function AutomationRunsPage() {
   const live = detail && ["ACTIVE", "WAITING_DELAY", "WAITING_REPLY", "PAUSED_BY_AGENT"].includes(detail.status);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="space-y-6">
       <div>
         <Link href={`/whatsapp/automatizaciones/${id}`} className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground">
           <ArrowLeft size={14} />

@@ -145,7 +145,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
   const creditsPct = stats.aiCredits.limit ? Math.min(100, (stats.aiCredits.used / stats.aiCredits.limit) * 100) : null;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <div className="animate-fade-in-up">
         <PageHeader title="Estadísticas" description="Métricas globales de uso de la plataforma." />
       </div>

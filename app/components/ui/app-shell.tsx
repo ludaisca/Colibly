@@ -189,7 +189,13 @@ export function AppShell({
   // scrolling panes — the standard page chrome (p-8 padding) just eats space
   // it needs, so this route gets a full-bleed shell instead.
   const pathname = usePathname();
-  const fullBleed = pathname.startsWith("/whatsapp/chat");
+  // Chat necesita pantalla completa (paneles con scroll propio). Los tableros
+  // y editores también usan todo el ancho; el resto se centra a 6XL.
+  const segments = pathname.split("/").filter(Boolean);
+  const immersive = pathname.startsWith("/whatsapp/chat");
+  const automationEditor =
+    segments.length === 3 && segments[0] === "whatsapp" && segments[1] === "automatizaciones";
+  const wideContent = immersive || pathname === "/ventas" || pathname.startsWith("/ventas/") || automationEditor;
 
   useEffect(() => {
     if (!collapsible) return;
@@ -210,7 +216,7 @@ export function AppShell({
   }, []);
 
   return (
-    <div className={cn("flex bg-background", fullBleed ? "h-svh" : "min-h-svh")}>
+    <div className={cn("flex bg-background", immersive ? "h-svh" : "min-h-svh")}>
       <a
         href="#contenido-principal"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100001] focus:rounded-[12px] focus:bg-surface focus:px-4 focus:py-3 focus:text-foreground focus:shadow-lg"
@@ -298,10 +304,10 @@ export function AppShell({
           tabIndex={-1}
           className={cn(
             "flex-1 animate-fade-in",
-            fullBleed ? "flex flex-col min-h-0 overflow-hidden" : "p-3 md:p-5 lg:p-6"
+            immersive ? "flex flex-col min-h-0 overflow-hidden" : "p-3 md:p-5 lg:p-6"
           )}
         >
-          {children}
+          {wideContent ? children : <div className="mx-auto w-full min-w-0 max-w-6xl">{children}</div>}
         </main>
       </div>
     </div>

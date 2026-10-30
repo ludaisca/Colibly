@@ -260,7 +260,6 @@ export default function BotDetailPage() {
       backLabel="Volver a bots"
       title={bot.name}
       description={bot.waAccount?.name ?? bot.channelAccount?.name ?? "Sin cuenta (solo pruebas)"}
-      maxWidth="max-w-3xl"
       tabs={TABS as unknown as { id: string; label: string }[]}
       activeTab={tab}
       onTabChange={(t) => setTab(t as (typeof TABS)[number]["id"])}

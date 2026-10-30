@@ -4,7 +4,6 @@ export default function CampanaDetailLoading() {
   return (
     <DetailPageSkeleton
       backLabel="Volver a campañas"
-      maxWidth="max-w-3xl"
       cardLines={[2, 5]}
     />
   );

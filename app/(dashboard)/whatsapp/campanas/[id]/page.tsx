@@ -177,7 +177,6 @@ export default function CampaignDetailPage() {
       backLabel="Volver a campañas"
       title={campaign.name}
       description={`${campaign.waAccount.name} · ${campaign.waTemplate.name}`}
-      maxWidth="max-w-3xl"
       actions={
         <>
           {(campaign.status === "DRAFT" || campaign.status === "SCHEDULED") && (

@@ -13,7 +13,7 @@ export function DetailPageSkeleton({
   title,
   description,
   cardLines = [3, 4],
-  maxWidth = "max-w-2xl",
+  maxWidth = "max-w-6xl",
   className,
 }: {
   backLabel?: string;

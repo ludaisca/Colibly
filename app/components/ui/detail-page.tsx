@@ -41,7 +41,7 @@ export function DetailPage({
   tabs,
   activeTab,
   onTabChange,
-  maxWidth = "max-w-2xl",
+  maxWidth = "max-w-6xl",
   children,
   className,
 }: DetailPageProps) {

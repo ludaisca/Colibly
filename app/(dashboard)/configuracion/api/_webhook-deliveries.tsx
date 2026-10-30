@@ -78,7 +78,6 @@ export function WebhookDeliveriesView({ webhook }: { webhook: { id: string; name
       backLabel="Volver a webhooks"
       title={`Entregas · ${webhook.name}`}
       description="Últimas 50 entregas (se conservan 30 días). Las fallidas se reintentan solas hasta 6 veces."
-      maxWidth="max-w-4xl"
       actions={<Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Actualizar</Button>}
     >
       <Card as="section" padding="lg">
