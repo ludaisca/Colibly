@@ -12,6 +12,7 @@ import { ChatAccountRail } from "@/app/components/whatsapp/chat-account-rail";
 import { ChatListPanel } from "@/app/components/whatsapp/chat-list-panel";
 import { ChatThreadPanel, MediaPreviewModal } from "@/app/components/whatsapp/chat-thread-panel";
 import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
+import { ChatClaimBanner } from "@/app/components/whatsapp/chat-claim-banner";
 import { ChatDisplayNameBanner, ChatWindowBanner, useChatServiceWindow } from "@/app/components/whatsapp/chat-window-banner";
 import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-modal";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
@@ -830,6 +831,13 @@ export function ChatWorkspace({
     }
   }
 
+  function handleAssigned(assignee: { id: string; name: string | null } | null) {
+    if (!selectedChatId) return;
+    setChats((prev) => prev.map((c) =>
+      c.id === selectedChatId ? { ...c, assignedTo: assignee, assignedToId: assignee?.id ?? null } : c
+    ));
+  }
+
   const accountOptions = accounts.length > 0
     ? accounts
     : Array.from(new Map(chats.map((c) => [c.account.id, c.account])).values());
@@ -926,11 +934,7 @@ export function ChatWorkspace({
               onCloseChat={handleCloseChat}
               onOpenContactDrawer={() => setContactDrawerOpen(true)}
               onStatusChange={handleStatusChange}
-              onAssigned={(assignee) =>
-                setChats((prev) => prev.map((c) =>
-                  c.id === selectedChatId ? { ...c, assignedTo: assignee, assignedToId: assignee?.id ?? null } : c
-                ))
-              }
+              onAssigned={handleAssigned}
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
               onReply={setReplyTo}
@@ -958,6 +962,9 @@ export function ChatWorkspace({
                   refreshChats();
                 }}
               />
+            )}
+            {!selectedChat.assignedToId && selectedChat.status !== "RESOLVED" && (
+              <ChatClaimBanner chatId={selectedChat.id} onAssigned={handleAssigned} />
             )}
             <ChatComposer
               onOpenTemplates={selectedChat.channel === "WHATSAPP" ? () => setTemplatePickerOpen(true) : undefined}

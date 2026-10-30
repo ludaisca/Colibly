@@ -1609,6 +1609,9 @@ model WASequenceEnrollment {
 
 enum NotificationType {
   CHAT_MESSAGE
+  // Un agente reclamó el chat o se lo asignaron explícitamente. Distinto de
+  // CHAT_MESSAGE: ese avisa de un mensaje nuevo, este de la propiedad del chat.
+  CHAT_ASSIGNED
   CAMPAIGN_COMPLETED
   CAMPAIGN_FAILED
   BOT_ERROR

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { UserCheck } from "lucide-react";
-import { Dropdown, DropdownItem, DropdownButton } from "@/app/components/ui/dropdown";
+import { Dropdown, DropdownDivider, DropdownItem, DropdownButton } from "@/app/components/ui/dropdown";
 import { useToast } from "@/app/components/ui/toast";
 
 interface Assignee {
@@ -40,19 +40,28 @@ export function ChatAssigneePicker({
     fetchAssignees();
   }, [open, fetchAssignees]);
 
-  async function handleAssign(assigneeId: string | null) {
+  async function patchAssignment(body: { assignedToId?: string | null; self?: true }) {
     try {
       const res = await fetch(`/api/whatsapp/chats/${chatId}/assign`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assignedToId: assigneeId }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al asignar");
       onAssigned(data.assignedTo ?? null);
+      setOpen(false);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al asignar");
     }
+  }
+
+  function handleAssign(assigneeId: string | null) {
+    return patchAssignment({ assignedToId: assigneeId });
+  }
+
+  function handleAssignSelf() {
+    return patchAssignment({ self: true });
   }
 
   return (
@@ -70,6 +79,8 @@ export function ChatAssigneePicker({
         />
       }
     >
+      <DropdownItem onClick={handleAssignSelf} icon={UserCheck}>Asignarme</DropdownItem>
+      <DropdownDivider />
       <DropdownItem onClick={() => handleAssign(null)}>Sin asignar</DropdownItem>
       {assignees.map((a) => (
         <DropdownItem key={a.id} onClick={() => handleAssign(a.id)}>

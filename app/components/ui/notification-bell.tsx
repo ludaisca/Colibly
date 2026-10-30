@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, PhoneCall, CalendarClock, CalendarPlus, Plug, CreditCard } from "lucide-react";
+import { Bell, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, PhoneCall, CalendarClock, CalendarPlus, Plug, CreditCard, UserCheck } from "lucide-react";
 import type { NotificationType } from "@prisma/client";
 import { Dropdown } from "./dropdown";
 import { cn } from "./cn";
@@ -19,6 +19,7 @@ interface NotificationItem {
 
 const TYPE_ICON: Record<NotificationItem["type"], React.ElementType> = {
   CHAT_MESSAGE: MessageSquare,
+  CHAT_ASSIGNED: UserCheck,
   CAMPAIGN_COMPLETED: Megaphone,
   CAMPAIGN_FAILED: Megaphone,
   BOT_ERROR: BotIcon,
