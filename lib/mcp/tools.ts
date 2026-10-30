@@ -13,6 +13,7 @@ import {
   reconcilePrices,
   rotateWebhook,
   runBackup,
+  setOrgInternal,
   setPlatformSecret,
   suspendOrg,
   testBackup,
@@ -187,6 +188,27 @@ export function registerPlatformTools(server: McpServer, ctx: PlatformTokenConte
       if (denied) return denied;
       if (!confirm) return err("Confirma la acción con confirm=true");
       return unwrap(await reactivateOrg(organizationId, actorOf(ctx)));
+    }
+  );
+
+  server.registerTool(
+    "colibly_set_internal_organization",
+    {
+      title: "Marcar organización interna",
+      description: "Marca o desmarca una organización como interna (sin cobro ni límites de plan). Escribe el nombre exacto en confirm. No permite marcarla interna si tiene una suscripción de Stripe viva.",
+      inputSchema: {
+        organizationId: z.string().min(1),
+        internal: z.boolean(),
+        confirm: z.string().min(1),
+      },
+    },
+    async ({ organizationId, internal, confirm }) => {
+      const denied = missingScope(ctx, "org:write");
+      if (denied) return denied;
+      const org = await getOrganization(organizationId);
+      if (!org) return err("Organización no encontrada");
+      if (confirm !== org.name) return err(`Escribe el nombre exacto de la organización: "${org.name}"`);
+      return unwrap(await setOrgInternal(organizationId, internal, actorOf(ctx)));
     }
   );
 

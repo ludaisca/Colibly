@@ -15,6 +15,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("grant_credits"), credits: z.number().int().min(1).max(MAX_BONUS_CREDITS) }),
   z.object({ action: z.literal("suspend") }),
   z.object({ action: z.literal("reactivate") }),
+  z.object({ action: z.literal("set_internal"), internal: z.boolean() }),
   // Coexistencia de WhatsApp (conectar el número de la app WhatsApp Business):
   // bandera por organización durante la beta, apagada por defecto.
   z.object({ action: z.literal("set_whatsapp_coexistence"), enabled: z.boolean() }),
@@ -90,6 +91,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         await prisma.organization.update({ where: { id }, data: { status: statusAfterSuspension(org, now) } });
       }
       for (const m of org.members) invalidateUserSessionCache(m.id);
+    } else if (input.action === "set_internal") {
+      if (input.internal && org.stripeSubscriptionId) {
+        return NextResponse.json({ error: "Cancela la suscripción de Stripe antes de marcarla interna" }, { status: 400 });
+      }
+      if (org.isInternal !== input.internal) {
+        await prisma.organization.update({ where: { id }, data: { isInternal: input.internal } });
+      }
     } else if (input.action === "set_whatsapp_coexistence") {
       await prisma.organization.update({ where: { id }, data: { whatsappCoexistenceEnabled: input.enabled } });
     } else {
@@ -111,6 +119,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       where: { id },
       select: {
         status: true,
+        isInternal: true,
         trialEndsAt: true,
         aiCreditsBonus: true,
         channelTelegramEnabled: true,

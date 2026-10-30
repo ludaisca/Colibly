@@ -183,8 +183,7 @@ export async function suspendOrg(id: string, actor: PlatformActor): Promise<OpsR
   return { ok: true, data: { status: "SUSPENDED" } };
 }
 
-export async function reactivateOrg(id: string, actor: PlatformActor): Promise<OpsResult<unknown>> {
-  const org = await prisma.organization.findUnique({
+export async function reactivateOrg(id: string, actor: PlatformActor): Promise<OpsResult<unknown>> {  const org = await prisma.organization.findUnique({
     where: { id },
     select: {
       id: true,
@@ -219,6 +218,31 @@ export async function reactivateOrg(id: string, actor: PlatformActor): Promise<O
     after: { status: updated.status },
   });
   return { ok: true, data: updated };
+}
+
+export async function setOrgInternal(id: string, internal: boolean, actor: PlatformActor): Promise<OpsResult<unknown>> {
+  const org = await prisma.organization.findUnique({
+    where: { id },
+    select: { id: true, name: true, isInternal: true, stripeSubscriptionId: true },
+  });
+  if (!org) return fail(404, "not_found", "Organización no encontrada");
+  // Una organización interna no se cobra: si tiene suscripción viva, primero
+  // hay que cancelarla para no regalar límites mientras Stripe sigue cobrando.
+  if (internal && org.stripeSubscriptionId) {
+    return fail(400, "invalid_request", "Cancela la suscripción de Stripe antes de marcarla interna");
+  }
+  if (org.isInternal === internal) return { ok: true, data: { isInternal: internal } };
+
+  await prisma.organization.update({ where: { id }, data: { isInternal: internal } });
+  invalidateOrgBilling(id);
+  await logPlatformAction({
+    actor: { type: actor.type, email: actor.email, tokenId: actor.tokenId },
+    action: "org.set_internal",
+    target: { type: "organization", id },
+    before: { isInternal: org.isInternal },
+    after: { isInternal: internal },
+  });
+  return { ok: true, data: { isInternal: internal } };
 }
 
 export async function getBillingState(): Promise<OpsResult<unknown>> {
