@@ -63,6 +63,7 @@ interface ChatWorkspaceProps {
   initialPriority?: ChatPriority | "";
   initialSnoozed?: "" | "only" | "all";
   initialSearch?: string;
+  initialContactId?: string;
 }
 
 export function ChatWorkspace({
@@ -75,6 +76,7 @@ export function ChatWorkspace({
   initialPriority,
   initialSnoozed,
   initialSearch,
+  initialContactId,
 }: ChatWorkspaceProps) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -124,7 +126,7 @@ export function ChatWorkspace({
   const accounts = initialAccounts;
   // Las cuentas llegan del servidor: un filtro de cuenta ya conoce su canal
   // antes de pedir chats y no consulta los otros cuatro endpoints por error.
-  const [contactDrawerOpen, setContactDrawerOpen] = useState(false);
+  const [contactDrawerContactId, setContactDrawerContactId] = useState<string | null>(initialContactId ?? null);
   const [previewMedia, setPreviewMedia] = useState<PreviewMedia | null>(null);
   const [cannedResponses, setCannedResponses] = useState<CannedResponseItem[]>([]);
   // Sugerencia de respuesta rápida resaltada — navegable con ↑/↓, se inserta
@@ -319,6 +321,7 @@ export function ChatWorkspace({
   const [prevInitialPriority, setPrevInitialPriority] = useState(initialPriority);
   const [prevInitialSnoozed, setPrevInitialSnoozed] = useState(initialSnoozed);
   const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
+  const [prevInitialContactId, setPrevInitialContactId] = useState(initialContactId);
   if (initialChatId !== prevInitialChatId) {
     setPrevInitialChatId(initialChatId);
     if (initialChatId) setSelectedChatId(initialChatId);
@@ -352,6 +355,10 @@ export function ChatWorkspace({
     setSearch(initialSearch || "");
     setDebouncedSearch(initialSearch || "");
   }
+  if (initialContactId !== prevInitialContactId) {
+    setPrevInitialContactId(initialContactId);
+    setContactDrawerContactId(initialContactId ?? null);
+  }
 
   // Refleja los filtros activos en la URL (query string) para que sobrevivan
   // tanto al botón "volver" propio (handleCloseChat) como al atrás del
@@ -374,7 +381,12 @@ export function ChatWorkspace({
   // los filtros dejaron de sobrevivir a un F5); el History API solo cambia la
   // barra de direcciones.
   useEffect(() => {
-    const qs = buildFilterSearchParams().toString();
+    const params = buildFilterSearchParams();
+    // `contacto` no es un filtro de la lista: se conserva para que el deep
+    // link del drawer no desaparezca cuando cambian los filtros.
+    const contact = new URLSearchParams(window.location.search).get("contacto");
+    if (contact) params.set("contacto", contact);
+    const qs = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
   }, [buildFilterSearchParams]);
 
@@ -976,6 +988,25 @@ export function ChatWorkspace({
     setChats((prev) => prev.map((c) => c.id === selectedChatId ? { ...c, snoozedUntil } : c));
   }
 
+  function setContactParam(contactId: string | null) {
+    const params = new URLSearchParams(window.location.search);
+    if (contactId) params.set("contacto", contactId);
+    else params.delete("contacto");
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+  }
+
+  function openContactDrawer(contactId: string | null) {
+    if (!contactId) return;
+    setContactDrawerContactId(contactId);
+    setContactParam(contactId);
+  }
+
+  function closeContactDrawer() {
+    setContactDrawerContactId(null);
+    setContactParam(null);
+  }
+
   function toggleSelectionMode() {
     setSelectionMode((current) => {
       if (current) setSelectedChatIds(new Set());
@@ -1152,7 +1183,7 @@ export function ChatWorkspace({
               loadingOlder={loadingOlder}
               onLoadOlder={loadOlderMessages}
               onCloseChat={handleCloseChat}
-              onOpenContactDrawer={() => setContactDrawerOpen(true)}
+              onOpenContactDrawer={() => openContactDrawer(selectedChat.contactId)}
               onStatusChange={handleStatusChange}
               onAssigned={handleAssigned}
               onPriorityChange={handlePriorityChange}
@@ -1247,10 +1278,10 @@ export function ChatWorkspace({
       </Group> : <>{listPane}{conversationPane}</>}
 
       {/* Drawers */}
-      {contactDrawerOpen && selectedChat?.contactId && (
+      {contactDrawerContactId && (
         <ContactDrawer
-          contactId={selectedChat.contactId}
-          onClose={() => setContactDrawerOpen(false)}
+          contactId={contactDrawerContactId}
+          onClose={closeContactDrawer}
           onUpdated={refreshChats}
         />
       )}

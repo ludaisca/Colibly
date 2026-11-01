@@ -6,6 +6,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { hasAiAccess } from "@/lib/billing/gates";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { suggestTaskTitle, WritingAssistError } from "@/lib/ai/writing-assist";
+import { recordContactActivity } from "@/lib/contacts/activity";
 
 async function ownedContact(userId: string, id: string) {
   const [accountIds, channelAccountIds] = await Promise.all([
@@ -86,6 +87,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       data: { organizationId, contactId: id, title, createdById: session.user.id },
       select: { id: true, title: true, done: true, createdAt: true },
     });
+    await recordContactActivity({
+      contactId: id,
+      type: "TASK_CREATED",
+      title: `Tarea: ${task.title}`,
+      actorId: session.user.id,
+      dedupeKey: `task:${task.id}:created`,
+    });
+
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno del servidor") }, { status: 500 });

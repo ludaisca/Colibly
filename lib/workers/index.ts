@@ -19,6 +19,7 @@ import { processWebhookDelivery } from "@/lib/webhooks/deliver";
 import { WEBHOOK_WORKER_CONCURRENCY } from "@/lib/api/constants";
 import type { DomainEvent } from "@/lib/events/types";
 import { handleDomainEvent as handleAutomationEvent } from "@/lib/automations/dispatch";
+import { recordContactActivityFromEvent } from "@/lib/contacts/activity";
 import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
 import { processBillingTick } from "@/lib/billing/tick";
 import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
@@ -127,6 +128,7 @@ export function startWorkers() {
   // webhooks salientes que coinciden.
   const domainEventWorker = new Worker("domain-events", async (job) => {
     const event = job.data as DomainEvent;
+    await recordContactActivityFromEvent(event);
     await fanOutToWebhooks(event);
     await handleAutomationEvent(event);
   }, { connection, concurrency: 5 });

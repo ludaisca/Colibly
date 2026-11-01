@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { Bot, Megaphone, UserCheck, Zap } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
+import { Button } from "@/app/components/ui/button";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { SectionHeader } from "@/app/components/ui/section-header";
@@ -147,7 +148,11 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
   return (
     <div className="space-y-6">
       <div className="animate-fade-in-up">
-        <PageHeader title="Estadísticas" description="Métricas globales de uso de la plataforma." />
+        <PageHeader
+          title="Estadísticas"
+          description="Métricas globales de uso de la plataforma."
+          actions={<Button variant="secondary" href="/estadisticas/reportes">Reportes por periodo</Button>}
+        />
       </div>
 
       <div className="animate-fade-in-up animation-delay-100">

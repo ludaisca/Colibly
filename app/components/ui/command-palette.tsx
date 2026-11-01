@@ -1,10 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ElementType } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Command } from "cmdk";
-import { Contact, Loader2, MessageSquare, Search } from "lucide-react";
+import {
+  Bot,
+  CalendarPlus,
+  CheckCircle2,
+  Clock,
+  Contact,
+  Flag,
+  Loader2,
+  Megaphone,
+  MessageSquare,
+  Plus,
+  Search,
+  Settings,
+  UserCheck,
+} from "lucide-react";
 import type { NavGroup, NavItem } from "./app-shell";
+import { useToast } from "./toast";
 import "./command-palette.css";
 
 interface ChatHit {
@@ -26,6 +43,21 @@ interface ContactHit {
   chat: { id: string } | null;
 }
 
+interface RecentItem {
+  key: string;
+  label: string;
+  subtitle: string;
+  href: string;
+}
+
+interface PaletteAction {
+  id: string;
+  label: string;
+  icon: ElementType;
+  run: () => Promise<void> | void;
+  success?: string;
+}
+
 const CHAT_ENDPOINTS = [
   "/api/whatsapp/chats",
   "/api/telegram/chats",
@@ -34,10 +66,43 @@ const CHAT_ENDPOINTS = [
   "/api/webchat/chats",
 ] as const;
 
+const RECENT_KEY = "colibly:command-recent";
+
 async function readItems<T>(result: PromiseSettledResult<Response>): Promise<T[]> {
   if (result.status !== "fulfilled" || !result.value.ok) return [];
   const data = await result.value.json().catch(() => null);
   return Array.isArray(data?.items) ? (data.items as T[]) : [];
+}
+
+function readRecent(): RecentItem[] {
+  try {
+    const raw = window.localStorage.getItem(RECENT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is RecentItem =>
+      item && typeof item.key === "string" && typeof item.label === "string" && typeof item.href === "string"
+    ).slice(0, 6);
+  } catch {
+    return [];
+  }
+}
+
+function rememberRecent(item: RecentItem) {
+  try {
+    const next = [item, ...readRecent().filter((entry) => entry.key !== item.key)].slice(0, 6);
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    // localStorage no disponible: los recientes son un extra, no un requisito.
+  }
+}
+
+function chatContext(pathname: string): { accountId: string; chatId: string } | null {
+  const match = pathname.match(/^\/whatsapp\/chat\/([^/]+)\/([^/]+)/);
+  return match ? { accountId: match[1], chatId: match[2] } : null;
+}
+
+function oneHourFromNow(): string {
+  return new Date(Date.now() + 60 * 60 * 1000).toISOString();
 }
 
 export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
@@ -45,11 +110,17 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
   const [query, setQuery] = useState("");
   const [chats, setChats] = useState<ChatHit[]>([]);
   const [contacts, setContacts] = useState<ContactHit[]>([]);
+  const [recent, setRecent] = useState<RecentItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const { success: toastSuccess, error: toastError } = useToast();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
   const router = useRouter();
   const pathname = usePathname();
   const inDemo = pathname.startsWith("/demo-componentes");
   const term = query.trim();
+  const inChat = chatContext(pathname);
 
   useEffect(() => {
     if (inDemo) return;
@@ -61,6 +132,11 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [inDemo]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga única desde localStorage al abrir
+    if (open) setRecent(readRecent());
+  }, [open]);
 
   // Búsqueda de contenido con debounce. Los endpoints ya están scoped por
   // cuenta/organización; si el rol no puede ver contactos (user), el 403 se
@@ -106,19 +182,135 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
       .filter((group) => group.items.length > 0);
   }, [nav, term]);
 
+  const actions = useMemo<PaletteAction[]>(() => {
+    const list: PaletteAction[] = [];
+
+    if (inChat) {
+      list.push(
+        {
+          id: "chat-assign-me",
+          label: "Asignarme este chat",
+          icon: UserCheck,
+          success: "Chat asignado",
+          run: async () => {
+            const res = await fetch(`/api/whatsapp/chats/${inChat.chatId}/assign`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ self: true }),
+            });
+            if (!res.ok) throw new Error("No se pudo asignar el chat");
+          },
+        },
+        {
+          id: "chat-resolve",
+          label: "Resolver este chat",
+          icon: CheckCircle2,
+          success: "Chat resuelto",
+          run: async () => {
+            const res = await fetch(`/api/whatsapp/chats/${inChat.chatId}/status`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "RESOLVED" }),
+            });
+            if (!res.ok) throw new Error("No se pudo resolver el chat");
+          },
+        },
+        {
+          id: "chat-snooze",
+          label: "Posponer este chat 1 hora",
+          icon: Clock,
+          success: "Chat pospuesto",
+          run: async () => {
+            const res = await fetch(`/api/whatsapp/chats/${inChat.chatId}/snooze`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ until: oneHourFromNow() }),
+            });
+            if (!res.ok) throw new Error("No se pudo posponer el chat");
+          },
+        },
+        {
+          id: "chat-priority-high",
+          label: "Marcar prioridad alta",
+          icon: Flag,
+          success: "Prioridad actualizada",
+          run: async () => {
+            const res = await fetch(`/api/whatsapp/chats/${inChat.chatId}/priority`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ priority: "HIGH" }),
+            });
+            if (!res.ok) throw new Error("No se pudo cambiar la prioridad");
+          },
+        },
+      );
+    }
+
+    if (role === "admin" || role === "user") {
+      list.push(
+        { id: "create-campaign", label: "Nueva campaña", icon: Megaphone, run: () => router.push("/whatsapp/campanas/nueva") },
+        { id: "create-template", label: "Nueva plantilla", icon: Plus, run: () => router.push("/whatsapp/plantillas/nueva") },
+        { id: "create-automation", label: "Abrir automatizaciones", icon: Settings, run: () => router.push("/whatsapp/automatizaciones") },
+      );
+    }
+    if (role === "admin") {
+      list.push(
+        { id: "create-bot", label: "Abrir bots IA", icon: Bot, run: () => router.push("/whatsapp/bots") },
+        { id: "connect-whatsapp", label: "Conectar WhatsApp", icon: MessageSquare, run: () => router.push("/whatsapp/cuentas?nueva=1") },
+        { id: "open-plan", label: "Ver plan y facturación", icon: Settings, run: () => router.push("/configuracion/plan") },
+      );
+    }
+    list.push({ id: "create-appointment", label: "Abrir citas", icon: CalendarPlus, run: () => router.push("/whatsapp/citas") });
+
+    return list;
+  }, [inChat, role, router]);
+
+  const visibleActions = useMemo(() => {
+    if (!term) return actions;
+    const needle = term.toLowerCase();
+    return actions.filter((action) => action.label.toLowerCase().includes(needle));
+  }, [actions, term]);
+
   if (inDemo) return null;
 
   function selectChat(chat: ChatHit) {
+    rememberRecent({
+      key: `chat:${chat.id}`,
+      label: chat.name ?? chat.remoteJid,
+      subtitle: chat.remoteJid,
+      href: `/whatsapp/chat/${chat.accountId}/${chat.id}`,
+    });
     setOpen(false);
     router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}`);
   }
 
   function selectContact(contact: ContactHit) {
+    const href = contact.chat?.id
+      ? `/whatsapp/chat/${contact.accountId}/${contact.chat.id}`
+      : `/whatsapp/contactos?search=${encodeURIComponent(contact.remoteJid)}`;
+    rememberRecent({
+      key: `contact:${contact.id}`,
+      label: contact.name ?? contact.remoteJid,
+      subtitle: contact.remoteJid,
+      href,
+    });
     setOpen(false);
-    if (contact.chat?.id) {
-      router.push(`/whatsapp/chat/${contact.accountId}/${contact.chat.id}`);
-    } else {
-      router.push(`/whatsapp/contactos?search=${encodeURIComponent(contact.remoteJid)}`);
+    router.push(href);
+  }
+
+  async function runAction(action: PaletteAction) {
+    setActionBusy(action.id);
+    try {
+      await action.run();
+      setOpen(false);
+      if (action.success) {
+        toastSuccess(action.success);
+        router.refresh();
+      }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo completar la acción");
+    } finally {
+      setActionBusy(null);
     }
   }
 
@@ -151,14 +343,48 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
           autoFocus
           value={query}
           onValueChange={setQuery}
-          placeholder="Buscar chats, contactos o secciones…"
-          aria-label="Buscar chats, contactos o secciones"
+          placeholder="Buscar chats, contactos, acciones o secciones…"
+          aria-label="Buscar chats, contactos, acciones o secciones"
         />
         <Command.List>
           {loading && term.length >= 2 && (
             <div className="colibly-command-loading">
               <Loader2 size={14} className="animate-spin" /> Buscando…
             </div>
+          )}
+          {!term && recent.length > 0 && (
+            <Command.Group heading="Recientes">
+              {recent.map((item) => (
+                <Command.Item
+                  key={item.key}
+                  value={`recent:${item.key}`}
+                  onSelect={() => { setOpen(false); router.push(item.href); }}
+                >
+                  <Clock size={16} className="shrink-0 text-muted" />
+                  <span className="colibly-command-result">
+                    <span className="truncate">{item.label}</span>
+                    <span className="colibly-command-meta">{item.subtitle}</span>
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          )}
+          {visibleActions.length > 0 && (
+            <Command.Group heading="Acciones">
+              {visibleActions.map((action) => (
+                <Command.Item
+                  key={action.id}
+                  value={`action:${action.id}`}
+                  disabled={actionBusy !== null}
+                  onSelect={() => void runAction(action)}
+                >
+                  {actionBusy === action.id
+                    ? <Loader2 size={16} className="shrink-0 animate-spin text-muted" />
+                    : <action.icon size={16} className="shrink-0 text-muted" />}
+                  <span>{action.label}</span>
+                </Command.Item>
+              ))}
+            </Command.Group>
           )}
           {!loading && term.length >= 2 && chats.length > 0 && (
             <Command.Group heading="Chats">

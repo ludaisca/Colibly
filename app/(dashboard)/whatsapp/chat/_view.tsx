@@ -30,6 +30,7 @@ export function ChatPageView({
       initialPriority={priority === "LOW" || priority === "NORMAL" || priority === "HIGH" || priority === "URGENT" ? priority : ""}
       initialSnoozed={snoozed === "only" || snoozed === "all" ? snoozed : ""}
       initialSearch={searchParams.get("search") ?? undefined}
+      initialContactId={searchParams.get("contacto") ?? undefined}
     />
   );
 }

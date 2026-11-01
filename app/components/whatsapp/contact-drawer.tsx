@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Plus, CalendarClock, X } from "lucide-react";
+import { Plus, CalendarClock, Link2, X } from "lucide-react";
 import { Drawer } from "@base-ui/react/drawer";
 import { Banner } from "@/app/components/ui/banner";
 import { Select } from "@/app/components/ui/select";
@@ -14,6 +14,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
 import { ContactTasks } from "@/app/components/whatsapp/contact-tasks";
+import { ContactTimeline } from "@/app/components/whatsapp/contact-timeline";
 import "./contact-drawer.css";
 
 interface ContactDetail {
@@ -65,7 +66,7 @@ export function ContactDrawer({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const { error: toastError } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [contact, setContact] = useState<ContactDetail | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [allTags, setAllTags] = useState<TagOption[]>([]);
@@ -79,6 +80,7 @@ export function ContactDrawer({
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
   const [savingFields, setSavingFields] = useState(false);
+  const [timelineKey, setTimelineKey] = useState(0);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -133,6 +135,7 @@ export function ContactDrawer({
         body: JSON.stringify({ leadStatus }),
       });
       if (!res.ok) throw new Error();
+      setTimelineKey((key) => key + 1);
       onUpdated();
     } catch {
       toastError("Error al actualizar el estado");
@@ -164,6 +167,7 @@ export function ContactDrawer({
         ...contact,
         tags: allTags.filter((t) => tagIds.includes(t.id)).map((tag) => ({ tag })),
       });
+      setTimelineKey((key) => key + 1);
       onUpdated();
     } catch {
       toastError("Error al actualizar etiquetas");
@@ -210,6 +214,7 @@ export function ContactDrawer({
         body: JSON.stringify({ values: customFieldValues }),
       });
       if (!res.ok) throw new Error();
+      setTimelineKey((key) => key + 1);
       onUpdated();
     } catch {
       toastError("Error al guardar los campos personalizados");
@@ -231,6 +236,7 @@ export function ContactDrawer({
       if (!res.ok) throw new Error(data.error ?? "Error al agregar nota");
       setNotes((prev) => [data, ...prev]);
       setNewNote("");
+      setTimelineKey((key) => key + 1);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al agregar nota");
     } finally {
@@ -247,7 +253,25 @@ export function ContactDrawer({
             <Drawer.Content className="flex h-full flex-col">
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
                 <Drawer.Title className="truncate text-sm font-semibold text-foreground">{contact?.name ?? contact?.remoteJid ?? "Contacto"}</Drawer.Title>
-                <Drawer.Close aria-label="Cerrar ficha" className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"><X size={18} /></Drawer.Close>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label="Copiar enlace del contacto"
+                    title="Copiar enlace"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(window.location.href);
+                        toastSuccess("Enlace copiado");
+                      } catch {
+                        toastError("No se pudo copiar el enlace");
+                      }
+                    }}
+                    className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"
+                  >
+                    <Link2 size={16} />
+                  </button>
+                  <Drawer.Close aria-label="Cerrar ficha" className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"><X size={18} /></Drawer.Close>
+                </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-5">
       {loading ? (
@@ -385,7 +409,7 @@ export function ContactDrawer({
             )}
           </div>
 
-          <ContactTasks contactId={contactId} />
+          <ContactTasks contactId={contactId} onChanged={() => setTimelineKey((key) => key + 1)} />
 
           <div>
             <label className="block text-xs font-medium text-muted-darker mb-1.5">Notas internas</label>
@@ -415,6 +439,8 @@ export function ContactDrawer({
               )}
             </div>
           </div>
+
+          <ContactTimeline contactId={contactId} refreshKey={timelineKey} />
         </div>
       )}
               </div>
