@@ -29,7 +29,7 @@ const figtree = Figtree({
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: BRAND_COLORS.accent },
-    { media: "(prefers-color-scheme: dark)", color: "#0A1218" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 
