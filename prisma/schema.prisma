@@ -61,6 +61,7 @@ model User {
   webhookEndpoints      WebhookEndpoint[]
   automations           Automation[]
   automationVersions    AutomationVersion[]
+  createdMacros         Macro[]
 
   @@index([organizationId])
   @@map("users")
@@ -1272,6 +1273,26 @@ model CsatResponse {
   @@map("csat_responses")
 }
 
+// Acciones manuales reutilizables ("macros") por organización. `actions` es un
+// array JSON ordenado; el ejecutor vive en lib/macros/execute.ts y reutiliza
+// los mismos efectos que las rutas del inbox (asignación, estado, prioridad,
+// snooze y sendOutbound). No es un segundo motor de automatizaciones.
+model Macro {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  actions        Json
+  createdById    String?      @map("created_by_id")
+  createdBy      User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("macros")
+}
+
 model ContactTask {
   id             String       @id @default(cuid())
   organizationId String       @map("organization_id")
@@ -2090,6 +2111,7 @@ model Organization {
   contactTasks     ContactTask[]
   leadOutcomeEvents LeadOutcomeEvent[]
   waCalls          WACall[]
+  macros           Macro[]
 
   @@index([status])
   @@map("organizations")

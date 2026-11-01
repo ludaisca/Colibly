@@ -324,6 +324,16 @@ export default function SettingsPage() {
 
       <CamposPersonalizadosSection />
 
+      <Card as="section" className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <SectionHeader title="Macros" />
+          <p className="mt-1 text-sm text-muted">
+            Acciones manuales reutilizables para asignar, resolver, priorizar, posponer o responder en un clic.
+          </p>
+        </div>
+        <Button variant="secondary" href="/configuracion/macros">Administrar macros</Button>
+      </Card>
+
       <Card as="section" className="space-y-4">
         <div className="flex items-center gap-2.5">
           <GoogleSheetsIcon size={22} className="shrink-0" />

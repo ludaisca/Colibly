@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -12,6 +12,7 @@ import { ChatBotMode } from "./chat-bot-mode";
 import { ChatTagPicker } from "./chat-tag-picker";
 import { ChatPriorityPicker } from "./chat-priority-picker";
 import { ChatSnoozeControls } from "./chat-snooze-controls";
+import { MacroPickerModal } from "./macro-picker-modal";
 import { LeadScoreBadge } from "./lead-score-badge";
 import { ChatCostBadge } from "./chat-cost-badge";
 import { AutomationChip } from "./automation-chip";
@@ -35,10 +36,12 @@ interface Props {
   onAssigned: (assignee: { id: string; name: string | null } | null) => void;
   onPriorityChange: (priority: ChatPriority) => void;
   onSnoozedChange: (until: string | null) => void;
+  onMacroApplied?: () => void;
 }
 
-export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned, onPriorityChange, onSnoozedChange }: Props) {
+export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned, onPriorityChange, onSnoozedChange, onMacroApplied }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [macroOpen, setMacroOpen] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const detailsId = useId();
   const channel = CHANNELS[chat.channel];
@@ -104,6 +107,9 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
           <div className="w-56 p-1">
             <button type="button" className={MENU_ITEM} onClick={() => setDetailsOpen((open) => !open)}>
               <SlidersHorizontal size={15} /> {detailsOpen ? "Ocultar detalles" : "Detalles"}
+            </button>
+            <button type="button" className={MENU_ITEM} onClick={() => setMacroOpen(true)}>
+              <Zap size={15} /> Aplicar macro
             </button>
             {canCall && (
               <button
@@ -198,6 +204,13 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
           </div>
         </div>
       )}
+
+      <MacroPickerModal
+        open={macroOpen}
+        onClose={() => setMacroOpen(false)}
+        chatId={chat.id}
+        onApplied={onMacroApplied}
+      />
     </header>
   );
 }

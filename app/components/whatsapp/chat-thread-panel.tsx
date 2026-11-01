@@ -417,6 +417,7 @@ interface ChatThreadPanelProps {
   onAssigned: (assignee: { id: string; name: string | null } | null) => void;
   onPriorityChange: (priority: ChatPriority) => void;
   onSnoozedChange: (until: string | null) => void;
+  onMacroApplied?: () => void;
   onPreview: (media: PreviewMedia) => void;
   onRetry: (msg: Message) => void;
   onReply: (msg: Message) => void;
@@ -441,6 +442,7 @@ export function ChatThreadPanel({
   onAssigned,
   onPriorityChange,
   onSnoozedChange,
+  onMacroApplied,
   onPreview,
   onRetry,
   onReply,
@@ -532,6 +534,7 @@ export function ChatThreadPanel({
         onAssigned={onAssigned}
         onPriorityChange={onPriorityChange}
         onSnoozedChange={onSnoozedChange}
+        onMacroApplied={onMacroApplied}
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col">

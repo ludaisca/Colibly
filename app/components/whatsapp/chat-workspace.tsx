@@ -1188,6 +1188,7 @@ export function ChatWorkspace({
               onAssigned={handleAssigned}
               onPriorityChange={handlePriorityChange}
               onSnoozedChange={handleSnoozedChange}
+              onMacroApplied={() => void refreshChats()}
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
               onReply={setReplyTo}
