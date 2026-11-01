@@ -584,6 +584,13 @@ export const orgAiSettingsUpdateSchema = z
     leadRecoveryEnabled: z.boolean().optional(),
     leadRecoveryFirstMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").optional(),
     leadRecoverySecondMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").nullable().optional(),
+    // Auto-resolver (lib/inbox/auto-resolve.ts): null lo apaga.
+    autoResolveAfterHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(720, "Máximo 720 horas (30 días)").nullable().optional(),
+    autoResolveMessage: z.string().trim().max(1000, "Máximo 1000 caracteres").nullable().optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
+    autoResolveTagName: z.string().trim().max(50, "Máximo 50 caracteres").nullable().optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
+    autoResolveSkipWaiting: z.boolean().optional(),
   })
   .refine(
     (d) =>

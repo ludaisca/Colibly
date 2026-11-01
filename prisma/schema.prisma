@@ -2139,6 +2139,13 @@ model Organization {
   leadRecoveryFirstMessageHours  Int     @default(2) @map("lead_recovery_first_message_hours")
   // null = solo se manda 1 mensaje.
   leadRecoverySecondMessageHours Int?    @default(12) @map("lead_recovery_second_message_hours")
+  // Resolver solos los chats inactivos (lib/inbox/auto-resolve.ts). null =
+  // apagado. Mensaje y etiqueta opcionales; skipWaiting deja en paz los chats
+  // cuyo cliente espera respuesta (waitingSince).
+  autoResolveAfterHours  Int?    @map("auto_resolve_after_hours")
+  autoResolveMessage     String? @map("auto_resolve_message")
+  autoResolveTagName     String? @map("auto_resolve_tag_name")
+  autoResolveSkipWaiting Boolean @default(true) @map("auto_resolve_skip_waiting")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

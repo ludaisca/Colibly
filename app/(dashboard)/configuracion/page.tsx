@@ -299,12 +299,12 @@ export default function SettingsPage() {
 
       {isAdmin && (
         <Card as="section" className="space-y-4">
-          <SectionHeader title="Inteligencia Artificial" />
+          <SectionHeader title="IA y operación" />
           <p className="text-sm text-muted">
-            Créditos de IA incluidos, horario del negocio y recuperación automática de leads.
+            Créditos de IA incluidos, horario del negocio, recuperación automática de leads y automatismos de la bandeja.
           </p>
           <Button href="/configuracion/ia" variant="secondary" size="sm" icon={Brain}>
-            Configurar IA
+            Configurar
           </Button>
         </Card>
       )}

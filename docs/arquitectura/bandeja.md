@@ -51,3 +51,10 @@ These mirror equivalent Contact-level concepts but are **separate models** scope
 - Backfill (`20261101072500_chat_waiting_since_backfill`): solo chats no resueltos cuyo último mensaje es entrante y de los últimos 30 días, ignorando el historial importado.
 - Filtro `awaiting=1` en `lib/chats/query.ts` (siempre en `AND`), en el panel de filtros ("Respuesta → Esperando respuesta"), en la URL y en las vistas guardadas. La fila muestra `WaitingBadge` ("espera 25 min"): ámbar desde 15 min, rojo desde 60 (`lib/chats/waiting-shared.ts`, importable desde el cliente).
 - Los builders de `lib/chats/query.ts` ya no confían en `accountId`: uno ajeno a la lista del usuario da `{ in: [] }`.
+
+### Resolver solos los chats inactivos (auto-resolver, 2026-11-01)
+
+- Configuración por organización en `/configuracion/ia` (tarjeta "Bandeja", solo admin; `PATCH /api/configuracion/ia`): `autoResolveAfterHours` (1–720, `null` = apagado), `autoResolveMessage`, `autoResolveTagName`, `autoResolveSkipWaiting` (default `true`).
+- `lib/inbox/auto-resolve.ts:processAutoResolveTick()` corre en la cola `inbox` cada 15 min. Por cada organización activa y **escribible** (`isOrgWritable`) toma hasta 200 chats `OPEN/PENDING` con `lastMessageAt` anterior al corte, sin posposición vigente y —con `skipWaiting`— sin cliente esperando. Las reglas puras viven en `auto-resolve-rules.ts` (con tests).
+- Claim atómico: `updateMany` condicionado al mismo `lastMessageAt` leído; si entró un mensaje en medio no se toca.
+- Después: `conversation.resolved`, etiqueta opcional **solo en WhatsApp** (los canales genéricos no tienen etiquetas de chat) y mensaje opcional por `sendOutbound(..., { countsAsReply: false })`. Si la ventana de 24 h está cerrada (`OutboundError`) no se manda nada. **No envía CSAT**: nadie atendió el chat.

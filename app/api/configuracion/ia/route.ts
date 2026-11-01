@@ -9,7 +9,7 @@ import { aiCreditLimit } from "@/lib/billing/state";
 
 // IA y operación de la organización (solo admin). La IA la provee la
 // plataforma: aquí se ven los créditos del plan y los modelos disponibles, y se
-// editan el horario del negocio y la recuperación de leads.
+// editan el horario del negocio, la recuperación de leads y el auto-resolver.
 
 const SELECT = {
   plan: true,
@@ -25,6 +25,10 @@ const SELECT = {
   leadRecoveryEnabled: true,
   leadRecoveryFirstMessageHours: true,
   leadRecoverySecondMessageHours: true,
+  autoResolveAfterHours: true,
+  autoResolveMessage: true,
+  autoResolveTagName: true,
+  autoResolveSkipWaiting: true,
 } as const;
 
 type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {

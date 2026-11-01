@@ -14,6 +14,7 @@ import { Progress } from "@/app/components/ui/progress";
 import { useToast } from "@/app/components/ui/toast";
 import { Banner } from "@/app/components/ui/banner";
 import { Card } from "@/app/components/ui/card";
+import { Textarea } from "@/app/components/ui/textarea";
 
 interface OrgAiSettings {
   aiCredits: { used: number; limit: number | null };
@@ -24,6 +25,10 @@ interface OrgAiSettings {
   leadRecoveryEnabled: boolean;
   leadRecoveryFirstMessageHours: number;
   leadRecoverySecondMessageHours: number | null;
+  autoResolveAfterHours: number | null;
+  autoResolveMessage: string | null;
+  autoResolveTagName: string | null;
+  autoResolveSkipWaiting: boolean;
 }
 
 // Zonas más comunes de los clientes; la actual se agrega si no está.
@@ -61,6 +66,12 @@ export default function IASettingsPage() {
   const [recoveryFirstHours, setRecoveryFirstHours] = useState(2);
   const [recoverySecondHours, setRecoverySecondHours] = useState("12");
   const [savingRecovery, setSavingRecovery] = useState(false);
+  const [autoResolveEnabled, setAutoResolveEnabled] = useState(false);
+  const [autoResolveHours, setAutoResolveHours] = useState(24);
+  const [autoResolveMessage, setAutoResolveMessage] = useState("");
+  const [autoResolveTag, setAutoResolveTag] = useState("");
+  const [autoResolveSkipWaiting, setAutoResolveSkipWaiting] = useState(true);
+  const [savingAutoResolve, setSavingAutoResolve] = useState(false);
 
   useEffect(() => {
     fetch("/api/configuracion/ia")
@@ -74,6 +85,11 @@ export default function IASettingsPage() {
         setRecoveryEnabled(d.leadRecoveryEnabled);
         setRecoveryFirstHours(d.leadRecoveryFirstMessageHours);
         setRecoverySecondHours(d.leadRecoverySecondMessageHours != null ? String(d.leadRecoverySecondMessageHours) : "");
+        setAutoResolveEnabled(d.autoResolveAfterHours !== null);
+        setAutoResolveHours(d.autoResolveAfterHours ?? 24);
+        setAutoResolveMessage(d.autoResolveMessage ?? "");
+        setAutoResolveTag(d.autoResolveTagName ?? "");
+        setAutoResolveSkipWaiting(d.autoResolveSkipWaiting);
       })
       .catch(() => toastError("Error al cargar la configuración"))
       .finally(() => setLoading(false));
@@ -120,6 +136,25 @@ export default function IASettingsPage() {
     }
   }
 
+  async function handleSaveAutoResolve() {
+    setSavingAutoResolve(true);
+    try {
+      await patch(
+        {
+          autoResolveAfterHours: autoResolveEnabled ? autoResolveHours : null,
+          autoResolveMessage: autoResolveMessage.trim() || null,
+          autoResolveTagName: autoResolveTag.trim() || null,
+          autoResolveSkipWaiting,
+        },
+        "Bandeja guardada"
+      );
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setSavingAutoResolve(false);
+    }
+  }
+
   if (loading) return <div className="flex items-center justify-center py-16"><Spinner /></div>;
 
   const credits = settings?.aiCredits;
@@ -130,8 +165,8 @@ export default function IASettingsPage() {
     <DetailPage
       backHref="/configuracion"
       backLabel="Volver a configuración"
-      title="Inteligencia artificial"
-      description="La IA viene incluida en tu plan: no necesitas API keys."
+      title="IA y operación"
+      description="Créditos de IA, horario del negocio y automatismos de la bandeja. La IA viene incluida en tu plan: no necesitas API keys."
     >
       <Card as="section" className="space-y-4">
         <SectionHeader eyebrow="Incluida en tu plan" title="Créditos de IA" />
@@ -235,6 +270,53 @@ export default function IASettingsPage() {
 
         <Button size="sm" variant="secondary" icon={Save} loading={savingRecovery} onClick={handleSaveRecovery}>
           Guardar recuperación de leads
+        </Button>
+      </Card>
+
+      <Card as="section" className="space-y-5">
+        <SectionHeader title="Bandeja" />
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Resolver solos los chats inactivos</p>
+            <p className="text-xs text-muted-darker">
+              Un chat abierto o pendiente sin mensajes durante el tiempo que elijas se marca como resuelto. Si el
+              cliente vuelve a escribir, se reabre solo. No se manda encuesta de satisfacción.
+            </p>
+          </div>
+          <Switch checked={autoResolveEnabled} onCheckedChange={setAutoResolveEnabled} label="Resolver chats inactivos" />
+        </div>
+
+        {autoResolveEnabled && (
+          <>
+            <FormField label="Horas sin mensajes" hint="Entre 1 y 720 (30 días)">
+              {(id) => (
+                <Input id={id} type="number" min="1" max="720" value={autoResolveHours} onChange={(e) => setAutoResolveHours(Number(e.target.value))} />
+              )}
+            </FormField>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">No resolver si el cliente espera respuesta</p>
+                <p className="text-xs text-muted-darker">
+                  Recomendado: un chat cuyo último mensaje es del cliente y nadie contestó se queda abierto.
+                </p>
+              </div>
+              <Switch checked={autoResolveSkipWaiting} onCheckedChange={setAutoResolveSkipWaiting} label="No resolver si espera respuesta" />
+            </div>
+            <FormField label="Mensaje al resolver (opcional)" hint="En WhatsApp solo sale si la ventana de 24 h sigue abierta">
+              {(id) => (
+                <Textarea id={id} rows={3} maxLength={1000} value={autoResolveMessage} onChange={(e) => setAutoResolveMessage(e.target.value)} placeholder="Cerramos esta conversación por inactividad. Escríbenos cuando quieras." />
+              )}
+            </FormField>
+            <FormField label="Etiqueta al resolver (opcional)" hint="Solo en chats de WhatsApp">
+              {(id) => (
+                <Input id={id} maxLength={50} value={autoResolveTag} onChange={(e) => setAutoResolveTag(e.target.value)} placeholder="Cerrado por inactividad" />
+              )}
+            </FormField>
+          </>
+        )}
+
+        <Button size="sm" variant="secondary" icon={Save} loading={savingAutoResolve} onClick={handleSaveAutoResolve}>
+          Guardar bandeja
         </Button>
       </Card>
     </DetailPage>
