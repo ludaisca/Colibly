@@ -85,7 +85,7 @@ Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the stan
 
 ### Insignia de canal en el avatar (2026-11-01)
 
-`app/components/ui/channel-avatar.tsx:ChannelAvatar` = `EntityAvatar` (hue de la cuenta) + insignia redonda en la esquina con la marca del canal (`CHANNEL_ICONS`, colores de cada marca; el chat web usa `text-accent-ink`), con `title` y texto `sr-only`. Se usa en la lista de chats, la cabecera de la conversación y la tarjeta del pipeline. Es cliente (los íconos usan `useId`).
+`app/components/ui/channel-avatar.tsx:ChannelAvatar` = `EntityAvatar` (hue de la cuenta) + insignia redonda en la esquina con la marca del canal (`CHANNEL_ICONS`, colores de cada marca; el chat web usa `text-accent-ink`), con `title` y texto `sr-only`. Se usa en la lista de chats, la cabecera de la conversación, la tarjeta del pipeline, "Chats recientes" del panel, la lista de Contactos y las Citas (el contacto de una cita trae `channelAccount.channel`; sin él es WhatsApp). Funciona también en Server Components (`useId` está en el build `react-server`).
 
 ### Componentes portados de Tesela (2026-11-01)
 

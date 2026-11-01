@@ -18,7 +18,7 @@ import {
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { Workbench, WorkbenchMain, WorkbenchAside } from "@/app/components/ui/workbench";
-import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar, type AvatarChannel } from "@/app/components/ui/channel-avatar";
 import { IconBox } from "@/app/components/ui/icon-box";
 import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -111,6 +111,7 @@ export default async function DashboardPage() {
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
     accountName: c.account?.name ?? "—",
+    channel: "WHATSAPP" as AvatarChannel,
   })).concat(recentChannelChats.map((c) => ({
     id: c.id,
     accountId: c.channelAccountId,
@@ -118,6 +119,7 @@ export default async function DashboardPage() {
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
     accountName: c.channelAccount.name,
+    channel: c.channelAccount.channel as AvatarChannel,
   }))).sort((a, b) => (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)).slice(0, 8);
 
   const showAccountBadge = accountsTotal > 1;
@@ -246,7 +248,7 @@ export default async function DashboardPage() {
                     href={`/whatsapp/chat/${chat.accountId}/${chat.id}`}
                     className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-surface-light sm:flex sm:items-center sm:gap-3"
                   >
-                    <div className="row-span-2 sm:row-span-1"><EntityAvatar id={chat.accountId} name={chat.name} size="sm" /></div>
+                    <div className="row-span-2 sm:row-span-1"><ChannelAvatar id={chat.accountId} name={chat.name} channel={chat.channel} size="sm" /></div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{chat.name}</p>
                       <p className="truncate text-xs text-muted-darker">{chat.lastMessage ?? "—"}</p>

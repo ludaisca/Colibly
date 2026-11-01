@@ -14,7 +14,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { EntityRow } from "@/app/components/ui/entity-list";
-import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { cn } from "@/app/components/ui/cn";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
@@ -379,7 +379,7 @@ export function CitasView() {
                       )}
                     >
                       <EntityRow
-                        leading={<EntityAvatar id={a.contact.id} name={contactLabelOf(a.contact)} size="sm" />}
+                        leading={<ChannelAvatar id={a.contact.id} name={contactLabelOf(a.contact)} channel={a.contact.channelAccount?.channel ?? "WHATSAPP"} size="sm" />}
                         title={<button type="button" onClick={(event) => { event.stopPropagation(); setEditing(a); setModalOpen(true); }} className="text-left hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong" aria-label={`Editar cita: ${a.title}`}>{a.title}</button>}
                         badges={
                           <span className="flex shrink-0 items-center gap-1">

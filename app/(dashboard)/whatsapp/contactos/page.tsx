@@ -12,7 +12,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
-import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
@@ -253,7 +253,7 @@ export default function ContactosPage() {
             const name = displayName(contact.name, contact.remoteJid);
             return (
               <EntityRow
-                leading={<EntityAvatar id={contact.accountId} name={name} size="sm" />}
+                leading={<ChannelAvatar id={contact.accountId} name={name} channel={contact.channel} size="sm" />}
                 title={name}
                 badges={
                   <span className="flex shrink-0 items-center gap-1">
