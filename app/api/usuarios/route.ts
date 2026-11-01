@@ -192,8 +192,12 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Lo da de alta un admin de la organización con una contraseña que él
+    // conoce: el correo cuenta como verificado (igual que al aceptar una
+    // invitación). Sin esto el login lo rechazaba siempre con
+    // email_not_verified y nunca se le mandaba un correo para confirmarlo.
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId },
+      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId, emailVerifiedAt: new Date() },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });
 
