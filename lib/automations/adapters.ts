@@ -1,4 +1,5 @@
 import type { Channel, LeadStatus } from "@prisma/client";
+import { displayName } from "@/lib/chats/display-name";
 import { prisma } from "@/lib/prisma";
 import { botQueue } from "@/lib/queue";
 import { sendOutbound, OutboundError, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
@@ -280,8 +281,8 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
         assignee =
           ctx.chat.kind === "whatsapp" ? await autoAssignChat(ctx.account.id, ctx.chat.id) : await autoAssignConversation(ctx.account.id, ctx.chat.id);
       }
-      const contact = await prisma.contact.findUnique({ where: { id: ctx.contactId }, select: { name: true, realName: true } });
-      await notify(assignee ?? ctx.ownerId, `${contact?.realName ?? contact?.name ?? "Un contacto"} necesita atención`, "Una automatización pasó la conversación a un humano.");
+      const contact = await prisma.contact.findUnique({ where: { id: ctx.contactId }, select: { name: true, realName: true, remoteJid: true } });
+      await notify(assignee ?? ctx.ownerId, `${contact ? displayName(contact.realName ?? contact.name, contact.remoteJid) : "Un contacto"} necesita atención`, "Una automatización pasó la conversación a un humano.");
     },
   };
 }

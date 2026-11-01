@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { displayName } from "@/lib/chats/display-name";
 import { queuePush } from "@/lib/notifications/push";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -65,7 +66,7 @@ export async function PATCH(
           actorId: session.user.id,
           accountId: conversation.channelAccountId,
           chatId,
-          contactName: conversation.contact?.name ?? conversation.name ?? conversation.externalId,
+          contactName: displayName(conversation.contact?.name ?? conversation.name, conversation.externalId),
         });
       }
       return NextResponse.json(updated);
@@ -104,7 +105,7 @@ export async function PATCH(
         actorId: session.user.id,
         accountId: chat.accountId,
         chatId,
-        contactName: chat.contact?.name ?? chat.name ?? chat.remoteJid,
+        contactName: displayName(chat.contact?.name ?? chat.name, chat.remoteJid),
       });
     }
 

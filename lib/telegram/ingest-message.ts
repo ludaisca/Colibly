@@ -1,4 +1,5 @@
 import { Prisma, type Channel } from "@prisma/client";
+import { displayName as chatDisplayName } from "@/lib/chats/display-name";
 import { queuePush } from "@/lib/notifications/push";
 import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
@@ -224,14 +225,14 @@ export async function ingestChannelMessage(
       data: {
         userId: assignedToId,
         type: "CHAT_MESSAGE",
-        title: displayName,
+        title: chatDisplayName(displayName, msg.externalId),
         body: msg.body.slice(0, 200),
         // La misma ruta de deep-link sirve para ambos canales — no valida
         // que accountId sea un WAAccount, solo preselecciona el chat.
         link: `/whatsapp/chat/${channelAccountId}/${conversation.id}`,
       },
     });
-    await queuePush(assignedToId, { title: displayName, body: msg.body, link: `/whatsapp/chat/${channelAccountId}/${conversation.id}`, tag: `chat:${conversation.id}` });
+    await queuePush(assignedToId, { title: chatDisplayName(displayName, msg.externalId), body: msg.body, link: `/whatsapp/chat/${channelAccountId}/${conversation.id}`, tag: `chat:${conversation.id}` });
   }
 
   await prisma.channelAccount.update({

@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { displayName } from "@/lib/chats/display-name";
 import { queuePush } from "@/lib/notifications/push";
 import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
@@ -244,12 +245,12 @@ export async function ingestInboundMessage(
       data: {
         userId: assignedToId,
         type: "CHAT_MESSAGE",
-        title: msg.contactName,
+        title: displayName(msg.contactName, msg.remoteJid),
         body: msg.body.slice(0, 200),
         link: `/whatsapp/chat/${accountId}/${chat.id}`,
       },
     });
-    await queuePush(assignedToId, { title: msg.contactName, body: msg.body, link: `/whatsapp/chat/${accountId}/${chat.id}`, tag: `chat:${chat.id}` });
+    await queuePush(assignedToId, { title: displayName(msg.contactName, msg.remoteJid), body: msg.body, link: `/whatsapp/chat/${accountId}/${chat.id}`, tag: `chat:${chat.id}` });
   }
 
   await prisma.wAAccount.update({

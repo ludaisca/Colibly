@@ -8,6 +8,9 @@
 .colibly-drawer-popup[data-side="right"] { border-left: 1px solid var(--border); }
 .colibly-drawer-popup[data-starting-style][data-side="left"], .colibly-drawer-popup[data-ending-style][data-side="left"] { transform: translateX(-100%); }
 .colibly-drawer-popup[data-starting-style][data-side="right"], .colibly-drawer-popup[data-ending-style][data-side="right"] { transform: translateX(100%); }
+.colibly-drawer-viewport[data-side="bottom"] { inset-block: auto 0; inset-inline: 0; }
+.colibly-drawer-popup[data-side="bottom"] { border-top: 1px solid var(--border); border-radius: 24px 24px 0 0; overflow: hidden; transform: translateY(var(--drawer-swipe-movement-y, 0px)); transition-duration: 300ms; transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+.colibly-drawer-popup[data-starting-style][data-side="bottom"], .colibly-drawer-popup[data-ending-style][data-side="bottom"] { transform: translateY(100%); }
 .colibly-drawer-popup[data-swiping] { transition-duration: 0ms; }
 .colibly-drawer-close { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 12px; color: var(--muted); cursor: pointer; }
 .colibly-drawer-close:hover { background: var(--surface-light); color: var(--foreground); }
