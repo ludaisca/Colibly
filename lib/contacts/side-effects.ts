@@ -19,6 +19,7 @@ export async function afterLeadStatusChanged(
     where: { id: contact.id },
     select: {
       pipelineStageId: true,
+      dealValueCents: true,
       pipelineStage: { select: { pipeline: { select: { isDefault: true } } } },
       account: { select: { organizationId: true } },
       channelAccount: { select: { organizationId: true } },
@@ -40,7 +41,7 @@ export async function afterLeadStatusChanged(
   const toOutcome = to === "CUSTOMER" ? "WON" : to === "LOST" ? "LOST" : "OPEN";
   if (fromOutcome !== toOutcome && organizationId) {
     await prisma.leadOutcomeEvent
-      .create({ data: { organizationId, contactId: contact.id, outcome: toOutcome } })
+      .create({ data: { organizationId, contactId: contact.id, outcome: toOutcome, valueCents: placed?.dealValueCents ?? null } })
       .catch((err) => console.error("[contacts] lead outcome event failed:", err));
   }
 

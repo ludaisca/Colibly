@@ -8,6 +8,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { PipelineBoard, type BoardData, type BoardStage } from "./_board";
 import type { LeadCardData } from "@/app/components/pipeline/lead-card";
+import { formatMxn } from "@/lib/money";
 
 export default async function VentasPage({ searchParams }: { searchParams: Promise<{ pipeline?: string }> }) {
   const session = await auth();
@@ -44,6 +45,8 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
       remoteJid: true,
       leadStatus: true,
       pipelineStageId: true,
+      dealValueCents: true,
+      expectedCloseAt: true,
       accountId: true,
       channelAccount: { select: { channel: true } },
       tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
@@ -51,10 +54,11 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
         select: {
           lastMessageAt: true,
           unreadCount: true,
+          assignedTo: { select: { id: true, name: true } },
           leadScores: { orderBy: { score: "desc" }, take: 1, select: { score: true, label: true } },
         },
       },
-      conversation: { select: { lastMessageAt: true, unreadCount: true } },
+      conversation: { select: { lastMessageAt: true, unreadCount: true, assignedTo: { select: { id: true, name: true } } } },
     },
   });
 
@@ -67,6 +71,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
   const boardData: BoardData = {};
   for (const stage of stages) boardData[stage.id] = [];
 
+  const outcomeByStage = new Map(selected.stages.map((stage) => [stage.id, stage.outcome]));
   for (const contact of contacts) {
     const stageId = contact.pipelineStageId ?? selected.stages.find((stage) => stage.leadStatus === contact.leadStatus)?.id;
     if (!stageId || !boardData[stageId]) continue;
@@ -82,6 +87,10 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
       bestScore: contact.chat?.leadScores?.[0] ?? null,
       lastMessageAt: contact.chat?.lastMessageAt?.toISOString() ?? contact.conversation?.lastMessageAt?.toISOString() ?? null,
       unreadCount: (contact.chat?.unreadCount ?? 0) + (contact.conversation?.unreadCount ?? 0),
+      dealValueCents: contact.dealValueCents,
+      expectedCloseAt: contact.expectedCloseAt?.toISOString() ?? null,
+      assignee: contact.chat?.assignedTo ?? contact.conversation?.assignedTo ?? null,
+      closed: outcomeByStage.get(stageId) !== "OPEN",
     };
     boardData[stageId].push(card);
   }
@@ -94,16 +103,25 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
     by: ["outcome"],
     where: { organizationId, createdAt: { gte: since } },
     _count: { _all: true },
+    _sum: { valueCents: true },
   });
-  const won30 = outcomes.find((row) => row.outcome === "WON")?._count._all ?? 0;
-  const lost30 = outcomes.find((row) => row.outcome === "LOST")?._count._all ?? 0;
+  const won30Row = outcomes.find((row) => row.outcome === "WON");
+  const lost30Row = outcomes.find((row) => row.outcome === "LOST");
+  const won30 = won30Row?._count._all ?? 0;
+  const lost30 = lost30Row?._count._all ?? 0;
+  const won30Value = won30Row?._sum.valueCents ?? 0;
+  const lost30Value = lost30Row?._sum.valueCents ?? 0;
+  // Valor abierto: tratos con monto en etapas que no son ganadas ni perdidas.
+  const openValue = selected.stages
+    .filter((stage) => stage.outcome === "OPEN")
+    .reduce((sum, stage) => sum + boardData[stage.id].reduce((acc, card) => acc + (card.dealValueCents ?? 0), 0), 0);
   const conversionPct = total > 0 ? Math.round((wonOnBoard / total) * 100) : 0;
 
   const kpis: KpiItem[] = [
     { label: "Leads en este embudo", value: String(total), hint: selected.name },
-    { label: "Ganados", value: String(wonOnBoard), hint: "en el embudo ahora" },
-    { label: "Ganados en 30 días", value: String(won30), hint: "pasaron a cliente" },
-    { label: "Perdidos en 30 días", value: String(lost30), hint: "pasaron a perdido" },
+    { label: "Valor abierto", value: formatMxn(openValue, { compact: true }), hint: "tratos en curso" },
+    { label: "Ganados en 30 días", value: String(won30), hint: won30Value > 0 ? `${formatMxn(won30Value, { compact: true })} ganados` : "pasaron a cliente" },
+    { label: "Perdidos en 30 días", value: String(lost30), hint: lost30Value > 0 ? `${formatMxn(lost30Value, { compact: true })} perdidos` : "pasaron a perdido" },
   ];
 
   return (

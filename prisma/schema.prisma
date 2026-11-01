@@ -1251,6 +1251,10 @@ model Contact {
   // secuencias, calificación y recuperación con IA no corren para él. Lo
   // recalcula lib/billing/contact-limits.ts (al crear contactos y en el tick).
   overLimit         Boolean         @default(false) @map("over_limit")
+  // Valor del trato en centavos de MXN (entero: Decimal no cruza del RSC al
+  // cliente) y fecha estimada de cierre. Ver lib/money.ts.
+  dealValueCents    Int?            @map("deal_value_cents")
+  expectedCloseAt   DateTime?       @map("expected_close_at")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -1378,6 +1382,9 @@ model LeadOutcomeEvent {
   contactId      String               @map("contact_id")
   contact        Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
   outcome        PipelineStageOutcome
+  // Foto del valor del trato al cambiar de resultado (los reportes suman esto,
+  // no el valor actual del contacto, que puede cambiar después).
+  valueCents     Int?                 @map("value_cents")
   createdAt      DateTime             @default(now()) @map("created_at")
 
   @@index([organizationId, createdAt])

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
 
 // Email normalizado (trim + minúsculas) ANTES de validar el formato — lib/auth.ts
 // busca al usuario con el email en minúsculas, así que cualquier alta que lo
@@ -378,6 +379,10 @@ export const contactUpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   leadStatus: z.enum(["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"]).optional(),
   pipelineStageId: z.string().min(1).max(64).optional(),
+  // Valor del trato en PESOS (la ruta lo guarda en centavos). null lo borra.
+  dealValue: z.number().finite().min(0, "El valor no puede ser negativo").max(DEAL_VALUE_MAX_PESOS, "Máximo $20,000,000").nullable().optional(),
+  // Fecha estimada de cierre (YYYY-MM-DD o ISO). null la borra.
+  expectedCloseAt: z.string().max(40).refine((v) => !Number.isNaN(new Date(v).getTime()), "Fecha inválida").nullable().optional(),
 });
 
 export const noteSchema = z.object({

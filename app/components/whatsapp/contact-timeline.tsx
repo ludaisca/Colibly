@@ -16,6 +16,7 @@ import {
   UserCheck,
   UserPlus,
   ListTodo,
+  CircleDollarSign,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -46,6 +47,7 @@ const ICONS: Record<string, ElementType> = {
   TASK_REOPENED: ListTodo,
   TASK_DELETED: ListTodo,
   CUSTOM_FIELDS_UPDATED: SlidersHorizontal,
+  DEAL_UPDATED: CircleDollarSign,
 };
 
 export function ContactTimeline({ contactId, refreshKey = 0 }: { contactId: string; refreshKey?: number }) {

@@ -5,7 +5,8 @@ import { hueClassFor } from "./hue";
 // "use client", sin iconos como props), usable directo desde los RSC de
 // overview y desde componentes client.
 
-const SIZE: Record<"sm" | "md" | "lg", string> = {
+const SIZE: Record<"xs" | "sm" | "md" | "lg", string> = {
+  xs: "h-5 w-5 rounded-md text-[9px]",
   sm: "h-8 w-8 text-[11px]",
   md: "h-10 w-10 text-sm",
   lg: "h-12 w-12 text-base",
@@ -22,7 +23,7 @@ interface EntityAvatarProps {
   /** Id estable de la entidad (normalmente accountId) — decide el hue. */
   id: string;
   name: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }
 

@@ -13,6 +13,8 @@ Three pieces sharing one scope model. **Admin-only in 3 layers** (card on `/conf
 - **Webhooks**: fan-out in `lib/webhooks/fanout.ts` (one `WebhookDelivery` per matching endpoint, `@@unique([endpointId,eventId])` makes retries idempotent), delivery in `lib/webhooks/deliver.ts` signed `X-Colibly-Signature: t=<unix>,v1=hex(hmac_sha256(secret, "t.body"))`. 20 consecutive final failures ⇒ endpoint disabled + `INTEGRATION_ERROR` notification. Deliveries are purged after 30 days by the daily `media-cleanup` job.
 - **SSRF**: any HTTP to a user-supplied URL goes through `lib/net/safe-fetch.ts` — the IP is checked in the socket `lookup` (no DNS-rebinding window), no redirects, blocks private/loopback/link-local/CGNAT/reserved and IPv4-mapped IPv6. `NODE_ENV=development` additionally allows loopback + RFC1918 (for local receivers), never 169.254/metadata.
 
+- **Pendiente (2026-11-01):** `dealValueCents`/`expectedCloseAt` del contacto y `LeadOutcomeEvent.valueCents` aún no están en `/api/v1` ni en `lib/api/openapi.ts`; agregarlos ahí junto con la ruta cuando se expongan.
+
 ## Automatizaciones (motor único, 2026-09-25)
 
 One engine for button chatbots ("flows"), event→action rules and drip follow-ups, in every channel. `/whatsapp/automatizaciones` (nav "Automatizaciones", admin + user; `ejecutivo` blocked in 3 layers — nav, `EXECUTIVE_BLOCKED`, `lib/automations/access.ts:requireAutomationSession()` 403). Chat-level actions (the inbox chip, manual start) are authorized **by chat access** (`lib/automations/chat-access.ts`), so ejecutivos can pause/resume/start from the chat.

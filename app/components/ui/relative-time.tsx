@@ -14,6 +14,12 @@ function subscribeMinute(onChange: () => void): () => void {
 const minuteNow = () => Math.floor(Date.now() / 60_000);
 const serverMinute = () => null;
 
+/** Minuto actual (ms) en el cliente; null en el servidor y durante la hidratación. */
+export function useMinuteNow(): number | null {
+  const minute = useSyncExternalStore(subscribeMinute, minuteNow, serverMinute);
+  return minute === null ? null : minute * 60_000;
+}
+
 // "hace 2 días" con la fecha exacta al pasar el ratón (U8). El texto relativo
 // depende del reloj, así que el servidor y el primer render del cliente pintan
 // la fecha absoluta en una zona fija (idéntica en ambos: sin error de

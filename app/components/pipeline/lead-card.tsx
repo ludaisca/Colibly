@@ -2,13 +2,14 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { labelText } from "@/lib/whatsapp/export-columns";
-import { GripVertical, Clock } from "lucide-react";
+import { GripVertical, Clock, CalendarClock } from "lucide-react";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
-import { RelativeTime } from "@/app/components/ui/relative-time";
+import { RelativeTime, useMinuteNow } from "@/app/components/ui/relative-time";
 import type { LeadStatus } from "@prisma/client";
+import { formatMxn } from "@/lib/money";
 
 export interface LeadCardData {
   id: string;
@@ -22,6 +23,20 @@ export interface LeadCardData {
   bestScore: { score: number; label: string } | null;
   lastMessageAt: string | null;
   unreadCount: number;
+  /** Valor del trato en centavos (lib/money.ts). */
+  dealValueCents: number | null;
+  /** Fecha estimada de cierre (ISO). */
+  expectedCloseAt: string | null;
+  /** Ejecutivo asignado al chat del contacto. */
+  assignee: { id: string; name: string | null } | null;
+  /** La etapa es ganada/perdida: una fecha de cierre pasada ya no es atraso. */
+  closed?: boolean;
+}
+
+// La fecha de cierre se guarda como medianoche UTC del día elegido: se
+// muestra en UTC para que sea el mismo día en servidor y navegador.
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 export type StageOption = { id: string; name: string };
@@ -50,6 +65,9 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
   onStageChange?: (id: string, stageId: string) => void;
 }) {
   const displayName = data.name ?? data.remoteJid ?? "Desconocido";
+  // "Atrasado" depende de la hora actual: solo después de hidratar.
+  const now = useMinuteNow();
+  const overdue = now !== null && !data.closed && !!data.expectedCloseAt && Date.parse(data.expectedCloseAt) < now - 86_400_000;
   const phoneShort =
     data.remoteJid?.replace(/@.*$/, "").slice(-10) ?? "";
   const channelLabel = data.channel === "WEBCHAT"
@@ -102,6 +120,31 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
             <Clock size={10} className="shrink-0" />
             {data.lastMessageAt ? <RelativeTime value={data.lastMessageAt} /> : <span>—</span>}
           </div>
+
+          {(data.dealValueCents !== null || data.expectedCloseAt || data.assignee) && (
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              {data.dealValueCents !== null && (
+                <span className="font-semibold tabular-nums text-foreground">{formatMxn(data.dealValueCents)}</span>
+              )}
+              {data.expectedCloseAt && (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 tabular-nums",
+                    overdue ? "text-danger" : "text-muted-darker"
+                  )}
+                  title={overdue ? "Cierre estimado (ya pasó)" : "Cierre estimado"}
+                >
+                  <CalendarClock size={11} aria-hidden />
+                  {shortDate(data.expectedCloseAt)}
+                </span>
+              )}
+              {data.assignee && (
+                <span className="ml-auto" title={`Asignado a ${data.assignee.name ?? "un ejecutivo"}`}>
+                  <EntityAvatar id={data.assignee.id} name={data.assignee.name ?? "?"} size="xs" />
+                </span>
+              )}
+            </div>
+          )}
 
           {data.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">

@@ -12,6 +12,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { downloadCsv, toCsv } from "@/lib/csv";
+import { centsToPesos, formatMxn } from "@/lib/money";
 import type { AgentReport, ChannelReport, RangeReport } from "@/lib/estadisticas/reports";
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -138,7 +139,43 @@ export function ReportsView({ data, fromKey, toKey }: { data: RangeReport; fromK
       value: data.totals.csatAvg == null ? "—" : `${data.totals.csatAvg}/5`,
       hint: `${data.totals.csatResponses}/${data.totals.csatSent} respuestas`,
     },
+    {
+      label: "Ganado",
+      value: formatMxn(data.totals.wonValueCents, { compact: true }),
+      hint: `${data.totals.wonCount} ${data.totals.wonCount === 1 ? "trato" : "tratos"}`,
+    },
+    {
+      label: "Perdido",
+      value: formatMxn(data.totals.lostValueCents, { compact: true }),
+      hint: `${data.totals.lostCount} ${data.totals.lostCount === 1 ? "trato" : "tratos"}`,
+    },
   ];
+
+  // Resumen del periodo en una fila (los montos en pesos, sin formato, para
+  // que la hoja de cálculo los sume).
+  function exportSummary() {
+    const t = data.totals;
+    const csv = toCsv(
+      ["Desde", "Hasta", "Chats nuevos", "Resueltos", "Mensajes", "1a respuesta (min)", "Resolucion (min)", "Abiertos", "Sin asignar", "CSAT", "Ganados", "Ganado (MXN)", "Perdidos", "Perdido (MXN)"],
+      [[
+        fromKey,
+        toKey,
+        String(t.newChats),
+        String(t.resolved),
+        String(t.messages),
+        t.avgFirstResponseMinutes == null ? "" : String(t.avgFirstResponseMinutes),
+        t.avgResolutionMinutes == null ? "" : String(t.avgResolutionMinutes),
+        String(t.open),
+        String(t.unassigned),
+        t.csatAvg == null ? "" : String(t.csatAvg),
+        String(t.wonCount),
+        centsToPesos(t.wonValueCents).toFixed(2),
+        String(t.lostCount),
+        centsToPesos(t.lostValueCents).toFixed(2),
+      ]]
+    );
+    downloadCsv(`reporte-resumen-${fromKey}-${toKey}.csv`, csv);
+  }
 
   function exportAgents() {
     const csv = toCsv(
@@ -192,6 +229,9 @@ export function ReportsView({ data, fromKey, toKey }: { data: RangeReport; fromK
             <Input id="report-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} className="w-40" />
           </div>
           <Button onClick={() => applyRange()}>Aplicar</Button>
+          <Button variant="secondary" size="sm" icon={Download} onClick={exportSummary} className="ml-auto order-last">
+            Exportar resumen
+          </Button>
           <div className="flex flex-wrap gap-1.5">
             <Button variant="secondary" size="sm" onClick={() => applyRange(shiftKey(to, -6), to)}>7 días</Button>
             <Button variant="secondary" size="sm" onClick={() => applyRange(shiftKey(to, -29), to)}>30 días</Button>

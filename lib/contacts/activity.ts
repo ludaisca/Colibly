@@ -18,6 +18,7 @@ export const CONTACT_ACTIVITY_TYPES = [
   "TASK_REOPENED",
   "TASK_DELETED",
   "CUSTOM_FIELDS_UPDATED",
+  "DEAL_UPDATED",
 ] as const;
 
 export type ContactActivityType = (typeof CONTACT_ACTIVITY_TYPES)[number];

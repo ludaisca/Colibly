@@ -53,6 +53,11 @@ export interface RangeReport {
     csatSent: number;
     csatResponses: number;
     csatAvg: number | null;
+    /** Ventas del periodo (LeadOutcomeEvent, valor congelado al cambiar de resultado). */
+    wonCount: number;
+    wonValueCents: number;
+    lostCount: number;
+    lostValueCents: number;
   };
   agents: AgentReport[];
   channels: ChannelReport[];
@@ -154,6 +159,7 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
     messagesWA,
     messagesChannel,
     csat,
+    outcomes,
   ] = await Promise.all([
     prisma.wAChat.findMany({
       where: { accountId: { in: accountIds }, ...createdWhere },
@@ -186,7 +192,21 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       _avg: { rating: true },
       _count: { _all: true, rating: true },
     }),
+    // Mismo alcance que el resto del reporte: contactos de las cuentas que el
+    // usuario ve (el evento es por organización, el contacto da la cuenta).
+    prisma.leadOutcomeEvent.groupBy({
+      by: ["outcome"],
+      where: {
+        createdAt: { gte: range.from, lt: range.to },
+        outcome: { in: ["WON", "LOST"] },
+        contact: { OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+      },
+      _count: { _all: true },
+      _sum: { valueCents: true },
+    }),
   ]);
+  const won = outcomes.find((row) => row.outcome === "WON");
+  const lost = outcomes.find((row) => row.outcome === "LOST");
 
   type WA = (typeof createdWA)[number];
   type CH = (typeof createdChannel)[number];
@@ -322,6 +342,10 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       csatSent: csat._count._all,
       csatResponses: csat._count.rating,
       csatAvg: csat._avg.rating == null ? null : Math.round(csat._avg.rating * 10) / 10,
+      wonCount: won?._count._all ?? 0,
+      wonValueCents: won?._sum.valueCents ?? 0,
+      lostCount: lost?._count._all ?? 0,
+      lostValueCents: lost?._sum.valueCents ?? 0,
     },
     agents: agentReports,
     channels,

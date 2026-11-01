@@ -60,6 +60,8 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
         leadStatus: true,
         leadOrigin: true,
         optedOutMarketing: true,
+        dealValueCents: true,
+        expectedCloseAt: true,
         createdAt: true,
         tags: { select: { tag: { select: { name: true } } } },
         customFieldValues: { select: { value: true, definition: { select: { key: true, label: true } } } },
