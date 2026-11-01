@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { GettingStarted } from "@/app/components/ui/getting-started";
 import { formatMxn } from "@/lib/money";
 import Link from "next/link";
 import { Search, RefreshCw, Upload, Contact as ContactIcon } from "lucide-react";
@@ -211,6 +212,20 @@ export default function ContactosPage() {
           />
         </div>
 
+        {!loading && !fetchError && contacts.length === 0 && !search && !leadStatusFilter && !accountFilter ? (
+          <div className="rounded-lg border border-border bg-surface">
+            <GettingStarted
+              title="Aún no tienes contactos"
+              description="Se crean solos cuando alguien te escribe por un canal conectado. También puedes importarlos de un CSV."
+              memberHint="Los contactos aparecen cuando alguien escribe a una de tus cuentas. Si no ves ninguna, pide a un administrador que te comparta una cuenta."
+              extraAction={
+                <Button variant="secondary" size="sm" icon={Upload} onClick={() => setImportOpen(true)}>
+                  Importar CSV
+                </Button>
+              }
+            />
+          </div>
+        ) : (
         <EntityList
           rows={contacts}
           rowKey={(c) => c.id}
@@ -278,6 +293,7 @@ export default function ContactosPage() {
             );
           }}
         />
+        )}
         {summary && total > 0 && (
           <p className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border px-1 pt-3 text-xs text-muted-darker">
             <span><span className="font-semibold tabular-nums text-foreground">{total.toLocaleString("es-MX")}</span> contactos</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ElementType, ReactNode } from "react";
+import { GettingStarted } from "@/app/components/ui/getting-started";
 import { Search, MessageSquare, Inbox, Flag, Clock, ListChecks, UserCheck, Check, X } from "lucide-react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Button } from "@/app/components/ui/button";
@@ -288,6 +289,12 @@ export function ChatListPanel({
           </div>
         ) : loadError ? (
           <div className="p-4"><ListErrorState message={loadError} onRetry={onRetry} /></div>
+        ) : !hasResults && totalChatsLoaded === 0 && !(search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter) ? (
+          <GettingStarted
+            title="Tu bandeja está lista"
+            description="Aquí llegan los mensajes de todos tus canales. Conecta uno para empezar a recibirlos."
+            memberHint="Aquí verás los chats de las cuentas que tienes asignadas. Si no llega nada, pide a un administrador que te comparta una cuenta."
+          />
         ) : !hasResults ? (
           <div className="py-8">
             <EmptyState

@@ -78,3 +78,8 @@ Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the stan
 - `lib/format/dates.ts`: `formatInZone` (fecha absoluta con zona explícita), `formatRelative(value, now)` y `minutesSince(value, now)`, puros.
 - `<RelativeTime value timeZone? />` (`app/components/ui/relative-time.tsx`): muestra "hace 2 días" con la fecha exacta en `title`. Usa `useSyncExternalStore` con un reloj por minuto: el servidor y la hidratación pintan la fecha absoluta (igual en ambos) y el relativo aparece al hidratar. No pongas `Date.now()` en el render de un componente que se renderiza en el servidor: es un error de hidratación.
 - `formatTime` de `chat-shared.ts` (hora / "Ayer" / día) es el estilo propio de la lista de chats y se queda.
+
+### Estados vacíos que enseñan (F9, 2026-11-01)
+
+`app/components/ui/getting-started.tsx`: cuando la bandeja (sin chats y sin filtros) o Contactos (sin contactos y sin filtros) están vacíos, se muestran los primeros pasos **pendientes** como tarjetas con enlace, los mismos de `lib/onboarding.ts:getOnboardingSteps()` (el checklist del panel), vía `GET /api/onboarding` (solo admin; otros roles reciben `[]`). Un `user`/`ejecutivo` ve en cambio qué esperar y que pida a un admin que le comparta una cuenta. Contactos agrega "Importar CSV". Con filtros activos se sigue mostrando "Sin resultados" y el botón de limpiar.
+
