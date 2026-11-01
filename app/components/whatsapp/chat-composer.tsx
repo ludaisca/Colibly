@@ -14,6 +14,8 @@ import { messagePreview, type CannedResponseItem, type Channel, type Message } f
 // `newMessage`/`attachment`/`performSend`; este panel solo dispara callbacks).
 
 interface ChatComposerProps {
+  /** Firma personal activa (F6): se muestra como aviso mientras se escribe texto. */
+  signature?: string | null;
   chatId: string;
   channel: Channel;
   newMessage: string;
@@ -65,6 +67,7 @@ const MAX_BUTTON_LENGTH = 20;
 const TOOL_BUTTON = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 export function ChatComposer({
+  signature,
   chatId,
   channel,
   newMessage,
@@ -251,6 +254,11 @@ export function ChatComposer({
 
   return (
     <form onSubmit={onSubmit} className="relative flex shrink-0 flex-col gap-1.5 border-t border-border bg-surface px-3 py-1.5">
+      {signature && newMessage.trim() && !attachment && (
+        <p className="truncate px-1 text-[11px] text-muted-darker" title={signature}>
+          Se agregará tu firma: <span className="text-foreground">{signature}</span>
+        </p>
+      )}
       {replyTo && (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
           {replyThumb ? (

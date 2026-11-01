@@ -9,6 +9,7 @@ import { Input } from "@/app/components/ui/input";
 import { PasswordInput } from "@/app/components/ui/password-input";
 import { PasswordStrength } from "@/app/components/ui/password-strength";
 import { SeguridadSection } from "./_seguridad";
+import { FirmaSection } from "./_firma";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Badge } from "@/app/components/ui/badge";
@@ -280,6 +281,8 @@ export default function SettingsPage() {
           Cambiar contraseña
         </Button>
       </Card>
+
+      <FirmaSection />
 
       <SeguridadSection />
 

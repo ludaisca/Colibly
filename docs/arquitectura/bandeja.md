@@ -110,3 +110,7 @@ Acompañan a algunas `Notification` de la campana, nunca la reemplazan: mensaje 
 
 `{{nombre}}` (si el nombre del chat es solo el número, queda vacío), `{{agente}}` (nombre del usuario en sesión) y `{{negocio}}` (`Organization.name`, vía `BusinessNameProvider` en `dashboard-shell.tsx` → `useBusinessName()`). `lib/inbox/canned-variables.ts:renderCannedResponse()` (pura, con tests) se aplica al insertar en el compositor; a diferencia de `renderText()` de las automatizaciones, una variable desconocida **se deja tal cual** para que el agente la vea antes de enviar.
 
+### Firma personal (F6, 2026-11-01)
+
+`User.messageSignature` (máx. 100) + `User.signatureEnabled`, editables en Configuración → "Firma en los mensajes" (`GET/PATCH /api/auth/profile`). La ruta de envío manual (`chats/[chatId]/send`, las cuatro ramas: WhatsApp, Telegram, Messenger/Instagram y web) la agrega con `lib/inbox/signature.ts:appendSignature()` **solo a mensajes `type: "text"`**: nunca a botones, plantillas, media, notas automáticas ni a lo que mandan bots, macros o la API. No se duplica si el texto ya termina con ella y se omite si el texto con firma pasaría el límite del canal (4096 WhatsApp/Telegram, 2000 Messenger/Instagram/web). El compositor muestra "Se agregará tu firma" mientras se escribe.
+

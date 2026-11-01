@@ -26,6 +26,10 @@ model User {
   twoFactorEnabledAt     DateTime? @map("two_factor_enabled_at")
   twoFactorBackupCodes   String[]  @default([]) @map("two_factor_backup_codes")
   twoFactorLastStep      Int?      @map("two_factor_last_step")
+  // Firma personal (F6): se agrega al final de los mensajes de texto que el
+  // usuario manda a mano desde la bandeja (lib/inbox/signature.ts).
+  messageSignature String?  @map("message_signature")
+  signatureEnabled Boolean  @default(false) @map("signature_enabled")
   availability   UserAvailability @default(ONLINE)
   lastSeenAt     DateTime?        @map("last_seen_at")
   // Usuario desactivado por un admin: no puede iniciar sesión, su sesión

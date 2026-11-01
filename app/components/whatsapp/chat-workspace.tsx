@@ -93,6 +93,15 @@ export function ChatWorkspace({
   const router = useRouter();
   const { data: session } = useSession();
   const businessName = useBusinessName();
+  // Firma personal activa (F6): solo para el aviso del compositor; el
+  // servidor la agrega al enviar.
+  const [signature, setSignature] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/auth/profile")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setSignature(data?.signatureEnabled && data.messageSignature ? data.messageSignature : null))
+      .catch(() => {});
+  }, []);
   const currentUserId = session?.user?.id ?? null;
   const { success: toastSuccess, error: toastError } = useToast();
   const draftKey = useCallback(
@@ -1385,6 +1394,7 @@ export function ChatWorkspace({
               <ChatClaimBanner chatId={selectedChat.id} onAssigned={handleAssigned} />
             )}
             <ChatComposer
+              signature={signature}
               onOpenTemplates={selectedChat.channel === "WHATSAPP" ? () => setTemplatePickerOpen(true) : undefined}
               chatId={selectedChat.id}
               channel={selectedChat.channel}
