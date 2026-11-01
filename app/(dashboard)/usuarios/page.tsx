@@ -229,7 +229,7 @@ export default function UsersPage() {
             renderRow={(inv) => (
               <>
                 <EntityRow
-                  leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" />}
+                  leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" figure />}
                   title={<span className="font-mono">{inv.email}</span>}
                   badges={<Badge tone="neutral" size="sm">{ROLE_LABEL[inv.role] ?? inv.role}</Badge>}
                   subtitle={`Vence el ${new Date(inv.expiresAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}${inv.invitedBy ? ` · la envió ${inv.invitedBy.name ?? inv.invitedBy.email}` : ""}`}
@@ -263,7 +263,7 @@ export default function UsersPage() {
         renderRow={(u) => (
           <>
             <EntityRow
-              leading={<EntityAvatar id={u.id} name={u.name ?? u.email} size="sm" />}
+              leading={<EntityAvatar id={u.id} name={u.name ?? u.email} size="sm" figure seed={u.id} />}
               title={u.name ?? "—"}
               badges={
                 <>

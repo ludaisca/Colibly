@@ -206,7 +206,7 @@ export default function SettingsPage() {
       <PageHeader title="Configuración" description="Administra tu cuenta y preferencias." />
 
       <Card className="flex items-center gap-3">
-        <EntityAvatar id={user?.id ?? email} name={name} size="lg" />
+        <EntityAvatar id={user?.id ?? email} name={name} size="lg" figure seed={user?.id ?? email} />
         <div>
           <h2 className="text-lg font-semibold">{name}</h2>
           <p className="text-sm text-muted-darker">{email}</p>

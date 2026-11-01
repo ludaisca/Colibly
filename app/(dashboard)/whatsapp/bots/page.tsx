@@ -114,7 +114,7 @@ export default function BotsPage() {
           return (
             <>
             <EntityRow
-              leading={<EntityAvatar id={bot.waAccountId ?? bot.channelAccountId ?? bot.id} name={bot.name} size="sm" />}
+              leading={<EntityAvatar id={bot.waAccountId ?? bot.channelAccountId ?? bot.id} name={bot.name} size="sm" figure seed={bot.id} />}
               title={
                 <Link
                   href={`/whatsapp/bots/${bot.id}`}

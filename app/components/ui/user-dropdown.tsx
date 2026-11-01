@@ -1,5 +1,6 @@
 "use client";
 
+import { EntityAvatar } from "./avatar";
 import { useSession, signOut } from "next-auth/react";
 import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
@@ -110,7 +111,7 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
 
   const name    = user.name ?? user.email ?? "Usuario";
   const email   = user.email ?? "";
-  const initials = name.slice(0, 2).toUpperCase();
+  const seed = (session?.user as { id?: string } | undefined)?.id ?? email ?? name;
   const shortName = name.split(/\s+/).slice(0, 2).join(" ");
 
   return (
@@ -122,10 +123,10 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
         aria-expanded={open}
         aria-label={availability ? `Menú de usuario — ${AVAILABILITY_LABEL[availability]}` : "Menú de usuario"}
       >
-        <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-accent text-on-accent font-bold text-xs shrink-0 select-none">
-          {initials}
+        <span className="relative inline-flex shrink-0">
+          <EntityAvatar id={seed} name={name} size="sm" figure seed={seed} />
           {availability && <StatusDot value={availability} className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5" />}
-        </div>
+        </span>
         <span className="hidden md:block text-sm font-medium max-w-[130px] truncate">{shortName}</span>
         <ChevronDown
           size={14}
@@ -139,9 +140,7 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
           <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-surface shadow-lg z-50 overflow-hidden">
             <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-on-accent font-bold text-sm shrink-0 select-none">
-                  {initials}
-                </div>
+                <EntityAvatar id={seed} name={name} size="md" figure seed={seed} />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate">{name}</p>
                   <p className="text-xs text-muted-darker truncate">{email}</p>
