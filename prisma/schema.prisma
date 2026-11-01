@@ -2196,11 +2196,15 @@ model Organization {
   // es un mensaje al cliente final.
   awayMessageEnabled     Boolean @default(false) @map("away_message_enabled")
   awayMessageText        String? @map("away_message_text")
+  // Cursor del escaneo de monitores de temas (lib/monitors/): hasta qué
+  // lastMessageAt ya se revisaron los chats de la organización.
+  topicMonitorScanAt     DateTime? @map("topic_monitor_scan_at")
   // Transcribir solas las notas de voz entrantes (1 crédito de IA por audio).
   autoTranscribeAudio    Boolean @default(false) @map("auto_transcribe_audio")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 
+  topicMonitors    TopicMonitor[]
   members          User[]            @relation("OrganizationMembers")
   waAccounts       WAAccount[]
   stickers         WASticker[]
@@ -2567,3 +2571,44 @@ model PushSubscription {
   @@index([userId])
   @@map("push_subscriptions")
 }
+
+// Monitores de temas con IA (F2): el admin describe un tema ("quejas por
+// entrega tardía") y un tick por hora revisa los chats con mensajes nuevos y
+// registra en qué conversaciones aparece. Plan Pro; apagados no gastan nada.
+model TopicMonitor {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String       @db.Text
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  matches TopicMatch[]
+
+  @@index([organizationId])
+  @@map("topic_monitors")
+}
+
+// Una conversación donde apareció el tema (una por monitor y chat). El chat
+// es una referencia blanda (WAChat o Conversation, según chatKind) igual que
+// WABotUsage: borrar el chat no borra el hallazgo, la UI lo muestra sin enlace.
+model TopicMatch {
+  id        String       @id @default(cuid())
+  monitorId String       @map("monitor_id")
+  monitor   TopicMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  chatKind  String       @map("chat_kind") // "whatsapp" | "channel"
+  chatId    String       @map("chat_id")
+  accountId String       @map("account_id")
+  // Fragmento literal del cliente que muestra el tema (máx. 300) y los ids
+  // de los mensajes de evidencia.
+  quote     String       @db.Text
+  evidenceMessageIds Json @map("evidence_message_ids")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@unique([monitorId, chatId])
+  @@index([monitorId, createdAt])
+  @@map("topic_matches")
+}
+

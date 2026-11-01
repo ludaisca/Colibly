@@ -1,5 +1,6 @@
 "use client";
 
+import { Radar } from "lucide-react";
 import { BusinessNameProvider } from "@/app/components/ui/business-context";
 import {
   LayoutDashboard,
@@ -86,6 +87,7 @@ export function DashboardShell({
           items: [
             ...(isAdmin ? [{ href: "/whatsapp/bots" as const, label: "Bots IA", icon: Bot as React.ElementType }] : []),
             { href: "/whatsapp/calificadores",  label: "Calificadores de Leads", icon: Target },
+            ...(isAdmin ? [{ href: "/whatsapp/monitores" as const, label: "Monitores IA", icon: Radar as React.ElementType }] : []),
             { href: "/whatsapp/automatizaciones", label: "Automatizaciones",    icon: Zap },
             { href: "/whatsapp/secuencias",     label: "Secuencias",            icon: Workflow },
           ],

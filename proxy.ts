@@ -12,7 +12,7 @@ const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/m
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.
 // Cualquier sección nueva (un canal adicional, p. ej.) debe entrar en PROTECTED
 // aunque el layout ya redirija a los no autenticados.
-const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/ventas", "/meta-ads", "/whatsapp/secuencias", "/whatsapp/automatizaciones"];
+const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/ventas", "/meta-ads", "/whatsapp/secuencias", "/whatsapp/automatizaciones", "/whatsapp/monitores"];
 // Regular "user" role keeps Panel/Estadísticas/Chats/Cuentas/Plantillas/Campañas/Config,
 // but loses Contactos and Bots IA entirely (la antigua página /whatsapp/conocimiento se
 // eliminó — el flujo de conocimiento vive en la pestaña del bot, ya bloqueada vía
@@ -23,7 +23,7 @@ const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/wh
 // only the account owner administers AI provider config, not shared/delegated roles.
 // /meta-ads es admin-only (credenciales de negocio sensibles, sin
 // WAAccountShare equivalente) — mismo criterio que /configuracion/ia.
-const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/meta-ads"];
+const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/whatsapp/monitores", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/meta-ads"];
 // /verificar-correo e /invitacion no van aquí: funcionan con o sin sesión.
 const AUTH = ["/login", "/register", "/recuperar", "/restablecer"];
 const APP_PUBLIC = [...AUTH, "/verificar-correo", "/invitacion"];

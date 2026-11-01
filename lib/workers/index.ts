@@ -323,6 +323,10 @@ export function startWorkers() {
   inboxQueue
     .add("tick", {}, { jobId: "inbox-tick", repeat: { pattern: "5,20,35,50 * * * *" } })
     .catch((err) => console.error("[workers] No se pudo programar inbox-tick:", err));
+  // Monitores de temas con IA (lib/monitors/scan.ts): una vez por hora.
+  inboxQueue
+    .add("topic-monitor-tick", {}, { jobId: "topic-monitor-tick", repeat: { pattern: "40 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar topic-monitor-tick:", err));
 
   console.log("[workers] BullMQ workers started");
 }
