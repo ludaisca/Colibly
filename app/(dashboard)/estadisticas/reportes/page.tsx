@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getRangeReport, parseReportRange } from "@/lib/estadisticas/reports";
 import { getActivityHeatmap } from "@/lib/estadisticas/heatmap";
+import { getBotPerformance } from "@/lib/estadisticas/bot-performance";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { requireOrgId } from "@/lib/tenancy";
 import { getOrgBusinessHours } from "@/lib/organizations";
@@ -24,7 +25,10 @@ export default async function ReportsPage({
     getUserAccountIds(session.user.id),
     getUserChannelAccountIds(session.user.id),
   ]);
-  const heatmap = await getActivityHeatmap({ waAccountIds, channelAccountIds }, range, timezone);
+  const [heatmap, bot] = await Promise.all([
+    getActivityHeatmap({ waAccountIds, channelAccountIds }, range, timezone),
+    getBotPerformance({ waAccountIds, channelAccountIds }, range),
+  ]);
 
-  return <ReportsView data={data} heatmap={heatmap} fromKey={range.fromKey} toKey={range.toKey} />;
+  return <ReportsView data={data} heatmap={heatmap} bot={bot} fromKey={range.fromKey} toKey={range.toKey} />;
 }

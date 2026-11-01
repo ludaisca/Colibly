@@ -16,6 +16,7 @@ import { centsToPesos, formatMxn } from "@/lib/money";
 import { LivePanel } from "./_live";
 import { ActivityHeatmap } from "./_heatmap";
 import type { ActivityHeatmap as ActivityHeatmapData } from "@/lib/estadisticas/heatmap";
+import type { BotPerformance } from "@/lib/estadisticas/bot-performance-rules";
 import type { AgentReport, ChannelReport, RangeReport } from "@/lib/estadisticas/reports";
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -46,7 +47,7 @@ function shiftKey(key: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function ReportsView({ data, heatmap, fromKey, toKey }: { data: RangeReport; heatmap: ActivityHeatmapData; fromKey: string; toKey: string }) {
+export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: RangeReport; heatmap: ActivityHeatmapData; bot: BotPerformance; fromKey: string; toKey: string }) {
   const router = useRouter();
   const [from, setFrom] = useState(fromKey);
   const [to, setTo] = useState(toKey);
@@ -289,6 +290,28 @@ export function ReportsView({ data, heatmap, fromKey, toKey }: { data: RangeRepo
           />
         </Card>
       </div>
+
+      {bot.chats > 0 && (
+        <Card className="animate-fade-in-up animation-delay-300 space-y-3 p-4">
+          <SectionHeader eyebrow="Automatización" title="Bot de IA" />
+          <p className="text-xs text-muted">
+            Chats donde el bot respondió en el periodo. Traspaso = una persona escribió después del bot; resuelto por el bot = se
+            resolvió sin que nadie del equipo escribiera.
+          </p>
+          <KpiStrip
+            items={[
+              { label: "Chats con bot", value: String(bot.chats), hint: `${bot.botReplies} respuestas del bot` },
+              { label: "Resueltos por el bot", value: bot.resolvedByBotPct === null ? "—" : `${bot.resolvedByBotPct}%`, hint: `${bot.resolvedByBot} chats` },
+              { label: "Pasaron a una persona", value: bot.handedOffPct === null ? "—" : `${bot.handedOffPct}%`, hint: `${bot.handedOff} chats · ${bot.open} siguen abiertos` },
+              {
+                label: "CSAT solo bot / con persona",
+                value: `${bot.csatBotOnly.avg ?? "—"} / ${bot.csatHandedOff.avg ?? "—"}`,
+                hint: `${bot.csatBotOnly.responses} y ${bot.csatHandedOff.responses} respuestas (WhatsApp)`,
+              },
+            ]}
+          />
+        </Card>
+      )}
 
       <div className="animate-fade-in-up animation-delay-300">
         <ActivityHeatmap inbound={heatmap.inbound} resolved={heatmap.resolved} timeZone={heatmap.timeZone} />
