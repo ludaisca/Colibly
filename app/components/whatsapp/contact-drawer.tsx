@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Plus, CalendarClock, Link2, X } from "lucide-react";
+import { Plus, CalendarClock, Link2, X, Save, MessageSquare } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { Drawer } from "@base-ui/react/drawer";
 import { Banner } from "@/app/components/ui/banner";
 import { Select } from "@/app/components/ui/select";
@@ -15,6 +16,9 @@ import { useToast } from "@/app/components/ui/toast";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
 import { ContactTasks } from "@/app/components/whatsapp/contact-tasks";
 import { ContactTimeline } from "@/app/components/whatsapp/contact-timeline";
+import { HeroTabs } from "@/app/components/ui/hero-tabs";
+import { FormField } from "@/app/components/ui/form-field";
+import { DEAL_VALUE_MAX_PESOS, centsToPesos, formatMxn } from "@/lib/money";
 import "./contact-drawer.css";
 
 interface ContactDetail {
@@ -24,6 +28,10 @@ interface ContactDetail {
   leadStatus: string;
   optedOutMarketing: boolean;
   overLimit?: boolean;
+  accountId: string | null;
+  chat?: { id: string } | null;
+  dealValueCents: number | null;
+  expectedCloseAt: string | null;
   tags: Array<{ tag: { id: string; name: string; color: string } }>;
 }
 
@@ -57,6 +65,32 @@ const LEAD_STATUS_OPTIONS = [
   { value: "LOST", label: "Perdido" },
 ];
 
+// Pestañas de la ficha (U1). La elegida va en la URL como `ficha=` para que
+// "Copiar enlace" abra la misma pestaña; la bandeja la conserva al cambiar
+// filtros igual que `contacto`.
+const DRAWER_TABS = [
+  { id: "resumen", label: "Resumen" },
+  { id: "actividad", label: "Actividad" },
+  { id: "tareas", label: "Tareas y citas" },
+  { id: "campos", label: "Campos" },
+] as const;
+type DrawerTab = (typeof DRAWER_TABS)[number]["id"];
+const TAB_PARAM = "ficha";
+
+function readTabFromUrl(): DrawerTab {
+  if (typeof window === "undefined") return "resumen";
+  const value = new URLSearchParams(window.location.search).get(TAB_PARAM);
+  return DRAWER_TABS.some((tab) => tab.id === value) ? (value as DrawerTab) : "resumen";
+}
+
+function writeTabToUrl(tab: DrawerTab | null) {
+  const params = new URLSearchParams(window.location.search);
+  if (tab && tab !== "resumen") params.set(TAB_PARAM, tab);
+  else params.delete(TAB_PARAM);
+  const qs = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+}
+
 export function ContactDrawer({
   contactId,
   onClose,
@@ -81,6 +115,17 @@ export function ContactDrawer({
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
   const [savingFields, setSavingFields] = useState(false);
   const [timelineKey, setTimelineKey] = useState(0);
+  const [tab, setTab] = useState<DrawerTab>(readTabFromUrl);
+  const [dealValue, setDealValue] = useState("");
+  const [closeDate, setCloseDate] = useState("");
+  const [savingDeal, setSavingDeal] = useState(false);
+  const pathname = usePathname();
+  const inChat = pathname.startsWith("/whatsapp/chat");
+
+  function changeTab(next: DrawerTab) {
+    setTab(next);
+    writeTabToUrl(next);
+  }
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -100,6 +145,8 @@ export function ContactDrawer({
       const appointmentsData = await appointmentsRes.json();
       const customFieldsData = await customFieldsRes.json();
       setContact(contactData);
+      setDealValue(contactData.dealValueCents != null ? String(centsToPesos(contactData.dealValueCents)) : "");
+      setCloseDate(contactData.expectedCloseAt ? String(contactData.expectedCloseAt).slice(0, 10) : "");
       if (Array.isArray(notesData)) setNotes(notesData);
       if (Array.isArray(tagsData)) setAllTags(tagsData);
       setNextAppointment(Array.isArray(appointmentsData) ? (appointmentsData[0] ?? null) : null);
@@ -139,6 +186,35 @@ export function ContactDrawer({
       onUpdated();
     } catch {
       toastError("Error al actualizar el estado");
+    }
+  }
+
+  // Valor del trato en pesos; vacío = sin valor. La fecha se guarda como
+  // medianoche UTC del día elegido (la tarjeta del tablero la muestra en UTC).
+  async function handleSaveDeal() {
+    const trimmed = dealValue.trim().replace(/[$,\s]/g, "");
+    const pesos = trimmed === "" ? null : Number(trimmed);
+    if (pesos !== null && (!Number.isFinite(pesos) || pesos < 0 || pesos > DEAL_VALUE_MAX_PESOS)) {
+      toastError("Escribe un monto entre $0 y $20,000,000");
+      return;
+    }
+    setSavingDeal(true);
+    try {
+      const res = await fetch(`/api/whatsapp/contacts/${contactId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealValue: pesos, expectedCloseAt: closeDate ? `${closeDate}T00:00:00.000Z` : null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo guardar el trato");
+      setContact((prev) => prev && { ...prev, dealValueCents: data.dealValueCents ?? null, expectedCloseAt: data.expectedCloseAt ?? null });
+      toastSuccess("Trato guardado");
+      setTimelineKey((key) => key + 1);
+      onUpdated();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo guardar el trato");
+    } finally {
+      setSavingDeal(false);
     }
   }
 
@@ -245,7 +321,7 @@ export function ContactDrawer({
   }
 
   return (
-    <Drawer.Root defaultOpen modal={!appointmentModalOpen} swipeDirection="right" onOpenChangeComplete={(open) => { if (!open) onClose(); }}>
+    <Drawer.Root defaultOpen modal={!appointmentModalOpen} swipeDirection="right" onOpenChangeComplete={(open) => { if (!open) { writeTabToUrl(null); onClose(); } }}>
       <Drawer.Portal>
         <Drawer.Backdrop className="colibly-contact-backdrop" />
         <Drawer.Viewport className="colibly-contact-viewport">
@@ -295,6 +371,10 @@ export function ContactDrawer({
             </Banner>
           )}
 
+          <HeroTabs items={DRAWER_TABS} value={tab} onChange={changeTab} label="Secciones del contacto">
+            <div className="space-y-5 pt-4">
+              {tab === "resumen" && (
+                <>
           <div>
             <label className="block text-xs font-medium text-muted-darker mb-1.5">Estado de lead</label>
             <Select value={contact.leadStatus} onChange={(e) => handleLeadStatusChange(e.target.value)}>
@@ -304,6 +384,27 @@ export function ContactDrawer({
             </Select>
           </div>
 
+          <div className="rounded-lg border border-border p-3">
+            <p className="mb-2 text-xs font-medium text-muted-darker">Trato</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Valor (MXN)">
+                {(id) => (
+                  <Input id={id} inputMode="decimal" value={dealValue} onChange={(e) => setDealValue(e.target.value)} placeholder="12,500" />
+                )}
+              </FormField>
+              <FormField label="Cierre estimado">
+                {(id) => <Input id={id} type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} />}
+              </FormField>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-darker">
+                {contact.dealValueCents != null ? `Guardado: ${formatMxn(contact.dealValueCents)}` : "Sin valor guardado"}
+              </p>
+              <Button size="sm" variant="secondary" icon={Save} loading={savingDeal} onClick={handleSaveDeal}>
+                Guardar trato
+              </Button>
+            </div>
+          </div>
           <div>
             <label className="block text-xs font-medium text-muted-darker mb-1.5">Etiquetas</label>
             <MultiSelect
@@ -325,7 +426,104 @@ export function ContactDrawer({
             </div>
           </div>
 
-          {customFieldDefs.length > 0 && (
+          {nextAppointment && (
+            <button
+              type="button"
+              onClick={() => changeTab("tareas")}
+              className="flex w-full items-center gap-2 rounded-lg border border-border bg-surface-light px-3 py-2 text-left text-xs text-muted-darker hover:text-foreground"
+            >
+              <CalendarClock size={14} className="shrink-0" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">
+                Próxima cita: <span className="font-medium text-foreground">{nextAppointment.title}</span> ·{" "}
+                {new Date(nextAppointment.scheduledAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+              </span>
+            </button>
+          )}
+                </>
+              )}
+              {tab === "actividad" && (
+                <>
+          <div>
+            <label className="block text-xs font-medium text-muted-darker mb-1.5">Notas internas</label>
+            <div className="space-y-2 mb-3">
+              <Textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Agregar una nota..."
+                rows={3}
+              />
+              <Button size="sm" onClick={handleAddNote} disabled={savingNote || !newNote.trim()}>
+                {savingNote ? "Guardando..." : "Agregar nota"}
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {notes.length === 0 ? (
+                <p className="text-xs text-muted-darker">Sin notas todavía.</p>
+              ) : (
+                notes.map((note) => (
+                  <div key={note.id} className="rounded-lg border border-border bg-surface-light p-3">
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{note.body}</p>
+                    <p className="text-xs text-muted-darker mt-1.5">
+                      {note.author.name ?? "Usuario"} · {new Date(note.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <ContactTimeline contactId={contactId} refreshKey={timelineKey} />
+                </>
+              )}
+              {tab === "tareas" && (
+                <>
+          <div>
+            <label className="block text-xs font-medium text-muted-darker mb-1.5">Próxima cita</label>
+            {nextAppointment ? (
+              <div className="rounded-lg border border-border bg-surface-light p-3">
+                <div className="flex items-start gap-2.5">
+                  <CalendarClock size={16} className="text-muted-darker shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{nextAppointment.title}</p>
+                    <p className="text-xs text-muted-darker mt-0.5">
+                      {new Date(nextAppointment.scheduledAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                  </div>
+                </div>
+                <Link href={`/whatsapp/citas?contactId=${contactId}`} className="mt-2 inline-block text-xs text-accent-ink hover:underline">
+                  Ver todas las citas
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-lg border border-dashed border-border p-3">
+                <p className="text-xs text-muted-darker">Sin citas próximas</p>
+                <Button size="sm" variant="secondary" icon={CalendarClock} onClick={() => setAppointmentModalOpen(true)}>
+                  Agendar cita
+                </Button>
+              </div>
+            )}
+            {nextAppointment && (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={CalendarClock}
+                className="mt-2"
+                onClick={() => setAppointmentModalOpen(true)}
+              >
+                Agendar otra cita
+              </Button>
+            )}
+          </div>
+
+          <ContactTasks contactId={contactId} onChanged={() => setTimelineKey((key) => key + 1)} />
+
+                </>
+              )}
+              {tab === "campos" && (
+                <>
+          {customFieldDefs.length === 0 ? (
+            <p className="text-xs text-muted-darker">Esta cuenta no tiene campos personalizados. Un administrador puede crearlos en Configuración.</p>
+          ) : (
             <div>
               <label className="block text-xs font-medium text-muted-darker mb-1.5">Campos personalizados</label>
               <div className="space-y-3">
@@ -371,79 +569,28 @@ export function ContactDrawer({
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-muted-darker mb-1.5">Próxima cita</label>
-            {nextAppointment ? (
-              <div className="rounded-lg border border-border bg-surface-light p-3">
-                <div className="flex items-start gap-2.5">
-                  <CalendarClock size={16} className="text-muted-darker shrink-0 mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">{nextAppointment.title}</p>
-                    <p className="text-xs text-muted-darker mt-0.5">
-                      {new Date(nextAppointment.scheduledAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
-                    </p>
-                  </div>
-                </div>
-                <Link href={`/whatsapp/citas?contactId=${contactId}`} className="mt-2 inline-block text-xs text-accent-ink hover:underline">
-                  Ver todas las citas
-                </Link>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between rounded-lg border border-dashed border-border p-3">
-                <p className="text-xs text-muted-darker">Sin citas próximas</p>
-                <Button size="sm" variant="secondary" icon={CalendarClock} onClick={() => setAppointmentModalOpen(true)}>
-                  Agendar cita
-                </Button>
-              </div>
-            )}
-            {nextAppointment && (
-              <Button
-                size="sm"
-                variant="secondary"
-                icon={CalendarClock}
-                className="mt-2"
-                onClick={() => setAppointmentModalOpen(true)}
-              >
-                Agendar otra cita
-              </Button>
-            )}
-          </div>
-
-          <ContactTasks contactId={contactId} onChanged={() => setTimelineKey((key) => key + 1)} />
-
-          <div>
-            <label className="block text-xs font-medium text-muted-darker mb-1.5">Notas internas</label>
-            <div className="space-y-2 mb-3">
-              <Textarea
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Agregar una nota..."
-                rows={3}
-              />
-              <Button size="sm" onClick={handleAddNote} disabled={savingNote || !newNote.trim()}>
-                {savingNote ? "Guardando..." : "Agregar nota"}
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {notes.length === 0 ? (
-                <p className="text-xs text-muted-darker">Sin notas todavía.</p>
-              ) : (
-                notes.map((note) => (
-                  <div key={note.id} className="rounded-lg border border-border bg-surface-light p-3">
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{note.body}</p>
-                    <p className="text-xs text-muted-darker mt-1.5">
-                      {note.author.name ?? "Usuario"} · {new Date(note.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                ))
+                </>
               )}
             </div>
-          </div>
-
-          <ContactTimeline contactId={contactId} refreshKey={timelineKey} />
+          </HeroTabs>
         </div>
       )}
               </div>
+              {contact && (
+                <div className="flex shrink-0 items-center gap-2 border-t border-border bg-surface px-5 py-3">
+                  <Button size="sm" variant="secondary" icon={CalendarClock} onClick={() => setAppointmentModalOpen(true)}>
+                    Agendar cita
+                  </Button>
+                  {!inChat && contact.chat?.id && contact.accountId && (
+                    <Link
+                      href={`/whatsapp/chat/${contact.accountId}/${contact.chat.id}`}
+                      className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-accent-ink hover:underline"
+                    >
+                      <MessageSquare size={14} aria-hidden /> Abrir chat
+                    </Link>
+                  )}
+                </div>
+              )}
             </Drawer.Content>
           </Drawer.Popup>
         </Drawer.Viewport>

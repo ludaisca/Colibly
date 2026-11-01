@@ -86,3 +86,7 @@ Bajo cada burbuja de audio (`app/components/whatsapp/audio-transcript.tsx`): bot
 
 Saltar al mensaje: `GET …/chats/[chatId]/messages?around=<messageId>` devuelve los 25 anteriores y **todos** los posteriores (hasta 500; si hay más, 422 `too_far` y el chat se abre normal). Así el poll de 5 s, que trae los últimos 50, nunca deja un hueco. El workspace guarda el salto en `jumpRef` y en la URL (`?mensaje=`, que la sincronización de filtros conserva igual que `contacto`), y el hilo centra e ilumina el mensaje (`focusMessageId`).
 
+### Ficha del contacto con pestañas (U1, 2026-11-01)
+
+`contact-drawer.tsx` se divide en **Resumen** (estado, trato, etiquetas, próxima cita), **Actividad** (notas y línea de tiempo), **Tareas y citas** y **Campos** (`HeroTabs`). La pestaña va en la URL como `ficha=` (se omite para Resumen) para que "Copiar enlace" abra la misma; la sincronización de filtros de la bandeja la conserva igual que `contacto` y `mensaje`, y cerrar la ficha borra `ficha` y `contacto`. Pie fijo con "Agendar cita" y, fuera de la bandeja, "Abrir chat" (solo WhatsApp: el GET del contacto trae `chat`).
+

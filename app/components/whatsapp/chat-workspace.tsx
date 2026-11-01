@@ -414,10 +414,11 @@ export function ChatWorkspace({
     const params = buildFilterSearchParams();
     // `contacto` no es un filtro de la lista: se conserva para que el deep
     // link del drawer no desaparezca cuando cambian los filtros.
-    // Igual `mensaje` (salto desde la búsqueda): si se borra, useSearchParams
-    // cambia y la carga del hilo se repite sin el salto.
+    // Igual `ficha` (pestaña de la ficha) y `mensaje` (salto desde la
+    // búsqueda: si se borra, useSearchParams cambia y la carga del hilo se
+    // repite sin el salto).
     const current = new URLSearchParams(window.location.search);
-    for (const key of ["contacto", "mensaje"]) {
+    for (const key of ["contacto", "mensaje", "ficha"]) {
       const value = current.get(key);
       if (value) params.set(key, value);
     }
@@ -1082,7 +1083,10 @@ export function ChatWorkspace({
   function setContactParam(contactId: string | null) {
     const params = new URLSearchParams(window.location.search);
     if (contactId) params.set("contacto", contactId);
-    else params.delete("contacto");
+    else {
+      params.delete("contacto");
+      params.delete("ficha");
+    }
     const qs = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
   }
