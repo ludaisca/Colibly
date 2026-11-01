@@ -21,6 +21,8 @@ import { useNowMs } from "@/app/components/whatsapp/use-now";
 import { ChatDisplayNameBanner, ChatWindowBanner, useChatServiceWindow } from "@/app/components/whatsapp/chat-window-banner";
 import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-modal";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
+import { MessageSearchResults } from "@/app/components/whatsapp/message-search-results";
+import type { MessageSearchHit } from "@/lib/search/messages";
 import {
   CHATS_PAGE_SIZE,
   CHATS_LIST_POLL_MS,
@@ -60,6 +62,8 @@ interface ChatWorkspaceProps {
   initialAccounts: AccountOption[];
   initialAccountId?: string;
   initialChatId?: string;
+  /** ?mensaje=<id>: abre el chat saltando a ese mensaje (búsqueda "En mensajes"). */
+  initialMessageId?: string;
   initialCampaignId?: string;
   initialHasReplied?: "" | "yes" | "no";
   initialAssigned?: "" | "me" | "unassigned";
@@ -74,6 +78,7 @@ export function ChatWorkspace({
   initialAccounts,
   initialAccountId,
   initialChatId,
+  initialMessageId,
   initialCampaignId,
   initialHasReplied,
   initialAssigned,
@@ -110,6 +115,16 @@ export function ChatWorkspace({
   const [loadingMoreChats, setLoadingMoreChats] = useState(false);
   const [chatsTotal, setChatsTotal] = useState(0);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
+  // Salto desde "En mensajes": el chat se abre cargando la ventana alrededor
+  // del mensaje (?around=) y el hilo lo ilumina. jumpRef se consume en el
+  // efecto de carga; skipAutoScrollRef evita que el auto-scroll al fondo pise
+  // el salto.
+  // Solo se limpia al consumirse (el doble montaje de StrictMode en dev
+  // correría el efecto dos veces). Si el workspace se remonta al cambiar de
+  // ruta, el salto sigue llegando por ?mensaje= (initialMessageId).
+  const jumpRef = useRef<{ chatId: string; messageId: string } | null>(null);
+  const skipAutoScrollRef = useRef(false);
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
@@ -399,8 +414,13 @@ export function ChatWorkspace({
     const params = buildFilterSearchParams();
     // `contacto` no es un filtro de la lista: se conserva para que el deep
     // link del drawer no desaparezca cuando cambian los filtros.
-    const contact = new URLSearchParams(window.location.search).get("contacto");
-    if (contact) params.set("contacto", contact);
+    // Igual `mensaje` (salto desde la búsqueda): si se borra, useSearchParams
+    // cambia y la carga del hilo se repite sin el salto.
+    const current = new URLSearchParams(window.location.search);
+    for (const key of ["contacto", "mensaje"]) {
+      const value = current.get(key);
+      if (value) params.set(key, value);
+    }
     const qs = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
   }, [buildFilterSearchParams]);
@@ -569,8 +589,25 @@ export function ChatWorkspace({
     setLoadingMessages(true);
 
     const controller = new AbortController();
+    const fromUrl = initialMessageId && initialChatId === selectedChatId ? { chatId: selectedChatId, messageId: initialMessageId } : null;
+    const jump = (jumpRef.current?.chatId === selectedChatId ? jumpRef.current : null) ?? fromUrl;
     async function load() {
       try {
+        if (jump) {
+          const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?around=${encodeURIComponent(jump.messageId)}`, { signal: controller.signal });
+          const data = await res.json();
+          if (controller.signal.aborted) return;
+          jumpRef.current = null;
+          if (res.ok && Array.isArray(data)) {
+            skipAutoScrollRef.current = true;
+            setMessages(data);
+            setHasOlderMessages(true);
+            setFocusMessageId(jump.messageId);
+            return;
+          }
+          // Muy lejos o ya no existe: se avisa y se abre el chat normal.
+          toastError(typeof data?.error === "string" ? data.error : "No se pudo saltar al mensaje");
+        }
         const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`, { signal: controller.signal });
         const data = await res.json();
         if (controller.signal.aborted) return;
@@ -587,7 +624,10 @@ export function ChatWorkspace({
     }
     load();
     return () => controller.abort();
-  }, [selectedChatId, toastError]);
+    // initialChatId fuera de las deps a propósito: cambia justo después de
+    // selectedChatId al navegar y dispararía una segunda carga del hilo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChatId, initialMessageId, toastError]);
 
   const loadOlderMessages = useCallback(async () => {
     const oldest = messages[0];
@@ -616,6 +656,11 @@ export function ChatWorkspace({
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
+    // Recién cargada la ventana de un salto: el hilo hace scroll al mensaje.
+    if (skipAutoScrollRef.current) {
+      skipAutoScrollRef.current = false;
+      return;
+    }
     // Tras prepender historial, se restaura la posición de lectura en lugar
     // de auto-scrollear al fondo.
     if (prependHeightRef.current !== null) {
@@ -656,7 +701,7 @@ export function ChatWorkspace({
             let changed = false;
             const merged = prev.map((m) => {
               const fresh = byId.get(m.id);
-              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl || fresh.body !== m.body || fresh.caption !== m.caption || fresh.reactionEmoji !== m.reactionEmoji || fresh.agentReactionEmoji !== m.agentReactionEmoji || JSON.stringify(fresh.agentReactions) !== JSON.stringify(m.agentReactions) || fresh.replyToWamid !== m.replyToWamid || JSON.stringify(fresh.replyTo) !== JSON.stringify(m.replyTo))) {
+              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl || fresh.body !== m.body || fresh.caption !== m.caption || fresh.reactionEmoji !== m.reactionEmoji || fresh.agentReactionEmoji !== m.agentReactionEmoji || JSON.stringify(fresh.agentReactions) !== JSON.stringify(m.agentReactions) || fresh.replyToWamid !== m.replyToWamid || fresh.transcript !== m.transcript || JSON.stringify(fresh.replyTo) !== JSON.stringify(m.replyTo))) {
                 changed = true;
                 return { ...fresh, motionKey: m.motionKey, animateOnMount: false };
               }
@@ -724,16 +769,17 @@ export function ChatWorkspace({
   // Cada conversación tiene su propio destino y capacidades de canal. Un
   // borrador interactivo/adjunto de otra conversación no debe poder enviarse
   // por accidente al cambiar de chat.
-  const handleChatSelect = useCallback((chat: ChatItem) => {
-    if (chat.id === selectedChatId) return;
+  const openChat = useCallback((chatId: string, accountId: string, messageId?: string) => {
+    if (chatId === selectedChatId) return;
     if (selectedChatId) {
       messageDraftsRef.current.set(selectedChatId, newMessage);
       writeDraft(selectedChatId, newMessage);
     }
-    setSelectedChatId(chat.id);
-    const key = draftKey(chat.id);
+    setSelectedChatId(chatId);
+    setFocusMessageId(null);
+    const key = draftKey(chatId);
     const stored = key ? window.localStorage.getItem(key) : null;
-    setNewMessage(messageDraftsRef.current.get(chat.id) ?? stored ?? "");
+    setNewMessage(messageDraftsRef.current.get(chatId) ?? stored ?? "");
     setReplyTo(null);
     setCannedResponses([]);
     setCannedIndex(0);
@@ -742,9 +788,39 @@ export function ChatWorkspace({
     lastTypingSentRef.current = 0;
     setTypingUsers([]);
     clearAttachment();
-    const qs = buildFilterSearchParams().toString();
-    router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}${qs ? `?${qs}` : ""}`);
+    const params = buildFilterSearchParams();
+    if (messageId) params.set("mensaje", messageId);
+    const qs = params.toString();
+    router.push(`/whatsapp/chat/${accountId}/${chatId}${qs ? `?${qs}` : ""}`);
   }, [selectedChatId, newMessage, router, buildFilterSearchParams, clearAttachment, draftKey, writeDraft]);
+
+  const handleChatSelect = useCallback((chat: ChatItem) => openChat(chat.id, chat.accountId), [openChat]);
+
+  // Resultado de "En mensajes". En el chat abierto: si el mensaje ya está
+  // cargado solo se ilumina; si no, se recarga la ventana alrededor. En otro
+  // chat: se abre con el salto pendiente (lo consume el efecto de carga).
+  const openMessageHit = useCallback(async (hit: MessageSearchHit) => {
+    if (hit.chatId !== selectedChatId) {
+      jumpRef.current = { chatId: hit.chatId, messageId: hit.messageId };
+      openChat(hit.chatId, hit.accountId, hit.messageId);
+      return;
+    }
+    if (messages.some((m) => m.id === hit.messageId)) {
+      setFocusMessageId(hit.messageId);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/whatsapp/chats/${hit.chatId}/messages?around=${encodeURIComponent(hit.messageId)}`);
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo saltar al mensaje");
+      skipAutoScrollRef.current = true;
+      setMessages(data);
+      setHasOlderMessages(true);
+      setFocusMessageId(hit.messageId);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo saltar al mensaje");
+    }
+  }, [selectedChatId, messages, openChat, toastError]);
 
   const handleCloseChat = useCallback(() => {
     if (selectedChatId) {
@@ -1228,6 +1304,7 @@ export function ChatWorkspace({
         chatsTotal={chatsTotal}
         loadingMoreChats={loadingMoreChats}
         onLoadMore={loadMoreChats}
+        messageResults={search.trim() ? <MessageSearchResults query={search} onOpen={openMessageHit} /> : null}
       />
   );
 
@@ -1246,6 +1323,8 @@ export function ChatWorkspace({
             <ChatThreadPanel
               selectedChat={selectedChat}
               messages={messages}
+              focusMessageId={focusMessageId}
+              onFocusHandled={() => setFocusMessageId(null)}
               typingUsers={typingUsers}
               loadingMessages={loadingMessages}
               hasOlderMessages={hasOlderMessages}

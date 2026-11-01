@@ -16,12 +16,15 @@ import {
   Loader2,
   Megaphone,
   MessageSquare,
+  MessageSquareText,
   Plus,
   Search,
   Settings,
   UserCheck,
 } from "lucide-react";
 import type { NavGroup, NavItem } from "./app-shell";
+import type { MessageSearchHit } from "@/lib/search/messages";
+import { MESSAGE_SEARCH_MIN } from "@/lib/search/message-rules";
 import { useToast } from "./toast";
 import "./command-palette.css";
 
@@ -109,6 +112,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
   const [query, setQuery] = useState("");
   const [chats, setChats] = useState<ChatHit[]>([]);
   const [contacts, setContacts] = useState<ContactHit[]>([]);
+  const [messageHits, setMessageHits] = useState<MessageSearchHit[]>([]);
   const [recent, setRecent] = useState<RecentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
@@ -149,6 +153,8 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
       const urls = [
         ...CHAT_ENDPOINTS.map((endpoint) => `${endpoint}?search=${q}&page=1&pageSize=4`),
         `/api/whatsapp/contacts?search=${q}&page=1&pageSize=5`,
+        // Dentro de los mensajes: mínimo 3 caracteres (índice trigram).
+        ...(term.length >= MESSAGE_SEARCH_MIN ? [`/api/whatsapp/search/messages?q=${q}`] : []),
       ];
       const results = await Promise.allSettled(urls.map((url) => fetch(url, { signal: controller.signal })));
       if (controller.signal.aborted) return;
@@ -156,10 +162,16 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
         await Promise.all(results.slice(0, CHAT_ENDPOINTS.length).map((result) => readItems<ChatHit>(result)))
       ).flat();
       const contactItems = await readItems<ContactHit>(results[CHAT_ENDPOINTS.length]);
+      const messageResult = results[CHAT_ENDPOINTS.length + 1];
+      const messageItems: MessageSearchHit[] =
+        messageResult?.status === "fulfilled" && messageResult.value.ok
+          ? ((await messageResult.value.json().catch(() => ({}))).results ?? [])
+          : [];
       if (controller.signal.aborted) return;
       chatItems.sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
       setChats(chatItems.slice(0, 8));
       setContacts(contactItems);
+      setMessageHits(messageItems.slice(0, 6));
       setLoading(false);
     }, 250);
     return () => {
@@ -256,6 +268,11 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
     });
     setOpen(false);
     router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}`);
+  }
+
+  function selectMessage(hit: MessageSearchHit) {
+    setOpen(false);
+    router.push(`/whatsapp/chat/${hit.accountId}/${hit.chatId}?mensaje=${encodeURIComponent(hit.messageId)}`);
   }
 
   function selectContact(contact: ContactHit) {
@@ -386,6 +403,19 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
                   <span className="colibly-command-result">
                     <span className="truncate">{contact.name ?? contact.remoteJid}</span>
                     <span className="colibly-command-meta">{contact.remoteJid}</span>
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          )}
+          {!loading && term.length >= MESSAGE_SEARCH_MIN && messageHits.length > 0 && (
+            <Command.Group heading="En mensajes">
+              {messageHits.map((hit) => (
+                <Command.Item key={hit.messageId} value={`message:${hit.messageId}`} onSelect={() => selectMessage(hit)}>
+                  <MessageSquareText size={16} className="shrink-0 text-muted" />
+                  <span className="colibly-command-result">
+                    <span className="truncate">{hit.snippet}</span>
+                    <span className="colibly-command-meta">{hit.chatName}</span>
                   </span>
                 </Command.Item>
               ))}

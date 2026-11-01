@@ -109,6 +109,8 @@ interface ChatListPanelProps {
   chatsTotal: number;
   loadingMoreChats: boolean;
   onLoadMore: () => void;
+  /** Sección "En mensajes" (búsqueda dentro de las conversaciones). */
+  messageResults?: ReactNode;
 }
 
 export function ChatListPanel({
@@ -149,6 +151,7 @@ export function ChatListPanel({
   chatsTotal,
   loadingMoreChats,
   onLoadMore,
+  messageResults,
 }: ChatListPanelProps) {
   const now = useNowMs();
   const hasResults = Object.keys(groupedChats).length > 0;
@@ -411,6 +414,7 @@ export function ChatListPanel({
             )}
           </div>
         )}
+        {!loadingChats && messageResults}
       </div>
     </div>
   );

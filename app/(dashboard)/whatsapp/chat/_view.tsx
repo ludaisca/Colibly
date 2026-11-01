@@ -32,6 +32,7 @@ export function ChatPageView({
       initialAwaiting={searchParams.get("awaiting") === "1"}
       initialSearch={searchParams.get("search") ?? undefined}
       initialContactId={searchParams.get("contacto") ?? undefined}
+      initialMessageId={searchParams.get("mensaje") ?? undefined}
     />
   );
 }

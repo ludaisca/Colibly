@@ -63,6 +63,7 @@ export async function getPlatformDiagnostics(opts: { live?: boolean; now?: Date 
     checkAppUrl(appUrl, isProduction),
     checkMigrations(),
     checkVectorIndex(),
+    checkSearchIndexes(),
     checkRedis(),
     checkQueues(),
     checkBillingKey(settings),
@@ -111,6 +112,25 @@ async function checkMigrations(): Promise<DiagnosticCheck> {
     return check("db.migrations", "Migraciones", "ok", "Todas aplicadas");
   } catch (error) {
     return check("db.migrations", "Migraciones", "unknown", `No se pudo consultar: ${errorMessage(error)}`);
+  }
+}
+
+// Búsqueda en mensajes: prisma/sql/ensure-search-indexes.sql no los crea en
+// tablas grandes (bloquearía el arranque) — ver desarrollo.md.
+async function checkSearchIndexes(): Promise<DiagnosticCheck> {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ indexname: string }>>`
+      SELECT indexname FROM pg_indexes
+      WHERE indexname IN ('idx_wa_messages_search_trgm', 'idx_channel_messages_search_trgm')
+    `;
+    const present = new Set(rows.map((row) => row.indexname));
+    const missing = ["idx_wa_messages_search_trgm", "idx_channel_messages_search_trgm"].filter((name) => !present.has(name));
+    if (missing.length) {
+      return check("db.search", "Índices de búsqueda", "warn", `Falta ${missing.join(", ")}`, "Créalos con CREATE INDEX CONCURRENTLY (runbook en docs/arquitectura/desarrollo.md); la búsqueda en mensajes hará scan completo");
+    }
+    return check("db.search", "Índices de búsqueda", "ok", "Índices trigram presentes");
+  } catch (error) {
+    return check("db.search", "Índices de búsqueda", "unknown", errorMessage(error));
   }
 }
 

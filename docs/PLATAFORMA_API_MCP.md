@@ -140,6 +140,7 @@ type CheckFn = (deps: DiagnosticDeps) => Promise<DiagnosticCheck>;
 | `app.version` | commit/build desplegado si existe `APP_COMMIT` | env | no |
 | `db.migrations` | migraciones sin terminar (`_prisma_migrations.finished_at IS NULL`) | SQL | no |
 | `db.vector` | índice `idx_knowledge_embedding` existe | `pg_indexes` | no |
+| `db.search` | índices trigram `idx_wa_messages_search_trgm` / `idx_channel_messages_search_trgm` existen | `pg_indexes` | no |
 | `redis` | ping y colas críticas sin backlog anormal | Redis | no |
 | `queues.repeatables` | jobs repetibles registrados (`billing-tick`, `media-cleanup`, `platform-backup`, `platform-health`) | BullMQ | no |
 | `billing.key` | key configurada; reporta `mode: "test" \| "live"` (nunca el valor) | settings | no |

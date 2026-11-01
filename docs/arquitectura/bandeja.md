@@ -79,3 +79,10 @@ These mirror equivalent Contact-level concepts but are **separate models** scope
 ### Transcripción de notas de voz (2026-11-01)
 
 Bajo cada burbuja de audio (`app/components/whatsapp/audio-transcript.tsx`): botón "Transcribir" (1 crédito) o la transcripción plegable si ya existe. Se muestra también cuando el canal no tiene reproductor (sin proxy de medios). La lógica y las reglas de crédito están en `ia.md` → "Transcripción de notas de voz"; el mensaje lleva `transcript` en `GET /api/whatsapp/chats/[chatId]/messages`.
+
+### Buscar dentro de los mensajes (2026-11-01)
+
+`GET /api/whatsapp/search/messages?q=` (3–100 caracteres, 30/min por usuario) busca en `body`, `caption` y `transcript` de las dos tablas con `$queryRaw` parametrizado (`lib/search/messages.ts`), escapando `%`, `_` y `\` (`escapeLikePattern`, Prisma `contains` no lo hace) y con el alcance de `getUserAccountIds()`/`getUserChannelAccountIds()` en el `WHERE`. Usa los índices trigram de `prisma/sql/ensure-search-indexes.sql` (runbook de producción en `desarrollo.md`). En la bandeja aparece como sección "En mensajes" bajo la lista de chats (`message-search-results.tsx`) y como grupo en el palette.
+
+Saltar al mensaje: `GET …/chats/[chatId]/messages?around=<messageId>` devuelve los 25 anteriores y **todos** los posteriores (hasta 500; si hay más, 422 `too_far` y el chat se abre normal). Así el poll de 5 s, que trae los últimos 50, nunca deja un hueco. El workspace guarda el salto en `jumpRef` y en la URL (`?mensaje=`, que la sincronización de filtros conserva igual que `contacto`), y el hilo centra e ilumina el mensaje (`focusMessageId`).
+

@@ -413,6 +413,9 @@ export function MediaPreviewModal({ media, onClose }: { media: PreviewMedia | nu
 }
 
 interface ChatThreadPanelProps {
+  /** Mensaje al que saltar e iluminar (búsqueda "En mensajes"). */
+  focusMessageId?: string | null;
+  onFocusHandled?: () => void;
   selectedChat: ChatItem;
   messages: Message[];
   typingUsers: Array<{ id: string; name: string | null }>;
@@ -460,6 +463,8 @@ export function ChatThreadPanel({
   onReaction,
   messagesContainerRef,
   messagesEndRef,
+  focusMessageId,
+  onFocusHandled,
 }: ChatThreadPanelProps) {
   // Motion no responde a las reglas CSS de reduced-motion: se ajusta aquí.
   const shouldReduceMotion = useReducedMotion();
@@ -512,6 +517,25 @@ export function ChatThreadPanel({
     atBottomRef.current = atEnd;
     setAtBottom((previous) => (previous === atEnd ? previous : atEnd));
   }
+
+  // Salto desde la búsqueda: cuando el mensaje ya está en el DOM se centra
+  // (sin animación: viene de otro chat) y se ilumina. Se marca "no al final"
+  // para que el ResizeObserver no lo devuelva al fondo al cargar imágenes.
+  useEffect(() => {
+    if (!focusMessageId) return;
+    const container = messagesContainerRef.current;
+    const target = container?.querySelector<HTMLElement>(`[data-message-id="${focusMessageId}"]`);
+    if (!target) return;
+    atBottomRef.current = false;
+    target.scrollIntoView({ behavior: "auto", block: "center" });
+    const bubble = target.querySelector<HTMLElement>(".rounded-2xl") ?? target;
+    const ring = ["ring-2", "ring-accent-strong", "ring-offset-2", "ring-offset-background"];
+    bubble.classList.add(...ring);
+    // Sin cleanup: onFocusHandled vuelve a correr el efecto y cancelaría el apagado.
+    window.setTimeout(() => bubble.classList.remove(...ring), 2000);
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se dispara por el id y cuando llegan los mensajes; onFocusHandled cambia en cada render del padre
+  }, [focusMessageId, messages]);
 
   // Lleva al mensaje citado y lo ilumina un momento. Si la cita es más vieja
   // que el lote cargado, se avisa en vez de fingir que se saltó.
