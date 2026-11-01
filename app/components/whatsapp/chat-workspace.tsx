@@ -979,7 +979,9 @@ export function ChatWorkspace({
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (sending || displayNameBlocked) return;
+    // El nombre en revisión NO bloquea el envío: Meta solo rechaza citar
+    // (131037), y eso ya lo controlan quoteEnabled y la ruta /send.
+    if (sending) return;
     if (!newMessage.trim() && !attachment && interactiveButtons.length === 0) return;
     if (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((title) => !title.trim()))) return;
     if (!selectedChatId || !selectedChat) return;
@@ -1036,7 +1038,6 @@ export function ChatWorkspace({
   }
 
   async function sendSticker(stickerId: string) {
-    if (displayNameBlocked) throw new Error("WhatsApp todavía no aprueba el nombre para mostrar de este número.");
     if (!selectedChatId || selectedChat?.channel !== "WHATSAPP" || sending) throw new Error("Selecciona una conversación de WhatsApp disponible");
     const targetChatId = selectedChatId;
     const quotedMessage = replyTo;
@@ -1437,7 +1438,7 @@ export function ChatWorkspace({
               messagesEndRef={messagesEndRef}
             />
             {displayNameBlocked && <ChatDisplayNameBanner />}
-            {selectedChat.channel === "WHATSAPP" && serviceWindow && !displayNameBlocked && (
+            {selectedChat.channel === "WHATSAPP" && serviceWindow && (
               <ChatWindowBanner window={serviceWindow} onSendTemplate={() => setTemplatePickerOpen(true)} />
             )}
             {selectedChat.channel === "WHATSAPP" && templatePickerOpen && (
@@ -1491,7 +1492,6 @@ export function ChatWorkspace({
               buttonsPanelOpen={buttonsPanelOpen}
               onToggleButtonsPanel={() => setButtonsPanelOpen((v) => !v)}
               interactiveDisabled={selectedChat.channel !== "WHATSAPP" || !!attachment}
-              sendBlockedReason={displayNameBlocked ? "WhatsApp todavía no aprueba el nombre para mostrar de este número." : null}
             />
           </>
         ) : missingChat ? (

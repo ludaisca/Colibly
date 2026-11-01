@@ -32,8 +32,12 @@ export function useChatServiceWindow(chatId: string | null, enabled: boolean, re
 
 export function ChatDisplayNameBanner() {
   return (
-    <Banner tone="warning" title="Nombre para mostrar en revisión" className="mx-3 mb-2">
-      WhatsApp todavía no aprueba el nombre de este número. Los mensajes, las plantillas y las reacciones no salen hasta que el Administrador de WhatsApp lo marque como aprobado.
+    // Solo informa: con el nombre en revisión Meta sí entrega mensajes y
+    // plantillas (el cliente ve el número en vez del nombre); lo que rechaza es
+    // citar un mensaje (131037). Antes este aviso acompañaba un bloqueo total
+    // del compositor que Meta no exige.
+    <Banner tone="info" title="Nombre para mostrar en revisión" className="mx-3 mb-2">
+      WhatsApp todavía no aprueba el nombre de este número. Puedes enviar mensajes y plantillas; citar un mensaje y reaccionar se habilitan cuando el Administrador de WhatsApp lo apruebe.
     </Banner>
   );
 }
