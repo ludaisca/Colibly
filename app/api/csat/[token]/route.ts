@@ -25,10 +25,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       return NextResponse.json({ error: "Selecciona una calificación de 1 a 5" }, { status: 400 });
     }
 
-    await prisma.csatResponse.update({
-      where: { id: survey.id },
+    // Condicional sobre respondedAt: dos envíos simultáneos pasan la lectura
+    // de arriba, pero solo el primero escribe; el segundo recibe 409.
+    const { count } = await prisma.csatResponse.updateMany({
+      where: { id: survey.id, respondedAt: null },
       data: { rating, comment: comment || null, respondedAt: new Date() },
     });
+    if (count === 0) {
+      return NextResponse.json({ error: "Esta encuesta ya fue respondida" }, { status: 409 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

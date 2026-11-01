@@ -5,9 +5,17 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { evaluatePlanLimit } from "@/lib/billing/gates";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { parseCsv } from "@/lib/whatsapp/parse-csv";
+import { forbidRoles } from "@/lib/roles";
+import { rateLimit } from "@/lib/rate-limit";
+import { BACKGROUND_EVENT_PRIORITY, emitDomainEvent } from "@/lib/events/emit";
+import type { AccountRef } from "@/lib/events/types";
 
 const MAX_ROWS = 5000;
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
+// Mismo espaciado que la importación del historial de coexistencia: un
+// contact.created por contacto, en prioridad baja para no frenar los eventos
+// en vivo de la organización.
+const IMPORT_EVENT_SPACING_MS = 200;
 
 // Importa contactos de WhatsApp o de un canal genérico. El CSV debe traer
 // cabecera (teléfono/nombre o phone/name); el parser compartido con campañas
@@ -18,6 +26,15 @@ export async function POST(req: Request) {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    // Contactos es una sección vedada al rol user (USER_BLOCKED + 403 en
+    // GET /api/whatsapp/contacts); importar tampoco puede quedar abierto.
+    const denied = forbidRoles(session, ["user"]);
+    if (denied) return denied;
+
+    const { allowed } = await rateLimit(`contacts-import:${session.user.id}`, 10, 60 * 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiadas importaciones, intenta más tarde" }, { status: 429 });
     }
 
     const body = await req.json().catch(() => null);
@@ -39,7 +56,7 @@ export async function POST(req: Request) {
       ? await prisma.wAAccount.findUnique({ where: { id: accountId }, select: { id: true, organizationId: true } })
       : null;
     const channelAccount = !waAccount && channelAccountIds.includes(accountId)
-      ? await prisma.channelAccount.findUnique({ where: { id: accountId }, select: { id: true, organizationId: true } })
+      ? await prisma.channelAccount.findUnique({ where: { id: accountId }, select: { id: true, organizationId: true, channel: true } })
       : null;
     if (!waAccount && !channelAccount) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
@@ -88,8 +105,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // skipDuplicates: un contacto creado en paralelo (otra importación, un
+    // entrante) no cuenta como importado ni genera evento.
+    let imported = 0;
     if (newRows.length > 0) {
-      await prisma.contact.createMany({
+      const created = await prisma.contact.createManyAndReturn({
         data: newRows.map((row) => ({
           ...(waAccount ? { accountId } : { channelAccountId: channelAccount!.id }),
           remoteJid: row.phone,
@@ -99,13 +119,26 @@ export async function POST(req: Request) {
           leadStatus: "NEW" as const,
         })),
         skipDuplicates: true,
+        select: { id: true },
       });
+      imported = created.length;
+
+      const account: AccountRef = waAccount
+        ? { kind: "whatsapp", id: waAccount.id }
+        : { kind: "channel", id: channelAccount!.id, channel: channelAccount!.channel };
+      await Promise.all(created.map((contact, index) =>
+        emitDomainEvent(
+          { type: "contact.created", account, chat: null, contactId: contact.id, data: { origin: "ORGANIC", source: "import" } },
+          new Date(),
+          { priority: BACKGROUND_EVENT_PRIORITY, delayMs: index * IMPORT_EVENT_SPACING_MS }
+        )
+      ));
     }
 
     return NextResponse.json({
       totalRows: rows.length,
-      imported: newRows.length,
-      skipped: rows.length - newRows.length,
+      imported,
+      skipped: rows.length - imported,
     });
   } catch (error) {
     const message = publicErrorMessage(error, "Error interno del servidor");
