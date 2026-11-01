@@ -5,6 +5,7 @@ import { labelText } from "@/lib/whatsapp/export-columns";
 import { GripVertical, Clock, CalendarClock } from "lucide-react";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
 import { RelativeTime, useMinuteNow } from "@/app/components/ui/relative-time";
@@ -97,11 +98,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
       )}
     >
       <div className="flex items-start gap-3">
-        <EntityAvatar
-          id={data.accountId ?? data.id}
-          name={displayName}
-          size="sm"
-        />
+        <ChannelAvatar id={data.accountId ?? data.id} name={displayName} channel={data.channel} size="sm" />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
-import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
 import { Select } from "@/app/components/ui/select";
@@ -77,7 +77,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
         <button type="button" onClick={onCloseChat} aria-label="Volver a la lista de chats" className="shrink-0 rounded-xl p-1.5 text-muted-darker hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong lg:hidden">
           <ArrowLeft size={18} />
         </button>
-        <EntityAvatar id={chat.accountId} name={name} size="sm" />
+        <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
         <div className="min-w-0 flex-1">
           {chat.contactId ? (
             <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-sm font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>

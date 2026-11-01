@@ -83,3 +83,7 @@ Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the stan
 
 `app/components/ui/getting-started.tsx`: cuando la bandeja (sin chats y sin filtros) o Contactos (sin contactos y sin filtros) están vacíos, se muestran los primeros pasos **pendientes** como tarjetas con enlace, los mismos de `lib/onboarding.ts:getOnboardingSteps()` (el checklist del panel), vía `GET /api/onboarding` (solo admin; otros roles reciben `[]`). Un `user`/`ejecutivo` ve en cambio qué esperar y que pida a un admin que le comparta una cuenta. Contactos agrega "Importar CSV". Con filtros activos se sigue mostrando "Sin resultados" y el botón de limpiar.
 
+### Insignia de canal en el avatar (2026-11-01)
+
+`app/components/ui/channel-avatar.tsx:ChannelAvatar` = `EntityAvatar` (hue de la cuenta) + insignia redonda en la esquina con la marca del canal (`CHANNEL_ICONS`, colores de cada marca; el chat web usa `text-accent-ink`), con `title` y texto `sr-only`. Se usa en la lista de chats, la cabecera de la conversación y la tarjeta del pipeline. Es cliente (los íconos usan `useId`).
+

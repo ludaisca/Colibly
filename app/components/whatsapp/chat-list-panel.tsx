@@ -10,6 +10,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { hueClassFor } from "@/app/components/ui/hue";
 import { cn } from "@/app/components/ui/cn";
 import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./chat-filters-panel";
@@ -345,9 +346,10 @@ export function ChatListPanel({
                       aria-current={selectedChatId === chat.id ? "true" : undefined}
                     >
                     <div className="flex items-start justify-between gap-2">
-                      <EntityAvatar
+                      <ChannelAvatar
                         id={chat.accountId}
                         name={chat.name ?? chat.remoteJid}
+                        channel={chat.channel}
                         size="sm"
                         className="mt-0.5"
                       />
