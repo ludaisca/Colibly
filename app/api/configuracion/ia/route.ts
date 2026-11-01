@@ -32,6 +32,7 @@ const SELECT = {
   businessDays: true,
   awayMessageEnabled: true,
   awayMessageText: true,
+  autoTranscribeAudio: true,
 } as const;
 
 type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {

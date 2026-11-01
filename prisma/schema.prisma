@@ -516,6 +516,8 @@ model ChannelMessage {
   mimeType          String?
   filename          String?
   bytesSize         Int?
+  transcript        String?          @db.Text
+  transcribedAt     DateTime?        @map("transcribed_at")
   status            String?
   senderId          String?
   sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
@@ -752,6 +754,10 @@ model WAMessage {
   mimeType           String?
   filename           String?
   bytesSize          Int?
+  // Transcripción de una nota de voz (Gemini, lib/ai/transcribe.ts). Manual
+  // desde la burbuja o automática si la organización lo activó.
+  transcript         String?          @db.Text
+  transcribedAt      DateTime?        @map("transcribed_at")
   // Botones de respuesta rápida enviados (outbound) o el id de la respuesta
   // recibida (inbound) para un mensaje interactivo de Meta — ver
   // lib/whatsapp/send-interactive.ts. No existe en ChannelMessage (Telegram),
@@ -2158,6 +2164,8 @@ model Organization {
   // es un mensaje al cliente final.
   awayMessageEnabled     Boolean @default(false) @map("away_message_enabled")
   awayMessageText        String? @map("away_message_text")
+  // Transcribir solas las notas de voz entrantes (1 crédito de IA por audio).
+  autoTranscribeAudio    Boolean @default(false) @map("auto_transcribe_audio")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

@@ -75,3 +75,7 @@ These mirror equivalent Contact-level concepts but are **separate models** scope
 
 - Mapa y reglas puras en `lib/inbox/shortcuts.ts` (con tests): Alt+J / Alt+K siguiente/anterior chat (orden visual de la lista, agrupada por cuenta), Alt+E resolver, Alt+A asignarme, Alt+S posponer 1 h, `/` buscar, `?` ayuda. Se compara `event.code` (en macOS Alt cambia `event.key`); Ctrl/Cmd nunca se interceptan; los de Alt funcionan escribiendo, `/` y `?` no; con un diálogo abierto, ninguno.
 - Las acciones viven en `lib/inbox/actions.ts` (solo `fetch` a las rutas de siempre) y las comparten el palette (que muestra el atajo a la derecha) y `chat-workspace.tsx`. `shortcuts-modal.tsx` lista los atajos desde el mismo mapa.
+
+### Transcripción de notas de voz (2026-11-01)
+
+Bajo cada burbuja de audio (`app/components/whatsapp/audio-transcript.tsx`): botón "Transcribir" (1 crédito) o la transcripción plegable si ya existe. Se muestra también cuando el canal no tiene reproductor (sin proxy de medios). La lógica y las reglas de crédito están en `ia.md` → "Transcripción de notas de voz"; el mensaje lleva `transcript` en `GET /api/whatsapp/chats/[chatId]/messages`.

@@ -33,6 +33,7 @@ interface OrgAiSettings {
   businessDays: number[];
   awayMessageEnabled: boolean;
   awayMessageText: string | null;
+  autoTranscribeAudio: boolean;
 }
 
 // Lunes primero (convención en México); el valor es el de Date#getDay.
@@ -80,6 +81,7 @@ export default function IASettingsPage() {
   const [businessDays, setBusinessDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [awayEnabled, setAwayEnabled] = useState(false);
   const [awayText, setAwayText] = useState("");
+  const [autoTranscribe, setAutoTranscribe] = useState(false);
   const [savingAway, setSavingAway] = useState(false);
   const [recoveryEnabled, setRecoveryEnabled] = useState(false);
   const [recoveryFirstHours, setRecoveryFirstHours] = useState(2);
@@ -112,6 +114,7 @@ export default function IASettingsPage() {
         setBusinessDays(d.businessDays);
         setAwayEnabled(d.awayMessageEnabled);
         setAwayText(d.awayMessageText ?? "");
+        setAutoTranscribe(d.autoTranscribeAudio);
       })
       .catch(() => toastError("Error al cargar la configuración"))
       .finally(() => setLoading(false));
@@ -155,6 +158,17 @@ export default function IASettingsPage() {
       toastError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setSavingRecovery(false);
+    }
+  }
+
+  // Se guarda al cambiar el interruptor (un solo campo, sin formulario).
+  async function handleToggleTranscribe(on: boolean) {
+    setAutoTranscribe(on);
+    try {
+      await patch({ autoTranscribeAudio: on }, on ? "Las notas de voz se transcribirán solas" : "Transcripción automática apagada");
+    } catch (err) {
+      setAutoTranscribe(!on);
+      toastError(err instanceof Error ? err.message : "Error al guardar");
     }
   }
 
@@ -226,6 +240,16 @@ export default function IASettingsPage() {
             </p>
           </div>
         )}
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+          <div>
+            <p className="text-sm font-medium">Transcribir notas de voz automáticamente</p>
+            <p className="text-xs text-muted-darker">
+              Cada audio que recibes se convierte en texto bajo la burbuja. Usa 1 crédito por audio. Apagado, cualquiera
+              puede pedir la transcripción con el botón &quot;Transcribir&quot; del audio.
+            </p>
+          </div>
+          <Switch checked={autoTranscribe} onCheckedChange={handleToggleTranscribe} label="Transcribir notas de voz" />
+        </div>
       </Card>
 
       <Card as="section" className="space-y-5">

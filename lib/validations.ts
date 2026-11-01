@@ -595,6 +595,7 @@ export const orgAiSettingsUpdateSchema = z
     businessDays: z.array(z.number().int().min(0).max(6)).min(1, "Elige al menos un día hábil").max(7)
       .transform((days) => Array.from(new Set(days)).sort((a, b) => a - b)).optional(),
     awayMessageEnabled: z.boolean().optional(),
+    autoTranscribeAudio: z.boolean().optional(),
     awayMessageText: z.string().trim().max(1000, "Máximo 1000 caracteres").nullable().optional()
       .transform((v) => (v ? v : v === undefined ? undefined : null)),
   })

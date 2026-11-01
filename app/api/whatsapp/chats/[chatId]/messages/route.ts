@@ -16,6 +16,7 @@ const MESSAGE_SELECT = {
   mimeType: true,
   filename: true,
   bytesSize: true,
+  transcript: true,
   status: true,
   timestamp: true,
 } as const;

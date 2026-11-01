@@ -20,6 +20,7 @@ import {
   Eye,
 } from "lucide-react";
 import { ChatMessageActions } from "./chat-message-actions";
+import { AudioTranscript } from "./audio-transcript";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -82,23 +83,31 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
   if (msg.messageType === "audio") {
     if (!mediaSrc) {
       return (
-        <div className="flex items-center gap-2 text-xs text-muted-darker">
-          <FileAudio size={14} />
-          <span>Audio recibido</span>
+        <div className="max-w-[260px]">
+          <div className="flex items-center gap-2 text-xs text-muted-darker">
+            <FileAudio size={14} />
+            <span>Audio recibido</span>
+          </div>
+          {/* Sin reproductor (canal sin proxy de medios) la transcripción sigue sirviendo. */}
+          {msg.mediaUrl && !msg.id.startsWith("temp-") && <AudioTranscript messageId={msg.id} initial={msg.transcript ?? null} />}
         </div>
       );
     }
     return (
-      <div className="flex w-[260px] max-w-full items-center gap-1.5">
-        <audio controls src={mediaSrc} className="h-10 min-w-0 flex-1" />
-        <a
-          href={mediaSrc}
-          download={msg.filename ?? "audio.ogg"}
-          className="text-muted-darker hover:text-foreground shrink-0"
-          title="Descargar audio"
-        >
-          <Download size={14} />
-        </a>
+      <div className="w-[260px] max-w-full">
+        <div className="flex items-center gap-1.5">
+          <audio controls src={mediaSrc} className="h-10 min-w-0 flex-1" />
+          <a
+            href={mediaSrc}
+            download={msg.filename ?? "audio.ogg"}
+            className="text-muted-darker hover:text-foreground shrink-0"
+            title="Descargar audio"
+          >
+            <Download size={14} />
+          </a>
+        </div>
+        {/* Los temp-… (envío optimista) aún no existen en la base. */}
+        {!msg.id.startsWith("temp-") && <AudioTranscript messageId={msg.id} initial={msg.transcript ?? null} />}
       </div>
     );
   }

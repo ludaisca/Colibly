@@ -121,6 +121,8 @@ export interface Message {
   mimeType: string | null;
   filename: string | null;
   bytesSize: number | null;
+  /** Transcripción de una nota de voz (lib/ai/transcribe.ts). */
+  transcript?: string | null;
   status: string | null;
   /** Motivo en español de un envío rechazado por Meta (solo WhatsApp). */
   errorMessage?: string | null;
