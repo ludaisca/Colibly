@@ -87,3 +87,9 @@ Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the stan
 
 `app/components/ui/channel-avatar.tsx:ChannelAvatar` = `EntityAvatar` (hue de la cuenta) + insignia redonda en la esquina con la marca del canal (`CHANNEL_ICONS`, colores de cada marca; el chat web usa `text-accent-ink`), con `title` y texto `sr-only`. Se usa en la lista de chats, la cabecera de la conversación y la tarjeta del pipeline. Es cliente (los íconos usan `useId`).
 
+### Componentes portados de Tesela (2026-11-01)
+
+Tesela (`/data/Proyectos/Tesela`, biblioteca propia de Custom Elements) **no se importa**: tiene su propio sistema de tokens (`--tsl-*`). Se portan componentes puntuales a React con los tokens de Colibly:
+- `ui/otp-input.tsx` (de `tsl-otp`): casillas por dígito, avanza solo, Retroceso/flechas, pegar o autocompletar (`one-time-code`) reparte el código, `onComplete` al llenar la última. Login con verificación en dos pasos (se envía solo; enlace para usar un código de respaldo en texto) y activación en Configuración → Seguridad.
+- `ui/currency-input.tsx` (de `tsl-currency`): importe en MXN con miles mientras se escribe, cursor estable, coma del teclado numérico como punto, ↑/↓ por `step`, decimales al salir. Lógica pura en `lib/format/currency-input.ts` (con tests); `amountValue()` da el valor canónico. Se usa en el valor del trato de la ficha.
+

@@ -12,6 +12,7 @@ import { Modal } from "@/app/components/ui/modal";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/input";
 import { PasswordInput } from "@/app/components/ui/password-input";
+import { OtpInput } from "@/app/components/ui/otp-input";
 import { useToast } from "@/app/components/ui/toast";
 import { BRAND_NAME } from "@/lib/brand";
 
@@ -235,19 +236,7 @@ export function SeguridadSection() {
               ¿No puedes escanear? Escribe esta clave en la app:
               <span className="mt-1 block select-all break-all font-mono text-sm text-foreground">{setup.secret.match(/.{1,4}/g)?.join(" ")}</span>
             </p>
-            <FormField label="Código de 6 dígitos" required>
-              {(id) => (
-                <Input
-                  id={id}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, "").slice(0, 6))}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="123456"
-                  className="font-mono tracking-widest"
-                />
-              )}
-            </FormField>
+            <OtpInput value={code} onChange={setCode} onComplete={(full) => { setCode(full); }} label="Código de 6 dígitos de la app" />
           </div>
         )}
       </Modal>

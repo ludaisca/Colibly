@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Plus, CalendarClock, Link2, X, Save, MessageSquare } from "lucide-react";
@@ -18,6 +19,8 @@ import { ContactTasks } from "@/app/components/whatsapp/contact-tasks";
 import { ContactTimeline } from "@/app/components/whatsapp/contact-timeline";
 import { HeroTabs } from "@/app/components/ui/hero-tabs";
 import { FormField } from "@/app/components/ui/form-field";
+import { CurrencyInput } from "@/app/components/ui/currency-input";
+import { amountValue, formatAmountValue } from "@/lib/format/currency-input";
 import { DEAL_VALUE_MAX_PESOS, centsToPesos, formatMxn } from "@/lib/money";
 import "./contact-drawer.css";
 
@@ -145,7 +148,7 @@ export function ContactDrawer({
       const appointmentsData = await appointmentsRes.json();
       const customFieldsData = await customFieldsRes.json();
       setContact(contactData);
-      setDealValue(contactData.dealValueCents != null ? String(centsToPesos(contactData.dealValueCents)) : "");
+      setDealValue(contactData.dealValueCents != null ? formatAmountValue(centsToPesos(contactData.dealValueCents)) : "");
       setCloseDate(contactData.expectedCloseAt ? String(contactData.expectedCloseAt).slice(0, 10) : "");
       if (Array.isArray(notesData)) setNotes(notesData);
       if (Array.isArray(tagsData)) setAllTags(tagsData);
@@ -192,7 +195,7 @@ export function ContactDrawer({
   // Valor del trato en pesos; vacío = sin valor. La fecha se guarda como
   // medianoche UTC del día elegido (la tarjeta del tablero la muestra en UTC).
   async function handleSaveDeal() {
-    const trimmed = dealValue.trim().replace(/[$,\s]/g, "");
+    const trimmed = amountValue(dealValue);
     const pesos = trimmed === "" ? null : Number(trimmed);
     if (pesos !== null && (!Number.isFinite(pesos) || pesos < 0 || pesos > DEAL_VALUE_MAX_PESOS)) {
       toastError("Escribe un monto entre $0 y $20,000,000");
@@ -328,7 +331,7 @@ export function ContactDrawer({
           <Drawer.Popup className="colibly-contact-popup">
             <Drawer.Content className="flex h-full flex-col">
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
-                <Drawer.Title className="truncate text-sm font-semibold text-foreground">{contact?.name ?? contact?.remoteJid ?? "Contacto"}</Drawer.Title>
+                <Drawer.Title className="truncate text-sm font-semibold text-foreground">{contact ? displayName(contact.name, contact.remoteJid) : "Contacto"}</Drawer.Title>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
@@ -389,7 +392,7 @@ export function ContactDrawer({
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Valor (MXN)">
                 {(id) => (
-                  <Input id={id} inputMode="decimal" value={dealValue} onChange={(e) => setDealValue(e.target.value)} placeholder="12,500" />
+                  <CurrencyInput id={id} value={dealValue} onChange={setDealValue} max={DEAL_VALUE_MAX_PESOS} step={500} />
                 )}
               </FormField>
               <FormField label="Cierre estimado">
@@ -602,7 +605,7 @@ export function ContactDrawer({
           onClose={() => setAppointmentModalOpen(false)}
           onSaved={fetchAll}
           contactId={contact.id}
-          contactLabel={contact.name ?? contact.remoteJid}
+          contactLabel={displayName(contact.name, contact.remoteJid)}
         />
       )}
     </Drawer.Root>

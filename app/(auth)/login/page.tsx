@@ -14,6 +14,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Logo } from "@/app/components/ui/logo";
 import { Spinner } from "@/app/components/ui/spinner";
 import { loginSchema } from "@/lib/validations";
+import { OtpInput } from "@/app/components/ui/otp-input";
 import { TWO_FACTOR_INVALID_CODE, TWO_FACTOR_RATE_LIMITED_CODE, TWO_FACTOR_REQUIRED_CODE } from "@/lib/auth-policy";
 
 function LoginForm() {
@@ -35,16 +36,19 @@ function LoginForm() {
   // signIn (lib/auth.ts); nada se guarda fuera de este formulario.
   const [needsCode, setNeedsCode] = useState(false);
   const [code, setCode] = useState("");
+  const [useBackupCode, setUseBackupCode] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e: React.FormEvent | null, codeOverride?: string) {
+    e?.preventDefault();
+    if (loading) return;
+    const typedCode = codeOverride ?? code;
     setServerError("");
     setErrors({});
     setUnverified(false);
     setResendNotice("");
     setResendError(false);
 
-    if (needsCode && !code.trim()) {
+    if (needsCode && !typedCode.trim()) {
       setServerError("Escribe el código de tu app autenticadora o un código de respaldo.");
       return;
     }
@@ -63,7 +67,7 @@ function LoginForm() {
     const result = await signIn("credentials", {
       email,
       password,
-      ...(needsCode ? { code: code.trim() } : {}),
+      ...(needsCode ? { code: typedCode.trim() } : {}),
       redirect: false,
     });
     setLoading(false);
@@ -151,21 +155,43 @@ function LoginForm() {
                 <ShieldCheck size={18} className="mt-0.5 shrink-0" aria-hidden />
                 <p>Tu cuenta tiene verificación en dos pasos. Abre tu app autenticadora y escribe el código de 6 dígitos.</p>
               </div>
-              <FormField label="Código de verificación" required hint="¿Sin teléfono? Usa uno de tus códigos de respaldo (xxxx-xxxx).">
-                {(id) => (
-                  <Input
-                    id={id}
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    inputMode="text"
-                    autoComplete="one-time-code"
-                    autoFocus
-                    maxLength={12}
-                    placeholder="123456"
-                    className="font-mono tracking-widest"
-                  />
-                )}
-              </FormField>
+              {useBackupCode ? (
+                <FormField label="Código de respaldo" required hint="Uno de los 10 códigos que guardaste al activar la verificación.">
+                  {(id) => (
+                    <Input
+                      id={id}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      autoComplete="off"
+                      autoFocus
+                      maxLength={12}
+                      placeholder="xxxx-xxxx"
+                      className="font-mono tracking-widest"
+                    />
+                  )}
+                </FormField>
+              ) : (
+                // Casillas de Tesela (tsl-otp): al llenar la sexta se envía solo.
+                <OtpInput
+                  value={code}
+                  onChange={setCode}
+                  onComplete={(full) => void handleSubmit(null, full)}
+                  autoFocus
+                  disabled={loading}
+                  invalid={!!serverError}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setUseBackupCode((v) => !v);
+                  setCode("");
+                  setServerError("");
+                }}
+                className="block w-full text-center text-sm text-accent-ink hover:underline"
+              >
+                {useBackupCode ? "Usar el código de la app" : "¿Sin teléfono? Usa un código de respaldo"}
+              </button>
               <Button type="submit" fullWidth loading={loading} icon={ShieldCheck}>
                 Verificar
               </Button>
@@ -173,6 +199,7 @@ function LoginForm() {
                 type="button"
                 onClick={() => {
                   setNeedsCode(false);
+                  setUseBackupCode(false);
                   setCode("");
                   setPassword("");
                   setServerError("");
