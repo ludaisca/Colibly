@@ -85,10 +85,9 @@
      --foreground. Pares en contrast.test.ts. */
   --bubble-in:  var(--surface);
   --bubble-out: #D5EEF4;
-  /* Puntos del fondo del hilo (chat-canvas) + un lavado de acento muy suave.
-     Deben notarse al mirar, sin competir con las burbujas. */
-  --chat-pattern: rgba(12, 26, 34, 0.09);
-  --chat-glow:    rgba(14, 116, 144, 0.07);
+  /* Fondo del hilo (chat-canvas): color sólido, sin patrón. En claro es
+     gris tenue para que la burbuja blanca destaque. */
+  --chat-bg: var(--surface-light);
 
   /* Acento de apoyo: coral (badges, highlights). No es CTA. */
   --accent-2:       var(--coral-600);
@@ -178,8 +177,8 @@
 
   --bubble-in:  #17181A;
   --bubble-out: #0A3D4B;
-  --chat-pattern: rgba(237, 239, 240, 0.05);
-  --chat-glow:    rgba(56, 189, 248, 0.04);
+  /* AMOLED: el hilo es negro puro; las burbujas (#17181A) se separan solas. */
+  --chat-bg: var(--background);
 
   --accent-2:       #FB7185;
   --accent-2-hover: #FDA4AF;
@@ -322,15 +321,10 @@
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
 }
 
-/* Lienzo del hilo de chat: puntos tenues + un lavado de acento arriba (no es
-   el doodle de WhatsApp; es un patrón propio). Los colores salen de
-   --chat-pattern/--chat-glow, que cambian con el tema. */
+/* Lienzo del hilo de chat: color sólido por tema (--chat-bg), sin patrón
+   (los puntos se quitaron el 2026-11-01: ensuciaban el fondo). */
 @utility chat-canvas {
-  background-color: var(--surface-light);
-  background-image:
-    radial-gradient(var(--chat-pattern) 1.4px, transparent 1.4px),
-    radial-gradient(circle at 50% 0%, var(--chat-glow) 0%, transparent 55%);
-  background-size: 18px 18px, 100% 100%;
+  background-color: var(--chat-bg);
 }
 
 /* ─────────────────────────────────────────────────

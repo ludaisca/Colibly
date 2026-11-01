@@ -3,7 +3,6 @@
 import { displayName } from "@/lib/chats/display-name";
 import { useId, useState } from "react";
 import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
-import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
@@ -47,7 +46,6 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
   const [changingStatus, setChangingStatus] = useState(false);
   const detailsId = useId();
   const channel = CHANNELS[chat.channel];
-  const ChannelIcon = CHANNEL_ICONS[chat.channel];
   const name = displayName(chat.name, chat.remoteJid);
   const resolved = chat.status === "RESOLVED";
   // "Telegram · Telegram" se leía como un error: el segundo valor es el nombre
@@ -84,7 +82,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
             <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-sm font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>
           ) : <p className="truncate text-sm font-semibold text-foreground">{name}</p>}
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-darker" title={subtitle}>
-            <ChannelIcon size={11} className="shrink-0" />
+            {/* Sin icono de canal: la insignia del avatar ya lo muestra. */}
             <span className="truncate">{subtitle}</span>
             {resolved && <span className="shrink-0 rounded-full bg-success-bg px-1.5 text-[10px] font-medium text-success">Resuelto</span>}
           </p>

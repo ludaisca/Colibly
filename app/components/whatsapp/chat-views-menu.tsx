@@ -117,14 +117,14 @@ export function ChatViewsMenu({
   return (
     <>
       <Dropdown
-        align="left"
+        align="right"
         portal
         trigger={
           <button
             type="button"
             aria-label={awaiting > 0 ? `Vistas — ${awaiting} esperando respuesta` : "Vistas"}
             title="Vistas"
-            className="relative flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] border border-border bg-surface text-muted transition-colors hover:bg-surface-light hover:text-foreground"
+            className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground"
           >
             <Bookmark size={15} />
             {awaiting > 0 && (

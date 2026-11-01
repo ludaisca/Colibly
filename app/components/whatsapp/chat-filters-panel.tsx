@@ -96,6 +96,7 @@ export function ChatFiltersPanel({
   return (
     <FiltersPanel
       panelTitle="Filtrar conversaciones"
+      compact
       fields={fields}
       values={{
         assigned: assignedFilter,

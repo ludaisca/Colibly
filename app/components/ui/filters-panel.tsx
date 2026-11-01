@@ -37,9 +37,12 @@ interface FiltersPanelProps {
   onApply: (values: Record<string, string>) => void;
   panelTitle?: string;
   className?: string;
+  /** Solo el icono (cabeceras angostas, p. ej. la lista de chats); el número
+   *  de filtros aplicados va como globo en la esquina. */
+  compact?: boolean;
 }
 
-export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", className }: FiltersPanelProps) {
+export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", className, compact = false }: FiltersPanelProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const [draft, setDraft] = useState<Record<string, string>>(values);
@@ -104,18 +107,26 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
         type="button"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
+        aria-label={compact ? (appliedCount > 0 ? `Filtros (${appliedCount} aplicados)` : "Filtros") : undefined}
+        title={compact ? "Filtros" : undefined}
         onClick={() => (open ? setOpen(false) : openPanel())}
         className={cn(
-          "relative flex h-[38px] items-center gap-1.5 rounded-[9px] border px-3 text-xs font-semibold transition-colors",
+          "relative flex items-center transition-colors",
+          compact
+            ? "h-8 w-8 justify-center rounded-[9px]"
+            : "h-[38px] gap-1.5 rounded-[9px] border px-3 text-xs font-semibold",
           appliedCount > 0
-            ? "border-accent-strong bg-accent-subtle text-accent-ink"
-            : "border-border bg-surface text-muted hover:bg-surface-light"
+            ? compact ? "bg-accent-subtle text-accent-ink" : "border-accent-strong bg-accent-subtle text-accent-ink"
+            : compact ? "text-muted-darker hover:bg-surface-light hover:text-foreground" : "border-border bg-surface text-muted hover:bg-surface-light"
         )}
       >
-        <Filter size={13} />
-        Filtros
+        <Filter size={compact ? 15 : 13} />
+        {!compact && "Filtros"}
         {appliedCount > 0 && (
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">
+          <span className={cn(
+            "flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent",
+            compact && "absolute -right-1 -top-1"
+          )}>
             {appliedCount}
           </span>
         )}

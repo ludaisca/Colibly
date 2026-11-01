@@ -169,7 +169,44 @@ export function ChatListPanel({
   return (
     <div className={`${selectedChatId ? "hidden lg:flex" : "flex"} lg:flex flex-col w-full ${resizable ? "" : "lg:w-80 xl:w-96 shrink-0"} min-w-0 border-r border-border`}>
       <div className="space-y-2 border-b border-border px-3 py-2">
-        <h1 className="text-sm font-semibold tracking-tight">Chats</h1>
+        {/* Cabecera estilo Chatwoot: título a la izquierda y acciones de icono
+            a la derecha; nunca compiten por espacio con la búsqueda. */}
+        <div className="flex items-center gap-1">
+          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">Chats</h1>
+          <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} />
+
+          <button
+            type="button"
+            aria-label={selectionMode ? "Cancelar selección" : "Seleccionar chats"}
+            title={selectionMode ? "Cancelar selección" : "Seleccionar chats"}
+            aria-pressed={selectionMode}
+            onClick={onToggleSelectionMode}
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] transition-colors",
+              selectionMode
+                ? "bg-accent-subtle text-accent-ink"
+                : "text-muted-darker hover:bg-surface-light hover:text-foreground"
+            )}
+          >
+            {selectionMode ? <X size={15} /> : <ListChecks size={15} />}
+          </button>
+
+          <ChatFiltersPanel
+            campaigns={campaigns}
+            campaignFilter={campaignFilter}
+            onCampaignFilterChange={onCampaignFilterChange}
+            hasRepliedFilter={hasRepliedFilter}
+            onHasRepliedFilterChange={onHasRepliedFilterChange}
+            assignedFilter={assignedFilter}
+            onAssignedFilterChange={onAssignedFilterChange}
+            priorityFilter={priorityFilter}
+            onPriorityFilterChange={onPriorityFilterChange}
+            snoozedFilter={snoozedFilter}
+            onSnoozedFilterChange={onSnoozedFilterChange}
+            awaitingFilter={awaitingFilter}
+            onAwaitingFilterChange={onAwaitingFilterChange}
+          />
+        </div>
 
         {accountOptions.length > 1 && (
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 lg:hidden scrollbar-none">
@@ -204,60 +241,26 @@ export function ChatListPanel({
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <Combobox.Root items={suggestions} inputValue={search}
-              onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
-              onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
-              <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-[9px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
-                <Search size={16} className="shrink-0 text-muted-darker" />
-                <Combobox.Input data-inbox-search aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
-              </Combobox.InputGroup>
-              <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
-                <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">
-                  <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
-                  <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
-                    <span className="truncate font-medium">{displayName(item.chat.name, item.chat.remoteJid)}</span>
-                    <span className="truncate text-[11px] text-muted">{item.chat.account.name}{isWebchatVisitorId(item.chat.remoteJid) ? "" : ` · ${item.chat.remoteJid}`}</span>
-                  </Combobox.Item>}</Combobox.List>
-                </Combobox.Popup>
-              </Combobox.Positioner></Combobox.Portal>
-            </Combobox.Root>
-          </div>
-
-          <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} />
-
-          <button
-            type="button"
-            aria-label={selectionMode ? "Cancelar selección" : "Seleccionar chats"}
-            title={selectionMode ? "Cancelar selección" : "Seleccionar chats"}
-            aria-pressed={selectionMode}
-            onClick={onToggleSelectionMode}
-            className={cn(
-              "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] border transition-colors",
-              selectionMode
-                ? "border-accent-strong bg-accent-subtle text-accent-ink"
-                : "border-border bg-surface text-muted hover:bg-surface-light hover:text-foreground"
-            )}
-          >
-            {selectionMode ? <X size={15} /> : <ListChecks size={15} />}
-          </button>
-
-          <ChatFiltersPanel
-            campaigns={campaigns}
-            campaignFilter={campaignFilter}
-            onCampaignFilterChange={onCampaignFilterChange}
-            hasRepliedFilter={hasRepliedFilter}
-            onHasRepliedFilterChange={onHasRepliedFilterChange}
-            assignedFilter={assignedFilter}
-            onAssignedFilterChange={onAssignedFilterChange}
-            priorityFilter={priorityFilter}
-            onPriorityFilterChange={onPriorityFilterChange}
-            snoozedFilter={snoozedFilter}
-            onSnoozedFilterChange={onSnoozedFilterChange}
-            awaitingFilter={awaitingFilter}
-            onAwaitingFilterChange={onAwaitingFilterChange}
-          />
+        {/* Búsqueda en su propia fila, a todo lo ancho (como Chatwoot): con la
+            lista angosta ya no se encima con los botones de la cabecera. */}
+        <div className="min-w-0">
+          <Combobox.Root items={suggestions} inputValue={search}
+            onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
+            onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
+            <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-[9px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
+              <Search size={16} className="shrink-0 text-muted-darker" />
+              <Combobox.Input data-inbox-search aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
+            </Combobox.InputGroup>
+            <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
+              <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">
+                <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
+                <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
+                  <span className="truncate font-medium">{displayName(item.chat.name, item.chat.remoteJid)}</span>
+                  <span className="truncate text-[11px] text-muted">{item.chat.account.name}{isWebchatVisitorId(item.chat.remoteJid) ? "" : ` · ${item.chat.remoteJid}`}</span>
+                </Combobox.Item>}</Combobox.List>
+              </Combobox.Popup>
+            </Combobox.Positioner></Combobox.Portal>
+          </Combobox.Root>
         </div>
 
         {selectionMode && (
