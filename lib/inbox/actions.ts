@@ -19,11 +19,18 @@ export function assignChatToMe(chatId: string) {
   );
 }
 
+/** `userId: null` deja el chat sin asignar; la ruta valida que sea elegible. */
+export function assignChatTo(chatId: string, userId: string | null) {
+  return patchChat<{ assignedToId: string | null; assignedTo: { id: string; name: string | null } | null }>(
+    chatId, "assign", { assignedToId: userId }, "No se pudo asignar el chat"
+  );
+}
+
 export function resolveChat(chatId: string) {
   return patchChat<{ status: "OPEN" | "PENDING" | "RESOLVED" }>(chatId, "status", { status: "RESOLVED" }, "No se pudo resolver el chat");
 }
 
-export function snoozeChat(chatId: string, until: string) {
+export function snoozeChat(chatId: string, until: string | null) {
   return patchChat<{ snoozedUntil: string | null }>(chatId, "snooze", { until }, "No se pudo posponer el chat");
 }
 

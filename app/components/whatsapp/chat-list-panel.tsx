@@ -18,6 +18,7 @@ import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./cha
 import { ChatViewsMenu } from "./chat-views-menu";
 import { useNowMs } from "./use-now";
 import { WaitingBadge } from "./waiting-badge";
+import { ChatRowMenu } from "./chat-row-menu";
 import {
   displayMessageText,
   formatTime,
@@ -28,6 +29,7 @@ import {
   type AccountOption,
   type ChatBulkAction,
   type ChatItem,
+  type ChatRowAction,
   type CampaignOption,
   type ChatPriority,
 } from "./chat-shared";
@@ -99,6 +101,9 @@ interface ChatListPanelProps {
   selectedChatIds: Set<string>;
   onToggleSelect: (chatId: string) => void;
   onBulkAction: (action: ChatBulkAction) => void;
+  /** Menú contextual de cada fila (clic derecho / pulsación larga). */
+  onRowAction: (chat: ChatItem, action: ChatRowAction) => void;
+  currentUserId?: string | null;
   bulkBusy: boolean;
   currentViewQuery: string;
   onApplyView: (query: string) => void;
@@ -143,6 +148,8 @@ export function ChatListPanel({
   selectedChatIds,
   onToggleSelect,
   onBulkAction,
+  onRowAction,
+  currentUserId,
   bulkBusy,
   currentViewQuery,
   onApplyView,
@@ -339,6 +346,7 @@ export function ChatListPanel({
                         className="absolute left-3 top-4 z-10 h-4 w-4 cursor-pointer rounded border-border accent-[var(--accent)]"
                       />
                     )}
+                    <ChatRowMenu chat={chat} currentUserId={currentUserId} onAction={onRowAction} disabled={selectionMode}>
                     <button
                       type="button"
                       onClick={() => selectionMode ? onToggleSelect(chat.id) : onChatSelect(chat)}
@@ -414,6 +422,7 @@ export function ChatListPanel({
                       </div>
                     </div>
                     </button>
+                    </ChatRowMenu>
                   </div>
                 ))}
               </div>

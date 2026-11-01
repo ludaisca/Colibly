@@ -35,6 +35,16 @@ export const PRIORITY_OPTIONS: Array<{ value: ChatPriority; label: string }> = [
   { value: "URGENT", label: "Urgente" },
 ];
 
+/** Acción del menú contextual de una fila de la lista de chats. */
+export type ChatRowAction =
+  | { type: "open" }
+  | { type: "contact" }
+  | { type: "assign"; userId: "me" | string | null }
+  | { type: "priority"; priority: ChatPriority }
+  | { type: "snooze"; until: string | null }
+  | { type: "status"; status: ChatStatus }
+  | { type: "copy-link" };
+
 export type ChatBulkAction =
   | { type: "assign"; self?: boolean; assignedToId?: string | null }
   | { type: "status"; status: "OPEN" | "RESOLVED" }

@@ -20,7 +20,8 @@ import {
   ArrowDown,
   Eye,
 } from "lucide-react";
-import { ChatMessageActions } from "./chat-message-actions";
+import { ChatMessageActions, MessageContextMenu } from "./chat-message-actions";
+import { WhatsAppText } from "./whatsapp-text";
 import { AudioTranscript } from "./audio-transcript";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -280,6 +281,7 @@ function MessageBubble({
   return (
     <div className={`group flex items-end gap-1.5 ${isInbound ? "justify-start" : "justify-end"} ${hasReaction ? "mb-3" : ""}`}>
       {!isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
+      <MessageContextMenu message={msg} onReply={canReply && canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReply && canReact}>
       <div
         className={`relative max-w-[75%] text-sm leading-[1.4] transition-opacity duration-base lg:max-w-[65%] ${
           mediaOnly ? "p-1" : "px-3 py-2"
@@ -317,11 +319,11 @@ function MessageBubble({
         {hasMedia && (
           <div className={`${mediaOnly ? "" : "mb-1"} space-y-1`}>
             <MediaContent msg={msg} channel={channel} onPreview={onPreview} />
-            {caption && <p className="whitespace-pre-wrap break-words">{caption}</p>}
+            {caption && <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={caption} /> : caption}</p>}
           </div>
         )}
         {!hasMedia && msg.body && msg.body !== "[interactive]" && (
-          <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+          <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={msg.body} /> : msg.body}</p>
         )}
         {!hasMedia && msg.body === "[interactive]" && !(buttons && buttons.length > 0) && "Mensaje con botones"}
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
@@ -377,6 +379,7 @@ function MessageBubble({
           </div>
         )}
       </div>
+      </MessageContextMenu>
       {isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
     </div>
   );

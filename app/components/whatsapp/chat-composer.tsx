@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { FormatToolbar } from "@/app/components/ui/format-toolbar";
 import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -439,6 +440,10 @@ export function ChatComposer({
             />
           )}
         </div>
+        <div className="relative flex min-w-[8rem] flex-1">
+        {/* Formato de WhatsApp (*negrita*…) sobre lo seleccionado; los otros
+            canales mandan texto plano, así que ahí no se ofrece. */}
+        {channel === "WHATSAPP" && <FormatToolbar textareaRef={messageInputRef} value={newMessage} onChange={onMessageChange} />}
         <textarea
           ref={messageInputRef}
           rows={1}
@@ -478,9 +483,10 @@ export function ChatComposer({
                 ? "Comentario (opcional)"
                 : "Escribe un mensaje"
           }
-          className="max-h-32 min-h-9 min-w-[8rem] flex-1 resize-none rounded-2xl border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="max-h-32 min-h-9 w-full resize-none rounded-2xl border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           disabled={sending}
         />
+        </div>
         {canRecord && !attachment && interactiveButtons.length === 0 && (
           <button
             type="button"

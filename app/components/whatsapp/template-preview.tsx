@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText, Video, AlertTriangle, CheckCircle2, CornerUpLeft } from "lucide-react";
+import { WhatsAppText } from "./whatsapp-text";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 
 interface MetaTemplateComponent {
@@ -30,7 +31,9 @@ const WA = {
   border: "#e9e9e9",
 };
 
-function highlightVariables(text: string) {
+// El cuerpo de una plantilla acepta el formato de WhatsApp (*negrita*…): la
+// vista previa lo muestra como lo verá el cliente.
+function highlightVariables(text: string, formatted = false) {
   const parts = text.split(/(\{\{\s*\d+\s*\}\})/g);
   return parts.map((part, i) =>
     /^\{\{\s*\d+\s*\}\}$/.test(part) ? (
@@ -38,7 +41,7 @@ function highlightVariables(text: string) {
         {part}
       </span>
     ) : (
-      <span key={i}>{part}</span>
+      <span key={i}>{formatted ? <WhatsAppText text={part} /> : part}</span>
     )
   );
 }
@@ -90,7 +93,7 @@ export function TemplatePreview({ components, headerImagePreview }: Props) {
               </p>
             )}
             <p className="text-xs leading-relaxed whitespace-pre-wrap" style={{ color: WA.text }}>
-              {body?.text ? highlightVariables(body.text) : <span style={{ color: WA.muted }}>(sin cuerpo)</span>}
+              {body?.text ? highlightVariables(body.text, true) : <span style={{ color: WA.muted }}>(sin cuerpo)</span>}
             </p>
             {footer?.text && (
               <p className="text-[10px] mt-1" style={{ color: WA.muted }}>{footer.text}</p>

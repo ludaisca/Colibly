@@ -2,7 +2,7 @@
 
 import { displayName } from "@/lib/chats/display-name";
 import { adjacentIndex, isTypingTarget, matchInboxShortcut, shouldHandleShortcut, type InboxShortcutAction } from "@/lib/inbox/shortcuts";
-import { assignChatToMe, oneHourFromNow, snoozeChat } from "@/lib/inbox/actions";
+import { assignChatTo, assignChatToMe, oneHourFromNow, setChatPriority, snoozeChat } from "@/lib/inbox/actions";
 import { ShortcutsModal } from "./shortcuts-modal";
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
@@ -32,6 +32,7 @@ import {
   CHATS_LIST_POLL_MS,
   type Channel,
   type ChatBulkAction,
+  type ChatRowAction,
   type ChatItem,
   type ChatPriority,
   type ChatStatus,
@@ -1062,24 +1063,77 @@ export function ChatWorkspace({
     [performSend]
   );
 
-  async function handleStatusChange(newStatus: ChatStatus) {
-    if (!selectedChatId) return;
+  async function handleStatusChange(newStatus: ChatStatus, chatId: string | null = selectedChatId) {
+    if (!chatId) return;
     try {
-      const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/status`, {
+      const res = await fetch(`/api/whatsapp/chats/${chatId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
-      // F4: faltan atributos obligatorios → se piden y se reintenta.
+      // F4: faltan atributos obligatorios → se piden y se reintenta. El modal
+      // vive junto al hilo: desde el menú contextual se abre ese chat primero.
       if (res.status === 422 && data.code === "required_fields" && Array.isArray(data.fields)) {
-        setRequiredPrompt({ chatId: selectedChatId, keys: data.fields.map((field: { key: string }) => field.key) });
+        if (chatId !== selectedChatId) {
+          const target = chats.find((c) => c.id === chatId);
+          if (target) handleChatSelect(target);
+        }
+        setRequiredPrompt({ chatId, keys: data.fields.map((field: { key: string }) => field.key) });
         return;
       }
       if (!res.ok) throw new Error(data.error ?? "Error al cambiar estado");
-      setChats((prev) => prev.map((c) => (c.id === selectedChatId ? { ...c, status: data.status } : c)));
+      setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, status: data.status } : c)));
+      return true;
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al cambiar estado");
+    }
+  }
+
+  // Menú contextual de una fila de la lista (clic derecho / pulsación larga).
+  // Mismas rutas que la cabecera del chat y los atajos (lib/inbox/actions.ts).
+  async function handleRowAction(chat: ChatItem, action: ChatRowAction) {
+    const patch = (fields: Partial<ChatItem>) =>
+      setChats((prev) => prev.map((c) => (c.id === chat.id ? { ...c, ...fields } : c)));
+    try {
+      switch (action.type) {
+        case "open":
+          handleChatSelect(chat);
+          return;
+        case "contact":
+          handleChatSelect(chat);
+          openContactDrawer(chat.contactId);
+          return;
+        case "assign": {
+          const data = action.userId === "me"
+            ? await assignChatToMe(chat.id)
+            : await assignChatTo(chat.id, action.userId);
+          patch({ assignedToId: data.assignedToId, assignedTo: data.assignedTo });
+          toastSuccess(data.assignedTo ? `Asignado a ${data.assignedTo.name ?? "un ejecutivo"}` : "Chat sin asignar");
+          return;
+        }
+        case "priority":
+          await setChatPriority(chat.id, action.priority);
+          patch({ priority: action.priority });
+          return;
+        case "snooze": {
+          const data = await snoozeChat(chat.id, action.until);
+          patch({ snoozedUntil: data.snoozedUntil });
+          toastSuccess(action.until ? "Chat pospuesto" : "Ya no está pospuesto");
+          return;
+        }
+        case "status":
+          if (await handleStatusChange(action.status, chat.id)) {
+            toastSuccess(action.status === "RESOLVED" ? "Chat resuelto" : "Chat reabierto");
+          }
+          return;
+        case "copy-link":
+          await navigator.clipboard.writeText(`${window.location.origin}/whatsapp/chat/${chat.accountId}/${chat.id}`);
+          toastSuccess("Enlace copiado");
+          return;
+      }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo completar la acción");
     }
   }
 
@@ -1327,6 +1381,8 @@ export function ChatWorkspace({
         selectedChatIds={selectedChatIds}
         onToggleSelect={toggleSelected}
         onBulkAction={handleBulkAction}
+        onRowAction={(chat, action) => void handleRowAction(chat, action)}
+        currentUserId={currentUserId}
         bulkBusy={bulkBusy}
         currentViewQuery={currentViewQuery}
         onApplyView={applySavedView}
@@ -1366,7 +1422,7 @@ export function ChatWorkspace({
               onLoadOlder={loadOlderMessages}
               onCloseChat={handleCloseChat}
               onOpenContactDrawer={() => openContactDrawer(selectedChat.contactId)}
-              onStatusChange={handleStatusChange}
+              onStatusChange={async (status) => { await handleStatusChange(status); }}
               onAssigned={handleAssigned}
               onPriorityChange={handlePriorityChange}
               onSnoozedChange={handleSnoozedChange}

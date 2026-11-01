@@ -3,7 +3,8 @@
 import { displayName as chatDisplayName } from "@/lib/chats/display-name";
 import { useDraggable } from "@dnd-kit/core";
 import { labelText } from "@/lib/whatsapp/export-columns";
-import { GripVertical, Clock, CalendarClock } from "lucide-react";
+import { GripVertical, Clock, CalendarClock, Contact, ArrowRightLeft, Copy } from "lucide-react";
+import { ContextMenu, type ContextMenuEntry } from "@/app/components/ui/context-menu";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
@@ -89,7 +90,30 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
       }
     : undefined;
 
+  // Clic derecho / pulsación larga: atajo de "Ver contacto" y del selector de
+  // etapa del pie de la tarjeta (que siguen visibles).
+  const menuItems: ContextMenuEntry[] = [
+    { type: "label", label: displayName },
+    ...(onOpen ? [{ label: "Ver contacto", icon: Contact, onSelect: () => onOpen(data.id) }] : []),
+    ...(onStageChange && stages && stages.length > 0
+      ? [{
+          type: "submenu" as const,
+          label: "Mover a etapa",
+          icon: ArrowRightLeft,
+          items: stages.map((stage) => ({
+            label: stage.name,
+            checked: stage.id === data.stageId,
+            onSelect: () => { if (stage.id !== data.stageId) onStageChange(data.id, stage.id); },
+          })),
+        }]
+      : []),
+    ...(data.channel === "WHATSAPP" && phoneShort
+      ? [{ type: "separator" as const }, { label: "Copiar número", icon: Copy, onSelect: () => void navigator.clipboard.writeText(data.remoteJid.replace(/@.*$/, "")).catch(() => {}) }]
+      : []),
+  ];
+
   return (
+    <ContextMenu items={menuItems} disabled={!onOpen && !onStageChange}>
     <div
       ref={setNodeRef}
       style={style}
@@ -210,5 +234,6 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
         </div>
       )}
     </div>
+    </ContextMenu>
   );
 }
