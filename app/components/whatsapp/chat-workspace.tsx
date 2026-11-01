@@ -22,6 +22,8 @@ import { ChatDisplayNameBanner, ChatWindowBanner, useChatServiceWindow } from "@
 import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-modal";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { MessageSearchResults } from "@/app/components/whatsapp/message-search-results";
+import { useBusinessName } from "@/app/components/ui/business-context";
+import { renderCannedResponse } from "@/lib/inbox/canned-variables";
 import type { MessageSearchHit } from "@/lib/search/messages";
 import {
   CHATS_PAGE_SIZE,
@@ -90,6 +92,7 @@ export function ChatWorkspace({
 }: ChatWorkspaceProps) {
   const router = useRouter();
   const { data: session } = useSession();
+  const businessName = useBusinessName();
   const currentUserId = session?.user?.id ?? null;
   const { success: toastSuccess, error: toastError } = useToast();
   const draftKey = useCallback(
@@ -1263,8 +1266,17 @@ export function ChatWorkspace({
     ? cannedResponses.filter((c) => c.shortcut.startsWith(cannedQuery)).slice(0, 6)
     : [];
 
+  // {{nombre}}, {{agente}} y {{negocio}} se resuelven al insertar: el agente
+  // ve el texto final (y cualquier variable desconocida) antes de mandarlo.
   function insertCannedResponse(content: string) {
-    setNewMessage(content);
+    setNewMessage(
+      renderCannedResponse(content, {
+        contactName: selectedChat?.name ?? null,
+        remoteJid: selectedChat?.remoteJid ?? "",
+        agentName: session?.user?.name ?? null,
+        businessName,
+      })
+    );
     setCannedIndex(0);
   }
 

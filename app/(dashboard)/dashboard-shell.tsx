@@ -1,5 +1,6 @@
 "use client";
 
+import { BusinessNameProvider } from "@/app/components/ui/business-context";
 import {
   LayoutDashboard,
   Settings,
@@ -131,9 +132,11 @@ export function DashboardShell({
   }
 
   return (
+    <BusinessNameProvider name={businessName ?? null}>
     <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
       {children}
       <CallDock />
     </AppShell>
+    </BusinessNameProvider>
   );
 }

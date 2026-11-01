@@ -120,7 +120,12 @@ export function CannedResponseFormModal({ open, onClose, accountId, channel, ini
           )}
         </FormField>
 
-        <FormField label="Contenido" required error={errors.content}>
+        <FormField
+          label="Contenido"
+          required
+          error={errors.content}
+          hint="Variables: {{nombre}} del contacto, {{agente}} (tu nombre) y {{negocio}}. Se reemplazan al insertar la respuesta en el chat."
+        >
           {(id) => (
             <Textarea
               id={id}
