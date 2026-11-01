@@ -93,3 +93,10 @@ Tesela (`/data/Proyectos/Tesela`, biblioteca propia de Custom Elements) **no se 
 - `ui/otp-input.tsx` (de `tsl-otp`): casillas por dígito, avanza solo, Retroceso/flechas, pegar o autocompletar (`one-time-code`) reparte el código, `onComplete` al llenar la última. Login con verificación en dos pasos (se envía solo; enlace para usar un código de respaldo en texto) y activación en Configuración → Seguridad.
 - `ui/currency-input.tsx` (de `tsl-currency`): importe en MXN con miles mientras se escribe, cursor estable, coma del teclado numérico como punto, ↑/↓ por `step`, decimales al salir. Lógica pura en `lib/format/currency-input.ts` (con tests); `amountValue()` da el valor canónico. Se usa en el valor del trato de la ficha.
 
+### Figura para contactos sin nombre (blobatar, 2026-11-01)
+
+`EntityAvatar` acepta `figure`: en vez de iniciales dibuja una figura determinista de [blobatar](https://github.com/Alain00/blobatar) (MIT, sin dependencias) sembrada con el nombre visible. `ChannelAvatar` la activa cuando `lib/chats/display-name.ts:isAnonymousDisplayName()` dice que el nombre no identifica a nadie —"Visitante web · XXXX" o solo un número—, donde las iniciales salían "VW" o "52" para todos. Los contactos con nombre real siguen con iniciales.
+- Versión **fija** (`"blobatar": "2.7.0"`, sin `^`): la librería solo garantiza las mismas caras dentro de una versión mayor, y una actualización cambiaría el avatar de cada contacto. Subirla es una decisión explícita.
+- Sin fondo propio (`background: false`): va sobre el recuadro con el hue de la cuenta (`hueClassFor`), así se conserva la señal de cuenta y funciona en ambos temas. Sus colores son de su propia paleta, la misma excepción que los logos de canal.
+- Se pinta como `<img>` con data URI (el SVG sale solo de un hash; no contiene el nombre ni se inserta markup) y se cachea por semilla. Funciona en Server Components (panel) sin desajuste de hidratación.
+

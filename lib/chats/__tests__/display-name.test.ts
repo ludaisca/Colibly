@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayName, isWebchatVisitorId, visitorLabel } from "../display-name";
+import { displayName, isAnonymousDisplayName, isWebchatVisitorId, visitorLabel } from "../display-name";
 
 describe("displayName", () => {
   it("un id de visitante del chat web se muestra legible y estable", () => {
@@ -21,3 +21,17 @@ describe("displayName", () => {
     expect(visitorLabel("v_abc-def_ghij-KLmn")).toBe("Visitante web · KLMN");
   });
 });
+
+describe("isAnonymousDisplayName", () => {
+  it("visitantes y números son anónimos; nombres reales no", () => {
+    expect(isAnonymousDisplayName("Visitante web · UAPC")).toBe(true);
+    expect(isAnonymousDisplayName("5215512345678")).toBe(true);
+    expect(isAnonymousDisplayName("+52 (55) 1234-5678")).toBe(true);
+    expect(isAnonymousDisplayName("v_2mQMV22W5kQ_BMpMguZSuaPC")).toBe(true);
+    expect(isAnonymousDisplayName("")).toBe(true);
+    expect(isAnonymousDisplayName("Ana López")).toBe(false);
+    expect(isAnonymousDisplayName("Sucursal 21")).toBe(false);
+    expect(isAnonymousDisplayName("123")).toBe(false);
+  });
+});
+

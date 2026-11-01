@@ -6,6 +6,7 @@
 // estables, para distinguir a dos visitantes). Un nombre real nunca se toca.
 
 const VISITOR_ID = /^v_[A-Za-z0-9_-]{12,}$/;
+const VISITOR_PREFIX = "Visitante web · ";
 
 export function isWebchatVisitorId(value: string | null | undefined): boolean {
   return !!value && VISITOR_ID.test(value);
@@ -13,7 +14,7 @@ export function isWebchatVisitorId(value: string | null | undefined): boolean {
 
 export function visitorLabel(visitorId: string): string {
   const code = visitorId.replace(/[^A-Za-z0-9]/g, "").slice(-4).toUpperCase();
-  return `Visitante web · ${code}`;
+  return `${VISITOR_PREFIX}${code}`;
 }
 
 export function displayName(name: string | null | undefined, remoteJid: string | null | undefined, fallback = "Desconocido"): string {
@@ -23,3 +24,16 @@ export function displayName(name: string | null | undefined, remoteJid: string |
   if (isWebchatVisitorId(remoteJid)) return visitorLabel(remoteJid!);
   return remoteJid || fallback;
 }
+
+
+/**
+ * ¿El nombre visible no dice nada de la persona? Un visitante del chat web o
+ * solo un número. Ahí las iniciales ("VW", "52") no sirven para distinguir a
+ * nadie y el avatar usa una figura (blobatar) en su lugar.
+ */
+export function isAnonymousDisplayName(displayed: string | null | undefined): boolean {
+  if (!displayed) return true;
+  const value = displayed.trim();
+  return value.startsWith(VISITOR_PREFIX) || /^\+?[\d\s().-]{6,}$/.test(value) || isWebchatVisitorId(value);
+}
+
