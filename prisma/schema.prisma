@@ -14,6 +14,11 @@ model User {
   password       String?
   role           String    @default("user")
   maxOpenChats   Int?
+  // Disponibilidad (lib/users/availability.ts). La que elige el usuario; la
+  // efectiva también cae a OFFLINE si lastSeenAt (latido del poll de
+  // notificaciones) tiene más de 5 min.
+  availability   UserAvailability @default(ONLINE)
+  lastSeenAt     DateTime?        @map("last_seen_at")
   // Usuario desactivado por un admin: no puede iniciar sesión, su sesión
   // vigente se invalida en la siguiente revalidación (lib/auth.ts) y deja de
   // recibir chats por auto-asignación.
@@ -145,6 +150,9 @@ model WAAccount {
   errorMessage      String?
   lastActivity      DateTime?
   autoAssignEnabled Boolean         @default(false)
+  // Con auto-asignación: solo a ejecutivos en línea; si nadie lo está, el
+  // chat queda sin asignar. Apagado = comportamiento anterior.
+  autoAssignOnlineOnly Boolean      @default(false) @map("auto_assign_online_only")
   // Encuesta de satisfacción al resolver un chat (solo si la ventana de 24 h
   // sigue abierta). Apagada por defecto: es un mensaje al cliente final.
   csatEnabled       Boolean         @default(false) @map("csat_enabled")
@@ -419,6 +427,9 @@ model ChannelAccount {
   // entry[].id. Null para Telegram (setWebhook no usa este mecanismo).
   verifyTokenHash   String?
   autoAssignEnabled Boolean         @default(false)
+  // Con auto-asignación: solo a ejecutivos en línea; si nadie lo está, el
+  // chat queda sin asignar. Apagado = comportamiento anterior.
+  autoAssignOnlineOnly Boolean      @default(false) @map("auto_assign_online_only")
   lastActivity      DateTime?
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
@@ -2513,4 +2524,10 @@ model AiAssistUsage {
 
   @@index([organizationId, createdAt])
   @@map("ai_assist_usage")
+}
+
+enum UserAvailability {
+  ONLINE
+  BUSY
+  OFFLINE
 }

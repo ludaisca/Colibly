@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getEligibleAssignees } from "@/lib/chat-assignees";
+import { assignableCandidateIds } from "@/lib/users/availability";
 
 /**
  * Auto-asigna un chat sin asignar. Primero prueba las reglas de enrutamiento
@@ -15,14 +16,17 @@ import { getEligibleAssignees } from "@/lib/chat-assignees";
 export async function autoAssignChat(accountId: string, chatId: string): Promise<string | null> {
   const account = await prisma.wAAccount.findUnique({
     where: { id: accountId },
-    select: { autoAssignEnabled: true },
+    select: { autoAssignEnabled: true, autoAssignOnlineOnly: true },
   });
   if (!account?.autoAssignEnabled) return null;
 
   const candidates = await getEligibleAssignees(accountId);
   if (candidates.length === 0) return null;
 
-  const candidateIds = candidates.map((c) => c.id);
+  // "Solo en línea": se filtra antes de las reglas, así una regla que apunta a
+  // alguien desconectado cae al balanceo entre los conectados (o a nadie).
+  const candidateIds = await assignableCandidateIds(candidates.map((c) => c.id), account.autoAssignOnlineOnly);
+  if (candidateIds.length === 0) return null;
 
   const [users, openCounts] = await Promise.all([
     prisma.user.findMany({

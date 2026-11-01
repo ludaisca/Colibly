@@ -30,6 +30,7 @@ interface AccountDetail {
   errorMessage: string | null;
   lastActivity: string | null;
   autoAssignEnabled: boolean;
+  autoAssignOnlineOnly: boolean;
   csatEnabled: boolean;
   qualityRating: string | null;
   messagingTier: string | null;
@@ -386,6 +387,22 @@ export default function CuentaDetailPage() {
     }
   }
 
+  async function handleToggleOnlineOnly(enabled: boolean) {
+    if (!account) return;
+    setAccount({ ...account, autoAssignOnlineOnly: enabled });
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoAssignOnlineOnly: enabled }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setAccount((prev) => prev && { ...prev, autoAssignOnlineOnly: !enabled });
+      toastError("Error al actualizar la asignación");
+    }
+  }
+
   async function handleToggleCsat(enabled: boolean) {
     if (!account) return;
     setAccount({ ...account, csatEnabled: enabled });
@@ -607,6 +624,19 @@ export default function CuentaDetailPage() {
             </div>
             <Switch checked={account.autoAssignEnabled} onCheckedChange={handleToggleAutoAssign} label="Auto-asignación de chats nuevos" />
           </div>
+
+          {account.autoAssignEnabled && (
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Solo asignar a ejecutivos en línea</p>
+                <p className="text-xs text-muted-darker">
+                  Salta a quien está ocupado, desconectado o lleva más de 5 minutos sin la app abierta. Si nadie está en línea, el
+                  chat queda sin asignar.
+                </p>
+              </div>
+              <Switch checked={account.autoAssignOnlineOnly} onCheckedChange={handleToggleOnlineOnly} label="Solo asignar a ejecutivos en línea" />
+            </div>
+          )}
 
           {account.autoAssignEnabled && (
             <div className="space-y-3 border-t border-border pt-4">

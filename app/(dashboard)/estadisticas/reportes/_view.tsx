@@ -13,6 +13,9 @@ import { SectionHeader } from "@/app/components/ui/section-header";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { centsToPesos, formatMxn } from "@/lib/money";
+import { LivePanel } from "./_live";
+import { ActivityHeatmap } from "./_heatmap";
+import type { ActivityHeatmap as ActivityHeatmapData } from "@/lib/estadisticas/heatmap";
 import type { AgentReport, ChannelReport, RangeReport } from "@/lib/estadisticas/reports";
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -43,7 +46,7 @@ function shiftKey(key: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function ReportsView({ data, fromKey, toKey }: { data: RangeReport; fromKey: string; toKey: string }) {
+export function ReportsView({ data, heatmap, fromKey, toKey }: { data: RangeReport; heatmap: ActivityHeatmapData; fromKey: string; toKey: string }) {
   const router = useRouter();
   const [from, setFrom] = useState(fromKey);
   const [to, setTo] = useState(toKey);
@@ -218,6 +221,10 @@ export function ReportsView({ data, fromKey, toKey }: { data: RangeReport; fromK
         />
       </div>
 
+      <div className="animate-fade-in-up animation-delay-100">
+        <LivePanel />
+      </div>
+
       <Card className="animate-fade-in-up animation-delay-100 p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -281,6 +288,10 @@ export function ReportsView({ data, fromKey, toKey }: { data: RangeReport; fromK
             emptyTitle="Sin chats en el periodo"
           />
         </Card>
+      </div>
+
+      <div className="animate-fade-in-up animation-delay-300">
+        <ActivityHeatmap inbound={heatmap.inbound} resolved={heatmap.resolved} timeZone={heatmap.timeZone} />
       </div>
 
       <Modal

@@ -88,9 +88,15 @@ export function NotificationBell() {
 
   // Con la pestaña oculta no se consulta (cada pestaña abierta de cada agente
   // sumaba carga sin beneficio); al volver a ella se refresca de inmediato.
+  // Excepción: cada 4.º tick (~100 s) se manda un latido mínimo para que la
+  // disponibilidad (lib/users/availability.ts, 5 min sin latido = desconectado)
+  // no marque como ausente a quien trabaja en otra pestaña.
   useEffect(() => {
+    let tick = 0;
     const interval = setInterval(() => {
+      tick++;
       if (document.visibilityState !== "hidden") fetchNotifications();
+      else if (tick % 4 === 0) void fetch("/api/whatsapp/notifications?limit=1").catch(() => {});
     }, 25000);
     const onVisible = () => {
       if (document.visibilityState === "visible") fetchNotifications();

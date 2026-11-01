@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { touchLastSeen } from "@/lib/users/availability";
 
 export async function GET(req: Request) {
   try {
@@ -9,6 +10,10 @@ export async function GET(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+
+    // Latido de presencia (sin websockets): la campana consulta esta ruta
+    // cada ~25 s mientras la app está abierta.
+    await touchLastSeen(session.user.id);
 
     const { searchParams } = new URL(req.url);
     const limit = Math.min(Number(searchParams.get("limit")) || 20, 50);

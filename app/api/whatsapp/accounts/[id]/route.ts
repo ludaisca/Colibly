@@ -43,6 +43,7 @@ export async function GET(
         errorMessage: true,
         lastActivity: true,
         autoAssignEnabled: true,
+        autoAssignOnlineOnly: true,
         csatEnabled: true,
         qualityRating: true,
         messagingTier: true,
@@ -134,6 +135,9 @@ export async function PATCH(
     if (typeof body?.autoAssignEnabled === "boolean") {
       data.autoAssignEnabled = body.autoAssignEnabled;
     }
+    if (typeof body?.autoAssignOnlineOnly === "boolean") {
+      data.autoAssignOnlineOnly = body.autoAssignOnlineOnly;
+    }
     if (typeof body?.csatEnabled === "boolean") {
       data.csatEnabled = body.csatEnabled;
     }
@@ -172,6 +176,7 @@ export async function PATCH(
         errorMessage: true,
         lastActivity: true,
         autoAssignEnabled: true,
+        autoAssignOnlineOnly: true,
         csatEnabled: true,
         appSecret: true,
         connectionType: true,
