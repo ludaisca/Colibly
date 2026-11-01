@@ -7,6 +7,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | Documento | Para qué |
 |---|---|
 | [CONTINUIDAD_2026-10-04.md](CONTINUIDAD_2026-10-04.md) | **Empieza aquí**: estado, pendientes en orden y cómo retomar (coexistencia, respaldos, ramas). |
+| [PLAN_MEJORAS_FASES_2026-11-01.md](PLAN_MEJORAS_FASES_2026-11-01.md) | **Vigente**: plan de 4 fases de mejoras, qué se implementó, decisiones y pendientes (SLA, equipos, FAQ, merge). |
 | [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) | Plan maestro: decisiones, marca, dominio, legal, Meta, Stripe. |
 | [TIPOGRAFIA.md](TIPOGRAFIA.md) | Fuentes en producción (Newsreader + Figtree) y reserva (Syne + DM Sans). |
 | [COLOR.md](COLOR.md) | Paleta Laguna: problema de monocromía y direcciones en `/marca/color`. |
