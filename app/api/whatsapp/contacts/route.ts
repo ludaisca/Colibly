@@ -88,6 +88,18 @@ export async function GET(req: Request) {
       prisma.contact.count({ where }),
     ]);
 
+    // Pie de la tabla (F8): con el MISMO `where` (alcance + filtros), solo si
+    // la página lo pide (una vez por cambio de filtros, no por página).
+    let summary: { withoutTags: number; withoutConversation: number; withDeal: number; dealValueCents: number } | undefined;
+    if (searchParams.get("summary") === "1") {
+      const [withoutTags, withoutConversation, deals] = await Promise.all([
+        prisma.contact.count({ where: { AND: [where, { tags: { none: {} } }] } }),
+        prisma.contact.count({ where: { AND: [where, { chat: { is: null } }, { conversation: { is: null } }] } }),
+        prisma.contact.aggregate({ where: { AND: [where, { dealValueCents: { not: null } }] }, _count: { _all: true }, _sum: { dealValueCents: true } }),
+      ]);
+      summary = { withoutTags, withoutConversation, withDeal: deals._count._all, dealValueCents: deals._sum.dealValueCents ?? 0 };
+    }
+
     // Se aplana a un solo shape (accountId + chat + channel) para que la UI no
     // tenga que ramificar por canal — mismo criterio que GET /api/telegram/chats.
     const items = contacts.map(({ channelAccountId, channelAccount, conversation, ...c }) => ({
@@ -97,7 +109,7 @@ export async function GET(req: Request) {
       channel: c.accountId ? ("WHATSAPP" as const) : channelAccount?.channel,
     }));
 
-    return NextResponse.json({ items, total, page, pageSize });
+    return NextResponse.json({ items, total, page, pageSize, ...(summary ? { summary } : {}) });
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { formatMxn } from "@/lib/money";
 import Link from "next/link";
 import { Search, RefreshCw, Upload, Contact as ContactIcon } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
@@ -65,6 +66,9 @@ export default function ContactosPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  // Pie de la tabla (F8): se pide con la página 1 (cada cambio de filtros
+  // vuelve a ella) y se conserva al paginar.
+  const [summary, setSummary] = useState<{ withoutTags: number; withoutConversation: number; withDeal: number; dealValueCents: number } | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -97,12 +101,14 @@ export default function ContactosPage() {
       if (accountFilter) params.set("accountId", accountFilter);
       params.set("page", String(page));
       params.set("pageSize", String(PAGE_SIZE));
+      if (page === 1) params.set("summary", "1");
       const res = await fetch(`/api/whatsapp/contacts?${params.toString()}`);
       const data = await res.json();
       if (res.ok && Array.isArray(data.items)) {
         if (currentRequest === requestId.current) {
           setContacts(data.items);
           setTotal(data.total ?? 0);
+          if (data.summary) setSummary(data.summary);
         }
       } else throw new Error(data.error ?? "Error al cargar contactos");
     } catch (err) {
@@ -272,6 +278,18 @@ export default function ContactosPage() {
             );
           }}
         />
+        {summary && total > 0 && (
+          <p className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border px-1 pt-3 text-xs text-muted-darker">
+            <span><span className="font-semibold tabular-nums text-foreground">{total.toLocaleString("es-MX")}</span> contactos</span>
+            <span><span className="tabular-nums">{pct(summary.withoutTags, total)}%</span> sin etiquetas</span>
+            <span><span className="tabular-nums">{pct(summary.withoutConversation, total)}%</span> sin conversación</span>
+            {summary.withDeal > 0 && (
+              <span>
+                {summary.withDeal.toLocaleString("es-MX")} con valor de trato · <span className="font-semibold tabular-nums text-foreground">{formatMxn(summary.dealValueCents, { compact: true })}</span>
+              </span>
+            )}
+          </p>
+        )}
         {total > PAGE_SIZE && (
           <div className="flex justify-center pt-2">
             <Pagination
@@ -299,4 +317,8 @@ export default function ContactosPage() {
       />
     </div>
   );
+}
+
+function pct(part: number, total: number): number {
+  return total > 0 ? Math.round((part / total) * 100) : 0;
 }
