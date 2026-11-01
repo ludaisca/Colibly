@@ -8,6 +8,7 @@ import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
 import { markWaiting } from "@/lib/chats/waiting";
+import { queueAwayMessage } from "@/lib/inbox/away-message";
 
 // Equivalente a lib/whatsapp/ingest-message.ts pero sobre las tablas
 // genéricas ChannelAccount/Conversation/ChannelMessage — mismos pasos
@@ -275,6 +276,10 @@ export async function ingestChannelMessage(
       caption: msg.caption ?? null,
       filename: msg.filename ?? null,
     }, { delay: BOT_REPLY_DEBOUNCE_MS });
+  } else if (!suppressBot) {
+    // Sin bot ni flujo que conteste: aviso fuera de horario si la organización
+    // lo activó (lib/inbox/away-message.ts decide y vuelve a comprobar todo).
+    await queueAwayMessage("channel", conversation.id, channelAccountId, { isGroup: msg.isGroup, isFromComment: msg.isFromComment });
   }
 
   return { messageId: createdMessage.id, conversationId: conversation.id };

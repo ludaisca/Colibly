@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isWithinBusinessHours } from "../business-hours";
 import { addDaysKey, safeTimeZone, zonedDayKey, zonedDayStart, zonedHourAndDow, zoneOffsetMinutes } from "../zoned";
 
 describe("zonedDayStart", () => {
@@ -57,5 +58,28 @@ describe("helpers", () => {
     expect(safeTimeZone("Marte/Olympus")).toBe("America/Mexico_City");
     expect(safeTimeZone("America/Tijuana")).toBe("America/Tijuana");
     expect(safeTimeZone(null)).toBe("America/Mexico_City");
+  });
+});
+
+
+describe("isWithinBusinessHours", () => {
+  const cfg = { timezone: "America/Mexico_City", startHour: 9, endHour: 18 };
+  it("hora local dentro y fuera", () => {
+    expect(isWithinBusinessHours(new Date("2026-11-02T16:00:00Z"), cfg)).toBe(true); // lun 10:00
+    expect(isWithinBusinessHours(new Date("2026-11-03T01:00:00Z"), cfg)).toBe(false); // lun 19:00
+    expect(isWithinBusinessHours(new Date("2026-11-02T15:00:00Z"), cfg)).toBe(true); // lun 09:00 justo
+    expect(isWithinBusinessHours(new Date("2026-11-03T00:00:00Z"), cfg)).toBe(false); // lun 18:00 justo (exclusivo)
+  });
+  it("sin days todos los días cuentan (comportamiento previo)", () => {
+    expect(isWithinBusinessHours(new Date("2026-11-01T16:00:00Z"), cfg)).toBe(true); // domingo 10:00
+  });
+  it("con days de lunes a viernes el domingo no cuenta", () => {
+    const weekdays = { ...cfg, days: [1, 2, 3, 4, 5] };
+    expect(isWithinBusinessHours(new Date("2026-11-01T16:00:00Z"), weekdays)).toBe(false); // domingo
+    expect(isWithinBusinessHours(new Date("2026-11-02T16:00:00Z"), weekdays)).toBe(true); // lunes
+  });
+  it("el día se calcula en la zona local, no en UTC", () => {
+    // Lunes 02:00Z = domingo 20:00 en CDMX → con horario 0–24 y solo lunes, no cuenta.
+    expect(isWithinBusinessHours(new Date("2026-11-02T02:00:00Z"), { ...cfg, startHour: 0, endHour: 24, days: [1] })).toBe(false);
   });
 });

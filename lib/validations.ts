@@ -591,6 +591,12 @@ export const orgAiSettingsUpdateSchema = z
     autoResolveTagName: z.string().trim().max(50, "Máximo 50 caracteres").nullable().optional()
       .transform((v) => (v ? v : v === undefined ? undefined : null)),
     autoResolveSkipWaiting: z.boolean().optional(),
+    // Días hábiles (0 = domingo … 6 = sábado) y aviso fuera de horario.
+    businessDays: z.array(z.number().int().min(0).max(6)).min(1, "Elige al menos un día hábil").max(7)
+      .transform((days) => Array.from(new Set(days)).sort((a, b) => a - b)).optional(),
+    awayMessageEnabled: z.boolean().optional(),
+    awayMessageText: z.string().trim().max(1000, "Máximo 1000 caracteres").nullable().optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
   })
   .refine(
     (d) =>

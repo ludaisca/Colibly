@@ -9,6 +9,7 @@ import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
 import { markWaiting } from "@/lib/chats/waiting";
+import { queueAwayMessage } from "@/lib/inbox/away-message";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -294,6 +295,10 @@ export async function ingestInboundMessage(
       caption: msg.caption ?? null,
       filename: msg.filename ?? null,
     }, { delay: BOT_REPLY_DEBOUNCE_MS });
+  } else if (!suppressBot) {
+    // Sin bot ni flujo que conteste: aviso fuera de horario si la organización
+    // lo activó (lib/inbox/away-message.ts decide y vuelve a comprobar todo).
+    await queueAwayMessage("whatsapp", chat.id, accountId, { isGroup: msg.isGroup });
   }
 
   return { messageId: createdMessage.id, chatId: chat.id };

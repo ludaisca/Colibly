@@ -52,6 +52,7 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
       timezone: settings.timezone,
       startHour: settings.businessHourStart,
       endHour: settings.businessHourEnd,
+      days: settings.businessDays,
     })
   ) {
     return; // fuera de horario — se reintenta en el próximo tick

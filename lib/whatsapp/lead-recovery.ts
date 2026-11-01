@@ -22,19 +22,8 @@ export function isWithinServiceWindow(lastInboundAt: Date, now: Date): boolean {
   return now.getTime() - lastInboundAt.getTime() < SERVICE_WINDOW_MS;
 }
 
-function localHourInTz(date: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hour12: false, hour: "2-digit" }).formatToParts(date);
-  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
-  return hour % 24;
-}
-
-export function isWithinBusinessHours(
-  now: Date,
-  { timezone, startHour, endHour }: { timezone: string; startHour: number; endHour: number }
-): boolean {
-  const hour = localHourInTz(now, timezone);
-  return hour >= startHour && hour < endHour;
-}
+// Pura y compartida: vive en lib/dates/business-hours.ts.
+export { isWithinBusinessHours } from "@/lib/dates/business-hours";
 
 interface RecoveryChat {
   id: string;

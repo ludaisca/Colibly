@@ -41,6 +41,8 @@ export interface BusinessHours {
   timezone: string;
   startHour: number;
   endHour: number;
+  /** Días hábiles, 0 = domingo … 6 = sábado. */
+  days: number[];
 }
 
 // Horario laboral y zona horaria de la organización (recuperación de leads,
@@ -49,11 +51,12 @@ export interface BusinessHours {
 export async function getOrgBusinessHours(organizationId: string): Promise<BusinessHours> {
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { timezone: true, businessHourStart: true, businessHourEnd: true },
+    select: { timezone: true, businessHourStart: true, businessHourEnd: true, businessDays: true },
   });
   return {
     timezone: org?.timezone ?? "America/Mexico_City",
     startHour: org?.businessHourStart ?? 8,
     endHour: org?.businessHourEnd ?? 20,
+    days: org?.businessDays?.length ? org.businessDays : [0, 1, 2, 3, 4, 5, 6],
   };
 }

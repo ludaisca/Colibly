@@ -477,6 +477,8 @@ model Conversation {
   snoozedUntil     DateTime?      @map("snoozed_until")
   // Ver WAChat.waitingSince.
   waitingSince     DateTime?      @map("waiting_since")
+  // Ver WAChat.awayMessageSentAt.
+  awayMessageSentAt DateTime?     @map("away_message_sent_at")
   assignedToId     String?
   assignedTo       User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   resolvedAt       DateTime?
@@ -564,6 +566,8 @@ model WAChat {
   // contestar). Lo pone el ingest y lo limpia la respuesta de una persona,
   // del bot o de un flujo — nunca un aviso automático. lib/chats/waiting.ts.
   waitingSince    DateTime?    @map("waiting_since")
+  // Último aviso fuera de horario (cooldown de 12 h por chat).
+  awayMessageSentAt DateTime?   @map("away_message_sent_at")
   resolvedAt      DateTime?
   firstResponseAt DateTime?
   botResumedAt    DateTime?
@@ -2135,6 +2139,10 @@ model Organization {
   timezone                       String  @default("America/Mexico_City")
   businessHourStart              Int     @default(8) @map("business_hour_start")
   businessHourEnd                Int     @default(20) @map("business_hour_end")
+  // Días hábiles (0 = domingo … 6 = sábado). Por defecto todos: así la
+  // recuperación de leads, las hojas y la condición "en horario" siguen igual
+  // hasta que alguien los configure.
+  businessDays                   Int[]   @default([0, 1, 2, 3, 4, 5, 6]) @map("business_days")
   leadRecoveryEnabled            Boolean @default(false) @map("lead_recovery_enabled")
   leadRecoveryFirstMessageHours  Int     @default(2) @map("lead_recovery_first_message_hours")
   // null = solo se manda 1 mensaje.
@@ -2146,6 +2154,10 @@ model Organization {
   autoResolveMessage     String? @map("auto_resolve_message")
   autoResolveTagName     String? @map("auto_resolve_tag_name")
   autoResolveSkipWaiting Boolean @default(true) @map("auto_resolve_skip_waiting")
+  // Aviso fuera de horario (lib/inbox/away-message.ts). Apagado por defecto:
+  // es un mensaje al cliente final.
+  awayMessageEnabled     Boolean @default(false) @map("away_message_enabled")
+  awayMessageText        String? @map("away_message_text")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

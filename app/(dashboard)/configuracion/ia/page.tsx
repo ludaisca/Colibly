@@ -15,6 +15,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { Banner } from "@/app/components/ui/banner";
 import { Card } from "@/app/components/ui/card";
 import { Textarea } from "@/app/components/ui/textarea";
+import { Checkbox } from "@/app/components/ui/checkbox";
 
 interface OrgAiSettings {
   aiCredits: { used: number; limit: number | null };
@@ -29,7 +30,21 @@ interface OrgAiSettings {
   autoResolveMessage: string | null;
   autoResolveTagName: string | null;
   autoResolveSkipWaiting: boolean;
+  businessDays: number[];
+  awayMessageEnabled: boolean;
+  awayMessageText: string | null;
 }
+
+// Lunes primero (convención en México); el valor es el de Date#getDay.
+const WEEKDAYS = [
+  { value: 1, label: "Lun" },
+  { value: 2, label: "Mar" },
+  { value: 3, label: "Mié" },
+  { value: 4, label: "Jue" },
+  { value: 5, label: "Vie" },
+  { value: 6, label: "Sáb" },
+  { value: 0, label: "Dom" },
+];
 
 // Zonas más comunes de los clientes; la actual se agrega si no está.
 const TIMEZONES = [
@@ -62,6 +77,10 @@ export default function IASettingsPage() {
   const [hourStart, setHourStart] = useState(8);
   const [hourEnd, setHourEnd] = useState(20);
   const [savingHours, setSavingHours] = useState(false);
+  const [businessDays, setBusinessDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [awayEnabled, setAwayEnabled] = useState(false);
+  const [awayText, setAwayText] = useState("");
+  const [savingAway, setSavingAway] = useState(false);
   const [recoveryEnabled, setRecoveryEnabled] = useState(false);
   const [recoveryFirstHours, setRecoveryFirstHours] = useState(2);
   const [recoverySecondHours, setRecoverySecondHours] = useState("12");
@@ -90,6 +109,9 @@ export default function IASettingsPage() {
         setAutoResolveMessage(d.autoResolveMessage ?? "");
         setAutoResolveTag(d.autoResolveTagName ?? "");
         setAutoResolveSkipWaiting(d.autoResolveSkipWaiting);
+        setBusinessDays(d.businessDays);
+        setAwayEnabled(d.awayMessageEnabled);
+        setAwayText(d.awayMessageText ?? "");
       })
       .catch(() => toastError("Error al cargar la configuración"))
       .finally(() => setLoading(false));
@@ -110,7 +132,7 @@ export default function IASettingsPage() {
   async function handleSaveHours() {
     setSavingHours(true);
     try {
-      await patch({ timezone, businessHourStart: hourStart, businessHourEnd: hourEnd }, "Horario guardado");
+      await patch({ timezone, businessHourStart: hourStart, businessHourEnd: hourEnd, businessDays }, "Horario guardado");
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
@@ -133,6 +155,21 @@ export default function IASettingsPage() {
       toastError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setSavingRecovery(false);
+    }
+  }
+
+  function toggleDay(day: number, on: boolean) {
+    setBusinessDays((prev) => (on ? Array.from(new Set([...prev, day])) : prev.filter((d) => d !== day)));
+  }
+
+  async function handleSaveAway() {
+    setSavingAway(true);
+    try {
+      await patch({ awayMessageEnabled: awayEnabled, awayMessageText: awayText.trim() || null }, "Mensaje fuera de horario guardado");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setSavingAway(false);
     }
   }
 
@@ -226,7 +263,21 @@ export default function IASettingsPage() {
             )}
           </FormField>
         </div>
-        <Button size="sm" variant="secondary" icon={Save} loading={savingHours} onClick={handleSaveHours}>
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-foreground">Días hábiles</legend>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {WEEKDAYS.map((day) => (
+              <Checkbox
+                key={day.value}
+                label={day.label}
+                checked={businessDays.includes(day.value)}
+                onChange={(on) => toggleDay(day.value, on)}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-muted-darker">Fuera de estos días todo cuenta como fuera de horario.</p>
+        </fieldset>
+        <Button size="sm" variant="secondary" icon={Save} loading={savingHours} disabled={businessDays.length === 0} onClick={handleSaveHours}>
           Guardar horario
         </Button>
       </Card>
@@ -275,6 +326,29 @@ export default function IASettingsPage() {
 
       <Card as="section" className="space-y-5">
         <SectionHeader title="Bandeja" />
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Mensaje fuera de horario</p>
+            <p className="text-xs text-muted-darker">
+              Contesta solo cuando escriben fuera del horario del negocio, como máximo una vez cada 12 h por chat. No se
+              manda si la cuenta tiene un bot activo o una automatización está atendiendo el chat. El chat sigue en
+              &quot;Esperando respuesta&quot; para tu equipo.
+            </p>
+          </div>
+          <Switch checked={awayEnabled} onCheckedChange={setAwayEnabled} label="Mensaje fuera de horario" />
+        </div>
+        {awayEnabled && (
+          <FormField label="Mensaje" hint="Máximo 1000 caracteres">
+            {(id) => (
+              <Textarea id={id} rows={3} maxLength={1000} value={awayText} onChange={(e) => setAwayText(e.target.value)} placeholder="¡Gracias por escribir! Estamos fuera de horario; te contestamos mañana a partir de las 9:00." />
+            )}
+          </FormField>
+        )}
+        <Button size="sm" variant="secondary" icon={Save} loading={savingAway} disabled={awayEnabled && !awayText.trim()} onClick={handleSaveAway}>
+          Guardar mensaje fuera de horario
+        </Button>
+
+        <div className="border-t border-border pt-5" />
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium">Resolver solos los chats inactivos</p>

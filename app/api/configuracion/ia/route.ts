@@ -29,6 +29,9 @@ const SELECT = {
   autoResolveMessage: true,
   autoResolveTagName: true,
   autoResolveSkipWaiting: true,
+  businessDays: true,
+  awayMessageEnabled: true,
+  awayMessageText: true,
 } as const;
 
 type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
@@ -77,11 +80,16 @@ export async function PATCH(req: Request) {
 
     const current = await prisma.organization.findUniqueOrThrow({
       where: { id: ctx.organizationId },
-      select: { businessHourStart: true, businessHourEnd: true },
+      select: { businessHourStart: true, businessHourEnd: true, awayMessageEnabled: true, awayMessageText: true },
     });
     const start = parsed.data.businessHourStart ?? current.businessHourStart;
     const end = parsed.data.businessHourEnd ?? current.businessHourEnd;
     if (end <= start) return NextResponse.json({ error: "La hora de cierre debe ser posterior a la de apertura" }, { status: 400 });
+    // El aviso fuera de horario necesita texto: activarlo sin texto (o borrar el
+    // texto con el aviso activo) no manda nada y confunde.
+    const awayEnabled = parsed.data.awayMessageEnabled ?? current.awayMessageEnabled;
+    const awayText = parsed.data.awayMessageText !== undefined ? parsed.data.awayMessageText : current.awayMessageText;
+    if (awayEnabled && !awayText) return NextResponse.json({ error: "Escribe el mensaje fuera de horario antes de activarlo" }, { status: 400 });
 
     const org = await prisma.organization.update({ where: { id: ctx.organizationId }, data: parsed.data, select: SELECT });
     return NextResponse.json(serialize(org));
