@@ -32,7 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ chatId:
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
     try {
-      const text = await rewriteDraft(organizationId, parsed.data.draft);
+      const text = await rewriteDraft(organizationId, parsed.data.draft, session.user.id);
       return NextResponse.json({ text });
     } catch (err) {
       if (err instanceof WritingAssistError) return NextResponse.json({ error: err.message }, { status: 400 });

@@ -71,3 +71,10 @@ Exceptions that stay as a dedicated page instead of a modal:
 - Unbounded dynamic content (`whatsapp/campanas/nueva` — recipient list can grow to hundreds of rows via CSV import; doesn't fit a modal's `max-h-[90vh]`).
 
 Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the standard modal pattern but has a two-step render: the create form, then (on success) a read-only "here are your values" step showing the webhook URL and the auto-generated verify token — `verifyToken` is never typed by the user and never stored in plaintext (`WAAccount.verifyTokenHash` only), so that success step is the *only* place it's ever visible. External entry points link to `/whatsapp/cuentas?nueva=1`, which auto-opens the modal (`cuentas/page.tsx` reads the `nueva` search param into the modal's initial `open` state — wrapped in `<Suspense>` per the `useSearchParams()` rule above).
+
+## Fechas: zona de la organización y tiempo relativo (2026-11-01)
+
+- `lib/dates/zoned.ts` (puro, con tests): `zonedDayKey`, `zonedDayStart` (inicio del día local con el offset real de esa fecha, sirve en cambios de horario), `addDaysKey`, `zonedHourAndDow`, `safeTimeZone`. Úsalo para cortar días u horas por `Organization.timezone`; nunca un offset fijo como `-06:00`.
+- `lib/format/dates.ts`: `formatInZone` (fecha absoluta con zona explícita), `formatRelative(value, now)` y `minutesSince(value, now)`, puros.
+- `<RelativeTime value timeZone? />` (`app/components/ui/relative-time.tsx`): muestra "hace 2 días" con la fecha exacta en `title`. Usa `useSyncExternalStore` con un reloj por minuto: el servidor y la hidratación pintan la fecha absoluta (igual en ambos) y el relativo aparece al hidratar. No pongas `Date.now()` en el render de un componente que se renderiza en el servidor: es un error de hidratación.
+- `formatTime` de `chat-shared.ts` (hora / "Ayer" / día) es el estilo propio de la lista de chats y se queda.

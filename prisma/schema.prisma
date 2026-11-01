@@ -2153,6 +2153,7 @@ model Organization {
   leadOutcomeEvents LeadOutcomeEvent[]
   waCalls          WACall[]
   macros           Macro[]
+  aiAssistUsage    AiAssistUsage[]
 
   @@index([status])
   @@map("organizations")
@@ -2443,4 +2444,31 @@ model PlatformHealthRun {
 
   @@index([startedAt])
   @@map("platform_health_runs")
+}
+
+// Uso de IA de asistencia al equipo (no respuestas al cliente): reescribir un
+// borrador, proponer una tarea, transcribir una nota de voz, monitores de
+// temas. Cada llamada ya reservó su crédito (lib/ai/credits.ts); esta tabla
+// guarda el costo estimado para la plataforma y lo suma getOrgAiCost().
+enum AiAssistKind {
+  REWRITE
+  TASK
+  TRANSCRIBE
+  MONITOR
+}
+
+model AiAssistUsage {
+  id               String       @id @default(cuid())
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kind             AiAssistKind
+  userId           String?      @map("user_id")
+  model            String
+  promptTokens     Int          @map("prompt_tokens")
+  completionTokens Int          @map("completion_tokens")
+  estimatedCost    Float        @map("estimated_cost")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@map("ai_assist_usage")
 }

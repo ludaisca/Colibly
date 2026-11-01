@@ -72,7 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const transcript = lines.reverse().map((line) => `${line.direction === "INBOUND" ? "Cliente" : "Equipo"}: ${line.body ?? ""}`).join("\n");
       if (!transcript.trim()) return NextResponse.json({ error: "No hay conversación para proponer una tarea" }, { status: 400 });
       try {
-        title = (await suggestTaskTitle(organizationId, transcript)).slice(0, 200);
+        title = (await suggestTaskTitle(organizationId, transcript, session.user.id)).slice(0, 200);
       } catch (err) {
         if (err instanceof WritingAssistError) return NextResponse.json({ error: err.message }, { status: 400 });
         throw err;

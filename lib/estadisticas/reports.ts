@@ -1,8 +1,9 @@
 import type { Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { addDaysKey, safeTimeZone, zonedDayKey, zonedDayStart } from "@/lib/dates/zoned";
 
-const TZ = "America/Mexico_City";
+const DEFAULT_TZ = "America/Mexico_City";
 const MAX_RANGE_DAYS = 90;
 const DEFAULT_RANGE_DAYS = 30;
 
@@ -64,42 +65,34 @@ export interface ParsedRange {
   toKey: string;
 }
 
-function dayKey(date: Date): string {
-  return date.toLocaleDateString("en-CA", { timeZone: TZ });
-}
-
-function dateAtStart(key: string): Date {
-  return new Date(`${key}T00:00:00-06:00`);
-}
-
-function addDaysKey(key: string, days: number): string {
-  const date = new Date(`${key}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
 // Acepta ?from=YYYY-MM-DD&to=YYYY-MM-DD; si falta o es inválido, usa los
 // últimos 30 días. El `to` es inclusivo y se convierte en un límite exclusivo
-// al día siguiente para no perder los mensajes de la última noche.
-export function parseReportRange(fromParam?: string, toParam?: string): ParsedRange {
-  const today = dayKey(new Date());
-  let toKey = /^\d{4}-\d{2}-\d{2}$/.test(toParam ?? "") ? toParam! : today;
-  let fromKey = /^\d{4}-\d{2}-\d{2}$/.test(fromParam ?? "") ? fromParam! : addDaysKey(toKey, -(DEFAULT_RANGE_DAYS - 1));
+// al inicio del día siguiente para no perder los mensajes de la última noche.
+// Los días se cortan en la zona horaria de la organización (Organization.timezone).
+export function parseReportRange(fromParam?: string, toParam?: string, timeZone: string = DEFAULT_TZ): ParsedRange {
+  const tz = safeTimeZone(timeZone, DEFAULT_TZ);
+  const startOf = (key: string) => zonedDayStart(key, tz);
+  const endOf = (key: string) => zonedDayStart(addDaysKey(key, 1), tz);
+  const isKey = (value?: string) => /^\d{4}-\d{2}-\d{2}$/.test(value ?? "");
 
-  let from = dateAtStart(fromKey);
-  let toExclusive = new Date(dateAtStart(toKey).getTime() + 24 * 60 * 60 * 1000);
+  const today = zonedDayKey(new Date(), tz);
+  let toKey = isKey(toParam) ? toParam! : today;
+  let fromKey = isKey(fromParam) ? fromParam! : addDaysKey(toKey, -(DEFAULT_RANGE_DAYS - 1));
+
+  let from = startOf(fromKey);
+  let toExclusive = endOf(toKey);
 
   if (Number.isNaN(from.getTime()) || Number.isNaN(toExclusive.getTime()) || from >= toExclusive) {
     toKey = today;
     fromKey = addDaysKey(today, -(DEFAULT_RANGE_DAYS - 1));
-    from = dateAtStart(fromKey);
-    toExclusive = new Date(dateAtStart(toKey).getTime() + 24 * 60 * 60 * 1000);
+    from = startOf(fromKey);
+    toExclusive = endOf(toKey);
   }
 
-  const maxFrom = dateAtStart(addDaysKey(toKey, -(MAX_RANGE_DAYS - 1)));
+  const maxFrom = startOf(addDaysKey(toKey, -(MAX_RANGE_DAYS - 1)));
   if (from < maxFrom) {
     fromKey = addDaysKey(toKey, -(MAX_RANGE_DAYS - 1));
-    from = dateAtStart(fromKey);
+    from = startOf(fromKey);
   }
 
   return { from, to: toExclusive, fromKey, toKey };

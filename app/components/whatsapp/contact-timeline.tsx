@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { RelativeTime } from "@/app/components/ui/relative-time";
 import type { ElementType } from "react";
 import {
   CalendarClock,
@@ -105,7 +106,7 @@ export function ContactTimeline({ contactId, refreshKey = 0 }: { contactId: stri
                   <p className="text-xs font-medium text-foreground">{item.title}</p>
                   {item.body && <p className="mt-0.5 whitespace-pre-wrap text-[11px] text-muted">{item.body}</p>}
                   <p className="mt-0.5 text-[10px] text-muted-darker">
-                    {new Date(item.createdAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                    <RelativeTime value={item.createdAt} />
                     {item.actor?.name ? ` · ${item.actor.name}` : ""}
                   </p>
                 </div>

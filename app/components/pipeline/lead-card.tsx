@@ -7,6 +7,7 @@ import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
+import { RelativeTime } from "@/app/components/ui/relative-time";
 import type { LeadStatus } from "@prisma/client";
 
 export interface LeadCardData {
@@ -24,16 +25,6 @@ export interface LeadCardData {
 }
 
 export type StageOption = { id: string; name: string };
-
-function formatTime(ts: string | null): string {
-  if (!ts) return "—";
-  const diffMs = Date.now() - new Date(ts).getTime();
-  const diffH = Math.floor(diffMs / 3600000);
-  if (diffH < 1) return `Hace ${Math.floor(diffMs / 60000)}m`;
-  if (diffH < 24) return `Hace ${diffH}h`;
-  const d = Math.floor(diffH / 24);
-  return `Hace ${d}d`;
-}
 
 function scoreTone(score: number): "danger" | "warning" | "success" {
   if (score < 40) return "danger";
@@ -109,7 +100,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
             </span>
             <span className="text-muted">·</span>
             <Clock size={10} className="shrink-0" />
-            <span>{formatTime(data.lastMessageAt)}</span>
+            {data.lastMessageAt ? <RelativeTime value={data.lastMessageAt} /> : <span>—</span>}
           </div>
 
           {data.tags.length > 0 && (
