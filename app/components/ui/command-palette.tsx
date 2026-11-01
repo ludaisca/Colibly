@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { assignChatToMe, oneHourFromNow, resolveChat, setChatPriority, snoozeChat } from "@/lib/inbox/actions";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -262,7 +263,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
   function selectChat(chat: ChatHit) {
     rememberRecent({
       key: `chat:${chat.id}`,
-      label: chat.name ?? chat.remoteJid,
+      label: displayName(chat.name, chat.remoteJid),
       subtitle: chat.remoteJid,
       href: `/whatsapp/chat/${chat.accountId}/${chat.id}`,
     });
@@ -281,7 +282,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
       : `/whatsapp/contactos?search=${encodeURIComponent(contact.remoteJid)}`;
     rememberRecent({
       key: `contact:${contact.id}`,
-      label: contact.name ?? contact.remoteJid,
+      label: displayName(contact.name, contact.remoteJid),
       subtitle: contact.remoteJid,
       href,
     });
@@ -388,7 +389,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
                 <Command.Item key={chat.id} value={`chat:${chat.id}`} onSelect={() => selectChat(chat)}>
                   <MessageSquare size={16} className="shrink-0 text-muted" />
                   <span className="colibly-command-result">
-                    <span className="truncate">{chat.name ?? chat.remoteJid}</span>
+                    <span className="truncate">{displayName(chat.name, chat.remoteJid)}</span>
                     <span className="colibly-command-meta">{chat.remoteJid}</span>
                   </span>
                 </Command.Item>
@@ -401,7 +402,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
                 <Command.Item key={contact.id} value={`contact:${contact.id}`} onSelect={() => selectContact(contact)}>
                   <Contact size={16} className="shrink-0 text-muted" />
                   <span className="colibly-command-result">
-                    <span className="truncate">{contact.name ?? contact.remoteJid}</span>
+                    <span className="truncate">{displayName(contact.name, contact.remoteJid)}</span>
                     <span className="colibly-command-meta">{contact.remoteJid}</span>
                   </span>
                 </Command.Item>

@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { GettingStarted } from "@/app/components/ui/getting-started";
 import { formatMxn } from "@/lib/money";
@@ -249,7 +250,7 @@ export default function ContactosPage() {
           renderRow={(contact) => {
             const badge = LEAD_STATUS_BADGE[contact.leadStatus] ?? { label: contact.leadStatus, tone: "neutral" as const };
             const account = accounts.find((a) => a.id === contact.accountId);
-            const name = contact.name ?? contact.remoteJid;
+            const name = displayName(contact.name, contact.remoteJid);
             return (
               <EntityRow
                 leading={<EntityAvatar id={contact.accountId} name={name} size="sm" />}

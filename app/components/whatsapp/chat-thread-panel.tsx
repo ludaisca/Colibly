@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -510,12 +511,36 @@ export function ChatThreadPanel({
     return result;
   }, [messages]);
 
+  // Día flotante (como WhatsApp): los separadores de día se quedan en su
+  // lugar; mientras el usuario hace scroll aparece arriba el día visible y se
+  // desvanece ~1 s después. Antes el separador era sticky y quedaba encimado
+  // sobre las burbujas. Solo con scroll del usuario (rueda, toque, barra):
+  // el auto-scroll al abrir el chat o al llegar mensajes no lo muestra.
+  const [floatingDay, setFloatingDay] = useState<{ label: string; visible: boolean } | null>(null);
+  const userScrollAtRef = useRef(0);
+  const hideDayTimerRef = useRef<number | null>(null);
+  const markUserScroll = () => {
+    userScrollAtRef.current = Date.now();
+  };
+
   function handleScroll() {
     const el = messagesContainerRef.current;
     if (!el) return;
     const atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     atBottomRef.current = atEnd;
     setAtBottom((previous) => (previous === atEnd ? previous : atEnd));
+
+    if (Date.now() - userScrollAtRef.current > 400) return;
+    const top = el.getBoundingClientRect().top + 8;
+    let label: string | null = null;
+    for (const node of el.querySelectorAll<HTMLElement>("[data-day-label]")) {
+      if (node.getBoundingClientRect().top <= top) label = node.dataset.dayLabel ?? null;
+      else break;
+    }
+    if (!label) return;
+    setFloatingDay({ label, visible: true });
+    if (hideDayTimerRef.current) window.clearTimeout(hideDayTimerRef.current);
+    hideDayTimerRef.current = window.setTimeout(() => setFloatingDay((prev) => (prev ? { ...prev, visible: false } : prev)), 1100);
   }
 
   // Salto desde la búsqueda: cuando el mensaje ya está en el DOM se centra
@@ -571,7 +596,23 @@ export function ChatThreadPanel({
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={messagesContainerRef} onScroll={handleScroll} className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+        {floatingDay && (
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center">
+            <span
+              className={`rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm transition-opacity duration-300 ${floatingDay.visible ? "opacity-100" : "opacity-0"}`}
+            >
+              {floatingDay.label}
+            </span>
+          </div>
+        )}
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          onWheel={markUserScroll}
+          onTouchMove={markUserScroll}
+          onPointerDown={markUserScroll}
+          onKeyDown={markUserScroll}
+          className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           {loadingMessages ? (
             <ChatBubblesSkeleton className="h-full" />
           ) : messages.length === 0 ? (
@@ -588,9 +629,9 @@ export function ChatThreadPanel({
                 </div>
               )}
               {groups.map((group) => (
-                <div key={group.key}>
-                  <div className="sticky top-2 z-10 flex justify-center py-2">
-                    <span className="rounded-full border border-border bg-surface/95 px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm backdrop-blur-sm">
+                <div key={group.key} data-day-label={group.label}>
+                  <div className="flex justify-center py-2">
+                    <span className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm">
                       {group.label}
                     </span>
                   </div>
@@ -603,7 +644,7 @@ export function ChatThreadPanel({
                       animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                       transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} onJumpToMessage={jumpToMessage} />
+                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={displayName(selectedChat.name, selectedChat.remoteJid)} reduceMotion={!!shouldReduceMotion} onJumpToMessage={jumpToMessage} />
                     </motion.div>
                   ))}
                 </div>

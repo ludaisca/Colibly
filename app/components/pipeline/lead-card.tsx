@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName as chatDisplayName } from "@/lib/chats/display-name";
 import { useDraggable } from "@dnd-kit/core";
 import { labelText } from "@/lib/whatsapp/export-columns";
 import { GripVertical, Clock, CalendarClock } from "lucide-react";
@@ -65,7 +66,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
   onOpen?: (id: string) => void;
   onStageChange?: (id: string, stageId: string) => void;
 }) {
-  const displayName = data.name ?? data.remoteJid ?? "Desconocido";
+  const displayName = chatDisplayName(data.name, data.remoteJid);
   // "Atrasado" depende de la hora actual: solo después de hidratar.
   const now = useMinuteNow();
   const overdue = now !== null && !data.closed && !!data.expectedCloseAt && Date.parse(data.expectedCloseAt) < now - 86_400_000;
@@ -111,7 +112,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-darker">
             <Mark size={12} className="shrink-0" />
             <span className="truncate font-mono tabular-nums" title={data.remoteJid}>
-              {data.channel === "WHATSAPP" ? phoneShort : `${channelLabel} · ${data.remoteJid}`}
+              {data.channel === "WHATSAPP" ? phoneShort : data.channel === "WEBCHAT" ? channelLabel : `${channelLabel} · ${data.remoteJid}`}
             </span>
             <span className="text-muted">·</span>
             <Clock size={10} className="shrink-0" />

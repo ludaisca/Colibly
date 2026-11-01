@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { adjacentIndex, isTypingTarget, matchInboxShortcut, shouldHandleShortcut, type InboxShortcutAction } from "@/lib/inbox/shortcuts";
 import { assignChatToMe, oneHourFromNow, snoozeChat } from "@/lib/inbox/actions";
 import { ShortcutsModal } from "./shortcuts-modal";
@@ -1412,7 +1413,7 @@ export function ChatWorkspace({
               onSubmit={handleSend}
               onSendSticker={sendSticker}
               replyTo={replyTo}
-              leadName={selectedChat.name || selectedChat.remoteJid}
+              leadName={displayName(selectedChat.name, selectedChat.remoteJid)}
               onCancelReply={() => setReplyTo(null)}
               attachment={attachment}
               attachmentPreview={attachmentPreview}

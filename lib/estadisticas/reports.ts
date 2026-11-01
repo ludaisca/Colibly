@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/chats/display-name";
 import type { Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
@@ -215,7 +216,7 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
     const wa = "remoteJid" in chat;
     return {
       id: chat.id,
-      contactName: chat.contact?.name ?? (wa ? chat.remoteJid : chat.externalId),
+      contactName: displayName(chat.contact?.name, wa ? chat.remoteJid : chat.externalId),
       remoteJid: wa ? chat.remoteJid : chat.externalId,
       status: chat.status,
       createdAt: chat.createdAt.toISOString(),

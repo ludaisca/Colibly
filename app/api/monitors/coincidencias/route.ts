@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/chats/display-name";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { publicErrorMessage } from "@/lib/api-errors";
@@ -24,7 +25,7 @@ export async function GET(req: Request) {
     ]);
     const names = new Map<string, string>([
       ...waChats.map((c) => [c.id, c.name ?? c.remoteJid] as [string, string]),
-      ...conversations.map((c) => [c.id, c.name ?? c.externalId] as [string, string]),
+      ...conversations.map((c) => [c.id, displayName(c.name, c.externalId)] as [string, string]),
     ]);
     return NextResponse.json(
       matches.map(({ monitor, ...match }) => ({

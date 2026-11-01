@@ -65,7 +65,8 @@ export interface OutboundOpts {
   /**
    * ¿Este envío contesta al cliente? (default true). Los avisos automáticos
    * —fuera de horario, auto-resolver— pasan false para que el chat siga en
-   * "Esperando respuesta". Ver lib/chats/waiting.ts.
+   * "Esperando respuesta". Ver lib/chats/waiting.ts. Tampoco cambian la
+   * vista previa (`lastMessage`) ni `lastMessageAt` del chat.
    */
   countsAsReply?: boolean;
 }
@@ -194,10 +195,15 @@ async function sendWhatsapp(
     },
     select: { id: true },
   });
-  await prisma.wAChat.update({
-    where: { id: chat.id },
-    data: { lastMessage: body.slice(0, 500), lastMessageAt: now },
-  });
+  // Un aviso automático (countsAsReply: false: fuera de horario, auto-resolver)
+  // no pisa la vista previa ni la hora del chat: la bandeja sigue mostrando lo
+  // último que dijo el cliente, y el aviso tampoco reinicia la inactividad.
+  if (opts.countsAsReply !== false) {
+    await prisma.wAChat.update({
+      where: { id: chat.id },
+      data: { lastMessage: body.slice(0, 500), lastMessageAt: now },
+    });
+  }
   await prisma.wAAccount.update({ where: { id: chat.accountId }, data: { lastActivity: now } });
   if (opts.countsAsReply !== false) await markReplied("whatsapp", chat.id);
 
@@ -284,10 +290,12 @@ async function sendChannel(
     },
     select: { id: true },
   });
-  await prisma.conversation.update({
-    where: { id: conversation.id },
-    data: { lastMessage: text.slice(0, 500), lastMessageAt: now },
-  });
+  if (opts.countsAsReply !== false) {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessage: text.slice(0, 500), lastMessageAt: now },
+    });
+  }
   await prisma.channelAccount.update({ where: { id: channelAccount.id }, data: { lastActivity: now } });
   if (opts.countsAsReply !== false) await markReplied("channel", conversation.id);
 

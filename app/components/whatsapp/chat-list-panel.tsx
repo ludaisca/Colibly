@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName, isWebchatVisitorId } from "@/lib/chats/display-name";
 import type { ElementType, ReactNode } from "react";
 import { GettingStarted } from "@/app/components/ui/getting-started";
 import { Search, MessageSquare, Inbox, Flag, Clock, ListChecks, UserCheck, Check, X } from "lucide-react";
@@ -161,7 +162,7 @@ export function ChatListPanel({
   // debajo; el texto sigue pasando por la búsqueda paginada del servidor.
   const suggestions = Object.values(groupedChats).flat().slice(0, 8).map((chat) => ({
     value: chat.id,
-    label: `${chat.name ?? chat.remoteJid} ${chat.remoteJid}`,
+    label: `${displayName(chat.name, chat.remoteJid)} ${chat.remoteJid}`,
     chat,
   }));
 
@@ -216,8 +217,8 @@ export function ChatListPanel({
                 <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">
                   <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
                   <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
-                    <span className="truncate font-medium">{item.chat.name ?? item.chat.remoteJid}</span>
-                    <span className="truncate text-[11px] text-muted">{item.chat.account.name} · {item.chat.remoteJid}</span>
+                    <span className="truncate font-medium">{displayName(item.chat.name, item.chat.remoteJid)}</span>
+                    <span className="truncate text-[11px] text-muted">{item.chat.account.name}{isWebchatVisitorId(item.chat.remoteJid) ? "" : ` · ${item.chat.remoteJid}`}</span>
                   </Combobox.Item>}</Combobox.List>
                 </Combobox.Popup>
               </Combobox.Positioner></Combobox.Portal>
@@ -331,7 +332,7 @@ export function ChatListPanel({
                         type="checkbox"
                         checked={selectedChatIds.has(chat.id)}
                         onChange={() => onToggleSelect(chat.id)}
-                        aria-label={`Seleccionar ${chat.name ?? chat.remoteJid}`}
+                        aria-label={`Seleccionar ${displayName(chat.name, chat.remoteJid)}`}
                         className="absolute left-3 top-4 z-10 h-4 w-4 cursor-pointer rounded border-border accent-[var(--accent)]"
                       />
                     )}
@@ -348,14 +349,14 @@ export function ChatListPanel({
                     <div className="flex items-start justify-between gap-2">
                       <ChannelAvatar
                         id={chat.accountId}
-                        name={chat.name ?? chat.remoteJid}
+                        name={displayName(chat.name, chat.remoteJid)}
                         channel={chat.channel}
                         size="sm"
                         className="mt-0.5"
                       />
                       <div className="min-w-0 flex-1">
                         <p className={`truncate text-[13px] ${chat.unreadCount > 0 ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
-                          {chat.name ?? chat.remoteJid}
+                          {displayName(chat.name, chat.remoteJid)}
                         </p>
                         <p className={`mt-0.5 truncate text-[11px] ${chat.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-darker"}`}>
                           {displayMessageText(chat.lastMessage) ?? "Sin mensajes"}

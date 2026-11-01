@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/chats/display-name";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { escapeLikePattern, messageSnippet } from "./message-rules";
@@ -89,6 +90,6 @@ export async function searchMessages(
       direction: row.direction,
       snippet: messageSnippet([row.body, row.caption, row.transcript], query),
       timestamp: row.timestamp.toISOString(),
-      chatName: row.contact_name || row.chat_name || row.handle,
+      chatName: displayName(row.contact_name || row.chat_name, row.handle),
     }));
 }

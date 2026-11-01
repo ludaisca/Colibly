@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/chats/display-name";
 import { ContactLimitNotice } from "@/app/components/billing/contact-usage";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -106,14 +107,14 @@ export default async function DashboardPage() {
   const chats = recentChats.map((c) => ({
     id: c.id,
     accountId: c.accountId,
-    name: c.name ?? c.remoteJid ?? "Desconocido",
+    name: displayName(c.name, c.remoteJid),
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
     accountName: c.account?.name ?? "—",
   })).concat(recentChannelChats.map((c) => ({
     id: c.id,
     accountId: c.channelAccountId,
-    name: c.name ?? c.externalId ?? "Desconocido",
+    name: displayName(c.name, c.externalId),
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
     accountName: c.channelAccount.name,

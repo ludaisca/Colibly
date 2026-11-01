@@ -102,7 +102,7 @@ Two parallel stacks (adapter layer, not a migration — the `WA*` tables hold pr
 
 ## CRM and inbox (detail: `crm.md`, `bandeja.md`)
 
-- `Contact` is shared by both stacks (`accountId` XOR `channelAccountId`): scope contact queries with both. A name never regresses to a phone-number fallback (`isFallbackName()`).
+- `Contact` is shared by both stacks (`accountId` XOR `channelAccountId`): scope contact queries with both. A name never regresses to a phone-number fallback (`isFallbackName()`). Show chat/contact names with `lib/chats/display-name.ts:displayName()` (turns web-widget visitor ids into "Visitante web · XXXX").
 - Assignment candidates come from `lib/chat-assignees.ts` (`getEligibleAssignees` / `getEligibleChannelAssignees`); never trust a client-sent `assignedToId` or `tagId` without that check / `tagBelongsTo()`. Tags are per account.
 - Automatic assignment also passes candidates through `lib/users/availability.ts:assignableCandidateIds()` (the account's "solo en línea" switch); a new auto-assign path must do the same.
 - `WALeadScore` is keyed by `(chatId, scorerId)`; scoring logic lives only in `scoreChatWithScorer()`. Scheduled scoring stays Telegram-only on the channel side.

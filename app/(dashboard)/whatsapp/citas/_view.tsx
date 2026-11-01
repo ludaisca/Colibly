@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { RefreshCw, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, List, Plus, X } from "lucide-react";
@@ -41,7 +42,7 @@ const SCOPE_OPTIONS = [
 ];
 
 function contactLabelOf(c: { name: string | null; realName: string | null; remoteJid: string }): string {
-  return c.realName ?? c.name ?? c.remoteJid;
+  return c.realName ?? displayName(c.name, c.remoteJid);
 }
 
 function startOfDay(d: Date): Date {

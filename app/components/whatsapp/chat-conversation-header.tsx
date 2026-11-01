@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useId, useState } from "react";
 import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
@@ -47,7 +48,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
   const detailsId = useId();
   const channel = CHANNELS[chat.channel];
   const ChannelIcon = CHANNEL_ICONS[chat.channel];
-  const name = chat.name || chat.remoteJid;
+  const name = displayName(chat.name, chat.remoteJid);
   const resolved = chat.status === "RESOLVED";
   // "Telegram · Telegram" se leía como un error: el segundo valor es el nombre
   // de la cuenta, que suele repetir el canal. Solo se muestra si aporta algo.
