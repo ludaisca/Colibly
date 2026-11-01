@@ -49,6 +49,9 @@ export interface RangeReport {
     messages: number;
     avgFirstResponseMinutes: number | null;
     avgResolutionMinutes: number | null;
+    csatSent: number;
+    csatResponses: number;
+    csatAvg: number | null;
   };
   agents: AgentReport[];
   channels: ChannelReport[];
@@ -157,6 +160,7 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
     unassignedChannel,
     messagesWA,
     messagesChannel,
+    csat,
   ] = await Promise.all([
     prisma.wAChat.findMany({
       where: { accountId: { in: accountIds }, ...createdWhere },
@@ -184,6 +188,11 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
     prisma.conversation.count({ where: { channelAccountId: { in: channelAccountIds }, status: { in: ["OPEN", "PENDING"] }, assignedToId: null } }),
     prisma.wAMessage.count({ where: { createdAt: { gte: range.from, lt: range.to }, chat: { accountId: { in: accountIds } } } }),
     prisma.channelMessage.count({ where: { createdAt: { gte: range.from, lt: range.to }, conversation: { channelAccountId: { in: channelAccountIds } } } }),
+    prisma.csatResponse.aggregate({
+      where: { accountId: { in: accountIds }, createdAt: { gte: range.from, lt: range.to } },
+      _avg: { rating: true },
+      _count: { _all: true, rating: true },
+    }),
   ]);
 
   type WA = (typeof createdWA)[number];
@@ -317,6 +326,9 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       messages: messagesWA + messagesChannel,
       avgFirstResponseMinutes: avg(responseTimes),
       avgResolutionMinutes: avg(resolutionTimes),
+      csatSent: csat._count._all,
+      csatResponses: csat._count.rating,
+      csatAvg: csat._avg.rating == null ? null : Math.round(csat._avg.rating * 10) / 10,
     },
     agents: agentReports,
     channels,

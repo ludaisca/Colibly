@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Search, RefreshCw, Contact as ContactIcon } from "lucide-react";
+import { Search, RefreshCw, Upload, Contact as ContactIcon } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { FiltersPanel, type FilterFieldDef } from "@/app/components/ui/filters-panel";
 import { Badge } from "@/app/components/ui/badge";
@@ -13,6 +13,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
+import { ContactImportModal } from "@/app/components/whatsapp/contact-import-modal";
 import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
 
 const PAGE_SIZE = 25;
@@ -21,6 +22,7 @@ interface AccountOption {
   id: string;
   name: string;
   phoneNumber: string | null;
+  channel?: string;
 }
 
 interface ContactRow {
@@ -60,6 +62,7 @@ export default function ContactosPage() {
   const [leadStatusFilter, setLeadStatusFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const requestId = useRef(0);
@@ -114,6 +117,7 @@ export default function ContactosPage() {
   const fetchAccounts = useCallback(async () => {
     try {
       const endpoints = ["whatsapp", "telegram", "messenger", "instagram", "webchat"];
+      const channelNames = ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"];
       const results = await Promise.all(endpoints.map(async (channel) => {
         const res = await fetch(`/api/${channel}/accounts`);
         if (!res.ok) throw new Error("Error al cargar cuentas");
@@ -121,8 +125,8 @@ export default function ContactosPage() {
         if (!Array.isArray(data)) throw new Error("Respuesta inválida de cuentas");
         return data as Array<{ id: string; name: string; phoneNumber?: string | null }>;
       }));
-      setAccounts(results.flatMap((rows) => rows.map((a) => ({
-        id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null,
+      setAccounts(results.flatMap((rows, index) => rows.map((a) => ({
+        id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null, channel: channelNames[index],
       }))));
     } catch {
       toastError("Error al cargar cuentas");
@@ -147,6 +151,9 @@ export default function ContactosPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <ContactUsageMeter usage={contactUsage} />
+            <Button variant="secondary" size="md" icon={Upload} onClick={() => setImportOpen(true)}>
+              Importar CSV
+            </Button>
             <Button variant="secondary" size="md" icon={RefreshCw} onClick={fetchContacts}>
               Actualizar
             </Button>
@@ -283,6 +290,13 @@ export default function ContactosPage() {
           onUpdated={fetchContacts}
         />
       )}
+
+      <ContactImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        accounts={accounts}
+        onImported={fetchContacts}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { resolveChatChannel } from "@/lib/chat-resolver";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
+import { maybeSendCsat } from "@/lib/csat/send-survey";
 
 const VALID_STATUSES = ["OPEN", "PENDING", "RESOLVED"] as const;
 
@@ -56,7 +57,12 @@ export async function PATCH(
       },
       select: { id: true, status: true, resolvedAt: true },
     });
-    if (willBeResolved && !wasResolved) await emitResolved(chatId);
+    if (willBeResolved && !wasResolved) {
+      await emitResolved(chatId);
+      // La encuesta es best-effort: resolver el chat nunca debe fallar por un
+      // envío de WhatsApp que Meta rechace.
+      await maybeSendCsat(chatId).catch((error) => console.error("[csat] no se pudo enviar la encuesta", error));
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

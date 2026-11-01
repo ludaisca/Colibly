@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Send, Trash2, Users } from "lucide-react";
+import { Download, Send, Trash2, Users } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -12,9 +12,11 @@ import { Pagination } from "@/app/components/ui/pagination";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
 import { SectionHeader } from "@/app/components/ui/section-header";
+import { Select } from "@/app/components/ui/select";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { useToast } from "@/app/components/ui/toast";
+import { downloadCsv, toCsv } from "@/lib/csv";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "info" | "danger" | "neutral" }> = {
   DRAFT: { label: "Borrador", tone: "neutral" },
@@ -70,6 +72,9 @@ export default function CampaignDetailPage() {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [filteredTotal, setFilteredTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -79,13 +84,14 @@ export default function CampaignDetailPage() {
   const fetchCampaign = useCallback(async (p = 1, opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
-      const res = await fetch(`/api/whatsapp/campaigns/${id}?page=${p}&limit=50`);
+      const res = await fetch(`/api/whatsapp/campaigns/${id}?page=${p}&limit=50${statusFilter ? `&status=${statusFilter}` : ""}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo cargar la campaña");
       const { recipients: recips, recipientsPagination, ...camp } = data;
       setCampaign(camp);
       setRecipients(recips || []);
       setTotalPages(recipientsPagination?.totalPages || 1);
+      setFilteredTotal(recipientsPagination?.total ?? 0);
       setLoadError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al cargar la campaña";
@@ -94,7 +100,7 @@ export default function CampaignDetailPage() {
     } finally {
       if (!opts?.silent) setLoading(false);
     }
-  }, [id, toastError]);
+  }, [id, statusFilter, toastError]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/page-change; fetchCampaign also used for manual refresh
   useEffect(() => { fetchCampaign(page); }, [fetchCampaign, page]);
@@ -144,6 +150,41 @@ export default function CampaignDetailPage() {
     }
   }
 
+  async function exportRecipients() {
+    setExporting(true);
+    try {
+      const all: Recipient[] = [];
+      let current = 1;
+      let pages = 1;
+      do {
+        const res = await fetch(`/api/whatsapp/campaigns/${id}?page=${current}&limit=100${statusFilter ? `&status=${statusFilter}` : ""}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "No se pudo exportar");
+        all.push(...(data.recipients ?? []));
+        pages = data.recipientsPagination?.totalPages ?? 1;
+        current++;
+      } while (current <= pages);
+
+      const csv = toCsv(
+        ["Numero", "Nombre", "Estado", "Error", "Enviado", "Entregado", "Leido"],
+        all.map((r) => [
+          r.phoneNumber,
+          r.contactName ?? "",
+          r.status,
+          r.errorMessage ?? "",
+          r.sentAt ?? "",
+          r.deliveredAt ?? "",
+          r.readAt ?? "",
+        ])
+      );
+      downloadCsv(`campana-${id}${statusFilter ? `-${statusFilter.toLowerCase()}` : ""}.csv`, csv);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo exportar");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const recipientColumns: TableColumn<Recipient>[] = useMemo(() => [
     { key: "phoneNumber", header: "Número", render: (r) => <span className="font-mono text-xs">{r.phoneNumber}</span> },
     { key: "contactName", header: "Nombre", render: (r) => <span className="text-xs">{r.contactName || "—"}</span>, hideBelow: "sm" },
@@ -170,6 +211,9 @@ export default function CampaignDetailPage() {
   const statusBadge = STATUS_BADGE[campaign.status] ?? { label: campaign.status, tone: "neutral" as const };
   const progress = campaign.recipientCount > 0
     ? Math.round(((campaign.sentCount) / campaign.recipientCount) * 100) : 0;
+  const attempted = campaign.sentCount + campaign.deliveredCount + campaign.readCount + campaign.failedCount;
+  const deliveryRate = attempted > 0 ? Math.round(((campaign.deliveredCount + campaign.readCount) / attempted) * 1000) / 10 : null;
+  const readRate = attempted > 0 ? Math.round((campaign.readCount / attempted) * 1000) / 10 : null;
 
   return (
     <DetailPage
@@ -198,6 +242,8 @@ export default function CampaignDetailPage() {
             { label: "Enviados", value: String(campaign.sentCount) },
             { label: "Entregados", value: String(campaign.deliveredCount) },
             { label: "Leídos", value: String(campaign.readCount) },
+            { label: "Entrega", value: deliveryRate == null ? "—" : `${deliveryRate}%` },
+            { label: "Lectura", value: readRate == null ? "—" : `${readRate}%` },
           ]}
         />
 
@@ -229,7 +275,32 @@ export default function CampaignDetailPage() {
         )}
 
         <section className="space-y-4">
-          <SectionHeader title={`Destinatarios (${campaign.recipientCount})`} />
+          <SectionHeader
+            title={`Destinatarios (${campaign.recipientCount})`}
+            action={
+              <Button variant="secondary" size="sm" icon={Download} onClick={() => void exportRecipients()} disabled={exporting || filteredTotal === 0}>
+                {exporting ? "Exportando…" : "Exportar CSV"}
+              </Button>
+            }
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted">
+              {filteredTotal} destinatario{filteredTotal === 1 ? "" : "s"}{statusFilter ? " con ese estado" : ""}
+            </p>
+            <Select
+              aria-label="Filtrar destinatarios por estado"
+              value={statusFilter}
+              onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }}
+              className="w-44"
+            >
+              <option value="">Todos los estados</option>
+              <option value="PENDING">Pendientes</option>
+              <option value="SENT">Enviados</option>
+              <option value="DELIVERED">Entregados</option>
+              <option value="READ">Leídos</option>
+              <option value="FAILED">Fallidos</option>
+            </Select>
+          </div>
           <Table
             className="rounded-xl border border-border bg-surface p-4 shadow-sm"
             columns={recipientColumns}

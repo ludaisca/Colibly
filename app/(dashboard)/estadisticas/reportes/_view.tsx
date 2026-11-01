@@ -133,6 +133,11 @@ export function ReportsView({ data, fromKey, toKey }: { data: RangeReport; fromK
     { label: "1ª respuesta", value: formatMinutes(data.totals.avgFirstResponseMinutes) },
     { label: "Resolución", value: formatMinutes(data.totals.avgResolutionMinutes) },
     { label: "Sin asignar", value: String(data.totals.unassigned), hint: `${data.totals.open} abiertos` },
+    {
+      label: "CSAT",
+      value: data.totals.csatAvg == null ? "—" : `${data.totals.csatAvg}/5`,
+      hint: `${data.totals.csatResponses}/${data.totals.csatSent} respuestas`,
+    },
   ];
 
   function exportAgents() {

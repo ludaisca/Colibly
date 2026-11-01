@@ -43,6 +43,7 @@ export async function GET(
         errorMessage: true,
         lastActivity: true,
         autoAssignEnabled: true,
+        csatEnabled: true,
         qualityRating: true,
         messagingTier: true,
         qualityUpdatedAt: true,
@@ -133,6 +134,9 @@ export async function PATCH(
     if (typeof body?.autoAssignEnabled === "boolean") {
       data.autoAssignEnabled = body.autoAssignEnabled;
     }
+    if (typeof body?.csatEnabled === "boolean") {
+      data.csatEnabled = body.csatEnabled;
+    }
 
     if (accessToken) {
       if (existing.channel !== "META_CLOUD" || !existing.phoneNumberId) {
@@ -168,6 +172,7 @@ export async function PATCH(
         errorMessage: true,
         lastActivity: true,
         autoAssignEnabled: true,
+        csatEnabled: true,
         appSecret: true,
         connectionType: true,
         createdAt: true,

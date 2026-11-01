@@ -50,15 +50,20 @@ export async function GET(
     const page = Number(searchParams.get("page")) || 1;
     const limit = Math.min(Number(searchParams.get("limit")) || 50, 100);
     const skip = (page - 1) * limit;
+    const statusParam = searchParams.get("status");
+    const status = statusParam && ["PENDING", "SENT", "DELIVERED", "READ", "FAILED"].includes(statusParam)
+      ? statusParam as "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED"
+      : undefined;
+    const where = { campaignId: id, ...(status ? { status } : {}) };
 
     const [recipients, totalRecipients] = await Promise.all([
       prisma.wACampaignRecipient.findMany({
-        where: { campaignId: id },
+        where,
         orderBy: { phoneNumber: "asc" },
         skip,
         take: limit,
       }),
-      prisma.wACampaignRecipient.count({ where: { campaignId: id } }),
+      prisma.wACampaignRecipient.count({ where }),
     ]);
 
     return NextResponse.json({
