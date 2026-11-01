@@ -117,7 +117,8 @@ export function ChatViewsMenu({
   return (
     <>
       <Dropdown
-        align="right"
+        align="left"
+        portal
         trigger={
           <button
             type="button"

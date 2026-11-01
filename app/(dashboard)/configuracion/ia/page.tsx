@@ -183,7 +183,7 @@ export default function IASettingsPage() {
           autoResolveTagName: autoResolveTag.trim() || null,
           autoResolveSkipWaiting,
         },
-        "Bandeja guardada"
+        "Auto-resolver guardado"
       );
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al guardar");
@@ -390,7 +390,7 @@ export default function IASettingsPage() {
         )}
 
         <Button size="sm" variant="secondary" icon={Save} loading={savingAutoResolve} onClick={handleSaveAutoResolve}>
-          Guardar bandeja
+          Guardar auto-resolver
         </Button>
       </Card>
     </DetailPage>
