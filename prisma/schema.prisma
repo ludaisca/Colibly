@@ -475,6 +475,8 @@ model Conversation {
   // Fecha futura = pospuesto. El chat sigue en su estado (OPEN/PENDING) y
   // vuelve a la bandeja activa solo; un inbound lo despierta antes.
   snoozedUntil     DateTime?      @map("snoozed_until")
+  // Ver WAChat.waitingSince.
+  waitingSince     DateTime?      @map("waiting_since")
   assignedToId     String?
   assignedTo       User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   resolvedAt       DateTime?
@@ -492,6 +494,7 @@ model Conversation {
   @@index([channelAccountId, lastMessageAt])
   @@index([channelAccountId, status, priority])
   @@index([channelAccountId, snoozedUntil])
+  @@index([channelAccountId, waitingSince])
   @@index([channelAccountId, createdAt])
   @@index([channelAccountId, resolvedAt])
   @@map("conversations")
@@ -557,6 +560,10 @@ model WAChat {
   status          ChatStatus   @default(OPEN)
   priority        ChatPriority @default(NORMAL)
   snoozedUntil    DateTime?    @map("snoozed_until")
+  // Desde cuándo el cliente espera respuesta (último mensaje entrante sin
+  // contestar). Lo pone el ingest y lo limpia la respuesta de una persona,
+  // del bot o de un flujo — nunca un aviso automático. lib/chats/waiting.ts.
+  waitingSince    DateTime?    @map("waiting_since")
   resolvedAt      DateTime?
   firstResponseAt DateTime?
   botResumedAt    DateTime?
@@ -578,6 +585,7 @@ model WAChat {
   @@index([accountId, status])
   @@index([accountId, status, priority])
   @@index([accountId, snoozedUntil])
+  @@index([accountId, waitingSince])
   @@index([accountId, createdAt])
   @@index([accountId, resolvedAt])
   @@map("wa_chats")

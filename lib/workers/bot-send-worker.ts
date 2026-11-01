@@ -53,6 +53,8 @@ export async function processBotSendJob(job: BotSendJob) {
       data: {
         lastMessage: job.chunk.slice(0, 500),
         lastMessageAt: now,
+        // Respuesta del bot (fragmento humanizado): ver lib/chats/waiting.ts.
+        waitingSince: null,
       },
     }),
   ]);
@@ -86,6 +88,8 @@ async function processChannelBotSendJob(job: BotSendJob) {
       data: {
         lastMessage: job.chunk.slice(0, 500),
         lastMessageAt: now,
+        // Respuesta del bot (fragmento humanizado): ver lib/chats/waiting.ts.
+        waitingSince: null,
       },
     }),
   ]);

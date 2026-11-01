@@ -109,6 +109,7 @@ Two parallel stacks (adapter layer, not a migration — the `WA*` tables hold pr
 - Pipelines: `lib/pipeline/stages.ts:leadStatusForStage()` is the only status↔stage mapping; outcome changes write `LeadOutcomeEvent`. Don't compute funnels from `leadStatus` alone.
 - Chat list filters live in `lib/chats/query.ts` (shared by both chat tables) — add new filters there. Callers must validate `accountId` against the user's accounts before passing it in.
 - Snooze is a field (`snoozedUntil`), not a `ChatStatus`; ingest clears it on any inbound. Saved views and drafts are per-browser `localStorage`.
+- **"Esperando respuesta" is `waitingSince`** on `WAChat`/`Conversation` (`lib/chats/waiting.ts`): both ingests call `markWaiting()`; a reply from a person, the bot or a conversational flow clears it (`markReplied()` or `waitingSince: null` in the same update), and so does resolving. Automatic notices (away message, auto-resolve, CSAT, campaigns, recovery) must **not** clear it — `sendOutbound(..., { countsAsReply: false })`. A new path that answers a customer must clear it; `lib/chats/__tests__/waiting.test.ts` guards the existing call sites.
 - `/whatsapp/chat`'s rail keeps its own dense structure — confirm with the user before restructuring it.
 - No websockets anywhere: polling is the pattern for anything live.
 

@@ -74,8 +74,14 @@ cmd_msg() {
   echo
 }
 
+ensure_session() {
+  # Reutiliza la cookie mientras la sesión siga viva (el login tiene rate limit).
+  if [ -f "$JAR" ] && curl -sf -b "$JAR" "$BASE/api/auth/session" | grep -q '"user"'; then return; fi
+  login
+}
+
 cmd_api() {
-  load; login
+  load; ensure_session
   local method="$1" path="$2" body="${3:-}"
   if [ -n "$body" ]; then
     curl -s -b "$JAR" -X "$method" "$BASE$path" -H 'content-type: application/json' -d "$body" -w "\n%{http_code}\n"
@@ -85,7 +91,7 @@ cmd_api() {
 }
 
 cmd_down() {
-  load; login
+  load; ensure_session
   curl -s -b "$JAR" -X DELETE "$BASE/api/organizacion" -H 'content-type: application/json' \
     -d "{\"confirmName\":\"QA Bandeja Org\",\"password\":\"$PASS\"}" -w " %{http_code}\n"
   rm -rf "$DIR"

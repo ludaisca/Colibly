@@ -395,6 +395,8 @@ async function handleBotMessage(job: BotMessageJob) {
           data: {
             lastMessage: replyText.slice(0, 500),
             lastMessageAt: now,
+            // El bot contestó: el cliente ya no espera (lib/chats/waiting.ts).
+            waitingSince: null,
           },
         }),
       ]);

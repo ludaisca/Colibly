@@ -81,6 +81,8 @@ export interface ChatItem {
   status: ChatStatus;
   priority: ChatPriority;
   snoozedUntil: string | null;
+  /** Desde cuándo el cliente espera respuesta (lib/chats/waiting.ts). */
+  waitingSince?: string | null;
   assignedToId: string | null;
   assignedTo: { id: string; name: string | null } | null;
   account: { id: string; name: string; phoneNumber: string | null; coexistence?: boolean; callingEnabled?: boolean };

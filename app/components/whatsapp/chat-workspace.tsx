@@ -62,6 +62,7 @@ interface ChatWorkspaceProps {
   initialAssigned?: "" | "me" | "unassigned";
   initialPriority?: ChatPriority | "";
   initialSnoozed?: "" | "only" | "all";
+  initialAwaiting?: boolean;
   initialSearch?: string;
   initialContactId?: string;
 }
@@ -75,6 +76,7 @@ export function ChatWorkspace({
   initialAssigned,
   initialPriority,
   initialSnoozed,
+  initialAwaiting,
   initialSearch,
   initialContactId,
 }: ChatWorkspaceProps) {
@@ -122,6 +124,8 @@ export function ChatWorkspace({
   const [assignedFilter, setAssignedFilter] = useState<"" | "me" | "unassigned">(initialAssigned || "");
   const [priorityFilter, setPriorityFilter] = useState<ChatPriority | "">(initialPriority || "");
   const [snoozedFilter, setSnoozedFilter] = useState<"" | "only" | "all">(initialSnoozed || "");
+  // "Esperando respuesta": el último mensaje es del cliente y nadie contestó.
+  const [awaitingFilter, setAwaitingFilter] = useState<boolean>(initialAwaiting ?? false);
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const accounts = initialAccounts;
   // Las cuentas llegan del servidor: un filtro de cuenta ya conoce su canal
@@ -216,10 +220,11 @@ export function ChatWorkspace({
     if (assignedFilter) params.set("assigned", assignedFilter);
     if (priorityFilter) params.set("priority", priorityFilter);
     if (snoozedFilter) params.set("snoozed", snoozedFilter);
+    if (awaitingFilter) params.set("awaiting", "1");
     if (accountFilter) params.set("accountId", accountFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
-  }, [campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, accountFilter, debouncedSearch]);
+  }, [campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, awaitingFilter, accountFilter, debouncedSearch]);
 
   // Mezcla las 4 fuentes en una sola página ordenada por lastMessageAt. No es
   // paginación combinada real a nivel de DB (cada fuente pagina por su cuenta
@@ -320,6 +325,7 @@ export function ChatWorkspace({
   const [prevInitialAssigned, setPrevInitialAssigned] = useState(initialAssigned);
   const [prevInitialPriority, setPrevInitialPriority] = useState(initialPriority);
   const [prevInitialSnoozed, setPrevInitialSnoozed] = useState(initialSnoozed);
+  const [prevInitialAwaiting, setPrevInitialAwaiting] = useState(initialAwaiting);
   const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
   const [prevInitialContactId, setPrevInitialContactId] = useState(initialContactId);
   if (initialChatId !== prevInitialChatId) {
@@ -350,6 +356,10 @@ export function ChatWorkspace({
     setPrevInitialSnoozed(initialSnoozed);
     setSnoozedFilter(initialSnoozed || "");
   }
+  if (initialAwaiting !== prevInitialAwaiting) {
+    setPrevInitialAwaiting(initialAwaiting);
+    setAwaitingFilter(initialAwaiting ?? false);
+  }
   if (initialSearch !== prevInitialSearch) {
     setPrevInitialSearch(initialSearch);
     setSearch(initialSearch || "");
@@ -372,9 +382,10 @@ export function ChatWorkspace({
     if (assignedFilter) params.set("assigned", assignedFilter);
     if (priorityFilter) params.set("priority", priorityFilter);
     if (snoozedFilter) params.set("snoozed", snoozedFilter);
+    if (awaitingFilter) params.set("awaiting", "1");
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
-  }, [accountFilter, campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, debouncedSearch]);
+  }, [accountFilter, campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, awaitingFilter, debouncedSearch]);
 
   // Sincroniza la URL sin navegar. `router.replace()` volvía a renderizar el
   // árbol del servidor y recargaba la conversación (por eso se había quitado y
@@ -1057,6 +1068,7 @@ export function ChatWorkspace({
     setPriorityFilter(priority === "LOW" || priority === "NORMAL" || priority === "HIGH" || priority === "URGENT" ? priority : "");
     const snoozed = params.get("snoozed");
     setSnoozedFilter(snoozed === "only" || snoozed === "all" ? snoozed : "");
+    setAwaitingFilter(params.get("awaiting") === "1");
     const q = params.get("search") ?? "";
     setSearch(q);
     setDebouncedSearch(q);
@@ -1093,6 +1105,8 @@ export function ChatWorkspace({
     if (assignedFilter === "me" && currentUserId && c.assignedToId !== currentUserId) return false;
     if (assignedFilter === "unassigned" && c.assignedToId) return false;
     if (priorityFilter && c.priority !== priorityFilter) return false;
+    // Igual que el snooze: el chat abierto no desaparece al contestarlo.
+    if (awaitingFilter && !c.waitingSince && c.id !== selectedChatId) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -1143,6 +1157,8 @@ export function ChatWorkspace({
         onPriorityFilterChange={setPriorityFilter}
         snoozedFilter={snoozedFilter}
         onSnoozedFilterChange={setSnoozedFilter}
+        awaitingFilter={awaitingFilter}
+        onAwaitingFilterChange={setAwaitingFilter}
         selectionMode={selectionMode}
         onToggleSelectionMode={toggleSelectionMode}
         selectedChatIds={selectedChatIds}

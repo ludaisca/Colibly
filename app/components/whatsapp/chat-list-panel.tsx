@@ -14,6 +14,7 @@ import { cn } from "@/app/components/ui/cn";
 import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./chat-filters-panel";
 import { ChatViewsMenu } from "./chat-views-menu";
 import { useNowMs } from "./use-now";
+import { WaitingBadge } from "./waiting-badge";
 import {
   displayMessageText,
   formatTime,
@@ -87,6 +88,8 @@ interface ChatListPanelProps {
   onPriorityFilterChange: (value: ChatPriority | "") => void;
   snoozedFilter: SnoozedFilter;
   onSnoozedFilterChange: (value: SnoozedFilter) => void;
+  awaitingFilter: boolean;
+  onAwaitingFilterChange: (value: boolean) => void;
 
   selectionMode: boolean;
   onToggleSelectionMode: () => void;
@@ -128,6 +131,8 @@ export function ChatListPanel({
   onPriorityFilterChange,
   snoozedFilter,
   onSnoozedFilterChange,
+  awaitingFilter,
+  onAwaitingFilterChange,
   selectionMode,
   onToggleSelectionMode,
   selectedChatIds,
@@ -244,6 +249,8 @@ export function ChatListPanel({
             onPriorityFilterChange={onPriorityFilterChange}
             snoozedFilter={snoozedFilter}
             onSnoozedFilterChange={onSnoozedFilterChange}
+            awaitingFilter={awaitingFilter}
+            onAwaitingFilterChange={onAwaitingFilterChange}
           />
         </div>
 
@@ -284,7 +291,7 @@ export function ChatListPanel({
               icon={MessageSquare}
               title={totalChatsLoaded === 0 ? "Sin chats" : "Sin resultados"}
               description={totalChatsLoaded === 0 ? "No tienes chats activos. Cuando recibas mensajes aparecerán aquí." : "No se encontraron chats con ese filtro."}
-              action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter) ? (
+              action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter) ? (
                 <Button variant="secondary" size="sm" onClick={() => {
                   onSearchChange("");
                   onCampaignFilterChange("");
@@ -292,6 +299,7 @@ export function ChatListPanel({
                   onAssignedFilterChange("");
                   onPriorityFilterChange("");
                   onSnoozedFilterChange("");
+                  onAwaitingFilterChange(false);
                   onAccountFilterChange("");
                 }}>Limpiar búsqueda y filtros</Button>
               ) : undefined}
@@ -383,6 +391,9 @@ export function ChatListPanel({
                           <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-accent text-on-accent text-[10px] font-bold">
                             {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
                           </span>
+                        )}
+                        {now > 0 && chat.waitingSince && chat.status !== "RESOLVED" && (
+                          <WaitingBadge since={chat.waitingSince} now={now} />
                         )}
                       </div>
                     </div>

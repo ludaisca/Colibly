@@ -17,6 +17,8 @@ export interface ChatListFilters {
   snoozed?: "only" | "all";
   campaignId?: string;
   hasReplied?: "yes" | "no";
+  /** Solo chats cuyo cliente espera respuesta (waitingSince) y no están resueltos. */
+  awaiting?: boolean;
 }
 
 const STATUSES = ["OPEN", "PENDING", "RESOLVED"];
@@ -49,12 +51,14 @@ export function parseChatListFilters(searchParams: URLSearchParams, userId: stri
     snoozed: snoozedParam === "only" || snoozedParam === "all" ? snoozedParam : undefined,
     campaignId: searchParams.get("campaignId") || undefined,
     hasReplied: repliedParam === "yes" || repliedParam === "no" ? repliedParam : undefined,
+    awaiting: searchParams.get("awaiting") === "1" || undefined,
   };
 }
 
 export function buildWaChatWhere(filters: ChatListFilters, accountIds: string[]): Prisma.WAChatWhereInput {
   const where: Prisma.WAChatWhereInput = {
-    accountId: filters.accountId ? filters.accountId : { in: accountIds },
+    // El caller ya valida accountId; aun así, uno ajeno nunca amplía el alcance.
+    accountId: filters.accountId ? (accountIds.includes(filters.accountId) ? filters.accountId : { in: [] }) : { in: accountIds },
   };
   if (filters.chatId) where.id = filters.chatId;
   if (filters.statuses.length > 0) where.status = { in: filters.statuses as Array<"OPEN" | "PENDING" | "RESOLVED"> };
@@ -78,6 +82,7 @@ export function buildWaChatWhere(filters: ChatListFilters, accountIds: string[])
       ? { snoozedUntil: { gt: new Date() } }
       : { OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: new Date() } }] });
   }
+  if (filters.awaiting) and.push({ waitingSince: { not: null }, status: { not: "RESOLVED" } });
   if (and.length > 0) where.AND = and;
 
   return where;
@@ -92,7 +97,10 @@ export function buildChannelChatWhere(
   if (filters.campaignId) return null;
 
   const where: Prisma.ConversationWhereInput = {
-    channelAccountId: filters.accountId ? filters.accountId : { in: channelAccountIds },
+    // El caller ya valida accountId; aun así, uno ajeno nunca amplía el alcance.
+    channelAccountId: filters.accountId
+      ? (channelAccountIds.includes(filters.accountId) ? filters.accountId : { in: [] })
+      : { in: channelAccountIds },
     channelAccount: { channel },
   };
   if (filters.chatId) where.id = filters.chatId;
@@ -116,6 +124,7 @@ export function buildChannelChatWhere(
       ? { snoozedUntil: { gt: new Date() } }
       : { OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: new Date() } }] });
   }
+  if (filters.awaiting) and.push({ waitingSince: { not: null }, status: { not: "RESOLVED" } });
   if (and.length > 0) where.AND = and;
 
   return where;
@@ -135,6 +144,7 @@ export const WA_CHAT_SELECT = {
   status: true,
   priority: true,
   snoozedUntil: true,
+  waitingSince: true,
   assignedToId: true,
   assignedTo: { select: { id: true, name: true } },
   createdAt: true,
@@ -158,6 +168,7 @@ export const CHANNEL_CHAT_SELECT = {
   status: true,
   priority: true,
   snoozedUntil: true,
+  waitingSince: true,
   assignedToId: true,
   assignedTo: { select: { id: true, name: true } },
   createdAt: true,
@@ -187,6 +198,7 @@ export function mapChannelChatRow(row: ChannelChatRow) {
     status: row.status,
     priority: row.priority,
     snoozedUntil: row.snoozedUntil,
+    waitingSince: row.waitingSince,
     assignedToId: row.assignedToId,
     assignedTo: row.assignedTo,
     createdAt: row.createdAt,

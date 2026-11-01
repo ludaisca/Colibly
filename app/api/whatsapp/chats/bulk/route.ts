@@ -98,12 +98,12 @@ export async function POST(req: Request) {
       const [waUpdated, channelUpdated] = await Promise.all([
         waIds.length
           ? action.status === "RESOLVED"
-            ? prisma.wAChat.updateMany({ where: { id: { in: waIds } }, data: { status: "RESOLVED", resolvedAt: now } })
+            ? prisma.wAChat.updateMany({ where: { id: { in: waIds } }, data: { status: "RESOLVED", resolvedAt: now, waitingSince: null } })
             : prisma.wAChat.updateMany({ where: { id: { in: waIds } }, data: { status: "OPEN", resolvedAt: null } })
           : { count: 0 },
         channelIds.length
           ? action.status === "RESOLVED"
-            ? prisma.conversation.updateMany({ where: { id: { in: channelIds } }, data: { status: "RESOLVED", resolvedAt: now } })
+            ? prisma.conversation.updateMany({ where: { id: { in: channelIds } }, data: { status: "RESOLVED", resolvedAt: now, waitingSince: null } })
             : prisma.conversation.updateMany({ where: { id: { in: channelIds } }, data: { status: "OPEN", resolvedAt: null } })
           : { count: 0 },
       ]);

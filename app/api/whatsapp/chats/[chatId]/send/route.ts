@@ -190,6 +190,8 @@ export async function POST(
       data: {
         lastMessage: textBody ?? caption ?? `[${type}]`,
         lastMessageAt: now,
+        // Respuesta de una persona: el cliente ya no espera (lib/chats/waiting.ts).
+        waitingSince: null,
         ...(isFirstResponse ? { firstResponseAt: now } : {}),
       },
     });
@@ -298,6 +300,8 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
     data: {
       lastMessage: lastMessagePreview.slice(0, 500),
       lastMessageAt: now,
+      // Respuesta de una persona: el cliente ya no espera (lib/chats/waiting.ts).
+      waitingSince: null,
       ...(isFirstResponse ? { firstResponseAt: now } : {}),
     },
   });
@@ -352,6 +356,8 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
     data: {
       lastMessage: parsed.data.body.slice(0, 500),
       lastMessageAt: now,
+      // Respuesta de una persona: el cliente ya no espera (lib/chats/waiting.ts).
+      waitingSince: null,
       ...(isFirstResponse ? { firstResponseAt: now } : {}),
     },
   });
@@ -463,6 +469,8 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
     data: {
       lastMessage: lastMessagePreview.slice(0, 500),
       lastMessageAt: now,
+      // Respuesta de una persona: el cliente ya no espera (lib/chats/waiting.ts).
+      waitingSince: null,
       ...(isFirstResponse ? { firstResponseAt: now } : {}),
     },
   });

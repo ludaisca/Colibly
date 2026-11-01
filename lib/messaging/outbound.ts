@@ -9,6 +9,7 @@ import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
 import { sendMetaChannelOptions, sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { emitDomainEvent } from "@/lib/events/emit";
+import { markReplied } from "@/lib/chats/waiting";
 import type { MessageSource } from "@/lib/events/types";
 import { assertOrgCanSend } from "@/lib/billing/gates";
 
@@ -58,6 +59,17 @@ export class OutboundError extends Error {
   }
 }
 
+export interface OutboundOpts {
+  source: MessageSource;
+  senderId?: string | null;
+  /**
+   * ¿Este envío contesta al cliente? (default true). Los avisos automáticos
+   * —fuera de horario, auto-resolver— pasan false para que el chat siga en
+   * "Esperando respuesta". Ver lib/chats/waiting.ts.
+   */
+  countsAsReply?: boolean;
+}
+
 export interface OutboundResult {
   messageId: string;
   externalId: string | null;
@@ -66,7 +78,7 @@ export interface OutboundResult {
 export async function sendOutbound(
   target: OutboundTarget,
   content: OutboundContent,
-  opts: { source: MessageSource; senderId?: string | null }
+  opts: OutboundOpts
 ): Promise<OutboundResult> {
   // Antes que la ventana de 24 h y que el widget web (que no pasa por ningún
   // emisor externo): en solo lectura no sale nada.
@@ -79,7 +91,7 @@ export async function sendOutbound(
 async function sendWhatsapp(
   chat: WAChat & { account: WAAccount },
   content: OutboundContent,
-  opts: { source: MessageSource; senderId?: string | null }
+  opts: OutboundOpts
 ): Promise<OutboundResult> {
   const now = new Date();
 
@@ -187,6 +199,7 @@ async function sendWhatsapp(
     data: { lastMessage: body.slice(0, 500), lastMessageAt: now },
   });
   await prisma.wAAccount.update({ where: { id: chat.accountId }, data: { lastActivity: now } });
+  if (opts.countsAsReply !== false) await markReplied("whatsapp", chat.id);
 
   await emitDomainEvent({
     type: "message.sent",
@@ -208,7 +221,7 @@ async function sendWhatsapp(
 async function sendChannel(
   conversation: Conversation & { channelAccount: ChannelAccount },
   content: OutboundContent,
-  opts: { source: MessageSource; senderId?: string | null }
+  opts: OutboundOpts
 ): Promise<OutboundResult> {
   const { channelAccount } = conversation;
   if (content.type === "template") {
@@ -276,6 +289,7 @@ async function sendChannel(
     data: { lastMessage: text.slice(0, 500), lastMessageAt: now },
   });
   await prisma.channelAccount.update({ where: { id: channelAccount.id }, data: { lastActivity: now } });
+  if (opts.countsAsReply !== false) await markReplied("channel", conversation.id);
 
   await emitDomainEvent({
     type: "message.sent",

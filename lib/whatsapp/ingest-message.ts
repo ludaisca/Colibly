@@ -8,6 +8,7 @@ import { addressBookNameFor, forgetAddressBookEntry, shouldApplyProfileName } fr
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
+import { markWaiting } from "@/lib/chats/waiting";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -187,6 +188,10 @@ export async function ingestInboundMessage(
     }
     throw err;
   }
+
+  // El cliente espera respuesta desde este mensaje (si ya esperaba, se
+  // conserva la marca más antigua). Ver lib/chats/waiting.ts.
+  await markWaiting("whatsapp", chat.id, msg.timestamp);
 
   // Media entrante de Meta llega solo como mediaId — los bytes se descargan async.
   if (msg.mediaId && !msg.localMediaPath && msg.type !== "text") {

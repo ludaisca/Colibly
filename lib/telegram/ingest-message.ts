@@ -7,6 +7,7 @@ import { autoAssignConversation } from "./auto-assign";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
+import { markWaiting } from "@/lib/chats/waiting";
 
 // Equivalente a lib/whatsapp/ingest-message.ts pero sobre las tablas
 // genéricas ChannelAccount/Conversation/ChannelMessage — mismos pasos
@@ -172,6 +173,9 @@ export async function ingestChannelMessage(
     }
     throw err;
   }
+
+  // Ver lib/chats/waiting.ts (mismo criterio que el ingest de WhatsApp).
+  await markWaiting("channel", conversation.id, msg.timestamp);
 
   if (msg.mediaId && msg.type !== "text") {
     await mediaDownloadQueue

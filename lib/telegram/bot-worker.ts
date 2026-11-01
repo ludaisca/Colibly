@@ -291,7 +291,8 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
         }),
         prisma.conversation.update({
           where: { id: conversationId },
-          data: { lastMessage: replyText.slice(0, 500), lastMessageAt: now },
+          // El bot contestó: el cliente ya no espera (lib/chats/waiting.ts).
+          data: { lastMessage: replyText.slice(0, 500), lastMessageAt: now, waitingSince: null },
         }),
       ]);
     }

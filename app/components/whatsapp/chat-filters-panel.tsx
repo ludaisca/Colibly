@@ -28,6 +28,8 @@ interface ChatFiltersPanelProps {
   onPriorityFilterChange: (value: ChatPriority | "") => void;
   snoozedFilter: SnoozedFilter;
   onSnoozedFilterChange: (value: SnoozedFilter) => void;
+  awaitingFilter: boolean;
+  onAwaitingFilterChange: (value: boolean) => void;
 }
 
 export function ChatFiltersPanel({
@@ -42,6 +44,8 @@ export function ChatFiltersPanel({
   onPriorityFilterChange,
   snoozedFilter,
   onSnoozedFilterChange,
+  awaitingFilter,
+  onAwaitingFilterChange,
 }: ChatFiltersPanelProps) {
   const fields: FilterFieldDef[] = [
     {
@@ -51,6 +55,14 @@ export function ChatFiltersPanel({
         { value: "", label: "Todos" },
         { value: "me", label: "Míos" },
         { value: "unassigned", label: "Sin asignar" },
+      ],
+    },
+    {
+      key: "awaiting",
+      label: "Respuesta",
+      options: [
+        { value: "", label: "Todas" },
+        { value: "1", label: "Esperando respuesta" },
       ],
     },
     {
@@ -89,6 +101,7 @@ export function ChatFiltersPanel({
         assigned: assignedFilter,
         priority: priorityFilter,
         snoozed: snoozedFilter,
+        awaiting: awaitingFilter ? "1" : "",
         campaign: campaignFilter,
         hasReplied: hasRepliedFilter,
       }}
@@ -96,6 +109,7 @@ export function ChatFiltersPanel({
         onAssignedFilterChange((v.assigned ?? "") as AssignedFilter);
         onPriorityFilterChange((v.priority ?? "") as ChatPriority | "");
         onSnoozedFilterChange((v.snoozed ?? "") as SnoozedFilter);
+        onAwaitingFilterChange(v.awaiting === "1");
         onCampaignFilterChange(v.campaign ?? "");
         onHasRepliedFilterChange((v.hasReplied ?? "") as "" | "yes" | "no");
       }}

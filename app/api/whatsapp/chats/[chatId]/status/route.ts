@@ -38,7 +38,12 @@ export async function PATCH(
       const willBeResolved = status === "RESOLVED";
       const updated = await prisma.conversation.update({
         where: { id: chatId },
-        data: { status, resolvedAt: willBeResolved ? new Date() : wasResolved && !willBeResolved ? null : undefined },
+        data: {
+          status,
+          resolvedAt: willBeResolved ? new Date() : wasResolved && !willBeResolved ? null : undefined,
+          // Un chat resuelto no espera respuesta (lib/chats/waiting.ts).
+          ...(willBeResolved ? { waitingSince: null } : {}),
+        },
         select: { id: true, status: true, resolvedAt: true },
       });
       if (willBeResolved && !wasResolved) await emitResolved(chatId);
@@ -54,6 +59,7 @@ export async function PATCH(
       data: {
         status,
         resolvedAt: willBeResolved ? new Date() : wasResolved && !willBeResolved ? null : undefined,
+        ...(willBeResolved ? { waitingSince: null } : {}),
       },
       select: { id: true, status: true, resolvedAt: true },
     });

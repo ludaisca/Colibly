@@ -29,6 +29,7 @@ export function ChatPageView({
       initialAssigned={assigned === "me" || assigned === "unassigned" ? assigned : ""}
       initialPriority={priority === "LOW" || priority === "NORMAL" || priority === "HIGH" || priority === "URGENT" ? priority : ""}
       initialSnoozed={snoozed === "only" || snoozed === "all" ? snoozed : ""}
+      initialAwaiting={searchParams.get("awaiting") === "1"}
       initialSearch={searchParams.get("search") ?? undefined}
       initialContactId={searchParams.get("contacto") ?? undefined}
     />

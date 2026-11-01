@@ -36,7 +36,11 @@ export async function runMacro(macro: { id: string; organizationId: string; acti
         const wasResolved = chat.status === "RESOLVED";
         await prisma.wAChat.update({
           where: { id: chatId },
-          data: { status: action.status, resolvedAt: action.status === "RESOLVED" ? new Date() : null },
+          data: {
+            status: action.status,
+            resolvedAt: action.status === "RESOLVED" ? new Date() : null,
+            ...(action.status === "RESOLVED" ? { waitingSince: null } : {}),
+          },
         });
         if (action.status === "RESOLVED" && !wasResolved) {
           const refs = await eventRefsForChat(chatId);
@@ -74,7 +78,11 @@ export async function runMacro(macro: { id: string; organizationId: string; acti
       const wasResolved = conversation.status === "RESOLVED";
       await prisma.conversation.update({
         where: { id: chatId },
-        data: { status: action.status, resolvedAt: action.status === "RESOLVED" ? new Date() : null },
+        data: {
+            status: action.status,
+            resolvedAt: action.status === "RESOLVED" ? new Date() : null,
+            ...(action.status === "RESOLVED" ? { waitingSince: null } : {}),
+          },
       });
       if (action.status === "RESOLVED" && !wasResolved) {
         const refs = await eventRefsForChat(chatId);
