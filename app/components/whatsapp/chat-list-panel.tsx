@@ -205,7 +205,7 @@ export function ChatListPanel({
               onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
               <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-[9px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
                 <Search size={16} className="shrink-0 text-muted-darker" />
-                <Combobox.Input aria-label="Buscar chat" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
+                <Combobox.Input data-inbox-search aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
               </Combobox.InputGroup>
               <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
                 <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">

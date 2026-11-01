@@ -1,5 +1,6 @@
 "use client";
 
+import { assignChatToMe, oneHourFromNow, resolveChat, setChatPriority, snoozeChat } from "@/lib/inbox/actions";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -56,6 +57,8 @@ interface PaletteAction {
   icon: ElementType;
   run: () => Promise<void> | void;
   success?: string;
+  /** Atajo de teclado equivalente (lib/inbox/shortcuts.ts), si existe. */
+  keys?: string;
 }
 
 const CHAT_ENDPOINTS = [
@@ -99,10 +102,6 @@ function rememberRecent(item: RecentItem) {
 function chatContext(pathname: string): { accountId: string; chatId: string } | null {
   const match = pathname.match(/^\/whatsapp\/chat\/([^/]+)\/([^/]+)/);
   return match ? { accountId: match[1], chatId: match[2] } : null;
-}
-
-function oneHourFromNow(): string {
-  return new Date(Date.now() + 60 * 60 * 1000).toISOString();
 }
 
 export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
@@ -192,56 +191,31 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
           label: "Asignarme este chat",
           icon: UserCheck,
           success: "Chat asignado",
-          run: async () => {
-            const res = await fetch(`/api/whatsapp/chats/${inChat.chatId}/assign`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ self: true }),
-            });
-            if (!res.ok) throw new Error("No se pudo asignar el chat");
-          },
+          keys: "Alt + A",
+          run: async () => { await assignChatToMe(inChat.chatId); },
         },
         {
           id: "chat-resolve",
           label: "Resolver este chat",
           icon: CheckCircle2,
           success: "Chat resuelto",
-          run: async () => {
-            const res = await fetch(`/api/whatsapp/chats/${inChat.chatId}/status`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "RESOLVED" }),
-            });
-            if (!res.ok) throw new Error("No se pudo resolver el chat");
-          },
+          keys: "Alt + E",
+          run: async () => { await resolveChat(inChat.chatId); },
         },
         {
           id: "chat-snooze",
           label: "Posponer este chat 1 hora",
           icon: Clock,
           success: "Chat pospuesto",
-          run: async () => {
-            const res = await fetch(`/api/whatsapp/chats/${inChat.chatId}/snooze`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ until: oneHourFromNow() }),
-            });
-            if (!res.ok) throw new Error("No se pudo posponer el chat");
-          },
+          keys: "Alt + S",
+          run: async () => { await snoozeChat(inChat.chatId, oneHourFromNow()); },
         },
         {
           id: "chat-priority-high",
           label: "Marcar prioridad alta",
           icon: Flag,
           success: "Prioridad actualizada",
-          run: async () => {
-            const res = await fetch(`/api/whatsapp/chats/${inChat.chatId}/priority`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ priority: "HIGH" }),
-            });
-            if (!res.ok) throw new Error("No se pudo cambiar la prioridad");
-          },
+          run: async () => { await setChatPriority(inChat.chatId, "HIGH"); },
         },
       );
     }
@@ -381,7 +355,12 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
                   {actionBusy === action.id
                     ? <Loader2 size={16} className="shrink-0 animate-spin text-muted" />
                     : <action.icon size={16} className="shrink-0 text-muted" />}
-                  <span>{action.label}</span>
+                  <span className="flex-1">{action.label}</span>
+                  {action.keys && (
+                    <kbd className="ml-auto shrink-0 rounded-md border border-border bg-surface-light px-1.5 py-0.5 text-[10px] font-medium text-muted-darker">
+                      {action.keys}
+                    </kbd>
+                  )}
                 </Command.Item>
               ))}
             </Command.Group>

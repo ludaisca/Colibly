@@ -70,3 +70,8 @@ These mirror equivalent Contact-level concepts but are **separate models** scope
 
 - `GET /api/whatsapp/chats/counts` → `{ awaiting, mine, unassigned, all }` de chats activos (OPEN/PENDING, sin posponer) en todas las cuentas del usuario, WhatsApp + canales genéricos. Usa los mismos builders que la lista; `buildChannelChatWhere()` acepta `channel` opcional para contar todos los canales genéricos en una sola consulta. Rate limit 60/min.
 - `chat-views-menu.tsx`: sección "Vistas rápidas" (Esperando respuesta, Míos, Sin asignar, Todos los activos) con su número, refrescada cada 30 s solo con la pestaña visible. El botón del menú muestra cuántos esperan respuesta. **No** hay pestañas en la cabecera (se quitaron a propósito).
+
+### Atajos de teclado (2026-11-01)
+
+- Mapa y reglas puras en `lib/inbox/shortcuts.ts` (con tests): Alt+J / Alt+K siguiente/anterior chat (orden visual de la lista, agrupada por cuenta), Alt+E resolver, Alt+A asignarme, Alt+S posponer 1 h, `/` buscar, `?` ayuda. Se compara `event.code` (en macOS Alt cambia `event.key`); Ctrl/Cmd nunca se interceptan; los de Alt funcionan escribiendo, `/` y `?` no; con un diálogo abierto, ninguno.
+- Las acciones viven en `lib/inbox/actions.ts` (solo `fetch` a las rutas de siempre) y las comparten el palette (que muestra el atajo a la derecha) y `chat-workspace.tsx`. `shortcuts-modal.tsx` lista los atajos desde el mismo mapa.

@@ -1,5 +1,8 @@
 "use client";
 
+import { adjacentIndex, isTypingTarget, matchInboxShortcut, shouldHandleShortcut, type InboxShortcutAction } from "@/lib/inbox/shortcuts";
+import { assignChatToMe, oneHourFromNow, snoozeChat } from "@/lib/inbox/actions";
+import { ShortcutsModal } from "./shortcuts-modal";
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useRouter } from "next/navigation";
@@ -140,6 +143,7 @@ export function ChatWorkspace({
   // en lote. Se activa explícitamente para no llenar cada fila de checkboxes.
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(() => new Set());
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Array<{ id: string; name: string | null }>>([]);
   const lastTypingSentRef = useRef(0);
@@ -1122,6 +1126,55 @@ export function ChatWorkspace({
     if (!groupedChats[key]) groupedChats[key] = [];
     groupedChats[key].push(c);
   }
+  // Orden visual de la lista (agrupada por cuenta) para Alt+J / Alt+K.
+  const visibleChats = Object.values(groupedChats).flat();
+
+  async function runShortcut(action: InboxShortcutAction) {
+    if (action === "help") return setShortcutsOpen(true);
+    if (action === "focus-search") {
+      document.querySelector<HTMLInputElement>("[data-inbox-search]")?.focus();
+      return;
+    }
+    if (action === "next-chat" || action === "prev-chat") {
+      const index = adjacentIndex(visibleChats.map((c) => c.id), selectedChatId, action === "next-chat" ? 1 : -1);
+      if (index !== null) handleChatSelect(visibleChats[index]);
+      return;
+    }
+    if (!selectedChatId) return;
+    const chatId = selectedChatId;
+    try {
+      if (action === "resolve") {
+        await handleStatusChange("RESOLVED");
+      } else if (action === "assign-me") {
+        const data = await assignChatToMe(chatId);
+        setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, assignedToId: data.assignedToId, assignedTo: data.assignedTo } : c)));
+        toastSuccess("Chat asignado");
+      } else if (action === "snooze-1h") {
+        const data = await snoozeChat(chatId, oneHourFromNow());
+        setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, snoozedUntil: data.snoozedUntil } : c)));
+        toastSuccess("Chat pospuesto 1 hora");
+      }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo completar la acción");
+    }
+  }
+  // Atajos de teclado (lib/inbox/shortcuts.ts). Sin array de dependencias a
+  // propósito: se vuelve a registrar en cada render con los handlers vigentes.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const action = matchInboxShortcut(event);
+      if (!action) return;
+      const target = event.target as HTMLElement | null;
+      const typing = isTypingTarget(target ? { tagName: target.tagName, isContentEditable: target.isContentEditable, role: target.getAttribute("role") } : null);
+      const dialogOpen = Boolean(document.querySelector('[role="dialog"], [role="alertdialog"]'));
+      if (!shouldHandleShortcut(action, { typing, dialogOpen })) return;
+      event.preventDefault();
+      void runShortcut(action);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
 
   const cannedQuery = newMessage.startsWith("/") && !newMessage.includes(" ")
     ? newMessage.slice(1).toLowerCase()
@@ -1285,6 +1338,7 @@ export function ChatWorkspace({
 
   return (
     <div className="flex flex-1 min-h-0">
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <ChatAccountRail accounts={accountOptions} selectedAccountId={accountFilter} onSelect={setAccountFilter} unreadByAccount={unreadByAccount} />
       {resizable ? <Group orientation="horizontal" className="h-full min-w-0 flex-1">
         <Panel id="conversations" defaultSize="32%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>
