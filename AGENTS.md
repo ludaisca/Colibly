@@ -137,6 +137,7 @@ Two parallel stacks (adapter layer, not a migration — the `WA*` tables hold pr
 - One-time links live in `AuthToken` (only the sha256 is stored, consumption is atomic). Emails are sent inside `after()`.
 - Unverified emails can't sign in (except `PLATFORM_ADMIN_EMAILS`); channel-account creation requires `requireVerifiedEmail()`.
 - Signup always creates a new organization; members are added by invitation or by an admin.
+- Two-step verification (`lib/two-factor.ts`, TOTP in `lib/totp.ts`) runs inside the same Credentials `authorize`: a new sign-in path must not bypass it. Its secrets live on `User` (encrypted) — never return a `User` row without `select`. Logging out other sessions bumps `sessionVersion`; the caller keeps its own session only through the one-time nonce (`lib/session-nonce.ts`), never by trusting `update()` data.
 
 ## Framework quirks (detail: `frontend.md`)
 

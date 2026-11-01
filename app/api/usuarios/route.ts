@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { disableTwoFactor } from "@/lib/two-factor";
 import { pauseWebhooksOfUser } from "@/lib/webhooks/ownership";
 import { invalidateApiKeysOfUser } from "@/lib/api/auth-cache";
 import { auth, invalidateUserSessionCache } from "@/lib/auth";
@@ -36,13 +37,14 @@ export async function GET() {
         role: true,
         disabledAt: true,
         createdAt: true,
+        twoFactorEnabledAt: true,
         waAccounts: { select: { id: true, name: true } },
         ownedOrganization: { select: { id: true } },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(users.map(({ ownedOrganization, ...user }) => ({ ...user, isOwner: !!ownedOrganization })));
+    return NextResponse.json(users.map(({ ownedOrganization, twoFactorEnabledAt, ...user }) => ({ ...user, isOwner: !!ownedOrganization, twoFactorEnabled: !!twoFactorEnabledAt })));
   } catch (error) {
     const message = publicErrorMessage(error, "Error interno");
     return NextResponse.json({ error: message }, { status: 500 });
@@ -68,15 +70,18 @@ export async function PATCH(req: Request) {
       // true desactiva (no puede iniciar sesión y sus sesiones se invalidan),
       // false lo reactiva.
       disabled: z.boolean().optional(),
-    }).refine((d) => d.role !== undefined || d.disabled !== undefined, {
-      message: "Indica role o disabled",
+      // Recuperación de la verificación en dos pasos de OTRO miembro que
+      // perdió su teléfono y sus códigos de respaldo (lib/two-factor.ts).
+      resetTwoFactor: z.literal(true).optional(),
+    }).refine((d) => d.role !== undefined || d.disabled !== undefined || d.resetTwoFactor, {
+      message: "Indica role, disabled o resetTwoFactor",
     }).safeParse(body);
 
     if (!validated.success) {
       return NextResponse.json({ error: validated.error.issues[0].message }, { status: 400 });
     }
 
-    const { userId, role, disabled } = validated.data;
+    const { userId, role, disabled, resetTwoFactor } = validated.data;
 
     const orgId = await requireOrgId(session.user.id);
     const target = await prisma.user.findFirst({
@@ -105,6 +110,17 @@ export async function PATCH(req: Request) {
           { status: 400 }
         );
       }
+    }
+    if (resetTwoFactor) {
+      if (target.id === session.user.id) {
+        return NextResponse.json({ error: "Para quitar tu propia verificación usa Configuración → Seguridad" }, { status: 400 });
+      }
+      await disableTwoFactor(target.id);
+      // Cierra sus sesiones: si alguien más tenía su teléfono, deja de servirle.
+      await prisma.user.update({ where: { id: target.id }, data: { sessionVersion: { increment: 1 } } });
+      invalidateUserSessionCache(target.id);
+      console.log(`[usuarios] ${session.user.id} quitó la verificación en dos pasos de ${target.id}`);
+      if (role === undefined && disabled === undefined) return NextResponse.json({ id: target.id, twoFactorEnabled: false });
     }
     if (disabled === true && target.id === session.user.id) {
       return NextResponse.json({ error: "No puedes desactivar tu propia cuenta" }, { status: 400 });

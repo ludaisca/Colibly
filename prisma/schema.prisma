@@ -17,6 +17,15 @@ model User {
   // Disponibilidad (lib/users/availability.ts). La que elige el usuario; la
   // efectiva también cae a OFFLINE si lastSeenAt (latido del poll de
   // notificaciones) tiene más de 5 min.
+  // Verificación en dos pasos (lib/two-factor.ts). Secretos TOTP cifrados con
+  // lib/crypto.ts; el pendiente vive mientras se confirma el primer código.
+  // Códigos de respaldo: solo sus sha256, de un solo uso (array_remove atómico).
+  // twoFactorLastStep impide reutilizar un código TOTP ya aceptado.
+  twoFactorSecret        String?   @map("two_factor_secret")
+  twoFactorPendingSecret String?   @map("two_factor_pending_secret")
+  twoFactorEnabledAt     DateTime? @map("two_factor_enabled_at")
+  twoFactorBackupCodes   String[]  @default([]) @map("two_factor_backup_codes")
+  twoFactorLastStep      Int?      @map("two_factor_last_step")
   availability   UserAvailability @default(ONLINE)
   lastSeenAt     DateTime?        @map("last_seen_at")
   // Usuario desactivado por un admin: no puede iniciar sesión, su sesión

@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { LogIn } from "lucide-react";
+import { LogIn, ShieldCheck, ArrowLeft } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardBody, CardFooter } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -14,6 +14,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Logo } from "@/app/components/ui/logo";
 import { Spinner } from "@/app/components/ui/spinner";
 import { loginSchema } from "@/lib/validations";
+import { TWO_FACTOR_INVALID_CODE, TWO_FACTOR_RATE_LIMITED_CODE, TWO_FACTOR_REQUIRED_CODE } from "@/lib/auth-policy";
 
 function LoginForm() {
   const router = useRouter();
@@ -29,6 +30,11 @@ function LoginForm() {
   const [resending, setResending] = useState(false);
   const [resendNotice, setResendNotice] = useState("");
   const [resendError, setResendError] = useState(false);
+  // Segundo paso: la contraseña ya fue correcta y la cuenta tiene verificación
+  // en dos pasos. El código viaja junto con email y contraseña en el mismo
+  // signIn (lib/auth.ts); nada se guarda fuera de este formulario.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,6 +43,11 @@ function LoginForm() {
     setUnverified(false);
     setResendNotice("");
     setResendError(false);
+
+    if (needsCode && !code.trim()) {
+      setServerError("Escribe el código de tu app autenticadora o un código de respaldo.");
+      return;
+    }
 
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
@@ -52,11 +63,25 @@ function LoginForm() {
     const result = await signIn("credentials", {
       email,
       password,
+      ...(needsCode ? { code: code.trim() } : {}),
       redirect: false,
     });
     setLoading(false);
 
     if (result?.error) {
+      if (result.code === TWO_FACTOR_REQUIRED_CODE) {
+        setNeedsCode(true);
+        return;
+      }
+      if (result.code === TWO_FACTOR_INVALID_CODE) {
+        setCode("");
+        setServerError("Código incorrecto o ya usado. Escribe el código nuevo de tu app.");
+        return;
+      }
+      if (result.code === TWO_FACTOR_RATE_LIMITED_CODE) {
+        setServerError("Demasiados intentos. Espera unos minutos antes de volver a intentar.");
+        return;
+      }
       if (result.code === "email_not_verified") {
         setUnverified(true);
         setServerError("Tu correo aún no está confirmado. Revisa tu bandeja de entrada (y spam).");
@@ -120,6 +145,44 @@ function LoginForm() {
               {resendNotice && <Banner tone={resendError ? "danger" : "info"}>{resendNotice}</Banner>}
             </div>
           )}
+          {needsCode ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex items-start gap-3 rounded-lg bg-accent-subtle p-3 text-sm text-accent-ink">
+                <ShieldCheck size={18} className="mt-0.5 shrink-0" aria-hidden />
+                <p>Tu cuenta tiene verificación en dos pasos. Abre tu app autenticadora y escribe el código de 6 dígitos.</p>
+              </div>
+              <FormField label="Código de verificación" required hint="¿Sin teléfono? Usa uno de tus códigos de respaldo (xxxx-xxxx).">
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    inputMode="text"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    maxLength={12}
+                    placeholder="123456"
+                    className="font-mono tracking-widest"
+                  />
+                )}
+              </FormField>
+              <Button type="submit" fullWidth loading={loading} icon={ShieldCheck}>
+                Verificar
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setNeedsCode(false);
+                  setCode("");
+                  setPassword("");
+                  setServerError("");
+                }}
+                className="inline-flex items-center gap-1 text-sm text-muted-darker hover:text-foreground"
+              >
+                <ArrowLeft size={14} aria-hidden /> Usar otra cuenta
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <FormField label="Email" required error={errors.email}>
               {(id) => (
@@ -159,6 +222,7 @@ function LoginForm() {
               Ingresar
             </Button>
           </form>
+          )}
         </CardBody>
         <CardFooter>
           <p className="text-sm text-muted-darker">
