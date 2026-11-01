@@ -175,6 +175,7 @@ model WAAccount {
   // número — ver MetaAdsAccount.waAccountId.
   metaAdsAccounts        MetaAdsAccount[]
   customFieldDefinitions ContactCustomFieldDefinition[]
+  chatCustomFieldDefinitions ChatCustomFieldDefinition[]
   routingRules           WAAccountRoutingRule[]
   sequences              WASequence[]
   automations            Automation[]
@@ -245,6 +246,40 @@ model ContactCustomFieldDefinition {
   @@unique([waAccountId, key])
   @@unique([channelAccountId, key])
   @@map("contact_custom_field_definitions")
+}
+
+enum ChatCustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+}
+
+// Atributos de conversación (motivo, objeción, canal de origen...). Se
+// guardan en WAChat.customFields / Conversation.customFields como JSON para
+// no añadir una tabla de valores por cada mensaje; la definición es la que
+// manda en tipos/opciones y el API valida las claves antes de escribir.
+model ChatCustomFieldDefinition {
+  id               String                @id @default(cuid())
+  waAccountId      String?
+  waAccount        WAAccount?            @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId String?
+  channelAccount   ChannelAccount?       @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  key              String
+  label            String
+  type             ChatCustomFieldType   @default(TEXT)
+  options          String[]              @default([])
+  required         Boolean               @default(false)
+  order            Int                   @default(0)
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  @@unique([waAccountId, key])
+  @@unique([channelAccountId, key])
+  @@index([waAccountId, order])
+  @@index([channelAccountId, order])
+  @@map("chat_custom_field_definitions")
 }
 
 // Valor de un campo para un Contact puntual — @@unique([contactId,
@@ -395,6 +430,7 @@ model ChannelAccount {
   tags                   Tag[]
   sharedWith             ChannelAccountShare[]
   customFieldDefinitions ContactCustomFieldDefinition[]
+  chatCustomFieldDefinitions ChatCustomFieldDefinition[]
   sequences              WASequence[]
   automations            Automation[]
 
@@ -430,6 +466,9 @@ model Conversation {
   contact          Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
   lastMessage      String?
   lastMessageAt    DateTime?
+  // Atributos de conversación definidos por la cuenta, guardados como
+  // { [key]: string }. Definiciones en ChatCustomFieldDefinition.
+  customFields     Json?
   unreadCount      Int            @default(0)
   status           ChatStatus     @default(OPEN)
   priority         ChatPriority   @default(NORMAL)
@@ -508,6 +547,8 @@ model WAChat {
   isGroup         Boolean    @default(false)
   lastMessage     String?
   lastMessageAt   DateTime?
+  // Atributos de conversación definidos por la cuenta, { [key]: string }.
+  customFields    Json?
   unreadCount     Int          @default(0)
   contactId       String?      @unique
   contact         Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)

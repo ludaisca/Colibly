@@ -12,6 +12,7 @@ import { ChatBotMode } from "./chat-bot-mode";
 import { ChatTagPicker } from "./chat-tag-picker";
 import { ChatPriorityPicker } from "./chat-priority-picker";
 import { ChatSnoozeControls } from "./chat-snooze-controls";
+import { ChatCustomFields } from "./chat-custom-fields";
 import { MacroPickerModal } from "./macro-picker-modal";
 import { LeadScoreBadge } from "./lead-score-badge";
 import { ChatCostBadge } from "./chat-cost-badge";
@@ -152,6 +153,9 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
                 <h3 className="text-xs font-semibold text-muted-darker">Prioridad</h3>
                 <ChatPriorityPicker chatId={chat.id} priority={chat.priority} onChanged={onPriorityChange} />
               </section>
+              <div className="min-w-0 @[460px]:col-span-2">
+                <ChatCustomFields chatId={chat.id} />
+              </div>
               <section className="min-w-0 space-y-2">
                 <h3 className="text-xs font-semibold text-muted-darker">Atención</h3>
                 <ChatBotMode chatId={chat.id} refreshKey={refreshKey} />

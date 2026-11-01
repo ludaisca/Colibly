@@ -523,6 +523,38 @@ export const contactCustomFieldValuesSchema = z.object({
   values: z.record(z.string(), z.string().max(2000).nullable()),
 });
 
+export const CHAT_CUSTOM_FIELD_TYPES = ["TEXT", "NUMBER", "DATE", "BOOLEAN", "SELECT"] as const;
+
+export const chatCustomFieldDefinitionSchema = z.object({
+  waAccountId: z.string().min(1).optional().nullable(),
+  channelAccountId: z.string().min(1).optional().nullable(),
+  key: z
+    .string()
+    .min(1, "La clave es requerida")
+    .max(60)
+    .regex(/^[a-z0-9_]+$/, "Solo minúsculas, números y guion bajo, sin espacios"),
+  label: z.string().min(1, "El nombre es requerido").max(100),
+  type: z.enum(CHAT_CUSTOM_FIELD_TYPES).default("TEXT"),
+  options: z.array(z.string().min(1).max(100)).max(50).optional(),
+  required: z.boolean().optional(),
+  order: z.number().int().optional(),
+}).refine(
+  (d) => !!d.waAccountId !== !!d.channelAccountId,
+  { message: "Selecciona una cuenta de WhatsApp o de canal", path: ["channelAccountId"] }
+);
+
+export const chatCustomFieldDefinitionUpdateSchema = z.object({
+  label: z.string().min(1).max(100).optional(),
+  type: z.enum(CHAT_CUSTOM_FIELD_TYPES).optional(),
+  options: z.array(z.string().min(1).max(100)).max(50).optional(),
+  required: z.boolean().optional(),
+  order: z.number().int().optional(),
+});
+
+export const chatCustomFieldValuesSchema = z.object({
+  values: z.record(z.string(), z.string().max(2000).nullable()),
+});
+
 export type ContactUpdateInput = z.infer<typeof contactUpdateSchema>;
 export type NoteInput = z.infer<typeof noteSchema>;
 export type TagInput = z.infer<typeof tagSchema>;

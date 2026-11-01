@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { useToast } from "@/app/components/ui/toast";
 import { RespuestasRapidasSection } from "./_respuestas-rapidas";
 import { CamposPersonalizadosSection } from "./_campos-personalizados";
+import { AtributosConversacionSection } from "./_atributos-conversacion";
 import { CanalesSection } from "./_canales";
 
 interface GoogleSheetsStatus {
@@ -211,7 +212,7 @@ export default function SettingsPage() {
             <Badge tone="info" size="sm">{user?.role === "user" ? "Usuario" : user?.role}</Badge>
             <span className="flex items-center gap-1 text-xs text-muted-darker">
               <CalendarDays size={11} />
-              Miembro desde {createdAt ? new Date(createdAt).toLocaleDateString("es-MX", { year: "numeric", month: "long" }) : new Date().toLocaleDateString("es-MX", { year: "numeric", month: "long" })}
+              Miembro desde {createdAt ? new Date(createdAt).toLocaleDateString("es-MX", { year: "numeric", month: "long", timeZone: "America/Mexico_City" }) : "—"}
             </span>
           </div>
         </div>
@@ -323,6 +324,8 @@ export default function SettingsPage() {
       <RespuestasRapidasSection />
 
       <CamposPersonalizadosSection />
+
+      <AtributosConversacionSection />
 
       <Card as="section" className="flex flex-wrap items-center justify-between gap-4">
         <div>
