@@ -50,6 +50,7 @@ model User {
   contactActivities     ContactActivity[]
   assignedChats         WAChat[]               @relation("ChatAssignments")
   answeredCalls         WACall[]               @relation("CallAnsweredBy")
+  pushSubscriptions     PushSubscription[]
   notifications         Notification[]
   sentMessages          WAMessage[]
   leadSheetSources      LeadSheetSource[]
@@ -2341,6 +2342,11 @@ model PlatformSettings {
   backupHour            Int     @default(3) @map("backup_hour") // hora de Ciudad de México
   backupIncludeMedia    Boolean @default(false) @map("backup_include_media")
 
+  // Notificaciones push del navegador (lib/notifications/push.ts). Se generan
+  // desde /plataforma; cambiarlas invalida todas las suscripciones existentes.
+  vapidPublicKey  String? @map("vapid_public_key")
+  vapidPrivateKey String? @map("vapid_private_key") // cifrado
+
   updatedAt      DateTime @updatedAt @map("updated_at")
   updatedByEmail String?  @map("updated_by_email")
 
@@ -2530,4 +2536,21 @@ enum UserAvailability {
   ONLINE
   BUSY
   OFFLINE
+}
+
+// Suscripción push de un navegador (por usuario, como Notification). Un
+// endpoint es único: si otro usuario inicia sesión en el mismo navegador, la
+// suscripción pasa a él. Se borra sola cuando el servicio push responde 404/410.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

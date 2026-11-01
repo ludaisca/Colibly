@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense, useState, useEffect, useCallback } from "react";
+import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -153,7 +154,9 @@ function SidebarContent({
           // servidor usa el origen interno del contenedor (0.0.0.0:5000) y
           // mandaba al usuario fuera de la app tras cerrar sesión.
           onClick={async () => {
-            await signOut({ redirect: false });
+            // El navegador deja de recibir los avisos de esta cuenta.
+                  await disablePush();
+                  await signOut({ redirect: false });
             // Recarga completa a propósito: router.push conservaría en memoria
             // el árbol de React y la caché del cliente de la sesión cerrada.
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination

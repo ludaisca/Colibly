@@ -113,6 +113,7 @@ Two parallel stacks (adapter layer, not a migration — the `WA*` tables hold pr
 - **"Esperando respuesta" is `waitingSince`** on `WAChat`/`Conversation` (`lib/chats/waiting.ts`): both ingests call `markWaiting()`; a reply from a person, the bot or a conversational flow clears it (`markReplied()` or `waitingSince: null` in the same update), and so does resolving. Automatic notices (away message, auto-resolve, CSAT, campaigns, recovery) must **not** clear it — `sendOutbound(..., { countsAsReply: false })`. A new path that answers a customer must clear it; `lib/chats/__tests__/waiting.test.ts` guards the existing call sites.
 - `/whatsapp/chat`'s rail keeps its own dense structure — confirm with the user before restructuring it.
 - No websockets anywhere: polling is the pattern for anything live.
+- A bell `Notification` that should also reach the browser calls `lib/notifications/push.ts:queuePush()` right after creating it (today: chat message, chat assigned, incoming call). Logging out must call `disablePush()`.
 
 ## Database (detail: `base-de-datos.md`)
 

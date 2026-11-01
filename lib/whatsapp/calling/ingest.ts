@@ -1,4 +1,5 @@
 import { readFile } from "fs/promises";
+import { queuePush } from "@/lib/notifications/push";
 import type { WAAccount, WACall } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jidCandidates } from "@/lib/whatsapp/coexistence/normalize";
@@ -111,6 +112,12 @@ async function applyConnect(account: WAAccount, call: ParsedCall): Promise<void>
         body: "Te están llamando por WhatsApp",
         link: linked.chatId ? `/whatsapp/chat/${account.id}/${linked.chatId}` : "/whatsapp/chat",
       },
+    });
+    await queuePush(linked.assignedToId, {
+      title: call.peerName ?? linked.name ?? "Llamada de WhatsApp",
+      body: "Te están llamando por WhatsApp",
+      link: linked.chatId ? `/whatsapp/chat/${account.id}/${linked.chatId}` : "/whatsapp/chat",
+      tag: `call:${account.id}`,
     });
   }
 }

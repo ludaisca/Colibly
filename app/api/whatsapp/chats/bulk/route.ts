@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { queuePush } from "@/lib/notifications/push";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
@@ -177,6 +178,11 @@ async function notifyBulkAssignment(userId: string, count: number) {
         body: `${count} conversación${count === 1 ? "" : "es"} asignada${count === 1 ? "" : "s"}`,
         link: "/whatsapp/chat?assigned=me",
       },
+    });
+    await queuePush(userId, {
+      title: "Chats asignados",
+      body: `${count} conversación${count === 1 ? "" : "es"} asignada${count === 1 ? "" : "s"}`,
+      link: "/whatsapp/chat?assigned=me",
     });
   } catch (error) {
     console.error("[chats] no se pudo crear la notificación de asignación masiva", error);

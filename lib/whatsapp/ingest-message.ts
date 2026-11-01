@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { queuePush } from "@/lib/notifications/push";
 import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
@@ -248,6 +249,7 @@ export async function ingestInboundMessage(
         link: `/whatsapp/chat/${accountId}/${chat.id}`,
       },
     });
+    await queuePush(assignedToId, { title: msg.contactName, body: msg.body, link: `/whatsapp/chat/${accountId}/${chat.id}`, tag: `chat:${chat.id}` });
   }
 
   await prisma.wAAccount.update({

@@ -459,7 +459,7 @@ Verificación end-to-end sin depender de Stripe:
 Decisión 2026-10-30: **sí se permite**, con candados más estrictos que el resto de la API.
 
 - Endpoint: `PUT /api/plataforma/v1/configuracion/secretos/{field}`.
-- `field` limitado a los 11 de `PLATFORM_SECRET_FIELDS`; cualquier otro → 400.
+- `field` limitado a los 12 de `PLATFORM_SECRET_FIELDS`; cualquier otro → 400.
 - Cuerpo: `{ value, confirm: "<field>" }`; `value` de 1–500 caracteres, sin `trim` (un secreto puede tener espacios).
 - Candados:
   - scope `secret:write`;

@@ -1,9 +1,12 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
+import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
-import { Settings, LogOut, ChevronDown, Check } from "lucide-react";
+import { Settings, LogOut, ChevronDown, Check, BellRing } from "lucide-react";
+import { Switch } from "./switch";
+import { enablePush, needsHomeScreenInstall, pushSupported, syncPush } from "@/lib/notifications/push-client";
 import { AVAILABILITY_LABEL, type Availability } from "@/lib/users/availability-rules";
 import { useToast } from "./toast";
 
@@ -39,6 +42,44 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  // Avisos push en este navegador. null = la plataforma no tiene llaves o el
+  // navegador no lo admite: la fila no se muestra.
+  const [pushKey, setPushKey] = useState<string | null>(null);
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [iosHint, setIosHint] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/usuarios/me/push")
+      .then((res) => (res.ok ? res.json() : null))
+      .then(async (data) => {
+        if (cancelled || !data?.publicKey) return;
+        if (needsHomeScreenInstall()) {
+          setIosHint(true);
+          return;
+        }
+        if (!pushSupported()) return;
+        setPushKey(data.publicKey);
+        setPushOn(await syncPush(data.publicKey).catch(() => false));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  async function togglePush(next: boolean) {
+    if (!pushKey) return;
+    setPushBusy(true);
+    try {
+      if (next) await enablePush(pushKey);
+      else await disablePush();
+      setPushOn(next);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudieron cambiar los avisos");
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function changeAvailability(next: Availability) {
     const previous = availability;
@@ -132,6 +173,25 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
               </div>
             )}
 
+            {(pushKey || iosHint) && (
+              <div className="border-b border-border px-4 py-2.5">
+                {pushKey ? (
+                  <div className="flex items-center gap-3">
+                    <BellRing size={15} className="shrink-0 text-muted" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm">Avisos en este navegador</span>
+                      <span className="block text-xs text-muted-darker">Mensajes y chats asignados, aunque la pestaña esté cerrada</span>
+                    </span>
+                    <Switch checked={pushOn} onCheckedChange={togglePush} disabled={pushBusy} label="Avisos en este navegador" />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-darker">
+                    Para recibir avisos en iPhone, agrega la app a la pantalla de inicio (Compartir → Agregar a inicio) y ábrela desde ahí.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="py-1">
               <Link
                 href="/configuracion"
@@ -148,6 +208,8 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
                 // redirect: false + navegación relativa — ver app-shell.tsx: la
                 // redirección del servidor usa el origen interno del contenedor.
                 onClick={async () => {
+                  // El navegador deja de recibir los avisos de esta cuenta.
+                  await disablePush();
                   await signOut({ redirect: false });
                   // Recarga completa a propósito — ver app-shell.tsx.
                   // eslint-disable-next-line @next/next/no-location-assign-relative-destination

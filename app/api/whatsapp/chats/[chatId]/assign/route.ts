@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { queuePush } from "@/lib/notifications/push";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getEligibleAssignees, getEligibleChannelAssignees } from "@/lib/chat-assignees";
@@ -141,6 +142,7 @@ async function notifyAssignment(input: {
         link: `/whatsapp/chat/${input.accountId}/${input.chatId}`,
       },
     });
+    await queuePush(input.assignedToId, { title: "Chat asignado", body: input.contactName, link: `/whatsapp/chat/${input.accountId}/${input.chatId}`, tag: `chat:${input.chatId}` });
   } catch (error) {
     console.error("[chats] no se pudo crear la notificación de asignación", error);
   }
