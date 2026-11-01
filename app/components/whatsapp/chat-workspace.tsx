@@ -22,6 +22,7 @@ import { ChatDisplayNameBanner, ChatWindowBanner, useChatServiceWindow } from "@
 import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-modal";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { MessageSearchResults } from "@/app/components/whatsapp/message-search-results";
+import { RequiredFieldsModal } from "@/app/components/whatsapp/required-fields-modal";
 import { useBusinessName } from "@/app/components/ui/business-context";
 import { renderCannedResponse } from "@/lib/inbox/canned-variables";
 import type { MessageSearchHit } from "@/lib/search/messages";
@@ -134,6 +135,7 @@ export function ChatWorkspace({
   // Solo se limpia al consumirse (el doble montaje de StrictMode en dev
   // correría el efecto dos veces). Si el workspace se remonta al cambiar de
   // ruta, el salto sigue llegando por ?mensaje= (initialMessageId).
+  const [requiredPrompt, setRequiredPrompt] = useState<{ chatId: string; keys: string[] } | null>(null);
   const jumpRef = useRef<{ chatId: string; messageId: string } | null>(null);
   const skipAutoScrollRef = useRef(false);
   const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
@@ -1068,6 +1070,11 @@ export function ChatWorkspace({
         body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
+      // F4: faltan atributos obligatorios → se piden y se reintenta.
+      if (res.status === 422 && data.code === "required_fields" && Array.isArray(data.fields)) {
+        setRequiredPrompt({ chatId: selectedChatId, keys: data.fields.map((field: { key: string }) => field.key) });
+        return;
+      }
       if (!res.ok) throw new Error(data.error ?? "Error al cambiar estado");
       setChats((prev) => prev.map((c) => (c.id === selectedChatId ? { ...c, status: data.status } : c)));
     } catch (err) {
@@ -1142,6 +1149,7 @@ export function ChatWorkspace({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al actualizar chats");
       toastSuccess(`${data.updated ?? selectedChatIds.size} chat(s) actualizados`);
+      if (data.skipped) toastError(`${data.skipped} chat(s) no se resolvieron: les faltan atributos obligatorios`);
       setSelectedChatIds(new Set());
       setSelectionMode(false);
       await refreshChats();
@@ -1444,6 +1452,17 @@ export function ChatWorkspace({
   return (
     <div className="flex flex-1 min-h-0">
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      {requiredPrompt && requiredPrompt.chatId === selectedChatId && (
+        <RequiredFieldsModal
+          chatId={requiredPrompt.chatId}
+          missingKeys={requiredPrompt.keys}
+          onClose={() => setRequiredPrompt(null)}
+          onSavedRetry={async () => {
+            setRequiredPrompt(null);
+            await handleStatusChange("RESOLVED");
+          }}
+        />
+      )}
       <ChatAccountRail accounts={accountOptions} selectedAccountId={accountFilter} onSelect={setAccountFilter} unreadByAccount={unreadByAccount} />
       {resizable ? <Group orientation="horizontal" className="h-full min-w-0 flex-1">
         <Panel id="conversations" defaultSize="32%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>

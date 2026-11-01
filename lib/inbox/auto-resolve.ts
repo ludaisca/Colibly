@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { chatsMissingRequired } from "@/lib/chats/required-fields";
 import { prisma } from "@/lib/prisma";
 import { isOrgWritable } from "@/lib/billing/gates";
 import { emitDomainEvent } from "@/lib/events/emit";
@@ -26,10 +27,12 @@ export interface AutoResolveResult {
   resolved: number;
   messagesSent: number;
   errors: number;
+  /** Chats saltados por atributos obligatorios vacíos (F4). */
+  skippedRequired: number;
 }
 
 export async function processAutoResolveTick(now = new Date()): Promise<AutoResolveResult> {
-  const result: AutoResolveResult = { organizations: 0, resolved: 0, messagesSent: 0, errors: 0 };
+  const result: AutoResolveResult = { organizations: 0, resolved: 0, messagesSent: 0, errors: 0, skippedRequired: 0 };
   const orgs = await prisma.organization.findMany({
     where: { autoResolveAfterHours: { not: null } },
     select: {
@@ -86,9 +89,16 @@ async function resolveOrg(org: OrgConfig, cutoff: Date, now: Date, result: AutoR
     where: waWhere,
     orderBy: { lastMessageAt: "asc" },
     take: budget,
-    select: { id: true, lastMessageAt: true },
+    select: { id: true, lastMessageAt: true, accountId: true, customFields: true },
   });
+  // Atributos obligatorios vacíos (F4): el auto-resolver los salta; quedan
+  // para que una persona los complete.
+  const blockedWa = await chatsMissingRequired("whatsapp", waChats);
   for (const chat of waChats) {
+    if (blockedWa.has(chat.id)) {
+      result.skippedRequired++;
+      continue;
+    }
     const claimed = await prisma.wAChat.updateMany({
       where: { id: chat.id, status: { in: ["OPEN", "PENDING"] }, lastMessageAt: chat.lastMessageAt },
       data: { status: "RESOLVED", resolvedAt: now, waitingSince: null },
@@ -108,9 +118,14 @@ async function resolveOrg(org: OrgConfig, cutoff: Date, now: Date, result: AutoR
     where: channelWhere,
     orderBy: { lastMessageAt: "asc" },
     take: budget,
-    select: { id: true, lastMessageAt: true },
+    select: { id: true, lastMessageAt: true, channelAccountId: true, customFields: true },
   });
+  const blockedCh = await chatsMissingRequired("channel", conversations.map((c) => ({ ...c, accountId: c.channelAccountId })));
   for (const conversation of conversations) {
+    if (blockedCh.has(conversation.id)) {
+      result.skippedRequired++;
+      continue;
+    }
     const claimed = await prisma.conversation.updateMany({
       where: { id: conversation.id, status: { in: ["OPEN", "PENDING"] }, lastMessageAt: conversation.lastMessageAt },
       data: { status: "RESOLVED", resolvedAt: now, waitingSince: null },

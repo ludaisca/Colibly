@@ -5,11 +5,23 @@ import { eventRefsForChat } from "@/lib/events/refs";
 import { maybeSendCsat } from "@/lib/csat/send-survey";
 import { sendOutbound } from "@/lib/messaging/outbound";
 import { type MacroAction, snoozeUntilForPreset } from "./types";
+import { missingRequiredForChat, requiredFieldsMessage, REQUIRED_FIELDS_CODE } from "@/lib/chats/required-fields";
+
+export { REQUIRED_FIELDS_CODE };
 
 export class MacroNotFoundError extends Error {
   constructor() {
     super("Macro no encontrada");
     this.name = "MacroNotFoundError";
+  }
+}
+
+// La macro resolvería el chat pero le faltan atributos obligatorios (F4). Se
+// revisa ANTES de aplicar cualquier acción: nunca queda aplicada a medias.
+export class MacroBlockedError extends Error {
+  constructor(message: string, public fields: Array<{ key: string; label: string }>) {
+    super(message);
+    this.name = "MacroBlockedError";
   }
 }
 
@@ -19,6 +31,11 @@ export async function runMacro(macro: { id: string; organizationId: string; acti
 
   const actions = Array.isArray(macro.actions) ? macro.actions as MacroAction[] : [];
   let applied = 0;
+
+  if (actions.some((action) => action.type === "status" && action.status === "RESOLVED")) {
+    const missing = await missingRequiredForChat(resolved.channel === "WHATSAPP" ? "whatsapp" : "channel", chatId);
+    if (missing.length > 0) throw new MacroBlockedError(requiredFieldsMessage(missing), missing);
+  }
 
   if (resolved.channel === "WHATSAPP") {
     const chat = await prisma.wAChat.findUnique({

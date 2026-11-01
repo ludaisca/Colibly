@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { REQUIRED_FIELDS_CODE, missingRequiredForChat, requiredFieldsMessage } from "@/lib/chats/required-fields";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
@@ -30,6 +31,14 @@ export async function PATCH(
 
     if (!VALID_STATUSES.includes(status)) {
       return NextResponse.json({ error: "Estado no válido" }, { status: 400 });
+    }
+
+    // Atributos de conversación obligatorios (F4): no se resuelve con huecos.
+    if (status === "RESOLVED") {
+      const missing = await missingRequiredForChat(resolved.channel === "WHATSAPP" ? "whatsapp" : "channel", chatId);
+      if (missing.length > 0) {
+        return NextResponse.json({ error: requiredFieldsMessage(missing), code: REQUIRED_FIELDS_CODE, fields: missing }, { status: 422 });
+      }
     }
 
     if (resolved.channel !== "WHATSAPP") {

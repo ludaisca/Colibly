@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgId } from "@/lib/tenancy";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { rateLimit } from "@/lib/rate-limit";
-import { MacroNotFoundError, runMacro } from "@/lib/macros/execute";
+import { MacroBlockedError, MacroNotFoundError, REQUIRED_FIELDS_CODE, runMacro } from "@/lib/macros/execute";
 import { OutboundError } from "@/lib/messaging/outbound";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +30,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const applied = await runMacro(macro, chatId, session.user.id);
     return NextResponse.json({ ok: true, applied });
   } catch (error) {
+    if (error instanceof MacroBlockedError) {
+      return NextResponse.json({ error: error.message, code: REQUIRED_FIELDS_CODE, fields: error.fields }, { status: 422 });
+    }
     if (error instanceof MacroNotFoundError) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }

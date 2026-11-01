@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { chatsMissingRequired } from "@/lib/chats/required-fields";
 import { queuePush } from "@/lib/notifications/push";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -46,11 +47,11 @@ export async function POST(req: Request) {
     const [waChats, conversations] = await Promise.all([
       prisma.wAChat.findMany({
         where: { id: { in: chatIds }, accountId: { in: waAccountIds } },
-        select: { id: true, accountId: true, status: true, assignedToId: true },
+        select: { id: true, accountId: true, status: true, assignedToId: true, customFields: true },
       }),
       prisma.conversation.findMany({
         where: { id: { in: chatIds }, channelAccountId: { in: channelAccountIds } },
-        select: { id: true, channelAccountId: true, status: true, assignedToId: true },
+        select: { id: true, channelAccountId: true, status: true, assignedToId: true, customFields: true },
       }),
     ]);
 
@@ -59,8 +60,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
-    const waIds = waChats.map((c) => c.id);
-    const channelIds = conversations.map((c) => c.id);
+    let waIds = waChats.map((c) => c.id);
+    let channelIds = conversations.map((c) => c.id);
+    // Resolver en lote salta los chats con atributos obligatorios vacíos (F4)
+    // y los reporta como `skipped`; el resto sí se resuelve.
+    let skippedRequired = 0;
+    if (action.type === "status" && action.status === "RESOLVED") {
+      const [blockedWa, blockedCh] = await Promise.all([
+        chatsMissingRequired("whatsapp", waChats.filter((c) => c.status !== "RESOLVED")),
+        chatsMissingRequired("channel", conversations.filter((c) => c.status !== "RESOLVED").map((c) => ({ ...c, accountId: c.channelAccountId }))),
+      ]);
+      skippedRequired = blockedWa.size + blockedCh.size;
+      waIds = waIds.filter((id) => !blockedWa.has(id));
+      channelIds = channelIds.filter((id) => !blockedCh.has(id));
+    }
 
     if (action.type === "assign") {
       const target = action.self === true ? session.user.id : (action.assignedToId ?? null);
@@ -111,13 +124,13 @@ export async function POST(req: Request) {
 
       if (action.status === "RESOLVED") {
         const resolvedIds = [
-          ...waChats.filter((c) => c.status !== "RESOLVED").map((c) => c.id),
-          ...conversations.filter((c) => c.status !== "RESOLVED").map((c) => c.id),
+          ...waChats.filter((c) => c.status !== "RESOLVED" && waIds.includes(c.id)).map((c) => c.id),
+          ...conversations.filter((c) => c.status !== "RESOLVED" && channelIds.includes(c.id)).map((c) => c.id),
         ];
         await Promise.all(resolvedIds.map((id) => emitResolved(id)));
       }
 
-      return NextResponse.json({ updated: waUpdated.count + channelUpdated.count });
+      return NextResponse.json({ updated: waUpdated.count + channelUpdated.count, skipped: skippedRequired });
     }
 
     if (action.type === "priority") {
