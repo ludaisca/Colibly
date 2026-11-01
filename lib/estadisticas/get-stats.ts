@@ -263,7 +263,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     // Contadores ya vienen agregados en WACampaign (sentCount/deliveredCount/...),
     // actualizados por el webhook de Meta — no hace falta un groupBy sobre
     // WACampaignRecipient. Visibilidad por cuenta, no por creador (mismo criterio
-    // que el resto de rutas de campañas, ver AGENTS.md).
+    // que el resto de rutas de campañas, ver docs/arquitectura/gotchas.md "Campaign visibility").
     prisma.wACampaign.findMany({
       where: { waAccountId: { in: accountIds } },
       select: { id: true, name: true, sentCount: true, deliveredCount: true, readCount: true, failedCount: true },

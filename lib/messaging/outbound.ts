@@ -228,7 +228,7 @@ async function sendChannel(
     } else if (channelAccount.channel === "MESSENGER" || channelAccount.channel === "INSTAGRAM") {
       // Conversación que nació de un comentario y aún no tiene respuesta: Meta
       // exige el endpoint de private reply (mismo criterio que
-      // chats/[chatId]/send — ver AGENTS.md "Comment-to-inbox"). Ese endpoint
+      // chats/[chatId]/send — ver docs/arquitectura/canales.md "Comment-to-inbox"). Ese endpoint
       // no admite quick replies: van las opciones numeradas en el texto.
       const originComment =
         channelAccount.channel === "MESSENGER" && conversation.firstResponseAt === null

@@ -44,7 +44,7 @@ interface ChatComposerProps {
   attachmentsDisabled?: boolean;
 
   // Botones de respuesta rápida (máx. 3, solo WhatsApp Meta) — ver
-  // "Mensajes interactivos" en AGENTS.md.
+  // "Interactive messages in every channel" en docs/arquitectura/integraciones.md.
   interactiveButtons: string[];
   onButtonsChange: (buttons: string[]) => void;
   buttonsPanelOpen: boolean;

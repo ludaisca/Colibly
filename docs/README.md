@@ -1,6 +1,6 @@
 # Índice de documentación
 
-Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) y el detalle técnico en [`../AGENTS.md`](../AGENTS.md).
+Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) y [`../AGENTS.md`](../AGENTS.md); el detalle técnico por módulo, en [`arquitectura/`](arquitectura/) (el mapa está al inicio de `AGENTS.md`).
 
 ## Para retomar el trabajo
 
@@ -15,6 +15,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md) | Plan A (Contabo) y plan B (ludaisca), DNS, correo. |
 | [DOMINIOS_Y_LANDING_BETA.md](DOMINIOS_Y_LANDING_BETA.md) | Separación `colibly.com` / `app.colibly.com`. |
 | [BITACORA_LANZAMIENTO_2026-10-19.md](BITACORA_LANZAMIENTO_2026-10-19.md) | **Vigente**: bitácora del pulido de lanzamiento (decisiones, planes, API, Meta, Stripe, producción) y pendientes. |
+| [BENCHMARK_CHATWOOT_TWENTY_2026-11-01.md](BENCHMARK_CHATWOOT_TWENTY_2026-11-01.md) | **Vigente**: segunda revisión de Chatwoot y Twenty: 18 funciones y 10 patrones de UI/UX que faltan, con prioridad y orden propuesto. |
 | [ROADMAP_PARIDAD_CHATWOOT.md](ROADMAP_PARIDAD_CHATWOOT.md) | Brechas frente a Chatwoot (P1/P2/P3 con esfuerzo) y siguiente paso propuesto. |
 | [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md) | **Vigente**: precio por ejecutivo (asientos) en MXN, reglas, Stripe y copias públicas. |
 | [OFERTA_BETA_COLIBLY.md](OFERTA_BETA_COLIBLY.md) | Propuesta de oferta beta (superada: registro abierto y precio por ejecutivo). |

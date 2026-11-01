@@ -156,7 +156,7 @@ async function processSingleEnrollment(enrollment: EnrollmentWithRelations, now:
   }
 
   // Ventana de servicio de 24h de Meta — solo aplica a WhatsApp (Telegram no
-  // impone esta restricción, ver AGENTS.md "Lead recovery"). Sin ningún
+  // impone esta restricción, ver docs/arquitectura/crm.md "Lead recovery"). Sin ningún
   // inbound registrado, o fuera de la ventana, no hay forma de mandar texto
   // libre sin violar la política.
   if (isWhatsapp && (!lastInbound || !isWithinServiceWindow(lastInbound.timestamp, now))) {

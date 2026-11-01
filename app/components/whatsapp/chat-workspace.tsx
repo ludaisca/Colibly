@@ -145,7 +145,7 @@ export function ChatWorkspace({
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
   // Botones de respuesta rápida en construcción para el próximo envío (solo
-  // WhatsApp Meta — ver "Mensajes interactivos" en AGENTS.md).
+  // WhatsApp Meta — ver "Interactive messages in every channel" en docs/arquitectura/integraciones.md).
   const [interactiveButtons, setInteractiveButtons] = useState<string[]>([]);
   const [buttonsPanelOpen, setButtonsPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

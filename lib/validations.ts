@@ -160,7 +160,7 @@ export const telegramSendMessageSchema = z.object({
 
 export type TelegramSendMessageInput = z.infer<typeof telegramSendMessageSchema>;
 
-// A diferencia de WAAccount.appSecret (opcional por diseño — ver AGENTS.md),
+// A diferencia de WAAccount.appSecret (opcional por diseño — ver docs/arquitectura/whatsapp.md),
 // aquí appSecret es requerido: la resolución de cuenta del webhook
 // compartido de Messenger/Instagram no tiene un fallback de confianza
 // análogo al phone_number_id de WhatsApp — sin secreto, la firma nunca

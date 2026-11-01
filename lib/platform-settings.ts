@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/crypto";
 
 // Configuración de negocio de la plataforma, editable desde /plataforma
-// (nunca env vars — ver AGENTS.md "AI providers"/"Billing"/"Auth"). Único
+// (nunca env vars — ver docs/arquitectura/ia.md, billing.md y auth.md). Único
 // choke-point que lee/escribe PlatformSettings; todo lo demás pasa por aquí.
 
 const SETTINGS_ID = "platform";
