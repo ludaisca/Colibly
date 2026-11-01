@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Bookmark, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Bookmark, Hourglass, Inbox, Plus, Trash2, User, UserX } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
 import { Input } from "@/app/components/ui/input";
@@ -14,6 +14,50 @@ interface SavedView {
 }
 
 const STORAGE_KEY = "colibly:chat-views";
+const COUNTS_REFRESH_MS = 30_000;
+
+type CountKey = "awaiting" | "mine" | "unassigned" | "all";
+type ViewCounts = Record<CountKey, number>;
+
+// Vistas rápidas: el mismo query que aplicaría una vista guardada. Los
+// contadores salen de GET /api/whatsapp/chats/counts (mismos builders que la
+// lista). Sin pestañas en la cabecera: se quitaron a propósito.
+const QUICK_VIEWS: Array<{ key: CountKey; label: string; query: string; icon: typeof Inbox }> = [
+  { key: "awaiting", label: "Esperando respuesta", query: "awaiting=1", icon: Hourglass },
+  { key: "mine", label: "Míos", query: "assigned=me", icon: User },
+  { key: "unassigned", label: "Sin asignar", query: "assigned=unassigned", icon: UserX },
+  { key: "all", label: "Todos los activos", query: "", icon: Inbox },
+];
+
+// Pide los contadores cada 30 s, solo con la pestaña visible.
+function useViewCounts(): ViewCounts | null {
+  const [counts, setCounts] = useState<ViewCounts | null>(null);
+  const load = useCallback(async () => {
+    if (document.visibilityState !== "visible") return;
+    try {
+      const res = await fetch("/api/whatsapp/chats/counts", { cache: "no-store" });
+      if (res.ok) setCounts(await res.json());
+    } catch {
+      // Sin contadores no pasa nada: el menú funciona igual.
+    }
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- el setState ocurre tras el fetch (asíncrono), no durante el efecto
+    void load();
+    const id = window.setInterval(() => void load(), COUNTS_REFRESH_MS);
+    const onVisible = () => void load();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [load]);
+  return counts;
+}
+
+function formatCount(n: number): string {
+  return n > 999 ? "999+" : String(n);
+}
 
 function readViews(): SavedView[] {
   try {
@@ -41,6 +85,8 @@ export function ChatViewsMenu({
   const [views, setViews] = useState<SavedView[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
   const [name, setName] = useState("");
+  const counts = useViewCounts();
+  const awaiting = counts?.awaiting ?? 0;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga única desde localStorage
@@ -75,15 +121,38 @@ export function ChatViewsMenu({
         trigger={
           <button
             type="button"
-            aria-label="Vistas guardadas"
-            title="Vistas guardadas"
-            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] border border-border bg-surface text-muted transition-colors hover:bg-surface-light hover:text-foreground"
+            aria-label={awaiting > 0 ? `Vistas — ${awaiting} esperando respuesta` : "Vistas"}
+            title="Vistas"
+            className="relative flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] border border-border bg-surface text-muted transition-colors hover:bg-surface-light hover:text-foreground"
           >
             <Bookmark size={15} />
+            {awaiting > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-bold tabular-nums text-surface">
+                {awaiting > 99 ? "99+" : awaiting}
+              </span>
+            )}
           </button>
         }
       >
         <div className="w-64 p-1">
+          <p className="px-2.5 pb-1 pt-1.5 text-eyebrow uppercase text-muted-darker">Vistas rápidas</p>
+          {QUICK_VIEWS.map((view) => (
+            <button
+              key={view.key}
+              type="button"
+              onClick={() => onApply(view.query)}
+              className="flex w-full items-center gap-2 rounded-[9px] px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light"
+            >
+              <view.icon size={14} className="shrink-0 text-muted" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">{view.label}</span>
+              {counts && (
+                <span className={`tabular-nums text-xs ${view.key === "awaiting" && counts.awaiting > 0 ? "font-semibold text-warning" : "text-muted-darker"}`}>
+                  {formatCount(counts[view.key])}
+                </span>
+              )}
+            </button>
+          ))}
+          <div className="my-1 border-t border-border" />
           <button
             type="button"
             onClick={() => setSaveOpen(true)}

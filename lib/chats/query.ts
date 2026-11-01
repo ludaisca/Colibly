@@ -92,7 +92,8 @@ export function buildWaChatWhere(filters: ChatListFilters, accountIds: string[])
 export function buildChannelChatWhere(
   filters: ChatListFilters,
   channelAccountIds: string[],
-  channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT"
+  // Sin canal = todos los canales genéricos a la vez (contadores de la bandeja).
+  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT"
 ): Prisma.ConversationWhereInput | null {
   if (filters.campaignId) return null;
 
@@ -101,7 +102,7 @@ export function buildChannelChatWhere(
     channelAccountId: filters.accountId
       ? (channelAccountIds.includes(filters.accountId) ? filters.accountId : { in: [] })
       : { in: channelAccountIds },
-    channelAccount: { channel },
+    ...(channel ? { channelAccount: { channel } } : {}),
   };
   if (filters.chatId) where.id = filters.chatId;
   if (filters.statuses.length > 0) where.status = { in: filters.statuses as Array<"OPEN" | "PENDING" | "RESOLVED"> };
