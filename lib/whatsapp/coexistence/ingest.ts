@@ -133,7 +133,7 @@ export async function ingestBusinessAppMessages(
 
   for (const [chatId, list] of byChat) {
     const existing = await prisma.wAMessage.findMany({
-      where: { chatId, wamid: { in: list.map((m) => m.wamid) } },
+      where: { chatId, wamid: { in: list.flatMap((m) => (m.editOf ? [m.wamid, m.editOf] : [m.wamid])) } },
       select: { id: true, wamid: true, messageType: true },
     });
     const existingByWamid = new Map(existing.map((e) => [e.wamid as string, e]));
@@ -141,6 +141,21 @@ export async function ingestBusinessAppMessages(
     const fresh: NormalizedBusinessMessage[] = [];
     const seen = new Set<string>();
     for (const msg of list) {
+      if (msg.editOf) {
+        // Edición hecha en la app del teléfono: se corrige el mensaje original;
+        // la edición en sí no se guarda como mensaje.
+        const original = existingByWamid.get(msg.editOf);
+        if (original) {
+          await prisma.wAMessage.update({
+            where: { id: original.id },
+            data: { ...(msg.body ? { body: msg.body } : {}), ...(msg.caption !== null ? { caption: msg.caption } : {}) },
+          });
+          result.updated++;
+        } else {
+          result.skipped++;
+        }
+        continue;
+      }
       const prev = existingByWamid.get(msg.wamid);
       if (prev) {
         // El historial manda los medios en un webhook aparte: el mensaje ya existe

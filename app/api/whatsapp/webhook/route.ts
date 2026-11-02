@@ -6,7 +6,7 @@ import type { RecipientStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
 import { rateLimit } from "@/lib/rate-limit";
-import { getMediaInfo, getMessageBody } from "@/lib/whatsapp/message-content";
+import { getMediaInfo, getMessageBody, parseMessageEdit } from "@/lib/whatsapp/message-content";
 import { validateWhatsAppWebhookSignature, verifyTokenMatches } from "@/lib/meta/platform-app";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import { COEXISTENCE_FIELDS, handleCoexistenceChange, type CoexistenceField } from "@/lib/whatsapp/coexistence/webhook";
@@ -22,7 +22,9 @@ interface WebhookMessage {
   image?: { id: string; mime_type: string; caption?: string };
   video?: { id: string; mime_type: string; caption?: string };
   audio?: { id: string; mime_type: string };
+  sticker?: { id: string; mime_type: string; animated?: boolean };
   document?: { id: string; mime_type: string; caption?: string; filename?: string };
+  edit?: { original_message_id?: string; message?: Record<string, unknown> };
   location?: { latitude: number; longitude: number; name?: string; address?: string };
   interactive?: {
     type: string;
@@ -566,6 +568,25 @@ export async function POST(req: Request) {
                   await prisma.wAMessage.update({
                     where: { id: target.id },
                     data: { reactionEmoji: msg.reaction?.emoji || null, reactionAt },
+                  });
+                  continue;
+                }
+                if (msg.type === "edit") {
+                  // El cliente editó un mensaje (solo coexistencia): se actualiza
+                  // el original en vez de guardar otro mensaje "[edit]".
+                  const edit = parseMessageEdit(msg as Parameters<typeof parseMessageEdit>[0]);
+                  if (!edit) continue;
+                  const target = await prisma.wAMessage.findFirst({
+                    where: { wamid: edit.originalMessageId, chat: { accountId: account.id, remoteJid: msg.from } },
+                    select: { id: true },
+                  });
+                  if (!target) continue;
+                  await prisma.wAMessage.update({
+                    where: { id: target.id },
+                    data: {
+                      ...(edit.body !== null ? { body: edit.body } : {}),
+                      ...(edit.caption !== null ? { caption: edit.caption } : {}),
+                    },
                   });
                   continue;
                 }

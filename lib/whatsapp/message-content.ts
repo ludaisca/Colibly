@@ -7,6 +7,7 @@ export interface WhatsAppMessageContent {
   image?: { id: string; mime_type: string; caption?: string };
   video?: { id: string; mime_type: string; caption?: string };
   audio?: { id: string; mime_type: string };
+  sticker?: { id: string; mime_type: string; animated?: boolean };
   document?: { id: string; mime_type: string; caption?: string; filename?: string };
   interactive?: {
     type?: string;
@@ -20,6 +21,8 @@ export interface WhatsAppMessageContent {
     };
   };
   button?: { payload: string; text: string };
+  // Edición de un mensaje (solo coexistencia): `message` es el contenido nuevo.
+  edit?: { original_message_id?: string; message?: Omit<WhatsAppMessageContent, "type"> & { type?: string } };
 }
 
 export interface StoredInteractivePayload {
@@ -86,6 +89,12 @@ export function getMediaInfo(msg: WhatsAppMessageContent): {
     filename: null,
     caption: null,
   };
+  if (msg.sticker) return {
+    mediaId: msg.sticker.id,
+    mimeType: msg.sticker.mime_type ?? null,
+    filename: null,
+    caption: null,
+  };
   if (msg.document) return {
     mediaId: msg.document.id,
     mimeType: msg.document.mime_type ?? null,
@@ -93,4 +102,26 @@ export function getMediaInfo(msg: WhatsAppMessageContent): {
     caption: msg.document.caption ?? null,
   };
   return { mediaId: null, mimeType: null, filename: null, caption: null };
+}
+
+export interface ParsedMessageEdit {
+  originalMessageId: string;
+  // Texto nuevo (o pie de la imagen/video/documento editado); null si Meta no
+  // trajo contenido legible, para no pisar el original con un marcador.
+  body: string | null;
+  caption: string | null;
+}
+
+// Meta manda la edición como un mensaje `type: "edit"` aparte; el cuerpo nuevo
+// va en `edit.message` (para texto `text.body`, para medios `<tipo>.caption`).
+export function parseMessageEdit(msg: WhatsAppMessageContent): ParsedMessageEdit | null {
+  if (msg.type !== "edit") return null;
+  const originalMessageId = msg.edit?.original_message_id;
+  const next = msg.edit?.message;
+  if (!originalMessageId || !next) return null;
+  const content = { ...next, type: next.type ?? "text" } as WhatsAppMessageContent;
+  const { caption } = getMediaInfo(content);
+  const text = getMessageBody(content);
+  const readable = text !== `[${content.type}]`;
+  return { originalMessageId, body: readable ? text : null, caption };
 }
