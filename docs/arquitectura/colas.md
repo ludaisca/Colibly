@@ -4,7 +4,7 @@
 
 ## Redis + BullMQ
 
-24 queues, auto-started via `instrumentation.ts`. **There are no per-job timeouts** — BullMQ 5 has no `timeout` job option (it used to be set and was silently ignored); the real time limit lives on every outbound HTTP call (`lib/http-timeouts.ts`: 20s JSON, 120s file transfer, 90s AI completions). The "Attempts" column is BullMQ retries.
+24 queues, auto-started via `instrumentation.ts`. **There are no per-job timeouts** — BullMQ 5 has no `timeout` job option (it used to be set and was silently ignored); the real time limit lives on every outbound HTTP call (`lib/http-timeouts.ts`: 20s JSON, 120s file transfer, 90s AI completions). The "Attempts" column is BullMQ retries. **A new repeatable tick also goes into `EXPECTED_REPEATABLES` in `lib/platform/diagnostics.ts`**, so the doctor warns if it stops being scheduled.
 
 | Queue | Concurrency | Attempts | Trigger |
 |---|---|---|---|
