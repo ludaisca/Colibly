@@ -42,6 +42,17 @@ export async function currentSubscription(): Promise<PushSubscription | null> {
   return (await registration?.pushManager.getSubscription()) ?? null;
 }
 
+// El navegador responde en inglés; se traduce por `name`, que sí es estable.
+function subscribeErrorMessage(error: unknown): string {
+  const name = error instanceof DOMException || error instanceof Error ? error.name : "";
+  if (name === "NotAllowedError") return "El navegador bloqueó las notificaciones de este sitio. Permítelas en el candado de la barra de direcciones.";
+  if (name === "InvalidAccessError") return "La llave de notificaciones no es válida. Pide al operador que la regenere en Plataforma → Configuración.";
+  if (name === "AbortError") {
+    return "El servicio de notificaciones del navegador no respondió. En Brave activa «Usar servicios de Google para mensajería push» en brave://settings/privacy; en otros navegadores revisa que no estés en modo incógnito ni bloqueando el acceso a Google.";
+  }
+  return `El navegador no permitió activar los avisos${name ? ` (${name})` : ""}. Revisa que no estés en modo incógnito y que las notificaciones estén permitidas.`;
+}
+
 /**
  * Activa los avisos en este navegador. Si la suscripción existente se hizo con
  * otras llaves (la plataforma las regeneró), se rehace.
@@ -61,10 +72,9 @@ export async function enablePush(publicKey: string): Promise<void> {
   if (!subscription) {
     try {
       subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-    } catch {
-      // El error del navegador viene en inglés y no se puede distinguir de
-      // forma fiable (incógnito, servicio push bloqueado, perfil gestionado).
-      throw new Error("El navegador no permitió activar los avisos. Revisa que no estés en modo incógnito y que las notificaciones estén permitidas.");
+    } catch (error) {
+      console.error("[push] pushManager.subscribe falló", error);
+      throw new Error(subscribeErrorMessage(error));
     }
   }
   await postSubscription(subscription);
