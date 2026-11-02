@@ -13,6 +13,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { PageContainer } from "@/app/components/ui/page-container";
 import { useToast } from "@/app/components/ui/toast";
 import type { PlatformUserView, WhatsAppAccountHealth } from "@/lib/platform/support";
+import { canSendLabel, messagingLimitLabel, nameStatusLabel, qualityLabel } from "@/lib/platform/whatsapp-health-rules";
 
 // Soporte del operador: la misma lógica que las herramientas MCP
 // colibly_find_user / colibly_reset_two_factor / colibly_whatsapp_health.
@@ -171,10 +172,10 @@ export function PlataformaSoporte() {
                   {row.meta.reachable ? (
                     <>
                       <p className="text-sm text-muted-darker">
-                        {row.meta.phone ?? "—"} · «{row.meta.verifiedName ?? "—"}» nombre {row.meta.nameStatus ?? "—"}
+                        {row.meta.phone ?? "—"} · «{row.meta.verifiedName ?? "—"}» nombre {nameStatusLabel(row.meta.nameStatus)}
                       </p>
                       <p className="text-xs text-muted">
-                        Envío {row.meta.canSendMessage ?? "—"} · calidad {row.meta.quality ?? "—"} · límite {row.meta.messagingLimit ?? "—"} · fallidos 24 h: {row.failedLast24h}
+                        Envío {canSendLabel(row.meta.canSendMessage)} · calidad {qualityLabel(row.meta.quality)} · límite {messagingLimitLabel(row.meta.messagingLimit)} · fallidos 24 h: {row.failedLast24h}
                       </p>
                       {row.meta.notices.map((notice) => (
                         <p key={notice} className="text-xs text-muted-darker">{notice}</p>

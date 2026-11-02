@@ -28,16 +28,76 @@ export function whatsappVerdict(info: { canSendMessage: string | null; nameStatu
 
 const SIP_ERRORS = new Set([138024, 138025]);
 
+// Textos de Meta (en inglés) → español para el operador. Solo lo conocido: un
+// valor o código que no esté aquí se muestra tal como llega, sin inventar.
+const CAN_SEND_LABEL: Record<string, string> = { AVAILABLE: "puede enviar", LIMITED: "limitado", BLOCKED: "bloqueado" };
+const NAME_STATUS_LABEL: Record<string, string> = {
+  APPROVED: "aprobado",
+  AVAILABLE_WITHOUT_REVIEW: "disponible sin revisión",
+  PENDING_REVIEW: "en revisión",
+  DECLINED: "rechazado",
+  EXPIRED: "vencido",
+  NONE: "sin nombre",
+};
+const QUALITY_LABEL: Record<string, string> = { GREEN: "alta", YELLOW: "media", RED: "baja", UNKNOWN: "sin dato" };
+const LIMIT_LABEL: Record<string, string> = {
+  TIER_50: "50 clientes / 24 h",
+  TIER_250: "250 clientes / 24 h",
+  TIER_1K: "1,000 clientes / 24 h",
+  TIER_10K: "10,000 clientes / 24 h",
+  TIER_100K: "100,000 clientes / 24 h",
+  TIER_UNLIMITED: "sin límite",
+};
+const ENTITY_LABEL: Record<string, string> = {
+  PHONE_NUMBER: "Número",
+  WABA: "Cuenta de WhatsApp Business",
+  BUSINESS: "Negocio",
+  APP: "App",
+  AD_ACCOUNT: "Cuenta de anuncios",
+};
+const ERROR_TEXT: Record<number, { description: string; solution?: string }> = {
+  141006: {
+    description: "Hay un problema con el método de pago. Esto bloquea las conversaciones iniciadas por el negocio.",
+    solution: "Agrega un método de pago nuevo a la cuenta en el Administrador de WhatsApp.",
+  },
+  141010: {
+    description: "El negocio no ha pasado la verificación de negocio.",
+    solution: "Entra a la configuración del negocio en Meta e inicia o resuelve la solicitud de verificación.",
+  },
+};
+const INFO_TEXT: Array<[RegExp, string]> = [
+  [
+    /^Your display name has not been approved yet\.?(?: Your message limit will increase after the display name is approved\.?)?$/i,
+    "Meta todavía no aprueba el nombre para mostrar. El límite de mensajes aumentará cuando lo apruebe.",
+  ],
+];
+
+function labelOf(table: Record<string, string>, value: string | null | undefined): string {
+  if (!value) return "—";
+  return table[value] ?? value;
+}
+
+export const canSendLabel = (value: string | null | undefined) => labelOf(CAN_SEND_LABEL, value);
+export const nameStatusLabel = (value: string | null | undefined) => labelOf(NAME_STATUS_LABEL, value);
+export const qualityLabel = (value: string | null | undefined) => labelOf(QUALITY_LABEL, value);
+export const messagingLimitLabel = (value: string | null | undefined) => labelOf(LIMIT_LABEL, value);
+
+function translateInfo(info: string): string {
+  return INFO_TEXT.find(([pattern]) => pattern.test(info.trim()))?.[1] ?? info;
+}
+
 export function noticesFrom(entities: MetaHealthEntity[] | undefined): string[] {
   const out: string[] = [];
   for (const entity of entities ?? []) {
-    const who = entity.entity_type ?? "?";
-    for (const info of entity.additional_info ?? []) out.push(`${who}: ${info}`);
+    const who = labelOf(ENTITY_LABEL, entity.entity_type ?? "?");
+    for (const info of entity.additional_info ?? []) out.push(`${who}: ${translateInfo(info)}`);
     for (const error of entity.errors ?? []) {
       if (error.error_code && SIP_ERRORS.has(error.error_code)) continue;
-      out.push(`${who}: (#${error.error_code ?? "?"}) ${error.error_description ?? ""}${error.possible_solution ? ` → ${error.possible_solution}` : ""}`.trim());
+      const known = error.error_code ? ERROR_TEXT[error.error_code] : undefined;
+      const description = known?.description ?? error.error_description ?? "";
+      const solution = known ? known.solution : error.possible_solution;
+      out.push(`${who}: (#${error.error_code ?? "?"}) ${description}${solution ? ` → ${solution}` : ""}`.trim());
     }
   }
   return out;
 }
-
