@@ -97,6 +97,9 @@ export function EntityList<T>({
             >
               <Dropdown
                 align="right"
+                // Con la lista en overflow-hidden un menú "absolute" se recorta
+                // (visto con una sola fila): se dibuja en el body.
+                portal
                 trigger={
                   <button type="button" aria-label="Acciones" className="rounded-md p-1.5 text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground">
                     <MoreVertical size={15} />
