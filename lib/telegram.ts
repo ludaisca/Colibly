@@ -63,7 +63,7 @@ interface TelegramMessage {
   chat: { id: number };
 }
 
-// El bot de IA sigue generando solo texto (ver AGENTS.md, "Bot reply stays
+// El bot de IA sigue generando solo texto (ver docs/arquitectura/ia.md, "Bot reply stays
 // text-only") — sendMediaMessage más abajo es solo para el envío manual desde
 // el composer.
 export function replyParameters(messageId: string | undefined): { message_id: number } | null {

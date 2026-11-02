@@ -1,4 +1,6 @@
 import { Prisma } from "@prisma/client";
+import { displayName } from "@/lib/chats/display-name";
+import { queuePush } from "@/lib/notifications/push";
 import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
@@ -8,6 +10,8 @@ import { addressBookNameFor, forgetAddressBookEntry, shouldApplyProfileName } fr
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
+import { markWaiting } from "@/lib/chats/waiting";
+import { queueAwayMessage } from "@/lib/inbox/away-message";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -147,8 +151,14 @@ export async function ingestInboundMessage(
   // quedaba RESOLVED y fuera de la calificación programada, la recuperación de
   // leads (ambas filtran OPEN/PENDING) y las métricas de resolución. PENDING no
   // se toca: puede significar otra cosa para el equipo.
-  if (chat.status === "RESOLVED") {
-    await prisma.wAChat.update({ where: { id: chat.id }, data: { status: "OPEN", resolvedAt: null } });
+  if (chat.status === "RESOLVED" || chat.snoozedUntil) {
+    await prisma.wAChat.update({
+      where: { id: chat.id },
+      data: {
+        ...(chat.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null } : {}),
+        snoozedUntil: null,
+      },
+    });
   }
 
   let createdMessage;
@@ -181,6 +191,10 @@ export async function ingestInboundMessage(
     }
     throw err;
   }
+
+  // El cliente espera respuesta desde este mensaje (si ya esperaba, se
+  // conserva la marca más antigua). Ver lib/chats/waiting.ts.
+  await markWaiting("whatsapp", chat.id, msg.timestamp);
 
   // Media entrante de Meta llega solo como mediaId — los bytes se descargan async.
   if (msg.mediaId && !msg.localMediaPath && msg.type !== "text") {
@@ -231,11 +245,12 @@ export async function ingestInboundMessage(
       data: {
         userId: assignedToId,
         type: "CHAT_MESSAGE",
-        title: msg.contactName,
+        title: displayName(msg.contactName, msg.remoteJid),
         body: msg.body.slice(0, 200),
         link: `/whatsapp/chat/${accountId}/${chat.id}`,
       },
     });
+    await queuePush(assignedToId, { title: displayName(msg.contactName, msg.remoteJid), body: msg.body, link: `/whatsapp/chat/${accountId}/${chat.id}`, tag: `chat:${chat.id}` });
   }
 
   await prisma.wAAccount.update({
@@ -283,6 +298,10 @@ export async function ingestInboundMessage(
       caption: msg.caption ?? null,
       filename: msg.filename ?? null,
     }, { delay: BOT_REPLY_DEBOUNCE_MS });
+  } else if (!suppressBot) {
+    // Sin bot ni flujo que conteste: aviso fuera de horario si la organización
+    // lo activó (lib/inbox/away-message.ts decide y vuelve a comprobar todo).
+    await queueAwayMessage("whatsapp", chat.id, accountId, { isGroup: msg.isGroup });
   }
 
   return { messageId: createdMessage.id, chatId: chat.id };

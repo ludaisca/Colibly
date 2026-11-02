@@ -1,0 +1,38 @@
+# Tenencia (multi-tenant) y roles
+
+> Detalle técnico movido desde `AGENTS.md` (2026-11-01). Las reglas esenciales siguen en [`AGENTS.md`](../../AGENTS.md) y [`CLAUDE.md`](../../CLAUDE.md); aquí está el detalle completo. Mantén este archivo al día en el mismo cambio que el código.
+
+## Architecture: tenancy (SaaS, since 2026-09-25)
+
+Colibly is a hosted, paid multi-tenant product (per-seat plans ESSENTIAL "Básico" 59 MXN / BUSINESS "Avanzado" 89 MXN / PRO "Pro" 149 MXN per user per month — offer of 2026-10-27; 14-day trial on PRO, read-only as soon as it expires without a paid plan, `lib/billing/plans.ts`) — no longer one install per company. The workspace is an **`Organization`**; every `User` belongs to exactly one (`User.organizationId`, required) and `User.role` is the role **inside that organization**, so the existing `role === "admin"` checks keep meaning "admin of their own workspace".
+
+- **`organizationId` lives on top-level entities only**: `User`, `WAAccount`, `ChannelAccount`, `WABot`, `WALeadScorerBot`, `MetaAdsAccount`, `ApiKey`, `WebhookEndpoint`, `Automation`, `WASequence`, `WACampaign`, `LeadSheetSource`. Everything else (chats, contacts, messages, tags…) hangs off an account and inherits its organization. **Every new top-level model needs `organizationId`, and every create must set it** (`requireOrgId(userId)`).
+- **Scoping helpers** (`lib/tenancy.ts`): `getUserTenant()` (60s cache, invalidated with the session cache), `requireOrgId()`, `orgWhere(userId)` → `{ organizationId }` for admin resources (bots, scorers, Meta Ads, API keys, webhooks — any admin of the org sees and edits them, not just the creator), `accountManageWhere(userId)` for editing/deleting/sharing an account (any org admin, or the account's owner), `sameOrganization()`.
+- **`getUserAccountIds` / `getUserChannelAccountIds`** keep their signature: an **admin gets every account of their organization**; `user`/`ejecutivo` get own + shared. Shares (`WAAccountShare`, `ChannelAccountShare`) only accept a target in the same organization. Org admins are also assignment candidates (`lib/chat-assignees.ts`).
+- **Never scope by creator** (`userId: session.user.id`) for anything an organization shares — that is how the old single-tenant code worked and it hides a resource from the org's other admins. Per-user rows that stay per-user: `GoogleAccount`, `Notification`. Operational settings (timezone, business hours, lead recovery) live on `Organization` (`AppSettings` was dropped with S4).
+- The public API (`lib/api/auth.ts`) puts `organizationId` in `ApiContext`; API-managed webhooks are scoped by it.
+- **Isolation was verified end to end** (2026-09-25, 94 checks) with a second organization created through public signup: every list route, the dashboard RSC pages and `/api/v1` were swept for the other org's ids, and direct GET/PATCH/DELETE/share on foreign ids answered 404/403. Repeat that kind of sweep when adding routes.
+- The migration `20260925034029_organizations` put pre-existing data into one internal organization (`org_install`, `isInternal: true`, status `ACTIVE`, owner = earliest admin).
+
+## Architecture: roles
+
+Three roles with different UIs and access:
+
+| Role | Sidebar | Routes blocked (`proxy.ts`) |
+|---|---|---|
+| `admin` | everything: Panel, Estadísticas, Pipeline, Chats, Contactos, Bots IA, Calificadores, Cuentas (WhatsApp/Messenger/Instagram/Telegram), Plantillas, Campañas, Meta Ads, Usuarios, Config | none |
+| `user` | like admin **minus** Contactos, Bots IA, Meta Ads, Usuarios | `USER_BLOCKED`: `/whatsapp/contactos`, `/whatsapp/bots`, `/configuracion/ia`, `/configuracion/api`, `/meta-ads` |
+| `ejecutivo` | Chats, Contactos, Config | `EXECUTIVE_BLOCKED`: `/dashboard`, `/estadisticas`, `/usuarios`, `/whatsapp/{bots,campanas,plantillas,cuentas}`, `/telegram/cuentas`, `/messenger/cuentas`, `/instagram/cuentas`, `/configuracion/ia`, `/configuracion/api`, `/ventas`, `/meta-ads`, `/whatsapp/secuencias`, `/whatsapp/automatizaciones` |
+
+Two pages were removed in the 2026-07 nav flattening: the `/whatsapp` hub (its KPIs duplicated Panel, its account list duplicated `/whatsapp/cuentas`; the route survives only as a `redirect("/whatsapp/cuentas")` and the nav item "Cuentas WhatsApp" points straight at `/whatsapp/cuentas`) and `/whatsapp/conocimiento` (fully redundant with the knowledge tab inside `whatsapp/bots/[id]`, which remains the only knowledge UI — its role-gating rides on `/whatsapp/bots`).
+
+`/usuarios` is **not** middleware-blocked for role `user` — it's protected by nav-hiding plus the admin-only check in every `/api/usuarios` handler (403), so the page renders but loads nothing. Follow that same defense-in-depth shape (hide nav → block route where it matters → 403 in the API) when restricting anything new.
+
+- Public signup (`/register`) creates a new `Organization` plus its owner (`admin`, `Organization.ownerId`) in one Serializable transaction (`lib/organizations.ts:createOrganizationWithOwner`, see "Registration"). **The organization owner can never be demoted or disabled**, and each organization must keep at least one active admin — there are exactly these 3 roles, don't add/remove any without asking.
+- Route protection in `proxy.ts` (Next.js 16 middleware) — `EXECUTIVE_BLOCKED` + `USER_BLOCKED` prefix lists. **The role lists never apply to `/api`** (`proxy.ts` only runs the read-only billing gate there, see "Billing"), so they only protect pages: every API route that performs an action of a blocked section must repeat the restriction with `lib/roles.ts:forbidRoles(session, [...])` right after the session check. Applied (2026-09-16) to all mutations of campaigns, templates, lead-sheet automations, sequences, WhatsApp accounts and routing rules (blocked for `ejecutivo`), and scorer CRUD (blocked for `user`, matching `canManageScorers`). GETs those sections share with the inbox (`GET /api/whatsapp/campaigns` for the campaign filter, account lists) stay open on purpose.
+- `dashboard-shell.tsx` builds `NAV[]` conditionally via `useSession().user.role`
+- `/whatsapp/calificadores` is reachable by `user` but self-restricts client-side to only the "Leads calificados" tab (`canManageScorers = role !== "user"`) — the CRUD tab isn't a separate route, so it can't be blocked in `proxy.ts`.
+- **AI config is admin-only in 3 layers**: the "Inteligencia Artificial" card on `/configuracion` renders only for admin, `/configuracion/ia` is in both blocked lists, and `GET/PATCH /api/configuracion/ia` return 403 for non-admin. `GET /api/configuracion/ia/models` deliberately stays open to all roles — `bots/_form.tsx` and `calificadores/_form.tsx` need it.
+- **Account sharing (`WAAccountShare`)**: admin shares a `WAAccount` with another user from the "Compartir cuenta" card on `whatsapp/cuentas/[id]` (API: `GET/POST/DELETE /api/whatsapp/accounts/[id]/share`, admin-only). Sharing grants data visibility (chats/contactos/plantillas/campañas of that account) within what the grantee's role already permits — it does not change menu permissions.
+- `lib/shared-accounts.ts` exports `getUserAccountIds(userId)` — own + shared accounts. Use in any new chat/message/template route that queries by account.
+- `Session.user` has `id`, `email`, `name`, `role`, `createdAt` (ISO string)

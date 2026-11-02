@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { recordContactActivity } from "@/lib/contacts/activity";
 
 const patchSchema = z.object({
   done: z.boolean().optional(),
@@ -30,6 +31,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       data: parsed.data,
       select: { id: true, title: true, done: true, createdAt: true },
     });
+    if (parsed.data.done !== undefined && parsed.data.done !== task.done) {
+      await recordContactActivity({
+        contactId: id,
+        type: parsed.data.done ? "TASK_COMPLETED" : "TASK_REOPENED",
+        title: `${parsed.data.done ? "Tarea completada" : "Tarea reabierta"}: ${task.title}`,
+        actorId: session.user.id,
+      });
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno del servidor") }, { status: 500 });
@@ -50,6 +60,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     });
     if (!task) return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     await prisma.contactTask.delete({ where: { id: taskId } });
+    await recordContactActivity({
+      contactId: id,
+      type: "TASK_DELETED",
+      title: `Tarea eliminada: ${task.title}`,
+      actorId: session.user.id,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno del servidor") }, { status: 500 });

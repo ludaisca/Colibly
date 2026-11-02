@@ -140,6 +140,7 @@ type CheckFn = (deps: DiagnosticDeps) => Promise<DiagnosticCheck>;
 | `app.version` | commit/build desplegado si existe `APP_COMMIT` | env | no |
 | `db.migrations` | migraciones sin terminar (`_prisma_migrations.finished_at IS NULL`) | SQL | no |
 | `db.vector` | índice `idx_knowledge_embedding` existe | `pg_indexes` | no |
+| `db.search` | índices trigram `idx_wa_messages_search_trgm` / `idx_channel_messages_search_trgm` existen | `pg_indexes` | no |
 | `redis` | ping y colas críticas sin backlog anormal | Redis | no |
 | `queues.repeatables` | jobs repetibles registrados (`billing-tick`, `media-cleanup`, `platform-backup`, `platform-health`) | BullMQ | no |
 | `billing.key` | key configurada; reporta `mode: "test" \| "live"` (nunca el valor) | settings | no |
@@ -458,7 +459,7 @@ Verificación end-to-end sin depender de Stripe:
 Decisión 2026-10-30: **sí se permite**, con candados más estrictos que el resto de la API.
 
 - Endpoint: `PUT /api/plataforma/v1/configuracion/secretos/{field}`.
-- `field` limitado a los 11 de `PLATFORM_SECRET_FIELDS`; cualquier otro → 400.
+- `field` limitado a los 12 de `PLATFORM_SECRET_FIELDS`; cualquier otro → 400.
 - Cuerpo: `{ value, confirm: "<field>" }`; `value` de 1–500 caracteres, sin `trim` (un secreto puede tener espacios).
 - Candados:
   - scope `secret:write`;

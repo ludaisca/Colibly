@@ -1,8 +1,9 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { RefreshCw, CalendarClock, Plus, X } from "lucide-react";
+import { RefreshCw, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, List, Plus, X } from "lucide-react";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { Button } from "@/app/components/ui/button";
@@ -13,7 +14,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { EntityRow } from "@/app/components/ui/entity-list";
-import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { cn } from "@/app/components/ui/cn";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
@@ -41,7 +42,7 @@ const SCOPE_OPTIONS = [
 ];
 
 function contactLabelOf(c: { name: string | null; realName: string | null; remoteJid: string }): string {
-  return c.realName ?? c.name ?? c.remoteJid;
+  return c.realName ?? displayName(c.name, c.remoteJid);
 }
 
 function startOfDay(d: Date): Date {
@@ -76,6 +77,16 @@ function dayLabel(iso: string): string {
   const label = new Date(iso).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
+function localDateKey(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+const CALENDAR_STATUS: Record<AppointmentDetail["status"], string> = {
+  SCHEDULED: "bg-info-bg text-info",
+  COMPLETED: "bg-success-bg text-success",
+  CANCELLED: "bg-surface-light text-muted",
+  NO_SHOW: "bg-danger-bg text-danger",
+};
 
 export function CitasView() {
   const { error: toastError } = useToast();
@@ -92,6 +103,11 @@ export function CitasView() {
   const [scopeFilter, setScopeFilter] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<AppointmentDetail | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const date = new Date();
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  });
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
@@ -171,6 +187,29 @@ export function CitasView() {
     return Array.from(map.entries()); // ya viene ordenado: la API devuelve scheduledAt asc
   }, [filtered]);
 
+  const appointmentsByDay = useMemo(() => {
+    const map = new Map<string, AppointmentDetail[]>();
+    for (const appointment of filtered) {
+      const key = dayKey(appointment.scheduledAt);
+      const list = map.get(key) ?? [];
+      list.push(appointment);
+      map.set(key, list);
+    }
+    return map;
+  }, [filtered]);
+
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const first = new Date(year, month, 1);
+    const offset = (first.getDay() + 6) % 7; // lunes primero
+    const start = new Date(year, month, 1 - offset);
+    return Array.from({ length: 42 }, (_, index) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + index));
+  }, [calendarMonth]);
+
+  const calendarTitle = calendarMonth.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+  const todayKey = localDateKey(now);
+
   const contactFilterLabel = contactIdParam
     ? appointments.find((a) => a.contact.id === contactIdParam)?.contact
     : null;
@@ -196,6 +235,14 @@ export function CitasView() {
         description="Agenda de citas por contacto — recordatorios automáticos incluidos."
         actions={
           <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={viewMode === "calendar" ? List : CalendarDays}
+              onClick={() => setViewMode((current) => current === "calendar" ? "list" : "calendar")}
+            >
+              {viewMode === "calendar" ? "Lista" : "Calendario"}
+            </Button>
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAppointments}>
               Actualizar
             </Button>
@@ -242,6 +289,78 @@ export function CitasView() {
           description="Agenda una cita desde aquí o desde la ficha de un contacto."
           action={<Button size="sm" icon={Plus} onClick={() => { setEditing(null); setModalOpen(true); }}>Nueva cita</Button>}
         />
+      ) : viewMode === "calendar" ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={ChevronLeft}
+              aria-label="Mes anterior"
+              onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
+            />
+            <p className="font-display text-base font-semibold capitalize text-foreground">{calendarTitle}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={ChevronRight}
+              aria-label="Mes siguiente"
+              onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
+            />
+          </div>
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <div className="grid grid-cols-7 border-b border-border bg-surface-light/60 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-darker">
+              {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
+                <div key={day} className="px-1 py-2">{day}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {calendarDays.map((day) => {
+                const key = localDateKey(day);
+                const inMonth = day.getMonth() === calendarMonth.getMonth();
+                const items = appointmentsByDay.get(key) ?? [];
+                return (
+                  <div
+                    key={key}
+                    className={cn(
+                      "min-h-24 border-b border-r border-border p-1.5",
+                      !inMonth && "bg-surface-light/40",
+                      key === todayKey && "bg-accent-subtle/40"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-full text-xs",
+                        key === todayKey ? "bg-accent font-semibold text-on-accent" : inMonth ? "text-muted" : "text-muted-darker"
+                      )}>
+                        {day.getDate()}
+                      </span>
+                      {items.length > 0 && <span className="text-[10px] text-muted-darker">{items.length}</span>}
+                    </div>
+                    <div className="mt-1 space-y-1">
+                      {items.slice(0, 3).map((appointment) => (
+                        <button
+                          key={appointment.id}
+                          type="button"
+                          onClick={() => { setEditing(appointment); setModalOpen(true); }}
+                          title={`${appointment.title} · ${contactLabelOf(appointment.contact)}`}
+                          className={cn(
+                            "block w-full truncate rounded-[6px] px-1.5 py-1 text-left text-[10px] font-medium transition-opacity hover:opacity-80",
+                            CALENDAR_STATUS[appointment.status]
+                          )}
+                        >
+                          {new Date(appointment.scheduledAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} {appointment.title}
+                        </button>
+                      ))}
+                      {items.length > 3 && <p className="px-1 text-[10px] text-muted-darker">+{items.length - 3} más</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <p className="text-xs text-muted">Haz clic en una cita para editarla. El calendario respeta los filtros activos.</p>
+        </div>
       ) : (
         <div className="space-y-5">
           {groups.map(([key, rows]) => (
@@ -260,7 +379,7 @@ export function CitasView() {
                       )}
                     >
                       <EntityRow
-                        leading={<EntityAvatar id={a.contact.id} name={contactLabelOf(a.contact)} size="sm" />}
+                        leading={<ChannelAvatar id={a.contact.id} name={contactLabelOf(a.contact)} channel={a.contact.channelAccount?.channel ?? "WHATSAPP"} size="sm" />}
                         title={<button type="button" onClick={(event) => { event.stopPropagation(); setEditing(a); setModalOpen(true); }} className="text-left hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong" aria-label={`Editar cita: ${a.title}`}>{a.title}</button>}
                         badges={
                           <span className="flex shrink-0 items-center gap-1">

@@ -58,7 +58,7 @@ Toda variable nueva de infraestructura debe agregarse también a la lista `app.e
 - `prisma/`: esquema, migraciones y SQL del índice vectorial.
 - `proxy.ts`: el middleware de Next 16 (protección de rutas por rol y bloqueo de escrituras en cuentas de solo lectura).
 
-Las convenciones, decisiones de arquitectura y trampas conocidas están en [`AGENTS.md`](AGENTS.md) (detalle) y [`CLAUDE.md`](CLAUDE.md) (reglas esenciales). Planes, auditorías y estado del lanzamiento: índice en [`docs/README.md`](docs/README.md).
+Las convenciones, decisiones de arquitectura y trampas conocidas están en [`CLAUDE.md`](CLAUDE.md) y [`AGENTS.md`](AGENTS.md) (reglas esenciales) y en [`docs/arquitectura/`](docs/arquitectura/) (detalle por módulo). Planes, auditorías y estado del lanzamiento: índice en [`docs/README.md`](docs/README.md).
 
 ## Despliegue
 

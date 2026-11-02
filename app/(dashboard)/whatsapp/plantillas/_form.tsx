@@ -9,6 +9,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { Textarea } from "@/app/components/ui/textarea";
+import { FormatToolbar } from "@/app/components/ui/format-toolbar";
 import { FormField } from "@/app/components/ui/form-field";
 import { Switch } from "@/app/components/ui/switch";
 import { RadioGroup } from "@/app/components/ui/radio";
@@ -372,17 +373,21 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
           </div>
 
           {/* BODY */}
-          <FormField label="Cuerpo" required hint="Usa {{1}}, {{2}} para variables personalizadas">
+          <FormField label="Cuerpo" required hint="Usa {{1}}, {{2}} para variables. Selecciona texto para darle formato (*negrita*, _cursiva_…).">
             {(id) => (
               <div className="space-y-2">
-                <Textarea
-                  ref={bodyRef}
-                  id={id}
-                  value={body}
-                  onChange={(e) => { setBody(e.target.value); syncBodyExamplesCount(e.target.value); }}
-                  placeholder="Hola {{1}}, tu pedido {{2}} está listo."
-                  rows={4}
-                />
+                <div className="relative">
+                  {/* Meta acepta el formato de WhatsApp en el cuerpo. */}
+                  <FormatToolbar textareaRef={bodyRef} value={body} onChange={(next) => { setBody(next); syncBodyExamplesCount(next); }} />
+                  <Textarea
+                    ref={bodyRef}
+                    id={id}
+                    value={body}
+                    onChange={(e) => { setBody(e.target.value); syncBodyExamplesCount(e.target.value); }}
+                    placeholder="Hola {{1}}, tu pedido {{2}} está listo."
+                    rows={4}
+                  />
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   <Button
                     type="button"

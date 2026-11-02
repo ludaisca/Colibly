@@ -6,7 +6,7 @@ import { useToast } from "@/app/components/ui/toast";
 
 type Task = { id: string; title: string; done: boolean };
 
-export function ContactTasks({ contactId }: { contactId: string }) {
+export function ContactTasks({ contactId, onChanged }: { contactId: string; onChanged?: () => void }) {
   const { error: toastError } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
@@ -39,6 +39,7 @@ export function ContactTasks({ contactId }: { contactId: string }) {
       }
       setTitle("");
       setTasks((current) => [body, ...current]);
+      onChanged?.();
     } finally {
       setBusy(false);
     }
@@ -55,6 +56,7 @@ export function ContactTasks({ contactId }: { contactId: string }) {
       return;
     }
     setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, done: !item.done } : item)));
+    onChanged?.();
   }
 
   return (

@@ -19,12 +19,14 @@ import { processWebhookDelivery } from "@/lib/webhooks/deliver";
 import { WEBHOOK_WORKER_CONCURRENCY } from "@/lib/api/constants";
 import type { DomainEvent } from "@/lib/events/types";
 import { handleDomainEvent as handleAutomationEvent } from "@/lib/automations/dispatch";
+import { recordContactActivityFromEvent } from "@/lib/contacts/activity";
 import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
 import { processBillingTick } from "@/lib/billing/tick";
 import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
 import { processBackupTick, runBackup, BackupAlreadyRunningError } from "@/lib/backups/runner";
 import { processPlatformHealthTick } from "./platform-health-worker";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue, platformHealthQueue } from "@/lib/queue";
+import { processInboxJob } from "./inbox-worker";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue, platformHealthQueue, inboxQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -127,6 +129,7 @@ export function startWorkers() {
   // webhooks salientes que coinciden.
   const domainEventWorker = new Worker("domain-events", async (job) => {
     const event = job.data as DomainEvent;
+    await recordContactActivityFromEvent(event);
     await fanOutToWebhooks(event);
     await handleAutomationEvent(event);
   }, { connection, concurrency: 5 });
@@ -185,6 +188,11 @@ export function startWorkers() {
     await processPlatformHealthTick();
   }, { connection, concurrency: 1 });
 
+  // Operación de la bandeja: auto-resolver (tick) y jobs puntuales por nombre.
+  const inboxWorker = new Worker("inbox", async (job) => {
+    await processInboxJob(job.name, job.data);
+  }, { connection, concurrency: 1 });
+
   // Una entrega HTTP por job; los reintentos (backoff largo) los maneja
   // BullMQ, el registro de cada intento vive en WebhookDelivery.
   // 20 en paralelo (env WEBHOOK_WORKER_CONCURRENCY), como mucho 2 por endpoint
@@ -193,7 +201,7 @@ export function startWorkers() {
     await processWebhookDelivery(job, token);
   }, { connection, concurrency: WEBHOOK_WORKER_CONCURRENCY });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker, platformHealthWorker);
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker, platformHealthWorker, inboxWorker);
 
   mediaCleanupQueue
     .add(
@@ -310,6 +318,15 @@ export function startWorkers() {
   platformHealthQueue
     .add("tick", {}, { jobId: "platform-health-tick", repeat: { pattern: "0 14 * * *" } })
     .catch((err) => console.error("[workers] No se pudo programar platform-health:", err));
+
+  // Bandeja: cada 15 min en el minuto 5 (lejos de lead-recovery en :00/:15).
+  inboxQueue
+    .add("tick", {}, { jobId: "inbox-tick", repeat: { pattern: "5,20,35,50 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar inbox-tick:", err));
+  // Monitores de temas con IA (lib/monitors/scan.ts): una vez por hora.
+  inboxQueue
+    .add("topic-monitor-tick", {}, { jobId: "topic-monitor-tick", repeat: { pattern: "40 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar topic-monitor-tick:", err));
 
   console.log("[workers] BullMQ workers started");
 }

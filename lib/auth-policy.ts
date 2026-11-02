@@ -4,6 +4,11 @@ import { isPlatformAdminEmailIn } from "./platform-admin-emails";
 // credenciales son correctas pero el correo no está confirmado. La pantalla de
 // login lo usa para mostrar el aviso y el botón de reenvío.
 export const EMAIL_NOT_VERIFIED_CODE = "email_not_verified";
+// Verificación en dos pasos (lib/two-factor.ts): la contraseña fue correcta y
+// falta el código / el código no sirvió / demasiados intentos.
+export const TWO_FACTOR_REQUIRED_CODE = "two_factor_required";
+export const TWO_FACTOR_INVALID_CODE = "two_factor_invalid";
+export const TWO_FACTOR_RATE_LIMITED_CODE = "two_factor_rate_limited";
 
 // Regla de acceso por correo: la cuenta del dueño del SaaS (PLATFORM_ADMIN_EMAILS)
 // está exenta para no quedar fuera de su propio panel; cualquier otra cuenta

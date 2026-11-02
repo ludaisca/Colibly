@@ -3,6 +3,7 @@ import { saveMediaFromMeta, saveMediaFromBuffer } from "@/lib/whatsapp/media-sto
 import { decrypt } from "@/lib/crypto";
 import { getFileUrl } from "@/lib/telegram";
 import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+import { queueAutoTranscribe } from "@/lib/ai/transcribe";
 
 interface MediaDownloadJob {
   messageId: string;
@@ -26,7 +27,7 @@ export async function processMediaDownloadJob(job: MediaDownloadJob) {
 
   const message = await prisma.wAMessage.findUnique({
     where: { id: job.messageId },
-    select: { id: true, mediaUrl: true, messageType: true, chat: { select: { accountId: true } } },
+    select: { id: true, mediaUrl: true, messageType: true, direction: true, chat: { select: { accountId: true } } },
   });
 
   if (!message) return;
@@ -51,12 +52,13 @@ export async function processMediaDownloadJob(job: MediaDownloadJob) {
       mimeType: stored.remoteMimeType,
     },
   });
+  if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("whatsapp", message.id);
 }
 
 async function processTelegramMediaDownload(job: MediaDownloadJob) {
   const message = await prisma.channelMessage.findUnique({
     where: { id: job.messageId },
-    select: { id: true, mediaUrl: true, mimeType: true },
+    select: { id: true, mediaUrl: true, mimeType: true, messageType: true, direction: true },
   });
   if (!message) return;
   if (message.mediaUrl) return; // ya descargado
@@ -80,6 +82,7 @@ async function processTelegramMediaDownload(job: MediaDownloadJob) {
     where: { id: job.messageId },
     data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize },
   });
+  if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("channel", message.id);
 }
 
 // Messenger/Instagram no requieren un paso equivalente a getFileUrl(): el
@@ -88,7 +91,7 @@ async function processTelegramMediaDownload(job: MediaDownloadJob) {
 async function processMetaChannelMediaDownload(job: MediaDownloadJob) {
   const message = await prisma.channelMessage.findUnique({
     where: { id: job.messageId },
-    select: { id: true, mediaUrl: true, mimeType: true },
+    select: { id: true, mediaUrl: true, mimeType: true, messageType: true, direction: true },
   });
   if (!message) return;
   if (message.mediaUrl) return; // ya descargado
@@ -118,4 +121,5 @@ async function processMetaChannelMediaDownload(job: MediaDownloadJob) {
     where: { id: job.messageId },
     data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize, mimeType },
   });
+  if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("channel", message.id);
 }

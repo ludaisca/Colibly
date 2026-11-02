@@ -14,6 +14,7 @@ import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { PageContainer } from "@/app/components/ui/page-container";
 import { useToast } from "@/app/components/ui/toast";
 import type { PlatformSecretField } from "@/lib/platform-settings";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 
 interface ConfigResponse {
   hasOpencodeApiKey: boolean;
@@ -208,6 +209,71 @@ function SettingsBlock({ eyebrow, title, status, defaultOpen, children }: { eyeb
       </summary>
       <div className="min-w-0 space-y-4 border-t border-border p-4">{children}</div>
     </details>
+  );
+}
+
+// Llaves VAPID de las notificaciones push (lib/notifications/push.ts). No se
+// escriben a mano: se generan; regenerarlas borra todas las suscripciones.
+function PushKeysBlock({ defaultOpen }: { defaultOpen: boolean }) {
+  const { success, error: toastError } = useToast();
+  const [state, setState] = useState<{ hasKeys: boolean; publicKey: string | null; subscriptions: number } | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/plataforma/push")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setState(data))
+      .catch(() => {});
+  }, []);
+
+  async function generate() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/plataforma/push", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "No se pudieron generar las llaves");
+      setState(data);
+      success("Llaves generadas: cada usuario activa los avisos desde su menú");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudieron generar las llaves");
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <SettingsBlock
+      eyebrow="Navegador"
+      title="Notificaciones push"
+      status={state?.hasKeys ? { tone: "success", label: "Configurado" } : { tone: "neutral", label: "Opcional" }}
+      defaultOpen={defaultOpen}
+    >
+      <p className="text-sm text-muted">
+        Avisos del navegador para mensajes de chats asignados, chats asignados y llamadas entrantes, aunque la pestaña esté cerrada.
+        Las llaves (VAPID) se generan aquí; la privada se guarda cifrada.
+      </p>
+      {state?.hasKeys && (
+        <p className="break-all rounded-lg bg-surface-light p-2 font-mono text-xs text-muted-darker">
+          Pública: {state.publicKey}
+          <span className="mt-1 block font-sans">{state.subscriptions} navegadores suscritos</span>
+        </p>
+      )}
+      <Button variant="secondary" size="sm" loading={busy} onClick={() => (state?.hasKeys ? setConfirming(true) : void generate())}>
+        {state?.hasKeys ? "Regenerar llaves" : "Generar llaves"}
+      </Button>
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={generate}
+        title="¿Regenerar las llaves push?"
+        description="Todos los navegadores suscritos dejan de recibir avisos y cada usuario tiene que volver a activarlos desde su menú."
+        confirmLabel="Regenerar"
+        tone="danger"
+        loading={busy}
+      />
+    </SettingsBlock>
   );
 }
 
@@ -594,6 +660,8 @@ export function PlataformaConfiguracion() {
           {(id) => <Input id={id} value={plain.googleAdsSignupLabel} onChange={(e) => setPlain((p) => ({ ...p, googleAdsSignupLabel: e.target.value }))} />}
         </FormField>
       </SettingsBlock>
+
+      <PushKeysBlock defaultOpen={wide} />
 
       <div className="flex justify-end border-t border-border pt-6">
         <Button onClick={handleSave} loading={saving} className="w-full sm:w-auto">

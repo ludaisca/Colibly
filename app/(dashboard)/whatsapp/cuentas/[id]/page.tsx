@@ -30,6 +30,8 @@ interface AccountDetail {
   errorMessage: string | null;
   lastActivity: string | null;
   autoAssignEnabled: boolean;
+  autoAssignOnlineOnly: boolean;
+  csatEnabled: boolean;
   qualityRating: string | null;
   messagingTier: string | null;
   qualityUpdatedAt: string | null;
@@ -385,6 +387,38 @@ export default function CuentaDetailPage() {
     }
   }
 
+  async function handleToggleOnlineOnly(enabled: boolean) {
+    if (!account) return;
+    setAccount({ ...account, autoAssignOnlineOnly: enabled });
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoAssignOnlineOnly: enabled }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setAccount((prev) => prev && { ...prev, autoAssignOnlineOnly: !enabled });
+      toastError("Error al actualizar la asignación");
+    }
+  }
+
+  async function handleToggleCsat(enabled: boolean) {
+    if (!account) return;
+    setAccount({ ...account, csatEnabled: enabled });
+    try {
+      const res = await fetch(`/api/whatsapp/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csatEnabled: enabled }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setAccount((prev) => prev && { ...prev, csatEnabled: !enabled });
+      toastError("Error al actualizar la encuesta de satisfacción");
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -592,6 +626,19 @@ export default function CuentaDetailPage() {
           </div>
 
           {account.autoAssignEnabled && (
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Solo asignar a ejecutivos en línea</p>
+                <p className="text-xs text-muted-darker">
+                  Salta a quien está ocupado, desconectado o lleva más de 5 minutos sin la app abierta. Si nadie está en línea, el
+                  chat queda sin asignar.
+                </p>
+              </div>
+              <Switch checked={account.autoAssignOnlineOnly} onCheckedChange={handleToggleOnlineOnly} label="Solo asignar a ejecutivos en línea" />
+            </div>
+          )}
+
+          {account.autoAssignEnabled && (
             <div className="space-y-3 border-t border-border pt-4">
               <div>
                 <p className="text-sm font-medium text-foreground">Reglas de enrutamiento</p>
@@ -653,6 +700,21 @@ export default function CuentaDetailPage() {
             </div>
           )}
         </section>}
+
+        {canManage && (
+          <section className="space-y-4">
+            <SectionHeader title="Satisfacción del cliente" />
+            <div className="flex items-center justify-between py-1">
+              <div>
+                <p className="text-sm font-medium text-foreground">Encuesta al resolver</p>
+                <p className="text-xs text-muted-darker">
+                  Envía un enlace de 1 a 5 estrellas cuando se resuelve un chat. Solo sale si la ventana de 24 h de WhatsApp sigue abierta; una encuesta por chat.
+                </p>
+              </div>
+              <Switch checked={account.csatEnabled} onCheckedChange={handleToggleCsat} label="Encuesta CSAT al resolver" />
+            </div>
+          </section>
+        )}
 
         {isAdmin && (
           <section className="space-y-4">

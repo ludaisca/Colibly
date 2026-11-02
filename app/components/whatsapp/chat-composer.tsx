@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { FormatToolbar } from "@/app/components/ui/format-toolbar";
 import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -14,6 +15,8 @@ import { messagePreview, type CannedResponseItem, type Channel, type Message } f
 // `newMessage`/`attachment`/`performSend`; este panel solo dispara callbacks).
 
 interface ChatComposerProps {
+  /** Firma personal activa (F6): se muestra como aviso mientras se escribe texto. */
+  signature?: string | null;
   chatId: string;
   channel: Channel;
   newMessage: string;
@@ -44,7 +47,7 @@ interface ChatComposerProps {
   attachmentsDisabled?: boolean;
 
   // Botones de respuesta rápida (máx. 3, solo WhatsApp Meta) — ver
-  // "Mensajes interactivos" en AGENTS.md.
+  // "Interactive messages in every channel" en docs/arquitectura/integraciones.md.
   interactiveButtons: string[];
   onButtonsChange: (buttons: string[]) => void;
   buttonsPanelOpen: boolean;
@@ -65,6 +68,7 @@ const MAX_BUTTON_LENGTH = 20;
 const TOOL_BUTTON = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 export function ChatComposer({
+  signature,
   chatId,
   channel,
   newMessage,
@@ -251,6 +255,11 @@ export function ChatComposer({
 
   return (
     <form onSubmit={onSubmit} className="relative flex shrink-0 flex-col gap-1.5 border-t border-border bg-surface px-3 py-1.5">
+      {signature && newMessage.trim() && !attachment && (
+        <p className="truncate px-1 text-[11px] text-muted-darker" title={signature}>
+          Se agregará tu firma: <span className="text-foreground">{signature}</span>
+        </p>
+      )}
       {replyTo && (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
           {replyThumb ? (
@@ -431,6 +440,10 @@ export function ChatComposer({
             />
           )}
         </div>
+        <div className="relative flex min-w-[8rem] flex-1">
+        {/* Formato de WhatsApp (*negrita*…) sobre lo seleccionado; los otros
+            canales mandan texto plano, así que ahí no se ofrece. */}
+        {channel === "WHATSAPP" && <FormatToolbar textareaRef={messageInputRef} value={newMessage} onChange={onMessageChange} />}
         <textarea
           ref={messageInputRef}
           rows={1}
@@ -470,9 +483,10 @@ export function ChatComposer({
                 ? "Comentario (opcional)"
                 : "Escribe un mensaje"
           }
-          className="max-h-32 min-h-9 min-w-[8rem] flex-1 resize-none rounded-2xl border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="max-h-32 min-h-9 w-full resize-none rounded-2xl border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           disabled={sending}
         />
+        </div>
         {canRecord && !attachment && interactiveButtons.length === 0 && (
           <button
             type="button"

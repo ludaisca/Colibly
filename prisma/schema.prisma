@@ -14,6 +14,24 @@ model User {
   password       String?
   role           String    @default("user")
   maxOpenChats   Int?
+  // Disponibilidad (lib/users/availability.ts). La que elige el usuario; la
+  // efectiva también cae a OFFLINE si lastSeenAt (latido del poll de
+  // notificaciones) tiene más de 5 min.
+  // Verificación en dos pasos (lib/two-factor.ts). Secretos TOTP cifrados con
+  // lib/crypto.ts; el pendiente vive mientras se confirma el primer código.
+  // Códigos de respaldo: solo sus sha256, de un solo uso (array_remove atómico).
+  // twoFactorLastStep impide reutilizar un código TOTP ya aceptado.
+  twoFactorSecret        String?   @map("two_factor_secret")
+  twoFactorPendingSecret String?   @map("two_factor_pending_secret")
+  twoFactorEnabledAt     DateTime? @map("two_factor_enabled_at")
+  twoFactorBackupCodes   String[]  @default([]) @map("two_factor_backup_codes")
+  twoFactorLastStep      Int?      @map("two_factor_last_step")
+  // Firma personal (F6): se agrega al final de los mensajes de texto que el
+  // usuario manda a mano desde la bandeja (lib/inbox/signature.ts).
+  messageSignature String?  @map("message_signature")
+  signatureEnabled Boolean  @default(false) @map("signature_enabled")
+  availability   UserAvailability @default(ONLINE)
+  lastSeenAt     DateTime?        @map("last_seen_at")
   // Usuario desactivado por un admin: no puede iniciar sesión, su sesión
   // vigente se invalida en la siguiente revalidación (lib/auth.ts) y deja de
   // recibir chats por auto-asignación.
@@ -42,8 +60,10 @@ model User {
   googleAccount         GoogleAccount?
   sharedAccounts        WAAccountShare[]
   notes                 WANote[]
+  contactActivities     ContactActivity[]
   assignedChats         WAChat[]               @relation("ChatAssignments")
   answeredCalls         WACall[]               @relation("CallAnsweredBy")
+  pushSubscriptions     PushSubscription[]
   notifications         Notification[]
   sentMessages          WAMessage[]
   leadSheetSources      LeadSheetSource[]
@@ -60,6 +80,7 @@ model User {
   webhookEndpoints      WebhookEndpoint[]
   automations           Automation[]
   automationVersions    AutomationVersion[]
+  createdMacros         Macro[]
 
   @@index([organizationId])
   @@map("users")
@@ -143,6 +164,12 @@ model WAAccount {
   errorMessage      String?
   lastActivity      DateTime?
   autoAssignEnabled Boolean         @default(false)
+  // Con auto-asignación: solo a ejecutivos en línea; si nadie lo está, el
+  // chat queda sin asignar. Apagado = comportamiento anterior.
+  autoAssignOnlineOnly Boolean      @default(false) @map("auto_assign_online_only")
+  // Encuesta de satisfacción al resolver un chat (solo si la ventana de 24 h
+  // sigue abierta). Apagada por defecto: es un mensaje al cliente final.
+  csatEnabled       Boolean         @default(false) @map("csat_enabled")
   // Reportados por el webhook `phone_number_quality_update` de Meta — no se
   // consultan por API, solo llegan de forma reactiva (push). qualityRating es
   // el valor crudo que manda Meta (p. ej. "GREEN"/"YELLOW"/"RED" o el nombre
@@ -154,9 +181,10 @@ model WAAccount {
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
-  chats      WAChat[]
-  calls      WACall[]
-  templates  WATemplate[]
+  chats         WAChat[]
+  calls         WACall[]
+  csatResponses CsatResponse[]
+  templates     WATemplate[]
   campaigns  WACampaign[]
   bots       WABot[]
   sharedWith WAAccountShare[]
@@ -169,6 +197,7 @@ model WAAccount {
   // número — ver MetaAdsAccount.waAccountId.
   metaAdsAccounts        MetaAdsAccount[]
   customFieldDefinitions ContactCustomFieldDefinition[]
+  chatCustomFieldDefinitions ChatCustomFieldDefinition[]
   routingRules           WAAccountRoutingRule[]
   sequences              WASequence[]
   automations            Automation[]
@@ -239,6 +268,40 @@ model ContactCustomFieldDefinition {
   @@unique([waAccountId, key])
   @@unique([channelAccountId, key])
   @@map("contact_custom_field_definitions")
+}
+
+enum ChatCustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+}
+
+// Atributos de conversación (motivo, objeción, canal de origen...). Se
+// guardan en WAChat.customFields / Conversation.customFields como JSON para
+// no añadir una tabla de valores por cada mensaje; la definición es la que
+// manda en tipos/opciones y el API valida las claves antes de escribir.
+model ChatCustomFieldDefinition {
+  id               String                @id @default(cuid())
+  waAccountId      String?
+  waAccount        WAAccount?            @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
+  channelAccountId String?
+  channelAccount   ChannelAccount?       @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  key              String
+  label            String
+  type             ChatCustomFieldType   @default(TEXT)
+  options          String[]              @default([])
+  required         Boolean               @default(false)
+  order            Int                   @default(0)
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  @@unique([waAccountId, key])
+  @@unique([channelAccountId, key])
+  @@index([waAccountId, order])
+  @@index([channelAccountId, order])
+  @@map("chat_custom_field_definitions")
 }
 
 // Valor de un campo para un Contact puntual — @@unique([contactId,
@@ -322,6 +385,16 @@ enum ChatStatus {
   RESOLVED
 }
 
+// Prioridad operativa del chat, independiente de la etapa del lead. No cambia
+// el orden natural de la bandeja (lastMessageAt): se usa para filtrar y para
+// pintar una señal visual compacta en la fila.
+enum ChatPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 // Canales adicionales a WhatsApp — capa de adaptador deliberadamente
 // separada de WAAccount/WAChat/WAMessage: ese esquema es de producción y no
 // se toca. ChannelAccount/Conversation/ChannelMessage son tablas genéricas
@@ -368,6 +441,9 @@ model ChannelAccount {
   // entry[].id. Null para Telegram (setWebhook no usa este mecanismo).
   verifyTokenHash   String?
   autoAssignEnabled Boolean         @default(false)
+  // Con auto-asignación: solo a ejecutivos en línea; si nadie lo está, el
+  // chat queda sin asignar. Apagado = comportamiento anterior.
+  autoAssignOnlineOnly Boolean      @default(false) @map("auto_assign_online_only")
   lastActivity      DateTime?
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
@@ -379,6 +455,7 @@ model ChannelAccount {
   tags                   Tag[]
   sharedWith             ChannelAccountShare[]
   customFieldDefinitions ContactCustomFieldDefinition[]
+  chatCustomFieldDefinitions ChatCustomFieldDefinition[]
   sequences              WASequence[]
   automations            Automation[]
 
@@ -414,8 +491,19 @@ model Conversation {
   contact          Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
   lastMessage      String?
   lastMessageAt    DateTime?
+  // Atributos de conversación definidos por la cuenta, guardados como
+  // { [key]: string }. Definiciones en ChatCustomFieldDefinition.
+  customFields     Json?
   unreadCount      Int            @default(0)
   status           ChatStatus     @default(OPEN)
+  priority         ChatPriority   @default(NORMAL)
+  // Fecha futura = pospuesto. El chat sigue en su estado (OPEN/PENDING) y
+  // vuelve a la bandeja activa solo; un inbound lo despierta antes.
+  snoozedUntil     DateTime?      @map("snoozed_until")
+  // Ver WAChat.waitingSince.
+  waitingSince     DateTime?      @map("waiting_since")
+  // Ver WAChat.awayMessageSentAt.
+  awayMessageSentAt DateTime?     @map("away_message_sent_at")
   assignedToId     String?
   assignedTo       User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   resolvedAt       DateTime?
@@ -431,6 +519,11 @@ model Conversation {
   @@unique([channelAccountId, externalId])
   @@index([assignedToId])
   @@index([channelAccountId, lastMessageAt])
+  @@index([channelAccountId, status, priority])
+  @@index([channelAccountId, snoozedUntil])
+  @@index([channelAccountId, waitingSince])
+  @@index([channelAccountId, createdAt])
+  @@index([channelAccountId, resolvedAt])
   @@map("conversations")
 }
 
@@ -448,6 +541,8 @@ model ChannelMessage {
   mimeType          String?
   filename          String?
   bytesSize         Int?
+  transcript        String?          @db.Text
+  transcribedAt     DateTime?        @map("transcribed_at")
   status            String?
   senderId          String?
   sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
@@ -484,17 +579,27 @@ model WAChat {
   isGroup         Boolean    @default(false)
   lastMessage     String?
   lastMessageAt   DateTime?
-  unreadCount     Int        @default(0)
-  contactId       String?    @unique
-  contact         Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  // Atributos de conversación definidos por la cuenta, { [key]: string }.
+  customFields    Json?
+  unreadCount     Int          @default(0)
+  contactId       String?      @unique
+  contact         Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
   assignedToId    String?
-  assignedTo      User?      @relation("ChatAssignments", fields: [assignedToId], references: [id], onDelete: SetNull)
-  status          ChatStatus @default(OPEN)
+  assignedTo      User?        @relation("ChatAssignments", fields: [assignedToId], references: [id], onDelete: SetNull)
+  status          ChatStatus   @default(OPEN)
+  priority        ChatPriority @default(NORMAL)
+  snoozedUntil    DateTime?    @map("snoozed_until")
+  // Desde cuándo el cliente espera respuesta (último mensaje entrante sin
+  // contestar). Lo pone el ingest y lo limpia la respuesta de una persona,
+  // del bot o de un flujo — nunca un aviso automático. lib/chats/waiting.ts.
+  waitingSince    DateTime?    @map("waiting_since")
+  // Último aviso fuera de horario (cooldown de 12 h por chat).
+  awayMessageSentAt DateTime?   @map("away_message_sent_at")
   resolvedAt      DateTime?
   firstResponseAt DateTime?
   botResumedAt    DateTime?
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   messages         WAMessage[]
   calls            WACall[]
@@ -503,11 +608,17 @@ model WAChat {
   chatTags         ChatTag[]
   leadScores       WALeadScore[]
   recoveryAttempts WALeadRecoveryAttempt[]
+  csatResponse     CsatResponse?
 
   @@unique([accountId, remoteJid])
   @@index([assignedToId])
   @@index([accountId, lastMessageAt])
   @@index([accountId, status])
+  @@index([accountId, status, priority])
+  @@index([accountId, snoozedUntil])
+  @@index([accountId, waitingSince])
+  @@index([accountId, createdAt])
+  @@index([accountId, resolvedAt])
   @@map("wa_chats")
 }
 
@@ -668,6 +779,10 @@ model WAMessage {
   mimeType           String?
   filename           String?
   bytesSize          Int?
+  // Transcripción de una nota de voz (Gemini, lib/ai/transcribe.ts). Manual
+  // desde la burbuja o automática si la organización lo activó.
+  transcript         String?          @db.Text
+  transcribedAt      DateTime?        @map("transcribed_at")
   // Botones de respuesta rápida enviados (outbound) o el id de la respuesta
   // recibida (inbound) para un mensaje interactivo de Meta — ver
   // lib/whatsapp/send-interactive.ts. No existe en ChannelMessage (Telegram),
@@ -1161,6 +1276,10 @@ model Contact {
   // secuencias, calificación y recuperación con IA no corren para él. Lo
   // recalcula lib/billing/contact-limits.ts (al crear contactos y en el tick).
   overLimit         Boolean         @default(false) @map("over_limit")
+  // Valor del trato en centavos de MXN (entero: Decimal no cruza del RSC al
+  // cliente) y fecha estimada de cierre. Ver lib/money.ts.
+  dealValueCents    Int?            @map("deal_value_cents")
+  expectedCloseAt   DateTime?       @map("expected_close_at")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -1176,6 +1295,8 @@ model Contact {
   tasks                ContactTask[]
   outcomeEvents        LeadOutcomeEvent[]
   calls                WACall[]
+  activities           ContactActivity[]
+  csatResponses        CsatResponse[]
 
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
@@ -1190,6 +1311,74 @@ model Contact {
   // mensajes — no se resuelve con un merge automático en esta fase).
   @@index([metaAdsAccountId, leadOrigin])
   @@map("contacts")
+}
+
+// Timeline append-only del contacto. La escribe el worker de domain-events
+// para los hechos que ya existen (etapa, etiquetas, citas, scoring, asignación,
+// resolución) y las rutas de notas/tareas/campos personalizados directamente.
+// `dedupeKey` hace idempotentes los reintentos del worker; null permite varias
+// filas manuales sin clave.
+model ContactActivity {
+  id        String   @id @default(cuid())
+  contactId String   @map("contact_id")
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  actorId   String?  @map("actor_id")
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  metadata  Json?
+  dedupeKey String?  @map("dedupe_key")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([contactId, dedupeKey])
+  @@index([contactId, createdAt])
+  @@map("contact_activities")
+}
+
+// Encuesta de satisfacción (CSAT) de un chat de WhatsApp. Se crea al resolver
+// el chat si la cuenta tiene csatEnabled y la ventana de 24 h sigue abierta.
+// El token es el secreto de la página pública /csat/[token].
+model CsatResponse {
+  id           String    @id @default(cuid())
+  accountId    String    @map("account_id")
+  account      WAAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  chatId       String    @unique @map("chat_id")
+  chat         WAChat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  contactId    String    @map("contact_id")
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedToId String?   @map("assigned_to_id")
+  rating       Int?
+  comment      String?   @db.Text
+  token        String    @unique
+  sentAt       DateTime? @map("sent_at")
+  respondedAt  DateTime? @map("responded_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([accountId, createdAt])
+  @@index([assignedToId, createdAt])
+  @@map("csat_responses")
+}
+
+// Acciones manuales reutilizables ("macros") por organización. `actions` es un
+// array JSON ordenado; el ejecutor vive en lib/macros/execute.ts y reutiliza
+// los mismos efectos que las rutas del inbox (asignación, estado, prioridad,
+// snooze y sendOutbound). No es un segundo motor de automatizaciones.
+model Macro {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  actions        Json
+  createdById    String?      @map("created_by_id")
+  createdBy      User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("macros")
 }
 
 model ContactTask {
@@ -1218,6 +1407,9 @@ model LeadOutcomeEvent {
   contactId      String               @map("contact_id")
   contact        Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
   outcome        PipelineStageOutcome
+  // Foto del valor del trato al cambiar de resultado (los reportes suman esto,
+  // no el valor actual del contacto, que puede cambiar después).
+  valueCents     Int?                 @map("value_cents")
   createdAt      DateTime             @default(now()) @map("created_at")
 
   @@index([organizationId, createdAt])
@@ -1609,6 +1801,9 @@ model WASequenceEnrollment {
 
 enum NotificationType {
   CHAT_MESSAGE
+  // Un agente reclamó el chat o se lo asignaron explícitamente. Distinto de
+  // CHAT_MESSAGE: ese avisa de un mensaje nuevo, este de la propiedad del chat.
+  CHAT_ASSIGNED
   CAMPAIGN_COMPLETED
   CAMPAIGN_FAILED
   BOT_ERROR
@@ -1982,13 +2177,34 @@ model Organization {
   timezone                       String  @default("America/Mexico_City")
   businessHourStart              Int     @default(8) @map("business_hour_start")
   businessHourEnd                Int     @default(20) @map("business_hour_end")
+  // Días hábiles (0 = domingo … 6 = sábado). Por defecto todos: así la
+  // recuperación de leads, las hojas y la condición "en horario" siguen igual
+  // hasta que alguien los configure.
+  businessDays                   Int[]   @default([0, 1, 2, 3, 4, 5, 6]) @map("business_days")
   leadRecoveryEnabled            Boolean @default(false) @map("lead_recovery_enabled")
   leadRecoveryFirstMessageHours  Int     @default(2) @map("lead_recovery_first_message_hours")
   // null = solo se manda 1 mensaje.
   leadRecoverySecondMessageHours Int?    @default(12) @map("lead_recovery_second_message_hours")
+  // Resolver solos los chats inactivos (lib/inbox/auto-resolve.ts). null =
+  // apagado. Mensaje y etiqueta opcionales; skipWaiting deja en paz los chats
+  // cuyo cliente espera respuesta (waitingSince).
+  autoResolveAfterHours  Int?    @map("auto_resolve_after_hours")
+  autoResolveMessage     String? @map("auto_resolve_message")
+  autoResolveTagName     String? @map("auto_resolve_tag_name")
+  autoResolveSkipWaiting Boolean @default(true) @map("auto_resolve_skip_waiting")
+  // Aviso fuera de horario (lib/inbox/away-message.ts). Apagado por defecto:
+  // es un mensaje al cliente final.
+  awayMessageEnabled     Boolean @default(false) @map("away_message_enabled")
+  awayMessageText        String? @map("away_message_text")
+  // Cursor del escaneo de monitores de temas (lib/monitors/): hasta qué
+  // lastMessageAt ya se revisaron los chats de la organización.
+  topicMonitorScanAt     DateTime? @map("topic_monitor_scan_at")
+  // Transcribir solas las notas de voz entrantes (1 crédito de IA por audio).
+  autoTranscribeAudio    Boolean @default(false) @map("auto_transcribe_audio")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 
+  topicMonitors    TopicMonitor[]
   members          User[]            @relation("OrganizationMembers")
   waAccounts       WAAccount[]
   stickers         WASticker[]
@@ -2007,6 +2223,8 @@ model Organization {
   contactTasks     ContactTask[]
   leadOutcomeEvents LeadOutcomeEvent[]
   waCalls          WACall[]
+  macros           Macro[]
+  aiAssistUsage    AiAssistUsage[]
 
   @@index([status])
   @@map("organizations")
@@ -2140,6 +2358,11 @@ model PlatformSettings {
   backupSecretAccessKey String? @map("backup_secret_access_key") // cifrado
   backupHour            Int     @default(3) @map("backup_hour") // hora de Ciudad de México
   backupIncludeMedia    Boolean @default(false) @map("backup_include_media")
+
+  // Notificaciones push del navegador (lib/notifications/push.ts). Se generan
+  // desde /plataforma; cambiarlas invalida todas las suscripciones existentes.
+  vapidPublicKey  String? @map("vapid_public_key")
+  vapidPrivateKey String? @map("vapid_private_key") // cifrado
 
   updatedAt      DateTime @updatedAt @map("updated_at")
   updatedByEmail String?  @map("updated_by_email")
@@ -2298,3 +2521,94 @@ model PlatformHealthRun {
   @@index([startedAt])
   @@map("platform_health_runs")
 }
+
+// Uso de IA de asistencia al equipo (no respuestas al cliente): reescribir un
+// borrador, proponer una tarea, transcribir una nota de voz, monitores de
+// temas. Cada llamada ya reservó su crédito (lib/ai/credits.ts); esta tabla
+// guarda el costo estimado para la plataforma y lo suma getOrgAiCost().
+enum AiAssistKind {
+  REWRITE
+  TASK
+  TRANSCRIBE
+  MONITOR
+}
+
+model AiAssistUsage {
+  id               String       @id @default(cuid())
+  organizationId   String       @map("organization_id")
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kind             AiAssistKind
+  userId           String?      @map("user_id")
+  model            String
+  promptTokens     Int          @map("prompt_tokens")
+  completionTokens Int          @map("completion_tokens")
+  estimatedCost    Float        @map("estimated_cost")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@map("ai_assist_usage")
+}
+
+enum UserAvailability {
+  ONLINE
+  BUSY
+  OFFLINE
+}
+
+// Suscripción push de un navegador (por usuario, como Notification). Un
+// endpoint es único: si otro usuario inicia sesión en el mismo navegador, la
+// suscripción pasa a él. Se borra sola cuando el servicio push responde 404/410.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// Monitores de temas con IA (F2): el admin describe un tema ("quejas por
+// entrega tardía") y un tick por hora revisa los chats con mensajes nuevos y
+// registra en qué conversaciones aparece. Plan Pro; apagados no gastan nada.
+model TopicMonitor {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String       @db.Text
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  matches TopicMatch[]
+
+  @@index([organizationId])
+  @@map("topic_monitors")
+}
+
+// Una conversación donde apareció el tema (una por monitor y chat). El chat
+// es una referencia blanda (WAChat o Conversation, según chatKind) igual que
+// WABotUsage: borrar el chat no borra el hallazgo, la UI lo muestra sin enlace.
+model TopicMatch {
+  id        String       @id @default(cuid())
+  monitorId String       @map("monitor_id")
+  monitor   TopicMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  chatKind  String       @map("chat_kind") // "whatsapp" | "channel"
+  chatId    String       @map("chat_id")
+  accountId String       @map("account_id")
+  // Fragmento literal del cliente que muestra el tema (máx. 300) y los ids
+  // de los mensajes de evidencia.
+  quote     String       @db.Text
+  evidenceMessageIds Json @map("evidence_message_ids")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@unique([monitorId, chatId])
+  @@index([monitorId, createdAt])
+  @@map("topic_matches")
+}
+

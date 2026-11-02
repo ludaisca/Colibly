@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { contactCustomFieldValuesSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { recordContactActivity } from "@/lib/contacts/activity";
 
 async function getOwnedContact(userId: string, contactId: string) {
   const [accountIds, channelAccountIds] = await Promise.all([getUserAccountIds(userId), getUserChannelAccountIds(userId)]);
@@ -114,6 +115,16 @@ export async function PUT(
           });
         })
     );
+
+    if (validIds.size > 0) {
+      await recordContactActivity({
+        contactId: id,
+        type: "CUSTOM_FIELDS_UPDATED",
+        title: "Campos personalizados actualizados",
+        body: `${validIds.size} campo${validIds.size === 1 ? "" : "s"}`,
+        actorId: session.user.id,
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

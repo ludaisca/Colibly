@@ -6,20 +6,23 @@ The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). R
 
 @AGENTS.md
 
+Detail per module: `docs/arquitectura/` (map in AGENTS.md) — read the matching doc before changing a module and update it in the same change.
+
 ## Commands
 
-Everything runs in containers — never install dependencies or run Node/Postgres/Redis on the host. `docker compose` and `podman compose` are the same compose CLI, and the files work with both. **On the shared dev server (`ludaisca`) always use `podman compose`**: that host's Docker daemon is Coolify's production runtime. Rootless Podman under SELinux is also why every bind mount in the compose files carries `:z` — keep it on new mounts; Docker ignores it.
+Everything runs in containers — never install dependencies or run Node/Postgres/Redis on the host. **The dev server (`ludaisca`, Ubuntu 26.04) runs Docker** — rootful Docker Engine 29 + Compose v5, AppArmor, no SELinux, no Podman installed and no Coolify on this host (production lives elsewhere). The same Docker daemon also runs other projects (Factzi, Tesela, the `colibly-bench-*` stack), so only touch the `colibly` compose project. The `:z` on the compose bind mounts is a leftover from the previous Podman/SELinux host; it's harmless under Docker, keep it on new mounts so the files keep working on SELinux hosts.
 
 ```bash
-podman compose up --build                       # dev stack (app + postgres + redis + mailpit), hot reload on :15100
-podman compose exec app npx tsc --noEmit        # type check (whole project only)
-podman compose exec app npm run lint            # eslint (flat config, eslint-config-next)
-podman compose exec app npx eslint <path>       # lint one file or folder
-podman compose exec app npm test                # vitest: lib/**/__tests__/*.test.ts
-podman compose exec app npx vitest run lib/billing            # one test folder/file
-podman compose exec app npx vitest run lib/billing -t purgeDue  # tests whose name matches
-podman compose exec app sh scripts/new-migration.sh <nombre>   # schema.prisma changed → create + apply a migration (NOT `migrate dev`, NOT `db push`)
-podman compose restart app                      # after a migration or worker-code change; `.env` changes need `podman compose up -d app`
+docker compose up --build                       # dev stack (app + postgres + redis + mailpit), hot reload on :15100
+docker compose exec app npx tsc --noEmit        # type check (whole project only)
+docker compose exec app npm run lint            # eslint (flat config, eslint-config-next)
+docker compose exec app npx eslint <path>       # lint one file or folder
+docker compose exec app npm test                # vitest: lib/**/__tests__/*.test.ts
+docker compose exec app npx vitest run lib/billing            # one test folder/file
+docker compose exec app npx vitest run lib/billing -t purgeDue  # tests whose name matches
+docker compose exec app sh scripts/new-migration.sh <nombre>   # schema.prisma changed → create + apply a migration (NOT `migrate dev`, NOT `db push`)
+docker compose restart app                      # after a migration or worker-code change; `.env` changes need `docker compose up -d app`
+docker compose exec db psql -U postgres -d colibly_db          # SQL shell (tables are snake_case via @@map; many columns stay camelCase — check `\d <table>`)
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same `tsc` + lint + tests plus the `builder` stage build on every PR and push to `main`. Tests exist only for pure logic with delicate rules (billing state machine, automations engine, contrast, SSRF guard, email templates); everything else is verified with `tsc --noEmit` + `npm run lint` + a production build, plus a real click-through for UI changes. `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
@@ -32,26 +35,26 @@ Outgoing email in dev (verification, password reset, invitations) never leaves t
 
 ### Production build check
 
-Build the Dockerfile's `builder` stage in an isolated image — exactly what Coolify runs (`npm ci`, `prisma generate`, `next build` with `NODE_OPTIONS` set), without touching the dev container, `node_modules`, `.next` or `package.json`:
+Build the Dockerfile's `builder` stage in an isolated image — exactly what Coolify runs in production (`npm ci`, `prisma generate`, `next build` with `NODE_OPTIONS` set), without touching the dev container, `node_modules`, `.next` or `package.json`:
 
 ```bash
-podman build --target builder -t localhost/colibly-buildcheck:tmp . && podman rmi localhost/colibly-buildcheck:tmp && podman image prune -f
+docker build --target builder -t colibly-buildcheck:tmp . && docker rmi colibly-buildcheck:tmp && docker image prune -f
 ```
 
-The final `podman image prune -f` matters: `rmi` only drops the tag, and each build's intermediate layers stay behind as untagged images — they filled the 39 GB Podman LV to 97 % by 2026-09-27. (Clearing space on that LV: `podman image prune -a -f` removes images no container uses; never `--volumes`, those are other projects' dev databases, and they live on the RAID anyway.)
+The final `docker image prune -f` matters: `rmi` only drops the tag, and each build's intermediate layers stay behind as dangling images (on the previous host they filled the image volume to 97 %). Here Docker's data lives in `/var/lib/docker` on the root LV (108 GB, ~79 % used on 2026-11-01), shared with the OS and the other projects — check `df -h /` before a series of builds. To free space: `docker image prune -f` / `docker builder prune -f`; never `docker system prune --volumes` or `docker volume prune` — the volumes are other projects' dev databases.
 
 `npm run build` inside the dev container fails while prerendering (`NODE_ENV=development` poisons the production build) — don't use it. To check the production *startup* (migrations + healthcheck), build `--target runner` and run it against a throwaway database on the compose network.
 
 ## Multi-tenant: every query is scoped to the organization
 
-Colibly is a hosted multi-tenant SaaS (see AGENTS.md → "Architecture: tenancy"). The rules that prevent cross-tenant leaks:
+Colibly is a hosted multi-tenant SaaS (see `docs/arquitectura/tenencia-y-roles.md`). The rules that prevent cross-tenant leaks:
 
 - A new top-level model gets `organizationId`, and its create sets it via `requireOrgId(session.user.id)`.
 - Every required relation must be `onDelete: Cascade` down from `Organization`: deleting an organization (owner deletion, the 60-day purge) is one cascading delete (`lib/org-data/delete.ts`). Data that cascade can't reach — files on disk, rows linked only through a join table — has to be added to that function.
 - Admin resources are filtered with `orgWhere(userId)`, accounts through `getUserAccountIds()`/`getUserChannelAccountIds()`, account edits/shares with `accountManageWhere(userId)` — **never** `userId: session.user.id` for something the organization shares.
 - `tsc` can't catch a missing scope — check a new route with a second organization (signup creates one) before calling it done.
-- Billing gates are the same kind of thing `tsc` won't catch: a new way to **send** a message must go through a sender that calls `assertOrgCanSend()`, a new **worker/tick** must skip organizations that aren't writable (`isOrgWritable` / `isAccountWritable` / `isBotWritable`) *before* calling the AI, and a new **countable resource** needs its `checkPlanLimit()` at creation (see AGENTS.md → "Billing").
-- A new **AI call** reserves a credit with `reserveAiCredit(organizationId)` after checking `getPlatformApiKey()` and before calling the provider — there are no per-user API keys anymore (AGENTS.md → "AI providers").
+- Billing gates are the same kind of thing `tsc` won't catch: a new way to **send** a message must go through a sender that calls `assertOrgCanSend()`, a new **worker/tick** must skip organizations that aren't writable (`isOrgWritable` / `isAccountWritable` / `isBotWritable`) *before* calling the AI, and a new **countable resource** needs its `checkPlanLimit()` at creation (see `docs/arquitectura/billing.md`).
+- A new **AI call** reserves a credit with `reserveAiCredit(organizationId)` after checking `getPlatformApiKey()` and before calling the provider — there are no per-user API keys anymore (`docs/arquitectura/ia.md`).
 - A new **server env var** must also be added to the `app.environment` list of `docker-compose.yml`, or it won't exist in production.
 
 ## Architecture: two parallel channel stacks

@@ -22,6 +22,7 @@ import {
   type OpsResult,
   type PlatformActor,
 } from "@/lib/platform/ops";
+import { findUsers, getWhatsAppHealth, resetUserTwoFactor } from "@/lib/platform/support";
 import type { PlatformScope, PlatformTokenContext } from "@/lib/platform/scopes";
 
 // Herramientas del MCP. Todas llaman a lib/platform/ops.ts (la misma lógica
@@ -57,7 +58,7 @@ export function registerPlatformTools(server: McpServer, ctx: PlatformTokenConte
     "colibly_status",
     {
       title: "Estado de la plataforma",
-      description: "Semáforo de producción: Stripe, precios, webhook, SMTP, Turnstile, IA, respaldos, migraciones, Redis y colas. Usa live=true para verificar contra Stripe.",
+      description: "Semáforo de producción: Stripe, precios, webhook, SMTP, Turnstile, IA, push, respaldos, migraciones, índices, Redis y todas las tareas programadas. Usa live=true para verificar contra Stripe.",
       inputSchema: { live: z.boolean().optional() },
     },
     async ({ live }) => {
@@ -112,6 +113,61 @@ export function registerPlatformTools(server: McpServer, ctx: PlatformTokenConte
       if (denied) return denied;
       const org = await getOrganization(organizationId);
       return org ? ok(org) : err("Organización no encontrada");
+    }
+  );
+
+  server.registerTool(
+    "colibly_find_user",
+    {
+      title: "Buscar usuario",
+      description: "Busca usuarios por correo (exacto o parcial, máx. 20): organización, rol, si verificó el correo, si puede iniciar sesión, 2FA (códigos de respaldo restantes) y última conexión. Para soporte de «no puedo entrar».",
+      inputSchema: { email: z.string().min(3).max(200) },
+    },
+    async ({ email }) => {
+      const denied = missingScope(ctx, "platform:read");
+      if (denied) return denied;
+      return unwrap(await findUsers(email));
+    }
+  );
+
+  server.registerTool(
+    "colibly_reset_two_factor",
+    {
+      title: "Quitar verificación en dos pasos",
+      description: "Quita la 2FA a un usuario que perdió su teléfono y sus códigos de respaldo, y cierra todas sus sesiones. Antes confirma la identidad de la persona por otro medio. Exige el userId (de colibly_find_user), un motivo y escribir su correo exacto en confirm. No aplica a operadores de la plataforma.",
+      inputSchema: {
+        userId: z.string().min(1),
+        reason: z.string().min(5).max(500),
+        confirm: z.string().min(1),
+      },
+    },
+    async ({ userId, reason, confirm }) => {
+      const denied = missingScope(ctx, "user:write");
+      if (denied) return denied;
+      const found = await findUsers(confirm);
+      const target = found.ok ? found.data.items.find((user) => user.id === userId) : undefined;
+      if (!target || target.email !== confirm.trim().toLowerCase()) {
+        return err("Escribe en confirm el correo exacto del usuario que corresponde a ese userId");
+      }
+      return unwrap(await resetUserTwoFactor({ userId, reason, actor: actorOf(ctx) }));
+    }
+  );
+
+  server.registerTool(
+    "colibly_whatsapp_health",
+    {
+      title: "Salud de los números de WhatsApp",
+      description: "Consulta a Meta cada número: nombre para mostrar (aprobado o en revisión), si puede enviar (AVAILABLE/LIMITED/BLOCKED), calidad, límite de mensajes, avisos de Meta y envíos fallidos en 24 h. Veredicto ok/limited/blocked/unknown. Filtra por organización o cuenta; sin filtro, las 25 cuentas con actividad más reciente (usa page para más).",
+      inputSchema: {
+        organizationId: z.string().min(1).optional(),
+        accountId: z.string().min(1).optional(),
+        page: z.number().int().min(1).optional(),
+      },
+    },
+    async (args) => {
+      const denied = missingScope(ctx, "platform:read");
+      if (denied) return denied;
+      return unwrap(await getWhatsAppHealth(args));
     }
   );
 

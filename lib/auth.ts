@@ -5,7 +5,9 @@ import { prisma } from "./prisma";
 import { rateLimit } from "./rate-limit";
 import { invalidateTenantCache } from "./tenancy";
 import { clientIp } from "@/lib/net/client-ip";
-import { emailAllowsSignIn, EMAIL_NOT_VERIFIED_CODE } from "./auth-policy";
+import { emailAllowsSignIn, EMAIL_NOT_VERIFIED_CODE, TWO_FACTOR_INVALID_CODE, TWO_FACTOR_RATE_LIMITED_CODE, TWO_FACTOR_REQUIRED_CODE } from "./auth-policy";
+import { verifySecondFactor } from "./two-factor";
+import { consumeSessionNonce } from "./session-nonce";
 
 // El JWT guarda rol y versión de sesión al iniciar sesión. Sin revalidar, un
 // cambio de rol o la desactivación de un usuario no surtían efecto hasta que el
@@ -18,6 +20,16 @@ const SESSION_REVALIDATE_MS = 60_000;
 // distinguir "contraseña incorrecta" de "falta confirmar el correo".
 class EmailNotVerifiedError extends CredentialsSignin {
   code = EMAIL_NOT_VERIFIED_CODE;
+}
+// Verificación en dos pasos: contraseña correcta, falta (o falla) el código.
+class TwoFactorRequiredError extends CredentialsSignin {
+  code = TWO_FACTOR_REQUIRED_CODE;
+}
+class TwoFactorInvalidError extends CredentialsSignin {
+  code = TWO_FACTOR_INVALID_CODE;
+}
+class TwoFactorRateLimitedError extends CredentialsSignin {
+  code = TWO_FACTOR_RATE_LIMITED_CODE;
 }
 
 interface UserSessionState {
@@ -86,6 +98,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Contraseña", type: "password" },
+        code: { label: "Código de verificación", type: "text" },
       },
       async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -115,6 +128,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new EmailNotVerifiedError();
         }
 
+        // Segundo paso (lib/two-factor.ts). Sin exenciones: tampoco el dueño
+        // de la plataforma. Solo se revela que hay 2FA después de una
+        // contraseña correcta.
+        if (user.twoFactorEnabledAt) {
+          const code = typeof credentials.code === "string" ? credentials.code : "";
+          if (!code.trim()) throw new TwoFactorRequiredError();
+          const result = await verifySecondFactor(user.id, code);
+          if (result === "rate_limited") throw new TwoFactorRateLimitedError();
+          if (result === "invalid") throw new TwoFactorInvalidError();
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -128,7 +152,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // "Cerrar las demás sesiones" sube sessionVersion; la sesión que lo pidió
+      // se actualiza con un nonce de un solo uso (lib/session-nonce.ts) que
+      // solo recibió ella. Cualquier otro campo de `session` se ignora.
+      if (trigger === "update" && token.id) {
+        const nonce = (session as { sessionNonce?: unknown } | undefined)?.sessionNonce;
+        if (typeof nonce === "string") {
+          const version = await consumeSessionNonce(token.id as string, nonce);
+          if (version !== null) {
+            token.sessionVersion = version;
+            // Sin forzar revalidación: el caché de estado (60 s) podría tener
+            // todavía la versión anterior. La ruta lo invalida al subirla.
+            token.checkedAt = Date.now();
+          }
+        }
+        return token;
+      }
+
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role ?? "user";

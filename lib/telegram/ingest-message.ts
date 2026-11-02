@@ -1,4 +1,6 @@
 import { Prisma, type Channel } from "@prisma/client";
+import { displayName as chatDisplayName } from "@/lib/chats/display-name";
+import { queuePush } from "@/lib/notifications/push";
 import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
@@ -7,6 +9,8 @@ import { autoAssignConversation } from "./auto-assign";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
+import { markWaiting } from "@/lib/chats/waiting";
+import { queueAwayMessage } from "@/lib/inbox/away-message";
 
 // Equivalente a lib/whatsapp/ingest-message.ts pero sobre las tablas
 // genéricas ChannelAccount/Conversation/ChannelMessage — mismos pasos
@@ -134,8 +138,14 @@ export async function ingestChannelMessage(
 
   // Mismo criterio que lib/whatsapp/ingest-message.ts: un mensaje nuevo
   // reabre una conversación RESUELTA.
-  if (conversation.status === "RESOLVED") {
-    await prisma.conversation.update({ where: { id: conversation.id }, data: { status: "OPEN", resolvedAt: null } });
+  if (conversation.status === "RESOLVED" || conversation.snoozedUntil) {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        ...(conversation.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null } : {}),
+        snoozedUntil: null,
+      },
+    });
   }
 
   let createdMessage;
@@ -166,6 +176,9 @@ export async function ingestChannelMessage(
     }
     throw err;
   }
+
+  // Ver lib/chats/waiting.ts (mismo criterio que el ingest de WhatsApp).
+  await markWaiting("channel", conversation.id, msg.timestamp);
 
   if (msg.mediaId && msg.type !== "text") {
     await mediaDownloadQueue
@@ -212,13 +225,14 @@ export async function ingestChannelMessage(
       data: {
         userId: assignedToId,
         type: "CHAT_MESSAGE",
-        title: displayName,
+        title: chatDisplayName(displayName, msg.externalId),
         body: msg.body.slice(0, 200),
         // La misma ruta de deep-link sirve para ambos canales — no valida
         // que accountId sea un WAAccount, solo preselecciona el chat.
         link: `/whatsapp/chat/${channelAccountId}/${conversation.id}`,
       },
     });
+    await queuePush(assignedToId, { title: chatDisplayName(displayName, msg.externalId), body: msg.body, link: `/whatsapp/chat/${channelAccountId}/${conversation.id}`, tag: `chat:${conversation.id}` });
   }
 
   await prisma.channelAccount.update({
@@ -265,6 +279,10 @@ export async function ingestChannelMessage(
       caption: msg.caption ?? null,
       filename: msg.filename ?? null,
     }, { delay: BOT_REPLY_DEBOUNCE_MS });
+  } else if (!suppressBot) {
+    // Sin bot ni flujo que conteste: aviso fuera de horario si la organización
+    // lo activó (lib/inbox/away-message.ts decide y vuelve a comprobar todo).
+    await queueAwayMessage("channel", conversation.id, channelAccountId, { isGroup: msg.isGroup, isFromComment: msg.isFromComment });
   }
 
   return { messageId: createdMessage.id, conversationId: conversation.id };

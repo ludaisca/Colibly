@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
+import { ContextMenu, type ContextMenuEntry } from "@/app/components/ui/context-menu";
 import { Smile, Reply, BookmarkPlus, Loader2, MoreHorizontal, Copy } from "lucide-react";
 import { Dropdown } from "@/app/components/ui/dropdown";
 import { useToast } from "@/app/components/ui/toast";
@@ -20,8 +21,10 @@ function isCopyable(message: Message): boolean {
   return text.length > 0 && !/^\[[a-z]+\]$/i.test(text);
 }
 
-export function ChatMessageActions({ message, onReply, onReaction, canReact = true }: { message: Message; onReply?: (message: Message) => void; onReaction: (id: string, reaction: AgentReaction) => void; canReact?: boolean }) {
-  const [open, setOpen] = useState(false);
+type MessageActionProps = { message: Message; onReply?: (message: Message) => void; onReaction: (id: string, reaction: AgentReaction) => void; canReact?: boolean };
+
+// Lógica compartida por el botón ⋯ y el menú contextual de la burbuja.
+function useMessageActions({ message, onReaction, canReact = true, onReply }: MessageActionProps, onDone: () => void) {
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -41,7 +44,7 @@ export function ChatMessageActions({ message, onReply, onReaction, canReact = tr
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo reaccionar");
       onReaction(message.id, data);
-      setOpen(false);
+      onDone();
     } catch (err) { toastError(err instanceof Error ? err.message : "No se pudo reaccionar"); }
     finally { setBusy(false); }
   }
@@ -54,7 +57,7 @@ export function ChatMessageActions({ message, onReply, onReaction, canReact = tr
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo guardar");
       success("Sticker guardado en la biblioteca del equipo");
-      setOpen(false);
+      onDone();
     } catch (err) { toastError(err instanceof Error ? err.message : "No se pudo guardar el sticker"); }
     finally { setSaving(false); }
   }
@@ -65,11 +68,48 @@ export function ChatMessageActions({ message, onReply, onReaction, canReact = tr
       await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
-      setOpen(false);
+      onDone();
     } catch {
       toastError("No se pudo copiar el texto");
     }
   }
+
+  return { busy, saving, copied, current, showReactions, copyable, canSaveSticker, hasItems, react, saveSticker, copyText, success };
+}
+
+// Clic derecho / pulsación larga sobre la burbuja: las mismas acciones que el
+// botón ⋯ (que se queda, para quien no conoce el clic derecho). Con texto
+// seleccionado gana el menú del navegador, para no quitar "Copiar".
+export function MessageContextMenu({ children, ...props }: MessageActionProps & { children: ReactElement }) {
+  const actions = useMessageActions(props, () => {});
+  const { message, onReply } = props;
+  const items: ContextMenuEntry[] = [
+    ...(onReply ? [{ label: "Responder", icon: Reply, onSelect: () => onReply(message) }] : []),
+    ...(actions.copyable ? [{ label: "Copiar texto", icon: Copy, onSelect: () => void actions.copyText().then(() => actions.success("Texto copiado")) }] : []),
+    ...(actions.showReactions
+      ? [{
+          type: "submenu" as const,
+          label: "Reaccionar",
+          icon: Smile,
+          items: [
+            ...REACTION_OPTIONS.map((emoji) => ({ label: emoji, checked: actions.current === emoji, onSelect: () => void actions.react(actions.current === emoji ? "" : emoji) })),
+            ...(actions.current ? [{ type: "separator" as const }, { label: "Quitar nuestra reacción", danger: true, onSelect: () => void actions.react("") }] : []),
+          ],
+        }]
+      : []),
+    ...(actions.canSaveSticker ? [{ label: "Guardar sticker", icon: BookmarkPlus, onSelect: () => void actions.saveSticker() }] : []),
+  ];
+  return (
+    <ContextMenu items={items} disabled={!actions.hasItems} nativeWhenTextSelected>
+      {children}
+    </ContextMenu>
+  );
+}
+
+export function ChatMessageActions(props: MessageActionProps) {
+  const { message, onReply } = props;
+  const [open, setOpen] = useState(false);
+  const { busy, saving, copied, current, showReactions, copyable, canSaveSticker, hasItems, react, saveSticker, copyText } = useMessageActions(props, () => setOpen(false));
 
   if (!hasItems) return null;
 

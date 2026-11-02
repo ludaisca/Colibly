@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { REQUIRED_FIELDS_CODE, missingRequiredForChat, requiredFieldsMessage } from "@/lib/chats/required-fields";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
+import { maybeSendCsat } from "@/lib/csat/send-survey";
 
 const VALID_STATUSES = ["OPEN", "PENDING", "RESOLVED"] as const;
 
@@ -31,13 +33,26 @@ export async function PATCH(
       return NextResponse.json({ error: "Estado no válido" }, { status: 400 });
     }
 
+    // Atributos de conversación obligatorios (F4): no se resuelve con huecos.
+    if (status === "RESOLVED") {
+      const missing = await missingRequiredForChat(resolved.channel === "WHATSAPP" ? "whatsapp" : "channel", chatId);
+      if (missing.length > 0) {
+        return NextResponse.json({ error: requiredFieldsMessage(missing), code: REQUIRED_FIELDS_CODE, fields: missing }, { status: 422 });
+      }
+    }
+
     if (resolved.channel !== "WHATSAPP") {
       const current = await prisma.conversation.findUniqueOrThrow({ where: { id: chatId }, select: { status: true } });
       const wasResolved = current.status === "RESOLVED";
       const willBeResolved = status === "RESOLVED";
       const updated = await prisma.conversation.update({
         where: { id: chatId },
-        data: { status, resolvedAt: willBeResolved ? new Date() : wasResolved && !willBeResolved ? null : undefined },
+        data: {
+          status,
+          resolvedAt: willBeResolved ? new Date() : wasResolved && !willBeResolved ? null : undefined,
+          // Un chat resuelto no espera respuesta (lib/chats/waiting.ts).
+          ...(willBeResolved ? { waitingSince: null } : {}),
+        },
         select: { id: true, status: true, resolvedAt: true },
       });
       if (willBeResolved && !wasResolved) await emitResolved(chatId);
@@ -53,10 +68,16 @@ export async function PATCH(
       data: {
         status,
         resolvedAt: willBeResolved ? new Date() : wasResolved && !willBeResolved ? null : undefined,
+        ...(willBeResolved ? { waitingSince: null } : {}),
       },
       select: { id: true, status: true, resolvedAt: true },
     });
-    if (willBeResolved && !wasResolved) await emitResolved(chatId);
+    if (willBeResolved && !wasResolved) {
+      await emitResolved(chatId);
+      // La encuesta es best-effort: resolver el chat nunca debe fallar por un
+      // envío de WhatsApp que Meta rechace.
+      await maybeSendCsat(chatId).catch((error) => console.error("[csat] no se pudo enviar la encuesta", error));
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

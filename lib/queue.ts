@@ -92,6 +92,12 @@ export const platformBackupQueue = new Queue("platform-backup", { connection, de
 export const platformHealthQueue = new Queue("platform-health", { connection, defaultJobOptions: { ...defaultJobOptions, attempts: 1 } });
 
 export const billingTickQueue = new Queue("billing-tick", { connection, defaultJobOptions });
+
+// Operación de la bandeja (lib/inbox/): "tick" repetible cada 15 min
+// (auto-resolver) y jobs puntuales por nombre ("away-message", "transcribe").
+// Sin reintentos de BullMQ: cada job es idempotente y el tick vuelve a pasar;
+// reintentar un envío podría duplicar un mensaje al cliente.
+export const inboxQueue = new Queue("inbox", { connection, defaultJobOptions: { ...defaultJobOptions, attempts: 1 } });
 // Una entrega HTTP por job, jobId = WebhookDelivery.id. Backoff largo a
 // propósito: el receptor suele estar caído por minutos, no por segundos
 // (6 intentos: esperas de 30s, 1m, 2m, 4m y 8m ≈ 15 min en total).

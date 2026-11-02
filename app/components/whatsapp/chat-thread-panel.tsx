@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -19,7 +20,9 @@ import {
   ArrowDown,
   Eye,
 } from "lucide-react";
-import { ChatMessageActions } from "./chat-message-actions";
+import { ChatMessageActions, MessageContextMenu } from "./chat-message-actions";
+import { WhatsAppText } from "./whatsapp-text";
+import { AudioTranscript } from "./audio-transcript";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -34,6 +37,7 @@ import {
   formatDayDivider,
   formatBytes,
   type ChatItem,
+  type ChatPriority,
   type ChatStatus,
   type Message,
   type AgentReaction,
@@ -81,23 +85,31 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
   if (msg.messageType === "audio") {
     if (!mediaSrc) {
       return (
-        <div className="flex items-center gap-2 text-xs text-muted-darker">
-          <FileAudio size={14} />
-          <span>Audio recibido</span>
+        <div className="max-w-[260px]">
+          <div className="flex items-center gap-2 text-xs text-muted-darker">
+            <FileAudio size={14} />
+            <span>Audio recibido</span>
+          </div>
+          {/* Sin reproductor (canal sin proxy de medios) la transcripción sigue sirviendo. */}
+          {msg.mediaUrl && !msg.id.startsWith("temp-") && <AudioTranscript messageId={msg.id} initial={msg.transcript ?? null} />}
         </div>
       );
     }
     return (
-      <div className="flex w-[260px] max-w-full items-center gap-1.5">
-        <audio controls src={mediaSrc} className="h-10 min-w-0 flex-1" />
-        <a
-          href={mediaSrc}
-          download={msg.filename ?? "audio.ogg"}
-          className="text-muted-darker hover:text-foreground shrink-0"
-          title="Descargar audio"
-        >
-          <Download size={14} />
-        </a>
+      <div className="w-[260px] max-w-full">
+        <div className="flex items-center gap-1.5">
+          <audio controls src={mediaSrc} className="h-10 min-w-0 flex-1" />
+          <a
+            href={mediaSrc}
+            download={msg.filename ?? "audio.ogg"}
+            className="text-muted-darker hover:text-foreground shrink-0"
+            title="Descargar audio"
+          >
+            <Download size={14} />
+          </a>
+        </div>
+        {/* Los temp-… (envío optimista) aún no existen en la base. */}
+        {!msg.id.startsWith("temp-") && <AudioTranscript messageId={msg.id} initial={msg.transcript ?? null} />}
       </div>
     );
   }
@@ -269,6 +281,7 @@ function MessageBubble({
   return (
     <div className={`group flex items-end gap-1.5 ${isInbound ? "justify-start" : "justify-end"} ${hasReaction ? "mb-3" : ""}`}>
       {!isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
+      <MessageContextMenu message={msg} onReply={canReply && canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReply && canReact}>
       <div
         className={`relative max-w-[75%] text-sm leading-[1.4] transition-opacity duration-base lg:max-w-[65%] ${
           mediaOnly ? "p-1" : "px-3 py-2"
@@ -306,11 +319,11 @@ function MessageBubble({
         {hasMedia && (
           <div className={`${mediaOnly ? "" : "mb-1"} space-y-1`}>
             <MediaContent msg={msg} channel={channel} onPreview={onPreview} />
-            {caption && <p className="whitespace-pre-wrap break-words">{caption}</p>}
+            {caption && <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={caption} /> : caption}</p>}
           </div>
         )}
         {!hasMedia && msg.body && msg.body !== "[interactive]" && (
-          <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+          <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={msg.body} /> : msg.body}</p>
         )}
         {!hasMedia && msg.body === "[interactive]" && !(buttons && buttons.length > 0) && "Mensaje con botones"}
         {hasMedia && !caption && !msg.body && <span className="sr-only">[{msg.messageType}]</span>}
@@ -366,6 +379,7 @@ function MessageBubble({
           </div>
         )}
       </div>
+      </MessageContextMenu>
       {isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
     </div>
   );
@@ -403,8 +417,12 @@ export function MediaPreviewModal({ media, onClose }: { media: PreviewMedia | nu
 }
 
 interface ChatThreadPanelProps {
+  /** Mensaje al que saltar e iluminar (búsqueda "En mensajes"). */
+  focusMessageId?: string | null;
+  onFocusHandled?: () => void;
   selectedChat: ChatItem;
   messages: Message[];
+  typingUsers: Array<{ id: string; name: string | null }>;
   loadingMessages: boolean;
   hasOlderMessages: boolean;
   loadingOlder: boolean;
@@ -413,6 +431,9 @@ interface ChatThreadPanelProps {
   onOpenContactDrawer: () => void;
   onStatusChange: (status: ChatStatus) => void | Promise<void>;
   onAssigned: (assignee: { id: string; name: string | null } | null) => void;
+  onPriorityChange: (priority: ChatPriority) => void;
+  onSnoozedChange: (until: string | null) => void;
+  onMacroApplied?: () => void;
   onPreview: (media: PreviewMedia) => void;
   onRetry: (msg: Message) => void;
   onReply: (msg: Message) => void;
@@ -426,6 +447,7 @@ interface ChatThreadPanelProps {
 export function ChatThreadPanel({
   selectedChat,
   messages,
+  typingUsers,
   loadingMessages,
   hasOlderMessages,
   loadingOlder,
@@ -434,6 +456,9 @@ export function ChatThreadPanel({
   onOpenContactDrawer,
   onStatusChange,
   onAssigned,
+  onPriorityChange,
+  onSnoozedChange,
+  onMacroApplied,
   onPreview,
   onRetry,
   onReply,
@@ -442,6 +467,8 @@ export function ChatThreadPanel({
   onReaction,
   messagesContainerRef,
   messagesEndRef,
+  focusMessageId,
+  onFocusHandled,
 }: ChatThreadPanelProps) {
   // Motion no responde a las reglas CSS de reduced-motion: se ajusta aquí.
   const shouldReduceMotion = useReducedMotion();
@@ -487,13 +514,56 @@ export function ChatThreadPanel({
     return result;
   }, [messages]);
 
+  // Día flotante (como WhatsApp): los separadores de día se quedan en su
+  // lugar; mientras el usuario hace scroll aparece arriba el día visible y se
+  // desvanece ~1 s después. Antes el separador era sticky y quedaba encimado
+  // sobre las burbujas. Solo con scroll del usuario (rueda, toque, barra):
+  // el auto-scroll al abrir el chat o al llegar mensajes no lo muestra.
+  const [floatingDay, setFloatingDay] = useState<{ label: string; visible: boolean } | null>(null);
+  const userScrollAtRef = useRef(0);
+  const hideDayTimerRef = useRef<number | null>(null);
+  const markUserScroll = () => {
+    userScrollAtRef.current = Date.now();
+  };
+
   function handleScroll() {
     const el = messagesContainerRef.current;
     if (!el) return;
     const atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     atBottomRef.current = atEnd;
     setAtBottom((previous) => (previous === atEnd ? previous : atEnd));
+
+    if (Date.now() - userScrollAtRef.current > 400) return;
+    const top = el.getBoundingClientRect().top + 8;
+    let label: string | null = null;
+    for (const node of el.querySelectorAll<HTMLElement>("[data-day-label]")) {
+      if (node.getBoundingClientRect().top <= top) label = node.dataset.dayLabel ?? null;
+      else break;
+    }
+    if (!label) return;
+    setFloatingDay({ label, visible: true });
+    if (hideDayTimerRef.current) window.clearTimeout(hideDayTimerRef.current);
+    hideDayTimerRef.current = window.setTimeout(() => setFloatingDay((prev) => (prev ? { ...prev, visible: false } : prev)), 1100);
   }
+
+  // Salto desde la búsqueda: cuando el mensaje ya está en el DOM se centra
+  // (sin animación: viene de otro chat) y se ilumina. Se marca "no al final"
+  // para que el ResizeObserver no lo devuelva al fondo al cargar imágenes.
+  useEffect(() => {
+    if (!focusMessageId) return;
+    const container = messagesContainerRef.current;
+    const target = container?.querySelector<HTMLElement>(`[data-message-id="${focusMessageId}"]`);
+    if (!target) return;
+    atBottomRef.current = false;
+    target.scrollIntoView({ behavior: "auto", block: "center" });
+    const bubble = target.querySelector<HTMLElement>(".rounded-2xl") ?? target;
+    const ring = ["ring-2", "ring-accent-strong", "ring-offset-2", "ring-offset-background"];
+    bubble.classList.add(...ring);
+    // Sin cleanup: onFocusHandled vuelve a correr el efecto y cancelaría el apagado.
+    window.setTimeout(() => bubble.classList.remove(...ring), 2000);
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se dispara por el id y cuando llegan los mensajes; onFocusHandled cambia en cada render del padre
+  }, [focusMessageId, messages]);
 
   // Lleva al mensaje citado y lo ilumina un momento. Si la cita es más vieja
   // que el lote cargado, se avisa en vez de fingir que se saltó.
@@ -518,14 +588,34 @@ export function ChatThreadPanel({
         key={selectedChat.id}
         chat={selectedChat}
         refreshKey={messages.at(-1)?.id ?? ""}
+        typingUsers={typingUsers}
         onCloseChat={onCloseChat}
         onOpenContactDrawer={onOpenContactDrawer}
         onStatusChange={onStatusChange}
         onAssigned={onAssigned}
+        onPriorityChange={onPriorityChange}
+        onSnoozedChange={onSnoozedChange}
+        onMacroApplied={onMacroApplied}
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={messagesContainerRef} onScroll={handleScroll} className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+        {floatingDay && (
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center">
+            <span
+              className={`rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm transition-opacity duration-300 ${floatingDay.visible ? "opacity-100" : "opacity-0"}`}
+            >
+              {floatingDay.label}
+            </span>
+          </div>
+        )}
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          onWheel={markUserScroll}
+          onTouchMove={markUserScroll}
+          onPointerDown={markUserScroll}
+          onKeyDown={markUserScroll}
+          className="chat-canvas scrollbar-thin flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           {loadingMessages ? (
             <ChatBubblesSkeleton className="h-full" />
           ) : messages.length === 0 ? (
@@ -542,9 +632,9 @@ export function ChatThreadPanel({
                 </div>
               )}
               {groups.map((group) => (
-                <div key={group.key}>
-                  <div className="sticky top-2 z-10 flex justify-center py-2">
-                    <span className="rounded-full border border-border bg-surface/95 px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm backdrop-blur-sm">
+                <div key={group.key} data-day-label={group.label}>
+                  <div className="flex justify-center py-2">
+                    <span className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm">
                       {group.label}
                     </span>
                   </div>
@@ -557,7 +647,7 @@ export function ChatThreadPanel({
                       animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                       transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={selectedChat.name || selectedChat.remoteJid} reduceMotion={!!shouldReduceMotion} onJumpToMessage={jumpToMessage} />
+                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={displayName(selectedChat.name, selectedChat.remoteJid)} reduceMotion={!!shouldReduceMotion} onJumpToMessage={jumpToMessage} />
                     </motion.div>
                   ))}
                 </div>

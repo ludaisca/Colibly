@@ -3,9 +3,24 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
+import { SIGNATURE_MAX_LENGTH } from "@/lib/inbox/signature";
+
+// Todo opcional: la pantalla de Cuenta y la de firma guardan por separado.
 const profileSchema = z.object({
-  name: z.string().min(1, "El nombre es requerido").max(100, "Nombre demasiado largo"),
+  name: z.string().min(1, "El nombre es requerido").max(100, "Nombre demasiado largo").optional(),
+  messageSignature: z.string().trim().max(SIGNATURE_MAX_LENGTH, `Máximo ${SIGNATURE_MAX_LENGTH} caracteres`).nullable().optional()
+    .transform((v) => (v ? v : v === undefined ? undefined : null)),
+  signatureEnabled: z.boolean().optional(),
 });
+
+const PROFILE_SELECT = { id: true, name: true, email: true, role: true, messageSignature: true, signatureEnabled: true } as const;
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: PROFILE_SELECT });
+  return NextResponse.json(user);
+}
 
 export async function PATCH(req: Request) {
   try {
@@ -26,8 +41,8 @@ export async function PATCH(req: Request) {
 
     const user = await prisma.user.update({
       where: { id: session.user.id },
-      data: { name: parsed.data.name },
-      select: { id: true, name: true, email: true, role: true },
+      data: parsed.data,
+      select: PROFILE_SELECT,
     });
 
     return NextResponse.json(user);

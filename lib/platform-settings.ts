@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/crypto";
 
 // Configuración de negocio de la plataforma, editable desde /plataforma
-// (nunca env vars — ver AGENTS.md "AI providers"/"Billing"/"Auth"). Único
+// (nunca env vars — ver docs/arquitectura/ia.md, billing.md y auth.md). Único
 // choke-point que lee/escribe PlatformSettings; todo lo demás pasa por aquí.
 
 const SETTINGS_ID = "platform";
@@ -45,6 +45,8 @@ export interface PlatformSettings {
   backupSecretAccessKey: string | null;
   backupHour: number;
   backupIncludeMedia: boolean;
+  vapidPublicKey: string | null;
+  vapidPrivateKey: string | null;
 }
 
 function decryptOrNull(value: string | null | undefined): string | null {
@@ -90,6 +92,8 @@ async function loadSettings(): Promise<PlatformSettings> {
     backupSecretAccessKey: decryptOrNull(row?.backupSecretAccessKey),
     backupHour: row?.backupHour ?? 3,
     backupIncludeMedia: row?.backupIncludeMedia ?? false,
+    vapidPublicKey: row?.vapidPublicKey ?? null,
+    vapidPrivateKey: decryptOrNull(row?.vapidPrivateKey),
   };
 }
 
@@ -128,6 +132,7 @@ export const PLATFORM_SECRET_FIELDS = [
   "metaWebhookVerifyToken",
   "backupAccessKeyId",
   "backupSecretAccessKey",
+  "vapidPrivateKey",
 ] as const satisfies readonly (keyof PlatformSettings)[];
 export type PlatformSecretField = (typeof PLATFORM_SECRET_FIELDS)[number];
 

@@ -1,19 +1,23 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useId, useState } from "react";
-import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X } from "lucide-react";
-import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
-import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
 import { Select } from "@/app/components/ui/select";
 import { ChatAssigneePicker } from "./chat-assignee-picker";
 import { ChatBotMode } from "./chat-bot-mode";
 import { ChatTagPicker } from "./chat-tag-picker";
+import { ChatPriorityPicker } from "./chat-priority-picker";
+import { ChatSnoozeControls } from "./chat-snooze-controls";
+import { ChatCustomFields } from "./chat-custom-fields";
+import { MacroPickerModal } from "./macro-picker-modal";
 import { LeadScoreBadge } from "./lead-score-badge";
 import { ChatCostBadge } from "./chat-cost-badge";
 import { AutomationChip } from "./automation-chip";
-import { STATUS_BADGE, type Channel, type ChatItem, type ChatStatus } from "./chat-shared";
+import { STATUS_BADGE, type Channel, type ChatItem, type ChatPriority, type ChatStatus } from "./chat-shared";
 
 const CHANNELS: Record<Channel, { label: string }> = {
   WHATSAPP: { label: "WhatsApp" },
@@ -26,19 +30,23 @@ const CHANNELS: Record<Channel, { label: string }> = {
 interface Props {
   chat: ChatItem;
   refreshKey: string;
+  typingUsers: Array<{ id: string; name: string | null }>;
   onCloseChat: () => void;
   onOpenContactDrawer: () => void;
   onStatusChange: (status: ChatStatus) => void | Promise<void>;
   onAssigned: (assignee: { id: string; name: string | null } | null) => void;
+  onPriorityChange: (priority: ChatPriority) => void;
+  onSnoozedChange: (until: string | null) => void;
+  onMacroApplied?: () => void;
 }
 
-export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned }: Props) {
+export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned, onPriorityChange, onSnoozedChange, onMacroApplied }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [macroOpen, setMacroOpen] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const detailsId = useId();
   const channel = CHANNELS[chat.channel];
-  const ChannelIcon = CHANNEL_ICONS[chat.channel];
-  const name = chat.name || chat.remoteJid;
+  const name = displayName(chat.name, chat.remoteJid);
   const resolved = chat.status === "RESOLVED";
   // "Telegram · Telegram" se leía como un error: el segundo valor es el nombre
   // de la cuenta, que suele repetir el canal. Solo se muestra si aporta algo.
@@ -47,6 +55,13 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
     ? channel.label
     : `${channel.label} · ${accountName}`;
   const canCall = chat.channel === "WHATSAPP" && !chat.isGroup && chat.account.callingEnabled && !chat.account.coexistence;
+  const typingLabel = typingUsers.length === 0
+    ? null
+    : typingUsers.length === 1
+      ? `${typingUsers[0]?.name ?? "Alguien"} está escribiendo…`
+      : typingUsers.length === 2
+        ? `${typingUsers[0]?.name ?? "Alguien"} y ${typingUsers[1]?.name ?? "otra persona"} están escribiendo…`
+        : `${typingUsers[0]?.name ?? "Alguien"} y ${typingUsers.length - 1} más están escribiendo…`;
   const MENU_ITEM = "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong disabled:opacity-50";
 
   async function changeStatus(status: ChatStatus) {
@@ -61,16 +76,19 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
         <button type="button" onClick={onCloseChat} aria-label="Volver a la lista de chats" className="shrink-0 rounded-xl p-1.5 text-muted-darker hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong lg:hidden">
           <ArrowLeft size={18} />
         </button>
-        <EntityAvatar id={chat.accountId} name={name} size="sm" />
+        <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
         <div className="min-w-0 flex-1">
           {chat.contactId ? (
             <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-sm font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>
           ) : <p className="truncate text-sm font-semibold text-foreground">{name}</p>}
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-darker" title={subtitle}>
-            <ChannelIcon size={11} className="shrink-0" />
+            {/* Sin icono de canal: la insignia del avatar ya lo muestra. */}
             <span className="truncate">{subtitle}</span>
             {resolved && <span className="shrink-0 rounded-full bg-success-bg px-1.5 text-[10px] font-medium text-success">Resuelto</span>}
           </p>
+          {typingLabel && (
+            <p className="mt-0.5 truncate text-[10px] font-medium text-accent-ink motion-safe:animate-pulse">{typingLabel}</p>
+          )}
         </div>
         <Dropdown
           align="right"
@@ -89,6 +107,9 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
           <div className="w-56 p-1">
             <button type="button" className={MENU_ITEM} onClick={() => setDetailsOpen((open) => !open)}>
               <SlidersHorizontal size={15} /> {detailsOpen ? "Ocultar detalles" : "Detalles"}
+            </button>
+            <button type="button" className={MENU_ITEM} onClick={() => setMacroOpen(true)}>
+              <Zap size={15} /> Aplicar macro
             </button>
             {canCall && (
               <button
@@ -128,6 +149,13 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
                 <ChatAssigneePicker chatId={chat.id} assignedTo={chat.assignedTo} onAssigned={onAssigned} />
               </section>
               <section className="min-w-0 space-y-2">
+                <h3 className="text-xs font-semibold text-muted-darker">Prioridad</h3>
+                <ChatPriorityPicker chatId={chat.id} priority={chat.priority} onChanged={onPriorityChange} />
+              </section>
+              <div className="min-w-0 @[460px]:col-span-2">
+                <ChatCustomFields chatId={chat.id} />
+              </div>
+              <section className="min-w-0 space-y-2">
                 <h3 className="text-xs font-semibold text-muted-darker">Atención</h3>
                 <ChatBotMode chatId={chat.id} refreshKey={refreshKey} />
               </section>
@@ -151,6 +179,12 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
                   {(Object.keys(STATUS_BADGE) as ChatStatus[]).map((status) => <option key={status} value={status}>{STATUS_BADGE[status].label}</option>)}
                 </Select>
               </section>
+              {!resolved && (
+                <section className="min-w-0 space-y-2">
+                  <h3 className="text-xs font-semibold text-muted-darker">Posponer</h3>
+                  <ChatSnoozeControls chatId={chat.id} snoozedUntil={chat.snoozedUntil} onChanged={onSnoozedChange} />
+                </section>
+              )}
               <section className="min-w-0 space-y-2">
                 <h3 className="text-xs font-semibold text-muted-darker">Etiquetas</h3>
                 <ChatTagPicker chatId={chat.id} />
@@ -173,6 +207,13 @@ export function ChatConversationHeader({ chat, refreshKey, onCloseChat, onOpenCo
           </div>
         </div>
       )}
+
+      <MacroPickerModal
+        open={macroOpen}
+        onClose={() => setMacroOpen(false)}
+        chatId={chat.id}
+        onApplied={onMacroApplied}
+      />
     </header>
   );
 }

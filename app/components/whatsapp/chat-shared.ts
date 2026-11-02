@@ -17,6 +17,58 @@ export const STATUS_BADGE: Record<ChatStatus, { label: string; tone: "info" | "w
   RESOLVED: { label: "Resuelto", tone: "success" },
 };
 
+export type ChatPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
+
+// El color va en el punto/flag de la fila; NORMAL no pinta nada para no
+// llenar la bandeja de señales que no aportan.
+export const PRIORITY_META: Record<ChatPriority, { label: string; dot: string; text: string }> = {
+  LOW: { label: "Baja", dot: "bg-muted-darker", text: "text-muted" },
+  NORMAL: { label: "Normal", dot: "bg-muted-darker", text: "text-muted" },
+  HIGH: { label: "Alta", dot: "bg-warning", text: "text-warning" },
+  URGENT: { label: "Urgente", dot: "bg-danger", text: "text-danger" },
+};
+
+export const PRIORITY_OPTIONS: Array<{ value: ChatPriority; label: string }> = [
+  { value: "LOW", label: "Baja" },
+  { value: "NORMAL", label: "Normal" },
+  { value: "HIGH", label: "Alta" },
+  { value: "URGENT", label: "Urgente" },
+];
+
+/** Acción del menú contextual de una fila de la lista de chats. */
+export type ChatRowAction =
+  | { type: "open" }
+  | { type: "contact" }
+  | { type: "assign"; userId: "me" | string | null }
+  | { type: "priority"; priority: ChatPriority }
+  | { type: "snooze"; until: string | null }
+  | { type: "status"; status: ChatStatus }
+  | { type: "copy-link" };
+
+export type ChatBulkAction =
+  | { type: "assign"; self?: boolean; assignedToId?: string | null }
+  | { type: "status"; status: "OPEN" | "RESOLVED" }
+  | { type: "priority"; priority: ChatPriority }
+  | { type: "snooze"; until: string | null };
+
+export function snoozeUntilFor(preset: "1h" | "tomorrow" | "week"): string {
+  const date = new Date();
+  if (preset === "1h") {
+    date.setHours(date.getHours() + 1);
+  } else if (preset === "tomorrow") {
+    date.setDate(date.getDate() + 1);
+    date.setHours(9, 0, 0, 0);
+  } else {
+    date.setDate(date.getDate() + 7);
+    date.setHours(9, 0, 0, 0);
+  }
+  return date.toISOString();
+}
+
+export function formatSnoozeUntil(iso: string): string {
+  return new Date(iso).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
+}
+
 export type Channel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
 
 export interface AccountOption {
@@ -37,6 +89,10 @@ export interface ChatItem {
   unreadCount: number;
   contactId: string | null;
   status: ChatStatus;
+  priority: ChatPriority;
+  snoozedUntil: string | null;
+  /** Desde cuándo el cliente espera respuesta (lib/chats/waiting.ts). */
+  waitingSince?: string | null;
   assignedToId: string | null;
   assignedTo: { id: string; name: string | null } | null;
   account: { id: string; name: string; phoneNumber: string | null; coexistence?: boolean; callingEnabled?: boolean };
@@ -75,6 +131,8 @@ export interface Message {
   mimeType: string | null;
   filename: string | null;
   bytesSize: number | null;
+  /** Transcripción de una nota de voz (lib/ai/transcribe.ts). */
+  transcript?: string | null;
   status: string | null;
   /** Motivo en español de un envío rechazado por Meta (solo WhatsApp). */
   errorMessage?: string | null;

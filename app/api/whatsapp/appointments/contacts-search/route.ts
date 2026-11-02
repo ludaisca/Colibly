@@ -6,7 +6,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 
 // Búsqueda de contacto acotada para el picker del formulario de Citas —
 // deliberadamente separada de GET /api/whatsapp/contacts (que 403s para el
-// rol "user", ver AGENTS.md "Role guards live in the APIs too"). Esa
+// rol "user", ver docs/arquitectura/gotchas.md "Role guards live in the APIs too"). Esa
 // restricción es sobre la página/gestión de Contactos; agendar una cita no
 // debería heredarla, así que este endpoint no aplica el mismo gate de rol.
 const LIMIT = 8;

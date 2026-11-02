@@ -15,6 +15,9 @@ export function ChatPageView({
 }) {
   const searchParams = useSearchParams();
   const hasReplied = searchParams.get("hasReplied");
+  const assigned = searchParams.get("assigned");
+  const priority = searchParams.get("priority");
+  const snoozed = searchParams.get("snoozed");
 
   return (
     <ChatWorkspace
@@ -23,7 +26,13 @@ export function ChatPageView({
       initialChatId={initialChatId}
       initialCampaignId={searchParams.get("campaignId") ?? undefined}
       initialHasReplied={hasReplied === "yes" || hasReplied === "no" ? hasReplied : ""}
+      initialAssigned={assigned === "me" || assigned === "unassigned" ? assigned : ""}
+      initialPriority={priority === "LOW" || priority === "NORMAL" || priority === "HIGH" || priority === "URGENT" ? priority : ""}
+      initialSnoozed={snoozed === "only" || snoozed === "all" ? snoozed : ""}
+      initialAwaiting={searchParams.get("awaiting") === "1"}
       initialSearch={searchParams.get("search") ?? undefined}
+      initialContactId={searchParams.get("contacto") ?? undefined}
+      initialMessageId={searchParams.get("mensaje") ?? undefined}
     />
   );
 }

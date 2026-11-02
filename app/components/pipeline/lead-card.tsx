@@ -1,13 +1,18 @@
 "use client";
 
+import { displayName as chatDisplayName } from "@/lib/chats/display-name";
 import { useDraggable } from "@dnd-kit/core";
 import { labelText } from "@/lib/whatsapp/export-columns";
-import { GripVertical, Clock } from "lucide-react";
+import { GripVertical, Clock, CalendarClock, Contact, ArrowRightLeft, Copy } from "lucide-react";
+import { ContextMenu, type ContextMenuEntry } from "@/app/components/ui/context-menu";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
+import { RelativeTime, useMinuteNow } from "@/app/components/ui/relative-time";
 import type { LeadStatus } from "@prisma/client";
+import { formatMxn } from "@/lib/money";
 
 export interface LeadCardData {
   id: string;
@@ -21,19 +26,23 @@ export interface LeadCardData {
   bestScore: { score: number; label: string } | null;
   lastMessageAt: string | null;
   unreadCount: number;
+  /** Valor del trato en centavos (lib/money.ts). */
+  dealValueCents: number | null;
+  /** Fecha estimada de cierre (ISO). */
+  expectedCloseAt: string | null;
+  /** Ejecutivo asignado al chat del contacto. */
+  assignee: { id: string; name: string | null } | null;
+  /** La etapa es ganada/perdida: una fecha de cierre pasada ya no es atraso. */
+  closed?: boolean;
+}
+
+// La fecha de cierre se guarda como medianoche UTC del día elegido: se
+// muestra en UTC para que sea el mismo día en servidor y navegador.
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 export type StageOption = { id: string; name: string };
-
-function formatTime(ts: string | null): string {
-  if (!ts) return "—";
-  const diffMs = Date.now() - new Date(ts).getTime();
-  const diffH = Math.floor(diffMs / 3600000);
-  if (diffH < 1) return `Hace ${Math.floor(diffMs / 60000)}m`;
-  if (diffH < 24) return `Hace ${diffH}h`;
-  const d = Math.floor(diffH / 24);
-  return `Hace ${d}d`;
-}
 
 function scoreTone(score: number): "danger" | "warning" | "success" {
   if (score < 40) return "danger";
@@ -58,7 +67,10 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
   onOpen?: (id: string) => void;
   onStageChange?: (id: string, stageId: string) => void;
 }) {
-  const displayName = data.name ?? data.remoteJid ?? "Desconocido";
+  const displayName = chatDisplayName(data.name, data.remoteJid);
+  // "Atrasado" depende de la hora actual: solo después de hidratar.
+  const now = useMinuteNow();
+  const overdue = now !== null && !data.closed && !!data.expectedCloseAt && Date.parse(data.expectedCloseAt) < now - 86_400_000;
   const phoneShort =
     data.remoteJid?.replace(/@.*$/, "").slice(-10) ?? "";
   const channelLabel = data.channel === "WEBCHAT"
@@ -78,7 +90,30 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
       }
     : undefined;
 
+  // Clic derecho / pulsación larga: atajo de "Ver contacto" y del selector de
+  // etapa del pie de la tarjeta (que siguen visibles).
+  const menuItems: ContextMenuEntry[] = [
+    { type: "label", label: displayName },
+    ...(onOpen ? [{ label: "Ver contacto", icon: Contact, onSelect: () => onOpen(data.id) }] : []),
+    ...(onStageChange && stages && stages.length > 0
+      ? [{
+          type: "submenu" as const,
+          label: "Mover a etapa",
+          icon: ArrowRightLeft,
+          items: stages.map((stage) => ({
+            label: stage.name,
+            checked: stage.id === data.stageId,
+            onSelect: () => { if (stage.id !== data.stageId) onStageChange(data.id, stage.id); },
+          })),
+        }]
+      : []),
+    ...(data.channel === "WHATSAPP" && phoneShort
+      ? [{ type: "separator" as const }, { label: "Copiar número", icon: Copy, onSelect: () => void navigator.clipboard.writeText(data.remoteJid.replace(/@.*$/, "")).catch(() => {}) }]
+      : []),
+  ];
+
   return (
+    <ContextMenu items={menuItems} disabled={!onOpen && !onStageChange}>
     <div
       ref={setNodeRef}
       style={style}
@@ -88,11 +123,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
       )}
     >
       <div className="flex items-start gap-3">
-        <EntityAvatar
-          id={data.accountId ?? data.id}
-          name={displayName}
-          size="sm"
-        />
+        <ChannelAvatar id={data.accountId ?? data.id} name={displayName} channel={data.channel} size="sm" />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -105,12 +136,37 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-darker">
             <Mark size={12} className="shrink-0" />
             <span className="truncate font-mono tabular-nums" title={data.remoteJid}>
-              {data.channel === "WHATSAPP" ? phoneShort : `${channelLabel} · ${data.remoteJid}`}
+              {data.channel === "WHATSAPP" ? phoneShort : data.channel === "WEBCHAT" ? channelLabel : `${channelLabel} · ${data.remoteJid}`}
             </span>
             <span className="text-muted">·</span>
             <Clock size={10} className="shrink-0" />
-            <span>{formatTime(data.lastMessageAt)}</span>
+            {data.lastMessageAt ? <RelativeTime value={data.lastMessageAt} /> : <span>—</span>}
           </div>
+
+          {(data.dealValueCents !== null || data.expectedCloseAt || data.assignee) && (
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              {data.dealValueCents !== null && (
+                <span className="font-semibold tabular-nums text-foreground">{formatMxn(data.dealValueCents)}</span>
+              )}
+              {data.expectedCloseAt && (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 tabular-nums",
+                    overdue ? "text-danger" : "text-muted-darker"
+                  )}
+                  title={overdue ? "Cierre estimado (ya pasó)" : "Cierre estimado"}
+                >
+                  <CalendarClock size={11} aria-hidden />
+                  {shortDate(data.expectedCloseAt)}
+                </span>
+              )}
+              {data.assignee && (
+                <span className="ml-auto" title={`Asignado a ${data.assignee.name ?? "un ejecutivo"}`}>
+                  <EntityAvatar id={data.assignee.id} name={data.assignee.name ?? "?"} size="xs" figure seed={data.assignee.id} />
+                </span>
+              )}
+            </div>
+          )}
 
           {data.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
@@ -178,5 +234,6 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
         </div>
       )}
     </div>
+    </ContextMenu>
   );
 }

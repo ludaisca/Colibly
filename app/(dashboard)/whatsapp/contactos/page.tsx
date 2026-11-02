@@ -1,18 +1,22 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { GettingStarted } from "@/app/components/ui/getting-started";
+import { formatMxn } from "@/lib/money";
 import Link from "next/link";
-import { Search, RefreshCw, Contact as ContactIcon } from "lucide-react";
+import { Search, RefreshCw, Upload, Contact as ContactIcon } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { FiltersPanel, type FilterFieldDef } from "@/app/components/ui/filters-panel";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
-import { EntityAvatar } from "@/app/components/ui/avatar";
+import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
+import { ContactImportModal } from "@/app/components/whatsapp/contact-import-modal";
 import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
 
 const PAGE_SIZE = 25;
@@ -21,6 +25,7 @@ interface AccountOption {
   id: string;
   name: string;
   phoneNumber: string | null;
+  channel?: string;
 }
 
 interface ContactRow {
@@ -60,8 +65,12 @@ export default function ContactosPage() {
   const [leadStatusFilter, setLeadStatusFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  // Pie de la tabla (F8): se pide con la página 1 (cada cambio de filtros
+  // vuelve a ella) y se conserva al paginar.
+  const [summary, setSummary] = useState<{ withoutTags: number; withoutConversation: number; withDeal: number; dealValueCents: number } | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -94,12 +103,14 @@ export default function ContactosPage() {
       if (accountFilter) params.set("accountId", accountFilter);
       params.set("page", String(page));
       params.set("pageSize", String(PAGE_SIZE));
+      if (page === 1) params.set("summary", "1");
       const res = await fetch(`/api/whatsapp/contacts?${params.toString()}`);
       const data = await res.json();
       if (res.ok && Array.isArray(data.items)) {
         if (currentRequest === requestId.current) {
           setContacts(data.items);
           setTotal(data.total ?? 0);
+          if (data.summary) setSummary(data.summary);
         }
       } else throw new Error(data.error ?? "Error al cargar contactos");
     } catch (err) {
@@ -114,6 +125,7 @@ export default function ContactosPage() {
   const fetchAccounts = useCallback(async () => {
     try {
       const endpoints = ["whatsapp", "telegram", "messenger", "instagram", "webchat"];
+      const channelNames = ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"];
       const results = await Promise.all(endpoints.map(async (channel) => {
         const res = await fetch(`/api/${channel}/accounts`);
         if (!res.ok) throw new Error("Error al cargar cuentas");
@@ -121,8 +133,8 @@ export default function ContactosPage() {
         if (!Array.isArray(data)) throw new Error("Respuesta inválida de cuentas");
         return data as Array<{ id: string; name: string; phoneNumber?: string | null }>;
       }));
-      setAccounts(results.flatMap((rows) => rows.map((a) => ({
-        id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null,
+      setAccounts(results.flatMap((rows, index) => rows.map((a) => ({
+        id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null, channel: channelNames[index],
       }))));
     } catch {
       toastError("Error al cargar cuentas");
@@ -147,6 +159,9 @@ export default function ContactosPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <ContactUsageMeter usage={contactUsage} />
+            <Button variant="secondary" size="md" icon={Upload} onClick={() => setImportOpen(true)}>
+              Importar CSV
+            </Button>
             <Button variant="secondary" size="md" icon={RefreshCw} onClick={fetchContacts}>
               Actualizar
             </Button>
@@ -198,6 +213,20 @@ export default function ContactosPage() {
           />
         </div>
 
+        {!loading && !fetchError && contacts.length === 0 && !search && !leadStatusFilter && !accountFilter ? (
+          <div className="rounded-lg border border-border bg-surface">
+            <GettingStarted
+              title="Aún no tienes contactos"
+              description="Se crean solos cuando alguien te escribe por un canal conectado. También puedes importarlos de un CSV."
+              memberHint="Los contactos aparecen cuando alguien escribe a una de tus cuentas. Si no ves ninguna, pide a un administrador que te comparta una cuenta."
+              extraAction={
+                <Button variant="secondary" size="sm" icon={Upload} onClick={() => setImportOpen(true)}>
+                  Importar CSV
+                </Button>
+              }
+            />
+          </div>
+        ) : (
         <EntityList
           rows={contacts}
           rowKey={(c) => c.id}
@@ -221,10 +250,10 @@ export default function ContactosPage() {
           renderRow={(contact) => {
             const badge = LEAD_STATUS_BADGE[contact.leadStatus] ?? { label: contact.leadStatus, tone: "neutral" as const };
             const account = accounts.find((a) => a.id === contact.accountId);
-            const name = contact.name ?? contact.remoteJid;
+            const name = displayName(contact.name, contact.remoteJid);
             return (
               <EntityRow
-                leading={<EntityAvatar id={contact.accountId} name={name} size="sm" />}
+                leading={<ChannelAvatar id={contact.accountId} name={name} channel={contact.channel} size="sm" />}
                 title={name}
                 badges={
                   <span className="flex shrink-0 items-center gap-1">
@@ -265,6 +294,19 @@ export default function ContactosPage() {
             );
           }}
         />
+        )}
+        {summary && total > 0 && (
+          <p className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border px-1 pt-3 text-xs text-muted-darker">
+            <span><span className="font-semibold tabular-nums text-foreground">{total.toLocaleString("es-MX")}</span> contactos</span>
+            <span><span className="tabular-nums">{pct(summary.withoutTags, total)}%</span> sin etiquetas</span>
+            <span><span className="tabular-nums">{pct(summary.withoutConversation, total)}%</span> sin conversación</span>
+            {summary.withDeal > 0 && (
+              <span>
+                {summary.withDeal.toLocaleString("es-MX")} con valor de trato · <span className="font-semibold tabular-nums text-foreground">{formatMxn(summary.dealValueCents, { compact: true })}</span>
+              </span>
+            )}
+          </p>
+        )}
         {total > PAGE_SIZE && (
           <div className="flex justify-center pt-2">
             <Pagination
@@ -283,6 +325,17 @@ export default function ContactosPage() {
           onUpdated={fetchContacts}
         />
       )}
+
+      <ContactImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        accounts={accounts}
+        onImported={fetchContacts}
+      />
     </div>
   );
+}
+
+function pct(part: number, total: number): number {
+  return total > 0 ? Math.round((part / total) * 100) : 0;
 }

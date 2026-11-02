@@ -6,7 +6,22 @@ import { getStripe, priceIdFor } from "@/lib/billing/stripe";
 import { PLAN_LOOKUP_KEYS, priceMatchesPlan } from "@/lib/billing/stripe-rules";
 import { PLANS } from "@/lib/billing/plans";
 import { backupFreshness } from "@/lib/backups/freshness";
-import { platformBackupQueue, platformHealthQueue } from "@/lib/queue";
+import {
+  appointmentReminderQueue,
+  automationTickQueue,
+  billingTickQueue,
+  campaignScheduleQueue,
+  coexistenceTickQueue,
+  inboxQueue,
+  leadRecoveryQueue,
+  leadScoringQueue,
+  leadSheetImportQueue,
+  mediaCleanupQueue,
+  platformBackupQueue,
+  platformHealthQueue,
+  sequenceQueue,
+  sheetsSyncQueue,
+} from "@/lib/queue";
 
 // Doctor de la plataforma: responde "¿está sana producción?" sin secretos y
 // sin efectos secundarios. Las verificaciones contra Stripe/SMTP son opt-in
@@ -63,6 +78,7 @@ export async function getPlatformDiagnostics(opts: { live?: boolean; now?: Date 
     checkAppUrl(appUrl, isProduction),
     checkMigrations(),
     checkVectorIndex(),
+    checkSearchIndexes(),
     checkRedis(),
     checkQueues(),
     checkBillingKey(settings),
@@ -73,6 +89,7 @@ export async function getPlatformDiagnostics(opts: { live?: boolean; now?: Date 
     checkSmtp(settings),
     checkTurnstile(settings, isProduction),
     checkAi(settings),
+    checkPush(settings),
     checkBackups(settings, now),
     checkSecurityEnv(isProduction),
   ]);
@@ -114,6 +131,25 @@ async function checkMigrations(): Promise<DiagnosticCheck> {
   }
 }
 
+// Búsqueda en mensajes: prisma/sql/ensure-search-indexes.sql no los crea en
+// tablas grandes (bloquearía el arranque) — ver desarrollo.md.
+async function checkSearchIndexes(): Promise<DiagnosticCheck> {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ indexname: string }>>`
+      SELECT indexname FROM pg_indexes
+      WHERE indexname IN ('idx_wa_messages_search_trgm', 'idx_channel_messages_search_trgm')
+    `;
+    const present = new Set(rows.map((row) => row.indexname));
+    const missing = ["idx_wa_messages_search_trgm", "idx_channel_messages_search_trgm"].filter((name) => !present.has(name));
+    if (missing.length) {
+      return check("db.search", "Índices de búsqueda", "warn", `Falta ${missing.join(", ")}`, "Créalos con CREATE INDEX CONCURRENTLY (runbook en docs/arquitectura/desarrollo.md); la búsqueda en mensajes hará scan completo");
+    }
+    return check("db.search", "Índices de búsqueda", "ok", "Índices trigram presentes");
+  } catch (error) {
+    return check("db.search", "Índices de búsqueda", "unknown", errorMessage(error));
+  }
+}
+
 async function checkVectorIndex(): Promise<DiagnosticCheck> {
   try {
     const rows = await prisma.$queryRaw<Array<{ exists: boolean }>>`
@@ -139,25 +175,43 @@ async function checkRedis(): Promise<DiagnosticCheck> {
   }
 }
 
+// Todos los repeatables que registra startWorkers() (lib/workers/index.ts).
+// Si uno falta, su función deja de correr en silencio: cobros, auto-resolver,
+// recordatorios… Mantener esta lista al agregar un tick nuevo.
+const EXPECTED_REPEATABLES: Array<{ queue: { getRepeatableJobs: () => Promise<Array<{ name: string }>> }; name: string; label: string }> = [
+  { queue: billingTickQueue, name: "tick", label: "cobros" },
+  { queue: platformBackupQueue, name: "tick", label: "respaldos" },
+  { queue: platformHealthQueue, name: "tick", label: "doctor" },
+  { queue: inboxQueue, name: "tick", label: "bandeja (auto-resolver)" },
+  { queue: inboxQueue, name: "topic-monitor-tick", label: "monitores de temas" },
+  { queue: automationTickQueue, name: "tick", label: "automatizaciones" },
+  { queue: campaignScheduleQueue, name: "scheduled-tick", label: "campañas programadas" },
+  { queue: sequenceQueue, name: "tick", label: "secuencias" },
+  { queue: appointmentReminderQueue, name: "tick", label: "recordatorios de citas" },
+  { queue: leadRecoveryQueue, name: "tick", label: "recuperación de leads" },
+  { queue: leadScoringQueue, name: "tick", label: "calificación de leads" },
+  { queue: leadSheetImportQueue, name: "tick", label: "importación de hojas" },
+  { queue: sheetsSyncQueue, name: "tick", label: "sincronización de hojas" },
+  { queue: coexistenceTickQueue, name: "tick", label: "coexistencia" },
+  { queue: mediaCleanupQueue, name: "purge", label: "limpieza de media" },
+];
+
 async function checkQueues(): Promise<DiagnosticCheck> {
   try {
-    const [backup, health] = await Promise.all([
-      platformBackupQueue.getRepeatableJobs(),
-      platformHealthQueue.getRepeatableJobs(),
-    ]);
-    const missing: string[] = [];
-    if (!backup.some((job) => job.name === "tick")) missing.push("respaldos");
-    if (!health.some((job) => job.name === "tick")) missing.push("doctor");
+    const queues = [...new Set(EXPECTED_REPEATABLES.map((entry) => entry.queue))];
+    const jobs = new Map(await Promise.all(queues.map(async (queue) => [queue, await queue.getRepeatableJobs()] as const)));
+    const missing = EXPECTED_REPEATABLES.filter((entry) => !jobs.get(entry.queue)?.some((job) => job.name === entry.name)).map((entry) => entry.label);
     if (missing.length > 0) {
       return check(
         "queues.repeatables",
         "Colas programadas",
         "warn",
         `Faltan ticks: ${missing.join(", ")}`,
-        "Reinicia la app para que startWorkers() registre los repeatables"
+        "Reinicia la app para que startWorkers() registre los repeatables",
+        { missing }
       );
     }
-    return check("queues.repeatables", "Colas programadas", "ok", `${backup.length + health.length} job(s) repetible(s)`);
+    return check("queues.repeatables", "Colas programadas", "ok", `${EXPECTED_REPEATABLES.length} tareas programadas activas`);
   } catch (error) {
     return check("queues.repeatables", "Colas programadas", "unknown", `No se pudieron leer: ${errorMessage(error)}`);
   }
@@ -320,9 +374,16 @@ function checkAi(settings: Awaited<ReturnType<typeof getPlatformSettings>>): Dia
     return check("ai.providers", "Inteligencia artificial", "fail", "No hay ninguna key de IA", "Configura OpenCode Go o Google en /plataforma");
   }
   if (!settings.googleApiKey) {
-    return check("ai.providers", "Inteligencia artificial", "warn", "Falta la key de Google: sin embeddings no hay RAG", "Los bots pueden responder, pero la búsqueda de conocimiento no funciona");
+    return check("ai.providers", "Inteligencia artificial", "warn", "Falta la key de Google: sin embeddings no hay RAG ni transcripción de audios", "Los bots pueden responder, pero la búsqueda de conocimiento y la transcripción de notas de voz no funcionan");
   }
   return check("ai.providers", "Inteligencia artificial", "ok", "Proveedores configurados");
+}
+
+function checkPush(settings: Awaited<ReturnType<typeof getPlatformSettings>>): DiagnosticCheck {
+  if (!settings.vapidPublicKey || !settings.vapidPrivateKey) {
+    return check("push", "Notificaciones push", "warn", "Faltan las llaves VAPID", "Genéralas en /plataforma → Configuración; sin ellas el navegador no recibe avisos de chats");
+  }
+  return check("push", "Notificaciones push", "ok", "Llaves VAPID configuradas");
 }
 
 async function checkBackups(settings: Awaited<ReturnType<typeof getPlatformSettings>>, now: Date): Promise<DiagnosticCheck> {

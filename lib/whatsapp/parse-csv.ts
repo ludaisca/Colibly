@@ -41,6 +41,13 @@ function parseLine(line: string): string[] {
   return result;
 }
 
+/** Tabla cruda: cabecera + filas, sin interpretar columnas (importación con mapeo). */
+export function parseCsvTable(text: string): { headers: string[]; rows: string[][] } {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return { headers: [], rows: [] };
+  return { headers: parseLine(lines[0]), rows: lines.slice(1).map(parseLine) };
+}
+
 export function parseCsv(text: string): ParsedCsv {
   const lines = text.split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
   if (lines.length === 0) return { rows: [], paramColumnCount: 0 };

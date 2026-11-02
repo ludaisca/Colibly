@@ -4,7 +4,7 @@
 // https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes
 const MESSAGES: Record<number, string> = {
   131047: "Pasaron más de 24 h desde el último mensaje del cliente: solo puedes enviarle una plantilla aprobada.",
-  131037: "WhatsApp todavía no aprueba el nombre para mostrar de este número. Hasta que lo apruebe no se pueden enviar mensajes. Revísalo en el Administrador de WhatsApp.",
+  131037: "WhatsApp rechazó el mensaje porque todavía no aprueba el nombre para mostrar de este número. Mientras esté en revisión, Meta puede rechazar cualquier envío; se resuelve cuando lo apruebe en el Administrador de WhatsApp.",
   141006: "Meta rechazó el envío por un problema con el método de pago de la cuenta de WhatsApp Business. Revísalo en el Administrador comercial de Meta.",
   131042: "Meta rechazó el envío por un problema con el método de pago de la cuenta de WhatsApp Business. Revísalo en el Administrador comercial de Meta.",
   131026: "No se pudo entregar: el número no tiene WhatsApp o no aceptó las condiciones más recientes.",

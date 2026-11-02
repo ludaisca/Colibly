@@ -16,18 +16,28 @@ import { useHasMounted } from "@/app/hooks/use-has-mounted";
 
 type ToastTone = "success" | "warning" | "danger" | "info";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+/** Segundo argumento: la duración en ms (forma original) o un objeto con acción. */
+export type ToastOptions = number | { duration?: number; action?: ToastAction };
+
 interface Toast {
   id: string;
   tone: ToastTone;
   message: string;
   duration?: number;
+  /** Botón junto al mensaje, p. ej. "Deshacer" tras una acción reversible. */
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  success: (message: string, duration?: number) => void;
-  error:   (message: string, duration?: number) => void;
-  warning: (message: string, duration?: number) => void;
-  info:    (message: string, duration?: number) => void;
+  success: (message: string, options?: ToastOptions) => void;
+  error:   (message: string, options?: ToastOptions) => void;
+  warning: (message: string, options?: ToastOptions) => void;
+  info:    (message: string, options?: ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -82,6 +92,15 @@ function ToastItem({
     >
       <Icon size={16} className={cn("mt-0.5 shrink-0", text)} />
       <p className="flex-1 text-foreground">{toast.message}</p>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => { toast.action!.onClick(); dismiss(); }}
+          className="shrink-0 text-sm font-semibold text-accent-ink underline-offset-2 hover:underline focus-visible:underline"
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         onClick={dismiss}
         aria-label="Cerrar"
@@ -97,9 +116,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const mounted = useHasMounted();
 
-  const add = useCallback((tone: ToastTone, message: string, duration?: number) => {
+  const add = useCallback((tone: ToastTone, message: string, options?: ToastOptions) => {
     const id = `${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, tone, message, duration }]);
+    const { duration, action } = typeof options === "number" ? { duration: options, action: undefined } : (options ?? {});
+    // Con acción hay que dar tiempo de usarla: 4 s es poco para "Deshacer".
+    setToasts((prev) => [...prev, { id, tone, message, duration: duration ?? (action ? 8000 : undefined), action }]);
   }, []);
 
   const dismiss = useCallback((id: string) => {
@@ -107,10 +128,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value: ToastContextValue = useMemo(() => ({
-    success: (msg: string, dur?: number) => add("success", msg, dur),
-    error:   (msg: string, dur?: number) => add("danger",  msg, dur),
-    warning: (msg: string, dur?: number) => add("warning", msg, dur),
-    info:    (msg: string, dur?: number) => add("info",    msg, dur),
+    success: (msg: string, opt?: ToastOptions) => add("success", msg, opt),
+    error:   (msg: string, opt?: ToastOptions) => add("danger",  msg, opt),
+    warning: (msg: string, opt?: ToastOptions) => add("warning", msg, opt),
+    info:    (msg: string, opt?: ToastOptions) => add("info",    msg, opt),
   }), [add]);
 
   return (

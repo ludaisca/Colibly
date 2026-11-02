@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/core";
 import { LeadCard, type LeadCardData, type StageOption } from "@/app/components/pipeline/lead-card";
 import { stageChrome, type StageOutcome } from "@/lib/pipeline/stages";
+import { formatMxn } from "@/lib/money";
 import { cn } from "@/app/components/ui/cn";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
@@ -49,6 +50,8 @@ function Column({
   onStageChange: (id: string, stageId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `column-${stage.id}` });
+  const totalCents = contacts.reduce((sum, contact) => sum + (contact.dealValueCents ?? 0), 0);
+  const withValue = contacts.filter((contact) => contact.dealValueCents !== null).length;
   const chrome = stageChrome(stage.outcome, index);
 
   return (
@@ -56,6 +59,12 @@ function Column({
       <div className="mb-3 flex items-center gap-2 px-1">
         <span className={cn("h-2.5 w-2.5 rounded-full", chrome.dot)} />
         <h3 className="text-sm font-semibold text-foreground">{stage.name}</h3>
+        {/* Se recalcula de las tarjetas: al arrastrar, el total se mueve con ellas. */}
+        {totalCents > 0 && (
+          <span className="text-xs font-semibold tabular-nums text-muted" title={`Suma del valor de ${withValue} ${withValue === 1 ? "trato" : "tratos"}`}>
+            {formatMxn(totalCents, { compact: true })}
+          </span>
+        )}
         <span className="ml-auto rounded-full bg-surface-light px-2 py-0.5 text-xs font-mono tabular-nums text-muted">
           {contacts.length}
         </span>
@@ -123,7 +132,7 @@ export function PipelineBoard({
     setBoardData((currentBoard) => ({
       ...currentBoard,
       [sourceStageId]: currentBoard[sourceStageId].filter((item) => item.id !== id),
-      [targetStageId]: [...(currentBoard[targetStageId] ?? []), { ...card, stageId: targetStageId }],
+      [targetStageId]: [...(currentBoard[targetStageId] ?? []), { ...card, stageId: targetStageId, closed: stages.find((stage) => stage.id === targetStageId)?.outcome !== "OPEN" }],
     }));
     setStageInView(targetStageId);
     try {

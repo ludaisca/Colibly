@@ -42,3 +42,7 @@ npx prisma migrate deploy
 
 # El índice IVFFlat necesita que wa_bot_knowledge ya exista — ver docker/init.sql.
 npx prisma db execute --file prisma/sql/ensure-vector-index.sql --schema prisma/schema.prisma
+
+# Índices trigram de la búsqueda en mensajes. En tablas grandes no se crean
+# aquí (solo avisan): runbook en docs/arquitectura/desarrollo.md.
+npx prisma db execute --file prisma/sql/ensure-search-indexes.sql --schema prisma/schema.prisma

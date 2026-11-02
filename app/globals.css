@@ -85,10 +85,9 @@
      --foreground. Pares en contrast.test.ts. */
   --bubble-in:  var(--surface);
   --bubble-out: #D5EEF4;
-  /* Puntos del fondo del hilo (chat-canvas) + un lavado de acento muy suave.
-     Deben notarse al mirar, sin competir con las burbujas. */
-  --chat-pattern: rgba(12, 26, 34, 0.09);
-  --chat-glow:    rgba(14, 116, 144, 0.07);
+  /* Fondo del hilo (chat-canvas): color sólido, sin patrón. En claro es
+     gris tenue para que la burbuja blanca destaque. */
+  --chat-bg: var(--surface-light);
 
   /* Acento de apoyo: coral (badges, highlights). No es CTA. */
   --accent-2:       var(--coral-600);
@@ -154,52 +153,56 @@
 .dark {
   color-scheme: dark;
 
-  --background:    #0A1218;
-  --foreground:    #E8F4FA;
-  --surface:       #101C24;
-  --surface-light: #162530;
-  --border:        #243848;
+  /* AMOLED (2026-11-01): fondo negro puro (#000, el píxel OLED se apaga) y
+     grises neutros sin tinte azul. Las superficies apenas se separan del
+     negro; la jerarquía la dan los bordes, porque las sombras no se ven
+     sobre negro. El acento sigue siendo el teal de la marca. */
+  --background:    #000000;
+  --foreground:    #EDEFF0;
+  --surface:       #0A0A0B;
+  --surface-light: #161718;
+  --border:        #26282A;
 
-  --muted:         #9BB4C4;
-  --muted-darker:  #7A96A8;
-  --muted-strong:  #C5D8E4;
+  --muted:         #A4A8AB;
+  --muted-darker:  #8A8E92;
+  --muted-strong:  #D2D5D7;
 
   --accent:        #0E7490;
   --accent-hover:  #0C5F75;
   --on-accent:     #FFFFFF;
   --accent-strong: #38BDF8;
   --accent-ink:    #67E8F9;
-  --accent-subtle: #0C2A38;
-  --accent-muted:  #164A5E;
+  --accent-subtle: #03181F;
+  --accent-muted:  #0C3A47;
 
-  --bubble-in:  #1B2B36;
-  --bubble-out: #0C4C5E;
-  --chat-pattern: rgba(232, 244, 250, 0.09);
-  --chat-glow:    rgba(56, 189, 248, 0.06);
+  --bubble-in:  #17181A;
+  --bubble-out: #0A3D4B;
+  /* AMOLED: el hilo es negro puro; las burbujas (#17181A) se separan solas. */
+  --chat-bg: var(--background);
 
   --accent-2:       #FB7185;
   --accent-2-hover: #FDA4AF;
-  --accent-2-bg:    #3A1520;
+  --accent-2-bg:    #240A11;
 
   --success:        #74CC8F;
-  --success-bg:     #18301F;
-  --success-border: #2D5638;
+  --success-bg:     #0C1D11;
+  --success-border: #234A2E;
   --warning:        #FBA35E;
-  --warning-bg:     #362213;
-  --warning-border: #6A3D19;
+  --warning-bg:     #22140A;
+  --warning-border: #5A3415;
   --danger:         #F58C80;
-  --danger-bg:      #3A1C19;
-  --danger-border:  #6E302A;
+  --danger-bg:      #250F0D;
+  --danger-border:  #5E2822;
   --info:           #86B2F2;
-  --info-bg:        #162840;
-  --info-border:    #2D4D7C;
+  --info-bg:        #0A1626;
+  --info-border:    #24406A;
 
-  --code-bg:        #0B1620;
-  --code-fg:        #E8F4FA;
+  --code-bg:        #0A0A0B;
+  --code-fg:        #EDEFF0;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.40), 0 2px 6px rgba(0, 0, 0, 0.30);
-  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.50), 0 4px 10px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 28px rgba(0, 0, 0, 0.9);
+  --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 20px 48px rgba(0, 0, 0, 0.95);
 }
 
 /* ─────────────────────────────────────────────────
@@ -215,7 +218,7 @@
 .hue-6 { --entity: oklch(0.44 0.10 150); }
 .hue-7 { --entity: oklch(0.44 0.12 340); }
 
-.dark .hue-0 { --entity: oklch(0.84 0.11 25); --entity-bg: color-mix(in oklab, var(--entity) 12%, var(--surface)); }
+.dark .hue-0 { --entity: oklch(0.84 0.11 25); --entity-bg: color-mix(in oklab, var(--entity) 16%, var(--surface)); }
 .dark .hue-1 { --entity: oklch(0.80 0.11 60);  }
 .dark .hue-2 { --entity: oklch(0.82 0.10 95);  }
 .dark .hue-3 { --entity: oklch(0.78 0.10 200); }
@@ -318,15 +321,10 @@
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
 }
 
-/* Lienzo del hilo de chat: puntos tenues + un lavado de acento arriba (no es
-   el doodle de WhatsApp; es un patrón propio). Los colores salen de
-   --chat-pattern/--chat-glow, que cambian con el tema. */
+/* Lienzo del hilo de chat: color sólido por tema (--chat-bg), sin patrón
+   (los puntos se quitaron el 2026-11-01: ensuciaban el fondo). */
 @utility chat-canvas {
-  background-color: var(--surface-light);
-  background-image:
-    radial-gradient(var(--chat-pattern) 1.4px, transparent 1.4px),
-    radial-gradient(circle at 50% 0%, var(--chat-glow) 0%, transparent 55%);
-  background-size: 18px 18px, 100% 100%;
+  background-color: var(--chat-bg);
 }
 
 /* ─────────────────────────────────────────────────

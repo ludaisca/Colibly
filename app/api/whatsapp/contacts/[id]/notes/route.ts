@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { noteSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { recordContactActivity } from "@/lib/contacts/activity";
 
 async function getOwnedContact(userId: string, contactId: string) {
   const [accountIds, channelAccountIds] = await Promise.all([getUserAccountIds(userId), getUserChannelAccountIds(userId)]);
@@ -84,6 +85,15 @@ export async function POST(
         createdAt: true,
         author: { select: { id: true, name: true } },
       },
+    });
+
+    await recordContactActivity({
+      contactId: id,
+      type: "NOTE_ADDED",
+      title: "Nota interna agregada",
+      body: note.body,
+      actorId: session.user.id,
+      dedupeKey: `note:${note.id}`,
     });
 
     return NextResponse.json(note, { status: 201 });

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X } from "lucide-react";
+import { Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X, KeyRound } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -24,6 +25,7 @@ interface UserData {
   createdAt: string;
   waAccounts: Array<{ id: string; name: string }>;
   isOwner: boolean;
+  twoFactorEnabled: boolean;
 }
 
 interface Invitation {
@@ -141,6 +143,30 @@ export default function UsersPage() {
     }
   }, [success, toastError]);
 
+  // Recuperación: un miembro perdió el teléfono y sus códigos de respaldo.
+  // Quita su verificación en dos pasos y cierra sus sesiones (lib/two-factor.ts).
+  const { data: session } = useSession();
+  const [confirmReset2fa, setConfirmReset2fa] = useState<UserData | null>(null);
+  const resetTwoFactor = useCallback(async (user: UserData) => {
+    setTogglingId(user.id);
+    try {
+      const res = await fetch("/api/usuarios", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, resetTwoFactor: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      success("Verificación en dos pasos quitada; ya puede entrar solo con su contraseña");
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, twoFactorEnabled: false } : u)));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setTogglingId(null);
+      setConfirmReset2fa(null);
+    }
+  }, [success, toastError]);
+
   // Desactivar corta el acceso de inmediato (login rechazado y sesiones
   // vigentes invalidadas en ≤ 60 s) sin borrar sus datos ni su historial.
   const setDisabled = useCallback(async (user: UserData, disabled: boolean) => {
@@ -203,7 +229,7 @@ export default function UsersPage() {
             renderRow={(inv) => (
               <>
                 <EntityRow
-                  leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" />}
+                  leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" figure />}
                   title={<span className="font-mono">{inv.email}</span>}
                   badges={<Badge tone="neutral" size="sm">{ROLE_LABEL[inv.role] ?? inv.role}</Badge>}
                   subtitle={`Vence el ${new Date(inv.expiresAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}${inv.invitedBy ? ` · la envió ${inv.invitedBy.name ?? inv.invitedBy.email}` : ""}`}
@@ -237,7 +263,7 @@ export default function UsersPage() {
         renderRow={(u) => (
           <>
             <EntityRow
-              leading={<EntityAvatar id={u.id} name={u.name ?? u.email} size="sm" />}
+              leading={<EntityAvatar id={u.id} name={u.name ?? u.email} size="sm" figure seed={u.id} />}
               title={u.name ?? "—"}
               badges={
                 <>
@@ -246,6 +272,7 @@ export default function UsersPage() {
                   </Badge>
                   {u.isOwner && <Badge tone="accent" size="sm">Dueña</Badge>}
                   {u.disabledAt && <Badge tone="danger" size="sm">Desactivado</Badge>}
+                  {u.twoFactorEnabled && <Badge tone="success" size="sm">2 pasos</Badge>}
                 </>
               }
               subtitle={
@@ -259,6 +286,13 @@ export default function UsersPage() {
                 </span>
               }
             />
+            {u.twoFactorEnabled && u.id !== session?.user?.id && (
+              <span className="flex shrink-0 items-center justify-end border-t border-border pt-2 sm:border-0 sm:pt-0">
+                <Button variant="ghost" size="sm" icon={KeyRound} onClick={() => setConfirmReset2fa(u)} disabled={togglingId === u.id} className="text-muted-darker">
+                  Quitar 2 pasos
+                </Button>
+              </span>
+            )}
             {!u.isOwner && <span className="flex shrink-0 items-center justify-end gap-1 border-t border-border pt-2 sm:border-0 sm:pt-0">
               <Button
                 variant="ghost"
@@ -307,6 +341,17 @@ export default function UsersPage() {
         confirmLabel="Desactivar"
         tone="danger"
         loading={!!confirmDisable && togglingId === confirmDisable.id}
+      />
+
+      <ConfirmDialog
+        open={!!confirmReset2fa}
+        onClose={() => setConfirmReset2fa(null)}
+        onConfirm={() => { if (confirmReset2fa) return resetTwoFactor(confirmReset2fa); }}
+        title={`Quitar la verificación en dos pasos de ${confirmReset2fa?.name ?? confirmReset2fa?.email ?? ""}`}
+        description="Úsalo solo si perdió su teléfono y sus códigos de respaldo, y confirma su identidad por otro medio. Podrá entrar solo con su contraseña, sus sesiones abiertas se cerrarán y conviene que la vuelva a activar."
+        confirmLabel="Quitar"
+        tone="warning"
+        loading={!!confirmReset2fa && togglingId === confirmReset2fa.id}
       />
 
       <InviteFormModal open={showInvite} onClose={() => setShowInvite(false)} onInvited={fetchInvitations} />

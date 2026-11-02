@@ -1,6 +1,7 @@
 import type { Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { buildChannelChatWhere, CHANNEL_CHAT_SELECT, mapChannelChatRow, parseChatListFilters } from "@/lib/chats/query";
 
 // Lógica compartida por GET /api/{telegram,messenger,instagram}/chats —
 // mismo shape de respuesta que GET /api/whatsapp/chats (paginado, {items,
@@ -27,93 +28,30 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
     }
   }
 
-  const where: Record<string, unknown> = {
-    channelAccountId: accountId ? accountId : { in: channelAccountIds },
-    channelAccount: { channel },
-  };
-  const chatId = searchParams.get("chatId");
-  if (chatId) where.id = chatId;
-
-  const search = searchParams.get("search")?.trim();
-  if (search) {
-    where.OR = [
-      { name: { contains: search, mode: "insensitive" } },
-      { externalId: { contains: search } },
-      { lastMessage: { contains: search, mode: "insensitive" } },
-    ];
-  }
-
-  const statusParam = searchParams.get("status");
-  if (statusParam) {
-    const statuses = statusParam.split(",").filter((s) => ["OPEN", "PENDING", "RESOLVED"].includes(s));
-    if (statuses.length > 0) where.status = { in: statuses };
-  }
-
-  // hasReplied: sin campañas en estos canales, "yes" es simplemente cualquier
-  // conversación con al menos un mensaje INBOUND — mismo criterio que
-  // WhatsApp, sin el filtro adicional de campaignId (fuera de alcance).
-  const hasRepliedParam = searchParams.get("hasReplied");
-  if (hasRepliedParam === "yes") {
-    where.messages = { some: { direction: "INBOUND" } };
-  } else if (hasRepliedParam === "no") {
-    where.messages = { none: { direction: "INBOUND" } };
-  }
-
+  const filters = parseChatListFilters(searchParams, userId);
   const pageParam = searchParams.get("page");
   const paginate = pageParam !== null;
   const page = Math.max(1, Number(pageParam) || 1);
   const pageSize = Math.min(Math.max(Number(searchParams.get("pageSize")) || 30, 1), 100);
+  const where = buildChannelChatWhere(filters, channelAccountIds, channel);
 
-  const select = {
-    id: true,
-    channelAccountId: true,
-    externalId: true,
-    name: true,
-    isGroup: true,
-    lastMessage: true,
-    lastMessageAt: true,
-    unreadCount: true,
-    contactId: true,
-    status: true,
-    assignedToId: true,
-    assignedTo: { select: { id: true, name: true } },
-    createdAt: true,
-    updatedAt: true,
-    channelAccount: { select: { id: true, name: true } },
-  } as const;
+  // Una campaña solo existe en WhatsApp; el cliente ya omite estas fuentes,
+  // pero la API también responde vacío si alguien la pide directamente.
+  if (!where) {
+    return { ok: true, paginate, data: paginate ? { items: [], total: 0, page, pageSize } : [] };
+  }
 
   const [rows, total] = await Promise.all([
     prisma.conversation.findMany({
       where,
-      select,
+      select: CHANNEL_CHAT_SELECT,
       orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
       ...(paginate ? { skip: (page - 1) * pageSize, take: pageSize } : {}),
     }),
     paginate ? prisma.conversation.count({ where }) : Promise.resolve(null),
   ]);
 
-  // Shape idéntico a /api/whatsapp/chats: remoteJid/accountId/isGroup/account
-  // en vez de externalId/channelAccountId/channelAccount, más un discriminador
-  // channel real y campaign siempre null (las campañas no existen en estos canales).
-  const chats = rows.map((c) => ({
-    id: c.id,
-    accountId: c.channelAccountId,
-    remoteJid: c.externalId,
-    name: c.name,
-    isGroup: c.isGroup,
-    lastMessage: c.lastMessage,
-    lastMessageAt: c.lastMessageAt,
-    unreadCount: c.unreadCount,
-    contactId: c.contactId,
-    status: c.status,
-    assignedToId: c.assignedToId,
-    assignedTo: c.assignedTo,
-    createdAt: c.createdAt,
-    updatedAt: c.updatedAt,
-    account: { id: c.channelAccount.id, name: c.channelAccount.name, phoneNumber: null },
-    campaign: null,
-    channel,
-  }));
+  const chats = rows.map(mapChannelChatRow);
 
   return {
     ok: true,

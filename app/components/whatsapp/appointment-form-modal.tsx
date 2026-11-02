@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Search, X } from "lucide-react";
@@ -22,7 +23,7 @@ export interface AppointmentDetail {
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
   source: "MANUAL" | "AI_BOT";
   cancelReason: string | null;
-  contact: { id: string; name: string | null; realName: string | null; remoteJid: string };
+  contact: { id: string; name: string | null; realName: string | null; remoteJid: string; channelAccount?: { channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" } | null };
   assignedTo: { id: string; name: string | null; email: string } | null;
 }
 
@@ -55,7 +56,7 @@ const REMINDER_OPTIONS = [
 ];
 
 function contactLabelOf(c: { name: string | null; realName: string | null; remoteJid: string }): string {
-  return c.realName ?? c.name ?? c.remoteJid;
+  return c.realName ?? displayName(c.name, c.remoteJid);
 }
 
 function isoToLocalInput(iso: string): string {

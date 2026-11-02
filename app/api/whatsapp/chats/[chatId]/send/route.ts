@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { appendSignature } from "@/lib/inbox/signature";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendMessageSchema, telegramSendMessageSchema, metaChannelSendMessageSchema, webchatAgentSendSchema } from "@/lib/validations";
@@ -12,6 +13,7 @@ import { resolveAbsolutePath, isAccountMediaPath } from "@/lib/whatsapp/media-st
 import fs from "fs/promises";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { MetaSendError } from "@/lib/whatsapp/send-errors";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
@@ -75,7 +77,9 @@ export async function POST(
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { type, body: textBody, caption, buttons, replyToMessageId, stickerId } = parsed.data;
+    const { type, body: rawTextBody, caption, buttons, replyToMessageId, stickerId } = parsed.data;
+    // Firma solo en texto escrito a mano: nunca en botones, plantillas ni media.
+    const textBody = type === "text" ? await signText(session.user.id, rawTextBody, 4096) : rawTextBody;
     let { mediaId, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
     if (localMediaPath && !isAccountMediaPath(localMediaPath, chat.accountId)) {
       return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
@@ -190,6 +194,8 @@ export async function POST(
       data: {
         lastMessage: textBody ?? caption ?? `[${type}]`,
         lastMessageAt: now,
+        // Respuesta de una persona: el cliente ya no espera (lib/chats/waiting.ts).
+        waitingSince: null,
         ...(isFirstResponse ? { firstResponseAt: now } : {}),
       },
     });
@@ -207,7 +213,8 @@ export async function POST(
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Meta rechazó el envío (p. ej. 131037): no es un fallo nuestro.
+    return NextResponse.json({ error: message }, { status: error instanceof MetaSendError ? 422 : 500 });
   }
 }
 
@@ -228,7 +235,8 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize, replyToMessageId } = parsed.data;
+  const { type, body: rawTextBody, caption, mimeType, filename, localMediaPath, bytesSize, replyToMessageId } = parsed.data;
+  const textBody = type === "text" ? await signText(userId, rawTextBody, 4096) : rawTextBody;
   if (localMediaPath && !isAccountMediaPath(localMediaPath, conversation.channelAccountId)) {
     return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
   }
@@ -298,6 +306,8 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
     data: {
       lastMessage: lastMessagePreview.slice(0, 500),
       lastMessageAt: now,
+      // Respuesta de una persona: el cliente ya no espera (lib/chats/waiting.ts).
+      waitingSince: null,
       ...(isFirstResponse ? { firstResponseAt: now } : {}),
     },
   });
@@ -332,6 +342,7 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
+  const webchatText = (await signText(userId, parsed.data.body, 2000)) ?? parsed.data.body;
 
   const now = new Date();
 
@@ -340,7 +351,7 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
       conversationId: conversation.id,
       direction: "OUTBOUND",
       messageType: "text",
-      body: parsed.data.body,
+      body: webchatText,
       status: "sent",
       senderId: userId,
       timestamp: now,
@@ -350,8 +361,10 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
   await prisma.conversation.update({
     where: { id: conversation.id },
     data: {
-      lastMessage: parsed.data.body.slice(0, 500),
+      lastMessage: webchatText.slice(0, 500),
       lastMessageAt: now,
+      // Respuesta de una persona: el cliente ya no espera (lib/chats/waiting.ts).
+      waitingSince: null,
       ...(isFirstResponse ? { firstResponseAt: now } : {}),
     },
   });
@@ -388,7 +401,8 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { type, body: textBody, caption, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+  const { type, body: rawTextBody, caption, mimeType, filename, localMediaPath, bytesSize } = parsed.data;
+  const textBody = type === "text" ? await signText(userId, rawTextBody, 2000) : rawTextBody;
   if (localMediaPath && !isAccountMediaPath(localMediaPath, conversation.channelAccountId)) {
     return NextResponse.json({ error: "Archivo no válido para esta cuenta" }, { status: 400 });
   }
@@ -463,6 +477,8 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
     data: {
       lastMessage: lastMessagePreview.slice(0, 500),
       lastMessageAt: now,
+      // Respuesta de una persona: el cliente ya no espera (lib/chats/waiting.ts).
+      waitingSince: null,
       ...(isFirstResponse ? { firstResponseAt: now } : {}),
     },
   });
@@ -496,3 +512,12 @@ async function emitAgentMessageSent(
     data: { messageId: message.id, messageType: message.messageType, text: message.body, source: "agent", senderId: userId },
   });
 }
+
+// Firma personal del agente (F6, lib/inbox/signature.ts). El límite es el del
+// canal: si el texto con firma no cabe, se manda sin firma.
+async function signText(userId: string, text: string | undefined, maxLength: number): Promise<string | undefined> {
+  if (!text) return text;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { messageSignature: true, signatureEnabled: true } });
+  return appendSignature(text, user?.messageSignature, !!user?.signatureEnabled, maxLength);
+}
+

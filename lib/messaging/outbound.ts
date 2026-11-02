@@ -9,6 +9,7 @@ import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
 import { sendMetaChannelOptions, sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { emitDomainEvent } from "@/lib/events/emit";
+import { markReplied } from "@/lib/chats/waiting";
 import type { MessageSource } from "@/lib/events/types";
 import { assertOrgCanSend } from "@/lib/billing/gates";
 
@@ -58,6 +59,18 @@ export class OutboundError extends Error {
   }
 }
 
+export interface OutboundOpts {
+  source: MessageSource;
+  senderId?: string | null;
+  /**
+   * ¿Este envío contesta al cliente? (default true). Los avisos automáticos
+   * —fuera de horario, auto-resolver— pasan false para que el chat siga en
+   * "Esperando respuesta". Ver lib/chats/waiting.ts. Tampoco cambian la
+   * vista previa (`lastMessage`) ni `lastMessageAt` del chat.
+   */
+  countsAsReply?: boolean;
+}
+
 export interface OutboundResult {
   messageId: string;
   externalId: string | null;
@@ -66,7 +79,7 @@ export interface OutboundResult {
 export async function sendOutbound(
   target: OutboundTarget,
   content: OutboundContent,
-  opts: { source: MessageSource; senderId?: string | null }
+  opts: OutboundOpts
 ): Promise<OutboundResult> {
   // Antes que la ventana de 24 h y que el widget web (que no pasa por ningún
   // emisor externo): en solo lectura no sale nada.
@@ -79,7 +92,7 @@ export async function sendOutbound(
 async function sendWhatsapp(
   chat: WAChat & { account: WAAccount },
   content: OutboundContent,
-  opts: { source: MessageSource; senderId?: string | null }
+  opts: OutboundOpts
 ): Promise<OutboundResult> {
   const now = new Date();
 
@@ -182,11 +195,17 @@ async function sendWhatsapp(
     },
     select: { id: true },
   });
-  await prisma.wAChat.update({
-    where: { id: chat.id },
-    data: { lastMessage: body.slice(0, 500), lastMessageAt: now },
-  });
+  // Un aviso automático (countsAsReply: false: fuera de horario, auto-resolver)
+  // no pisa la vista previa ni la hora del chat: la bandeja sigue mostrando lo
+  // último que dijo el cliente, y el aviso tampoco reinicia la inactividad.
+  if (opts.countsAsReply !== false) {
+    await prisma.wAChat.update({
+      where: { id: chat.id },
+      data: { lastMessage: body.slice(0, 500), lastMessageAt: now },
+    });
+  }
   await prisma.wAAccount.update({ where: { id: chat.accountId }, data: { lastActivity: now } });
+  if (opts.countsAsReply !== false) await markReplied("whatsapp", chat.id);
 
   await emitDomainEvent({
     type: "message.sent",
@@ -208,7 +227,7 @@ async function sendWhatsapp(
 async function sendChannel(
   conversation: Conversation & { channelAccount: ChannelAccount },
   content: OutboundContent,
-  opts: { source: MessageSource; senderId?: string | null }
+  opts: OutboundOpts
 ): Promise<OutboundResult> {
   const { channelAccount } = conversation;
   if (content.type === "template") {
@@ -228,7 +247,7 @@ async function sendChannel(
     } else if (channelAccount.channel === "MESSENGER" || channelAccount.channel === "INSTAGRAM") {
       // Conversación que nació de un comentario y aún no tiene respuesta: Meta
       // exige el endpoint de private reply (mismo criterio que
-      // chats/[chatId]/send — ver AGENTS.md "Comment-to-inbox"). Ese endpoint
+      // chats/[chatId]/send — ver docs/arquitectura/canales.md "Comment-to-inbox"). Ese endpoint
       // no admite quick replies: van las opciones numeradas en el texto.
       const originComment =
         channelAccount.channel === "MESSENGER" && conversation.firstResponseAt === null
@@ -271,11 +290,14 @@ async function sendChannel(
     },
     select: { id: true },
   });
-  await prisma.conversation.update({
-    where: { id: conversation.id },
-    data: { lastMessage: text.slice(0, 500), lastMessageAt: now },
-  });
+  if (opts.countsAsReply !== false) {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessage: text.slice(0, 500), lastMessageAt: now },
+    });
+  }
   await prisma.channelAccount.update({ where: { id: channelAccount.id }, data: { lastActivity: now } });
+  if (opts.countsAsReply !== false) await markReplied("channel", conversation.id);
 
   await emitDomainEvent({
     type: "message.sent",

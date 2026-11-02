@@ -4,9 +4,11 @@ import { prisma } from "@/lib/prisma";
 // plataforma, no lo que paga el cliente — el cliente consume créditos, ver
 // lib/ai/credits.ts). Suma las cuatro fuentes de uso: respuestas de bots
 // (WABotUsage), calificaciones (WALeadScorerUsage), mensajes de recuperación
-// (WALeadRecoveryAttempt) y pasos de IA de automatizaciones (AutomationAiUsage).
+// (WALeadRecoveryAttempt), pasos de IA de automatizaciones (AutomationAiUsage)
+// y asistencia al equipo — reescribir, tareas, transcripción, monitores
+// (AiAssistUsage).
 export async function getOrgAiCost(organizationId: string, since: Date): Promise<number> {
-  const [botUsage, scorerUsage, recoveryUsage, automationUsage] = await Promise.all([
+  const [botUsage, scorerUsage, recoveryUsage, automationUsage, assistUsage] = await Promise.all([
     prisma.wABotUsage.aggregate({
       where: { bot: { organizationId }, createdAt: { gte: since } },
       _sum: { estimatedCost: true },
@@ -32,12 +34,17 @@ export async function getOrgAiCost(organizationId: string, since: Date): Promise
       where: { automation: { organizationId }, createdAt: { gte: since } },
       _sum: { estimatedCost: true },
     }),
+    prisma.aiAssistUsage.aggregate({
+      where: { organizationId, createdAt: { gte: since } },
+      _sum: { estimatedCost: true },
+    }),
   ]);
 
   return (
     (botUsage._sum.estimatedCost ?? 0) +
     (scorerUsage._sum.estimatedCost ?? 0) +
     (recoveryUsage._sum.estimatedCost ?? 0) +
-    (automationUsage._sum.estimatedCost ?? 0)
+    (automationUsage._sum.estimatedCost ?? 0) +
+    (assistUsage._sum.estimatedCost ?? 0)
   );
 }

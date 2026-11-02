@@ -7,6 +7,8 @@ import { afterLeadStatusChanged } from "@/lib/contacts/side-effects";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { leadStatusForStage } from "@/lib/pipeline/stages";
+import { recordContactActivity } from "@/lib/contacts/activity";
+import { formatMxn, pesosToCents } from "@/lib/money";
 
 export async function GET(
   _req: Request,
@@ -35,6 +37,8 @@ export async function GET(
         optedOutMarketing: true,
         optedOutAt: true,
         overLimit: true,
+        dealValueCents: true,
+        expectedCloseAt: true,
         createdAt: true,
         updatedAt: true,
         tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
@@ -103,12 +107,16 @@ export async function PATCH(
       if (stage) pipelineStageId = stage.id;
     }
 
-    const { pipelineStageId: _ignored, ...rest } = parsed.data;
+    const { pipelineStageId: _ignored, dealValue, expectedCloseAt, ...rest } = parsed.data;
+    const dealValueCents = dealValue === undefined ? undefined : dealValue === null ? null : pesosToCents(dealValue);
+    const closeAt = expectedCloseAt === undefined ? undefined : expectedCloseAt === null ? null : new Date(expectedCloseAt);
     const updated = await prisma.contact.update({
       where: { id },
       // Un nombre puesto a mano ya no lo pisan la libreta ni el perfil de WhatsApp.
       data: {
         ...rest,
+        ...(dealValueCents !== undefined ? { dealValueCents } : {}),
+        ...(closeAt !== undefined ? { expectedCloseAt: closeAt } : {}),
         ...(leadStatus ? { leadStatus } : {}),
         ...(pipelineStageId ? { pipelineStageId } : {}),
         ...(parsed.data.name !== undefined ? { nameSource: "user" } : {}),
@@ -120,9 +128,23 @@ export async function PATCH(
         name: true,
         leadStatus: true,
         pipelineStageId: true,
+        dealValueCents: true,
+        expectedCloseAt: true,
         updatedAt: true,
       },
     });
+
+    // Línea de tiempo: solo si el valor del trato cambió de verdad.
+    if (dealValueCents !== undefined && dealValueCents !== existing.dealValueCents) {
+      await recordContactActivity({
+        contactId: id,
+        type: "DEAL_UPDATED",
+        title: dealValueCents === null ? "Valor del trato borrado" : `Valor del trato: ${formatMxn(dealValueCents)}`,
+        body: existing.dealValueCents !== null ? `Antes: ${formatMxn(existing.dealValueCents)}` : null,
+        actorId: session.user.id,
+        metadata: { from: existing.dealValueCents, to: dealValueCents },
+      });
+    }
 
     // Meta Ads (CAPI), secuencias y evento de dominio — compartido con la API
     // pública y las automatizaciones.

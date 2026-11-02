@@ -159,8 +159,8 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
       origin: { type: "string", enum: ["ORGANIC", "INSTANT_FORM", "CTWA"] },
       source: {
         type: "string",
-        enum: ["inbound", "api", "lead_ads", "history", "echo"],
-        description: "inbound = escribió el contacto; api = POST /contacts; lead_ads = formulario de Meta; history = importación del historial de WhatsApp Business; echo = el negocio escribió primero desde la app WhatsApp Business",
+        enum: ["inbound", "api", "lead_ads", "history", "echo", "import"],
+        description: "inbound = escribió el contacto; api = POST /contacts; lead_ads = formulario de Meta; history = importación del historial de WhatsApp Business; echo = el negocio escribió primero desde la app WhatsApp Business; import = importación CSV desde Contactos",
       },
     }),
     example: { origin: "ORGANIC", source: "inbound" },

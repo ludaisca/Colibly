@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { disablePush } from "@/lib/notifications/push-client";
 import { signOut } from "next-auth/react";
 import { Download, Trash2 } from "lucide-react";
 import { SectionHeader } from "@/app/components/ui/section-header";
@@ -109,7 +110,9 @@ function DeleteOrganizationModal({ open, onClose, organizationName }: { open: bo
       if (!res.ok) throw new Error(body.error || "No se pudo eliminar la organización");
       // redirect: false + navegación relativa, como el "Cerrar sesión" del shell:
       // la URL absoluta que arma el servidor usa el origen interno del contenedor.
-      await signOut({ redirect: false });
+      // El navegador deja de recibir los avisos de esta cuenta.
+                  await disablePush();
+                  await signOut({ redirect: false });
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/";
     } catch (err) {

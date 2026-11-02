@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
 
 // Email normalizado (trim + minúsculas) ANTES de validar el formato — lib/auth.ts
 // busca al usuario con el email en minúsculas, así que cualquier alta que lo
@@ -160,7 +161,7 @@ export const telegramSendMessageSchema = z.object({
 
 export type TelegramSendMessageInput = z.infer<typeof telegramSendMessageSchema>;
 
-// A diferencia de WAAccount.appSecret (opcional por diseño — ver AGENTS.md),
+// A diferencia de WAAccount.appSecret (opcional por diseño — ver docs/arquitectura/whatsapp.md),
 // aquí appSecret es requerido: la resolución de cuenta del webhook
 // compartido de Messenger/Instagram no tiene un fallback de confianza
 // análogo al phone_number_id de WhatsApp — sin secreto, la firma nunca
@@ -378,6 +379,10 @@ export const contactUpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   leadStatus: z.enum(["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"]).optional(),
   pipelineStageId: z.string().min(1).max(64).optional(),
+  // Valor del trato en PESOS (la ruta lo guarda en centavos). null lo borra.
+  dealValue: z.number().finite().min(0, "El valor no puede ser negativo").max(DEAL_VALUE_MAX_PESOS, "Máximo $20,000,000").nullable().optional(),
+  // Fecha estimada de cierre (YYYY-MM-DD o ISO). null la borra.
+  expectedCloseAt: z.string().max(40).refine((v) => !Number.isNaN(new Date(v).getTime()), "Fecha inválida").nullable().optional(),
 });
 
 export const noteSchema = z.object({
@@ -523,6 +528,38 @@ export const contactCustomFieldValuesSchema = z.object({
   values: z.record(z.string(), z.string().max(2000).nullable()),
 });
 
+export const CHAT_CUSTOM_FIELD_TYPES = ["TEXT", "NUMBER", "DATE", "BOOLEAN", "SELECT"] as const;
+
+export const chatCustomFieldDefinitionSchema = z.object({
+  waAccountId: z.string().min(1).optional().nullable(),
+  channelAccountId: z.string().min(1).optional().nullable(),
+  key: z
+    .string()
+    .min(1, "La clave es requerida")
+    .max(60)
+    .regex(/^[a-z0-9_]+$/, "Solo minúsculas, números y guion bajo, sin espacios"),
+  label: z.string().min(1, "El nombre es requerido").max(100),
+  type: z.enum(CHAT_CUSTOM_FIELD_TYPES).default("TEXT"),
+  options: z.array(z.string().min(1).max(100)).max(50).optional(),
+  required: z.boolean().optional(),
+  order: z.number().int().optional(),
+}).refine(
+  (d) => !!d.waAccountId !== !!d.channelAccountId,
+  { message: "Selecciona una cuenta de WhatsApp o de canal", path: ["channelAccountId"] }
+);
+
+export const chatCustomFieldDefinitionUpdateSchema = z.object({
+  label: z.string().min(1).max(100).optional(),
+  type: z.enum(CHAT_CUSTOM_FIELD_TYPES).optional(),
+  options: z.array(z.string().min(1).max(100)).max(50).optional(),
+  required: z.boolean().optional(),
+  order: z.number().int().optional(),
+});
+
+export const chatCustomFieldValuesSchema = z.object({
+  values: z.record(z.string(), z.string().max(2000).nullable()),
+});
+
 export type ContactUpdateInput = z.infer<typeof contactUpdateSchema>;
 export type NoteInput = z.infer<typeof noteSchema>;
 export type TagInput = z.infer<typeof tagSchema>;
@@ -552,6 +589,20 @@ export const orgAiSettingsUpdateSchema = z
     leadRecoveryEnabled: z.boolean().optional(),
     leadRecoveryFirstMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").optional(),
     leadRecoverySecondMessageHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(168, "Máximo 168 horas (7 días)").nullable().optional(),
+    // Auto-resolver (lib/inbox/auto-resolve.ts): null lo apaga.
+    autoResolveAfterHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(720, "Máximo 720 horas (30 días)").nullable().optional(),
+    autoResolveMessage: z.string().trim().max(1000, "Máximo 1000 caracteres").nullable().optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
+    autoResolveTagName: z.string().trim().max(50, "Máximo 50 caracteres").nullable().optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
+    autoResolveSkipWaiting: z.boolean().optional(),
+    // Días hábiles (0 = domingo … 6 = sábado) y aviso fuera de horario.
+    businessDays: z.array(z.number().int().min(0).max(6)).min(1, "Elige al menos un día hábil").max(7)
+      .transform((days) => Array.from(new Set(days)).sort((a, b) => a - b)).optional(),
+    awayMessageEnabled: z.boolean().optional(),
+    autoTranscribeAudio: z.boolean().optional(),
+    awayMessageText: z.string().trim().max(1000, "Máximo 1000 caracteres").nullable().optional()
+      .transform((v) => (v ? v : v === undefined ? undefined : null)),
   })
   .refine(
     (d) =>

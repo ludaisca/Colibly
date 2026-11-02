@@ -6,6 +6,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { hasAiAccess } from "@/lib/billing/gates";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { suggestTaskTitle, WritingAssistError } from "@/lib/ai/writing-assist";
+import { recordContactActivity } from "@/lib/contacts/activity";
 
 async function ownedContact(userId: string, id: string) {
   const [accountIds, channelAccountIds] = await Promise.all([
@@ -71,7 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const transcript = lines.reverse().map((line) => `${line.direction === "INBOUND" ? "Cliente" : "Equipo"}: ${line.body ?? ""}`).join("\n");
       if (!transcript.trim()) return NextResponse.json({ error: "No hay conversación para proponer una tarea" }, { status: 400 });
       try {
-        title = (await suggestTaskTitle(organizationId, transcript)).slice(0, 200);
+        title = (await suggestTaskTitle(organizationId, transcript, session.user.id)).slice(0, 200);
       } catch (err) {
         if (err instanceof WritingAssistError) return NextResponse.json({ error: err.message }, { status: 400 });
         throw err;
@@ -86,6 +87,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       data: { organizationId, contactId: id, title, createdById: session.user.id },
       select: { id: true, title: true, done: true, createdAt: true },
     });
+    await recordContactActivity({
+      contactId: id,
+      type: "TASK_CREATED",
+      title: `Tarea: ${task.title}`,
+      actorId: session.user.id,
+      dedupeKey: `task:${task.id}:created`,
+    });
+
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno del servidor") }, { status: 500 });

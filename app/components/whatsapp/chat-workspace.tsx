@@ -1,8 +1,13 @@
 "use client";
 
+import { displayName } from "@/lib/chats/display-name";
+import { adjacentIndex, isTypingTarget, matchInboxShortcut, shouldHandleShortcut, type InboxShortcutAction } from "@/lib/inbox/shortcuts";
+import { assignChatTo, assignChatToMe, oneHourFromNow, setChatPriority, snoozeChat } from "@/lib/inbox/actions";
+import { ShortcutsModal } from "./shortcuts-modal";
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { MessageSquare } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -12,14 +17,24 @@ import { ChatAccountRail } from "@/app/components/whatsapp/chat-account-rail";
 import { ChatListPanel } from "@/app/components/whatsapp/chat-list-panel";
 import { ChatThreadPanel, MediaPreviewModal } from "@/app/components/whatsapp/chat-thread-panel";
 import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
+import { ChatClaimBanner } from "@/app/components/whatsapp/chat-claim-banner";
+import { useNowMs } from "@/app/components/whatsapp/use-now";
 import { ChatDisplayNameBanner, ChatWindowBanner, useChatServiceWindow } from "@/app/components/whatsapp/chat-window-banner";
 import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-modal";
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
+import { MessageSearchResults } from "@/app/components/whatsapp/message-search-results";
+import { RequiredFieldsModal } from "@/app/components/whatsapp/required-fields-modal";
+import { useBusinessName } from "@/app/components/ui/business-context";
+import { renderCannedResponse } from "@/lib/inbox/canned-variables";
+import type { MessageSearchHit } from "@/lib/search/messages";
 import {
   CHATS_PAGE_SIZE,
   CHATS_LIST_POLL_MS,
   type Channel,
+  type ChatBulkAction,
+  type ChatRowAction,
   type ChatItem,
+  type ChatPriority,
   type ChatStatus,
   type Message,
   type PreviewMedia,
@@ -52,21 +67,56 @@ interface ChatWorkspaceProps {
   initialAccounts: AccountOption[];
   initialAccountId?: string;
   initialChatId?: string;
+  /** ?mensaje=<id>: abre el chat saltando a ese mensaje (búsqueda "En mensajes"). */
+  initialMessageId?: string;
   initialCampaignId?: string;
   initialHasReplied?: "" | "yes" | "no";
+  initialAssigned?: "" | "me" | "unassigned";
+  initialPriority?: ChatPriority | "";
+  initialSnoozed?: "" | "only" | "all";
+  initialAwaiting?: boolean;
   initialSearch?: string;
+  initialContactId?: string;
 }
 
 export function ChatWorkspace({
   initialAccounts,
   initialAccountId,
   initialChatId,
+  initialMessageId,
   initialCampaignId,
   initialHasReplied,
+  initialAssigned,
+  initialPriority,
+  initialSnoozed,
+  initialAwaiting,
   initialSearch,
+  initialContactId,
 }: ChatWorkspaceProps) {
   const router = useRouter();
-  const { error: toastError } = useToast();
+  const { data: session } = useSession();
+  const businessName = useBusinessName();
+  // Firma personal activa (F6): solo para el aviso del compositor; el
+  // servidor la agrega al enviar.
+  const [signature, setSignature] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/auth/profile")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setSignature(data?.signatureEnabled && data.messageSignature ? data.messageSignature : null))
+      .catch(() => {});
+  }, []);
+  const currentUserId = session?.user?.id ?? null;
+  const { success: toastSuccess, error: toastError } = useToast();
+  const draftKey = useCallback(
+    (chatId: string) => currentUserId ? `colibly_chat_draft:${currentUserId}:${chatId}` : null,
+    [currentUserId]
+  );
+  const writeDraft = useCallback((chatId: string, value: string) => {
+    const key = draftKey(chatId);
+    if (!key) return;
+    if (value.trim()) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
+  }, [draftKey]);
   const resizable = useSyncExternalStore(
     (onChange) => { const query = window.matchMedia("(min-width: 1024px)"); query.addEventListener("change", onChange); return () => query.removeEventListener("change", onChange); },
     () => window.matchMedia("(min-width: 1024px)").matches,
@@ -80,6 +130,17 @@ export function ChatWorkspace({
   const [loadingMoreChats, setLoadingMoreChats] = useState(false);
   const [chatsTotal, setChatsTotal] = useState(0);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
+  // Salto desde "En mensajes": el chat se abre cargando la ventana alrededor
+  // del mensaje (?around=) y el hilo lo ilumina. jumpRef se consume en el
+  // efecto de carga; skipAutoScrollRef evita que el auto-scroll al fondo pise
+  // el salto.
+  // Solo se limpia al consumirse (el doble montaje de StrictMode en dev
+  // correría el efecto dos veces). Si el workspace se remonta al cambiar de
+  // ruta, el salto sigue llegando por ?mensaje= (initialMessageId).
+  const [requiredPrompt, setRequiredPrompt] = useState<{ chatId: string; keys: string[] } | null>(null);
+  const jumpRef = useRef<{ chatId: string; messageId: string } | null>(null);
+  const skipAutoScrollRef = useRef(false);
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
@@ -94,22 +155,36 @@ export function ChatWorkspace({
   const [accountFilter, setAccountFilter] = useState(initialAccountId || "");
   const [campaignFilter, setCampaignFilter] = useState(initialCampaignId || "");
   const [hasRepliedFilter, setHasRepliedFilter] = useState<"" | "yes" | "no">(initialHasReplied || "");
+  const [assignedFilter, setAssignedFilter] = useState<"" | "me" | "unassigned">(initialAssigned || "");
+  const [priorityFilter, setPriorityFilter] = useState<ChatPriority | "">(initialPriority || "");
+  const [snoozedFilter, setSnoozedFilter] = useState<"" | "only" | "all">(initialSnoozed || "");
+  // "Esperando respuesta": el último mensaje es del cliente y nadie contestó.
+  const [awaitingFilter, setAwaitingFilter] = useState<boolean>(initialAwaiting ?? false);
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const accounts = initialAccounts;
   // Las cuentas llegan del servidor: un filtro de cuenta ya conoce su canal
   // antes de pedir chats y no consulta los otros cuatro endpoints por error.
-  const [contactDrawerOpen, setContactDrawerOpen] = useState(false);
+  const [contactDrawerContactId, setContactDrawerContactId] = useState<string | null>(initialContactId ?? null);
   const [previewMedia, setPreviewMedia] = useState<PreviewMedia | null>(null);
   const [cannedResponses, setCannedResponses] = useState<CannedResponseItem[]>([]);
   // Sugerencia de respuesta rápida resaltada — navegable con ↑/↓, se inserta
   // con Enter o Tab.
   const [cannedIndex, setCannedIndex] = useState(0);
+  // Selección múltiple de la lista para asignar/resolver/priorizar/posponer
+  // en lote. Se activa explícitamente para no llenar cada fila de checkboxes.
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(() => new Set());
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Array<{ id: string; name: string | null }>>([]);
+  const lastTypingSentRef = useRef(0);
+  const hydratedDraftRef = useRef<string | null>(null);
 
   // Media attachments state
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
   // Botones de respuesta rápida en construcción para el próximo envío (solo
-  // WhatsApp Meta — ver "Mensajes interactivos" en AGENTS.md).
+  // WhatsApp Meta — ver "Interactive messages in every channel" en docs/arquitectura/integraciones.md).
   const [interactiveButtons, setInteractiveButtons] = useState<string[]>([]);
   const [buttonsPanelOpen, setButtonsPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,6 +212,30 @@ export function ChatWorkspace({
     return () => clearTimeout(t);
   }, [search]);
 
+  // Borrador persistente por usuario y chat. El ref en memoria ya cubre el
+  // cambio de chat dentro de la sesión; localStorage sobrevive a un F5.
+  useEffect(() => {
+    if (!selectedChatId || !currentUserId || hydratedDraftRef.current === selectedChatId) return;
+    hydratedDraftRef.current = selectedChatId;
+    if (messageDraftsRef.current.has(selectedChatId)) return;
+    const key = draftKey(selectedChatId);
+    const stored = key ? window.localStorage.getItem(key) : null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hidratación única del borrador guardado
+    if (stored) setNewMessage(stored);
+  }, [selectedChatId, currentUserId, draftKey]);
+
+  useEffect(() => {
+    if (!selectedChatId) return;
+    const key = draftKey(selectedChatId);
+    if (!key) return;
+    const value = newMessage;
+    const timer = window.setTimeout(() => {
+      if (value.trim()) window.localStorage.setItem(key, value);
+      else window.localStorage.removeItem(key);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [newMessage, selectedChatId, draftKey]);
+
   // Una fuente por canal — recorrida con .map() en vez de variables nombradas
   // por canal (el patrón viejo, waPage/tgPage, no escalaba a 4 canales). Solo
   // WhatsApp soporta el filtro de campaña (campaignId), por eso el builder de
@@ -153,10 +252,14 @@ export function ChatWorkspace({
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (channel === "WHATSAPP" && campaignFilter) params.set("campaignId", campaignFilter);
     if (hasRepliedFilter) params.set("hasReplied", hasRepliedFilter);
+    if (assignedFilter) params.set("assigned", assignedFilter);
+    if (priorityFilter) params.set("priority", priorityFilter);
+    if (snoozedFilter) params.set("snoozed", snoozedFilter);
+    if (awaitingFilter) params.set("awaiting", "1");
     if (accountFilter) params.set("accountId", accountFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
-  }, [campaignFilter, hasRepliedFilter, accountFilter, debouncedSearch]);
+  }, [campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, awaitingFilter, accountFilter, debouncedSearch]);
 
   // Mezcla las 4 fuentes en una sola página ordenada por lastMessageAt. No es
   // paginación combinada real a nivel de DB (cada fuente pagina por su cuenta
@@ -254,7 +357,12 @@ export function ChatWorkspace({
   const [prevInitialAccountId, setPrevInitialAccountId] = useState(initialAccountId);
   const [prevInitialCampaignId, setPrevInitialCampaignId] = useState(initialCampaignId);
   const [prevInitialHasReplied, setPrevInitialHasReplied] = useState(initialHasReplied);
+  const [prevInitialAssigned, setPrevInitialAssigned] = useState(initialAssigned);
+  const [prevInitialPriority, setPrevInitialPriority] = useState(initialPriority);
+  const [prevInitialSnoozed, setPrevInitialSnoozed] = useState(initialSnoozed);
+  const [prevInitialAwaiting, setPrevInitialAwaiting] = useState(initialAwaiting);
   const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
+  const [prevInitialContactId, setPrevInitialContactId] = useState(initialContactId);
   if (initialChatId !== prevInitialChatId) {
     setPrevInitialChatId(initialChatId);
     if (initialChatId) setSelectedChatId(initialChatId);
@@ -271,10 +379,30 @@ export function ChatWorkspace({
     setPrevInitialHasReplied(initialHasReplied);
     setHasRepliedFilter(initialHasReplied || "");
   }
+  if (initialAssigned !== prevInitialAssigned) {
+    setPrevInitialAssigned(initialAssigned);
+    setAssignedFilter(initialAssigned || "");
+  }
+  if (initialPriority !== prevInitialPriority) {
+    setPrevInitialPriority(initialPriority);
+    setPriorityFilter(initialPriority || "");
+  }
+  if (initialSnoozed !== prevInitialSnoozed) {
+    setPrevInitialSnoozed(initialSnoozed);
+    setSnoozedFilter(initialSnoozed || "");
+  }
+  if (initialAwaiting !== prevInitialAwaiting) {
+    setPrevInitialAwaiting(initialAwaiting);
+    setAwaitingFilter(initialAwaiting ?? false);
+  }
   if (initialSearch !== prevInitialSearch) {
     setPrevInitialSearch(initialSearch);
     setSearch(initialSearch || "");
     setDebouncedSearch(initialSearch || "");
+  }
+  if (initialContactId !== prevInitialContactId) {
+    setPrevInitialContactId(initialContactId);
+    setContactDrawerContactId(initialContactId ?? null);
   }
 
   // Refleja los filtros activos en la URL (query string) para que sobrevivan
@@ -286,16 +414,31 @@ export function ChatWorkspace({
     if (accountFilter) params.set("accountId", accountFilter);
     if (campaignFilter) params.set("campaignId", campaignFilter);
     if (hasRepliedFilter) params.set("hasReplied", hasRepliedFilter);
+    if (assignedFilter) params.set("assigned", assignedFilter);
+    if (priorityFilter) params.set("priority", priorityFilter);
+    if (snoozedFilter) params.set("snoozed", snoozedFilter);
+    if (awaitingFilter) params.set("awaiting", "1");
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
-  }, [accountFilter, campaignFilter, hasRepliedFilter, debouncedSearch]);
+  }, [accountFilter, campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, awaitingFilter, debouncedSearch]);
 
   // Sincroniza la URL sin navegar. `router.replace()` volvía a renderizar el
   // árbol del servidor y recargaba la conversación (por eso se había quitado y
   // los filtros dejaron de sobrevivir a un F5); el History API solo cambia la
   // barra de direcciones.
   useEffect(() => {
-    const qs = buildFilterSearchParams().toString();
+    const params = buildFilterSearchParams();
+    // `contacto` no es un filtro de la lista: se conserva para que el deep
+    // link del drawer no desaparezca cuando cambian los filtros.
+    // Igual `ficha` (pestaña de la ficha) y `mensaje` (salto desde la
+    // búsqueda: si se borra, useSearchParams cambia y la carga del hilo se
+    // repite sin el salto).
+    const current = new URLSearchParams(window.location.search);
+    for (const key of ["contacto", "mensaje", "ficha"]) {
+      const value = current.get(key);
+      if (value) params.set(key, value);
+    }
+    const qs = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
   }, [buildFilterSearchParams]);
 
@@ -419,7 +562,9 @@ export function ChatWorkspace({
       return;
     }
     const controller = new AbortController();
-    const params = new URLSearchParams({ accountId: initialAccountId, chatId: initialChatId, page: "1", pageSize: "1" });
+    // `snoozed=all` para que un enlace directo a un chat pospuesto lo abra
+    // igual: la lista normal lo oculta, pero el hilo debe poder mostrarse.
+    const params = new URLSearchParams({ accountId: initialAccountId, chatId: initialChatId, page: "1", pageSize: "1", snoozed: "all" });
     fetch(`${source.endpoint}?${params}`, { signal: controller.signal })
       .then(async (response) => {
         const data = await response.json();
@@ -461,8 +606,25 @@ export function ChatWorkspace({
     setLoadingMessages(true);
 
     const controller = new AbortController();
+    const fromUrl = initialMessageId && initialChatId === selectedChatId ? { chatId: selectedChatId, messageId: initialMessageId } : null;
+    const jump = (jumpRef.current?.chatId === selectedChatId ? jumpRef.current : null) ?? fromUrl;
     async function load() {
       try {
+        if (jump) {
+          const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?around=${encodeURIComponent(jump.messageId)}`, { signal: controller.signal });
+          const data = await res.json();
+          if (controller.signal.aborted) return;
+          jumpRef.current = null;
+          if (res.ok && Array.isArray(data)) {
+            skipAutoScrollRef.current = true;
+            setMessages(data);
+            setHasOlderMessages(true);
+            setFocusMessageId(jump.messageId);
+            return;
+          }
+          // Muy lejos o ya no existe: se avisa y se abre el chat normal.
+          toastError(typeof data?.error === "string" ? data.error : "No se pudo saltar al mensaje");
+        }
         const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`, { signal: controller.signal });
         const data = await res.json();
         if (controller.signal.aborted) return;
@@ -479,7 +641,10 @@ export function ChatWorkspace({
     }
     load();
     return () => controller.abort();
-  }, [selectedChatId, toastError]);
+    // initialChatId fuera de las deps a propósito: cambia justo después de
+    // selectedChatId al navegar y dispararía una segunda carga del hilo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChatId, initialMessageId, toastError]);
 
   const loadOlderMessages = useCallback(async () => {
     const oldest = messages[0];
@@ -508,6 +673,11 @@ export function ChatWorkspace({
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
+    // Recién cargada la ventana de un salto: el hilo hace scroll al mensaje.
+    if (skipAutoScrollRef.current) {
+      skipAutoScrollRef.current = false;
+      return;
+    }
     // Tras prepender historial, se restaura la posición de lectura en lugar
     // de auto-scrollear al fondo.
     if (prependHeightRef.current !== null) {
@@ -548,7 +718,7 @@ export function ChatWorkspace({
             let changed = false;
             const merged = prev.map((m) => {
               const fresh = byId.get(m.id);
-              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl || fresh.body !== m.body || fresh.caption !== m.caption || fresh.reactionEmoji !== m.reactionEmoji || fresh.agentReactionEmoji !== m.agentReactionEmoji || JSON.stringify(fresh.agentReactions) !== JSON.stringify(m.agentReactions) || fresh.replyToWamid !== m.replyToWamid || JSON.stringify(fresh.replyTo) !== JSON.stringify(m.replyTo))) {
+              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl || fresh.body !== m.body || fresh.caption !== m.caption || fresh.reactionEmoji !== m.reactionEmoji || fresh.agentReactionEmoji !== m.agentReactionEmoji || JSON.stringify(fresh.agentReactions) !== JSON.stringify(m.agentReactions) || fresh.replyToWamid !== m.replyToWamid || fresh.transcript !== m.transcript || JSON.stringify(fresh.replyTo) !== JSON.stringify(m.replyTo))) {
                 changed = true;
                 return { ...fresh, motionKey: m.motionKey, animateOnMount: false };
               }
@@ -581,6 +751,30 @@ export function ChatWorkspace({
     };
   }, [selectedChatId, refreshChats]);
 
+  // Indicador de "está escribiendo" — TTL corto en Redis; se consulta con el
+  // mismo ritmo del poll de mensajes.
+  useEffect(() => {
+    if (!selectedChatId) return;
+    let cancelled = false;
+    async function load() {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/typing`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setTypingUsers(Array.isArray(data.users) ? data.users : []);
+      } catch {
+        // efímero: el siguiente tick reintenta
+      }
+    }
+    load();
+    const interval = setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [selectedChatId]);
+
   const clearAttachment = useCallback(() => {
     setAttachment(null);
     setAttachmentPreview((prev) => {
@@ -592,23 +786,64 @@ export function ChatWorkspace({
   // Cada conversación tiene su propio destino y capacidades de canal. Un
   // borrador interactivo/adjunto de otra conversación no debe poder enviarse
   // por accidente al cambiar de chat.
-  const handleChatSelect = useCallback((chat: ChatItem) => {
-    if (chat.id === selectedChatId) return;
-    if (selectedChatId) messageDraftsRef.current.set(selectedChatId, newMessage);
-    setSelectedChatId(chat.id);
-    setNewMessage(messageDraftsRef.current.get(chat.id) ?? "");
+  const openChat = useCallback((chatId: string, accountId: string, messageId?: string) => {
+    if (chatId === selectedChatId) return;
+    if (selectedChatId) {
+      messageDraftsRef.current.set(selectedChatId, newMessage);
+      writeDraft(selectedChatId, newMessage);
+    }
+    setSelectedChatId(chatId);
+    setFocusMessageId(null);
+    const key = draftKey(chatId);
+    const stored = key ? window.localStorage.getItem(key) : null;
+    setNewMessage(messageDraftsRef.current.get(chatId) ?? stored ?? "");
     setReplyTo(null);
     setCannedResponses([]);
     setCannedIndex(0);
     setInteractiveButtons([]);
     setButtonsPanelOpen(false);
+    lastTypingSentRef.current = 0;
+    setTypingUsers([]);
     clearAttachment();
-    const qs = buildFilterSearchParams().toString();
-    router.push(`/whatsapp/chat/${chat.accountId}/${chat.id}${qs ? `?${qs}` : ""}`);
-  }, [selectedChatId, newMessage, router, buildFilterSearchParams, clearAttachment]);
+    const params = buildFilterSearchParams();
+    if (messageId) params.set("mensaje", messageId);
+    const qs = params.toString();
+    router.push(`/whatsapp/chat/${accountId}/${chatId}${qs ? `?${qs}` : ""}`);
+  }, [selectedChatId, newMessage, router, buildFilterSearchParams, clearAttachment, draftKey, writeDraft]);
+
+  const handleChatSelect = useCallback((chat: ChatItem) => openChat(chat.id, chat.accountId), [openChat]);
+
+  // Resultado de "En mensajes". En el chat abierto: si el mensaje ya está
+  // cargado solo se ilumina; si no, se recarga la ventana alrededor. En otro
+  // chat: se abre con el salto pendiente (lo consume el efecto de carga).
+  const openMessageHit = useCallback(async (hit: MessageSearchHit) => {
+    if (hit.chatId !== selectedChatId) {
+      jumpRef.current = { chatId: hit.chatId, messageId: hit.messageId };
+      openChat(hit.chatId, hit.accountId, hit.messageId);
+      return;
+    }
+    if (messages.some((m) => m.id === hit.messageId)) {
+      setFocusMessageId(hit.messageId);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/whatsapp/chats/${hit.chatId}/messages?around=${encodeURIComponent(hit.messageId)}`);
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo saltar al mensaje");
+      skipAutoScrollRef.current = true;
+      setMessages(data);
+      setHasOlderMessages(true);
+      setFocusMessageId(hit.messageId);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo saltar al mensaje");
+    }
+  }, [selectedChatId, messages, openChat, toastError]);
 
   const handleCloseChat = useCallback(() => {
-    if (selectedChatId) messageDraftsRef.current.set(selectedChatId, newMessage);
+    if (selectedChatId) {
+      messageDraftsRef.current.set(selectedChatId, newMessage);
+      writeDraft(selectedChatId, newMessage);
+    }
     setSelectedChatId(null);
     setNewMessage("");
     setReplyTo(null);
@@ -616,10 +851,12 @@ export function ChatWorkspace({
     setCannedIndex(0);
     setInteractiveButtons([]);
     setButtonsPanelOpen(false);
+    lastTypingSentRef.current = 0;
+    setTypingUsers([]);
     clearAttachment();
     const qs = buildFilterSearchParams().toString();
     router.push(`/whatsapp/chat${qs ? `?${qs}` : ""}`);
-  }, [selectedChatId, newMessage, router, clearAttachment, buildFilterSearchParams]);
+  }, [selectedChatId, newMessage, router, clearAttachment, buildFilterSearchParams, writeDraft]);
 
   function detectMessageType(file: File): "image" | "audio" | "video" | "document" | "sticker" {
     if (isImageMime(file.type)) return "image";
@@ -731,9 +968,20 @@ export function ChatWorkspace({
     [selectedChatId, selectedChat, toastError, refreshChats]
   );
 
+  function handleMessageChange(value: string) {
+    setNewMessage(value);
+    if (!selectedChatId || !value.trim()) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 3000) return;
+    lastTypingSentRef.current = now;
+    fetch(`/api/whatsapp/chats/${selectedChatId}/typing`, { method: "POST" }).catch(() => {});
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (sending || displayNameBlocked) return;
+    // El nombre en revisión NO bloquea el envío: Meta solo rechaza citar
+    // (131037), y eso ya lo controlan quoteEnabled y la ruta /send.
+    if (sending) return;
     if (!newMessage.trim() && !attachment && interactiveButtons.length === 0) return;
     if (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((title) => !title.trim()))) return;
     if (!selectedChatId || !selectedChat) return;
@@ -773,6 +1021,9 @@ export function ChatWorkspace({
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
     messageDraftsRef.current.delete(selectedChatId);
+    const draftStorageKey = draftKey(selectedChatId);
+    if (draftStorageKey) window.localStorage.removeItem(draftStorageKey);
+    lastTypingSentRef.current = 0;
     setReplyTo(null);
     // Reset del composer sin revocar el object URL todavía — la burbuja
     // optimista lo sigue usando hasta que el envío se confirme o falle.
@@ -787,7 +1038,6 @@ export function ChatWorkspace({
   }
 
   async function sendSticker(stickerId: string) {
-    if (displayNameBlocked) throw new Error("WhatsApp todavía no aprueba el nombre para mostrar de este número.");
     if (!selectedChatId || selectedChat?.channel !== "WHATSAPP" || sending) throw new Error("Selecciona una conversación de WhatsApp disponible");
     const targetChatId = selectedChatId;
     const quotedMessage = replyTo;
@@ -814,20 +1064,176 @@ export function ChatWorkspace({
     [performSend]
   );
 
-  async function handleStatusChange(newStatus: ChatStatus) {
-    if (!selectedChatId) return;
+  async function handleStatusChange(newStatus: ChatStatus, chatId: string | null = selectedChatId) {
+    if (!chatId) return;
     try {
-      const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/status`, {
+      const res = await fetch(`/api/whatsapp/chats/${chatId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
+      // F4: faltan atributos obligatorios → se piden y se reintenta. El modal
+      // vive junto al hilo: desde el menú contextual se abre ese chat primero.
+      if (res.status === 422 && data.code === "required_fields" && Array.isArray(data.fields)) {
+        if (chatId !== selectedChatId) {
+          const target = chats.find((c) => c.id === chatId);
+          if (target) handleChatSelect(target);
+        }
+        setRequiredPrompt({ chatId, keys: data.fields.map((field: { key: string }) => field.key) });
+        return;
+      }
       if (!res.ok) throw new Error(data.error ?? "Error al cambiar estado");
-      setChats((prev) => prev.map((c) => (c.id === selectedChatId ? { ...c, status: data.status } : c)));
+      setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, status: data.status } : c)));
+      return true;
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al cambiar estado");
     }
+  }
+
+  // Menú contextual de una fila de la lista (clic derecho / pulsación larga).
+  // Mismas rutas que la cabecera del chat y los atajos (lib/inbox/actions.ts).
+  async function handleRowAction(chat: ChatItem, action: ChatRowAction) {
+    const patch = (fields: Partial<ChatItem>) =>
+      setChats((prev) => prev.map((c) => (c.id === chat.id ? { ...c, ...fields } : c)));
+    try {
+      switch (action.type) {
+        case "open":
+          handleChatSelect(chat);
+          return;
+        case "contact":
+          handleChatSelect(chat);
+          openContactDrawer(chat.contactId);
+          return;
+        case "assign": {
+          const data = action.userId === "me"
+            ? await assignChatToMe(chat.id)
+            : await assignChatTo(chat.id, action.userId);
+          patch({ assignedToId: data.assignedToId, assignedTo: data.assignedTo });
+          toastSuccess(data.assignedTo ? `Asignado a ${data.assignedTo.name ?? "un ejecutivo"}` : "Chat sin asignar");
+          return;
+        }
+        case "priority":
+          await setChatPriority(chat.id, action.priority);
+          patch({ priority: action.priority });
+          return;
+        case "snooze": {
+          const data = await snoozeChat(chat.id, action.until);
+          patch({ snoozedUntil: data.snoozedUntil });
+          toastSuccess(action.until ? "Chat pospuesto" : "Ya no está pospuesto");
+          return;
+        }
+        case "status":
+          if (await handleStatusChange(action.status, chat.id)) {
+            toastSuccess(action.status === "RESOLVED" ? "Chat resuelto" : "Chat reabierto");
+          }
+          return;
+        case "copy-link":
+          await navigator.clipboard.writeText(`${window.location.origin}/whatsapp/chat/${chat.accountId}/${chat.id}`);
+          toastSuccess("Enlace copiado");
+          return;
+      }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo completar la acción");
+    }
+  }
+
+  function handleAssigned(assignee: { id: string; name: string | null } | null) {
+    if (!selectedChatId) return;
+    setChats((prev) => prev.map((c) =>
+      c.id === selectedChatId ? { ...c, assignedTo: assignee, assignedToId: assignee?.id ?? null } : c
+    ));
+  }
+
+  function handlePriorityChange(priority: ChatPriority) {
+    if (!selectedChatId) return;
+    setChats((prev) => prev.map((c) => c.id === selectedChatId ? { ...c, priority } : c));
+  }
+
+  function handleSnoozedChange(snoozedUntil: string | null) {
+    if (!selectedChatId) return;
+    setChats((prev) => prev.map((c) => c.id === selectedChatId ? { ...c, snoozedUntil } : c));
+  }
+
+  function setContactParam(contactId: string | null) {
+    const params = new URLSearchParams(window.location.search);
+    if (contactId) params.set("contacto", contactId);
+    else {
+      params.delete("contacto");
+      params.delete("ficha");
+    }
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+  }
+
+  function openContactDrawer(contactId: string | null) {
+    if (!contactId) return;
+    setContactDrawerContactId(contactId);
+    setContactParam(contactId);
+  }
+
+  function closeContactDrawer() {
+    setContactDrawerContactId(null);
+    setContactParam(null);
+  }
+
+  function toggleSelectionMode() {
+    setSelectionMode((current) => {
+      if (current) setSelectedChatIds(new Set());
+      return !current;
+    });
+  }
+
+  function toggleSelected(chatId: string) {
+    setSelectedChatIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(chatId)) next.delete(chatId);
+      else next.add(chatId);
+      return next;
+    });
+  }
+
+  async function handleBulkAction(action: ChatBulkAction) {
+    if (selectedChatIds.size === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch("/api/whatsapp/chats/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatIds: Array.from(selectedChatIds), action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al actualizar chats");
+      toastSuccess(`${data.updated ?? selectedChatIds.size} chat(s) actualizados`);
+      if (data.skipped) toastError(`${data.skipped} chat(s) no se resolvieron: les faltan atributos obligatorios`);
+      setSelectedChatIds(new Set());
+      setSelectionMode(false);
+      await refreshChats();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al actualizar chats");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  function applySavedView(query: string) {
+    const params = new URLSearchParams(query);
+    setAccountFilter(params.get("accountId") ?? "");
+    setCampaignFilter(params.get("campaignId") ?? "");
+    const replied = params.get("hasReplied");
+    setHasRepliedFilter(replied === "yes" || replied === "no" ? replied : "");
+    const assigned = params.get("assigned");
+    setAssignedFilter(assigned === "me" || assigned === "unassigned" ? assigned : "");
+    const priority = params.get("priority");
+    setPriorityFilter(priority === "LOW" || priority === "NORMAL" || priority === "HIGH" || priority === "URGENT" ? priority : "");
+    const snoozed = params.get("snoozed");
+    setSnoozedFilter(snoozed === "only" || snoozed === "all" ? snoozed : "");
+    setAwaitingFilter(params.get("awaiting") === "1");
+    const q = params.get("search") ?? "";
+    setSearch(q);
+    setDebouncedSearch(q);
+    setSelectedChatIds(new Set());
+    setSelectionMode(false);
   }
 
   const accountOptions = accounts.length > 0
@@ -848,8 +1254,19 @@ export function ChatWorkspace({
   // El servidor ya aplica cuenta + búsqueda (debounced); este filtro replica el
   // criterio en el cliente solo para dar respuesta instantánea mientras el
   // debounce/fetch está en vuelo.
+  const now = useNowMs();
   const filteredChats = chats.filter((c) => {
     if (accountFilter && c.accountId !== accountFilter) return false;
+    const snoozed = c.snoozedUntil ? new Date(c.snoozedUntil).getTime() > now : false;
+    if (snoozedFilter === "only" && !snoozed) return false;
+    // El chat abierto se conserva aunque se acabe de posponer: cerrar el hilo
+    // de golpe al pulsar "Posponer" sería peor que verlo con su reloj.
+    if (snoozedFilter === "" && snoozed && c.id !== selectedChatId) return false;
+    if (assignedFilter === "me" && currentUserId && c.assignedToId !== currentUserId) return false;
+    if (assignedFilter === "unassigned" && c.assignedToId) return false;
+    if (priorityFilter && c.priority !== priorityFilter) return false;
+    // Igual que el snooze: el chat abierto no desaparece al contestarlo.
+    if (awaitingFilter && !c.waitingSince && c.id !== selectedChatId) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -865,6 +1282,55 @@ export function ChatWorkspace({
     if (!groupedChats[key]) groupedChats[key] = [];
     groupedChats[key].push(c);
   }
+  // Orden visual de la lista (agrupada por cuenta) para Alt+J / Alt+K.
+  const visibleChats = Object.values(groupedChats).flat();
+
+  async function runShortcut(action: InboxShortcutAction) {
+    if (action === "help") return setShortcutsOpen(true);
+    if (action === "focus-search") {
+      document.querySelector<HTMLInputElement>("[data-inbox-search]")?.focus();
+      return;
+    }
+    if (action === "next-chat" || action === "prev-chat") {
+      const index = adjacentIndex(visibleChats.map((c) => c.id), selectedChatId, action === "next-chat" ? 1 : -1);
+      if (index !== null) handleChatSelect(visibleChats[index]);
+      return;
+    }
+    if (!selectedChatId) return;
+    const chatId = selectedChatId;
+    try {
+      if (action === "resolve") {
+        await handleStatusChange("RESOLVED");
+      } else if (action === "assign-me") {
+        const data = await assignChatToMe(chatId);
+        setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, assignedToId: data.assignedToId, assignedTo: data.assignedTo } : c)));
+        toastSuccess("Chat asignado");
+      } else if (action === "snooze-1h") {
+        const data = await snoozeChat(chatId, oneHourFromNow());
+        setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, snoozedUntil: data.snoozedUntil } : c)));
+        toastSuccess("Chat pospuesto 1 hora");
+      }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo completar la acción");
+    }
+  }
+  // Atajos de teclado (lib/inbox/shortcuts.ts). Sin array de dependencias a
+  // propósito: se vuelve a registrar en cada render con los handlers vigentes.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const action = matchInboxShortcut(event);
+      if (!action) return;
+      const target = event.target as HTMLElement | null;
+      const typing = isTypingTarget(target ? { tagName: target.tagName, isContentEditable: target.isContentEditable, role: target.getAttribute("role") } : null);
+      const dialogOpen = Boolean(document.querySelector('[role="dialog"], [role="alertdialog"]'));
+      if (!shouldHandleShortcut(action, { typing, dialogOpen })) return;
+      event.preventDefault();
+      void runShortcut(action);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
 
   const cannedQuery = newMessage.startsWith("/") && !newMessage.includes(" ")
     ? newMessage.slice(1).toLowerCase()
@@ -873,11 +1339,21 @@ export function ChatWorkspace({
     ? cannedResponses.filter((c) => c.shortcut.startsWith(cannedQuery)).slice(0, 6)
     : [];
 
+  // {{nombre}}, {{agente}} y {{negocio}} se resuelven al insertar: el agente
+  // ve el texto final (y cualquier variable desconocida) antes de mandarlo.
   function insertCannedResponse(content: string) {
-    setNewMessage(content);
+    setNewMessage(
+      renderCannedResponse(content, {
+        contactName: selectedChat?.name ?? null,
+        remoteJid: selectedChat?.remoteJid ?? "",
+        agentName: session?.user?.name ?? null,
+        businessName,
+      })
+    );
     setCannedIndex(0);
   }
 
+  const currentViewQuery = buildFilterSearchParams().toString();
   const listPane = (
       <ChatListPanel
         resizable={resizable}
@@ -893,6 +1369,24 @@ export function ChatWorkspace({
         onCampaignFilterChange={setCampaignFilter}
         hasRepliedFilter={hasRepliedFilter}
         onHasRepliedFilterChange={setHasRepliedFilter}
+        assignedFilter={assignedFilter}
+        onAssignedFilterChange={setAssignedFilter}
+        priorityFilter={priorityFilter}
+        onPriorityFilterChange={setPriorityFilter}
+        snoozedFilter={snoozedFilter}
+        onSnoozedFilterChange={setSnoozedFilter}
+        awaitingFilter={awaitingFilter}
+        onAwaitingFilterChange={setAwaitingFilter}
+        selectionMode={selectionMode}
+        onToggleSelectionMode={toggleSelectionMode}
+        selectedChatIds={selectedChatIds}
+        onToggleSelect={toggleSelected}
+        onBulkAction={handleBulkAction}
+        onRowAction={(chat, action) => void handleRowAction(chat, action)}
+        currentUserId={currentUserId}
+        bulkBusy={bulkBusy}
+        currentViewQuery={currentViewQuery}
+        onApplyView={applySavedView}
         loadingChats={loadingChats}
         loadError={chatsError}
         onRetry={retryChats}
@@ -901,6 +1395,7 @@ export function ChatWorkspace({
         chatsTotal={chatsTotal}
         loadingMoreChats={loadingMoreChats}
         onLoadMore={loadMoreChats}
+        messageResults={search.trim() ? <MessageSearchResults query={search} onOpen={openMessageHit} /> : null}
       />
   );
 
@@ -919,18 +1414,20 @@ export function ChatWorkspace({
             <ChatThreadPanel
               selectedChat={selectedChat}
               messages={messages}
+              focusMessageId={focusMessageId}
+              onFocusHandled={() => setFocusMessageId(null)}
+              typingUsers={typingUsers}
               loadingMessages={loadingMessages}
               hasOlderMessages={hasOlderMessages}
               loadingOlder={loadingOlder}
               onLoadOlder={loadOlderMessages}
               onCloseChat={handleCloseChat}
-              onOpenContactDrawer={() => setContactDrawerOpen(true)}
-              onStatusChange={handleStatusChange}
-              onAssigned={(assignee) =>
-                setChats((prev) => prev.map((c) =>
-                  c.id === selectedChatId ? { ...c, assignedTo: assignee, assignedToId: assignee?.id ?? null } : c
-                ))
-              }
+              onOpenContactDrawer={() => openContactDrawer(selectedChat.contactId)}
+              onStatusChange={async (status) => { await handleStatusChange(status); }}
+              onAssigned={handleAssigned}
+              onPriorityChange={handlePriorityChange}
+              onSnoozedChange={handleSnoozedChange}
+              onMacroApplied={() => void refreshChats()}
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
               onReply={setReplyTo}
@@ -941,7 +1438,7 @@ export function ChatWorkspace({
               messagesEndRef={messagesEndRef}
             />
             {displayNameBlocked && <ChatDisplayNameBanner />}
-            {selectedChat.channel === "WHATSAPP" && serviceWindow && !displayNameBlocked && (
+            {selectedChat.channel === "WHATSAPP" && serviceWindow && (
               <ChatWindowBanner window={serviceWindow} onSendTemplate={() => setTemplatePickerOpen(true)} />
             )}
             {selectedChat.channel === "WHATSAPP" && templatePickerOpen && (
@@ -959,17 +1456,21 @@ export function ChatWorkspace({
                 }}
               />
             )}
+            {!selectedChat.assignedToId && selectedChat.status !== "RESOLVED" && (
+              <ChatClaimBanner chatId={selectedChat.id} onAssigned={handleAssigned} />
+            )}
             <ChatComposer
+              signature={signature}
               onOpenTemplates={selectedChat.channel === "WHATSAPP" ? () => setTemplatePickerOpen(true) : undefined}
               chatId={selectedChat.id}
               channel={selectedChat.channel}
               newMessage={newMessage}
-              onMessageChange={setNewMessage}
+              onMessageChange={handleMessageChange}
               sending={sending}
               onSubmit={handleSend}
               onSendSticker={sendSticker}
               replyTo={replyTo}
-              leadName={selectedChat.name || selectedChat.remoteJid}
+              leadName={displayName(selectedChat.name, selectedChat.remoteJid)}
               onCancelReply={() => setReplyTo(null)}
               attachment={attachment}
               attachmentPreview={attachmentPreview}
@@ -991,7 +1492,6 @@ export function ChatWorkspace({
               buttonsPanelOpen={buttonsPanelOpen}
               onToggleButtonsPanel={() => setButtonsPanelOpen((v) => !v)}
               interactiveDisabled={selectedChat.channel !== "WHATSAPP" || !!attachment}
-              sendBlockedReason={displayNameBlocked ? "WhatsApp todavía no aprueba el nombre para mostrar de este número." : null}
             />
           </>
         ) : missingChat ? (
@@ -1008,6 +1508,18 @@ export function ChatWorkspace({
 
   return (
     <div className="flex flex-1 min-h-0">
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      {requiredPrompt && requiredPrompt.chatId === selectedChatId && (
+        <RequiredFieldsModal
+          chatId={requiredPrompt.chatId}
+          missingKeys={requiredPrompt.keys}
+          onClose={() => setRequiredPrompt(null)}
+          onSavedRetry={async () => {
+            setRequiredPrompt(null);
+            await handleStatusChange("RESOLVED");
+          }}
+        />
+      )}
       <ChatAccountRail accounts={accountOptions} selectedAccountId={accountFilter} onSelect={setAccountFilter} unreadByAccount={unreadByAccount} />
       {resizable ? <Group orientation="horizontal" className="h-full min-w-0 flex-1">
         <Panel id="conversations" defaultSize="32%" minSize="220px" maxSize="48%" className="flex min-w-0">{listPane}</Panel>
@@ -1018,10 +1530,10 @@ export function ChatWorkspace({
       </Group> : <>{listPane}{conversationPane}</>}
 
       {/* Drawers */}
-      {contactDrawerOpen && selectedChat?.contactId && (
+      {contactDrawerContactId && (
         <ContactDrawer
-          contactId={selectedChat.contactId}
-          onClose={() => setContactDrawerOpen(false)}
+          contactId={contactDrawerContactId}
+          onClose={closeContactDrawer}
           onUpdated={refreshChats}
         />
       )}

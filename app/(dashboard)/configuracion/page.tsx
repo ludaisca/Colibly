@@ -8,6 +8,8 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { PasswordInput } from "@/app/components/ui/password-input";
 import { PasswordStrength } from "@/app/components/ui/password-strength";
+import { SeguridadSection } from "./_seguridad";
+import { FirmaSection } from "./_firma";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Badge } from "@/app/components/ui/badge";
@@ -19,6 +21,7 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { useToast } from "@/app/components/ui/toast";
 import { RespuestasRapidasSection } from "./_respuestas-rapidas";
 import { CamposPersonalizadosSection } from "./_campos-personalizados";
+import { AtributosConversacionSection } from "./_atributos-conversacion";
 import { CanalesSection } from "./_canales";
 
 interface GoogleSheetsStatus {
@@ -203,7 +206,7 @@ export default function SettingsPage() {
       <PageHeader title="Configuración" description="Administra tu cuenta y preferencias." />
 
       <Card className="flex items-center gap-3">
-        <EntityAvatar id={user?.id ?? email} name={name} size="lg" />
+        <EntityAvatar id={user?.id ?? email} name={name} size="lg" figure seed={user?.id ?? email} />
         <div>
           <h2 className="text-lg font-semibold">{name}</h2>
           <p className="text-sm text-muted-darker">{email}</p>
@@ -211,7 +214,7 @@ export default function SettingsPage() {
             <Badge tone="info" size="sm">{user?.role === "user" ? "Usuario" : user?.role}</Badge>
             <span className="flex items-center gap-1 text-xs text-muted-darker">
               <CalendarDays size={11} />
-              Miembro desde {createdAt ? new Date(createdAt).toLocaleDateString("es-MX", { year: "numeric", month: "long" }) : new Date().toLocaleDateString("es-MX", { year: "numeric", month: "long" })}
+              Miembro desde {createdAt ? new Date(createdAt).toLocaleDateString("es-MX", { year: "numeric", month: "long", timeZone: "America/Mexico_City" }) : "—"}
             </span>
           </div>
         </div>
@@ -279,6 +282,10 @@ export default function SettingsPage() {
         </Button>
       </Card>
 
+      <FirmaSection />
+
+      <SeguridadSection />
+
       {isAdmin && (
         <Card as="section" className="space-y-4">
           <div className="flex items-center gap-2.5">
@@ -298,12 +305,12 @@ export default function SettingsPage() {
 
       {isAdmin && (
         <Card as="section" className="space-y-4">
-          <SectionHeader title="Inteligencia Artificial" />
+          <SectionHeader title="IA y operación" />
           <p className="text-sm text-muted">
-            Créditos de IA incluidos, horario del negocio y recuperación automática de leads.
+            Créditos de IA incluidos, horario del negocio, recuperación automática de leads y automatismos de la bandeja.
           </p>
           <Button href="/configuracion/ia" variant="secondary" size="sm" icon={Brain}>
-            Configurar IA
+            Configurar
           </Button>
         </Card>
       )}
@@ -323,6 +330,18 @@ export default function SettingsPage() {
       <RespuestasRapidasSection />
 
       <CamposPersonalizadosSection />
+
+      <AtributosConversacionSection />
+
+      <Card as="section" className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <SectionHeader title="Macros" />
+          <p className="mt-1 text-sm text-muted">
+            Acciones manuales reutilizables para asignar, resolver, priorizar, posponer o responder en un clic.
+          </p>
+        </div>
+        <Button variant="secondary" href="/configuracion/macros">Administrar macros</Button>
+      </Card>
 
       <Card as="section" className="space-y-4">
         <div className="flex items-center gap-2.5">

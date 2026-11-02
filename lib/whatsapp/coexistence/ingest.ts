@@ -1,6 +1,7 @@
 import { Prisma, type WAMessageOrigin } from "@prisma/client";
 import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
+import { markReplied } from "@/lib/chats/waiting";
 import { mediaDownloadQueue } from "@/lib/queue";
 import { addressBookNameFor, forgetAddressBookEntry, shouldApplyAddressBookName } from "@/lib/whatsapp/address-book";
 import { contactsRemaining, notifyContactLimitOnce } from "@/lib/billing/contact-budget";
@@ -240,8 +241,11 @@ export async function ingestBusinessAppMessages(
   if (origin === "BUSINESS_APP_ECHO") {
     // El dueño atendió desde el teléfono: las automatizaciones conversacionales
     // de ese chat se pausan igual que con una respuesta manual desde Colibly.
+    // Además, el cliente ya no espera respuesta (lib/chats/waiting.ts).
     for (const chat of cache.values()) {
-      if (touched.has(chat.chatId)) await pauseConversationalRuns({ kind: "whatsapp", id: chat.chatId });
+      if (!touched.has(chat.chatId)) continue;
+      await pauseConversationalRuns({ kind: "whatsapp", id: chat.chatId });
+      await markReplied("whatsapp", chat.chatId);
     }
   }
   return result;
