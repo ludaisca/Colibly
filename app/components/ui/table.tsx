@@ -151,6 +151,9 @@ export function Table<T>({
                   <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                     <Dropdown
                       align="right"
+                      // El contenedor es overflow-x-auto (fuerza también overflow-y):
+                      // un menú "absolute" se recortaría o abriría scroll.
+                      portal
                       trigger={
                         <button type="button" aria-label="Acciones" className="p-1.5 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
                           <MoreVertical size={14} />
@@ -184,6 +187,7 @@ export function Table<T>({
               <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Dropdown
                   align="right"
+                  portal
                   trigger={
                     <button type="button" aria-label="Acciones" className="p-1.5 rounded-md border border-border bg-surface hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
                       <MoreVertical size={14} />
