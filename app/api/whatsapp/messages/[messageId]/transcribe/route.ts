@@ -20,7 +20,7 @@ const STATUS: Record<TranscribeErrorCode, number> = {
   unavailable: 503,
   no_access: 402,
   ai_credits: 402,
-  empty: 502,
+  failed: 502,
 };
 
 export async function POST(_req: Request, { params }: { params: Promise<{ messageId: string }> }) {

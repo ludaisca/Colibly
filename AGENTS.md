@@ -78,7 +78,7 @@ Exactly three roles — don't add/remove any without asking: `admin` (everything
 
 - AI is provided by the platform: one key per provider (OpenCode Go, Google) in `PlatformSettings`, read via `getPlatformApiKey()`. No per-user keys. Customers don't pick models; the operator does (`aiTextModel`/`aiVisionModel`), resolved by `resolvePlatformModel()`.
 - **A new AI call** checks the platform key, then `reserveAiCredit(organizationId)`, then calls the provider, then records usage (and extends `getOrgAiCost()` if it's a new usage table). Out of credits: bots stay silent, manual actions answer 402 `ai_credits`.
-- Embeddings are always Google (`gemini-embedding-2`, 768 dims) even when replies use OpenCode. Audio input is Gemini-only.
+- Embeddings are always Google (`gemini-embedding-2`, 768 dims) even when replies use OpenCode. Voice notes are transcribed first (`lib/ai/transcribe.ts`: OpenCode `OPENCODE_AUDIO_MODEL` with `disableThinking`, Gemini as fallback) and bots answer the transcript with their text model — never read OpenCode's `reasoning_content` as an answer.
 - User system prompts go through `wrapUserPrompt()`; flows that talk to end users append `SCOPE_GUARDRAIL`.
 - Google SDK: `systemInstruction` goes to `getGenerativeModel()` as a plain string, never to `startChat()`.
 

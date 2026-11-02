@@ -8,6 +8,7 @@ import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { buildAppointmentMarkerContract, parseAppointmentMarker } from "@/lib/ai/appointment-marker";
 import type { AppointmentProposal } from "@/lib/ai/appointment-marker";
 import { reserveAiCredit } from "@/lib/ai/credits";
+import { transcribeForBot, voiceNoteForBot } from "@/lib/ai/transcribe";
 import { hasBotsAccess } from "@/lib/billing/gates";
 import { getBotSkipReason } from "@/lib/bots/guards";
 import { recordBotUsage } from "@/lib/bots/usage";
@@ -15,7 +16,7 @@ import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
 import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
 import { botSendQueue } from "@/lib/queue";
-import type { AIProvider, AIMessage, ContentPart } from "@/lib/ai/types";
+import type { AIMessage, ContentPart } from "@/lib/ai/types";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForContact } from "@/lib/events/refs";
 import { BillingBlockedError, isBotWritable } from "@/lib/billing/gates";
@@ -159,7 +160,6 @@ async function handleBotMessage(job: BotMessageJob) {
 
   const picked = await resolvePlatformModel({
     needsVision: job.messageType === "image",
-    needsAudio: job.messageType === "audio",
   });
   if (!picked) {
     await failBotAndNotify(botId, waChatId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
@@ -206,8 +206,16 @@ async function handleBotMessage(job: BotMessageJob) {
     messages.push({ role: "system", content: buildAppointmentMarkerContract(new Date(), appointmentTimeZone) });
   }
 
+  // Una nota de voz se transcribe antes (OpenCode MiMo, Gemini de respaldo):
+  // el bot responde con su modelo de texto y la búsqueda en la base de
+  // conocimiento usa lo que dijo el cliente.
+  const voiceTranscript =
+    job.messageType === "audio"
+      ? await transcribeForBot({ kind: "whatsapp", messageId: job.messageId, mediaPath: job.localMediaPath, mimeType: job.mimeType })
+      : null;
+
   if (bot.ragEnabled) {
-    const ragQuery =
+    const ragQuery = voiceTranscript ??
       job.caption ?? (incomingMessage && incomingMessage !== `[${job.messageType}]` ? incomingMessage : job.messageType ?? "");
     const knowledge = await searchKnowledge(botId, ragQuery, provider, apiKey);
     if (knowledge) {
@@ -254,13 +262,14 @@ async function handleBotMessage(job: BotMessageJob) {
         mimeType: true,
         mediaUrl: true,
         caption: true,
+        transcript: true,
       },
     });
 
     // Reverse to chronological order; build user/assistant turns preserving plain text
     // (historical images are NOT forwarded to keep token cost bounded).
     for (const msg of history.reverse()) {
-      const textPart = msg.caption ?? msg.body;
+      const textPart = msg.transcript ? voiceNoteForBot(msg.transcript) : msg.caption ?? msg.body;
       if (!textPart) {
         if (msg.messageType && msg.messageType !== "text") {
           // Pure media without caption — describe it briefly so the bot has context.
@@ -287,7 +296,7 @@ async function handleBotMessage(job: BotMessageJob) {
 
   // Build the user turn — embed the latest image/audio inline, or the extracted text of a
   // document, if present and the provider/media type combination supports it.
-  const userContent = await buildUserContent(job, provider);
+  const userContent = voiceTranscript ? voiceNoteForBot(voiceTranscript) : await buildUserContent(job);
   const incomingReply = job.messageId
     ? await prisma.wAMessage.findUnique({ where: { id: job.messageId }, select: { replyToWamid: true } })
     : null;
@@ -443,16 +452,13 @@ async function handleBotMessage(job: BotMessageJob) {
   }
 }
 
-async function buildUserContent(job: BotMessageJob, provider: AIProvider): Promise<string | ContentPart[]> {
+async function buildUserContent(job: BotMessageJob): Promise<string | ContentPart[]> {
   const isImage = job.messageType === "image" || job.messageType === "sticker";
-  // Audio understanding only works through Gemini's native inlineData — OpenCode
-  // has no generic audio content shape (see ContentPart["audio_url"] comment).
-  const isAudio = job.messageType === "audio" && provider === "google";
   const isDocument = job.messageType === "document";
   const bodyText = job.caption ?? job.incomingMessage ?? "";
   const fallbackLabel = `[${job.messageType === "audio" ? "audio" : job.messageType} recibido]`;
 
-  if (!isImage && !isAudio && !isDocument) {
+  if (!isImage && !isDocument) {
     return bodyText || `[${job.messageType ?? "text"}]`;
   }
 
@@ -487,20 +493,16 @@ async function buildUserContent(job: BotMessageJob, provider: AIProvider): Promi
   try {
     const buffer = await fs.readFile(absolute);
     const base64 = buffer.toString("base64");
-    const mime = mimeType ?? (isImage ? "image/jpeg" : "audio/ogg");
+    const mime = mimeType ?? "image/jpeg";
 
     const parts: ContentPart[] = [];
     if (bodyText && bodyText !== `[${job.messageType}]`) {
       parts.push({ type: "text", text: bodyText });
     }
-    parts.push(
-      isImage
-        ? { type: "image_url", image_url: { url: `data:${mime};base64,${base64}` } }
-        : { type: "audio_url", audio_url: { url: `data:${mime};base64,${base64}` } }
-    );
+    parts.push({ type: "image_url", image_url: { url: `data:${mime};base64,${base64}` } });
     return parts;
   } catch (err) {
-    console.error(`[bot-worker] No se pudo leer el ${isImage ? "imagen" : "audio"} local:`, err);
+    console.error(`[bot-worker] No se pudo leer la imagen local:`, err);
     return bodyText || fallbackLabel;
   }
 }

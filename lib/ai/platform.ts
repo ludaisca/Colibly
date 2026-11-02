@@ -56,8 +56,10 @@ export async function modelChoiceError(provider: string, model: string): Promise
 }
 
 // OpenCode es el proveedor por defecto: la suscripción es plana y cada crédito
-// extra no se cobra por token. Gemini solo entra si OpenCode no tiene llave, o
-// si la llamada trae audio (el modelo de OpenCode no acepta audio).
+// extra no se cobra por token. Gemini solo entra si OpenCode no tiene llave.
+// Las notas de voz no cambian el modelo: se transcriben antes (lib/ai/
+// transcribe.ts, OpenCode con MiMo y Gemini de respaldo) y el bot responde
+// sobre el texto.
 export interface ModelPrefs {
   text?: string | null;
   vision?: string | null;
@@ -65,12 +67,9 @@ export interface ModelPrefs {
 
 export function selectCuratedModel(
   enabled: ReadonlySet<AIProvider>,
-  opts: { needsVision?: boolean; needsAudio?: boolean } = {},
+  opts: { needsVision?: boolean } = {},
   prefs: ModelPrefs = {},
 ): { provider: AIProvider; model: string } | null {
-  if (opts.needsAudio && enabled.has("google")) {
-    return { provider: "google", model: DEFAULT_AI_MODEL.google };
-  }
   if (enabled.has("opencode")) {
     const chosen = opts.needsVision ? prefs.vision || prefs.text : prefs.text;
     return { provider: "opencode", model: chosen ? normalizeOpenCodeModel(chosen) : DEFAULT_AI_MODEL.opencode };
@@ -85,9 +84,8 @@ async function modelPrefs(): Promise<ModelPrefs> {
 }
 
 // El modelo que eligió el operador en /plataforma. `needsVision` para una
-// imagen; `needsAudio` para una nota de voz (Gemini). null = ningún proveedor
-// está configurado.
-export async function resolvePlatformModel(opts: { needsVision?: boolean; needsAudio?: boolean } = {}): Promise<{ provider: AIProvider; model: string } | null> {
+// imagen. null = ningún proveedor está configurado.
+export async function resolvePlatformModel(opts: { needsVision?: boolean } = {}): Promise<{ provider: AIProvider; model: string } | null> {
   return selectCuratedModel(new Set(await enabledProviders()), opts, await modelPrefs());
 }
 
