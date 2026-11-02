@@ -57,10 +57,6 @@ interface ChatComposerProps {
   // "Enviar plantilla" (solo WhatsApp): opción secundaria con la ventana de
   // 24 h abierta; con la ventana cerrada el banner del chat la destaca.
   onOpenTemplates?: () => void;
-
-  // WhatsApp rechazó el número (nombre para mostrar sin aprobar). El borrador
-  // se puede escribir; nada sale hasta que Meta lo apruebe.
-  sendBlockedReason?: string | null;
 }
 
 const MAX_BUTTONS = 3;
@@ -97,7 +93,6 @@ export function ChatComposer({
   onToggleButtonsPanel,
   onOpenTemplates,
   interactiveDisabled = false,
-  sendBlockedReason = null,
 }: ChatComposerProps) {
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const { error: toastError } = useToast();
@@ -149,7 +144,7 @@ export function ChatComposer({
   }
 
   async function startRecording() {
-    if (recording || sending || sendBlockedReason || attachment || interactiveButtons.length > 0) return;
+    if (recording || sending || attachment || interactiveButtons.length > 0) return;
     const candidates = channel === "WHATSAPP"
       // WhatsApp acepta OGG/OPUS y MP4/AAC; WebM no. MP4 es lo que graba
       // Chrome/Edge hoy (OGG lo soporta Firefox).
@@ -411,7 +406,7 @@ export function ChatComposer({
             <button
               type="button"
               onClick={onPickFile}
-              disabled={sending || attachmentsDisabled || !!sendBlockedReason}
+              disabled={sending || attachmentsDisabled}
               className={TOOL_BUTTON}
               title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar"}
               aria-label="Adjuntar archivo"
@@ -429,14 +424,14 @@ export function ChatComposer({
           {(channel === "WHATSAPP" || !!onOpenTemplates) && (
             <ChatMoreMenu
               channel={channel}
-              disabled={sending || !!sendBlockedReason}
+              disabled={sending}
               supportsButtons={supportsButtons}
               buttonsPanelOpen={buttonsPanelOpen}
               buttonsDisabled={interactiveDisabled}
               onToggleButtons={toggleButtons}
               onOpenTemplates={onOpenTemplates}
               onSendSticker={onSendSticker}
-              stickersDisabled={sending || !!attachment || interactiveButtons.length > 0 || !!sendBlockedReason}
+              stickersDisabled={sending || !!attachment || interactiveButtons.length > 0}
             />
           )}
         </div>
@@ -475,9 +470,7 @@ export function ChatComposer({
             }
           }}
           placeholder={
-            sendBlockedReason
-              ? "El envío se habilita cuando WhatsApp apruebe el nombre."
-              : interactiveButtons.length > 0
+            interactiveButtons.length > 0
               ? "Mensaje que acompaña a los botones"
               : attachment
                 ? "Comentario (opcional)"
@@ -491,10 +484,10 @@ export function ChatComposer({
           <button
             type="button"
             onClick={() => void startRecording()}
-            disabled={sending || !!sendBlockedReason}
+            disabled={sending}
             className={TOOL_BUTTON}
             aria-label="Grabar audio"
-            title={sendBlockedReason ?? "Grabar audio"}
+            title="Grabar audio"
           >
             <Mic size={18} />
           </button>
@@ -506,12 +499,11 @@ export function ChatComposer({
           size="sm"
           className="shrink-0 px-3"
           disabled={
-            !!sendBlockedReason ||
             (!newMessage.trim() && !attachment && interactiveButtons.length === 0) ||
             (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((t) => !t.trim()))) ||
             sending
           }
-          title={sendBlockedReason ?? "Enviar"}
+          title="Enviar"
         >
           {sending ? <Spinner /> : ""}
         </Button>
