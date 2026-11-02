@@ -56,7 +56,8 @@ export async function validateToken(
 }
 
 // APPROVED habilita citar un mensaje. PENDING_REVIEW, DECLINED y el resto no:
-// Meta responde 131037 si el envío lleva context.message_id.
+// Meta responde 131037 si el nombre no está aprobado: siempre al citar
+// (context.message_id) y a veces también en envíos normales (número LIMITED).
 export async function getDisplayNameStatus(phoneNumberId: string, accessToken: string): Promise<string | null> {
   const url = `${BASE_URL}/${API_VERSION}/${phoneNumberId}?fields=name_status`;
   const res = await fetch(url, {

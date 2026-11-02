@@ -32,12 +32,12 @@ export function useChatServiceWindow(chatId: string | null, enabled: boolean, re
 
 export function ChatDisplayNameBanner() {
   return (
-    // Solo informa: con el nombre en revisión Meta sí entrega mensajes y
-    // plantillas (el cliente ve el número en vez del nombre); lo que rechaza es
-    // citar un mensaje (131037). Antes este aviso acompañaba un bloqueo total
-    // del compositor que Meta no exige.
-    <Banner tone="info" title="Nombre para mostrar en revisión" className="mx-3 mb-2">
-      WhatsApp todavía no aprueba el nombre de este número. Puedes enviar mensajes y plantillas; citar un mensaje y reaccionar se habilitan cuando el Administrador de WhatsApp lo apruebe.
+    // Con el nombre en revisión el número queda "LIMITED" en Meta: a veces
+    // entrega y a veces rechaza con 131037, también sin citar (visto el
+    // 2026-11-01). No se bloquea el compositor porque Meta sí deja pasar
+    // algunos envíos; el aviso dice la verdad y el error de Meta llega tal cual.
+    <Banner tone="warning" title="Nombre para mostrar en revisión" className="mx-3 mb-2">
+      WhatsApp todavía no aprueba el nombre de este número y mientras tanto puede rechazar tus mensajes, aunque no cites ni reacciones. Se resuelve cuando Meta lo apruebe en el Administrador de WhatsApp.
     </Banner>
   );
 }

@@ -13,6 +13,7 @@ import { resolveAbsolutePath, isAccountMediaPath } from "@/lib/whatsapp/media-st
 import fs from "fs/promises";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { MetaSendError } from "@/lib/whatsapp/send-errors";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
@@ -212,7 +213,8 @@ export async function POST(
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Meta rechazó el envío (p. ej. 131037): no es un fallo nuestro.
+    return NextResponse.json({ error: message }, { status: error instanceof MetaSendError ? 422 : 500 });
   }
 }
 
