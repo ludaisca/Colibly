@@ -1437,7 +1437,7 @@ export function ChatWorkspace({
               messagesContainerRef={messagesContainerRef}
               messagesEndRef={messagesEndRef}
             />
-            {displayNameBlocked && <ChatDisplayNameBanner />}
+            {displayNameBlocked && <ChatDisplayNameBanner key={selectedChat.accountId} accountId={selectedChat.accountId} />}
             {selectedChat.channel === "WHATSAPP" && serviceWindow && (
               <ChatWindowBanner window={serviceWindow} onSendTemplate={() => setTemplatePickerOpen(true)} />
             )}

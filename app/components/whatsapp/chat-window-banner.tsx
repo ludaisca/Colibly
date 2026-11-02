@@ -30,13 +30,36 @@ export function useChatServiceWindow(chatId: string | null, enabled: boolean, re
   return enabled && state?.chatId === chatId ? state.value : null;
 }
 
-export function ChatDisplayNameBanner() {
+function displayNameDismissKey(accountId: string) {
+  return `colibly:display-name-banner:${accountId}`;
+}
+
+// Se descarta por cuenta y se recuerda en este navegador (como los borradores):
+// el estado del nombre puede tardar días en resolverse y el aviso no debe
+// estorbar en cada chat. El padre lo monta con `key={accountId}`.
+export function ChatDisplayNameBanner({ accountId }: { accountId: string }) {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return window.localStorage.getItem(displayNameDismissKey(accountId)) === "1";
+    } catch {
+      return false;
+    }
+  });
+  if (dismissed) return null;
+
+  function dismiss() {
+    setDismissed(true);
+    try {
+      window.localStorage.setItem(displayNameDismissKey(accountId), "1");
+    } catch {}
+  }
+
   return (
     // Con el nombre en revisión el número queda "LIMITED" en Meta: a veces
     // entrega y a veces rechaza con 131037, también sin citar (visto el
     // 2026-11-01). No se bloquea el compositor porque Meta sí deja pasar
     // algunos envíos; el aviso dice la verdad y el error de Meta llega tal cual.
-    <Banner tone="warning" title="Nombre para mostrar en revisión" className="mx-3 mb-2">
+    <Banner tone="warning" title="Nombre para mostrar en revisión" className="mx-3 mb-2" onClose={dismiss}>
       WhatsApp todavía no aprueba el nombre de este número y mientras tanto puede rechazar tus mensajes, aunque no cites ni reacciones. Se resuelve cuando Meta lo apruebe en el Administrador de WhatsApp.
     </Banner>
   );
