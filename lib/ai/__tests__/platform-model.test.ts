@@ -38,12 +38,6 @@ describe("selectCuratedModel", () => {
     });
   });
 
-  it("deja el audio en Gemini", () => {
-    expect(selectCuratedModel(both, { needsAudio: true })).toEqual({
-      provider: "google",
-      model: "gemini-3.8-flash",
-    });
-  });
 
   it("cae a Gemini si OpenCode no tiene llave", () => {
     expect(selectCuratedModel(new Set(["google"]))).toEqual({

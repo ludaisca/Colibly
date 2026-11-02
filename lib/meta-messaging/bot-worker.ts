@@ -6,13 +6,14 @@ import { searchKnowledge } from "@/lib/ai/rag";
 import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { reserveAiCredit } from "@/lib/ai/credits";
+import { transcribeForBot, voiceNoteForBot } from "@/lib/ai/transcribe";
 import { getBotSkipReason } from "@/lib/bots/guards";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
 import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
 import { botSendQueue } from "@/lib/queue";
-import type { AIProvider, AIMessage, ContentPart } from "@/lib/ai/types";
+import type { AIMessage, ContentPart } from "@/lib/ai/types";
 import { BillingBlockedError, hasBotsAccess, isBotWritable } from "@/lib/billing/gates";
 
 // Compartido entre Messenger e Instagram (a diferencia de lib/telegram/
@@ -139,7 +140,6 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
 
   const picked = await resolvePlatformModel({
     needsVision: job.messageType === "image" || job.messageType === "sticker",
-    needsAudio: job.messageType === "audio",
   });
   if (!picked) {
     await failBotAndNotify(botId, conversationId, "La IA no está disponible en este momento (proveedor sin configurar en la plataforma).");
@@ -176,8 +176,16 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
   messages.push({ role: "system", content: wrapUserPrompt(bot.systemPrompt) });
   messages.push({ role: "system", content: SCOPE_GUARDRAIL });
 
+  // Una nota de voz se transcribe antes (OpenCode MiMo, Gemini de respaldo):
+  // el bot responde con su modelo de texto y la búsqueda en la base de
+  // conocimiento usa lo que dijo el cliente.
+  const voiceTranscript =
+    job.messageType === "audio"
+      ? await transcribeForBot({ kind: "channel", messageId: job.messageId, mediaPath: job.localMediaPath, mimeType: job.mimeType })
+      : null;
+
   if (bot.ragEnabled) {
-    const ragQuery =
+    const ragQuery = voiceTranscript ??
       job.caption ?? (incomingMessage && incomingMessage !== `[${job.messageType}]` ? incomingMessage : job.messageType ?? "");
     const knowledge = await searchKnowledge(botId, ragQuery, provider, apiKey);
     if (knowledge) {
@@ -193,11 +201,11 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
       where: { conversationId, ...(job.messageId ? { id: { not: job.messageId } } : {}) },
       orderBy: { timestamp: "desc" },
       take: bot.memoryLimit * 2,
-      select: { direction: true, body: true, messageType: true, caption: true },
+      select: { direction: true, body: true, messageType: true, caption: true, transcript: true },
     });
 
     for (const msg of history.reverse()) {
-      const textPart = msg.caption ?? msg.body;
+      const textPart = msg.transcript ? voiceNoteForBot(msg.transcript) : msg.caption ?? msg.body;
       if (!textPart) {
         if (msg.messageType && msg.messageType !== "text") {
           messages.push({ role: msg.direction === "INBOUND" ? "user" : "assistant", content: `[${msg.messageType}]` });
@@ -215,7 +223,7 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
     });
   }
 
-  const userContent = await buildUserContent(job, provider);
+  const userContent = voiceTranscript ? voiceNoteForBot(voiceTranscript) : await buildUserContent(job);
   messages.push({ role: "user", content: userContent });
 
   const client = getAIProvider(provider, apiKey);
@@ -325,14 +333,13 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
 // Port de lib/telegram/bot-worker.ts:buildUserContent() — idéntico, sobre
 // las mismas tablas genéricas (ChannelMessage), los bytes de media ya están
 // en disco vía lib/workers/media-worker.ts:processMetaChannelMediaDownload.
-async function buildUserContent(job: MetaChannelBotMessageJob, provider: AIProvider): Promise<string | ContentPart[]> {
+async function buildUserContent(job: MetaChannelBotMessageJob): Promise<string | ContentPart[]> {
   const isImage = job.messageType === "image" || job.messageType === "sticker";
-  const isAudio = job.messageType === "audio" && provider === "google";
   const isDocument = job.messageType === "document";
   const bodyText = job.caption ?? job.incomingMessage ?? "";
   const fallbackLabel = `[${job.messageType === "audio" ? "audio" : job.messageType} recibido]`;
 
-  if (!isImage && !isAudio && !isDocument) {
+  if (!isImage && !isDocument) {
     return bodyText || `[${job.messageType ?? "text"}]`;
   }
 
@@ -367,20 +374,16 @@ async function buildUserContent(job: MetaChannelBotMessageJob, provider: AIProvi
   try {
     const buffer = await fs.readFile(absolute);
     const base64 = buffer.toString("base64");
-    const mime = mimeType ?? (isImage ? "image/jpeg" : "audio/ogg");
+    const mime = mimeType ?? "image/jpeg";
 
     const parts: ContentPart[] = [];
     if (bodyText && bodyText !== `[${job.messageType}]`) {
       parts.push({ type: "text", text: bodyText });
     }
-    parts.push(
-      isImage
-        ? { type: "image_url", image_url: { url: `data:${mime};base64,${base64}` } }
-        : { type: "audio_url", audio_url: { url: `data:${mime};base64,${base64}` } }
-    );
+    parts.push({ type: "image_url", image_url: { url: `data:${mime};base64,${base64}` } });
     return parts;
   } catch (err) {
-    console.error(`[meta-messaging bot-worker] No se pudo leer el ${isImage ? "imagen" : "audio"} local:`, err);
+    console.error(`[meta-messaging bot-worker] No se pudo leer la imagen local:`, err);
     return bodyText || fallbackLabel;
   }
 }

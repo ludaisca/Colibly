@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Orden de las puertas de transcribeMessage(): lo delicado es no gastar un
-// crédito cuando el audio no sirve (tamaño, falta de archivo, sin Gemini) y
-// no volver a llamar a la IA si ya hay transcripción.
+// crédito cuando el audio no sirve (tamaño, falta de archivo, sin proveedor),
+// no volver a llamar a la IA si ya hay transcripción, y probar OpenCode antes
+// que Gemini.
 
 const state = vi.hoisted(() => ({
   row: null as Record<string, unknown> | null,
   size: 1000,
-  provider: "google" as "google" | "opencode",
+  keys: { opencode: "oc-key", google: "g-key" } as Record<string, string | null>,
+  providers: [] as string[],
   credit: true,
   reserve: vi.fn(),
   complete: vi.fn(),
@@ -17,8 +19,8 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    wAMessage: { findUnique: vi.fn(async () => state.row), update: state.update },
-    channelMessage: { findUnique: vi.fn(async () => null), update: state.update },
+    wAMessage: { findUnique: vi.fn(async () => state.row), updateMany: state.update },
+    channelMessage: { findUnique: vi.fn(async () => null), updateMany: state.update },
   },
 }));
 vi.mock("fs", () => ({
@@ -29,8 +31,7 @@ vi.mock("fs", () => ({
 }));
 vi.mock("@/lib/whatsapp/media-store", () => ({ resolveAbsolutePath: (p: string) => `/media/${p}` }));
 vi.mock("@/lib/ai/platform", () => ({
-  resolvePlatformModel: vi.fn(async () => ({ provider: state.provider, model: "gemini-test" })),
-  getPlatformApiKey: vi.fn(async () => "key"),
+  getPlatformApiKey: vi.fn(async (provider: string) => state.keys[provider] ?? null),
 }));
 vi.mock("@/lib/ai/credits", () => ({
   reserveAiCredit: vi.fn(async () => {
@@ -41,7 +42,14 @@ vi.mock("@/lib/ai/credits", () => ({
 }));
 vi.mock("@/lib/billing/gates", () => ({ hasAiAccess: vi.fn(async () => true), isOrgWritable: vi.fn(async () => true) }));
 vi.mock("@/lib/ai/assist-usage", () => ({ recordAssistUsage: state.usage }));
-vi.mock("@/lib/ai/factory", () => ({ getAIProvider: () => ({ complete: state.complete }) }));
+vi.mock("@/lib/ai/factory", () => ({
+  getAIProvider: (provider: string) => ({
+    complete: (params: unknown) => {
+      state.providers.push(provider);
+      return state.complete(provider, params);
+    },
+  }),
+}));
 vi.mock("@/lib/queue", () => ({ inboxQueue: { add: vi.fn() } }));
 
 import { TRANSCRIBE_MAX_BYTES, TranscribeError, transcribeMessage } from "../transcribe";
@@ -71,7 +79,8 @@ describe("transcribeMessage", () => {
   beforeEach(() => {
     state.row = audioRow();
     state.size = 1000;
-    state.provider = "google";
+    state.keys = { opencode: "oc-key", google: "g-key" };
+    state.providers = [];
     state.credit = true;
     state.reserve.mockClear();
     state.complete.mockReset().mockResolvedValue({ content: " hola, quiero precios ", usage: { promptTokens: 10, completionTokens: 5 } });
@@ -79,14 +88,45 @@ describe("transcribeMessage", () => {
     state.usage.mockClear();
   });
 
-  it("transcribe, guarda y registra el uso", async () => {
+  it("transcribe con OpenCode (MiMo, sin razonamiento), guarda y registra el uso", async () => {
     await expect(transcribeMessage("whatsapp", "m1", { userId: "u1" })).resolves.toBe("hola, quiero precios");
+    expect(state.providers).toEqual(["opencode"]);
     expect(state.reserve).toHaveBeenCalledTimes(1);
-    expect(state.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "m1" }, data: expect.objectContaining({ transcript: "hola, quiero precios" }) }));
-    expect(state.usage).toHaveBeenCalledWith(expect.objectContaining({ kind: "TRANSCRIBE", organizationId: "org1", userId: "u1" }));
+    // No pisa una transcripción que haya llegado antes (bot y job a la vez).
+    expect(state.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "m1", transcript: null }, data: expect.objectContaining({ transcript: "hola, quiero precios" }) }));
+    expect(state.usage).toHaveBeenCalledWith(expect.objectContaining({ kind: "TRANSCRIBE", organizationId: "org1", userId: "u1", provider: "opencode", model: "mimo-v2.6-flash" }));
+    const params = state.complete.mock.calls[0][1];
+    expect(params.model).toBe("mimo-v2.6-flash");
+    expect(params.disableThinking).toBe(true);
     // El parámetro codecs del MIME no llega al data URI.
-    const userPart = state.complete.mock.calls[0][0].messages[1].content[0];
-    expect(userPart.audio_url.url.startsWith("data:audio/ogg;base64,")).toBe(true);
+    expect(params.messages[1].content[0].audio_url.url.startsWith("data:audio/ogg;base64,")).toBe(true);
+  });
+
+  it("si OpenCode falla o responde vacío, cae a Gemini con el mismo crédito", async () => {
+    state.complete.mockImplementation(async (provider: string) => {
+      if (provider === "opencode") throw new Error("503");
+      return { content: "desde gemini", usage: { promptTokens: 1, completionTokens: 1 } };
+    });
+    await expect(transcribeMessage("whatsapp", "m1")).resolves.toBe("desde gemini");
+    expect(state.providers).toEqual(["opencode", "google"]);
+    expect(state.reserve).toHaveBeenCalledTimes(1);
+
+    state.providers = [];
+    state.complete.mockImplementation(async (provider: string) => ({ content: provider === "opencode" ? "  " : "otra vez gemini" }));
+    await expect(transcribeMessage("whatsapp", "m1")).resolves.toBe("otra vez gemini");
+    expect(state.providers).toEqual(["opencode", "google"]);
+  });
+
+  it("solo con Gemini configurado, usa Gemini", async () => {
+    state.keys = { opencode: null, google: "g-key" };
+    await transcribeMessage("whatsapp", "m1");
+    expect(state.providers).toEqual(["google"]);
+  });
+
+  it("si ningún proveedor transcribe: error claro y no se guarda nada", async () => {
+    state.complete.mockRejectedValue(new Error("caído"));
+    expect(await codeOf(transcribeMessage("whatsapp", "m1"))).toBe("failed");
+    expect(state.update).not.toHaveBeenCalled();
   });
 
   it("ya transcrito: devuelve el texto sin gastar crédito", async () => {
@@ -102,8 +142,8 @@ describe("transcribeMessage", () => {
     expect(state.reserve).not.toHaveBeenCalled();
   });
 
-  it("sin Gemini no se gasta crédito", async () => {
-    state.provider = "opencode";
+  it("sin ningún proveedor configurado no se gasta crédito", async () => {
+    state.keys = { opencode: null, google: null };
     expect(await codeOf(transcribeMessage("whatsapp", "m1"))).toBe("unavailable");
     expect(state.reserve).not.toHaveBeenCalled();
   });

@@ -12,6 +12,12 @@ export const OPENCODE_MODELS_URL = "https://opencode.ai/inference/go/v1/models";
 // Formato de los ids que acepta /v1/chat/completions en Go.
 export const OPENCODE_MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,80}$/;
 
+// Modelo de OpenCode Go que entiende audio (chat.completions + audio_url con
+// data URI; ogg, mp3, wav). Solo transcribe: los bots responden con el modelo
+// de texto elegido en /plataforma, sobre la transcripción. Se llama con
+// disableThinking: con razonamiento devuelve `content: null`.
+export const OPENCODE_AUDIO_MODEL = "mimo-v2.6-flash";
+
 export interface OpenCodeModelOption {
   id: string;
   label: string;
@@ -59,19 +65,23 @@ export function createOpenCodeClient(apiKey: string) {
   });
 
   async function complete(params: AICompletionParams): Promise<AICompletionResponse> {
-    const res = await client.chat.completions.create(
-      {
-        model: params.model.replace(/^opencode-go\//, ""),
-        messages: params.messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })) as never,
-        temperature: params.temperature ?? 0.7,
-        max_tokens: params.maxTokens ?? 1024,
-      },
-      { headers: { "x-opencode-session": params.sessionId || randomUUID() } },
-    );
+    // `thinking` no está en los tipos del SDK; OpenCode lo pasa al modelo.
+    const body: OpenAI.ChatCompletionCreateParamsNonStreaming & { thinking?: { type: "disabled" } } = {
+      model: params.model.replace(/^opencode-go\//, ""),
+      messages: params.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })) as never,
+      temperature: params.temperature ?? 0.7,
+      max_tokens: params.maxTokens ?? 1024,
+      ...(params.disableThinking ? { thinking: { type: "disabled" as const } } : {}),
+    };
+    const res = await client.chat.completions.create(body, {
+      headers: { "x-opencode-session": params.sessionId || randomUUID() },
+    });
 
+    // Nunca se lee `reasoning_content`: es el razonamiento del modelo, no la
+    // respuesta, y no debe llegar a un cliente ni a una transcripción.
     return {
       content: res.choices[0]?.message?.content ?? "",
       usage: res.usage

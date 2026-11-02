@@ -1,9 +1,10 @@
 export type ContentPart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } }
-  // Gemini-only today (see google.ts toParts) — inlineData is mime-agnostic there,
-  // but OpenCode/OpenAI has no equivalent generic shape, so bot-worker only
-  // builds this part when the bot's provider is "google".
+  // Data URI de una nota de voz. Gemini la manda como inlineData (google.ts
+  // toParts); OpenCode la acepta tal cual en chat.completions con los modelos
+  // MiMo (OPENCODE_AUDIO_MODEL). Solo la arma lib/ai/transcribe.ts: los bots
+  // reciben la transcripción como texto, nunca el audio.
   | { type: "audio_url"; audio_url: { url: string } };
 
 export interface AIMessage {
@@ -19,6 +20,10 @@ export interface AICompletionParams {
   // Identificador estable de la conversación. OpenCode Go lo pide en
   // x-opencode-session para enrutar y reusar el caché del prompt.
   sessionId?: string;
+  // Apaga el razonamiento en los modelos que lo traen encendido (OpenCode:
+  // `thinking: {type: "disabled"}`). Con MiMo y audio, si razona, deja
+  // `content` vacío y gasta los tokens en `reasoning_content`.
+  disableThinking?: boolean;
 }
 
 export interface AICompletionResponse {
