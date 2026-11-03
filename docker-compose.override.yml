@@ -7,7 +7,7 @@ services:
     build:
       target: dev
     ports:
-      - "15100:5000"
+      - "1100:5000"
     volumes:
       - .:/app:z
       - /app/node_modules
@@ -16,7 +16,7 @@ services:
     environment:
       NODE_ENV: development
       # Correo de desarrollo: todo lo que la app envía cae en Mailpit
-      # (http://localhost:18025), nunca en bandejas reales.
+      # (http://localhost:1101), nunca en bandejas reales.
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
       EMAIL_FROM: "Colibly <noreply@colibly.com>"
@@ -26,7 +26,7 @@ services:
   mailpit:
     image: docker.io/axllent/mailpit:v1.27
     ports:
-      - "18025:8025"
+      - "1101:8025"
     restart: unless-stopped
 
 volumes:

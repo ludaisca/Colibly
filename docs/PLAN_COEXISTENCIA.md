@@ -145,7 +145,7 @@ Manuales: con un segundo `Organization` (aislamiento), con la app en modo desarr
 
 ### Stack de desarrollo aislado (montado el 2026-10-03)
 
-`dev/coexistencia/compose.yml`, proyecto `colibly-coex`, puerto **15101** (el stack normal sigue en 15100). Base, Redis, `node_modules` y medios propios; reutiliza la imagen `colibly-app:latest` (sin build, para no gastar el LV de Podman; los volúmenes viven en el RAID). Secretos nuevos en `dev/coexistencia/.env` (ignorado por git; plantilla en `.env.example`).
+`dev/coexistencia/compose.yml`, proyecto `colibly-coex`, puerto **1900** (el stack normal sigue en 1100). Base, Redis, `node_modules` y medios propios; reutiliza la imagen `colibly-app:latest` (sin build, para no gastar el LV de Podman; los volúmenes viven en el RAID). Secretos nuevos en `dev/coexistencia/.env` (ignorado por git; plantilla en `.env.example`).
 
 ```bash
 podman compose -f dev/coexistencia/compose.yml up -d

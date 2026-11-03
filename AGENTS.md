@@ -38,6 +38,7 @@ Plans, audits and launch status: [`docs/README.md`](docs/README.md).
 Commands and host details are in `CLAUDE.md` → "Commands" (Docker on `ludaisca`). Rules:
 - `docker-compose.yml` is production (Coolify); `docker-compose.override.yml` adds dev. **Production env is an explicit passthrough list** (`app.environment`): a new *infrastructure* env var goes there and in `.env.example`; a new *business* setting goes to `PlatformSettings`, never an env var. SMTP, Stripe, AI keys, Turnstile and measurement ids are `PlatformSettings` rows.
 - Never add a fixed `ports:` mapping to `docker-compose.yml` (redeploys fail with "port is already allocated").
+- **Dev ports follow the server convention** (`CLAUDE.md` → "The dev server is on port 1100"; table in `desarrollo.md`): Colibly owns 1000-1999 (app 1100, Mailpit 1101, bench 12xx, previews 19xx) and Tailscale Serve 10000-10999. Publish on `127.0.0.1`, remote access only through `tailscale serve`; never pick a port outside the block.
 - `tailwindcss`/`@tailwindcss/postcss` stay in `dependencies`; `public/.gitkeep` must exist.
 - `node_modules` belongs to the container: install packages with `docker compose exec app npm install <pkg>`.
 

@@ -13,7 +13,7 @@ Detail per module: `docs/arquitectura/` (map in AGENTS.md) — read the matching
 Everything runs in containers — never install dependencies or run Node/Postgres/Redis on the host. **The dev server (`ludaisca`, Ubuntu 26.04) runs Docker** — rootful Docker Engine 29 + Compose v5, AppArmor, no SELinux, no Podman installed and no Coolify on this host (production lives elsewhere). The same Docker daemon also runs other projects (Factzi, Tesela, the `colibly-bench-*` stack), so only touch the `colibly` compose project. The `:z` on the compose bind mounts is a leftover from the previous Podman/SELinux host; it's harmless under Docker, keep it on new mounts so the files keep working on SELinux hosts.
 
 ```bash
-docker compose up --build                       # dev stack (app + postgres + redis + mailpit), hot reload on :15100
+docker compose up --build                       # dev stack (app + postgres + redis + mailpit), hot reload on :1100
 docker compose exec app npx tsc --noEmit        # type check (whole project only)
 docker compose exec app npm run lint            # eslint (flat config, eslint-config-next)
 docker compose exec app npx eslint <path>       # lint one file or folder
@@ -27,11 +27,13 @@ docker compose exec db psql -U postgres -d colibly_db          # SQL shell (tabl
 
 CI (`.github/workflows/ci.yml`) runs the same `tsc` + lint + tests plus the `builder` stage build on every PR and push to `main`. Tests exist only for pure logic with delicate rules (billing state machine, automations engine, contrast, SSRF guard, email templates); everything else is verified with `tsc --noEmit` + `npm run lint` + a production build, plus a real click-through for UI changes. `tsc` has no single-file mode that respects the path aliases, so it always runs whole-project.
 
-Outgoing email in dev (verification, password reset, invitations) never leaves the machine: the override points SMTP at Mailpit, inbox at `http://localhost:18025` (API `/api/v1/messages`).
+Outgoing email in dev (verification, password reset, invitations) never leaves the machine: the override points SMTP at Mailpit, inbox at `http://localhost:1101` (API `/api/v1/messages`).
 
-### The dev server is on port 15100 — open it as `localhost` or `ludaisca`
+### The dev server is on port 1100 — open it as `localhost` or through Tailscale Serve
 
-`docker-compose.override.yml` maps `15100:5000`. Use `http://localhost:15100` or, from another machine over Tailscale, `http://ludaisca:15100` — **not** `127.0.0.1` or any other name: Next's dev server blocks `/_next/*` for origins outside `allowedDevOrigins` (`next.config.ts`), so the page loads but never hydrates — forms submit as plain GETs (`/login?`) and nothing interactive works, with only a "Blocked cross-origin request" line in the server log. A new hostname goes into that list (same names as WAB/Factzi). `curl` against API routes works on any host.
+`docker-compose.override.yml` maps `1100:5000` and Docker publishes on `127.0.0.1` only (`docker-compose.data.yml`), so `ludaisca:1100` never answers. Use `http://localhost:1100`, or from another machine over Tailscale the HTTPS URL `https://ludaisca.taila2291d.ts.net:10100` (`tailscale serve` → `127.0.0.1:1100`). Next's dev server blocks `/_next/*` for origins outside `allowedDevOrigins` (`next.config.ts`), so with any other name the page loads but never hydrates — forms submit as plain GETs (`/login?`) and nothing interactive works, with only a "Blocked cross-origin request" line in the server log. A new hostname goes into that list (same names as WAB/Factzi). `curl` against API routes works on any host.
+
+**Port convention for the whole server** (details in `docs/arquitectura/desarrollo.md` → "Puertos"): one block per project — Colibly 1000-1999 (serve 10000-10999), Factzi 2000-2999 (20000-20999), Tesela 3000-3999 (30000-30999). Serve port = local port with a `0` in front. Inside a block: `x100` app, `x101-x199` auxiliaries (Mailpit = 1101), `x200-x299` benchmarks, `x900-x999` temporary previews. Publish on `127.0.0.1` only, never use Funnel ports (443/8443/10000), never bring a port from outside the block.
 
 ### Production build check
 

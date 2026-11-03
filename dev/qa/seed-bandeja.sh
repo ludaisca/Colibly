@@ -9,11 +9,11 @@
 #   dev/qa/seed-bandeja.sh down               # borra la organización por la API
 #
 # Estado (ids, cookies, tokens) en dev/qa/.state/ (ignorado por git).
-# Requiere el stack de dev arriba (localhost:15100) y Mailpit (localhost:18025).
+# Requiere el stack de dev arriba (localhost:1100) y Mailpit (localhost:1101).
 set -euo pipefail
 
-BASE="${QA_BASE:-http://localhost:15100}"
-MAILPIT="${QA_MAILPIT:-http://localhost:18025}"
+BASE="${QA_BASE:-http://localhost:1100}"
+MAILPIT="${QA_MAILPIT:-http://localhost:1101}"
 DIR="$(cd "$(dirname "$0")" && pwd)/.state"
 mkdir -p "$DIR"
 STATE="$DIR/env"

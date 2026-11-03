@@ -1,6 +1,6 @@
 # Stack aislado para la coexistencia de WhatsApp
 
-Compose propio (`colibly-coex`, puerto **15101**) para trabajo que necesite
+Compose propio (`colibly-coex`, puerto **1900**) para trabajo que necesite
 migraciones o pruebas de punta a punta sin tocar la base de DEV normal. Nació para
 la coexistencia de WhatsApp (ya mezclada en `main`; no hay rama dedicada). Trae un
 S3 local (`s3`, versitygw) para probar los respaldos. Reutiliza la

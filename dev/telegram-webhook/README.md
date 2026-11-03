@@ -1,6 +1,6 @@
 # Interfaz y webhooks públicos de DEV mediante Cloudflare Tunnel
 
-Esta configuración publica la **interfaz completa de DEV** y los webhooks de Telegram/WhatsApp mediante un túnel HTTPS temporal. La UI también sigue en `http://ludaisca:15100`; la instancia de Coolify en `app.colibly.com` usa otra base de datos. Telegram acepta webhooks por HTTPS en los puertos 443, 80, 88 y 8443, pero no en 15100.
+Esta configuración publica la **interfaz completa de DEV** y los webhooks de Telegram/WhatsApp mediante un túnel HTTPS temporal. La UI también sigue en `https://ludaisca.taila2291d.ts.net:10100`; la instancia de Coolify en `app.colibly.com` usa otra base de datos. Telegram acepta webhooks por HTTPS en los puertos 443, 80, 88 y 8443, pero no en 15100.
 
 La interfaz está protegida por HTTP Basic Auth en Nginx, además del login normal de Colibly. El archivo local `dev/telegram-webhook/.htpasswd` contiene solo el hash, no se versiona y debe poder leerlo el trabajador de Nginx (`chmod 644`). Las rutas de webhook de Telegram, WhatsApp, Messenger/Instagram y Lead Ads conservan su autenticación propia y no piden Basic Auth, para que Meta y Telegram puedan entregarlas. No abrir la URL en una ventana pública compartida: la contraseña externa es común a los probadores.
 
@@ -22,7 +22,7 @@ podman compose -f compose.yml logs tunnel
 
 El navegador pedirá primero el usuario `colibly-dev` y esa contraseña; después mostrará el login de Colibly. Las cuentas de distintos probadores se crean y administran dentro de Colibly, no en el túnel. Se pueden conectar varias cuentas de canal si el plan y las habilitaciones de la organización lo permiten. Cada bot de Telegram solo admite un webhook activo y una cuenta de WhatsApp debe tener su Phone Number ID propio; el túnel puede recibirlos todos en el mismo origen.
 
-El log muestra una URL `https://...trycloudflare.com`. Guardarla **solo en el `.env` local** como `APP_URL`, `TELEGRAM_WEBHOOK_BASE_URL` y `WHATSAPP_WEBHOOK_BASE_URL`, sin barra final. `APP_URL` hace que los enlaces de verificación, invitación y otros correos de DEV apunten al túnel en vez de `localhost`; `NEXT_PUBLIC_APP_URL` puede seguir en `http://localhost:15100` porque estos enlaces se generan en el servidor. Desde la raíz del repositorio, recrear el contenedor DEV para que lea las variables nuevas:
+El log muestra una URL `https://...trycloudflare.com`. Guardarla **solo en el `.env` local** como `APP_URL`, `TELEGRAM_WEBHOOK_BASE_URL` y `WHATSAPP_WEBHOOK_BASE_URL`, sin barra final. `APP_URL` hace que los enlaces de verificación, invitación y otros correos de DEV apunten al túnel en vez de `localhost`; `NEXT_PUBLIC_APP_URL` puede seguir en `http://localhost:1100` porque estos enlaces se generan en el servidor. Desde la raíz del repositorio, recrear el contenedor DEV para que lea las variables nuevas:
 
 ```sh
 podman compose up -d --no-deps --force-recreate app
@@ -41,7 +41,7 @@ Conectar el bot desde `/telegram/cuentas` en la interfaz de DEV. El token se int
 
 ## WhatsApp Cloud API
 
-La cuenta WhatsApp que ya envía mensajes manuales existe en **Coolify**, no en la base local de DEV. Para probarla contra el contenedor de DEV, crear una cuenta equivalente desde `http://ludaisca:15100/whatsapp/cuentas` dentro de la organización Colibly. Se pueden usar el mismo Phone Number ID y las credenciales válidas, pero hay que introducirlas de nuevo porque las bases y claves de cifrado son distintas. El panel de DEV mostrará la URL pública del túnel y un `verify token` nuevo; copiarlo antes de cerrar el modal, ya que solo se muestra una vez.
+La cuenta WhatsApp que ya envía mensajes manuales existe en **Coolify**, no en la base local de DEV. Para probarla contra el contenedor de DEV, crear una cuenta equivalente desde `https://ludaisca.taila2291d.ts.net:10100/whatsapp/cuentas` dentro de la organización Colibly. Se pueden usar el mismo Phone Number ID y las credenciales válidas, pero hay que introducirlas de nuevo porque las bases y claves de cifrado son distintas. El panel de DEV mostrará la URL pública del túnel y un `verify token` nuevo; copiarlo antes de cerrar el modal, ya que solo se muestra una vez.
 
 En la app de Meta que se usará para esta prueba, configurar la URL de callback `https://<subdominio-actual>.trycloudflare.com/api/whatsapp/webhook` y ese `verify token`. Meta lo envía en un GET de verificación; Colibly compara solo su hash. Suscribir el campo `messages` y confirmar que el WABA está suscrito a esa app de Meta. El POST real se valida con `X-Hub-Signature-256` y el App Secret guardado en la cuenta.
 

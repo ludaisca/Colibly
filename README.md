@@ -25,7 +25,7 @@ Todo corre en contenedores: no se instalan dependencias ni bases de datos en el 
 
 ```bash
 cp .env.example .env                      # completa las variables (comentadas en el archivo)
-podman compose up --build                 # app + postgres + redis + mailpit, hot reload en http://localhost:15100
+podman compose up --build                 # app + postgres + redis + mailpit, hot reload en http://localhost:1100
 ```
 
 Comandos habituales:
@@ -39,7 +39,7 @@ podman compose restart app                                      # tras una migra
 ```
 
 - **Nunca `prisma db push` ni `prisma migrate dev`**: el primero puede borrar columnas con datos y el segundo ofrece reiniciar la base. Los cambios de esquema van siempre con `scripts/new-migration.sh`.
-- Los correos de desarrollo (verificación, invitaciones, recuperar contraseña) no salen de la máquina: llegan a Mailpit, en http://localhost:18025.
+- Los correos de desarrollo (verificación, invitaciones, recuperar contraseña) no salen de la máquina: llegan a Mailpit, en http://localhost:1101.
 - Abre la app como `localhost` o `ludaisca` (por Tailscale), no como `127.0.0.1`: el servidor de desarrollo de Next bloquea otros orígenes y la página no se hidrata.
 - Build de producción: `podman build --target builder -t localhost/colibly-buildcheck:tmp . && podman rmi localhost/colibly-buildcheck:tmp && podman image prune -f` (`npm run build` dentro del contenedor de desarrollo falla por `NODE_ENV=development`).
 

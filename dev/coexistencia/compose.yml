@@ -1,10 +1,10 @@
-# Stack de DESARROLLO aislado (proyecto colibly-coex, puerto 15101) para trabajo que
+# Stack de DESARROLLO aislado (proyecto colibly-coex, puerto 1900) para trabajo que
 # necesite migraciones o pruebas de punta a punta sin tocar la base de DEV normal.
 # Nació para la coexistencia de WhatsApp (ya mezclada en main). Incluye un S3 local
 # para probar los respaldos.
 #
-# Corre al lado del stack normal (proyecto "colibly", puerto 15100) sin tocarlo:
-# su propia base, Redis, node_modules y medios, y otro puerto (15101). Así las
+# Corre al lado del stack normal (proyecto "colibly", puerto 1100) sin tocarlo:
+# su propia base, Redis, node_modules y medios, y otro puerto (1900). Así las
 # migraciones de esta rama no desalinean la base de DEV de las demás ramas.
 #
 # No construye imagen: reutiliza docker.io/library/colibly-app:latest (la del
@@ -64,7 +64,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "15101:5000"
+      - "1900:5000"
     working_dir: /app
     volumes:
       - ../..:/app:z
