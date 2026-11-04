@@ -1,4 +1,5 @@
 import { httpTimeout } from "@/lib/http-timeouts";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 // Cliente de la Conversions API para el feedback loop de calificación de
 // leads. El schema exacto del payload no está 100% confirmado por
@@ -8,7 +9,7 @@ import { httpTimeout } from "@/lib/http-timeouts";
 // enviado y la respuesta completa de Meta (incluyendo error_user_msg y
 // fbtrace_id) — permite ajustar el payload sin instrumentar nada más
 // durante esa validación manual.
-const GRAPH_API = "https://graph.facebook.com/v21.0";
+const GRAPH_API = GRAPH_API_BASE;
 
 export interface ConversionEventPayload {
   event_name: string;

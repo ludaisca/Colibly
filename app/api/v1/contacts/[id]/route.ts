@@ -24,7 +24,7 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
 
   const parsed = apiContactUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
-  const { customFields, ...fields } = parsed.data;
+  const { customFields, expectedCloseAt, ...fields } = parsed.data;
 
   if (customFields) {
     const { unknownKeys } = await setCustomFieldsByKey(contact, customFields);
@@ -33,8 +33,12 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
     }
   }
 
-  if (Object.keys(fields).length > 0) {
-    await prisma.contact.update({ where: { id }, data: { ...fields, ...("name" in fields && fields.name !== undefined ? { nameSource: "user" } : {}) } });
+  const closeAt = expectedCloseAt === undefined ? {} : { expectedCloseAt: expectedCloseAt === null ? null : new Date(expectedCloseAt) };
+  if (Object.keys(fields).length > 0 || expectedCloseAt !== undefined) {
+    await prisma.contact.update({
+      where: { id },
+      data: { ...fields, ...closeAt, ...("name" in fields && fields.name !== undefined ? { nameSource: "user" } : {}) },
+    });
   }
   if (fields.leadStatus) {
     await afterLeadStatusChanged(contact, contact.leadStatus, fields.leadStatus);

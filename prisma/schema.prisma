@@ -170,14 +170,23 @@ model WAAccount {
   // Encuesta de satisfacción al resolver un chat (solo si la ventana de 24 h
   // sigue abierta). Apagada por defecto: es un mensaje al cliente final.
   csatEnabled       Boolean         @default(false) @map("csat_enabled")
-  // Reportados por el webhook `phone_number_quality_update` de Meta — no se
-  // consultan por API, solo llegan de forma reactiva (push). qualityRating es
-  // el valor crudo que manda Meta (p. ej. "GREEN"/"YELLOW"/"RED" o el nombre
-  // del evento "FLAGGED"/"UNFLAGGED"); messagingTier es el límite de envío por
-  // 24h vigente (p. ej. "TIER_1K"). Ambos null hasta el primer evento recibido.
+  // Salud del número según Graph (lib/whatsapp/phone-health.ts): se lee de
+  // la API al abrir la ficha (caché de 10 min) y tras cada webhook
+  // `phone_number_quality_update`. qualityRating = quality_rating
+  // (GREEN/YELLOW/RED/UNKNOWN); messagingTier = messaging_limit_tier
+  // (TIER_250…); nameStatus = name_status; canSendMessage =
+  // health_status.can_send_message (AVAILABLE/LIMITED/BLOCKED); healthNotices =
+  // avisos de health_status ya en español (string[]). qualityEvent = el último
+  // `event` del webhook (FLAGGED, UNFLAGGED, UPGRADE, DOWNGRADE…), que antes se
+  // guardaba por error en qualityRating.
   qualityRating     String?
   messagingTier     String?
   qualityUpdatedAt  DateTime?
+  qualityEvent      String?         @map("quality_event")
+  nameStatus        String?         @map("name_status")
+  canSendMessage    String?         @map("can_send_message")
+  healthNotices     Json?           @map("health_notices")
+  healthCheckedAt   DateTime?       @map("health_checked_at")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 

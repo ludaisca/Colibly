@@ -7,6 +7,7 @@ import { validateMetaWebhookSignature } from "@/lib/meta/webhook-signature";
 import { normalizePhone } from "@/lib/phone";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { emitDomainEvent } from "@/lib/events/emit";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 // Webhook de Meta para el campo `leadgen` (Instant Forms) de una Página de
 // Facebook/Instagram. A diferencia del webhook de mensajes de WhatsApp, la
@@ -14,7 +15,7 @@ import { emitDomainEvent } from "@/lib/events/emit";
 // hay que ir a buscar por separado (fetchLeadFieldData). Mismo esqueleto de
 // verificación/firma que app/api/whatsapp/webhook/route.ts, resolviendo la
 // cuenta por `pageId` en vez de `phone_number_id`.
-const GRAPH_API = "https://graph.facebook.com/v21.0";
+const GRAPH_API = GRAPH_API_BASE;
 
 interface LeadgenValue {
   ad_id?: string;

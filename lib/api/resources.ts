@@ -23,6 +23,8 @@ export const API_CONTACT_SELECT = {
   leadOrigin: true,
   adId: true,
   ctwaClid: true,
+  dealValueCents: true,
+  expectedCloseAt: true,
   optedOutMarketing: true,
   createdAt: true,
   updatedAt: true,
@@ -59,6 +61,10 @@ export function serializeContact(c: ApiContactRow) {
     // Form; ctwaClid solo CTWA (el que se reporta a la Conversions API).
     adId: c.adId,
     ctwaClid: c.ctwaClid,
+    // Valor del trato (centavos, siempre MXN) y fecha estimada de cierre.
+    dealValueCents: c.dealValueCents,
+    dealCurrency: "MXN" as const,
+    expectedCloseAt: c.expectedCloseAt,
     optedOutMarketing: c.optedOutMarketing,
     tags: c.tags.map((t) => t.tag),
     customFields: Object.fromEntries(c.customFieldValues.map((v) => [v.definition.key, v.value])),

@@ -3,6 +3,7 @@ import { decrypt } from "@/lib/crypto";
 import type { WAAccount } from "@prisma/client";
 import { httpTimeout } from "@/lib/http-timeouts";
 import { assertOrgCanSend } from "@/lib/billing/gates";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 export interface SendTemplateParams {
   to: string;
@@ -76,7 +77,7 @@ export async function sendTemplateMessage(
     (body.template as Record<string, unknown>).components = templateComponents;
   }
 
-  const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
+  const url = `${GRAPH_API_BASE}/${phoneNumberId}/messages`;
   const requestInit: RequestInit = {
     method: "POST",
     headers: {

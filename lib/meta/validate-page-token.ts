@@ -1,10 +1,11 @@
 import { httpTimeout } from "@/lib/http-timeouts";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 // Mismo espíritu que lib/whatsapp.ts:validateToken() — una llamada liviana a
 // la Graph API al crear/actualizar la cuenta, para atrapar un pageId o token
 // mal copiado de inmediato en vez de descubrirlo cuando llegue el primer
 // leadgen real.
-const GRAPH_API = "https://graph.facebook.com/v21.0";
+const GRAPH_API = GRAPH_API_BASE;
 
 interface PageInfo {
   id: string;

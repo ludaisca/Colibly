@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { emitMessageUpdated } from "@/lib/events/message-sent";
 import { saveMediaFromMeta, saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
 import { decrypt } from "@/lib/crypto";
 import { getFileUrl } from "@/lib/telegram";
@@ -53,6 +54,7 @@ export async function processMediaDownloadJob(job: MediaDownloadJob) {
       mimeType: stored.remoteMimeType,
     },
   });
+  await emitMessageUpdated("whatsapp", job.messageId, "media_ready");
   if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("whatsapp", message.id);
 }
 
@@ -83,6 +85,7 @@ async function processTelegramMediaDownload(job: MediaDownloadJob) {
     where: { id: job.messageId },
     data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize, mediaSha256: stored.sha256 ?? null },
   });
+  await emitMessageUpdated("channel", job.messageId, "media_ready");
   if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("channel", message.id);
 }
 
@@ -122,5 +125,6 @@ async function processMetaChannelMediaDownload(job: MediaDownloadJob) {
     where: { id: job.messageId },
     data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize, mediaSha256: stored.sha256 ?? null, mimeType },
   });
+  await emitMessageUpdated("channel", job.messageId, "media_ready");
   if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("channel", message.id);
 }

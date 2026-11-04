@@ -17,6 +17,7 @@ import { DetailPage, DetailRow } from "@/app/components/ui/detail-page";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { ConexionCard } from "./_conexion";
 import { useToast } from "@/app/components/ui/toast";
+import { canSendLabel, messagingLimitLabel, nameStatusLabel, qualityLabel } from "@/lib/platform/whatsapp-health-rules";
 
 interface AccountDetail {
   id: string;
@@ -35,6 +36,11 @@ interface AccountDetail {
   qualityRating: string | null;
   messagingTier: string | null;
   qualityUpdatedAt: string | null;
+  qualityEvent: string | null;
+  nameStatus: string | null;
+  canSendMessage: string | null;
+  healthNotices: string[] | null;
+  healthCheckedAt: string | null;
   hasAppSecret: boolean;
   usesPlatformApp: boolean;
   coexistence: boolean;
@@ -63,6 +69,13 @@ const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" 
 // Tono por valor crudo de Meta — cubre tanto ratings tipo "GREEN"/"YELLOW"/"RED"
 // como nombres de evento tipo "FLAGGED"/"UNFLAGGED", según lo que reporte el
 // webhook phone_number_quality_update.
+function canSendTone(value: string): "success" | "warning" | "danger" | "neutral" {
+  if (value === "AVAILABLE") return "success";
+  if (value === "LIMITED") return "warning";
+  if (value === "BLOCKED") return "danger";
+  return "neutral";
+}
+
 function qualityTone(rating: string): "success" | "warning" | "danger" | "neutral" {
   const r = rating.toUpperCase();
   if (r.includes("RED") || (r.includes("FLAG") && !r.includes("UNFLAG"))) return "danger";
@@ -539,14 +552,43 @@ export default function CuentaDetailPage() {
                 </dd>
               )}
             </div>
-            {account.qualityRating && (
+            {/* Salud según Graph (lib/whatsapp/phone-health.ts, caché de 10 min). */}
+            {account.canSendMessage && (
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <dt className="text-sm text-muted-darker">Envío de mensajes</dt>
+                <dd>
+                  <Badge tone={canSendTone(account.canSendMessage)} size="sm">{canSendLabel(account.canSendMessage)}</Badge>
+                </dd>
+              </div>
+            )}
+            {(account.qualityRating || account.messagingTier) && (
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <dt className="text-sm text-muted-darker">Calidad del número</dt>
                 <dd className="flex items-center gap-2">
-                  <Badge tone={qualityTone(account.qualityRating)} size="sm">{account.qualityRating}</Badge>
-                  {account.messagingTier && (
-                    <span className="text-xs text-muted-darker">{account.messagingTier}</span>
+                  {account.qualityRating && (
+                    <Badge tone={qualityTone(account.qualityRating)} size="sm">{qualityLabel(account.qualityRating)}</Badge>
                   )}
+                  {account.messagingTier && (
+                    <span className="text-xs text-muted-darker">{messagingLimitLabel(account.messagingTier)}</span>
+                  )}
+                </dd>
+              </div>
+            )}
+            {account.nameStatus && (
+              <DetailRow label="Nombre para mostrar" value={nameStatusLabel(account.nameStatus)} />
+            )}
+            {account.qualityEvent && (
+              <DetailRow label="Último aviso de calidad de Meta" value={account.qualityEvent} />
+            )}
+            {account.healthNotices && account.healthNotices.length > 0 && (
+              <div className="border-b border-border pb-3">
+                <dt className="mb-1 text-sm text-muted-darker">Avisos de Meta</dt>
+                <dd>
+                  <ul className="space-y-1 text-sm text-foreground">
+                    {account.healthNotices.map((n) => (
+                      <li key={n}>{n}</li>
+                    ))}
+                  </ul>
                 </dd>
               </div>
             )}

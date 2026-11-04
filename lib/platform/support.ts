@@ -8,6 +8,7 @@ import { httpTimeout } from "@/lib/http-timeouts";
 import { logPlatformAction } from "./audit";
 import type { OpsResult, PlatformActor } from "./ops";
 import { noticesFrom, whatsappVerdict, type MetaHealthEntity, type WhatsAppVerdict } from "./whatsapp-health-rules";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 // Soporte del operador: buscar a un usuario, sacarlo de un bloqueo de 2FA y
 // ver la salud de los números de WhatsApp contra Meta. Compartido por la API
@@ -155,7 +156,7 @@ export interface WhatsAppAccountHealth {
 }
 
 async function fetchMetaPhone(phoneNumberId: string, token: string): Promise<MetaPhoneInfo> {
-  const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}?fields=${META_FIELDS}`, {
+  const res = await fetch(`${GRAPH_API_BASE}/${phoneNumberId}?fields=${META_FIELDS}`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: httpTimeout(META_TIMEOUT_MS),
   });

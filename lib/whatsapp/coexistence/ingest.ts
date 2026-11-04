@@ -7,7 +7,7 @@ import { addressBookNameFor, forgetAddressBookEntry, shouldApplyAddressBookName 
 import { contactsRemaining, notifyContactLimitOnce } from "@/lib/billing/contact-budget";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
 import { BACKGROUND_EVENT_PRIORITY, emitDomainEvent } from "@/lib/events/emit";
-import { emitMessageSent } from "@/lib/events/message-sent";
+import { emitMessageSent, emitMessageUpdated } from "@/lib/events/message-sent";
 import { jidCandidates, mapHistoryStatus, type NormalizedBusinessMessage, type NormalizedStateSyncContact } from "./normalize";
 
 // Ingesta de lo que viene de la app WhatsApp Business del cliente (coexistencia).
@@ -167,6 +167,7 @@ export async function ingestBusinessAppMessages(
             data: { messageType: msg.type, body: msg.body, caption: msg.caption, mediaId: msg.mediaId, mimeType: msg.mimeType, filename: msg.filename },
           });
           if (msg.mediaId) await enqueueMediaDownload(prev.id, accountId, msg.mediaId);
+          await emitMessageUpdated("whatsapp", prev.id, "history_media");
           result.updated++;
         } else {
           result.skipped++;

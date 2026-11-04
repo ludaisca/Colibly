@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { httpTimeout } from "@/lib/http-timeouts";
 import { getPlatformSettings } from "@/lib/platform-settings";
+import { GRAPH_API_VERSION } from "@/lib/meta/graph";
 
 // Conversions API de Meta para el registro de NUESTROS clientes (medición de
 // anuncios de Colibly). No confundir con lib/meta/conversions.ts, que manda
@@ -8,7 +9,7 @@ import { getPlatformSettings } from "@/lib/platform-settings";
 // Se envía solo si el visitante aceptó cookies (el navegador manda el eventId
 // únicamente en ese caso) y si existen META_PIXEL_ID y META_CAPI_ACCESS_TOKEN.
 
-const GRAPH_VERSION = "v21.0";
+const GRAPH_VERSION = GRAPH_API_VERSION;
 
 function sha256(value: string): string {
   return createHash("sha256").update(value.trim().toLowerCase()).digest("hex");

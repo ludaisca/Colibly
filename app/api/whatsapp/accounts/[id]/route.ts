@@ -10,6 +10,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { accountManageWhere } from "@/lib/tenancy";
 import { getUserAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
 import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
+import { refreshPhoneHealth } from "@/lib/whatsapp/phone-health";
 
 export async function GET(
   req: Request,
@@ -48,6 +49,11 @@ export async function GET(
         qualityRating: true,
         messagingTier: true,
         qualityUpdatedAt: true,
+        qualityEvent: true,
+        nameStatus: true,
+        canSendMessage: true,
+        healthNotices: true,
+        healthCheckedAt: true,
         appSecret: true,
         connectionType: true,
         coexistence: true,
@@ -71,6 +77,16 @@ export async function GET(
         { error: "Cuenta no encontrada" },
         { status: 404 }
       );
+    }
+
+    // Salud del número desde Graph (caché de 10 min): si se refrescó, se
+    // devuelve lo recién leído.
+    if (await refreshPhoneHealth(account.id)) {
+      const health = await prisma.wAAccount.findUnique({
+        where: { id: account.id },
+        select: { qualityRating: true, messagingTier: true, qualityUpdatedAt: true, nameStatus: true, canSendMessage: true, healthNotices: true, healthCheckedAt: true },
+      });
+      if (health) Object.assign(account, health);
     }
 
     // Nunca se devuelve el secreto (ni cifrado) — solo si está configurado,

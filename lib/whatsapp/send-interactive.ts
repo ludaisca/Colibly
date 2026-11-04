@@ -3,6 +3,7 @@ import type { WAAccount } from "@prisma/client";
 import { httpTimeout } from "@/lib/http-timeouts";
 import { assertOrgCanSend } from "@/lib/billing/gates";
 import { MetaSendError } from "@/lib/whatsapp/send-errors";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 export interface InteractiveButton {
   id: string; // generado por el caller (btn_1, btn_2...), nunca confiado del cliente
@@ -73,7 +74,7 @@ async function postInteractive(account: WAAccount, to: string, interactive: Reco
     ...(replyToWamid ? { context: { message_id: replyToWamid } } : {}),
   };
 
-  const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
+  const url = `${GRAPH_API_BASE}/${phoneNumberId}/messages`;
   const requestInit: RequestInit = {
     method: "POST",
     headers: {

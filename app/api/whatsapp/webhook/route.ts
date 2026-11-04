@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { refreshPhoneHealth } from "@/lib/whatsapp/phone-health";
 import { metaSendErrorMessage } from "@/lib/whatsapp/send-errors";
 import { applyReactionStatus } from "@/lib/whatsapp/reactions";
 import { createHash } from "crypto";
@@ -338,13 +339,17 @@ async function applyPhoneNumberQualityUpdate(wabaId: string | undefined, value: 
   const account = await resolveAccountByWabaAndPhone(wabaId, value.display_phone_number);
   if (!account) return;
 
+  // `event` es el SUCESO (FLAGGED, UNFLAGGED, UPGRADE, DOWNGRADE…), no la
+  // calificación: se guarda aparte y la calidad real se vuelve a leer de Graph
+  // después de responder a Meta.
   const rating = value.event ?? null;
   const tier = value.current_limit ?? null;
 
   await prisma.wAAccount.update({
     where: { id: account.id },
-    data: { qualityRating: rating, messagingTier: tier, qualityUpdatedAt: new Date() },
+    data: { qualityEvent: rating, ...(tier ? { messagingTier: tier } : {}), qualityUpdatedAt: new Date() },
   });
+  after(() => refreshPhoneHealth(account.id, { force: true }));
 
   // Solo se notifica en señales negativas — un UPGRADE/GREEN no amerita alertar
   // al admin, solo se refleja en el badge de la cuenta.

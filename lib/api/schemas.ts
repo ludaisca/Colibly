@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
 
 // Validación de entrada de la API pública (/api/v1). Mensajes en español,
 // igual que lib/validations.ts; los `code` de error viven en respond.ts.
@@ -23,6 +24,21 @@ export const apiContactUpdateSchema = z
     realName: z.string().trim().min(1).max(200).nullable().optional(),
     leadStatus: leadStatus.optional(),
     customFields: z.record(z.string(), z.string().max(2000).nullable()).optional(),
+    // Valor del trato en centavos de MXN (mismo tope que la UI). null lo borra.
+    dealValueCents: z
+      .number()
+      .int("dealValueCents debe ser un entero (centavos)")
+      .min(0, "dealValueCents no puede ser negativo")
+      .max(DEAL_VALUE_MAX_PESOS * 100, `dealValueCents máximo ${DEAL_VALUE_MAX_PESOS * 100}`)
+      .nullable()
+      .optional(),
+    // Fecha estimada de cierre (ISO 8601). null la borra.
+    expectedCloseAt: z
+      .string()
+      .max(40)
+      .refine((v) => !Number.isNaN(new Date(v).getTime()), "expectedCloseAt debe ser una fecha ISO 8601")
+      .nullable()
+      .optional(),
   })
   .refine((d) => Object.keys(d).length > 0, "Nada que actualizar");
 

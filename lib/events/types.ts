@@ -38,6 +38,10 @@ interface EventDataMap {
     // Modelo por mensaje de Meta: si se cobra y en qué categoría.
     pricing: { billable: boolean | null; model: string | null; category: string | null; type: string | null } | null;
   };
+  // El mensaje cambió después de guardarse: su medio quedó listo para bajar
+  // (media_ready) o un media_placeholder del historial recibió su contenido
+  // (history_media). El mensaje fresco viaja en `message` del sobre.
+  "message.updated": { messageId: string; reason: "media_ready" | "history_media" };
   // history = importación del historial de la app WhatsApp Business
   // (coexistencia); echo = el negocio escribió primero desde esa app.
   "contact.created": { origin: LeadOrigin; source: "inbound" | "api" | "lead_ads" | "history" | "echo" | "import" };
@@ -72,6 +76,7 @@ export const DOMAIN_EVENT_CATALOG: Record<DomainEventType, string> = {
   "message.received": "Mensaje recibido de un contacto",
   "message.sent": "Mensaje enviado: bandeja, API, automatización, bot, campaña, secuencia, aviso automático o la app WhatsApp Business",
   "message.status_changed": "Estado de un mensaje enviado (entregado, leído o fallido). Solo WhatsApp",
+  "message.updated": "Un mensaje ya guardado cambió: su medio quedó listo o llegó el contenido de un media_placeholder",
   "contact.created": "Contacto nuevo",
   "contact.lead_status_changed": "Cambio de etapa del lead",
   "tag.added": "Etiqueta agregada a un contacto o conversación",

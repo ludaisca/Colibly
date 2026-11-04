@@ -1,7 +1,8 @@
 import type { TemplateCreateInput } from "@/lib/validations";
 import { httpTimeout } from "@/lib/http-timeouts";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
-const GRAPH_API = "https://graph.facebook.com/v21.0";
+const GRAPH_API = GRAPH_API_BASE;
 
 interface MetaTemplateComponent {
   type: string;

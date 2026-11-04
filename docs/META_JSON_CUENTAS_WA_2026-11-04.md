@@ -91,6 +91,8 @@ Meta rechaza `primary_funding_id`: solo lo puede leer un Business Solution Provi
 
 ## 5. Hallazgos
 
+> **Estado (2026-11-04):** el 1 se resolvió con Funnel (ver `GUIA-SERVIDOR.md`); el 2 y el 3, con `lib/whatsapp/phone-health.ts` (la calidad y `health_status` se leen de Graph y se muestran en la ficha de la cuenta; el `event` del webhook va a `qualityEvent`); el 4, con todo el código en `GRAPH_API_VERSION` (v25.0), probado con lecturas reales (número, `name_status`, plantillas). Los envíos en v25 no se probaron todavía con un mensaje real.
+
 1. **El webhook de la cuenta de dev apunta a un destino que Meta no puede alcanzar.**
    - Está configurado a `https://ludaisca.taila2291d.ts.net/api/whatsapp/webhook` (puerto 443).
    - Desde el reordenamiento de puertos (Colibly pasó a 10100), `tailscale serve` no publica nada en 443. Además, "tailnet only" no es accesible desde internet, que es desde donde llama Meta.

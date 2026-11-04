@@ -5,6 +5,7 @@ import { decrypt } from "@/lib/crypto";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 async function syncTemplatesFromMeta(wabaId: string, accessToken: string) {
   type MetaTemplatesPage = {
@@ -22,7 +23,7 @@ async function syncTemplatesFromMeta(wabaId: string, accessToken: string) {
   const seenCursors = new Set<string>();
   let cursor: string | undefined;
   for (let page = 0; page < 100; page++) {
-    const url = new URL(`https://graph.facebook.com/v21.0/${encodeURIComponent(wabaId)}/message_templates`);
+    const url = new URL(`${GRAPH_API_BASE}/${encodeURIComponent(wabaId)}/message_templates`);
     url.searchParams.set("limit", "100");
     if (cursor) url.searchParams.set("after", cursor);
     const res = await fetch(url, {

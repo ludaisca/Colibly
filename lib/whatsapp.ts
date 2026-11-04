@@ -1,7 +1,8 @@
 import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
 import { MetaSendError } from "@/lib/whatsapp/send-errors";
+import { GRAPH_API_VERSION } from "@/lib/meta/graph";
 
-const API_VERSION = "v21.0";
+const API_VERSION = GRAPH_API_VERSION;
 const BASE_URL = "https://graph.facebook.com";
 
 interface SendMessageParams {

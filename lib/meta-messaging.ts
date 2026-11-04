@@ -1,11 +1,12 @@
 import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 // Cliente núcleo para Messenger e Instagram — ambos comparten el mismo
 // Page Access Token y el mismo graph.facebook.com bajo el modelo
 // Página-vinculada (confirmado con el usuario, no el Instagram Login
 // standalone), así que un solo cliente basta para los dos canales, igual
 // que lib/telegram.ts es el único cliente para Telegram.
-const GRAPH_API = "https://graph.facebook.com/v21.0";
+const GRAPH_API = GRAPH_API_BASE;
 
 async function parseGraphError(res: Response, fallback: string): Promise<never> {
   const body = await res.json().catch(() => ({}));

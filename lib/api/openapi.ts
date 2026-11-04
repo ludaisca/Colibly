@@ -54,6 +54,8 @@ export const API_CHANGELOG: { version: string; schemaVersion: string; date: stri
       "Message.referral (anuncio click-to-WhatsApp) y Message.createdAt; Contact.adId y Contact.ctwaClid; Conversation.updatedAt; contact.tags en el sobre de los eventos.",
       "Un media_placeholder del historial de Coexistencia trae content.placeholder = { reason: \"history_media\" }: el medio llega aparte y el mismo mensaje cambia a su tipo real (reléelo con GET /messages/{id}).",
       "Media.sha256Hex: sha256 (hex) de los bytes que entrega media.url, calculado por Colibly en todos los canales y direcciones (sha256 sigue siendo el de Meta, en base64).",
+      "Contact.dealValueCents, dealCurrency y expectedCloseAt (lectura y PATCH /contacts/{id}).",
+      "message.updated (nuevo): el medio de un mensaje quedó listo para descargar, o un media_placeholder del historial recibió su contenido.",
       "Webhooks: GET /webhooks/{id}/deliveries (historial, filtro status/eventType/since), GET /webhooks/{id}/deliveries/{deliveryId} (con el cuerpo enviado) y POST …/replay (reenvía el mismo evento).",
       "Sincronización incremental: updatedSince en GET /conversations, since en GET /conversations/{id}/messages y el nuevo GET /messages?since= (todas las conversaciones). Nuevo GET /messages/{id}.",
       "Header X-Colibly-Schema-Version en cada respuesta y cada entrega de webhook.",
@@ -121,6 +123,9 @@ const EX = {
     leadOrigin: "ORGANIC",
     adId: null,
     ctwaClid: null,
+    dealValueCents: 85000,
+    dealCurrency: "MXN",
+    expectedCloseAt: "2026-10-25T00:00:00.000Z",
     optedOutMarketing: false,
     tags: [{ id: "cmtag_01", name: "Mayoreo" }],
     customFields: { ciudad: "Puebla" },
@@ -243,6 +248,13 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
       },
     }),
     example: { messageId: "cmmsg_02", status: "delivered", previousStatus: "sent", error: null, pricing: { billable: false, model: "PMP", category: "service", type: "free_customer_service" } },
+  },
+  "message.updated": {
+    data: obj({
+      messageId: str,
+      reason: { type: "string", enum: ["media_ready", "history_media"], description: "media_ready = el archivo ya se puede bajar de media.url; history_media = un media_placeholder del historial recibió su tipo y contenido reales" },
+    }),
+    example: { messageId: "cmmsg_01", reason: "media_ready" },
   },
   "contact.created": {
     data: obj({
@@ -787,6 +799,9 @@ export function buildOpenApiSpec(serverUrl: string) {
             leadOrigin: { type: "string", enum: ["ORGANIC", "INSTANT_FORM", "CTWA"] },
             adId: { ...strNull, description: "Anuncio de origen (CTWA o Instant Form), first-touch" },
             ctwaClid: { ...strNull, description: "Click id del anuncio click-to-WhatsApp (solo CTWA)" },
+            dealValueCents: { type: ["integer", "null"], description: "Valor del trato en centavos (MXN)" },
+            dealCurrency: { type: "string", enum: ["MXN"] },
+            expectedCloseAt: { type: ["string", "null"], format: "date-time", description: "Fecha estimada de cierre" },
             optedOutMarketing: { type: "boolean" },
             tags: { type: "array", items: { type: "object", properties: { id: str, name: str } } },
             customFields: { type: "object", additionalProperties: strNull },
@@ -815,6 +830,8 @@ export function buildOpenApiSpec(serverUrl: string) {
             realName: strNull,
             leadStatus: ref("LeadStatus"),
             customFields: { type: "object", additionalProperties: strNull, description: "null o \"\" borra el valor" },
+            dealValueCents: { type: ["integer", "null"], minimum: 0, maximum: 2_000_000_000, description: "Valor del trato en centavos de MXN; null lo borra" },
+            expectedCloseAt: { type: ["string", "null"], format: "date-time", description: "Fecha estimada de cierre; null la borra" },
           },
         },
         Conversation: {

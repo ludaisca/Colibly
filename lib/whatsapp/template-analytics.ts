@@ -1,6 +1,7 @@
 import { httpTimeout } from "@/lib/http-timeouts";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
-const GRAPH_API = "https://graph.facebook.com/v21.0";
+const GRAPH_API = GRAPH_API_BASE;
 
 export interface TemplateAnalyticsPoint {
   date: string; // ISO date, start of the UTC day this point covers

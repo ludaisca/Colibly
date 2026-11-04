@@ -1,4 +1,5 @@
 import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
+import { GRAPH_API_BASE } from "@/lib/meta/graph";
 
 // Meta's Resumable Upload API — the only way to get a `header_handle` usable in
 // `example.header_handle` when creating a message template with a media header.
@@ -6,7 +7,7 @@ import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
 // endpoint), which returns a media ID usable only for *sending* messages/already
 // approved templates, not for template *creation*.
 
-const GRAPH_API = "https://graph.facebook.com/v21.0";
+const GRAPH_API = GRAPH_API_BASE;
 
 interface MetaError {
   error?: { message?: string; error_user_msg?: string };
