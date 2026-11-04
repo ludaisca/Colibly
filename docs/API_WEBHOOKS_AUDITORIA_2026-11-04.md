@@ -151,3 +151,20 @@ Restricciones que se mantienen (sección 6 del análisis externo): no cambiar la
   - un segundo reenvío inmediato dio 409, el de una entregada 202 y el de una pendiente 409.
 - `mediaSha256Of()` coincide con el sha256 real de un archivo guardado y da `null` si el archivo no existe.
 - No probado de punta a punta: una descarga real de Meta y un envío con medio desde la bandeja (llenan `mediaSha256` con el mismo helper o el hash de `persistBuffer()`).
+
+## 8. Producción después del despliegue (`5b5874d`, 2026-11-04 ~22:00 UTC)
+
+Misma auditoría de solo lectura (`api-audit.py`, 150 mensajes reales de 3 conversaciones):
+
+| | Antes | Después |
+|---|---|---|
+| `info.version` | 1.0.0 | 1.1.0, con `X-Colibly-Schema-Version: 2026-11-04` en cada respuesta |
+| Mensajes sin `origin` / `sentBy` | (no existían) | 0 % |
+| `limit=abc` | 200 | 400 |
+| Ruta inexistente | 404 en HTML | 404 en JSON `{ error: { code, message } }` |
+| `account.phoneE164` / `contact.phoneE164` | (no existían) | `+52…` |
+| Rutas nuevas | | `/messages/{id}`, `/webhooks/{id}/deliveries`, `…/{deliveryId}`, `…/replay` |
+| `GET /openapi.json` (servidor) | ~190 ms | ~20 ms (caché); el resto del tiempo es red: ~200 ms de TCP y ~210 ms de TLS desde el servidor de pruebas |
+
+- `status`, `deliveredAt` y `readAt` siguen casi siempre en null en esta muestra: son ecos de la app y mensajes anteriores al corte, que no se pueden reconstruir. Los nuevos ya nacen con estado.
+- `referral` en null en toda la muestra: ninguna de esas conversaciones vino de un anuncio.
