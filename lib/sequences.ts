@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import type { SequenceTriggerType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
@@ -236,15 +237,19 @@ async function processSingleEnrollment(enrollment: EnrollmentWithRelations, now:
 
   try {
     if (isWhatsapp) {
-      await prisma.wAMessage.create({
-        data: { wamid: externalId ?? undefined, chatId: chatId!, direction: "OUTBOUND", messageType: "text", body, status: "sent", timestamp: now },
+      const saved = await prisma.wAMessage.create({
+        data: { wamid: externalId ?? undefined, chatId: chatId!, direction: "OUTBOUND", sentVia: "sequence", messageType: "text", body, status: "sent", timestamp: now },
+        select: { id: true },
       });
       await prisma.wAChat.update({ where: { id: chatId! }, data: { lastMessage: body.slice(0, 500), lastMessageAt: now } });
+      await emitMessageSent("whatsapp", saved.id, "sequence");
     } else {
-      await prisma.channelMessage.create({
-        data: { externalMessageId: externalId, conversationId: conversationId!, direction: "OUTBOUND", messageType: "text", body, status: "sent", timestamp: now },
+      const saved = await prisma.channelMessage.create({
+        data: { externalMessageId: externalId, conversationId: conversationId!, direction: "OUTBOUND", sentVia: "sequence", messageType: "text", body, status: "sent", timestamp: now },
+        select: { id: true },
       });
       await prisma.conversation.update({ where: { id: conversationId! }, data: { lastMessage: body.slice(0, 500), lastMessageAt: now } });
+      await emitMessageSent("channel", saved.id, "sequence");
     }
   } catch (err) {
     console.error(`[sequences] Paso ${step.order} enviado pero no se pudo registrar el mensaje (inscripción ${enrollment.id}):`, err instanceof Error ? err.message : err);

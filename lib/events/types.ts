@@ -1,4 +1,5 @@
 import type { Channel, LeadOrigin, LeadStatus, WAAppointmentStatus } from "@prisma/client";
+import type { OutboundOrigin, SentBy } from "@/lib/messages/origin";
 
 // Eventos de dominio: la única fuente de la que beben los webhooks salientes
 // (y, en la fase 2, los disparadores de automatizaciones). Los emite el código
@@ -15,12 +16,25 @@ export type MessageSource = "agent" | "api" | "automation";
 
 interface EventDataMap {
   "message.received": { messageId: string; messageType: string; text: string | null; interactiveReplyId: string | null };
-  "message.sent": { messageId: string; messageType: string; text: string | null; source: MessageSource; senderId: string | null };
+  // `source` es el campo original (3 valores); `origin` dice exactamente qué
+  // parte de Colibly lo mandó (lib/messages/origin.ts) y `sentBy`, quién.
+  "message.sent": {
+    messageId: string;
+    messageType: string;
+    text: string | null;
+    source: MessageSource;
+    senderId: string | null;
+    origin: OutboundOrigin;
+    sentBy: SentBy;
+    senderName: string | null;
+  };
   // Solo WhatsApp: Meta confirma la entrega, la lectura o el fallo de un saliente.
   "message.status_changed": {
     messageId: string;
     status: string; // sent | delivered | read | failed
-    error: { code: number | null; message: string } | null;
+    previousStatus: string | null;
+    // message = texto en español; title/details/href = los de Meta tal cual.
+    error: { code: number | null; message: string; title: string | null; details: string | null; href: string | null } | null;
     // Modelo por mensaje de Meta: si se cobra y en qué categoría.
     pricing: { billable: boolean | null; model: string | null; category: string | null; type: string | null } | null;
   };
@@ -56,7 +70,7 @@ export type DomainEvent = DomainEventInput & { id: string; occurredAt: string };
 // genera el botón "Enviar evento de prueba".
 export const DOMAIN_EVENT_CATALOG: Record<DomainEventType, string> = {
   "message.received": "Mensaje recibido de un contacto",
-  "message.sent": "Mensaje enviado por un agente, la API o una automatización",
+  "message.sent": "Mensaje enviado: bandeja, API, automatización, bot, campaña, secuencia, aviso automático o la app WhatsApp Business",
   "message.status_changed": "Estado de un mensaje enviado (entregado, leído o fallido). Solo WhatsApp",
   "contact.created": "Contacto nuevo",
   "contact.lead_status_changed": "Cambio de etapa del lead",

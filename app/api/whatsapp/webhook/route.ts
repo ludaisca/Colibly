@@ -49,12 +49,15 @@ interface WebhookStatus {
   recipient_user_id?: string;
   // Modelo por mensaje (PMP): si se cobra y en qué categoría.
   pricing?: { billable?: boolean; pricing_model?: string; category?: string; type?: string; subtype?: string };
-  errors?: Array<{
-    code?: number;
-    title?: string;
-    message?: string;
-    error_data?: { details?: string };
-  }>;
+  errors?: MetaStatusError[];
+}
+
+interface MetaStatusError {
+  code?: number;
+  title?: string;
+  message?: string;
+  error_data?: { details?: string };
+  href?: string;
 }
 
 interface WebhookValue {
@@ -112,10 +115,21 @@ function statusErrorDetail(status: WebhookStatus): string | null {
   return err.error_data?.details ?? err.message ?? err.title ?? (err.code ? `Error ${err.code}` : null);
 }
 
-export function failedMessageFields(status: WebhookStatus): { errorCode: number | null; errorMessage: string } {
-  const raw = status.errors?.[0]?.code;
+export function failedMessageFields(status: WebhookStatus): { errorCode: number | null; errorMessage: string; errorDetail: Prisma.InputJsonObject | undefined } {
+  const err = status.errors?.[0];
+  const raw = err?.code;
   const code = typeof raw === "number" ? raw : raw != null && /^\d+$/.test(String(raw)) ? Number(raw) : null;
-  return { errorCode: code, errorMessage: metaSendErrorMessage(code, statusErrorDetail(status)) };
+  return {
+    errorCode: code,
+    errorMessage: metaSendErrorMessage(code, statusErrorDetail(status)),
+    // El error de Meta sin traducir, para la API y los webhooks.
+    errorDetail: err ? publicMetaError(err, code) : undefined,
+  };
+}
+
+function publicMetaError(err: MetaStatusError, code: number | null): Prisma.InputJsonObject {
+  const s = (v: unknown) => (typeof v === "string" && v ? v : null);
+  return { code, title: s(err.title), message: s(err.message), details: s(err.error_data?.details), href: s(err.href) };
 }
 
 async function applyStatusUpdate(accountId: string, status: WebhookStatus): Promise<void> {
@@ -139,55 +153,62 @@ async function applyStatusUpdate(accountId: string, status: WebhookStatus): Prom
   const statusAt = Number.isFinite(eventSeconds) && eventSeconds > 0 ? new Date(eventSeconds * 1000) : new Date();
   const pricing = status.pricing ? (status.pricing as Prisma.InputJsonValue) : undefined;
 
-  const updated = await prisma.wAMessage.updateMany({
-    where: {
-      wamid: status.id,
-      chat: { accountId },
-      // Solo avanza: para sent/delivered/read exige que el estado actual sea
-      // inferior (o inexistente). "failed" y estados desconocidos siempre aplican.
-      ...(lowerStatuses
-        ? { OR: [{ status: { in: [...lowerStatuses, "pending"] } }, { status: null }] }
-        : {}),
-    },
-    data: {
-      status: status.status,
-      // Motivo legible en la burbuja (lib/whatsapp/send-errors.ts).
-      ...(status.status === "failed" ? failedMessageFields(status) : {}),
-      ...(status.status === "delivered" ? { deliveredAt: statusAt } : {}),
-      ...(status.status === "read" ? { readAt: statusAt } : {}),
-      ...(pricing ? { pricing } : {}),
-    },
+  // Estado previo: para `previousStatus` del evento y para saber si falta la
+  // hora de entrega cuando Meta salta directo a "read".
+  const before = await prisma.wAMessage.findFirst({
+    where: { wamid: status.id, chat: { accountId } },
+    select: { id: true, chatId: true, status: true, deliveredAt: true, chat: { select: { contactId: true } } },
   });
+  const failure = status.status === "failed" ? failedMessageFields(status) : null;
+
+  const updated = before
+    ? await prisma.wAMessage.updateMany({
+        where: {
+          id: before.id,
+          // Solo avanza: para sent/delivered/read exige que el estado actual sea
+          // inferior (o inexistente). "failed" y estados desconocidos siempre aplican.
+          ...(lowerStatuses
+            ? { OR: [{ status: { in: [...lowerStatuses, "pending"] } }, { status: null }] }
+            : {}),
+        },
+        data: {
+          status: status.status,
+          // Motivo legible en la burbuja (lib/whatsapp/send-errors.ts) + el de Meta.
+          ...(failure ?? {}),
+          ...(status.status === "delivered" ? { deliveredAt: statusAt } : {}),
+          // Un mensaje leído fue entregado a más tardar al leerse.
+          ...(status.status === "read" ? { readAt: statusAt, ...(before.deliveredAt ? {} : { deliveredAt: statusAt }) } : {}),
+          ...(pricing ? { pricing } : {}),
+        },
+      })
+    : { count: 0 };
 
   // Webhooks salientes: solo si el estado avanzó de verdad (Meta repite
   // entregas y manda estados fuera de orden; el updateMany ya los filtró).
-  if (updated.count > 0) {
-    const message = await prisma.wAMessage.findFirst({
-      where: { wamid: status.id, chat: { accountId } },
-      select: { id: true, chatId: true, chat: { select: { contactId: true } } },
-    });
-    if (message) {
-      const failure = status.status === "failed" ? failedMessageFields(status) : null;
-      await emitDomainEvent({
-        type: "message.status_changed",
-        account: { kind: "whatsapp", id: accountId },
-        chat: { kind: "whatsapp", id: message.chatId },
-        contactId: message.chat.contactId,
-        data: {
-          messageId: message.id,
-          status: status.status,
-          error: failure ? { code: failure.errorCode, message: failure.errorMessage } : null,
-          pricing: status.pricing
-            ? {
-                billable: status.pricing.billable ?? null,
-                model: status.pricing.pricing_model ?? null,
-                category: status.pricing.category ?? null,
-                type: status.pricing.type ?? null,
-              }
-            : null,
-        },
-      }, statusAt);
-    }
+  if (before && updated.count > 0) {
+    const meta = failure?.errorDetail as { title: string | null; details: string | null; href: string | null } | undefined;
+    await emitDomainEvent({
+      type: "message.status_changed",
+      account: { kind: "whatsapp", id: accountId },
+      chat: { kind: "whatsapp", id: before.chatId },
+      contactId: before.chat.contactId,
+      data: {
+        messageId: before.id,
+        status: status.status,
+        previousStatus: before.status,
+        error: failure
+          ? { code: failure.errorCode, message: failure.errorMessage, title: meta?.title ?? null, details: meta?.details ?? null, href: meta?.href ?? null }
+          : null,
+        pricing: status.pricing
+          ? {
+              billable: status.pricing.billable ?? null,
+              model: status.pricing.pricing_model ?? null,
+              category: status.pricing.category ?? null,
+              type: status.pricing.type ?? null,
+            }
+          : null,
+      },
+    }, statusAt);
   }
 
   const statusMap: Record<string, { status: string; field?: string }> = {

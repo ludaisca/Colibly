@@ -1,4 +1,5 @@
 import { API_SCOPES } from "./scopes";
+import { OUTBOUND_ORIGINS } from "@/lib/messages/origin";
 import { DOMAIN_EVENT_CATALOG, type DomainEventType } from "@/lib/events/types";
 import { BRAND_NAME } from "@/lib/brand";
 import {
@@ -13,6 +14,8 @@ import {
   API_PAGE_DEFAULT,
   API_PAGE_MAX,
   API_REQUESTS_PER_MINUTE,
+  API_SCHEMA_VERSION,
+  API_SCHEMA_VERSION_HEADER,
   IDEMPOTENCY_TTL_HOURS,
   MAX_ACTIVE_API_KEYS,
   MAX_WEBHOOKS,
@@ -33,7 +36,27 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.0.0";
+export const API_VERSION = "1.1.0";
+
+// Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
+export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
+  {
+    version: "1.1.0",
+    schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-04",
+    changes: [
+      "Message: origin, sentBy y senderName (quién y qué parte de Colibly mandó cada saliente); error con title, details y href de Meta; externalId, content, media (descarga con GET /messages/{id}/media), replyTo, reaction, transcript, deliveredAt, readAt y pricing.",
+      "message.sent se emite desde todos los orígenes: bandeja, API, automatizaciones, bot IA, campañas, secuencias, recuperación de leads, avisos automáticos y la app WhatsApp Business (Coexistencia). data agrega origin, sentBy y senderName; text ya no trae marcadores como \"[sticker]\".",
+      "message.status_changed (nuevo): estado de un saliente de WhatsApp con previousStatus, error completo y pricing.",
+      "Sobre de los eventos: account.phoneNumber y account.phoneE164; contact.realName y contact.phoneE164; message en los eventos message.*.",
+      "Contact.phoneE164 y Account.phoneE164 (E.164, México sin el \"1\" móvil antiguo).",
+      "Header X-Colibly-Schema-Version en cada respuesta y cada entrega de webhook.",
+      "Errores: una ruta inexistente bajo /api/v1 responde JSON 404; un limit que no es entero positivo responde 400.",
+      "deliveredAt y readAt confiables desde 2026-11-04 19:47 UTC (antes solo en mensajes de campaña); un read sin delivered previo trae deliveredAt = readAt.",
+    ],
+  },
+  { version: "1.0.0", schemaVersion: "2026-10-01", date: "2026-10-01", changes: ["Primera versión pública."] },
+];
 
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 const paged = (item: string) => ({
@@ -65,16 +88,19 @@ const errors = {
 };
 const writeErrors = { ...errors, "409": err("Conflict"), "413": err("PayloadTooLarge"), "422": err("Unprocessable") };
 const pageParams = [
-  { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: API_PAGE_MAX, default: API_PAGE_DEFAULT } },
+  { name: "limit", in: "query", description: `Entero de 1 a ${API_PAGE_MAX}; uno mayor se recorta a ${API_PAGE_MAX}, uno no numérico o menor que 1 responde 400`, schema: { type: "integer", minimum: 1, maximum: API_PAGE_MAX, default: API_PAGE_DEFAULT } },
   { name: "cursor", in: "query", schema: { type: "string" }, description: "`nextCursor` de la página anterior" },
 ];
 const idParam = { name: "id", in: "path", required: true, schema: { type: "string" } };
+const ORIGIN_DOC =
+  "Qué parte de Colibly lo mandó: agent (bandeja), api, automation (automatizaciones, macros, fuentes de leads), bot (bot IA), campaign, sequence, recovery (recuperación de leads), system (aviso fuera de horario, auto-resolver, encuesta CSAT), business_app (escrito en la app WhatsApp Business del teléfono, Coexistencia), history (importado del historial de esa app)";
+const SENT_BY_DOC = "Quién: contact (el cliente), user (una persona de Colibly, senderId), bot, business_app (el negocio desde su teléfono) o system (Colibly sin una persona detrás)";
 const idempotencyParam = { $ref: "#/components/parameters/IdempotencyKey" };
 const scopeNote = (scope: string) => `Requiere el permiso \`${scope}\`.`;
 
 // ─── Ejemplos (los usa la referencia de /docs/api) ──────────────────────────
 const EX = {
-  account: { id: "cmacc_wa_01", channel: "WHATSAPP", name: "Ventas CDMX", phoneNumber: "5215512345678", status: "CONNECTED" },
+  account: { id: "cmacc_wa_01", channel: "WHATSAPP", name: "Ventas CDMX", phoneNumber: "+52 1 55 1234 5678", phoneE164: "+525512345678", status: "CONNECTED" },
   contact: {
     id: "cmcon_01",
     accountId: "cmacc_wa_01",
@@ -82,6 +108,7 @@ const EX = {
     name: "Ana López",
     realName: null,
     phone: "5215598765432",
+    phoneE164: "+525598765432",
     externalId: null,
     leadStatus: "QUALIFIED",
     leadOrigin: "ORGANIC",
@@ -128,6 +155,9 @@ const EX = {
     deliveredAt: null,
     readAt: null,
     pricing: null,
+    origin: "contact",
+    sentBy: "contact",
+    senderName: null,
   },
   webhook: {
     id: "cmwh_01",
@@ -161,21 +191,35 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
     example: { messageId: "cmmsg_01", messageType: "text", text: "¿Tienen envío a Puebla?", interactiveReplyId: null },
   },
   "message.sent": {
-    data: obj({ messageId: str, messageType: str, text: strNull, source: { type: "string", enum: ["agent", "api", "automation"] }, senderId: strNull }),
-    example: { messageId: "cmmsg_02", messageType: "text", text: "Sí, enviamos a todo México.", source: "agent", senderId: "cmusr_02" },
+    data: obj({
+      messageId: str,
+      messageType: str,
+      text: strNull,
+      source: { type: "string", enum: ["agent", "api", "automation"], description: "Campo original de 3 valores; usa origin para el detalle" },
+      senderId: { ...strNull, description: "Usuario de Colibly que lo mandó o lo disparó (bandeja, macro, permiso de llamada)" },
+      origin: { type: "string", enum: [...OUTBOUND_ORIGINS], description: ORIGIN_DOC },
+      sentBy: { type: "string", enum: ["user", "bot", "business_app", "system"], description: SENT_BY_DOC },
+      senderName: { ...strNull, description: "Nombre del usuario de senderId" },
+    }),
+    example: { messageId: "cmmsg_02", messageType: "text", text: "Sí, enviamos a todo México.", source: "agent", senderId: "cmusr_02", origin: "agent", sentBy: "user", senderName: "Carla Méndez" },
   },
   "message.status_changed": {
     data: obj({
       messageId: str,
       status: { type: "string", enum: ["sent", "delivered", "read", "failed"] },
-      error: { type: ["object", "null"], properties: { code: { type: ["integer", "null"] }, message: str }, description: "Solo en failed: código de Meta y motivo legible" },
+      previousStatus: { ...strNull, description: "Estado anterior (null si no tenía). Los estados solo avanzan: sent → delivered → read; failed aplica siempre" },
+      error: {
+        type: ["object", "null"],
+        description: "Solo en failed. message = motivo en español; title, details y href = los de Meta sin traducir",
+        properties: { code: { type: ["integer", "null"] }, message: str, title: strNull, details: strNull, href: strNull },
+      },
       pricing: {
         type: ["object", "null"],
         description: "Modelo por mensaje de Meta: si se cobra y en qué categoría",
         properties: { billable: { type: ["boolean", "null"] }, model: strNull, category: { ...strNull, description: "marketing, utility, authentication, service" }, type: { ...strNull, description: "p. ej. regular, free_customer_service, free_entry_point" } },
       },
     }),
-    example: { messageId: "cmmsg_02", status: "delivered", error: null, pricing: { billable: false, model: "PMP", category: "service", type: "free_customer_service" } },
+    example: { messageId: "cmmsg_02", status: "delivered", previousStatus: "sent", error: null, pricing: { billable: false, model: "PMP", category: "service", type: "free_customer_service" } },
   },
   "contact.created": {
     data: obj({
@@ -239,10 +283,10 @@ export function exampleEvent(type: string, data: Record<string, unknown>) {
     id: "7d1f2c9e-3b4a-4f0e-9a51-0c2b8e6d4f10",
     type,
     occurredAt: "2026-10-18T19:02:11.000Z",
-    account: test ? null : { id: EX.account.id, channel: "WHATSAPP", name: EX.account.name },
+    account: test ? null : { id: EX.account.id, channel: "WHATSAPP", name: EX.account.name, phoneNumber: EX.account.phoneNumber, phoneE164: EX.account.phoneE164 },
     contact: test
       ? null
-      : { id: EX.contact.id, name: EX.contact.name, phone: EX.contact.phone, externalId: null, leadStatus: EX.contact.leadStatus, leadOrigin: "ORGANIC" },
+      : { id: EX.contact.id, name: EX.contact.name, realName: null, phone: EX.contact.phone, phoneE164: EX.contact.phoneE164, externalId: null, leadStatus: EX.contact.leadStatus, leadOrigin: "ORGANIC" },
     conversation: test || type === "contact.created" ? null : { id: EX.conversation.id, channel: "WHATSAPP", status: "OPEN", assignedToId: "cmusr_02" },
     data,
     ...(type.startsWith("message.") ? { message: EX.message } : {}),
@@ -286,15 +330,20 @@ export function buildOpenApiSpec(serverUrl: string) {
         "Autenticación: `Authorization: Bearer sk_live_...` (API key creada por un admin en Configuración → API). " +
         `Límites: ${API_REQUESTS_PER_MINUTE} solicitudes por minuto por key y ${API_ORG_REQUESTS_PER_MINUTE} por organización (todas sus keys), informados en los headers \`X-RateLimit-*\`; ` +
         `\`POST /messages\`: ${API_SEND_PER_MINUTE_PER_ORG} por minuto y ${API_DAILY_SENDS_PER_ORG} por día por organización. Cuerpo máximo: ${Math.round(API_MAX_BODY_BYTES / 1024)} KB. ` +
-        "Los errores tienen la forma `{ error: { code, message } }`. Los POST aceptan `Idempotency-Key`.\n\n" +
+        "Los errores tienen la forma `{ error: { code, message } }` (también un 404 de ruta inexistente). Los POST aceptan `Idempotency-Key`.\n\n" +
         "**Versiones**: la versión va en la ruta (`/api/v1`). Dentro de v1 solo se agregan cosas (campos, endpoints, eventos, valores de enum); " +
-        "un cambio incompatible saldría como `/api/v2` y v1 se mantendría al menos 12 meses, avisando por correo a los admins con keys activas.\n\n" +
+        "un cambio incompatible saldría como `/api/v2` y v1 se mantendría al menos 12 meses, avisando por correo a los admins con keys activas. " +
+        `Cada respuesta y cada entrega de webhook lleva \`${API_SCHEMA_VERSION_HEADER}: ${API_SCHEMA_VERSION}\` (fecha del contrato de datos vigente); los cambios están en \`x-colibly-changelog\`.\n\n` +
         "**Webhooks salientes**: cada entrega es un POST con el evento en el cuerpo y el header " +
         "`X-Colibly-Signature: t=<unix>,v1=<hex>`, donde v1 = HMAC-SHA256(secret, `${t}.${cuerpo}`). " +
-        `Responde 2xx en menos de ${WEBHOOK_TIMEOUT_SECONDS} s; hay ${WEBHOOK_DELIVERY_ATTEMPTS} intentos con espera creciente.`,
+        `Responde 2xx en menos de ${WEBHOOK_TIMEOUT_SECONDS} s; hay ${WEBHOOK_DELIVERY_ATTEMPTS} intentos con espera creciente. ` +
+        "Headers de cada entrega: `X-Colibly-Event` (tipo), `X-Colibly-Event-Id` (id del evento, igual en todos los endpoints y reintentos: deduplica con él), " +
+        `\`X-Colibly-Delivery\` (id de la entrega a ese endpoint), \`X-Colibly-Attempt\` (1 a ${WEBHOOK_DELIVERY_ATTEMPTS}) y \`${API_SCHEMA_VERSION_HEADER}\`. ` +
+        "No hay orden garantizado entre eventos: ordena por `occurredAt` y, para estados de un mensaje, confía en que solo avanzan (`previousStatus`).",
     },
     servers: [{ url: serverUrl }],
     security: [{ apiKey: [] }],
+    "x-colibly-changelog": API_CHANGELOG,
     "x-colibly-limits": {
       requestsPerMinute: API_REQUESTS_PER_MINUTE,
       orgRequestsPerMinute: API_ORG_REQUESTS_PER_MINUTE,
@@ -531,6 +580,9 @@ export function buildOpenApiSpec(serverUrl: string) {
             { name: "X-Colibly-Signature", in: "header", required: true, schema: { type: "string" }, description: "t=<unix>,v1=<hex HMAC-SHA256(secret, `${t}.${cuerpo}`)>" },
             { name: "X-Colibly-Event", in: "header", required: true, schema: { type: "string" } },
             { name: "X-Colibly-Delivery", in: "header", required: true, schema: { type: "string" }, description: "Id de la entrega; se repite en los reintentos" },
+            { name: "X-Colibly-Event-Id", in: "header", required: true, schema: { type: "string" }, description: "Id del evento (igual a `id` del cuerpo): el mismo en todos los endpoints y reintentos" },
+            { name: "X-Colibly-Attempt", in: "header", required: true, schema: { type: "integer", minimum: 1, maximum: WEBHOOK_DELIVERY_ATTEMPTS }, description: "Número de intento de esta entrega" },
+            { name: API_SCHEMA_VERSION_HEADER, in: "header", required: true, schema: { type: "string", example: API_SCHEMA_VERSION }, description: "Versión del contrato de datos (ver x-colibly-changelog)" },
           ],
           requestBody: { content: json(ref("Event"), exampleEvent("contact.lead_status_changed", EVENT_DATA["contact.lead_status_changed"].example)) },
           responses: { "200": { description: `Recibido (cualquier 2xx en menos de ${WEBHOOK_TIMEOUT_SECONDS} s)` } },
@@ -611,7 +663,14 @@ export function buildOpenApiSpec(serverUrl: string) {
         },
         Account: {
           type: "object",
-          properties: { id: str, channel: ref("Channel"), name: str, phoneNumber: { ...strNull, description: "Solo WhatsApp" }, status: str },
+          properties: {
+            id: str,
+            channel: ref("Channel"),
+            name: str,
+            phoneNumber: { ...strNull, description: "Solo WhatsApp, como lo muestra Meta (p. ej. \"+52 1 55 1234 5678\")" },
+            phoneE164: { ...strNull, description: "Solo WhatsApp: el mismo número en E.164 (+525512345678)" },
+            status: str,
+          },
         },
         Contact: {
           type: "object",
@@ -621,7 +680,8 @@ export function buildOpenApiSpec(serverUrl: string) {
             channel: ref("Channel"),
             name: strNull,
             realName: strNull,
-            phone: { ...strNull, description: "Solo WhatsApp" },
+            phone: { ...strNull, description: "Solo WhatsApp: el wa_id de Meta tal cual (en México suele traer el \"1\" móvil: 521…)" },
+            phoneE164: { ...strNull, description: "Solo WhatsApp: el número en E.164 para cruzar con otros sistemas (+52 + 10 dígitos en México)" },
             externalId: { ...strNull, description: "Id del contacto en Telegram/Messenger/Instagram/Web" },
             leadStatus: ref("LeadStatus"),
             leadOrigin: { type: "string", enum: ["ORGANIC", "INSTANT_FORM", "CTWA"] },
@@ -638,7 +698,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           required: ["accountId", "phone"],
           properties: {
             accountId: { type: "string", description: "Cuenta de WhatsApp" },
-            phone: { type: "string", description: "Con código de país, p. ej. 5215512345678 (8 a 15 dígitos)" },
+            phone: { type: "string", description: "Con código de país, p. ej. 5215512345678 o +52 55 1234 5678 (8 a 15 dígitos). En México 52… y 521… son el mismo contacto" },
             name: { type: "string", maxLength: 200 },
             leadStatus: ref("LeadStatus"),
             tags: { type: "array", maxItems: 20, items: { type: "string", maxLength: 60 }, description: "Nombres; se crean si no existen" },
@@ -682,8 +742,8 @@ export function buildOpenApiSpec(serverUrl: string) {
             caption: strNull,
             mimeType: strNull,
             filename: strNull,
-            status: { ...strNull, description: "Salientes: sent, delivered, read, failed" },
-            senderId: { ...strNull, description: "Usuario que lo envió (salientes de agente)" },
+            status: { ...strNull, description: "Salientes: sent, delivered, read, failed (null en salientes antiguos de la app WhatsApp Business y en entrantes)" },
+            senderId: { ...strNull, description: "Usuario de Colibly que lo mandó o lo disparó" },
             interactive: { description: "Botones o lista, si aplica" },
             timestamp: { type: "string", format: "date-time" },
             externalId: { ...strNull, description: "Id del mensaje en el canal (wamid en WhatsApp)" },
@@ -699,10 +759,17 @@ export function buildOpenApiSpec(serverUrl: string) {
             replyTo: { type: ["object", "null"], description: "Mensaje citado", properties: { externalId: str, messageId: strNull, from: strNull } },
             reaction: { type: ["object", "null"], properties: { contact: strNull, agent: strNull } },
             transcript: { ...strNull, description: "Transcripción de una nota de voz" },
-            error: { type: ["object", "null"], description: "Salientes fallidos", properties: { code: { type: ["integer", "null"] }, message: strNull } },
+            error: {
+              type: ["object", "null"],
+              description: "Salientes fallidos. message = motivo en español; title, details y href = los de Meta (desde 2026-11-04)",
+              properties: { code: { type: ["integer", "null"] }, message: strNull, title: strNull, details: strNull, href: strNull },
+            },
             deliveredAt: { type: ["string", "null"], format: "date-time", description: "Hora de entrega según WhatsApp" },
             readAt: { type: ["string", "null"], format: "date-time", description: "Hora de lectura según WhatsApp" },
             pricing: { type: ["object", "null"], properties: { billable: { type: ["boolean", "null"] }, model: strNull, category: strNull, type: strNull } },
+            origin: { type: ["string", "null"], enum: [...OUTBOUND_ORIGINS, "contact", null], description: `${ORIGIN_DOC}; contact = entrante. null = saliente antiguo sin datos para saberlo` },
+            sentBy: { type: ["string", "null"], enum: ["contact", "user", "bot", "business_app", "system", null], description: SENT_BY_DOC },
+            senderName: { ...strNull, description: "Nombre del usuario de senderId" },
           },
         },
         SendMessage: {
@@ -787,10 +854,19 @@ export function buildOpenApiSpec(serverUrl: string) {
             id: { type: "string", description: "Único por evento: úsalo para descartar duplicados" },
             type: { type: "string", enum: WEBHOOK_EVENT_DOCS.map((e) => e.type) },
             occurredAt: { type: "string", format: "date-time" },
-            account: { type: ["object", "null"], properties: { id: str, channel: ref("Channel"), name: str } },
+            account: { type: ["object", "null"], properties: { id: str, channel: ref("Channel"), name: str, phoneNumber: strNull, phoneE164: strNull } },
             contact: {
               type: ["object", "null"],
-              properties: { id: str, name: strNull, phone: strNull, externalId: strNull, leadStatus: ref("LeadStatus"), leadOrigin: str },
+              properties: {
+                id: str,
+                name: { ...strNull, description: "realName si el equipo lo puso; si no, el nombre del perfil" },
+                realName: strNull,
+                phone: { ...strNull, description: "wa_id de Meta tal cual" },
+                phoneE164: strNull,
+                externalId: strNull,
+                leadStatus: ref("LeadStatus"),
+                leadOrigin: str,
+              },
               description: "Datos del momento de la entrega",
             },
             conversation: { type: ["object", "null"], properties: { id: str, channel: ref("Channel"), status: str, assignedToId: strNull } },

@@ -1,4 +1,5 @@
 import { promises as fs } from "fs";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { getAIProvider } from "@/lib/ai/factory";
@@ -113,12 +114,13 @@ async function sendFallbackReply(botId: string, waChatId: string) {
       body: FALLBACK_REPLY,
     });
 
-    await Promise.all([
+    const [botMessage] = await Promise.all([
       prisma.wAMessage.create({
         data: {
           wamid: sendResult.wamid ?? undefined,
           chatId: waChatId,
           direction: "OUTBOUND",
+          sentVia: "bot",
           messageType: "text",
           body: FALLBACK_REPLY,
           status: "sent",
@@ -130,6 +132,7 @@ async function sendFallbackReply(botId: string, waChatId: string) {
         data: { lastMessage: FALLBACK_REPLY.slice(0, 500), lastMessageAt: now },
       }),
     ]);
+    await emitMessageSent("whatsapp", botMessage.id, "bot");
   } catch (err) {
     // Best-effort — if even the fallback send fails (e.g. WhatsApp's API is down
     // too), there's nothing more automatic left to try; the BOT_ERROR notification
@@ -387,12 +390,13 @@ async function handleBotMessage(job: BotMessageJob) {
       });
       delivered = true;
 
-      await Promise.all([
+      const [botMessage] = await Promise.all([
         prisma.wAMessage.create({
           data: {
             wamid: sendResult.wamid ?? undefined,
             chatId: waChatId,
             direction: "OUTBOUND",
+            sentVia: "bot",
             messageType: "text",
             body: replyText,
             status: "sent",
@@ -409,6 +413,7 @@ async function handleBotMessage(job: BotMessageJob) {
           },
         }),
       ]);
+      await emitMessageSent("whatsapp", botMessage.id, "bot");
     }
 
     if (proposal && chat.contactId) {

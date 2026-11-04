@@ -7,6 +7,7 @@ import { addressBookNameFor, forgetAddressBookEntry, shouldApplyAddressBookName 
 import { contactsRemaining, notifyContactLimitOnce } from "@/lib/billing/contact-budget";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
 import { BACKGROUND_EVENT_PRIORITY, emitDomainEvent } from "@/lib/events/emit";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { jidCandidates, mapHistoryStatus, type NormalizedBusinessMessage, type NormalizedStateSyncContact } from "./normalize";
 
 // Ingesta de lo que viene de la app WhatsApp Business del cliente (coexistencia).
@@ -186,13 +187,16 @@ export async function ingestBusinessAppMessages(
       chatId,
       direction: m.direction,
       origin,
+      sentVia: m.direction === "OUTBOUND" ? (origin === "HISTORY" ? "history" : "business_app") : null,
       messageType: m.type,
       body: m.body,
       caption: m.caption,
       mediaId: m.mediaId,
       mimeType: m.mimeType,
       filename: m.filename,
-      status: mapHistoryStatus(m.historyStatus),
+      // Un eco ya salió del teléfono: nace "sent" (Meta no manda un estado
+      // inicial para él); el historial trae el suyo.
+      status: origin === "BUSINESS_APP_ECHO" && m.direction === "OUTBOUND" ? "sent" : mapHistoryStatus(m.historyStatus),
       timestamp: m.timestamp,
       ...(m.content ? { content: m.content as Prisma.InputJsonValue } : {}),
       // El payload lleva props opcionales (style/buttonLabel), que Prisma no
@@ -222,6 +226,17 @@ export async function ingestBusinessAppMessages(
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") result.skipped++;
         else throw err;
       }
+    }
+
+    // Webhooks salientes: lo que el negocio escribió desde la app también es un
+    // `message.sent` (origin business_app). El historial no emite: es pasado y
+    // serían miles de eventos de golpe.
+    if (origin === "BUSINESS_APP_ECHO" && fresh.length > 0) {
+      const saved = await prisma.wAMessage.findMany({
+        where: { chatId, direction: "OUTBOUND", wamid: { in: fresh.map((m) => m.wamid) } },
+        select: { id: true, timestamp: true },
+      });
+      for (const m of saved) await emitMessageSent("whatsapp", m.id, "business_app", { occurredAt: m.timestamp });
     }
 
     // Última actividad del chat solo si lo importado es más reciente que lo que

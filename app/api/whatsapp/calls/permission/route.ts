@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
@@ -29,19 +30,22 @@ export async function POST(req: Request) {
     const wamid = await sendCallPermissionRequest(chat.account, to);
     const now = new Date();
     const text = "Solicitud para poder llamarte";
-    await prisma.wAMessage.create({
+    const saved = await prisma.wAMessage.create({
       data: {
         wamid,
         chatId: chat.id,
         direction: "OUTBOUND",
+        sentVia: "agent",
         messageType: "text",
         body: text,
         status: "sent",
         senderId: session.user.id,
         timestamp: now,
       },
+      select: { id: true },
     });
     await prisma.wAChat.update({ where: { id: chat.id }, data: { lastMessage: text, lastMessageAt: now } });
+    await emitMessageSent("whatsapp", saved.id, "agent");
     return NextResponse.json({ ok: true });
   } catch (error) {
     return callingErrorResponse(error, "No se pudo pedir permiso para llamar");

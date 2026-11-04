@@ -1,4 +1,5 @@
 import type { ChannelAccount } from "@prisma/client";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendTelegramMessage } from "@/lib/telegram/send";
@@ -36,12 +37,13 @@ export async function processBotSendJob(job: BotSendJob) {
 
   const now = new Date();
 
-  await Promise.all([
+  const [botMessage] = await Promise.all([
     prisma.wAMessage.create({
       data: {
         wamid: sendResult.wamid ?? undefined,
         chatId: job.waChatId,
         direction: "OUTBOUND",
+        sentVia: "bot",
         messageType: "text",
         body: job.chunk,
         status: "sent",
@@ -58,6 +60,7 @@ export async function processBotSendJob(job: BotSendJob) {
       },
     }),
   ]);
+  await emitMessageSent("whatsapp", botMessage.id, "bot");
 }
 
 // Compartido por Telegram/Messenger/Instagram — mismas tablas genéricas
@@ -71,12 +74,13 @@ async function processChannelBotSendJob(job: BotSendJob) {
 
   const now = new Date();
 
-  await Promise.all([
+  const [botMessage] = await Promise.all([
     prisma.channelMessage.create({
       data: {
         externalMessageId: sendResult.externalMessageId,
         conversationId: job.waChatId,
         direction: "OUTBOUND",
+        sentVia: "bot",
         messageType: "text",
         body: job.chunk,
         status: "sent",
@@ -93,6 +97,7 @@ async function processChannelBotSendJob(job: BotSendJob) {
       },
     }),
   ]);
+  await emitMessageSent("channel", botMessage.id, "bot");
 }
 
 function sendChannelChunk(account: ChannelAccount, to: string, body: string): Promise<{ externalMessageId: string | null }> {

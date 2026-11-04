@@ -32,6 +32,14 @@ export const API_AUTH_CACHE_SECONDS = envInt("API_AUTH_CACHE_SECONDS", 60);
 export const API_UNAVAILABLE_RETRY_SECONDS = 5;
 /** Intentos con una API key inválida por minuto y por IP. */
 export const API_BAD_KEY_ATTEMPTS_PER_MINUTE = 30;
+/**
+ * Versión del contrato de datos (forma de mensajes, eventos y recursos). Va en
+ * `X-Colibly-Schema-Version` de cada respuesta de /api/v1 y de cada entrega de
+ * webhook. Cambia solo con un cambio documentado en el changelog del OpenAPI;
+ * los cambios son aditivos (campos nuevos), nunca se quita ni renombra uno.
+ */
+export const API_SCHEMA_VERSION = "2026-11-04";
+export const API_SCHEMA_VERSION_HEADER = "X-Colibly-Schema-Version";
 /** Página de listados. */
 export const API_PAGE_DEFAULT = 25;
 export const API_PAGE_MAX = 100;

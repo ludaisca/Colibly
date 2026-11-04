@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { applyRateLimitHeaders } from "./rate-headers";
-import { API_MAX_BODY_BYTES, API_PAGE_DEFAULT, API_PAGE_MAX } from "./constants";
+import { API_MAX_BODY_BYTES, API_PAGE_DEFAULT, API_PAGE_MAX, API_SCHEMA_VERSION, API_SCHEMA_VERSION_HEADER } from "./constants";
 
 // Respuestas de la API pública (/api/v1). Forma de error estable para que las
 // integraciones puedan ramificar por `code` sin parsear mensajes en español:
@@ -63,8 +63,17 @@ export function withApiErrors<A extends [Request, ...unknown[]]>(handler: (...ar
       const tooLarge = payloadTooLarge(API_MAX_BODY_BYTES);
       res = apiError(tooLarge.status, tooLarge.code, tooLarge.message);
     }
-    return applyRateLimitHeaders(args[0], res);
+    return withSchemaVersion(applyRateLimitHeaders(args[0], res));
   };
+}
+
+export function withSchemaVersion(res: Response): Response {
+  try {
+    res.headers.set(API_SCHEMA_VERSION_HEADER, API_SCHEMA_VERSION);
+  } catch {
+    // Headers inmutables (respuesta reenviada tal cual): se entrega sin el header.
+  }
+  return res;
 }
 
 // Cuerpo máximo (API_MAX_BODY_BYTES, 1 MB). Con Content-Length se decide sin
@@ -111,10 +120,15 @@ export function bodyOverflowed(req: Request): boolean {
 }
 
 // Paginación por cursor: `limit` (1-API_PAGE_MAX, default API_PAGE_DEFAULT) + `cursor` opaco.
+// Un `limit` que no es un entero positivo es un error del cliente (400); uno
+// mayor que el máximo se recorta al máximo (documentado), como siempre.
 export function readPageParams(url: URL): { limit: number; cursor: string | null } {
-  const raw = Number(url.searchParams.get("limit") ?? API_PAGE_DEFAULT);
-  const limit = Number.isFinite(raw) ? Math.min(API_PAGE_MAX, Math.max(1, Math.floor(raw))) : API_PAGE_DEFAULT;
-  return { limit, cursor: url.searchParams.get("cursor") };
+  const param = url.searchParams.get("limit");
+  if (param === null || param === "") return { limit: API_PAGE_DEFAULT, cursor: url.searchParams.get("cursor") };
+  if (!/^\d+$/.test(param.trim()) || Number(param) < 1) {
+    throw new ApiError(400, "invalid_request", `limit debe ser un entero entre 1 y ${API_PAGE_MAX}`);
+  }
+  return { limit: Math.min(API_PAGE_MAX, Number(param)), cursor: url.searchParams.get("cursor") };
 }
 
 // Cursor = base64url de un JSON pequeño (fecha + id para desempatar). Opaco

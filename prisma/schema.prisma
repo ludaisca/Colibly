@@ -549,6 +549,8 @@ model ChannelMessage {
   status            String?
   senderId          String?
   sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  // Igual que WAMessage.sentVia (lib/messages/origin.ts).
+  sentVia           String?          @map("sent_via")
   // Roadmap P3-c — true si este INBOUND vino de un comentario de Facebook
   // Page (webhook `feed`), no de un mensaje directo. `externalMessageId` ya
   // guarda el comment_id de Meta en ese caso (mismo campo, sin columna
@@ -815,8 +817,15 @@ model WAMessage {
   // y el texto en español para la bandeja (lib/whatsapp/send-errors.ts).
   errorCode          Int?             @map("error_code")
   errorMessage       String?          @map("error_message")
+  // El error de Meta tal cual llegó (code, title, message, details, href),
+  // para la API y los webhooks; errorMessage es la versión en español.
+  errorDetail        Json?            @map("error_detail")
   senderId           String?
   sender             User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  // Qué parte de Colibly mandó el saliente (lib/messages/origin.ts:
+  // agent, api, automation, bot, campaign, sequence, recovery, system,
+  // business_app, history). Null en filas anteriores: se deduce.
+  sentVia            String?          @map("sent_via")
   campaignId         String?
   campaign           WACampaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   // Igual que campaignId pero para envíos disparados por una fuente de leads

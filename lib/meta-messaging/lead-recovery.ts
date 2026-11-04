@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
@@ -72,6 +73,7 @@ export async function sendMetaChannelRecoveryMessage(
       externalMessageId: sendResult.externalMessageId,
       conversationId: conversation.id,
       direction: "OUTBOUND",
+      sentVia: "recovery",
       messageType: "text",
       body: result.content,
       status: "sent",
@@ -83,6 +85,7 @@ export async function sendMetaChannelRecoveryMessage(
     where: { id: conversation.id },
     data: { lastMessage: result.content.slice(0, 500), lastMessageAt: now },
   });
+  await emitMessageSent("channel", message.id, "recovery");
 
   const promptTokens = result.usage?.promptTokens ?? 0;
   const completionTokens = result.usage?.completionTokens ?? 0;

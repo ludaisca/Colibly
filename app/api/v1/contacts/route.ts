@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { jidCandidates } from "@/lib/whatsapp/coexistence/normalize";
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
 import { ApiError, apiOk, decodeCursor, encodeCursor, readPageParams, withApiErrors } from "@/lib/api/respond";
@@ -85,8 +86,10 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
     throw new ApiError(404, "not_found", "Cuenta no encontrada");
   }
 
-  const existing = await prisma.contact.findUnique({
-    where: { accountId_remoteJid: { accountId: input.accountId, remoteJid: input.phone } },
+  // México: 52XXXXXXXXXX y 521XXXXXXXXXX son el mismo número (jidCandidates);
+  // sin esto, dar de alta "+52…" duplicaba al contacto que ya escribió como "521…".
+  const existing = await prisma.contact.findFirst({
+    where: { accountId: input.accountId, remoteJid: { in: jidCandidates(input.phone) } },
     select: { id: true },
   });
   if (existing) return apiOk(serializeContact(await findScopedContact(ctx, existing.id)), 200);

@@ -62,8 +62,35 @@ describe("serializeMessage", () => {
     );
     expect(out.replyTo).toEqual({ externalId: "wamid.IMG", messageId: "cmmsg_img", from: "5215511112222" });
     expect(out.reaction).toEqual({ contact: "😂", agent: null });
-    expect(out.error).toEqual({ code: 131047, message: "Fuera de la ventana de 24 h" });
+    expect(out.error).toEqual({ code: 131047, message: "Fuera de la ventana de 24 h", title: null, details: null, href: null });
     expect(out.pricing).toEqual({ billable: false, model: "PMP", category: "service", type: "free_customer_service" });
+  });
+
+  it("entrega el error de Meta sin traducir junto al texto en español", () => {
+    const out = serializeMessage(
+      {
+        ...base,
+        direction: "OUTBOUND",
+        errorCode: 131026,
+        errorMessage: "El número no puede recibir mensajes",
+        errorDetail: { code: 131026, title: "Message undeliverable", message: "Message undeliverable", details: "Unable to deliver", href: "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/" },
+      },
+      "cmchat_1"
+    );
+    expect(out.error).toEqual({
+      code: 131026,
+      message: "El número no puede recibir mensajes",
+      title: "Message undeliverable",
+      details: "Unable to deliver",
+      href: "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/",
+    });
+  });
+
+  it("dice quién mandó el mensaje", () => {
+    expect(serializeMessage(base, "c")).toMatchObject({ origin: "contact", sentBy: "contact", senderName: null });
+    expect(serializeMessage({ ...base, direction: "OUTBOUND", sentVia: "agent", senderId: "u1", sender: { name: "Carla" } }, "c")).toMatchObject({ origin: "agent", sentBy: "user", senderName: "Carla" });
+    expect(serializeMessage({ ...base, direction: "OUTBOUND", origin: "BUSINESS_APP_ECHO" }, "c")).toMatchObject({ origin: "business_app", sentBy: "business_app" });
+    expect(serializeMessage({ ...base, direction: "OUTBOUND", sentVia: "bot" }, "c")).toMatchObject({ origin: "bot", sentBy: "bot" });
   });
 
   it("los canales genéricos usan externalMessageId y replyToExternalId", () => {

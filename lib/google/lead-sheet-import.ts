@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { getGoogleSheetsClientForUser } from "@/lib/google/sheets-client";
 import { readSheetValues } from "@/lib/google/sheets-read";
 import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/template-variables";
@@ -223,11 +224,12 @@ export async function importNewLeadsForSource(
         },
       });
 
-      await prisma.wAMessage.create({
+      const savedMessage = await prisma.wAMessage.create({
         data: {
           wamid: wamid ?? null,
           chatId: chat.id,
           direction: "OUTBOUND",
+          sentVia: "automation",
           messageType: headerMedia ? mediaMessageTypeFromMime(headerMedia.mimeType) : "template",
           body: messageBody,
           mediaId: headerMedia ? source.headerParam : null,
@@ -238,7 +240,9 @@ export async function importNewLeadsForSource(
           timestamp: sentAt,
           leadSheetSourceId: source.id,
         },
+        select: { id: true },
       });
+      await emitMessageSent("whatsapp", savedMessage.id, "automation");
 
       await prisma.contactTag.upsert({
         where: { contactId_tagId: { contactId: upsertedContact.id, tagId: leadAdsTag.id } },

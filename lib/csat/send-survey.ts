@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { appUrl } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
@@ -44,17 +45,19 @@ export async function maybeSendCsat(chatId: string): Promise<boolean> {
       body,
     });
 
-    await prisma.$transaction([
+    const [saved] = await prisma.$transaction([
       prisma.wAMessage.create({
         data: {
           chatId: chat.id,
           direction: "OUTBOUND",
+          sentVia: "system",
           messageType: "text",
           body,
           status: "sent",
           wamid: sent.wamid,
           timestamp: new Date(),
         },
+        select: { id: true },
       }),
       prisma.wAChat.update({
         where: { id: chat.id },
@@ -65,6 +68,7 @@ export async function maybeSendCsat(chatId: string): Promise<boolean> {
         data: { sentAt: new Date() },
       }),
     ]);
+    await emitMessageSent("whatsapp", saved.id, "system");
 
     return true;
   } catch (error) {

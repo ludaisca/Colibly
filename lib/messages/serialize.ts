@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { appUrl } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
 import type { StructuredContent } from "@/lib/whatsapp/message-content";
+import { messageOrigin, sentByOf } from "./origin";
 
 // Forma pública de un mensaje: la ÚNICA que ven los integradores, tanto en la
 // API (`GET /api/v1/conversations/{id}/messages`) como en los webhooks
@@ -27,6 +28,8 @@ export interface SerializableMessage {
   bytesSize?: number | null;
   status: string | null;
   senderId: string | null;
+  sender?: { name: string | null } | null;
+  sentVia?: string | null;
   timestamp: Date;
   transcript?: string | null;
   interactivePayload?: Prisma.JsonValue;
@@ -37,6 +40,11 @@ export interface SerializableMessage {
   replyToWamid?: string | null;
   errorCode?: number | null;
   errorMessage?: string | null;
+  errorDetail?: Prisma.JsonValue;
+  origin?: string | null;
+  campaignId?: string | null;
+  leadSheetSourceId?: string | null;
+  recoveryAttempt?: { id: string } | null;
   content?: Prisma.JsonValue;
   pricing?: Prisma.JsonValue;
   deliveredAt?: Date | null;
@@ -58,6 +66,8 @@ const COMMON_SELECT = {
   bytesSize: true,
   status: true,
   senderId: true,
+  sender: { select: { name: true } },
+  sentVia: true,
   timestamp: true,
   transcript: true,
   interactivePayload: true,
@@ -71,6 +81,11 @@ export const MESSAGE_SERIALIZE_SELECT_WA = {
   replyToWamid: true,
   errorCode: true,
   errorMessage: true,
+  errorDetail: true,
+  origin: true,
+  campaignId: true,
+  leadSheetSourceId: true,
+  recoveryAttempt: { select: { id: true } },
   content: true,
   pricing: true,
   deliveredAt: true,
@@ -108,6 +123,29 @@ function publicPricing(raw: Prisma.JsonValue | undefined): PricingPublic | null 
   return { billable: typeof p.billable === "boolean" ? p.billable : null, model: s(p.pricing_model), category: s(p.category), type: s(p.type) };
 }
 
+export interface MessageErrorPublic {
+  code: number | null;
+  // Texto en español (el de la bandeja).
+  message: string | null;
+  // Los de Meta, sin traducir (null en fallos anteriores al 2026-11-04).
+  title: string | null;
+  details: string | null;
+  href: string | null;
+}
+
+function publicError(m: SerializableMessage): MessageErrorPublic | null {
+  if (m.errorCode == null && !m.errorMessage && !m.errorDetail) return null;
+  const d = m.errorDetail && typeof m.errorDetail === "object" && !Array.isArray(m.errorDetail) ? (m.errorDetail as Record<string, unknown>) : {};
+  const s = (v: unknown) => (typeof v === "string" && v ? v : null);
+  return {
+    code: m.errorCode ?? (typeof d.code === "number" ? d.code : null),
+    message: m.errorMessage ?? s(d.message),
+    title: s(d.title),
+    details: s(d.details),
+    href: s(d.href),
+  };
+}
+
 /**
  * `replyToMessageId` resuelve el id externo citado a un id de Colibly cuando
  * el caller ya lo buscó (lote por página en la API, uno en el webhook).
@@ -117,6 +155,7 @@ export function serializeMessage(m: SerializableMessage, conversationId: string,
   const externalId = m.wamid ?? m.externalMessageId ?? null;
   const replyExternal = m.replyToWamid ?? m.replyToExternalId ?? null;
   const hasMedia = MEDIA_TYPES.has(m.messageType) && (!!m.mediaUrl || !!m.mimeType);
+  const origin = messageOrigin(m);
   return {
     // ── v1 ──
     id: m.id,
@@ -151,10 +190,16 @@ export function serializeMessage(m: SerializableMessage, conversationId: string,
     replyTo: replyExternal ? { externalId: replyExternal, messageId: opts.replyToMessageId ?? null, from: content?.replyToFrom ?? null } : null,
     reaction: m.reactionEmoji || m.agentReactionEmoji ? { contact: m.reactionEmoji ?? null, agent: m.agentReactionEmoji ?? null } : null,
     transcript: m.transcript ?? null,
-    error: m.errorCode != null || m.errorMessage ? { code: m.errorCode ?? null, message: m.errorMessage ?? null } : null,
+    error: publicError(m),
     deliveredAt: m.deliveredAt ?? null,
     readAt: m.readAt ?? null,
     pricing: publicPricing(m.pricing),
+    // ── añadidos (2026-11-04, v1.1) ──
+    // Qué parte de Colibly lo mandó (o "contact" si es entrante); null = saliente
+    // antiguo sin pistas. lib/messages/origin.ts.
+    origin,
+    sentBy: sentByOf(origin, m.direction, m.senderId),
+    senderName: m.sender?.name ?? null,
   };
 }
 

@@ -5,7 +5,7 @@ import { decrypt } from "@/lib/crypto";
 import { safeFetch, SafeFetchError } from "@/lib/net/safe-fetch";
 import { WEBHOOK_DELIVERY_ATTEMPTS } from "@/lib/queue";
 import { SIGNATURE_HEADER, signWebhookBody } from "./signature";
-import { WEBHOOK_MAX_CONSECUTIVE_FAILURES, WEBHOOK_PER_ENDPOINT_CONCURRENCY, WEBHOOK_TIMEOUT_SECONDS } from "@/lib/api/constants";
+import { API_SCHEMA_VERSION, API_SCHEMA_VERSION_HEADER, WEBHOOK_MAX_CONSECUTIVE_FAILURES, WEBHOOK_PER_ENDPOINT_CONCURRENCY, WEBHOOK_TIMEOUT_SECONDS } from "@/lib/api/constants";
 
 // Tras tantas entregas fallidas SEGUIDAS (cada una ya agotó sus reintentos) el
 // endpoint se desactiva solo y se avisa a su dueño — un receptor muerto no
@@ -100,6 +100,7 @@ async function deliverOnce(job: Job<WebhookDeliveryJob>): Promise<void> {
         // User-Agent identificable para listas de permitidos.
         "X-Colibly-Event-Id": delivery.eventId,
         "X-Colibly-Attempt": String(attempt),
+        [API_SCHEMA_VERSION_HEADER]: API_SCHEMA_VERSION,
         "User-Agent": "Colibly-Webhooks/1.0",
       },
       maxResponseBytes: 4096,

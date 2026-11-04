@@ -1,4 +1,5 @@
 import { promises as fs } from "fs";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { prisma } from "@/lib/prisma";
 import { sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { getAIProvider } from "@/lib/ai/factory";
@@ -101,11 +102,12 @@ async function sendFallbackReply(botId: string, conversationId: string) {
     const now = new Date();
     await sendMetaChannelText(bot.channelAccount, { to: conversation.externalId, body: FALLBACK_REPLY });
 
-    await Promise.all([
+    const [botMessage] = await Promise.all([
       prisma.channelMessage.create({
         data: {
           conversationId,
           direction: "OUTBOUND",
+          sentVia: "bot",
           messageType: "text",
           body: FALLBACK_REPLY,
           status: "sent",
@@ -117,6 +119,7 @@ async function sendFallbackReply(botId: string, conversationId: string) {
         data: { lastMessage: FALLBACK_REPLY.slice(0, 500), lastMessageAt: now },
       }),
     ]);
+    await emitMessageSent("channel", botMessage.id, "bot");
   } catch (err) {
     console.error("[meta-messaging bot-worker] No se pudo enviar el mensaje de respaldo:", err instanceof Error ? err.message : err);
   }
@@ -285,11 +288,12 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
       await sendMetaChannelText(bot.channelAccount, { to: conversation.externalId, body: replyText });
       delivered = true;
 
-      await Promise.all([
+      const [botMessage] = await Promise.all([
         prisma.channelMessage.create({
           data: {
             conversationId,
             direction: "OUTBOUND",
+            sentVia: "bot",
             messageType: "text",
             body: replyText,
             status: "sent",
@@ -302,6 +306,7 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
           data: { lastMessage: replyText.slice(0, 500), lastMessageAt: now, waitingSince: null },
         }),
       ]);
+      await emitMessageSent("channel", botMessage.id, "bot");
     }
 
     await Promise.all([

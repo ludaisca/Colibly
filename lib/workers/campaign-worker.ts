@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { BACKGROUND_EVENT_PRIORITY } from "@/lib/events/emit";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { campaignQueue } from "@/lib/queue";
 import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/template-variables";
 import { saveMediaFromMeta, isImageMime, isVideoMime } from "@/lib/whatsapp/media-store";
@@ -208,11 +210,12 @@ export async function processCampaignJob(job: CampaignJob) {
         },
       });
 
-      await prisma.wAMessage.create({
+      const savedMessage = await prisma.wAMessage.create({
         data: {
           wamid: wamid ?? null,
           chatId: chat.id,
           direction: "OUTBOUND",
+          sentVia: "campaign",
           messageType: headerMedia ? mediaMessageTypeFromMime(headerMedia.mimeType) : "template",
           body: messageBody,
           mediaId: headerMedia ? campaign.headerParam : null,
@@ -223,7 +226,11 @@ export async function processCampaignJob(job: CampaignJob) {
           timestamp: sentAt,
           campaignId: campaign.id,
         },
+        select: { id: true },
       });
+      // Prioridad baja: una campaña son miles de eventos y no debe retrasar los
+      // de la bandeja en vivo.
+      await emitMessageSent("whatsapp", savedMessage.id, "campaign", { emit: { priority: BACKGROUND_EVENT_PRIORITY } });
 
       await prisma.contactTag.upsert({
         where: { contactId_tagId: { contactId: contact.id, tagId: campaignTag.id } },

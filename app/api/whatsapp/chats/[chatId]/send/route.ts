@@ -14,7 +14,7 @@ import fs from "fs/promises";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { MetaSendError } from "@/lib/whatsapp/send-errors";
-import { emitDomainEvent } from "@/lib/events/emit";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { eventRefsForChat } from "@/lib/events/refs";
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
 import { uploadMedia } from "@/lib/whatsapp";
@@ -173,6 +173,7 @@ export async function POST(
         wamid,
         chatId: chat.id,
         direction: "OUTBOUND",
+      sentVia: "agent",
         messageType: type,
         body: textBody ?? null,
         caption: caption ?? null,
@@ -205,7 +206,7 @@ export async function POST(
       data: { lastActivity: now },
     });
 
-    await emitAgentMessageSent(chat.id, newMessage, session.user.id);
+    await emitAgentMessageSent(chat.id, newMessage);
 
     if (type === "sticker" && stickerId) await prisma.wASticker.updateMany({ where: { id: stickerId, organizationId: chat.account.organizationId }, data: { lastUsedAt: now } });
 
@@ -286,6 +287,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
       externalMessageId,
       conversationId: conversation.id,
       direction: "OUTBOUND",
+      sentVia: "agent",
       messageType: type,
       body: type === "text" ? textBody : null,
       caption: type === "text" ? null : (caption ?? null),
@@ -317,7 +319,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
     data: { lastActivity: now },
   });
 
-  await emitAgentMessageSent(conversation.id, newMessage, userId);
+  await emitAgentMessageSent(conversation.id, newMessage);
 
   return NextResponse.json({ ...newMessage, wamid: newMessage.externalMessageId, replyToWamid: newMessage.replyToExternalId });
 }
@@ -350,6 +352,7 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
     data: {
       conversationId: conversation.id,
       direction: "OUTBOUND",
+      sentVia: "agent",
       messageType: "text",
       body: webchatText,
       status: "sent",
@@ -374,7 +377,7 @@ async function sendWebchatReply(req: Request, chatId: string, userId: string) {
     data: { lastActivity: now },
   });
 
-  await emitAgentMessageSent(conversation.id, newMessage, userId);
+  await emitAgentMessageSent(conversation.id, newMessage);
 
   return NextResponse.json(newMessage);
 }
@@ -458,6 +461,7 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
       externalMessageId,
       conversationId: conversation.id,
       direction: "OUTBOUND",
+      sentVia: "agent",
       messageType: type,
       body: type === "text" ? textBody : null,
       caption: type === "text" ? null : (caption ?? null),
@@ -488,7 +492,7 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
     data: { lastActivity: now },
   });
 
-  await emitAgentMessageSent(conversation.id, newMessage, userId);
+  await emitAgentMessageSent(conversation.id, newMessage);
 
   return NextResponse.json(newMessage);
 }
@@ -496,8 +500,7 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
 // Evento de dominio de un envío manual — común a las 4 ramas de canal.
 async function emitAgentMessageSent(
   chatId: string,
-  message: { id: string; messageType: string; body: string | null },
-  userId: string
+  message: { id: string; messageType: string; body: string | null }
 ) {
   const refs = await eventRefsForChat(chatId);
   if (!refs) return;
@@ -506,11 +509,7 @@ async function emitAgentMessageSent(
   if (refs.chat) {
     await pauseConversationalRuns(refs.chat).catch((err) => console.error("[send] pauseConversationalRuns falló:", err));
   }
-  await emitDomainEvent({
-    type: "message.sent",
-    ...refs,
-    data: { messageId: message.id, messageType: message.messageType, text: message.body, source: "agent", senderId: userId },
-  });
+  await emitMessageSent(refs.account.kind === "whatsapp" ? "whatsapp" : "channel", message.id, "agent");
 }
 
 // Firma personal del agente (F6, lib/inbox/signature.ts). El límite es el del

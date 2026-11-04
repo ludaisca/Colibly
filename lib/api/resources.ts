@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { OutboundTarget } from "@/lib/messaging/outbound";
 import type { ApiContext } from "./auth";
 import { ApiError } from "./respond";
+import { toE164 } from "@/lib/phone/e164";
 
 // Búsquedas acotadas al alcance de la key y forma pública de cada recurso.
 // Todo id que llega por la API pasa por aquí: un id de otra cuenta responde
@@ -45,7 +46,10 @@ export function serializeContact(c: ApiContactRow) {
     channel: isWhatsapp ? "WHATSAPP" : (c.channelAccount?.channel ?? null),
     name: c.name,
     realName: c.realName,
+    // `phone` es el wa_id de Meta tal cual (puede traer el "1" móvil de México);
+    // `phoneE164` es el número normalizado para cruzar con otros sistemas.
     phone: isWhatsapp ? c.remoteJid : null,
+    phoneE164: isWhatsapp ? toE164(c.remoteJid) : null,
     externalId: isWhatsapp ? null : c.remoteJid,
     leadStatus: c.leadStatus,
     leadOrigin: c.leadOrigin,

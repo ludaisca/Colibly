@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { emitMessageSent } from "@/lib/events/message-sent";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
@@ -93,6 +94,7 @@ export async function sendRecoveryMessage(
       wamid: sendResult.wamid ?? undefined,
       chatId: chat.id,
       direction: "OUTBOUND",
+      sentVia: "recovery",
       messageType: "text",
       body: result.content,
       status: "sent",
@@ -104,6 +106,7 @@ export async function sendRecoveryMessage(
     where: { id: chat.id },
     data: { lastMessage: result.content.slice(0, 500), lastMessageAt: now },
   });
+  await emitMessageSent("whatsapp", message.id, "recovery");
 
   const promptTokens = result.usage?.promptTokens ?? 0;
   const completionTokens = result.usage?.completionTokens ?? 0;

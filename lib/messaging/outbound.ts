@@ -8,7 +8,8 @@ import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/templat
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
 import { sendMetaChannelOptions, sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
-import { emitDomainEvent } from "@/lib/events/emit";
+import { emitMessageSent } from "@/lib/events/message-sent";
+import type { OutboundOrigin } from "@/lib/messages/origin";
 import { markReplied } from "@/lib/chats/waiting";
 import type { MessageSource } from "@/lib/events/types";
 import { assertOrgCanSend } from "@/lib/billing/gates";
@@ -69,6 +70,16 @@ export interface OutboundOpts {
    * vista previa (`lastMessage`) ni `lastMessageAt` del chat.
    */
   countsAsReply?: boolean;
+  /** `origin` público del mensaje; por defecto se deduce de source/countsAsReply. */
+  origin?: OutboundOrigin;
+}
+
+// Lo que se guarda en `sentVia` y viaja en message.sent (lib/messages/origin.ts).
+export function outboundOriginOf(opts: OutboundOpts): OutboundOrigin {
+  if (opts.origin) return opts.origin;
+  if (opts.source === "agent") return "agent";
+  if (opts.source === "api") return "api";
+  return opts.countsAsReply === false ? "system" : "automation";
 }
 
 export interface OutboundResult {
@@ -191,6 +202,7 @@ async function sendWhatsapp(
       interactivePayload: interactivePayload as Prisma.InputJsonObject | undefined,
       status: "sent",
       senderId: opts.senderId ?? null,
+      sentVia: outboundOriginOf(opts),
       timestamp: now,
     },
     select: { id: true },
@@ -207,19 +219,7 @@ async function sendWhatsapp(
   await prisma.wAAccount.update({ where: { id: chat.accountId }, data: { lastActivity: now } });
   if (opts.countsAsReply !== false) await markReplied("whatsapp", chat.id);
 
-  await emitDomainEvent({
-    type: "message.sent",
-    account: { kind: "whatsapp", id: chat.accountId },
-    chat: { kind: "whatsapp", id: chat.id },
-    contactId: chat.contactId,
-    data: {
-      messageId: message.id,
-      messageType,
-      text: body,
-      source: opts.source,
-      senderId: opts.senderId ?? null,
-    },
-  });
+  await emitMessageSent("whatsapp", message.id, outboundOriginOf(opts));
 
   return { messageId: message.id, externalId: wamid };
 }
@@ -286,6 +286,7 @@ async function sendChannel(
       interactivePayload: interactivePayload as Prisma.InputJsonObject | undefined,
       status: "sent",
       senderId: opts.senderId ?? null,
+      sentVia: outboundOriginOf(opts),
       timestamp: now,
     },
     select: { id: true },
@@ -299,13 +300,7 @@ async function sendChannel(
   await prisma.channelAccount.update({ where: { id: channelAccount.id }, data: { lastActivity: now } });
   if (opts.countsAsReply !== false) await markReplied("channel", conversation.id);
 
-  await emitDomainEvent({
-    type: "message.sent",
-    account: { kind: "channel", id: channelAccount.id, channel: channelAccount.channel },
-    chat: { kind: "channel", id: conversation.id },
-    contactId: conversation.contactId,
-    data: { messageId: message.id, messageType: options ? "interactive" : "text", text, source: opts.source, senderId: opts.senderId ?? null },
-  });
+  await emitMessageSent("channel", message.id, outboundOriginOf(opts));
 
   return { messageId: message.id, externalId };
 }

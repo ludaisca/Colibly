@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { DomainEvent } from "@/lib/events/types";
+import { toE164 } from "@/lib/phone/e164";
 import { MESSAGE_SERIALIZE_SELECT_CHANNEL, MESSAGE_SERIALIZE_SELECT_WA, resolveReplyIds, serializeMessage, type PublicMessage } from "@/lib/messages/serialize";
 
 // Forma pública de un evento — lo que recibe un webhook (y lo que documenta
@@ -10,11 +11,19 @@ export interface PublicEvent {
   id: string;
   type: string;
   occurredAt: string;
-  account: { id: string; channel: string; name: string } | null;
+  account: {
+    id: string;
+    channel: string;
+    name: string;
+    phoneNumber: string | null; // solo WhatsApp, como lo muestra Meta
+    phoneE164: string | null;
+  } | null;
   contact: {
     id: string;
     name: string | null;
-    phone: string | null; // solo WhatsApp
+    realName: string | null; // nombre puesto por el equipo (name ya lo prefiere)
+    phone: string | null; // solo WhatsApp: el wa_id de Meta tal cual
+    phoneE164: string | null; // solo WhatsApp: +52… sin el "1" móvil antiguo
     externalId: string | null; // Telegram/Messenger/Instagram/Web
     leadStatus: string;
     leadOrigin: string;
@@ -47,7 +56,7 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
 
   const [account, contact, conversation, message] = await Promise.all([
     isWhatsapp
-      ? prisma.wAAccount.findUnique({ where: { id: event.account.id }, select: { id: true, name: true } })
+      ? prisma.wAAccount.findUnique({ where: { id: event.account.id }, select: { id: true, name: true, phoneNumber: true } })
       : prisma.channelAccount.findUnique({ where: { id: event.account.id }, select: { id: true, name: true } }),
     event.contactId
       ? prisma.contact.findUnique({
@@ -69,12 +78,22 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
     id: event.id,
     type: event.type,
     occurredAt: event.occurredAt,
-    account: account ? { id: account.id, channel, name: account.name } : null,
+    account: account
+      ? {
+          id: account.id,
+          channel,
+          name: account.name,
+          phoneNumber: "phoneNumber" in account ? account.phoneNumber : null,
+          phoneE164: "phoneNumber" in account ? toE164(account.phoneNumber) : null,
+        }
+      : null,
     contact: contact
       ? {
           id: contact.id,
           name: contact.realName ?? contact.name,
+          realName: contact.realName,
           phone: isWhatsapp ? contact.remoteJid : null,
+          phoneE164: isWhatsapp ? toE164(contact.remoteJid) : null,
           externalId: isWhatsapp ? null : contact.remoteJid,
           leadStatus: contact.leadStatus,
           leadOrigin: contact.leadOrigin,

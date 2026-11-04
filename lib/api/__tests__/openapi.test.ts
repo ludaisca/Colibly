@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildOpenApiSpec } from "@/lib/api/openapi";
 import { DOMAIN_EVENT_TYPES } from "@/lib/events/types";
+import { serializeMessage } from "@/lib/messages/serialize";
 
 // La página pública /docs/api se arma desde esta especificación: si una ruta
 // de app/api/v1 no está aquí, no existe para quien integra.
@@ -23,7 +24,8 @@ describe("OpenAPI", () => {
 
   it("documenta todas las rutas de app/api/v1", () => {
     const documented = Object.keys(spec.paths);
-    for (const r of routes(V1).filter((r) => r !== "/openapi.json")) expect(documented).toContain(r);
+    // /{...path} es el 404 en JSON para rutas inexistentes, no un endpoint.
+    for (const r of routes(V1).filter((r) => r !== "/openapi.json" && r !== "/{...path}")) expect(documented).toContain(r);
   });
 
   it("todo endpoint tiene respuesta de éxito con ejemplo y headers de límite", () => {
@@ -50,5 +52,41 @@ describe("OpenAPI", () => {
   it("el catálogo de eventos cubre todos los eventos de dominio más webhook.test", () => {
     const types = spec["x-colibly-events"].map((e) => e.type);
     expect(types).toEqual([...DOMAIN_EVENT_TYPES, "webhook.test"]);
+  });
+
+  // Contrato: lo que entrega el código y lo que dice el OpenAPI no se desfasan.
+  const schemas = spec.components.schemas as unknown as Record<string, { properties: Record<string, unknown> }>;
+
+  it("Message documenta exactamente los campos de serializeMessage", () => {
+    const out = serializeMessage(
+      { id: "m", direction: "OUTBOUND", messageType: "text", body: "x", caption: null, mimeType: null, filename: null, status: "sent", senderId: null, timestamp: new Date() },
+      "c"
+    );
+    expect(Object.keys(schemas.Message.properties).sort()).toEqual(Object.keys(out).sort());
+  });
+
+  it("el ejemplo de mensaje tiene todos los campos del serializador", () => {
+    const event = spec["x-colibly-events"].find((e) => e.type === "message.received")!;
+    const example = (event.example as { message: Record<string, unknown> }).message;
+    expect(Object.keys(example).sort()).toEqual(Object.keys(schemas.Message.properties).sort());
+  });
+
+  it("el data de cada evento documenta los campos de su ejemplo", () => {
+    for (const e of spec["x-colibly-events"]) {
+      const props = Object.keys((e.data as { properties?: Record<string, unknown> }).properties ?? {});
+      const example = Object.keys((e.example as { data: Record<string, unknown> }).data);
+      expect(example.sort(), e.type).toEqual(props.sort());
+    }
+  });
+
+  it("el sobre del evento documenta account y contact completos", () => {
+    const event = schemas.Event.properties as Record<string, { properties?: Record<string, unknown> }>;
+    const example = spec["x-colibly-events"].find((e) => e.type === "message.sent")!.example as unknown as Record<string, Record<string, unknown>>;
+    expect(Object.keys(event.account.properties!).sort()).toEqual(Object.keys(example.account).sort());
+    expect(Object.keys(event.contact.properties!).sort()).toEqual(Object.keys(example.contact).sort());
+  });
+
+  it("publica el changelog con la versión vigente primero", () => {
+    expect(spec.info.version).toBe(spec["x-colibly-changelog"][0].version);
   });
 });
