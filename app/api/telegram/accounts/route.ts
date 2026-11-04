@@ -8,7 +8,7 @@ import { getMe, setWebhook } from "@/lib/telegram";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
-import { getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { getUserChannelAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
 import { assertChannelEnabled } from "@/lib/channel-flags";
@@ -67,6 +67,7 @@ export async function POST(req: Request) {
       },
       select: { id: true, name: true, channel: true, status: true, createdAt: true },
     });
+    invalidateAccountScopes();
 
     // El navegador puede estar en un puerto que Telegram no acepta (1443).
     // El webhook usa la URL pública HTTPS: el override del túnel, si no APP_URL.

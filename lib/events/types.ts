@@ -16,6 +16,14 @@ export type MessageSource = "agent" | "api" | "automation";
 interface EventDataMap {
   "message.received": { messageId: string; messageType: string; text: string | null; interactiveReplyId: string | null };
   "message.sent": { messageId: string; messageType: string; text: string | null; source: MessageSource; senderId: string | null };
+  // Solo WhatsApp: Meta confirma la entrega, la lectura o el fallo de un saliente.
+  "message.status_changed": {
+    messageId: string;
+    status: string; // sent | delivered | read | failed
+    error: { code: number | null; message: string } | null;
+    // Modelo por mensaje de Meta: si se cobra y en qué categoría.
+    pricing: { billable: boolean | null; model: string | null; category: string | null; type: string | null } | null;
+  };
   // history = importación del historial de la app WhatsApp Business
   // (coexistencia); echo = el negocio escribió primero desde esa app.
   "contact.created": { origin: LeadOrigin; source: "inbound" | "api" | "lead_ads" | "history" | "echo" | "import" };
@@ -49,6 +57,7 @@ export type DomainEvent = DomainEventInput & { id: string; occurredAt: string };
 export const DOMAIN_EVENT_CATALOG: Record<DomainEventType, string> = {
   "message.received": "Mensaje recibido de un contacto",
   "message.sent": "Mensaje enviado por un agente, la API o una automatización",
+  "message.status_changed": "Estado de un mensaje enviado (entregado, leído o fallido). Solo WhatsApp",
   "contact.created": "Contacto nuevo",
   "contact.lead_status_changed": "Cambio de etapa del lead",
   "tag.added": "Etiqueta agregada a un contacto o conversación",

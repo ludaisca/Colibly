@@ -118,6 +118,16 @@ const EX = {
     senderId: null,
     interactive: null,
     timestamp: "2026-10-18T19:02:11.000Z",
+    externalId: "wamid.HBgNNTIxNTU1MTExMTIyMjIVAgASGBQzQTk5",
+    content: null,
+    media: null,
+    replyTo: null,
+    reaction: null,
+    transcript: null,
+    error: null,
+    deliveredAt: null,
+    readAt: null,
+    pricing: null,
   },
   webhook: {
     id: "cmwh_01",
@@ -153,6 +163,19 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
   "message.sent": {
     data: obj({ messageId: str, messageType: str, text: strNull, source: { type: "string", enum: ["agent", "api", "automation"] }, senderId: strNull }),
     example: { messageId: "cmmsg_02", messageType: "text", text: "Sí, enviamos a todo México.", source: "agent", senderId: "cmusr_02" },
+  },
+  "message.status_changed": {
+    data: obj({
+      messageId: str,
+      status: { type: "string", enum: ["sent", "delivered", "read", "failed"] },
+      error: { type: ["object", "null"], properties: { code: { type: ["integer", "null"] }, message: str }, description: "Solo en failed: código de Meta y motivo legible" },
+      pricing: {
+        type: ["object", "null"],
+        description: "Modelo por mensaje de Meta: si se cobra y en qué categoría",
+        properties: { billable: { type: ["boolean", "null"] }, model: strNull, category: { ...strNull, description: "marketing, utility, authentication, service" }, type: { ...strNull, description: "p. ej. regular, free_customer_service, free_entry_point" } },
+      },
+    }),
+    example: { messageId: "cmmsg_02", status: "delivered", error: null, pricing: { billable: false, model: "PMP", category: "service", type: "free_customer_service" } },
   },
   "contact.created": {
     data: obj({
@@ -222,6 +245,7 @@ export function exampleEvent(type: string, data: Record<string, unknown>) {
       : { id: EX.contact.id, name: EX.contact.name, phone: EX.contact.phone, externalId: null, leadStatus: EX.contact.leadStatus, leadOrigin: "ORGANIC" },
     conversation: test || type === "contact.created" ? null : { id: EX.conversation.id, channel: "WHATSAPP", status: "OPEN", assignedToId: "cmusr_02" },
     data,
+    ...(type.startsWith("message.") ? { message: EX.message } : {}),
   };
 }
 
@@ -414,6 +438,15 @@ export function buildOpenApiSpec(serverUrl: string) {
           description: `${scopeNote("conversations:read")} Recientes primero.`,
           parameters: [idParam, ...pageParams],
           responses: { "200": ok(paged("Message"), { data: [EX.message], nextCursor: null }), ...errors },
+        },
+      },
+      "/messages/{id}/media": {
+        get: {
+          tags: ["Mensajes"],
+          summary: "Descargar el medio de un mensaje",
+          description: `${scopeNote("conversations:read")} Bytes del archivo (imagen, audio, video, sticker o documento), como descarga. Es la URL de \`message.media.url\`. 404 si el mensaje no tiene medio o aún se está bajando de Meta.`,
+          parameters: [idParam],
+          responses: { "200": { description: "El archivo (Content-Type real del medio)", headers: rateHeaders, content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } }, ...errors },
         },
       },
       "/messages": {
@@ -653,6 +686,23 @@ export function buildOpenApiSpec(serverUrl: string) {
             senderId: { ...strNull, description: "Usuario que lo envió (salientes de agente)" },
             interactive: { description: "Botones o lista, si aplica" },
             timestamp: { type: "string", format: "date-time" },
+            externalId: { ...strNull, description: "Id del mensaje en el canal (wamid en WhatsApp)" },
+            content: {
+              type: ["object", "null"],
+              description: "Lo que no cabe en text/caption/media. Según el tipo: location {latitude, longitude, name, address, url}; contacts [{name, phones[{phone, waId, type}], emails, company}]; order {catalogId, text, items[{productId, quantity, price, currency}]}; system {type, body, newWaId}; errors [{code, title, detail}]; media {sha256, voice, animated}; forwarded; frequentlyForwarded; referredProduct; replyToFrom",
+            },
+            media: {
+              type: ["object", "null"],
+              description: "Medio del mensaje. Descárgalo de `url` con tu API key (GET /messages/{id}/media); ready=false mientras Colibly lo baja de Meta",
+              properties: { url: str, ready: { type: "boolean" }, mimeType: strNull, filename: strNull, size: { type: ["integer", "null"] }, sha256: strNull },
+            },
+            replyTo: { type: ["object", "null"], description: "Mensaje citado", properties: { externalId: str, messageId: strNull, from: strNull } },
+            reaction: { type: ["object", "null"], properties: { contact: strNull, agent: strNull } },
+            transcript: { ...strNull, description: "Transcripción de una nota de voz" },
+            error: { type: ["object", "null"], description: "Salientes fallidos", properties: { code: { type: ["integer", "null"] }, message: strNull } },
+            deliveredAt: { type: ["string", "null"], format: "date-time", description: "Hora de entrega según WhatsApp" },
+            readAt: { type: ["string", "null"], format: "date-time", description: "Hora de lectura según WhatsApp" },
+            pricing: { type: ["object", "null"], properties: { billable: { type: ["boolean", "null"] }, model: strNull, category: strNull, type: strNull } },
           },
         },
         SendMessage: {
@@ -745,6 +795,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             },
             conversation: { type: ["object", "null"], properties: { id: str, channel: ref("Channel"), status: str, assignedToId: strNull } },
             data: { type: "object", description: "Depende del tipo; ver x-colibly-events" },
+            message: { ...ref("Message"), description: "Solo en message.*: el mensaje con la misma forma que GET /conversations/{id}/messages, leído al entregar" },
           },
         },
       },

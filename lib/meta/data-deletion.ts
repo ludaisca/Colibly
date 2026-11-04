@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { removeAccountMedia } from "@/lib/whatsapp/media-store";
 import { notifyAccountAdmins } from "@/lib/whatsapp/coexistence/notify";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 // Callbacks que Meta exige a las apps de plataforma: desautorización (el usuario
 // quitó la app) y eliminación de datos (pidió borrar lo que la app guardó).
@@ -63,6 +64,7 @@ export async function handleDataDeletion(metaUserId: string): Promise<{ confirma
   let deleted = 0;
   for (const a of accounts) {
     await prisma.wAAccount.delete({ where: { id: a.id } });
+    invalidateAccountScopes();
     await removeAccountMedia(a.id).catch((err) => console.error("[data-deletion] no se pudo borrar la media de", a.id, err));
     deleted++;
   }

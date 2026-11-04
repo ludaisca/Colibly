@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { buildWaChatWhere, mapWaChatRow, parseChatListFilters, WA_CHAT_SELECT } from "@/lib/chats/query";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { jsonWithEtag } from "@/lib/http/etag";
 
 export async function GET(req: Request) {
   try {
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
     const chats = rows.map(mapWaChatRow);
 
     if (paginate) {
-      return NextResponse.json({ items: chats, total, page, pageSize });
+      return jsonWithEtag(req, { items: chats, total, page, pageSize });
     }
     return NextResponse.json(chats);
   } catch (error) {

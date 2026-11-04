@@ -4,10 +4,14 @@
 // cualquiera de los paneles pueda importarlo sin acoplarse a los demás.
 
 export const CHATS_PAGE_SIZE = 30;
-// Cada cuánto se refresca la lista de conversaciones (nuevos chats de otros
-// leads). Más espaciado que el poll de mensajes del chat abierto (5s): cada
-// tick consulta hasta 5 fuentes, una por canal.
-export const CHATS_LIST_POLL_MS = 15_000;
+// Cada cuánto sincroniza la bandeja con GET /api/inbox/sync (lista, hilo
+// abierto, "está escribiendo" y, cada 6 ticks, contadores de vistas).
+export const INBOX_SYNC_MS = 5_000;
+// El sync pide el hilo desde el N.º mensaje más reciente cargado: llegan los
+// nuevos y los cambios de estado (entregado/leído) de los últimos N.
+export const THREAD_SYNC_WINDOW = 20;
+// Hilos que la bandeja guarda en memoria para reabrirlos al instante.
+export const THREAD_CACHE_MAX = 15;
 
 export type ChatStatus = "OPEN" | "PENDING" | "RESOLVED";
 
@@ -98,6 +102,32 @@ export interface ChatItem {
   account: { id: string; name: string; phoneNumber: string | null; coexistence?: boolean; callingEnabled?: boolean };
   campaign: { id: string; name: string } | null;
   channel: Channel;
+  /** Cursor de la sincronización: el más reciente que ya tenemos. */
+  updatedAt?: string;
+}
+
+/** El updatedAt más reciente de la lista (ISO en UTC: se comparan como texto). */
+export function latestUpdatedAt(chats: Array<{ updatedAt?: string }>): string | null {
+  let latest: string | null = null;
+  for (const chat of chats) if (chat.updatedAt && (!latest || chat.updatedAt > latest)) latest = chat.updatedAt;
+  return latest;
+}
+
+/** El lastMessageAt más antiguo de la lista: el piso del delta de la sincronización. */
+export function oldestLastMessageAt(chats: Array<{ lastMessageAt: string | null }>): string | null {
+  let oldest: string | null = null;
+  for (const chat of chats) if (chat.lastMessageAt && (!oldest || chat.lastMessageAt < oldest)) oldest = chat.lastMessageAt;
+  return oldest;
+}
+
+export type ViewCounts = Record<"awaiting" | "mine" | "unassigned" | "all", number>;
+
+/** Respuesta de GET /api/inbox/sync. */
+export interface InboxSyncResponse {
+  chats: ChatItem[];
+  total?: number;
+  thread?: { chatId: string; messages: Message[]; typing: Array<{ id: string; name: string | null }> } | { chatId: string; missing: true };
+  counts?: ViewCounts;
 }
 
 export interface CannedResponseItem {
@@ -142,6 +172,10 @@ export interface Message {
   reactionEmoji?: string | null;
   agentReactionEmoji?: string | null;
   agentReactions?: AgentReaction[];
+  /** Contenido estructurado de WhatsApp (lib/whatsapp/message-content.ts:structuredContentOf). */
+  content?: {
+    location?: { latitude: number; longitude: number; name: string | null; address: string | null; url: string | null };
+  } | null;
   timestamp: string;
   /** Identidad visual estable mientras el envío optimista recibe su id real. */
   motionKey?: string;
@@ -259,3 +293,8 @@ export const campaignTone = hashTone;
 // entidad, ver lib hue.ts + globals.css) — mismo color que el EntityAvatar de
 // cada fila, para que el inbox multi-cuenta se lea de un vistazo. Los Badge
 // (campaña/cuenta en el header del hilo) siguen con los 5 tonos semánticos.
+
+/** Enlace universal a un mapa: en el teléfono abre la app de mapas. */
+export function mapUrlFor(location: { latitude: number; longitude: number }): string {
+  return `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`;
+}

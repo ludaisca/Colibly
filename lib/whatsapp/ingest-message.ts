@@ -12,6 +12,8 @@ import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
 import { markWaiting } from "@/lib/chats/waiting";
 import { queueAwayMessage } from "@/lib/inbox/away-message";
+import type { StructuredContent } from "@/lib/whatsapp/message-content";
+import { publicText } from "@/lib/messages/serialize";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -57,6 +59,10 @@ export interface NormalizedInboundMessage {
   // importa para atribución en el create del Contact (first-touch) — ver
   // más abajo.
   referral?: InboundReferral | null;
+  // Ubicación, contactos, pedido, sha256, reenvío… (message-content.ts:structuredContentOf).
+  content?: StructuredContent | null;
+  // `user_id` de Meta (id por negocio, para nombres de usuario de WhatsApp).
+  metaUserId?: string | null;
 }
 
 export interface IngestResult {
@@ -82,7 +88,7 @@ export async function ingestInboundMessage(
   const [existingContact, existingChat] = await Promise.all([
     prisma.contact.findUnique({
       where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
-      select: { name: true, nameSource: true, remoteJid: true },
+      select: { name: true, nameSource: true, remoteJid: true, metaUserId: true },
     }),
     prisma.wAChat.findUnique({
       where: { accountId_remoteJid: { accountId, remoteJid: msg.remoteJid } },
@@ -106,6 +112,7 @@ export async function ingestInboundMessage(
       name: bookName ?? msg.contactName,
       nameSource: bookName ? "address_book" : null,
       source: "whatsapp_inbound",
+      metaUserId: msg.metaUserId ?? null,
       // First-touch attribution: solo se setea al crear el Contact, nunca en
       // el `update` de abajo — un segundo mensaje (con o sin referral propio)
       // no debe pisar el origen real del primer contacto. Mismo principio que
@@ -118,7 +125,10 @@ export async function ingestInboundMessage(
           }
         : {}),
     },
-    update: contactNameShouldUpdate ? { name: msg.contactName } : {},
+    update: {
+      ...(contactNameShouldUpdate ? { name: msg.contactName } : {}),
+      ...(msg.metaUserId && msg.metaUserId !== existingContact?.metaUserId ? { metaUserId: msg.metaUserId } : {}),
+    },
   });
 
   if (bookName) await forgetAddressBookEntry(accountId, msg.remoteJid);
@@ -179,6 +189,7 @@ export async function ingestInboundMessage(
         interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
         replyToWamid: msg.replyToWamid ?? null,
         referral: msg.referral ? (msg.referral as Prisma.InputJsonValue) : undefined,
+        content: msg.content ? (msg.content as Prisma.InputJsonValue) : undefined,
         timestamp: msg.timestamp,
       },
     });
@@ -232,7 +243,7 @@ export async function ingestInboundMessage(
     {
       type: "message.received",
       ...refs,
-      data: { messageId: createdMessage.id, messageType: msg.type, text: msg.body || null, interactiveReplyId: msg.interactiveReplyId ?? null },
+      data: { messageId: createdMessage.id, messageType: msg.type, text: publicText(msg.body, msg.type), interactiveReplyId: msg.interactiveReplyId ?? null },
     },
     msg.timestamp
   );

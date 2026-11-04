@@ -11,6 +11,7 @@ import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
 import { markWaiting } from "@/lib/chats/waiting";
 import { queueAwayMessage } from "@/lib/inbox/away-message";
+import { publicText } from "@/lib/messages/serialize";
 
 // Equivalente a lib/whatsapp/ingest-message.ts pero sobre las tablas
 // genéricas ChannelAccount/Conversation/ChannelMessage — mismos pasos
@@ -212,7 +213,7 @@ export async function ingestChannelMessage(
     {
       type: "message.received",
       ...refs,
-      data: { messageId: createdMessage.id, messageType: msg.type, text: msg.body || null, interactiveReplyId: msg.interactiveReplyId ?? null },
+      data: { messageId: createdMessage.id, messageType: msg.type, text: publicText(msg.body, msg.type), interactiveReplyId: msg.interactiveReplyId ?? null },
     },
     msg.timestamp
   );

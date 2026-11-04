@@ -116,33 +116,4 @@ export function serializeConversation(c: ConversationLike, accountId: string, ch
   };
 }
 
-interface MessageLike {
-  id: string;
-  direction: string;
-  messageType: string;
-  body: string | null;
-  caption: string | null;
-  mimeType: string | null;
-  filename: string | null;
-  status: string | null;
-  senderId: string | null;
-  timestamp: Date;
-  interactivePayload?: Prisma.JsonValue;
-}
-
-export function serializeMessage(m: MessageLike, conversationId: string) {
-  return {
-    id: m.id,
-    conversationId,
-    direction: m.direction,
-    type: m.messageType,
-    text: m.body,
-    caption: m.caption,
-    mimeType: m.mimeType,
-    filename: m.filename,
-    status: m.status,
-    senderId: m.senderId,
-    interactive: m.interactivePayload ?? null,
-    timestamp: m.timestamp,
-  };
-}
+// La forma pública de un mensaje vive en lib/messages/serialize.ts (compartida con los webhooks).

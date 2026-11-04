@@ -11,7 +11,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
 import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 
 export async function POST(req: Request) {
@@ -79,6 +79,7 @@ export async function POST(req: Request) {
         createdAt: true,
       },
     });
+    invalidateAccountScopes();
 
     // verifyToken is only ever stored hashed — this is the one response where the
     // caller can see the plaintext value, since it must be copied into Meta's webhook config.

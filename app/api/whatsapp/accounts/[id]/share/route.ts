@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { accountManageWhere } from "@/lib/tenancy";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 export async function POST(
   req: Request,
@@ -50,6 +51,7 @@ export async function POST(
       create: { waAccountId: id, userId },
       update: {},
     });
+    invalidateAccountScopes();
 
     return NextResponse.json({ success: true, shared: share });
   } catch (error) {
@@ -84,6 +86,7 @@ export async function DELETE(
     await prisma.wAAccountShare.deleteMany({
       where: { waAccountId: id, userId, waAccount: await accountManageWhere(session.user.id) },
     });
+    invalidateAccountScopes();
 
     return NextResponse.json({ success: true });
   } catch (error) {

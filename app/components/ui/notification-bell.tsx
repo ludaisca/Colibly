@@ -1,5 +1,6 @@
 "use client";
 
+import { usePoll } from "@/app/components/ui/use-poll";
 import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -268,26 +269,15 @@ export function NotificationBell() {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Con la pestaña oculta no se consulta; al volver se refresca de inmediato.
-  // Excepción: cada 4.º tick (~100 s) un latido mínimo para que la
+  // Con la pestaña oculta solo un latido mínimo cada ~100 s, para que la
   // disponibilidad (lib/users/availability.ts, 5 min sin latido = desconectado)
-  // no marque como ausente a quien trabaja en otra pestaña.
-  useEffect(() => {
-    let tick = 0;
-    const interval = setInterval(() => {
-      tick++;
-      if (document.visibilityState !== "hidden") fetchNotifications();
-      else if (tick % 4 === 0) void fetch("/api/whatsapp/notifications?limit=1").catch(() => {});
-    }, 25000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") fetchNotifications();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
+  // no marque como ausente a quien trabaja en otra pestaña. Al volver se
+  // refresca de inmediato; si el usuario está inactivo, usePoll espacia.
+  const pollBell = useCallback(async ({ hidden }: { hidden: boolean }) => {
+    if (hidden) await fetch("/api/whatsapp/notifications?limit=1").catch(() => {});
+    else await fetchNotifications();
   }, [fetchNotifications]);
+  usePoll(pollBell, { intervalMs: 25_000, hiddenMs: 100_000, maxIntervalMs: 100_000, immediate: false });
 
   const changeOpen = useCallback((next: boolean) => {
     setOpen(next);

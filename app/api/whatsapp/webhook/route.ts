@@ -2,37 +2,28 @@ import { NextResponse } from "next/server";
 import { metaSendErrorMessage } from "@/lib/whatsapp/send-errors";
 import { applyReactionStatus } from "@/lib/whatsapp/reactions";
 import { createHash } from "crypto";
-import type { RecipientStatus } from "@prisma/client";
+import type { Prisma, RecipientStatus } from "@prisma/client";
+import { emitDomainEvent } from "@/lib/events/emit";
 import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
 import { rateLimit } from "@/lib/rate-limit";
-import { getMediaInfo, getMessageBody, parseMessageEdit } from "@/lib/whatsapp/message-content";
+import { getMediaInfo, getMessageBody, parseMessageEdit, structuredContentOf, type WhatsAppMessageContent } from "@/lib/whatsapp/message-content";
 import { validateWhatsAppWebhookSignature, verifyTokenMatches } from "@/lib/meta/platform-app";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import { COEXISTENCE_FIELDS, handleCoexistenceChange, type CoexistenceField } from "@/lib/whatsapp/coexistence/webhook";
 import { handleCallsWebhook } from "@/lib/whatsapp/calling/ingest";
 import { applyConnectionLifecycle } from "@/lib/whatsapp/coexistence/lifecycle";
 
-interface WebhookMessage {
-  from: string;
+// El contenido (texto, medios, ubicación, contactos, pedido, contexto…) tiene
+// la misma forma en `messages`, `smb_message_echoes` e `history`: vive en
+// lib/whatsapp/message-content.ts. Aquí solo va lo propio del entrante.
+interface WebhookMessage extends WhatsAppMessageContent {
+  // Número del cliente. Con los nombres de usuario de WhatsApp Meta puede
+  // omitirlo y mandar solo `from_user_id` (id por negocio, "MX.…").
+  from?: string;
+  from_user_id?: string;
   id: string;
   timestamp: string;
-  type: string;
-  text?: { body: string };
-  image?: { id: string; mime_type: string; caption?: string };
-  video?: { id: string; mime_type: string; caption?: string };
-  audio?: { id: string; mime_type: string };
-  sticker?: { id: string; mime_type: string; animated?: boolean };
-  document?: { id: string; mime_type: string; caption?: string; filename?: string };
-  edit?: { original_message_id?: string; message?: Record<string, unknown> };
-  location?: { latitude: number; longitude: number; name?: string; address?: string };
-  interactive?: {
-    type: string;
-    button_reply?: { id: string; title: string };
-    list_reply?: { id: string; title: string; description?: string };
-  };
-  button?: { payload: string; text: string };
-  context?: { id?: string; from?: string };
   reaction?: { message_id?: string; emoji?: string };
   // Presente cuando el chat se originó en un anuncio click-to-WhatsApp — ver
   // lib/whatsapp/ingest-message.ts:InboundReferral para el detalle de campos.
@@ -55,6 +46,9 @@ interface WebhookStatus {
   status: string;
   timestamp: string;
   recipient_id: string;
+  recipient_user_id?: string;
+  // Modelo por mensaje (PMP): si se cobra y en qué categoría.
+  pricing?: { billable?: boolean; pricing_model?: string; category?: string; type?: string; subtype?: string };
   errors?: Array<{
     code?: number;
     title?: string;
@@ -70,8 +64,9 @@ interface WebhookValue {
     phone_number_id: string;
   };
   contacts?: Array<{
-    profile: { name: string };
-    wa_id: string;
+    profile?: { name?: string };
+    wa_id?: string;
+    user_id?: string;
   }>;
   messages?: WebhookMessage[];
   statuses?: WebhookStatus[];
@@ -138,8 +133,13 @@ async function applyStatusUpdate(accountId: string, status: WebhookStatus): Prom
   const lowerStatuses = rank
     ? Object.keys(STATUS_RANK).filter((s) => STATUS_RANK[s] < rank)
     : null;
+  // Hora del suceso según Meta (no la de llegada del webhook, que puede venir
+  // con minutos de retraso o fuera de orden).
+  const eventSeconds = Number(status.timestamp);
+  const statusAt = Number.isFinite(eventSeconds) && eventSeconds > 0 ? new Date(eventSeconds * 1000) : new Date();
+  const pricing = status.pricing ? (status.pricing as Prisma.InputJsonValue) : undefined;
 
-  await prisma.wAMessage.updateMany({
+  const updated = await prisma.wAMessage.updateMany({
     where: {
       wamid: status.id,
       chat: { accountId },
@@ -153,8 +153,42 @@ async function applyStatusUpdate(accountId: string, status: WebhookStatus): Prom
       status: status.status,
       // Motivo legible en la burbuja (lib/whatsapp/send-errors.ts).
       ...(status.status === "failed" ? failedMessageFields(status) : {}),
+      ...(status.status === "delivered" ? { deliveredAt: statusAt } : {}),
+      ...(status.status === "read" ? { readAt: statusAt } : {}),
+      ...(pricing ? { pricing } : {}),
     },
   });
+
+  // Webhooks salientes: solo si el estado avanzó de verdad (Meta repite
+  // entregas y manda estados fuera de orden; el updateMany ya los filtró).
+  if (updated.count > 0) {
+    const message = await prisma.wAMessage.findFirst({
+      where: { wamid: status.id, chat: { accountId } },
+      select: { id: true, chatId: true, chat: { select: { contactId: true } } },
+    });
+    if (message) {
+      const failure = status.status === "failed" ? failedMessageFields(status) : null;
+      await emitDomainEvent({
+        type: "message.status_changed",
+        account: { kind: "whatsapp", id: accountId },
+        chat: { kind: "whatsapp", id: message.chatId },
+        contactId: message.chat.contactId,
+        data: {
+          messageId: message.id,
+          status: status.status,
+          error: failure ? { code: failure.errorCode, message: failure.errorMessage } : null,
+          pricing: status.pricing
+            ? {
+                billable: status.pricing.billable ?? null,
+                model: status.pricing.pricing_model ?? null,
+                category: status.pricing.category ?? null,
+                type: status.pricing.type ?? null,
+              }
+            : null,
+        },
+      }, statusAt);
+    }
+  }
 
   const statusMap: Record<string, { status: string; field?: string }> = {
     sent: { status: "SENT", field: "sentAt" },
@@ -171,11 +205,11 @@ async function applyStatusUpdate(accountId: string, status: WebhookStatus): Prom
     if (detail) updateData.errorMessage = detail;
   }
   if (mapped.field === "sentAt") {
-    updateData.sentAt = new Date();
+    updateData.sentAt = statusAt;
   } else if (mapped.field === "deliveredAt") {
-    updateData.deliveredAt = new Date();
+    updateData.deliveredAt = statusAt;
   } else if (mapped.field === "readAt") {
-    updateData.readAt = new Date();
+    updateData.readAt = statusAt;
   }
 
   // Mismo tracking de entrega/lectura que WACampaignRecipient, pero para envíos
@@ -194,8 +228,8 @@ async function applyStatusUpdate(accountId: string, status: WebhookStatus): Prom
     const detail = statusErrorDetail(status);
     if (detail) leadSheetUpdateData.errorMessage = detail;
   }
-  if (mapped.field === "deliveredAt") leadSheetUpdateData.deliveredAt = new Date();
-  if (mapped.field === "readAt") leadSheetUpdateData.readAt = new Date();
+  if (mapped.field === "deliveredAt") leadSheetUpdateData.deliveredAt = statusAt;
+  if (mapped.field === "readAt") leadSheetUpdateData.readAt = statusAt;
 
   await prisma.leadSheetImportedRow.updateMany({
     where: {
@@ -543,11 +577,28 @@ export async function POST(req: Request) {
         });
 
         if (value.messages) {
+          // remoteJid de cada mensaje. Sin `from` (cliente con nombre de
+          // usuario) se busca el contacto por su user_id; si no existe, el
+          // user_id hace de remoteJid para no perder el mensaje. Antes un
+          // `from` ausente rompía el guardado y Meta reintentaba sin fin.
+          const senderOf = new Map<WebhookMessage, string>();
+          for (const msg of value.messages) {
+            if (msg.from) { senderOf.set(msg, msg.from); continue; }
+            if (!msg.from_user_id) continue;
+            const known = await prisma.contact.findFirst({
+              where: { accountId: account.id, metaUserId: msg.from_user_id },
+              select: { remoteJid: true },
+            });
+            if (!known) console.warn(`[webhook] Mensaje sin número (solo user_id) en la cuenta ${account.id}: se guarda con el user_id como remitente`);
+            senderOf.set(msg, known?.remoteJid ?? msg.from_user_id);
+          }
           const groups = new Map<string, WebhookMessage[]>();
           for (const msg of value.messages) {
-            const list = groups.get(msg.from) ?? [];
+            const from = senderOf.get(msg);
+            if (!from) continue;
+            const list = groups.get(from) ?? [];
             list.push(msg);
-            groups.set(msg.from, list);
+            groups.set(from, list);
           }
 
           await Promise.all(
@@ -557,7 +608,7 @@ export async function POST(req: Request) {
                   const targetWamid = msg.reaction?.message_id;
                   if (!targetWamid) continue;
                   const target = await prisma.wAMessage.findFirst({
-                    where: { wamid: targetWamid, chat: { accountId: account.id, remoteJid: msg.from } },
+                    where: { wamid: targetWamid, chat: { accountId: account.id, remoteJid: senderOf.get(msg) } },
                     select: { id: true, reactionAt: true },
                   });
                   if (!target) continue;
@@ -577,7 +628,7 @@ export async function POST(req: Request) {
                   const edit = parseMessageEdit(msg as Parameters<typeof parseMessageEdit>[0]);
                   if (!edit) continue;
                   const target = await prisma.wAMessage.findFirst({
-                    where: { wamid: edit.originalMessageId, chat: { accountId: account.id, remoteJid: msg.from } },
+                    where: { wamid: edit.originalMessageId, chat: { accountId: account.id, remoteJid: senderOf.get(msg) } },
                     select: { id: true },
                   });
                   if (!target) continue;
@@ -590,8 +641,9 @@ export async function POST(req: Request) {
                   });
                   continue;
                 }
-                const contact = value.contacts?.find((c) => c.wa_id === msg.from);
-                const contactName = contact?.profile?.name ?? msg.from;
+                const from = senderOf.get(msg)!;
+                const contact = value.contacts?.find((c) => (msg.from && c.wa_id === msg.from) || (msg.from_user_id && c.user_id === msg.from_user_id));
+                const contactName = contact?.profile?.name ?? from;
                 const { mediaId, mimeType, filename, caption } = getMediaInfo(msg);
                 // Meta puede omitir timestamp — un Invalid Date rompería el
                 // create de Prisma; se usa "ahora" como respaldo.
@@ -601,13 +653,13 @@ export async function POST(req: Request) {
                   : new Date();
 
                 await ingestInboundMessage(account.id, {
-                  remoteJid: msg.from,
+                  remoteJid: from,
                   wamid: msg.id ?? null,
                   timestamp,
                   type: msg.type,
                   body: getMessageBody(msg),
                   contactName,
-                  isGroup: msg.from.includes("@g.us"),
+                  isGroup: from.includes("@g.us"),
                   mediaId,
                   mimeType,
                   filename,
@@ -615,6 +667,8 @@ export async function POST(req: Request) {
                   interactiveReplyId: msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? null,
                   replyToWamid: msg.context?.id ?? null,
                   referral: msg.referral ?? null,
+                  content: structuredContentOf(msg),
+                  metaUserId: msg.from_user_id ?? contact?.user_id ?? null,
                 });
               }
             })

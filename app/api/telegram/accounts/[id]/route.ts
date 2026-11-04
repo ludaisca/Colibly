@@ -6,6 +6,7 @@ import { decrypt } from "@/lib/crypto";
 import { deleteWebhook } from "@/lib/telegram";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { accountManageWhere } from "@/lib/tenancy";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 export async function DELETE(
   _req: Request,
@@ -48,6 +49,7 @@ export async function DELETE(
     }
 
     await prisma.channelAccount.delete({ where: { id } });
+    invalidateAccountScopes();
 
     return NextResponse.json({ success: true });
   } catch (error) {

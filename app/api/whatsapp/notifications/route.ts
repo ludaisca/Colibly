@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { touchLastSeen } from "@/lib/users/availability";
 import { chatRefFromLink, readableNotificationText } from "@/lib/notifications/present";
+import { jsonWithEtag } from "@/lib/http/etag";
 
 export async function GET(req: Request) {
   try {
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
       for (const a of channels) channelById.set(a.id, a.channel);
     }
 
-    return NextResponse.json({
+    return jsonWithEtag(req, {
       items: items.map((n) => {
         const ref = chatRefFromLink(n.link);
         const channel = ref ? channelById.get(ref.accountId) : undefined;

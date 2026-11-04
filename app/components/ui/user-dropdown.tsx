@@ -27,22 +27,37 @@ function StatusDot({ value, className = "" }: { value: Availability; className?:
   return <span aria-hidden className={`block rounded-full ring-2 ring-surface ${AVAILABILITY_DOT[value]} ${className}`} />;
 }
 
-export function UserDropdown({ initialUser }: { initialUser?: { name?: string | null; email?: string | null } }) {
+/**
+ * Datos del usuario que el layout ya trae del servidor (R8 de
+ * docs/RENDIMIENTO_2026-11-04.md): con ellos el menú no pide
+ * /api/usuarios/me/disponibilidad ni /api/usuarios/me/push al montar.
+ * `pushPublicKey: null` = la plataforma no tiene llaves push.
+ */
+export interface ShellUser {
+  name?: string | null;
+  email?: string | null;
+  availability?: Availability;
+  pushPublicKey?: string | null;
+}
+
+export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
-  const [availability, setAvailability] = useState<Availability | null>(null);
+  const [availability, setAvailability] = useState<Availability | null>(initialUser?.availability ?? null);
   const ref = useRef<HTMLDivElement>(null);
   const { error: toastError } = useToast();
 
   // Estado elegido por el usuario (la auto-asignación "solo en línea" lo usa).
+  const serverAvailability = initialUser?.availability !== undefined;
   useEffect(() => {
+    if (serverAvailability) return;
     let cancelled = false;
     fetch("/api/usuarios/me/disponibilidad")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled && data?.availability) setAvailability(data.availability); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [serverAvailability]);
 
   // Avisos push en este navegador. null = la plataforma no tiene llaves o el
   // navegador no lo admite: la fila no se muestra.
@@ -50,10 +65,13 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [iosHint, setIosHint] = useState(false);
+  const serverPushKey = initialUser?.pushPublicKey;
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/usuarios/me/push")
-      .then((res) => (res.ok ? res.json() : null))
+    const keyRequest: Promise<{ publicKey?: string | null } | null> = serverPushKey !== undefined
+      ? Promise.resolve({ publicKey: serverPushKey })
+      : fetch("/api/usuarios/me/push").then((res) => (res.ok ? res.json() : null));
+    keyRequest
       .then(async (data) => {
         if (cancelled || !data?.publicKey) return;
         if (needsHomeScreenInstall()) {
@@ -66,7 +84,7 @@ export function UserDropdown({ initialUser }: { initialUser?: { name?: string | 
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [serverPushKey]);
 
   async function togglePush(next: boolean) {
     if (!pushKey) return;

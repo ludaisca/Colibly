@@ -5,6 +5,7 @@ import { coexistenceSyncQueue } from "@/lib/queue";
 import { getMetaPlatformApp } from "@/lib/meta/platform-app";
 import { EmbeddedSignupError, generateRegistrationPin, type EmbeddedSignupDeps, type PlatformApp } from "./complete";
 import { exchangeCodeForToken, listWabaPhoneNumbers, lookupTokenUserId, registerPhoneNumber, subscribeAppToWaba } from "./meta";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 // Dependencias reales (Graph + Prisma + BullMQ) del alta con Embedded Signup.
 // El flujo en sí vive en ./complete.ts y se prueba con dependencias falsas.
@@ -45,7 +46,7 @@ export function realEmbeddedSignupDeps(app: PlatformApp): EmbeddedSignupDeps {
     createAccount: async (data) => {
       try {
         const now = new Date();
-        return await prisma.wAAccount.create({
+        const account = await prisma.wAAccount.create({
           data: {
             userId: data.userId,
             organizationId: data.organizationId,
@@ -68,6 +69,8 @@ export function realEmbeddedSignupDeps(app: PlatformApp): EmbeddedSignupDeps {
           },
           select: { id: true },
         });
+        invalidateAccountScopes();
+        return account;
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
           throw new EmbeddedSignupError("Este número de WhatsApp ya está conectado en Colibly.", 409, "phone_in_use");

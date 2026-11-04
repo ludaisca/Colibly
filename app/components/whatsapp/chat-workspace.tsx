@@ -6,7 +6,6 @@ import { assignChatTo, assignChatToMe, oneHourFromNow, setChatPriority, snoozeCh
 import { ShortcutsModal } from "./shortcuts-modal";
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { MessageSquare } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -24,12 +23,19 @@ import { TemplatePickerModal } from "@/app/components/whatsapp/template-picker-m
 import { isImageMime, isAudioMime, isVideoMime } from "@/lib/whatsapp/media-shared";
 import { MessageSearchResults } from "@/app/components/whatsapp/message-search-results";
 import { RequiredFieldsModal } from "@/app/components/whatsapp/required-fields-modal";
+import { usePoll } from "@/app/components/ui/use-poll";
 import { useBusinessName } from "@/app/components/ui/business-context";
 import { renderCannedResponse } from "@/lib/inbox/canned-variables";
 import type { MessageSearchHit } from "@/lib/search/messages";
 import {
   CHATS_PAGE_SIZE,
-  CHATS_LIST_POLL_MS,
+  INBOX_SYNC_MS,
+  THREAD_SYNC_WINDOW,
+  THREAD_CACHE_MAX,
+  latestUpdatedAt,
+  oldestLastMessageAt,
+  type InboxSyncResponse,
+  type ViewCounts,
   type Channel,
   type ChatBulkAction,
   type ChatRowAction,
@@ -79,6 +85,14 @@ interface ChatWorkspaceProps {
   initialContactId?: string;
 }
 
+// R7: hilos ya abiertos (los últimos THREAD_CACHE_MAX), en memoria de la
+// pestaña. Vive fuera del componente a propósito: abrir un chat cambia la ruta
+// (/whatsapp/chat/[accountId]/[chatId]) y React vuelve a montar la bandeja,
+// así que un useRef se perdería justo cuando hace falta. Al volver a un chat
+// se pinta lo que había y se refresca detrás. Cerrar sesión recarga la página
+// (signOut redirige), así que no pasa de un usuario a otro.
+const threadCache = new Map<string, { messages: Message[]; hasOlder: boolean }>();
+
 export function ChatWorkspace({
   initialAccounts,
   initialAccountId,
@@ -93,7 +107,6 @@ export function ChatWorkspace({
   initialSearch,
   initialContactId,
 }: ChatWorkspaceProps) {
-  const router = useRouter();
   const { data: session } = useSession();
   const businessName = useBusinessName();
   // Firma personal activa (F6): solo para el aviso del compositor; el
@@ -144,6 +157,17 @@ export function ChatWorkspace({
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  // R7: hilos ya abiertos en memoria (threadCache, a nivel de módulo).
+  const threadCacheRef = useRef(threadCache);
+  // De qué chat son los mensajes que hay en el estado (al cambiar de chat el
+  // estado conserva un momento los del anterior).
+  const messagesOwnerRef = useRef<string | null>(null);
+  const messagesRef = useRef(messages);
+  const hasOlderRef = useRef(hasOlderMessages);
+  useEffect(() => {
+    messagesRef.current = messages;
+    hasOlderRef.current = hasOlderMessages;
+  }, [messages, hasOlderMessages]);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -248,6 +272,9 @@ export function ChatWorkspace({
     { channel: "WEBCHAT" as const, endpoint: "/api/webchat/chats" },
   ], []);
 
+  // Las cuentas vienen del servidor al cargar la página (getChatAccountOptions).
+  const channelsWithAccounts = useMemo(() => new Set<string>(accounts.map((a) => a.channel ?? "WHATSAPP")), [accounts]);
+
   const buildChannelParams = useCallback((channel: (typeof CHANNEL_SOURCES)[number]["channel"], page: number, pageSize: number): URLSearchParams => {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (channel === "WHATSAPP" && campaignFilter) params.set("campaignId", campaignFilter);
@@ -280,7 +307,11 @@ export function ChatWorkspace({
 
     const results = await Promise.all(
       CHANNEL_SOURCES.map(async (source) => {
-        const skip = (!!selectedAccountChannel && selectedAccountChannel !== source.channel) || (!!campaignFilter && source.channel !== "WHATSAPP");
+        // Un canal sin cuentas del usuario siempre responde vacío: no se pide
+        // (antes eran 5 peticiones por refresco aunque solo hubiera un canal).
+        const skip = !channelsWithAccounts.has(source.channel)
+          || (!!selectedAccountChannel && selectedAccountChannel !== source.channel)
+          || (!!campaignFilter && source.channel !== "WHATSAPP");
         if (skip) return { items: [] as ChatItem[], total: 0 };
         const params = buildChannelParams(source.channel, pages[source.channel], pageSize);
         const response = await fetch(`${source.endpoint}?${params}`);
@@ -297,7 +328,7 @@ export function ChatWorkspace({
     });
     const total = results.reduce((sum, r) => sum + r.total, 0);
     return { items, total };
-  }, [CHANNEL_SOURCES, accountFilter, accounts, campaignFilter, buildChannelParams]);
+  }, [CHANNEL_SOURCES, accountFilter, accounts, campaignFilter, buildChannelParams, channelsWithAccounts]);
 
   const firstPagePerChannel = useMemo(
     () => Object.fromEntries(CHANNEL_SOURCES.map((s) => [s.channel, 1])) as Record<(typeof CHANNEL_SOURCES)[number]["channel"], number>,
@@ -477,34 +508,6 @@ export function ChatWorkspace({
     reset();
   }, [fetchChatsPage, firstPagePerChannel]);
 
-  // Refresco periódico de la LISTA — antes solo se refrescaba cuando cambiaba
-  // el chat abierto, así que las conversaciones nuevas de otros leads no
-  // aparecían hasta recargar la página. Fusiona la primera página (nuevos y
-  // actualizados arriba) con lo ya cargado en vez de reemplazarlo, para no
-  // perder lo traído con "Cargar más". Se salta con la pestaña oculta.
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      if (document.visibilityState === "hidden") return;
-      const generation = chatsGenerationRef.current;
-      try {
-        const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
-        if (generation !== chatsGenerationRef.current) return;
-        setChats((prev) => {
-          const freshIds = new Set(items.map((c) => c.id));
-          return [...items, ...prev.filter((c) => !freshIds.has(c.id))].sort((a, b) => {
-            const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-            const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-            return bt - at;
-          });
-        });
-        setChatsTotal(total);
-      } catch (err) {
-        console.warn("Falló el refresco de la lista de chats, se reintenta en el próximo tick", err);
-      }
-    }, CHATS_LIST_POLL_MS);
-    return () => clearInterval(interval);
-  }, [fetchChatsPage, firstPagePerChannel]);
-
   // Derived, not its own state — chats stays the single source of truth so every
   // mutation site only needs to update one place instead of keeping two in sync.
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
@@ -602,12 +605,21 @@ export function ChatWorkspace({
   // Fetch messages
   useEffect(() => {
     if (!selectedChatId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-chat-change
-    setLoadingMessages(true);
-
     const controller = new AbortController();
     const fromUrl = initialMessageId && initialChatId === selectedChatId ? { chatId: selectedChatId, messageId: initialMessageId } : null;
     const jump = (jumpRef.current?.chatId === selectedChatId ? jumpRef.current : null) ?? fromUrl;
+    const threadCache = threadCacheRef.current;
+    const cached = jump ? undefined : threadCache.get(selectedChatId);
+    if (cached) {
+      initialScrollRef.current = selectedChatId;
+      messagesOwnerRef.current = selectedChatId;
+      setMessages(cached.messages);
+      setHasOlderMessages(cached.hasOlder);
+      setLoadingMessages(false);
+    } else {
+      setLoadingMessages(true);
+    }
+    const chatId = selectedChatId;
     async function load() {
       try {
         if (jump) {
@@ -617,6 +629,7 @@ export function ChatWorkspace({
           jumpRef.current = null;
           if (res.ok && Array.isArray(data)) {
             skipAutoScrollRef.current = true;
+            messagesOwnerRef.current = chatId;
             setMessages(data);
             setHasOlderMessages(true);
             setFocusMessageId(jump.messageId);
@@ -629,18 +642,29 @@ export function ChatWorkspace({
         const data = await res.json();
         if (controller.signal.aborted) return;
         if (Array.isArray(data)) {
-          initialScrollRef.current = selectedChatId;
+          // Con el hilo en memoria ya pintado no se vuelve a saltar al final.
+          if (!cached) initialScrollRef.current = chatId;
+          messagesOwnerRef.current = chatId;
           setMessages(data);
           setHasOlderMessages(data.length >= 50);
         }
       } catch {
-        if (!controller.signal.aborted) toastError("Error al cargar mensajes");
+        if (!controller.signal.aborted && !cached) toastError("Error al cargar mensajes");
       } finally {
         if (!controller.signal.aborted) setLoadingMessages(false);
       }
     }
     load();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      // Al salir del chat se guarda su hilo (solo si el estado es de este chat).
+      if (messagesOwnerRef.current === chatId && messagesRef.current.length > 0) {
+        const cache = threadCache;
+        cache.delete(chatId);
+        cache.set(chatId, { messages: messagesRef.current, hasOlder: hasOlderRef.current });
+        while (cache.size > THREAD_CACHE_MAX) cache.delete(cache.keys().next().value as string);
+      }
+    };
     // initialChatId fuera de las deps a propósito: cambia justo después de
     // selectedChatId al navegar y dispararía una segunda carga del hilo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -698,82 +722,104 @@ export function ChatWorkspace({
     }
   }, [messages, selectedChatId]);
 
-  // Message polling
+  // Sincronización única de la bandeja (GET /api/inbox/sync, R1 de
+  // docs/RENDIMIENTO_2026-11-04.md). Una petición cada 5 s trae los chats que
+  // cambiaron desde el updatedAt más reciente que ya tenemos, los últimos
+  // mensajes y quién escribe en el chat abierto y, cada 30 s, los contadores
+  // de las vistas. Sustituye los sondeos separados de la lista (uno por canal),
+  // los mensajes, el "está escribiendo" y los contadores. Si nada cambió la
+  // respuesta es un 304. Con la pestaña oculta no se consulta; al volver, de
+  // inmediato.
+  const chatsRef = useRef(chats);
+  const selectedChatIdRef = useRef(selectedChatId);
   useEffect(() => {
-    if (!selectedChatId) return;
-    const controller = new AbortController();
-    const interval = setInterval(async () => {
-      if (document.visibilityState === "hidden") return;
-      try {
-        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/messages?limit=50`, { signal: controller.signal });
-        const data = (await res.json()) as Message[];
-        if (controller.signal.aborted) return; // efecto ya limpiado
-        if (Array.isArray(data) && data.length > 0) {
-          let anyChange = false;
-          setMessages((prev) => {
-            // Merge en lugar de reemplazo: el reemplazo total descartaba el
-            // historial cargado con "Ver anteriores". Se actualizan status y
-            // mediaUrl de los conocidos y se anexan solo los nuevos.
-            const byId = new Map(data.map((m) => [m.id, m]));
-            let changed = false;
-            const merged = prev.map((m) => {
-              const fresh = byId.get(m.id);
-              if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl || fresh.body !== m.body || fresh.caption !== m.caption || fresh.reactionEmoji !== m.reactionEmoji || fresh.agentReactionEmoji !== m.agentReactionEmoji || JSON.stringify(fresh.agentReactions) !== JSON.stringify(m.agentReactions) || fresh.replyToWamid !== m.replyToWamid || fresh.transcript !== m.transcript || JSON.stringify(fresh.replyTo) !== JSON.stringify(m.replyTo))) {
-                changed = true;
-                return { ...fresh, motionKey: m.motionKey, animateOnMount: false };
-              }
-              return m;
-            });
-            const known = new Set(prev.map((m) => m.id));
-            const newMessages = data.filter((m) => !known.has(m.id));
-            const appended = newMessages.map((m, index) => ({
-              ...m,
-              // Al volver a una pestaña puede llegar un lote grande: anima
-              // solo los últimos, no toda la conversación a la vez.
-              animateOnMount: index >= newMessages.length - 3,
-            }));
-            if (!changed && appended.length === 0) return prev;
-            anyChange = true;
-            return [...merged, ...appended];
-          });
-          if (anyChange) refreshChats();
-        }
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        // Poll de 5s: un toast por cada blip de red sería spam — el siguiente
-        // tick reintenta solo. Se registra para no perder el diagnóstico.
-        console.warn("Fallo el poll de mensajes, se reintenta en 5s", err);
-      }
-    }, 5000);
-    return () => {
-      clearInterval(interval);
-      controller.abort();
-    };
-  }, [selectedChatId, refreshChats]);
+    chatsRef.current = chats;
+    selectedChatIdRef.current = selectedChatId;
+  }, [chats, selectedChatId]);
+  const [viewCounts, setViewCounts] = useState<ViewCounts | null>(null);
 
-  // Indicador de "está escribiendo" — TTL corto en Redis; se consulta con el
-  // mismo ritmo del poll de mensajes.
-  useEffect(() => {
-    if (!selectedChatId) return;
-    let cancelled = false;
-    async function load() {
-      if (document.visibilityState === "hidden") return;
-      try {
-        const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/typing`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) setTypingUsers(Array.isArray(data.users) ? data.users : []);
-      } catch {
-        // efímero: el siguiente tick reintenta
-      }
+  // Fusiona los últimos mensajes del poll con el hilo cargado (no reemplaza:
+  // perdería el historial traído con "Ver anteriores"). Actualiza estado,
+  // media y reacciones de los conocidos y anexa solo los nuevos.
+  const mergePolledMessages = useCallback((data: Message[]) => {
+    if (data.length === 0) return;
+    setMessages((prev) => {
+      const byId = new Map(data.map((m) => [m.id, m]));
+      let changed = false;
+      const merged = prev.map((m) => {
+        const fresh = byId.get(m.id);
+        if (fresh && (fresh.status !== m.status || fresh.mediaUrl !== m.mediaUrl || fresh.body !== m.body || fresh.caption !== m.caption || fresh.reactionEmoji !== m.reactionEmoji || fresh.agentReactionEmoji !== m.agentReactionEmoji || JSON.stringify(fresh.agentReactions) !== JSON.stringify(m.agentReactions) || fresh.replyToWamid !== m.replyToWamid || fresh.transcript !== m.transcript || JSON.stringify(fresh.replyTo) !== JSON.stringify(m.replyTo))) {
+          changed = true;
+          return { ...fresh, motionKey: m.motionKey, animateOnMount: false };
+        }
+        return m;
+      });
+      const known = new Set(prev.map((m) => m.id));
+      const newMessages = data.filter((m) => !known.has(m.id));
+      const appended = newMessages.map((m, index) => ({
+        ...m,
+        // Al volver a una pestaña puede llegar un lote grande: anima solo
+        // los últimos, no toda la conversación a la vez.
+        animateOnMount: index >= newMessages.length - 3,
+      }));
+      if (!changed && appended.length === 0) return prev;
+      return [...merged, ...appended];
+    });
+  }, []);
+
+  // Mensajes ya cargados: el sync pide desde el 20.º más reciente (R2), así
+  // recibe los nuevos y los cambios de estado de los últimos, no 50 cada vez.
+  const syncTickRef = useRef(0);
+
+  const syncInbox = useCallback(async () => {
+    const generation = chatsGenerationRef.current;
+    const chatId = selectedChatIdRef.current;
+    const params = buildChannelParams("WHATSAPP", 1, CHATS_PAGE_SIZE);
+    params.delete("page");
+    const since = latestUpdatedAt(chatsRef.current);
+    if (since) params.set("since", since);
+    const floor = oldestLastMessageAt(chatsRef.current);
+    if (floor) params.set("floor", floor);
+    if (chatId) {
+      params.set("thread", chatId);
+      const loaded = messagesRef.current;
+      const pivot = loaded.length >= THREAD_SYNC_WINDOW ? loaded[loaded.length - THREAD_SYNC_WINDOW] : null;
+      if (pivot) params.set("threadSince", pivot.timestamp);
     }
-    load();
-    const interval = setInterval(load, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [selectedChatId]);
+    if (syncTickRef.current++ % 6 === 0) params.set("counts", "1");
+    try {
+      const res = await fetch(`/api/inbox/sync?${params}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as InboxSyncResponse;
+      if (data.counts) setViewCounts(data.counts);
+      // Si cambiaron los filtros mientras tanto, la lista ya es otra.
+      if (generation === chatsGenerationRef.current) {
+        if (data.chats.length > 0) {
+          setChats((prev) => {
+            const freshIds = new Set(data.chats.map((c) => c.id));
+            return [...data.chats, ...prev.filter((c) => !freshIds.has(c.id))].sort((a, b) => {
+              const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+              const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+              return bt - at;
+            });
+          });
+        }
+        if (typeof data.total === "number") setChatsTotal(data.total);
+      }
+      if (data.thread && "messages" in data.thread && data.thread.chatId === selectedChatIdRef.current) {
+        mergePolledMessages(data.thread.messages);
+        setTypingUsers(data.thread.typing);
+      }
+    } catch (err) {
+      // Un blip de red no merece un toast: el siguiente tick reintenta.
+      console.warn("Falló la sincronización de la bandeja, se reintenta en el próximo tick", err);
+    }
+  }, [buildChannelParams, mergePolledMessages]);
+
+  // La lista y el hilo ya se cargan al montar; el primer tick inmediato trae
+  // los contadores (y lo que haya cambiado en ese lapso). usePoll no consulta
+  // con la pestaña oculta y espacia los ticks si el agente está inactivo.
+  usePoll(syncInbox, { intervalMs: INBOX_SYNC_MS, maxIntervalMs: 30_000 });
 
   const clearAttachment = useCallback(() => {
     setAttachment(null);
@@ -786,7 +832,7 @@ export function ChatWorkspace({
   // Cada conversación tiene su propio destino y capacidades de canal. Un
   // borrador interactivo/adjunto de otra conversación no debe poder enviarse
   // por accidente al cambiar de chat.
-  const openChat = useCallback((chatId: string, accountId: string, messageId?: string) => {
+  const openChat = useCallback((chatId: string, accountId: string, messageId?: string, fromHistory = false) => {
     if (chatId === selectedChatId) return;
     if (selectedChatId) {
       messageDraftsRef.current.set(selectedChatId, newMessage);
@@ -808,8 +854,13 @@ export function ChatWorkspace({
     const params = buildFilterSearchParams();
     if (messageId) params.set("mensaje", messageId);
     const qs = params.toString();
-    router.push(`/whatsapp/chat/${accountId}/${chatId}${qs ? `?${qs}` : ""}`);
-  }, [selectedChatId, newMessage, router, buildFilterSearchParams, clearAttachment, draftKey, writeDraft]);
+    // History API, no router.push(): el push pedía la página al servidor
+    // (auth + cuentas), mostraba loading.tsx y recargaba lista e hilo en CADA
+    // clic. Next 16 integra pushState con su router (usePathname/useSearchParams
+    // lo ven y "Atrás" funciona), y el estado de la bandeja ya sabe qué chat
+    // abrir. Un F5 o un enlace directo siguen pasando por la página del chat.
+    if (!fromHistory) window.history.pushState(null, "", `/whatsapp/chat/${accountId}/${chatId}${qs ? `?${qs}` : ""}`);
+  }, [selectedChatId, newMessage, buildFilterSearchParams, clearAttachment, draftKey, writeDraft]);
 
   const handleChatSelect = useCallback((chat: ChatItem) => openChat(chat.id, chat.accountId), [openChat]);
 
@@ -839,7 +890,7 @@ export function ChatWorkspace({
     }
   }, [selectedChatId, messages, openChat, toastError]);
 
-  const handleCloseChat = useCallback(() => {
+  const handleCloseChat = useCallback((fromHistory = false) => {
     if (selectedChatId) {
       messageDraftsRef.current.set(selectedChatId, newMessage);
       writeDraft(selectedChatId, newMessage);
@@ -855,8 +906,32 @@ export function ChatWorkspace({
     setTypingUsers([]);
     clearAttachment();
     const qs = buildFilterSearchParams().toString();
-    router.push(`/whatsapp/chat${qs ? `?${qs}` : ""}`);
-  }, [selectedChatId, newMessage, router, clearAttachment, buildFilterSearchParams, writeDraft]);
+    // Igual que openChat: sin ida al servidor (ver el comentario de ahí).
+    if (!fromHistory) window.history.pushState(null, "", `/whatsapp/chat${qs ? `?${qs}` : ""}`);
+  }, [selectedChatId, newMessage, clearAttachment, buildFilterSearchParams, writeDraft]);
+
+  // Atrás/Adelante: como abrir y cerrar chats ya no navega (pushState), la
+  // bandeja sigue a la URL. /whatsapp/chat/[accountId]/[chatId] abre ese chat;
+  // /whatsapp/chat sin chat lo cierra (en móvil, vuelve a la lista). Se escucha
+  // `popstate` y no usePathname(): si se pulsa Atrás antes de que Next procese
+  // el pushState, el pathname de Next nunca cambia y el hilo se quedaba abierto.
+  const historySyncRef = useRef({ selectedChatId, openChat, handleCloseChat });
+  useEffect(() => {
+    historySyncRef.current = { selectedChatId, openChat, handleCloseChat };
+  });
+  useEffect(() => {
+    const onPopState = () => {
+      const { selectedChatId: current, openChat: open, handleCloseChat: close } = historySyncRef.current;
+      const match = window.location.pathname.match(/^\/whatsapp\/chat\/([^/]+)\/([^/]+)$/);
+      if (match) {
+        if (match[2] !== current) open(match[2], match[1], undefined, true);
+      } else if (window.location.pathname === "/whatsapp/chat" && current) {
+        close(true);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   function detectMessageType(file: File): "image" | "audio" | "video" | "document" | "sticker" {
     if (isImageMime(file.type)) return "image";
@@ -1387,6 +1462,7 @@ export function ChatWorkspace({
         bulkBusy={bulkBusy}
         currentViewQuery={currentViewQuery}
         onApplyView={applySavedView}
+        viewCounts={viewCounts}
         loadingChats={loadingChats}
         loadError={chatsError}
         onRetry={retryChats}
@@ -1421,7 +1497,7 @@ export function ChatWorkspace({
               hasOlderMessages={hasOlderMessages}
               loadingOlder={loadingOlder}
               onLoadOlder={loadOlderMessages}
-              onCloseChat={handleCloseChat}
+              onCloseChat={() => handleCloseChat()}
               onOpenContactDrawer={() => openContactDrawer(selectedChat.contactId)}
               onStatusChange={async (status) => { await handleStatusChange(status); }}
               onAssigned={handleAssigned}

@@ -8,7 +8,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { accountManageWhere } from "@/lib/tenancy";
-import { getUserAccountIds } from "@/lib/shared-accounts";
+import { getUserAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
 import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 
 export async function GET(
@@ -227,6 +227,7 @@ export async function DELETE(
 
 
     await prisma.wAAccount.delete({ where: { id } });
+    invalidateAccountScopes();
 
     return NextResponse.json({ success: true });
   } catch (error) {

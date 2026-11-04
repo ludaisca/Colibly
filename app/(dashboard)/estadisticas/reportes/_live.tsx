@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { usePoll } from "@/app/components/ui/use-poll";
+import { useCallback, useState } from "react";
 import { Card } from "@/app/components/ui/card";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { formatRelative } from "@/lib/format/dates";
@@ -22,7 +23,6 @@ export function LivePanel() {
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
-    if (document.visibilityState !== "visible") return;
     try {
       const res = await fetch("/api/estadisticas/en-vivo", { cache: "no-store" });
       if (!res.ok) throw new Error();
@@ -33,17 +33,7 @@ export function LivePanel() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- el setState ocurre tras el fetch (asíncrono)
-    void load();
-    const id = window.setInterval(() => void load(), REFRESH_MS);
-    const onVisible = () => void load();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [load]);
+  usePoll(load, { intervalMs: REFRESH_MS });
 
   const now = data ? Date.parse(data.at) : 0;
   const kpis: KpiItem[] = data

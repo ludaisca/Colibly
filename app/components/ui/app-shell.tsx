@@ -14,6 +14,7 @@ import { cn } from "./cn";
 import { BRAND_NAME } from "@/lib/brand";
 import { BrandMark } from "./logo";
 import { CommandPalette } from "./command-palette";
+import type { ShellUser } from "@/app/components/ui/user-dropdown";
 
 export interface NavItem {
   href: string;
@@ -34,7 +35,7 @@ export interface AppShellProps {
   logoArea?: React.ReactNode;
   brand?: string;
   headerRight?: React.ReactNode;
-  initialUser?: { name?: string | null; email?: string | null };
+  initialUser?: ShellUser;
   hideUserDropdown?: boolean;
   collapsible?: boolean;
   // Aviso de cuenta a todo lo ancho entre el header y el contenido (correo

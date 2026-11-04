@@ -39,3 +39,14 @@ BEGIN
     END IF;
   END IF;
 END $$;
+
+-- Orden de la lista de chats (R6 de docs/RENDIMIENTO_2026-11-04.md). La lista
+-- ordena por "lastMessageAt" DESC NULLS LAST y el índice de Prisma
+-- (accountId, lastMessageAt) es ASC NULLS LAST: no sirve para ese orden, así
+-- que Postgres leía todos los chats de la cuenta y los ordenaba. Prisma no sabe
+-- declarar NULLS LAST en un índice, por eso vive aquí. Son tablas de chats
+-- (miles de filas, no millones): crearlo al arrancar es seguro.
+CREATE INDEX IF NOT EXISTS idx_wa_chats_account_last_message_desc
+  ON wa_chats ("accountId", "lastMessageAt" DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_conversations_account_last_message_desc
+  ON conversations ("channelAccountId", "lastMessageAt" DESC NULLS LAST);

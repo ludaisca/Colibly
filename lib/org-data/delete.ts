@@ -3,6 +3,7 @@ import { invalidateOrgBilling } from "@/lib/billing/gates";
 import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
 import { purgeDue } from "@/lib/billing/state";
 import { removeAccountMedia } from "@/lib/whatsapp/media-store";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 // Borrado definitivo de una organización y todo lo suyo. Lo usan el dueño
 // (DELETE /api/organizacion) y la purga de canceladas del tick de facturación
@@ -70,6 +71,7 @@ export async function deleteOrganizationData(organizationId: string, opts: { onl
         WHERE kb."knowledgeId" = k.id AND b.organization_id <> ${organizationId}
       )`;
     await tx.organization.delete({ where: { id: organizationId } });
+    invalidateAccountScopes();
   }, { timeout: 120_000 });
   invalidateOrgBilling(organizationId);
 

@@ -7,6 +7,7 @@ import { getWebchatCredentials } from "@/lib/webchat/account";
 import { webchatAccountSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { accountManageWhere } from "@/lib/tenancy";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 export async function GET(
   _req: Request,
@@ -116,6 +117,7 @@ export async function DELETE(
     // desregistrar — el widget simplemente empezará a recibir 404 en
     // /session la próxima vez que un visitante lo cargue.
     await prisma.channelAccount.delete({ where: { id } });
+    invalidateAccountScopes();
 
     return NextResponse.json({ success: true });
   } catch (error) {

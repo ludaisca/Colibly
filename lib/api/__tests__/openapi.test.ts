@@ -31,7 +31,10 @@ describe("OpenAPI", () => {
       for (const [m, op] of Object.entries(item)) {
         const ok = Object.entries(op.responses).find(([s]) => s.startsWith("2"));
         expect(ok, `${m} ${p}`).toBeTruthy();
-        expect(ok![1].content?.["application/json"]?.example, `${m} ${p}`).toBeDefined();
+        // Las respuestas JSON llevan ejemplo; una descarga binaria (medios) no.
+        const content = ok![1].content ?? {};
+        if (content["application/json"]) expect(content["application/json"].example, `${m} ${p}`).toBeDefined();
+        else expect(Object.keys(content).length, `${m} ${p}`).toBeGreaterThan(0);
         expect(ok![1].headers, `${m} ${p}`).toHaveProperty("X-RateLimit-Remaining");
       }
     }

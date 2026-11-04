@@ -23,6 +23,10 @@ Because `<Table>` (and any component using `render: (row) => JSX`) is `"use clie
 
 RSC pages should have a sibling `loading.tsx` with skeleton placeholders — Next.js streams this automatically while the async page fetches data.
 
+## Polling (`usePoll`)
+
+Everything live is polled (no websockets) through `app/components/ui/use-poll.ts:usePoll(poll, { intervalMs, hiddenMs?, maxIntervalMs?, immediate?, enabled? })`: it schedules the next tick only after the previous one finishes, skips (or slows to `hiddenMs`) while the tab is hidden and fires immediately on return, and stretches the interval ×3 after 2 min and ×6 after 10 min without user activity (capped at `maxIntervalMs`), firing again on the first interaction. `poll` gets `{ hidden }`. Users today: the inbox sync, the bell, `ChatBotMode`, the live reports panel. The server side of a polled GET answers with `lib/http/etag.ts:jsonWithEtag()`. Detail and numbers: `docs/RENDIMIENTO_2026-11-04.md`.
+
 ## Design system
 
 All tokens in `app/globals.css` as CSS custom properties, in **two layers** (since 2026-09-27; **"Laguna + coral" since 2026-10-25** — blue-teal accent `#0E7490`, coral `#C21E4C` as `--accent-2`, cyan `#67E8F9` decorative only, cool grey neutrals without sky tint; replaced Laguna monocroma 2026-10-24, which had replaced "Menta y grafito" green `#0F766E` and "Colibrí" violet): **primitives** (`--teal-*`, `--coral-*`, `--graphite-*`, `--ink-*` neutrals, `--green/orange/red/blue-*`) are only referenced inside `globals.css`; **semantic tokens** (`--accent`, `--surface`, `--muted`, `--success`…) are what components use through Tailwind utilities. Change a color by repointing a semantic token, never by adding hex in a component. The same palette in hex for what can't read CSS (emails, generated images, favicon, the webchat widget) lives in `lib/brand-colors.ts` — change both together. Lab notes: `docs/COLOR.md`.

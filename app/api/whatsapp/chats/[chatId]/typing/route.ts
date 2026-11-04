@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { rateLimit } from "@/lib/rate-limit";
-import { getTypingUserIds, markTyping } from "@/lib/typing";
+import { getTypingUsers, markTyping } from "@/lib/typing";
 
 export async function GET(
   _req: Request,
@@ -22,14 +21,7 @@ export async function GET(
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
-    const ids = (await getTypingUserIds(chatId)).filter((id) => id !== session.user.id);
-    if (ids.length === 0) return NextResponse.json({ users: [] });
-
-    const users = await prisma.user.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true },
-    });
-    return NextResponse.json({ users });
+    return NextResponse.json({ users: await getTypingUsers(chatId, session.user.id) });
   } catch (error) {
     const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });

@@ -32,6 +32,7 @@ import {
   type ChatRowAction,
   type CampaignOption,
   type ChatPriority,
+  type ViewCounts,
 } from "./chat-shared";
 
 // Lista de conversaciones — buscador, filtros de campaña/respuesta, y las
@@ -107,6 +108,7 @@ interface ChatListPanelProps {
   bulkBusy: boolean;
   currentViewQuery: string;
   onApplyView: (query: string) => void;
+  viewCounts: ViewCounts | null;
 
   loadingChats: boolean;
   loadError: string | null;
@@ -153,6 +155,7 @@ export function ChatListPanel({
   bulkBusy,
   currentViewQuery,
   onApplyView,
+  viewCounts,
   loadingChats,
   loadError,
   onRetry,
@@ -180,7 +183,7 @@ export function ChatListPanel({
             a la derecha; nunca compiten por espacio con la búsqueda. */}
         <div className="flex items-center gap-1">
           <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">Chats</h1>
-          <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} />
+          <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} counts={viewCounts} />
 
           <button
             type="button"

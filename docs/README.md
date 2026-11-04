@@ -16,6 +16,8 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [DOMINIOS_Y_LANDING_BETA.md](DOMINIOS_Y_LANDING_BETA.md) | Separación `colibly.com` / `app.colibly.com`. |
 | [BITACORA_LANZAMIENTO_2026-10-19.md](BITACORA_LANZAMIENTO_2026-10-19.md) | **Vigente**: bitácora del pulido de lanzamiento (decisiones, planes, API, Meta, Stripe, producción) y pendientes. |
 | [PLAN_IMPLEMENTACION_BENCHMARK_2026-11-01.md](PLAN_IMPLEMENTACION_BENCHMARK_2026-11-01.md) | **Vigente**: plan de implementación por bloques (A–F) de la segunda revisión, con la definición de terminado. |
+| [META_JSON_CUENTAS_WA_2026-11-04.md](META_JSON_CUENTAS_WA_2026-11-04.md) | **Vigente**: JSON real que Graph devuelve de una cuenta de WhatsApp (número, perfil, WABA), qué usa Colibly y 5 hallazgos (webhook de dev inalcanzable, calidad mal guardada, `health_status`, versiones de Graph mezcladas). Coexistencia pendiente de una cuenta real. |
+| [RENDIMIENTO_2026-11-04.md](RENDIMIENTO_2026-11-04.md) | **Vigente**: diagnóstico de velocidad (polling, consultas, carga en producción), arreglos ya hechos y plan R1–R8 tomado de Chatwoot y Twenty. |
 | [BENCHMARK_CHATWOOT_TWENTY_2026-11-01.md](BENCHMARK_CHATWOOT_TWENTY_2026-11-01.md) | **Vigente**: segunda revisión de Chatwoot y Twenty: 18 funciones y 10 patrones de UI/UX que faltan, con prioridad y orden propuesto. |
 | [ROADMAP_PARIDAD_CHATWOOT.md](ROADMAP_PARIDAD_CHATWOOT.md) | Brechas frente a Chatwoot (P1/P2/P3 con esfuerzo) y siguiente paso propuesto. |
 | [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md) | **Vigente**: precio por ejecutivo (asientos) en MXN, reglas, Stripe y copias públicas. |

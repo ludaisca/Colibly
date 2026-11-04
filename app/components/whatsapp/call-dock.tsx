@@ -61,7 +61,7 @@ function micError(error: unknown): string {
   return error instanceof Error ? error.message : "No se pudo usar el audio";
 }
 
-export function CallDock() {
+export function CallDock({ pollIncoming = true }: { pollIncoming?: boolean } = {}) {
   const [incoming, setIncoming] = useState<LiveCall | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [label, setLabel] = useState("");
@@ -337,10 +337,19 @@ export function CallDock() {
 
   useEffect(() => {
     let stop = false;
+    let idleTicks = 0;
     async function tick() {
       if (stop) return;
       const current = phaseRef.current;
       const id = callIdRef.current;
+      const inCall = (current === "active" || current === "connecting") && !!id;
+      if (!inCall && current !== "incoming") {
+        // Sin Calling API en la organización no hay llamadas que esperar. Con la
+        // pestaña oculta se consulta cada 10 s (el aviso push cubre el timbre).
+        if (!pollIncoming) return;
+        idleTicks++;
+        if (document.visibilityState === "hidden" && idleTicks % 5 !== 0) return;
+      }
       try {
         if ((current === "active" || current === "connecting") && id) {
           const res = await fetch(`/api/whatsapp/calls/${id}`);
@@ -382,7 +391,7 @@ export function CallDock() {
       stop = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [pollIncoming]);
 
   const visible = phase !== "idle" || note;
   const title = phase === "incoming" ? "Llamada entrante" : phase === "permission" ? "Permiso para llamar" : phase === "connecting" ? "Conectando" : phase === "active" ? "En llamada" : "Llamada";

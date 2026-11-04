@@ -4,6 +4,7 @@ import { displayName } from "@/lib/chats/display-name";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
+  MapPin,
   MessageSquare,
   Check,
   CheckCheck,
@@ -42,6 +43,7 @@ import {
   type Message,
   type AgentReaction,
   type PreviewMedia,
+  mapUrlFor,
 } from "./chat-shared";
 
 // Header del hilo + área de mensajes — extraído de chat-workspace.tsx sin
@@ -189,6 +191,38 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
   return null;
 }
 
+// Ubicación compartida por el cliente. Las coordenadas llegan desde el
+// 2026-11-04 (WAMessage.content); las anteriores solo guardaron "[location]".
+function LocationContent({ msg }: { msg: Message }) {
+  const location = msg.content?.location;
+  const place = [location?.name, location?.address].filter(Boolean).join(" · ");
+  return (
+    <div className="w-[260px] max-w-full space-y-2">
+      <div className="flex items-start gap-2">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-accent-ink">
+          <MapPin size={18} aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-foreground" title={place || undefined}>{place || "Ubicación compartida"}</p>
+          <p className="font-mono text-[11px] tabular-nums text-muted-darker">
+            {location ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : "Sin coordenadas (mensaje anterior al 4 nov 2026)"}
+          </p>
+        </div>
+      </div>
+      {location && (
+        <a
+          href={mapUrlFor(location)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-surface px-2.5 text-xs font-medium text-accent-ink hover:bg-accent-subtle"
+        >
+          <MapPin size={14} aria-hidden /> Abrir en el mapa
+        </a>
+      )}
+    </div>
+  );
+}
+
 function MessageBubble({
   msg,
   channel,
@@ -322,7 +356,8 @@ function MessageBubble({
             {caption && <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={caption} /> : caption}</p>}
           </div>
         )}
-        {!hasMedia && msg.body && msg.body !== "[interactive]" && (
+        {msg.messageType === "location" && <LocationContent msg={msg} />}
+        {!hasMedia && msg.messageType !== "location" && msg.body && msg.body !== "[interactive]" && (
           <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={msg.body} /> : msg.body}</p>
         )}
         {!hasMedia && msg.body === "[interactive]" && !(buttons && buttons.length > 0) && "Mensaje con botones"}

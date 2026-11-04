@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { accountManageWhere } from "@/lib/tenancy";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 // Compartir una ChannelAccount (Telegram, Messenger, Instagram, Web) con otro
 // usuario — mismo contrato que /api/whatsapp/accounts/[id]/share: solo un
@@ -80,6 +81,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       create: { channelAccountId: id, userId },
       update: {},
     });
+    invalidateAccountScopes();
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = publicErrorMessage(error, "Error interno");
@@ -106,6 +108,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     await prisma.channelAccountShare.deleteMany({
       where: { channelAccountId: id, userId, channelAccount: await accountManageWhere(session.user.id) },
     });
+    invalidateAccountScopes();
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = publicErrorMessage(error, "Error interno");

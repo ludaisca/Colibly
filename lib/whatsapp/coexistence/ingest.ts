@@ -194,6 +194,7 @@ export async function ingestBusinessAppMessages(
       filename: m.filename,
       status: mapHistoryStatus(m.historyStatus),
       timestamp: m.timestamp,
+      ...(m.content ? { content: m.content as Prisma.InputJsonValue } : {}),
       // El payload lleva props opcionales (style/buttonLabel), que Prisma no
       // admite en un JSON de entrada; mismo casteo que usa el resto del repo
       // en el límite de Prisma (automations/publish.ts, webhooks/fanout.ts).

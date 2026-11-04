@@ -1,4 +1,4 @@
-import { getMediaInfo, getMessageBody, interactivePayloadOf, parseMessageEdit, type StoredInteractivePayload, type WhatsAppMessageContent } from "@/lib/whatsapp/message-content";
+import { getMediaInfo, getMessageBody, interactivePayloadOf, parseMessageEdit, structuredContentOf, type StoredInteractivePayload, type StructuredContent, type WhatsAppMessageContent } from "@/lib/whatsapp/message-content";
 
 // Normalizadores PUROS de los webhooks de coexistencia de Meta
 // (smb_message_echoes, history, smb_app_state_sync). Reciben el `value` del
@@ -24,6 +24,8 @@ export interface NormalizedBusinessMessage {
   filename: string | null;
   caption: string | null;
   interactivePayload: StoredInteractivePayload | null;
+  // Ubicación, contactos, pedido, sha256… (igual que el webhook `messages`).
+  content: StructuredContent | null;
   // Estado de entrega del historial (SENT, DELIVERED, READ, PLAYED, PENDING, ERROR).
   historyStatus: string | null;
   // Si es la edición de otro mensaje: su wamid. No se guarda como mensaje; el
@@ -54,17 +56,17 @@ function toDate(ts: unknown): Date {
 
 type RawMessage = Record<string, unknown> & { id?: string; timestamp?: string | number; type?: string; from?: string; to?: string };
 
-function contentOf(raw: RawMessage): Pick<NormalizedBusinessMessage, "type" | "body" | "mediaId" | "mimeType" | "filename" | "caption" | "interactivePayload" | "editOf"> {
+function contentOf(raw: RawMessage): Pick<NormalizedBusinessMessage, "type" | "body" | "mediaId" | "mimeType" | "filename" | "caption" | "interactivePayload" | "content" | "editOf"> {
   const type = typeof raw.type === "string" ? raw.type : "unknown";
   const content = { type, [type]: raw[type] } as unknown as WhatsAppMessageContent;
   const edit = parseMessageEdit(content);
   if (edit) {
-    return { type, body: edit.body ?? "", mediaId: null, mimeType: null, filename: null, caption: edit.caption, interactivePayload: null, editOf: edit.originalMessageId };
+    return { type, body: edit.body ?? "", mediaId: null, mimeType: null, filename: null, caption: edit.caption, interactivePayload: null, content: null, editOf: edit.originalMessageId };
   }
   // `interactive`/`button` y los tipos con objeto propio ya vienen bajo su
   // nombre; el resto (text, image, …) se lee con las mismas funciones del webhook.
   const { mediaId, mimeType, filename, caption } = getMediaInfo(content);
-  return { type, body: getMessageBody(content), mediaId, mimeType, filename, caption, interactivePayload: interactivePayloadOf(content) };
+  return { type, body: getMessageBody(content), mediaId, mimeType, filename, caption, interactivePayload: interactivePayloadOf(content), content: structuredContentOf(content) };
 }
 
 // smb_message_echoes: mensajes que el negocio escribió en la app del teléfono

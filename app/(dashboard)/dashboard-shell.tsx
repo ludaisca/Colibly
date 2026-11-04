@@ -24,6 +24,7 @@ import { MetaIcon } from "@/app/components/ui/brand-marks";
 import { AppShell, type NavItem, type NavGroup } from "@/app/components/ui/app-shell";
 import { NotificationBell } from "@/app/components/ui/notification-bell";
 import { CallDock } from "@/app/components/whatsapp/call-dock";
+import type { ShellUser } from "@/app/components/ui/user-dropdown";
 
 export function DashboardShell({
   children,
@@ -33,11 +34,13 @@ export function DashboardShell({
   topBanner,
   platformAdmin = false,
   channels,
+  callingEnabled = false,
 }: {
   children: React.ReactNode;
   businessName?: string | null;
   role: string;
-  initialUser: { name?: string | null; email?: string | null };
+  initialUser: ShellUser;
+  callingEnabled?: boolean;
   topBanner?: React.ReactNode;
   // Operador de la plataforma (PLATFORM_ADMIN_EMAILS): ve el grupo "Plataforma".
   platformAdmin?: boolean;
@@ -137,7 +140,7 @@ export function DashboardShell({
     <BusinessNameProvider name={businessName ?? null}>
     <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
       {children}
-      <CallDock />
+      <CallDock pollIncoming={callingEnabled} />
     </AppShell>
     </BusinessNameProvider>
   );

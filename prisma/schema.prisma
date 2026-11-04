@@ -519,6 +519,9 @@ model Conversation {
   @@unique([channelAccountId, externalId])
   @@index([assignedToId])
   @@index([channelAccountId, lastMessageAt])
+  // Delta de GET /api/inbox/sync (updatedAt > since): sin él, cada tick filtraba
+  // todos los chats recientes de la cuenta (docs/RENDIMIENTO_2026-11-04.md).
+  @@index([channelAccountId, updatedAt])
   @@index([channelAccountId, status, priority])
   @@index([channelAccountId, snoozedUntil])
   @@index([channelAccountId, waitingSince])
@@ -613,6 +616,9 @@ model WAChat {
   @@unique([accountId, remoteJid])
   @@index([assignedToId])
   @@index([accountId, lastMessageAt])
+  // Delta de GET /api/inbox/sync (updatedAt > since): sin él, cada tick filtraba
+  // todos los chats recientes de la cuenta (docs/RENDIMIENTO_2026-11-04.md).
+  @@index([accountId, updatedAt])
   @@index([accountId, status])
   @@index([accountId, status, priority])
   @@index([accountId, snoozedUntil])
@@ -794,6 +800,16 @@ model WAMessage {
   // usable (Contact.ctwaClid/adId/leadOrigin) se deriva de este mismo objeto
   // en lib/whatsapp/ingest-message.ts pero solo en el create del Contact.
   referral           Json?
+  // Contenido estructurado que no cabe en body/caption/media (docs/META_JSON_CUENTAS_WA_2026-11-04.md):
+  // ubicación, contactos compartidos, pedido, aviso de sistema, marcas de reenvío,
+  // sha256 del medio, nota de voz, sticker animado. Lo arma
+  // lib/whatsapp/message-content.ts:structuredContentOf(); null = solo texto/medio.
+  content            Json?
+  // `pricing` del último estado de Meta (billable, pricing_model, category, type).
+  pricing            Json?
+  // Hora real (la de Meta, no la de llegada del webhook) de entrega y lectura.
+  deliveredAt        DateTime?        @map("delivered_at")
+  readAt             DateTime?        @map("read_at")
   status             String?
   // Motivo de un envío rechazado por Meta (status "failed"): código de Meta
   // y el texto en español para la bandeja (lib/whatsapp/send-errors.ts).
@@ -1257,6 +1273,10 @@ model Contact {
   // source_id (Instant Form) o ad_id (CTWA) del anuncio de origen, si Meta lo
   // reportó — informativo, no se usa para el envío de eventos.
   adId              String?
+  // Id por negocio que Meta manda junto al número (`user_id`, p. ej.
+  // "MX.1399244639027519"), pensado para los nombres de usuario de WhatsApp:
+  // con un username Meta puede omitir el número. Solo WhatsApp.
+  metaUserId        String?           @map("meta_user_id")
   // Solo se fija para leadOrigin=INSTANT_FORM (el webhook leadgen sabe
   // literalmente de qué Página vino el lead, first-touch). Para CTWA queda
   // null a propósito: no hay Página involucrada en ese flujo, así que
@@ -1301,6 +1321,7 @@ model Contact {
   @@unique([accountId, remoteJid])
   @@unique([channelAccountId, remoteJid])
   @@index([accountId, leadStatus])
+  @@index([accountId, metaUserId])
   @@index([pipelineStageId])
   // Un Contact de Instant Form nace sin `chat` (no ha escrito por WhatsApp
   // todavía) bajo el `waAccountId` vinculado en su MetaAdsAccount — este

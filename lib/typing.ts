@@ -1,4 +1,5 @@
 import { getRedisClient } from "@/lib/redis";
+import { prisma } from "@/lib/prisma";
 
 // Señal efímera de "está escribiendo". No se guarda en Postgres: si el
 // proceso se reinicia, el peor caso es que el indicador desaparezca antes.
@@ -21,4 +22,11 @@ export async function getTypingUserIds(chatId: string): Promise<string[]> {
   const now = Date.now();
   await redis.zremrangebyscore(key, 0, now - TYPING_WINDOW_MS);
   return redis.zrangebyscore(key, now - TYPING_WINDOW_MS, "+inf");
+}
+
+/** Quién más está escribiendo en el chat (sin el propio usuario), con nombre. */
+export async function getTypingUsers(chatId: string, selfId: string): Promise<Array<{ id: string; name: string | null }>> {
+  const ids = (await getTypingUserIds(chatId)).filter((id) => id !== selfId);
+  if (ids.length === 0) return [];
+  return prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
 }

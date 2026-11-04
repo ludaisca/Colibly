@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { usePoll } from "@/app/components/ui/use-poll";
+import { useCallback, useState } from "react";
 import { Bot, UserRound, Zap, CircleOff, Handshake, Play, ChevronDown } from "lucide-react";
 import { Dropdown, DropdownButton, DropdownItem } from "@/app/components/ui/dropdown";
 import { useToast } from "@/app/components/ui/toast";
@@ -42,12 +43,9 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
     }
   }, [chatId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- consulta al cambiar el chat o su último mensaje
-    load();
-    const timer = setInterval(() => { if (!document.hidden) load(); }, 15_000);
-    return () => clearInterval(timer);
-  }, [load, refreshKey]);
+  // Al cambiar el chat o su último mensaje (refreshKey) se reinicia el ciclo.
+  const poll = useCallback(() => load(), [load, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps -- refreshKey reinicia el sondeo a propósito
+  usePoll(poll, { intervalMs: 15_000 });
 
   async function resume() {
     if (resuming) return;

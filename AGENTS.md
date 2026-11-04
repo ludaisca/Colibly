@@ -46,7 +46,7 @@ Commands and host details are in `CLAUDE.md` → "Commands" (Docker on `ludaisca
 
 - The workspace is an `Organization`; every `User` belongs to exactly one, and `User.role` is the role inside it.
 - `organizationId` lives on **top-level entities only** (`User`, `WAAccount`, `ChannelAccount`, `WABot`, `WALeadScorerBot`, `MetaAdsAccount`, `ApiKey`, `WebhookEndpoint`, `Automation`, `WASequence`, `WACampaign`, `LeadSheetSource`, `Macro`, `Pipeline`…). Everything else hangs off an account. A new top-level model needs `organizationId`, set with `requireOrgId(userId)` on create, and a `onDelete: Cascade` chain from `Organization`.
-- Helpers (`lib/tenancy.ts`, `lib/shared-accounts.ts`): `orgWhere(userId)` for admin resources, `accountManageWhere(userId)` for editing/deleting/sharing an account, `getUserAccountIds()` / `getUserChannelAccountIds()` for anything reached through an account (admins get every account of their org; `user`/`ejecutivo` get own + shared).
+- Helpers (`lib/tenancy.ts`, `lib/shared-accounts.ts`): `orgWhere(userId)` for admin resources, `accountManageWhere(userId)` for editing/deleting/sharing an account, `getUserAccountIds()` / `getUserChannelAccountIds()` for anything reached through an account (admins get every account of their org; `user`/`ejecutivo` get own + shared). Both are cached 10 s per process: **anything that creates/deletes an account or a share must call `invalidateAccountScopes()`**.
 - **Never scope by creator** (`userId: session.user.id`) for anything the organization shares. This bug shipped repeatedly (template sync/create, campaign create, channel chats). Per-user rows that stay per-user: `GoogleAccount`, `Notification`.
 - Shares (`WAAccountShare`, `ChannelAccountShare`) only accept a target in the same organization.
 - `tsc` can't see a missing scope: test a new route with a second organization (signup creates one) and expect 404/403 on foreign ids.
@@ -97,6 +97,7 @@ Two parallel stacks (adapter layer, not a migration — the `WA*` tables hold pr
 
 - **Code that changes a domain fact must emit its event** (`emitDomainEvent()`, never throws): `message.received/sent`, `contact.created`, `contact.lead_status_changed`, `tag.added`, `conversation.assigned/resolved`, `appointment.*`, `lead.scored`, `lead.ad_captured`. For lead status and contact tags call `afterLeadStatusChanged()` / `afterContactTagAdded()` instead of repeating side effects inline. A new `contact.created` source needs the union in `lib/events/types.ts` **and** the enum in `lib/api/openapi.ts`.
 - Public API `/api/v1/*`: `withApiErrors` + `authenticateApiKey(req, scope)`; ids outside the scope answer **404, never 403**; update `lib/api/openapi.ts` in the same change as any route.
+- **A message's public shape lives only in `lib/messages/serialize.ts`** (API and `message.*` webhooks share it); media go out as `GET /api/v1/messages/{id}/media`, never Meta's URL. Meta data that doesn't fit `body`/media goes to `WAMessage.content` via `structuredContentOf()` — don't drop fields into `[type]` markers.
 - Any HTTP request to a user-supplied URL goes through `lib/net/safe-fetch.ts`.
 - Automations: the graph is a tree; adding a step type = `types.ts` + `validate.ts` + `executor.ts` + `labels.ts` + editor form + tests. **Both ingests call `dispatchInboundMessage()` before enqueuing the bot** and skip it on `suppressBot` — a new inbound path must do the same. Don't add features to the legacy `WASequence`.
 - Meta CAPI (`lib/meta/conversions.ts`) refuses to send unless TEST mode with `testEventCode` or `mode: LIVE` is explicit.
@@ -113,7 +114,7 @@ Two parallel stacks (adapter layer, not a migration — the `WA*` tables hold pr
 - Snooze is a field (`snoozedUntil`), not a `ChatStatus`; ingest clears it on any inbound. Saved views and drafts are per-browser `localStorage`.
 - **"Esperando respuesta" is `waitingSince`** on `WAChat`/`Conversation` (`lib/chats/waiting.ts`): both ingests call `markWaiting()`; a reply from a person, the bot or a conversational flow clears it (`markReplied()` or `waitingSince: null` in the same update), and so does resolving. Automatic notices (away message, auto-resolve, CSAT, campaigns, recovery) must **not** clear it — `sendOutbound(..., { countsAsReply: false })`. A new path that answers a customer must clear it; `lib/chats/__tests__/waiting.test.ts` guards the existing call sites.
 - `/whatsapp/chat`'s rail keeps its own dense structure — confirm with the user before restructuring it.
-- No websockets anywhere: polling is the pattern for anything live.
+- No websockets anywhere: polling is the pattern for anything live, always through `app/components/ui/use-poll.ts:usePoll()` (no overlap, paused when hidden, slower when idle) with the GET answered by `jsonWithEtag()`. The inbox polls **one** endpoint, `/api/inbox/sync` — extend it instead of adding a new poll there (`bandeja.md`).
 - A bell `Notification` that should also reach the browser calls `lib/notifications/push.ts:queuePush()` right after creating it (today: chat message, chat assigned, incoming call). Logging out must call `disablePush()`.
 
 ## Database (detail: `base-de-datos.md`)

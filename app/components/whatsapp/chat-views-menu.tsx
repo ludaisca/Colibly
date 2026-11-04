@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { ViewCounts } from "./chat-shared";
 import { Bookmark, Hourglass, Inbox, Plus, Trash2, User, UserX } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
@@ -14,13 +15,11 @@ interface SavedView {
 }
 
 const STORAGE_KEY = "colibly:chat-views";
-const COUNTS_REFRESH_MS = 30_000;
 
-type CountKey = "awaiting" | "mine" | "unassigned" | "all";
-type ViewCounts = Record<CountKey, number>;
+type CountKey = keyof ViewCounts;
 
 // Vistas rápidas: el mismo query que aplicaría una vista guardada. Los
-// contadores salen de GET /api/whatsapp/chats/counts (mismos builders que la
+// contadores llegan por GET /api/inbox/sync (lib/chats/counts.ts, mismos builders que la
 // lista). Sin pestañas en la cabecera: se quitaron a propósito.
 const QUICK_VIEWS: Array<{ key: CountKey; label: string; query: string; icon: typeof Inbox }> = [
   { key: "awaiting", label: "Esperando respuesta", query: "awaiting=1", icon: Hourglass },
@@ -28,32 +27,6 @@ const QUICK_VIEWS: Array<{ key: CountKey; label: string; query: string; icon: ty
   { key: "unassigned", label: "Sin asignar", query: "assigned=unassigned", icon: UserX },
   { key: "all", label: "Todos los activos", query: "", icon: Inbox },
 ];
-
-// Pide los contadores cada 30 s, solo con la pestaña visible.
-function useViewCounts(): ViewCounts | null {
-  const [counts, setCounts] = useState<ViewCounts | null>(null);
-  const load = useCallback(async () => {
-    if (document.visibilityState !== "visible") return;
-    try {
-      const res = await fetch("/api/whatsapp/chats/counts", { cache: "no-store" });
-      if (res.ok) setCounts(await res.json());
-    } catch {
-      // Sin contadores no pasa nada: el menú funciona igual.
-    }
-  }, []);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- el setState ocurre tras el fetch (asíncrono), no durante el efecto
-    void load();
-    const id = window.setInterval(() => void load(), COUNTS_REFRESH_MS);
-    const onVisible = () => void load();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [load]);
-  return counts;
-}
 
 function formatCount(n: number): string {
   return n > 999 ? "999+" : String(n);
@@ -78,14 +51,16 @@ function readViews(): SavedView[] {
 export function ChatViewsMenu({
   currentQuery,
   onApply,
+  counts,
 }: {
   currentQuery: string;
   onApply: (query: string) => void;
+  /** De la sincronización de la bandeja; null mientras no llega el primero. */
+  counts: ViewCounts | null;
 }) {
   const [views, setViews] = useState<SavedView[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
   const [name, setName] = useState("");
-  const counts = useViewCounts();
   const awaiting = counts?.awaiting ?? 0;
 
   useEffect(() => {
