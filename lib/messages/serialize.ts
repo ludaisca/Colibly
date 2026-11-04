@@ -31,6 +31,7 @@ export interface SerializableMessage {
   sender?: { name: string | null } | null;
   sentVia?: string | null;
   timestamp: Date;
+  createdAt?: Date;
   transcript?: string | null;
   interactivePayload?: Prisma.JsonValue;
   reactionEmoji?: string | null;
@@ -46,6 +47,7 @@ export interface SerializableMessage {
   leadSheetSourceId?: string | null;
   recoveryAttempt?: { id: string } | null;
   content?: Prisma.JsonValue;
+  referral?: Prisma.JsonValue;
   pricing?: Prisma.JsonValue;
   deliveredAt?: Date | null;
   readAt?: Date | null;
@@ -69,6 +71,7 @@ const COMMON_SELECT = {
   sender: { select: { name: true } },
   sentVia: true,
   timestamp: true,
+  createdAt: true,
   transcript: true,
   interactivePayload: true,
   reactionEmoji: true,
@@ -87,6 +90,7 @@ export const MESSAGE_SERIALIZE_SELECT_WA = {
   leadSheetSourceId: true,
   recoveryAttempt: { select: { id: true } },
   content: true,
+  referral: true,
   pricing: true,
   deliveredAt: true,
   readAt: true,
@@ -123,6 +127,33 @@ function publicPricing(raw: Prisma.JsonValue | undefined): PricingPublic | null 
   return { billable: typeof p.billable === "boolean" ? p.billable : null, model: s(p.pricing_model), category: s(p.category), type: s(p.type) };
 }
 
+export interface ReferralPublic {
+  sourceType: string | null; // ad | post
+  sourceId: string | null; // id del anuncio o la publicación
+  sourceUrl: string | null;
+  headline: string | null;
+  body: string | null;
+  mediaType: string | null; // image | video
+  ctwaClid: string | null;
+}
+
+// Objeto `referral` de Meta (anuncio click-to-WhatsApp) en camelCase. Las URLs
+// de imagen/video del anuncio no se exponen: son del CDN de Meta y caducan.
+function publicReferral(raw: Prisma.JsonValue | undefined): ReferralPublic | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const s = (v: unknown) => (typeof v === "string" && v ? v : null);
+  return {
+    sourceType: s(r.source_type),
+    sourceId: s(r.source_id),
+    sourceUrl: s(r.source_url),
+    headline: s(r.headline),
+    body: s(r.body),
+    mediaType: s(r.media_type),
+    ctwaClid: s(r.ctwa_clid),
+  };
+}
+
 export interface MessageErrorPublic {
   code: number | null;
   // Texto en español (el de la bandeja).
@@ -151,7 +182,9 @@ function publicError(m: SerializableMessage): MessageErrorPublic | null {
  * el caller ya lo buscó (lote por página en la API, uno en el webhook).
  */
 export function serializeMessage(m: SerializableMessage, conversationId: string, opts: { replyToMessageId?: string | null } = {}) {
-  const content = (m.content ?? null) as StructuredContent | null;
+  const stored = (m.content ?? null) as StructuredContent | null;
+  const content: StructuredContent | null =
+    m.messageType === "media_placeholder" ? { ...(stored ?? {}), placeholder: { reason: "history_media" } } : stored;
   const externalId = m.wamid ?? m.externalMessageId ?? null;
   const replyExternal = m.replyToWamid ?? m.replyToExternalId ?? null;
   const hasMedia = MEDIA_TYPES.has(m.messageType) && (!!m.mediaUrl || !!m.mimeType);
@@ -200,6 +233,12 @@ export function serializeMessage(m: SerializableMessage, conversationId: string,
     origin,
     sentBy: sentByOf(origin, m.direction, m.senderId),
     senderName: m.sender?.name ?? null,
+    // ── añadidos (2026-11-04, v1.1, parte 2) ──
+    // Entrante que llegó de un anuncio click-to-WhatsApp (solo WhatsApp).
+    referral: publicReferral(m.referral),
+    // Cuándo lo guardó Colibly (≠ timestamp, la hora del canal). Es el punto
+    // de control de la sincronización incremental (`since`).
+    createdAt: m.createdAt ?? m.timestamp,
   };
 }
 

@@ -50,6 +50,9 @@ export const API_CHANGELOG: { version: string; schemaVersion: string; date: stri
       "message.status_changed (nuevo): estado de un saliente de WhatsApp con previousStatus, error completo y pricing.",
       "Sobre de los eventos: account.phoneNumber y account.phoneE164; contact.realName y contact.phoneE164; message en los eventos message.*.",
       "Contact.phoneE164 y Account.phoneE164 (E.164, México sin el \"1\" móvil antiguo).",
+      "Message.referral (anuncio click-to-WhatsApp) y Message.createdAt; Contact.adId y Contact.ctwaClid; Conversation.updatedAt; contact.tags en el sobre de los eventos.",
+      "Un media_placeholder del historial de Coexistencia trae content.placeholder = { reason: \"history_media\" }: el medio llega aparte y el mismo mensaje cambia a su tipo real (reléelo con GET /messages/{id}).",
+      "Sincronización incremental: updatedSince en GET /conversations, since en GET /conversations/{id}/messages y el nuevo GET /messages?since= (todas las conversaciones). Nuevo GET /messages/{id}.",
       "Header X-Colibly-Schema-Version en cada respuesta y cada entrega de webhook.",
       "Errores: una ruta inexistente bajo /api/v1 responde JSON 404; un limit que no es entero positivo responde 400.",
       "deliveredAt y readAt confiables desde 2026-11-04 19:47 UTC (antes solo en mensajes de campaña); un read sin delivered previo trae deliveredAt = readAt.",
@@ -112,6 +115,8 @@ const EX = {
     externalId: null,
     leadStatus: "QUALIFIED",
     leadOrigin: "ORGANIC",
+    adId: null,
+    ctwaClid: null,
     optedOutMarketing: false,
     tags: [{ id: "cmtag_01", name: "Mayoreo" }],
     customFields: { ciudad: "Puebla" },
@@ -131,6 +136,7 @@ const EX = {
     lastMessage: "¿Tienen envío a Puebla?",
     lastMessageAt: "2026-10-18T19:02:11.000Z",
     createdAt: "2026-10-01T16:20:00.000Z",
+    updatedAt: "2026-10-18T19:02:11.000Z",
   },
   message: {
     id: "cmmsg_01",
@@ -158,6 +164,8 @@ const EX = {
     origin: "contact",
     sentBy: "contact",
     senderName: null,
+    referral: null,
+    createdAt: "2026-10-18T19:02:12.000Z",
   },
   webhook: {
     id: "cmwh_01",
@@ -286,7 +294,7 @@ export function exampleEvent(type: string, data: Record<string, unknown>) {
     account: test ? null : { id: EX.account.id, channel: "WHATSAPP", name: EX.account.name, phoneNumber: EX.account.phoneNumber, phoneE164: EX.account.phoneE164 },
     contact: test
       ? null
-      : { id: EX.contact.id, name: EX.contact.name, realName: null, phone: EX.contact.phone, phoneE164: EX.contact.phoneE164, externalId: null, leadStatus: EX.contact.leadStatus, leadOrigin: "ORGANIC" },
+      : { id: EX.contact.id, name: EX.contact.name, realName: null, tags: EX.contact.tags, phone: EX.contact.phone, phoneE164: EX.contact.phoneE164, externalId: null, leadStatus: EX.contact.leadStatus, leadOrigin: "ORGANIC" },
     conversation: test || type === "contact.created" ? null : { id: EX.conversation.id, channel: "WHATSAPP", status: "OPEN", assignedToId: "cmusr_02" },
     data,
     ...(type.startsWith("message.") ? { message: EX.message } : {}),
@@ -472,6 +480,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             { name: "status", in: "query", schema: { type: "string", enum: ["OPEN", "PENDING", "RESOLVED"] } },
             { name: "assignedToId", in: "query", schema: { type: "string" } },
             { name: "contactId", in: "query", schema: { type: "string" } },
+            { name: "updatedSince", in: "query", description: "Solo las que cambiaron desde esa fecha (mensaje, estado, asignación, no leídos). Guarda el mayor `updatedAt` recibido y úsalo en la siguiente consulta", schema: { type: "string", format: "date-time" } },
           ],
           "x-example-query": "status=OPEN&limit=20",
           responses: { "200": ok(paged("Conversation"), { data: [EX.conversation], nextCursor: null }), ...errors },
@@ -484,8 +493,14 @@ export function buildOpenApiSpec(serverUrl: string) {
         get: {
           tags: ["Conversaciones"],
           summary: "Mensajes de una conversación",
-          description: `${scopeNote("conversations:read")} Recientes primero.`,
-          parameters: [idParam, ...pageParams],
+          description:
+            `${scopeNote("conversations:read")} Sin \`since\`: recientes primero (por \`timestamp\`), para leer el historial hacia atrás. ` +
+            "Con `since`: los guardados desde esa fecha (por `createdAt`), del más viejo al más nuevo, para ponerse al día.",
+          parameters: [
+            idParam,
+            ...pageParams,
+            { name: "since", in: "query", description: "Fecha ISO 8601: mensajes con `createdAt` ≥ since, en orden ascendente", schema: { type: "string", format: "date-time" } },
+          ],
           responses: { "200": ok(paged("Message"), { data: [EX.message], nextCursor: null }), ...errors },
         },
       },
@@ -498,7 +513,32 @@ export function buildOpenApiSpec(serverUrl: string) {
           responses: { "200": { description: "El archivo (Content-Type real del medio)", headers: rateHeaders, content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } }, ...errors },
         },
       },
+      "/messages/{id}": {
+        get: {
+          tags: ["Mensajes"],
+          summary: "Obtener un mensaje",
+          description: `${scopeNote("conversations:read")} Cualquier canal, con su estado y su medio actuales (p. ej. para releer un \`media_placeholder\` del historial cuando ya llegó el medio).`,
+          parameters: [idParam],
+          responses: { "200": ok(ref("Message"), EX.message), ...errors },
+        },
+      },
       "/messages": {
+        get: {
+          tags: ["Mensajes"],
+          summary: "Mensajes nuevos de todas las conversaciones",
+          description:
+            `${scopeNote("conversations:read")} Todo lo que Colibly guardó desde \`since\` en las conversaciones al alcance de la key (entrantes y salientes, cualquier canal), ` +
+            "del más viejo al más nuevo por `createdAt`. Sirve para ponerse al día sin depender solo de los webhooks: guarda el `createdAt` del último mensaje recibido y úsalo como el siguiente `since` " +
+            `(o sigue con \`nextCursor\`). Un cambio de estado no vuelve a traer el mensaje: llega por \`message.status_changed\` o con GET /messages/{id}. Límite propio: ${API_CONVERSATIONS_LIST_PER_MINUTE} por minuto por key.`,
+          parameters: [
+            { name: "since", in: "query", required: true, schema: { type: "string", format: "date-time" } },
+            ...pageParams,
+            { name: "accountId", in: "query", schema: { type: "string" } },
+            { name: "direction", in: "query", schema: { type: "string", enum: ["INBOUND", "OUTBOUND"] } },
+          ],
+          "x-example-query": "since=2026-11-04T00:00:00Z&limit=50",
+          responses: { "200": ok(paged("Message"), { data: [EX.message], nextCursor: null }), ...errors },
+        },
         post: {
           tags: ["Mensajes"],
           summary: "Enviar mensaje",
@@ -685,6 +725,8 @@ export function buildOpenApiSpec(serverUrl: string) {
             externalId: { ...strNull, description: "Id del contacto en Telegram/Messenger/Instagram/Web" },
             leadStatus: ref("LeadStatus"),
             leadOrigin: { type: "string", enum: ["ORGANIC", "INSTANT_FORM", "CTWA"] },
+            adId: { ...strNull, description: "Anuncio de origen (CTWA o Instant Form), first-touch" },
+            ctwaClid: { ...strNull, description: "Click id del anuncio click-to-WhatsApp (solo CTWA)" },
             optedOutMarketing: { type: "boolean" },
             tags: { type: "array", items: { type: "object", properties: { id: str, name: str } } },
             customFields: { type: "object", additionalProperties: strNull },
@@ -729,6 +771,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             lastMessage: strNull,
             lastMessageAt: { type: ["string", "null"], format: "date-time" },
             createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time", description: "Último cambio (mensaje, estado, asignación…); punto de control de updatedSince" },
           },
         },
         Message: {
@@ -749,7 +792,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             externalId: { ...strNull, description: "Id del mensaje en el canal (wamid en WhatsApp)" },
             content: {
               type: ["object", "null"],
-              description: "Lo que no cabe en text/caption/media. Según el tipo: location {latitude, longitude, name, address, url}; contacts [{name, phones[{phone, waId, type}], emails, company}]; order {catalogId, text, items[{productId, quantity, price, currency}]}; system {type, body, newWaId}; errors [{code, title, detail}]; media {sha256, voice, animated}; forwarded; frequentlyForwarded; referredProduct; replyToFrom",
+              description: "Lo que no cabe en text/caption/media. Según el tipo: location {latitude, longitude, name, address, url}; contacts [{name, phones[{phone, waId, type}], emails, company}]; order {catalogId, text, items[{productId, quantity, price, currency}]}; system {type, body, newWaId}; errors [{code, title, detail}]; media {sha256, voice, animated}; forwarded; frequentlyForwarded; referredProduct; replyToFrom; placeholder {reason: \"history_media\"} en un media_placeholder del historial (el medio llega después al mismo mensaje)",
             },
             media: {
               type: ["object", "null"],
@@ -770,6 +813,12 @@ export function buildOpenApiSpec(serverUrl: string) {
             origin: { type: ["string", "null"], enum: [...OUTBOUND_ORIGINS, "contact", null], description: `${ORIGIN_DOC}; contact = entrante. null = saliente antiguo sin datos para saberlo` },
             sentBy: { type: ["string", "null"], enum: ["contact", "user", "bot", "business_app", "system", null], description: SENT_BY_DOC },
             senderName: { ...strNull, description: "Nombre del usuario de senderId" },
+            referral: {
+              type: ["object", "null"],
+              description: "Entrante que llegó de un anuncio click-to-WhatsApp (solo WhatsApp)",
+              properties: { sourceType: { ...strNull, description: "ad o post" }, sourceId: strNull, sourceUrl: strNull, headline: strNull, body: strNull, mediaType: strNull, ctwaClid: strNull },
+            },
+            createdAt: { type: "string", format: "date-time", description: "Cuándo lo guardó Colibly (timestamp es la hora del canal). Punto de control de `since`" },
           },
         },
         SendMessage: {
@@ -861,6 +910,7 @@ export function buildOpenApiSpec(serverUrl: string) {
                 id: str,
                 name: { ...strNull, description: "realName si el equipo lo puso; si no, el nombre del perfil" },
                 realName: strNull,
+                tags: { type: "array", items: { type: "object", properties: { id: str, name: str } } },
                 phone: { ...strNull, description: "wa_id de Meta tal cual" },
                 phoneE164: strNull,
                 externalId: strNull,

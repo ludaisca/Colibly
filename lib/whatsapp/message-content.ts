@@ -183,6 +183,10 @@ export type StructuredContent = {
   // Quién escribió el mensaje citado (`context.from`): el número del cliente
   // o el del negocio.
   replyToFrom?: string | null;
+  // Solo en la forma pública (serializeMessage), no se guarda: el historial de
+  // Coexistencia manda el medio en un webhook aparte; hasta entonces el mensaje
+  // es `media_placeholder` y luego el MISMO mensaje cambia a su tipo real.
+  placeholder?: { reason: "history_media" };
 };
 
 const toNumber = (value: unknown): number | null => {

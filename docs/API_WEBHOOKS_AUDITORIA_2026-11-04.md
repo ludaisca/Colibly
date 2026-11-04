@@ -81,6 +81,11 @@ Restricciones que se mantienen (sección 6 del análisis externo): no cambiar la
 
 ### P1: completar el contrato
 
+> **Estado (2026-11-04): hecho en dev, verificado, dentro de la misma 1.1.0** (el P0 aún no salió a producción). Diferencias:
+> - `referral` va en el mensaje serializado (y por tanto en `message` de `message.received`), no duplicado en `data`; sin `image_url`/`video_url` (CDN de Meta, caducan);
+> - no se emite `message.updated` cuando llega el medio de un `media_placeholder`: se documenta y se agregó `GET /messages/{id}` para releerlo;
+> - el corte de `deliveredAt`/`readAt` (punto 10) quedó en el changelog del OpenAPI.
+
 6. **`referral`** en `message.received` y en el mensaje serializado: `sourceType`, `sourceId`, `sourceUrl`, `headline`, `body` y `ctwaClid`. Y `contact.adId`/`ctwaClid` en `/contacts`.
 7. **Sobre del contacto:** `realName` y `tags[]` (id y nombre), además de `phoneE164`.
 8. **`media_placeholder`:** `content.placeholder = { reason: "history_media" }` y documentarlo como "el medio llega aparte; se actualiza el mismo mensaje". Opcional: emitir `message.updated` cuando llega (A5).
@@ -119,3 +124,13 @@ Restricciones que se mantienen (sección 6 del análisis externo): no cambiar la
   - un `failed` llegó con el error en español más `title`, `details` y `href` de Meta, en el evento y en la API;
   - en la API, cada mensaje trae `origin`/`sentBy` (entrantes `contact`, saliente de la bandeja `agent`/`user` con `senderName`); los contactos traen `phoneE164` (`521…` → `+52…`); `limit=abc` da 400; una ruta inexistente da JSON 404; todas las respuestas traen `X-Colibly-Schema-Version: 2026-11-04`.
 - No probado de punta a punta (requiere enviar por Meta a un número real): bot, campañas, secuencias, recuperación y CSAT. Usan el mismo emisor (`emitMessageSent`) y lo cubre la revisión de tipos.
+
+## 6. Verificación del P1 (dev, 2026-11-04)
+
+- `tsc`, lint y 891 pruebas en verde (nuevas: `referral` sin URLs del CDN, `media_placeholder` con `content.placeholder`).
+- Con una key temporal y dos mensajes temporales (borrados al terminar):
+  - `GET /messages?since=` devolvió ambos en orden ascendente; paginando de uno en uno, el cursor llevó del primero al segundo y terminó en `null`;
+  - el entrante trajo `referral` completo; el `media_placeholder` trajo `content.placeholder`;
+  - `/conversations/{id}/messages?since=` devolvió los mismos dos; `GET /messages/{id}` dio 200, y un id inexistente 404;
+  - `since` ausente o inválido dio 400; `updatedSince` en el futuro dio 0 conversaciones y en el pasado todas, con `updatedAt`;
+  - los contactos traen `adId` y `ctwaClid`.

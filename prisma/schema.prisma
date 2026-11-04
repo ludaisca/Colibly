@@ -572,6 +572,7 @@ model ChannelMessage {
 
   @@unique([conversationId, externalMessageId])
   @@index([conversationId, timestamp])
+  @@index([createdAt])
   @@map("channel_messages")
 }
 
@@ -846,6 +847,8 @@ model WAMessage {
   @@index([chatId, direction])
   @@index([campaignId])
   @@index([leadSheetSourceId])
+  // GET /api/v1/messages?since= y la sincronización por conversación (createdAt).
+  @@index([createdAt])
   @@map("wa_messages")
 }
 

@@ -131,6 +131,15 @@ export function readPageParams(url: URL): { limit: number; cursor: string | null
   return { limit: Math.min(API_PAGE_MAX, Number(param)), cursor: url.searchParams.get("cursor") };
 }
 
+// Fecha ISO 8601 opcional de la query (updatedSince, since…): 400 si no se entiende.
+export function readDateParam(url: URL, name: string): Date | null {
+  const raw = url.searchParams.get(name);
+  if (raw === null || raw === "") return null;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) throw new ApiError(400, "invalid_request", `${name} debe ser una fecha ISO 8601`);
+  return d;
+}
+
 // Cursor = base64url de un JSON pequeño (fecha + id para desempatar). Opaco
 // para el cliente; se valida al decodificar.
 export function encodeCursor(value: { t: string; id: string }): string {

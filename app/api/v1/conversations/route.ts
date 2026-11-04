@@ -2,7 +2,7 @@ import type { ChatStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey, enforceLimit } from "@/lib/api/auth";
 import { API_CONVERSATIONS_LIST_PER_MINUTE } from "@/lib/api/constants";
-import { ApiError, apiOk, decodeCursor, encodeCursor, readPageParams, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors } from "@/lib/api/respond";
 import { serializeConversation } from "@/lib/api/resources";
 
 const STATUSES: ChatStatus[] = ["OPEN", "PENDING", "RESOLVED"];
@@ -12,7 +12,8 @@ const CHANNELS = ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"] a
 // ordenada por último mensaje. Las dos tablas se paginan con el mismo cursor
 // (lastMessageAt, id): cada página pide `limit` a cada una, mezcla y corta, así
 // el orden global es exacto. Conversaciones sin ningún mensaje no se listan.
-// Filtros: accountId, channel, status, assignedToId, contactId.
+// Filtros: accountId, channel, status, assignedToId, contactId, updatedSince
+// (solo las que cambiaron desde esa fecha: mensaje, estado, asignación…).
 export const GET = withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "conversations:read");
   // El listado más caro de la API (mezcla WhatsApp + otros canales): límite propio por key.
@@ -32,12 +33,14 @@ export const GET = withApiErrors(async (req: Request) => {
   const accountId = url.searchParams.get("accountId");
   const assignedToId = url.searchParams.get("assignedToId");
   const contactId = url.searchParams.get("contactId");
+  const updatedSince = readDateParam(url, "updatedSince");
 
   const common = {
     lastMessageAt: { not: null },
     ...(status ? { status: status as ChatStatus } : {}),
     ...(assignedToId ? { assignedToId } : {}),
     ...(contactId ? { contactId } : {}),
+    ...(updatedSince ? { updatedAt: { gte: updatedSince } } : {}),
     ...(after
       ? { OR: [{ lastMessageAt: { lt: after.t } }, { lastMessageAt: after.t, id: { lt: after.id } }] }
       : {}),

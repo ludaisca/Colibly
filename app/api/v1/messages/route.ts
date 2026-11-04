@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey, type ApiContext } from "@/lib/api/auth";
-import { ApiError, apiOk, withApiErrors, type ApiErrorCode } from "@/lib/api/respond";
+import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors, type ApiErrorCode } from "@/lib/api/respond";
+import { messagesFeed } from "@/lib/api/messages-feed";
 import { findScopedContact, findScopedConversation } from "@/lib/api/resources";
 import { apiSendMessageSchema, type ApiSendMessageInput } from "@/lib/api/schemas";
 import { OutboundError, sendOutbound, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
 import { withIdempotency } from "@/lib/api/idempotency";
 import { enforceLimit, rateLimiterUnavailable } from "@/lib/api/auth";
-import { API_DAILY_SENDS_PER_ORG, API_SEND_PER_MINUTE_PER_ORG } from "@/lib/api/constants";
+import { API_CONVERSATIONS_LIST_PER_MINUTE, API_DAILY_SENDS_PER_ORG, API_SEND_PER_MINUTE_PER_ORG } from "@/lib/api/constants";
 import { mergeRateLimitInfo, setRateLimitInfo } from "@/lib/api/rate-headers";
 import { consumeDailyQuota, RateLimitUnavailableError, refundDailyQuota } from "@/lib/rate-limit";
 
@@ -16,6 +17,34 @@ const OUTBOUND_STATUS: Record<OutboundError["code"], [number, ApiErrorCode]> = {
   not_found: [404, "not_found"],
   upstream_error: [502, "upstream_error"],
 };
+
+// GET /api/v1/messages?since=… — todo lo guardado desde esa fecha en las
+// conversaciones de la key (entrantes y salientes, cualquier canal), del más
+// viejo al más nuevo por createdAt. Para ponerse al día sin depender solo de
+// los webhooks. `since` es obligatorio (acota la consulta); filtros: accountId,
+// direction. Los cambios de estado de un mensaje ya listado no lo vuelven a
+// traer: llegan por message.status_changed o con GET /messages/{id}.
+export const GET = withApiErrors(async (req: Request) => {
+  const ctx = await authenticateApiKey(req, "conversations:read");
+  // Recorre todas las conversaciones de la key: mismo límite propio que GET /conversations.
+  await enforceLimit(req, "endpoint", `api-msg-feed:${ctx.keyId}`, API_CONVERSATIONS_LIST_PER_MINUTE);
+  const url = new URL(req.url);
+  const since = readDateParam(url, "since");
+  if (!since) throw new ApiError(400, "invalid_request", "since es requerido (fecha ISO 8601)");
+  const { limit, cursor } = readPageParams(url);
+  const direction = url.searchParams.get("direction");
+  if (direction && direction !== "INBOUND" && direction !== "OUTBOUND") {
+    throw new ApiError(400, "invalid_request", "direction debe ser INBOUND u OUTBOUND");
+  }
+  const { data, nextCursor } = await messagesFeed(ctx, {
+    since,
+    after: decodeCursor(cursor),
+    limit,
+    accountId: url.searchParams.get("accountId"),
+    direction: (direction as "INBOUND" | "OUTBOUND" | null) ?? null,
+  });
+  return apiOk({ data, nextCursor: nextCursor ? encodeCursor({ t: nextCursor.t.toISOString(), id: nextCursor.id }) : null });
+});
 
 // POST /api/v1/messages — texto, botones (WhatsApp) o plantilla aprobada
 // (WhatsApp). Destino: conversationId, o contactId (se usa su conversación).

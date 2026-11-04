@@ -22,6 +22,7 @@ export interface PublicEvent {
     id: string;
     name: string | null;
     realName: string | null; // nombre puesto por el equipo (name ya lo prefiere)
+    tags: { id: string; name: string }[];
     phone: string | null; // solo WhatsApp: el wa_id de Meta tal cual
     phoneE164: string | null; // solo WhatsApp: +52… sin el "1" móvil antiguo
     externalId: string | null; // Telegram/Messenger/Instagram/Web
@@ -61,7 +62,15 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
     event.contactId
       ? prisma.contact.findUnique({
           where: { id: event.contactId },
-          select: { id: true, name: true, realName: true, remoteJid: true, leadStatus: true, leadOrigin: true },
+          select: {
+            id: true,
+            name: true,
+            realName: true,
+            remoteJid: true,
+            leadStatus: true,
+            leadOrigin: true,
+            tags: { select: { tag: { select: { id: true, name: true } } } },
+          },
         })
       : null,
     event.chat
@@ -92,6 +101,7 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
           id: contact.id,
           name: contact.realName ?? contact.name,
           realName: contact.realName,
+          tags: contact.tags.map((t) => t.tag),
           phone: isWhatsapp ? contact.remoteJid : null,
           phoneE164: isWhatsapp ? toE164(contact.remoteJid) : null,
           externalId: isWhatsapp ? null : contact.remoteJid,

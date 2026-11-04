@@ -21,6 +21,8 @@ export const API_CONTACT_SELECT = {
   realName: true,
   leadStatus: true,
   leadOrigin: true,
+  adId: true,
+  ctwaClid: true,
   optedOutMarketing: true,
   createdAt: true,
   updatedAt: true,
@@ -53,6 +55,10 @@ export function serializeContact(c: ApiContactRow) {
     externalId: isWhatsapp ? null : c.remoteJid,
     leadStatus: c.leadStatus,
     leadOrigin: c.leadOrigin,
+    // Anuncio de origen (first-touch): adId del anuncio CTWA o del Instant
+    // Form; ctwaClid solo CTWA (el que se reporta a la Conversions API).
+    adId: c.adId,
+    ctwaClid: c.ctwaClid,
     optedOutMarketing: c.optedOutMarketing,
     tags: c.tags.map((t) => t.tag),
     customFields: Object.fromEntries(c.customFieldValues.map((v) => [v.definition.key, v.value])),
@@ -102,6 +108,7 @@ interface ConversationLike {
   lastMessage: string | null;
   lastMessageAt: Date | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export function serializeConversation(c: ConversationLike, accountId: string, channel: string) {
@@ -117,6 +124,9 @@ export function serializeConversation(c: ConversationLike, accountId: string, ch
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
     createdAt: c.createdAt,
+    // Cambia con cualquier cambio de la conversación (mensaje, estado,
+    // asignación, no leídos): el punto de control de `updatedSince`.
+    updatedAt: c.updatedAt,
   };
 }
 

@@ -93,6 +93,21 @@ describe("serializeMessage", () => {
     expect(serializeMessage({ ...base, direction: "OUTBOUND", sentVia: "bot" }, "c")).toMatchObject({ origin: "bot", sentBy: "bot" });
   });
 
+  it("expone el referral del anuncio sin las URLs del CDN de Meta", () => {
+    const out = serializeMessage(
+      { ...base, referral: { source_type: "ad", source_id: "120200", source_url: "https://fb.me/x", headline: "Facial", body: "50% off", media_type: "image", image_url: "https://scontent.x/y.jpg", ctwa_clid: "ARAk" } },
+      "c"
+    );
+    expect(out.referral).toEqual({ sourceType: "ad", sourceId: "120200", sourceUrl: "https://fb.me/x", headline: "Facial", body: "50% off", mediaType: "image", ctwaClid: "ARAk" });
+    expect(serializeMessage(base, "c").referral).toBeNull();
+  });
+
+  it("marca un media_placeholder y usa timestamp si falta createdAt", () => {
+    const out = serializeMessage({ ...base, messageType: "media_placeholder", body: null }, "c");
+    expect(out.content).toEqual({ placeholder: { reason: "history_media" } });
+    expect(out.createdAt).toEqual(base.timestamp);
+  });
+
   it("los canales genéricos usan externalMessageId y replyToExternalId", () => {
     const out = serializeMessage({ ...base, externalMessageId: "42", replyToExternalId: "41" }, "cmconv_1");
     expect(out.externalId).toBe("42");
