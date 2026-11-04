@@ -33,10 +33,10 @@ describe("serializeMessage", () => {
 
   it("expone el medio con la URL de Colibly, nunca la de Meta", () => {
     const out = serializeMessage(
-      { ...base, messageType: "image", body: "Imagen a citar", caption: "Imagen a citar", mimeType: "image/jpeg", mediaUrl: "acc/2026/x.jpg", bytesSize: 1234, content: { media: { sha256: "lltO" } } },
+      { ...base, messageType: "image", body: "Imagen a citar", caption: "Imagen a citar", mimeType: "image/jpeg", mediaUrl: "acc/2026/x.jpg", bytesSize: 1234, mediaSha256: "ab12", content: { media: { sha256: "lltO" } } },
       "cmchat_1"
     );
-    expect(out.media).toEqual({ url: expect.stringMatching(/\/api\/v1\/messages\/cmmsg_1\/media$/), ready: true, mimeType: "image/jpeg", filename: null, size: 1234, sha256: "lltO" });
+    expect(out.media).toEqual({ url: expect.stringMatching(/\/api\/v1\/messages\/cmmsg_1\/media$/), ready: true, mimeType: "image/jpeg", filename: null, size: 1234, sha256: "lltO", sha256Hex: "ab12" });
   });
 
   it("un medio que aún se descarga sale con ready=false", () => {

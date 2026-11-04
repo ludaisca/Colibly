@@ -16,6 +16,7 @@ import {
   API_REQUESTS_PER_MINUTE,
   API_SCHEMA_VERSION,
   API_SCHEMA_VERSION_HEADER,
+  API_WEBHOOK_REPLAYS_PER_MINUTE,
   IDEMPOTENCY_TTL_HOURS,
   MAX_ACTIVE_API_KEYS,
   MAX_WEBHOOKS,
@@ -52,6 +53,8 @@ export const API_CHANGELOG: { version: string; schemaVersion: string; date: stri
       "Contact.phoneE164 y Account.phoneE164 (E.164, México sin el \"1\" móvil antiguo).",
       "Message.referral (anuncio click-to-WhatsApp) y Message.createdAt; Contact.adId y Contact.ctwaClid; Conversation.updatedAt; contact.tags en el sobre de los eventos.",
       "Un media_placeholder del historial de Coexistencia trae content.placeholder = { reason: \"history_media\" }: el medio llega aparte y el mismo mensaje cambia a su tipo real (reléelo con GET /messages/{id}).",
+      "Media.sha256Hex: sha256 (hex) de los bytes que entrega media.url, calculado por Colibly en todos los canales y direcciones (sha256 sigue siendo el de Meta, en base64).",
+      "Webhooks: GET /webhooks/{id}/deliveries (historial, filtro status/eventType/since), GET /webhooks/{id}/deliveries/{deliveryId} (con el cuerpo enviado) y POST …/replay (reenvía el mismo evento).",
       "Sincronización incremental: updatedSince en GET /conversations, since en GET /conversations/{id}/messages y el nuevo GET /messages?since= (todas las conversaciones). Nuevo GET /messages/{id}.",
       "Header X-Colibly-Schema-Version en cada respuesta y cada entrega de webhook.",
       "Errores: una ruta inexistente bajo /api/v1 responde JSON 404; un limit que no es entero positivo responde 400.",
@@ -99,6 +102,7 @@ const ORIGIN_DOC =
   "Qué parte de Colibly lo mandó: agent (bandeja), api, automation (automatizaciones, macros, fuentes de leads), bot (bot IA), campaign, sequence, recovery (recuperación de leads), system (aviso fuera de horario, auto-resolver, encuesta CSAT), business_app (escrito en la app WhatsApp Business del teléfono, Coexistencia), history (importado del historial de esa app)";
 const SENT_BY_DOC = "Quién: contact (el cliente), user (una persona de Colibly, senderId), bot, business_app (el negocio desde su teléfono) o system (Colibly sin una persona detrás)";
 const idempotencyParam = { $ref: "#/components/parameters/IdempotencyKey" };
+const deliveryIdParam = { name: "deliveryId", in: "path", required: true, schema: { type: "string" } };
 const scopeNote = (scope: string) => `Requiere el permiso \`${scope}\`.`;
 
 // ─── Ejemplos (los usa la referencia de /docs/api) ──────────────────────────
@@ -166,6 +170,17 @@ const EX = {
     senderName: null,
     referral: null,
     createdAt: "2026-10-18T19:02:12.000Z",
+  },
+  delivery: {
+    id: "cmwhd_01",
+    eventId: "7d1f2c9e-3b4a-4f0e-9a51-0c2b8e6d4f10",
+    eventType: "message.status_changed",
+    status: "failed",
+    attempts: 6,
+    responseCode: 500,
+    error: "HTTP 500",
+    createdAt: "2026-10-18T19:02:11.000Z",
+    deliveredAt: null,
   },
   webhook: {
     id: "cmwh_01",
@@ -610,6 +625,51 @@ export function buildOpenApiSpec(serverUrl: string) {
           responses: { "200": ok({ type: "object", properties: { deleted: { type: "boolean" } } }, { deleted: true }), ...errors },
         },
       },
+      "/webhooks/{id}/deliveries": {
+        get: {
+          tags: ["Webhooks"],
+          summary: "Historial de entregas",
+          description: `${scopeNote("webhooks:manage")} Entregas del endpoint, las más recientes primero (se guardan 30 días). Sin el cuerpo: pídelo con GET /webhooks/{id}/deliveries/{deliveryId}.`,
+          parameters: [
+            idParam,
+            ...pageParams,
+            { name: "status", in: "query", schema: { type: "string", enum: ["pending", "sent", "failed"] } },
+            { name: "eventType", in: "query", schema: { type: "string" } },
+            { name: "since", in: "query", description: "Solo las creadas desde esa fecha", schema: { type: "string", format: "date-time" } },
+          ],
+          "x-example-query": "status=failed&limit=20",
+          responses: { "200": ok(paged("WebhookDelivery"), { data: [EX.delivery], nextCursor: null }), ...errors },
+        },
+      },
+      "/webhooks/{id}/deliveries/{deliveryId}": {
+        get: {
+          tags: ["Webhooks"],
+          summary: "Obtener una entrega",
+          description: `${scopeNote("webhooks:manage")} Con \`payload\`: el cuerpo exacto que se envió (lo que firma X-Colibly-Signature).`,
+          parameters: [idParam, deliveryIdParam],
+          responses: {
+            "200": ok(
+              { allOf: [ref("WebhookDelivery"), { type: "object", properties: { payload: ref("Event") } }] },
+              { ...EX.delivery, payload: exampleEvent("message.status_changed", EVENT_DATA["message.status_changed"].example) }
+            ),
+            ...errors,
+          },
+        },
+      },
+      "/webhooks/{id}/deliveries/{deliveryId}/replay": {
+        post: {
+          tags: ["Webhooks"],
+          summary: "Reenviar una entrega",
+          description:
+            `${scopeNote("webhooks:manage")} Vuelve a entregar el mismo evento (mismo cuerpo y mismo \`X-Colibly-Event-Id\`, intentos desde cero) a ese endpoint. ` +
+            `Para entregas fallidas o ya entregadas; una en curso o un webhook desactivado responde 409 conflict. Límite: ${API_WEBHOOK_REPLAYS_PER_MINUTE} por minuto por organización.`,
+          parameters: [idParam, deliveryIdParam, idempotencyParam],
+          responses: {
+            "202": ok({ type: "object", properties: { id: str, status: { type: "string", enum: ["pending"] } } }, { id: EX.delivery.id, status: "pending" }, "Encolada"),
+            ...errors,
+          },
+        },
+      },
     },
     webhooks: {
       event: {
@@ -797,7 +857,15 @@ export function buildOpenApiSpec(serverUrl: string) {
             media: {
               type: ["object", "null"],
               description: "Medio del mensaje. Descárgalo de `url` con tu API key (GET /messages/{id}/media); ready=false mientras Colibly lo baja de Meta",
-              properties: { url: str, ready: { type: "boolean" }, mimeType: strNull, filename: strNull, size: { type: ["integer", "null"] }, sha256: strNull },
+              properties: {
+                url: str,
+                ready: { type: "boolean" },
+                mimeType: strNull,
+                filename: strNull,
+                size: { type: ["integer", "null"] },
+                sha256: { ...strNull, description: "El de Meta, en base64 (solo entrantes de WhatsApp)" },
+                sha256Hex: { ...strNull, description: "sha256 en hex de los bytes que entrega `url`, calculado por Colibly (todos los canales y direcciones, desde 2026-11-04)" },
+              },
             },
             replyTo: { type: ["object", "null"], description: "Mensaje citado", properties: { externalId: str, messageId: strNull, from: strNull } },
             reaction: { type: ["object", "null"], properties: { contact: strNull, agent: strNull } },
@@ -869,6 +937,20 @@ export function buildOpenApiSpec(serverUrl: string) {
             channelAccountIds: { type: "array", items: str },
             active: { type: "boolean" },
             takeOwnership: { type: "boolean", description: "Pasa el webhook al dueño de la key; obligatorio para reactivar uno pausado" },
+          },
+        },
+        WebhookDelivery: {
+          type: "object",
+          properties: {
+            id: str,
+            eventId: { type: "string", description: "Igual a `id` del evento y al header X-Colibly-Event-Id" },
+            eventType: str,
+            status: { type: "string", enum: ["pending", "sent", "failed"] },
+            attempts: { type: "integer" },
+            responseCode: { type: ["integer", "null"], description: "Último código HTTP de tu servidor" },
+            error: strNull,
+            createdAt: { type: "string", format: "date-time" },
+            deliveredAt: { type: ["string", "null"], format: "date-time" },
           },
         },
         Webhook: {

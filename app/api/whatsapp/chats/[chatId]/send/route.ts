@@ -9,7 +9,7 @@ import { sendTelegramMessage, sendTelegramMedia } from "@/lib/telegram/send";
 import { sendMetaChannelText, sendMetaChannelMedia, sendMetaChannelPrivateReply } from "@/lib/meta-messaging/send";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { rateLimit } from "@/lib/rate-limit";
-import { resolveAbsolutePath, isAccountMediaPath } from "@/lib/whatsapp/media-store";
+import { resolveAbsolutePath, isAccountMediaPath, mediaSha256Of } from "@/lib/whatsapp/media-store";
 import fs from "fs/promises";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
@@ -173,7 +173,7 @@ export async function POST(
         wamid,
         chatId: chat.id,
         direction: "OUTBOUND",
-      sentVia: "agent",
+        sentVia: "agent",
         messageType: type,
         body: textBody ?? null,
         caption: caption ?? null,
@@ -182,6 +182,7 @@ export async function POST(
         mimeType,
         filename,
         bytesSize,
+        mediaSha256: await mediaSha256Of(localMediaPath),
         interactivePayload,
         replyToWamid: replyTarget?.wamid ?? null,
         status: "sent",
@@ -296,6 +297,7 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
       mimeType: type === "text" ? null : (mimeType ?? null),
       filename: type === "text" ? null : (filename ?? null),
       bytesSize: type === "text" ? null : (bytesSize ?? null),
+      mediaSha256: type === "text" ? null : await mediaSha256Of(localMediaPath),
       status: "sent",
       senderId: userId,
       replyToExternalId,
@@ -470,6 +472,7 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
       mimeType: type === "text" ? null : (mimeType ?? null),
       filename: type === "text" ? null : (filename ?? null),
       bytesSize: type === "text" ? null : (bytesSize ?? null),
+      mediaSha256: type === "text" ? null : await mediaSha256Of(localMediaPath),
       status: "sent",
       senderId: userId,
       timestamp: now,

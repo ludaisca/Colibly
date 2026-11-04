@@ -26,6 +26,7 @@ export interface SerializableMessage {
   mimeType: string | null;
   filename: string | null;
   bytesSize?: number | null;
+  mediaSha256?: string | null;
   status: string | null;
   senderId: string | null;
   sender?: { name: string | null } | null;
@@ -66,6 +67,7 @@ const COMMON_SELECT = {
   mimeType: true,
   filename: true,
   bytesSize: true,
+  mediaSha256: true,
   status: true,
   senderId: true,
   sender: { select: { name: true } },
@@ -217,7 +219,11 @@ export function serializeMessage(m: SerializableMessage, conversationId: string,
           mimeType: m.mimeType,
           filename: m.filename,
           size: m.bytesSize ?? null,
+          // El que manda Meta (base64, solo entrantes de WhatsApp).
           sha256: content?.media?.sha256 ?? null,
+          // El de Colibly (hex) sobre los bytes que sirve media.url: todos los
+          // canales y direcciones, desde 2026-11-04.
+          sha256Hex: m.mediaSha256 ?? null,
         }
       : null,
     replyTo: replyExternal ? { externalId: replyExternal, messageId: opts.replyToMessageId ?? null, from: content?.replyToFrom ?? null } : null,

@@ -96,6 +96,19 @@ export async function saveMediaFromBuffer(
   return persistBuffer(accountId, buffer, mimeType);
 }
 
+// sha256 (hex) de un archivo ya guardado, leyéndolo por partes. null si no
+// existe o no se puede leer: el hash es informativo, nunca corta un envío.
+export async function mediaSha256Of(relativePath: string | null | undefined): Promise<string | null> {
+  if (!relativePath) return null;
+  try {
+    const hash = createHash("sha256");
+    for await (const chunk of mediaReadStream(relativePath)) hash.update(chunk as Buffer);
+    return hash.digest("hex");
+  } catch {
+    return null;
+  }
+}
+
 export function resolveAbsolutePath(relativePath: string): string {
   const safe = path.normalize(relativePath).replace(/^(\.\.\/?)+/, "");
   return path.join(MEDIA_ROOT, safe);

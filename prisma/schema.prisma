@@ -544,6 +544,8 @@ model ChannelMessage {
   mimeType          String?
   filename          String?
   bytesSize         Int?
+  // Igual que WAMessage.mediaSha256.
+  mediaSha256       String?          @map("media_sha256")
   transcript        String?          @db.Text
   transcribedAt     DateTime?        @map("transcribed_at")
   status            String?
@@ -788,6 +790,10 @@ model WAMessage {
   mimeType           String?
   filename           String?
   bytesSize          Int?
+  // sha256 (hex) del archivo guardado en MEDIA_ROOT, calculado por Colibly:
+  // el que verifica un integrador al bajarlo. El de Meta (base64, solo
+  // entrantes) vive en content.media.sha256.
+  mediaSha256        String?          @map("media_sha256")
   // Transcripción de una nota de voz (Gemini, lib/ai/transcribe.ts). Manual
   // desde la burbuja o automática si la organización lo activó.
   transcript         String?          @db.Text

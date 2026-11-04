@@ -136,11 +136,11 @@ export async function importNewLeadsForSource(
   // Header media (si aplica) se descarga una sola vez para toda la corrida, igual
   // que campaign-worker.ts — no por cada lead. No es fatal si falla: el envío sigue,
   // solo no se ve el thumbnail del header en el CRM.
-  let headerMedia: { relativePath: string; mimeType: string; bytesSize: number } | null = null;
+  let headerMedia: { relativePath: string; mimeType: string; bytesSize: number; sha256: string | null } | null = null;
   if (source.headerParam && templateVars.header.format && templateVars.header.format !== "TEXT") {
     try {
       const stored = await saveMediaFromMeta(source.waAccountId, source.headerParam, source.waAccount.accessToken!);
-      headerMedia = { relativePath: stored.relativePath, mimeType: stored.remoteMimeType, bytesSize: stored.bytesSize };
+      headerMedia = { relativePath: stored.relativePath, mimeType: stored.remoteMimeType, bytesSize: stored.bytesSize, sha256: stored.sha256 ?? null };
     } catch {
       headerMedia = null;
     }
@@ -236,6 +236,7 @@ export async function importNewLeadsForSource(
           mediaUrl: headerMedia ? headerMedia.relativePath : null,
           mimeType: headerMedia ? headerMedia.mimeType : null,
           bytesSize: headerMedia ? headerMedia.bytesSize : null,
+          mediaSha256: headerMedia ? headerMedia.sha256 : null,
           status: "sent",
           timestamp: sentAt,
           leadSheetSourceId: source.id,

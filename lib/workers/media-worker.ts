@@ -49,6 +49,7 @@ export async function processMediaDownloadJob(job: MediaDownloadJob) {
     data: {
       mediaUrl: stored.relativePath,
       bytesSize: stored.bytesSize,
+      mediaSha256: stored.sha256 ?? null,
       mimeType: stored.remoteMimeType,
     },
   });
@@ -80,7 +81,7 @@ async function processTelegramMediaDownload(job: MediaDownloadJob) {
 
   await prisma.channelMessage.update({
     where: { id: job.messageId },
-    data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize },
+    data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize, mediaSha256: stored.sha256 ?? null },
   });
   if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("channel", message.id);
 }
@@ -119,7 +120,7 @@ async function processMetaChannelMediaDownload(job: MediaDownloadJob) {
 
   await prisma.channelMessage.update({
     where: { id: job.messageId },
-    data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize, mimeType },
+    data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize, mediaSha256: stored.sha256 ?? null, mimeType },
   });
   if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("channel", message.id);
 }

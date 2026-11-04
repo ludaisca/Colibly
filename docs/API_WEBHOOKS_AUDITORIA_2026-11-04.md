@@ -97,6 +97,12 @@ Restricciones que se mantienen (sección 6 del análisis externo): no cambiar la
 
 ### P2: operación
 
+> **Estado (2026-11-04): hecho en dev, verificado, dentro de la misma 1.1.0.** Diferencias:
+> - el reenvío acepta entregas fallidas **y** ya entregadas (por si el receptor perdió datos); una en curso o un endpoint apagado da 409;
+> - se agregó `GET …/deliveries/{deliveryId}` con el cuerpo enviado;
+> - el sha256 de Colibly va en un campo nuevo, `media.sha256Hex` (hex), porque `media.sha256` ya se publicó con el valor de Meta (base64) y cambiarlo no sería aditivo. Medios guardados antes de hoy quedan sin él (no se recalculan);
+> - el changelog vive en `x-colibly-changelog` del OpenAPI (no hay ruta aparte).
+
 11. **`GET /api/v1/webhooks/{id}/deliveries?status=failed`** (paginado: código de respuesta, intentos, error) y **`POST …/deliveries/{deliveryId}/replay`**: reenvía el mismo `eventId` con un intento nuevo y respeta la idempotencia del receptor.
 12. **Changelog público** (`/api/v1/changelog` o una sección del OpenAPI, `x-colibly-changelog`) con fecha y campos o eventos nuevos.
 13. **`media.sha256` calculado por Colibly** al guardar el archivo (entrante y saliente); el de Meta se conserva aparte, para comparar.
@@ -134,3 +140,14 @@ Restricciones que se mantienen (sección 6 del análisis externo): no cambiar la
   - `/conversations/{id}/messages?since=` devolvió los mismos dos; `GET /messages/{id}` dio 200, y un id inexistente 404;
   - `since` ausente o inválido dio 400; `updatedSince` en el futuro dio 0 conversaciones y en el pasado todas, con `updatedAt`;
   - los contactos traen `adId` y `ctwaClid`.
+
+## 7. Verificación del P2 (dev, 2026-11-04)
+
+- `tsc`, lint y 891 pruebas en verde.
+- Con un endpoint y una key temporales y tres entregas sembradas (borrados al terminar):
+  - la lista devolvió las tres sin cuerpo, y `status=failed` devolvió una; un `status` inválido dio 400;
+  - el detalle trajo el `payload` exacto; un endpoint ajeno dio 404;
+  - el reenvío de la fallida dio 202 y la puso en `pending` con el mismo `eventId`, y el worker la volvió a intentar;
+  - un segundo reenvío inmediato dio 409, el de una entregada 202 y el de una pendiente 409.
+- `mediaSha256Of()` coincide con el sha256 real de un archivo guardado y da `null` si el archivo no existe.
+- No probado de punta a punta: una descarga real de Meta y un envío con medio desde la bandeja (llenan `mediaSha256` con el mismo helper o el hash de `persistBuffer()`).

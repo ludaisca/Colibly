@@ -104,7 +104,7 @@ export async function processCampaignJob(job: CampaignJob) {
   // record created — avoids hammering Meta's API and duplicating the same file
   // on disk hundreds of times. Non-fatal on failure: the campaign still sends,
   // it just won't show the header image in the chat CRM view.
-  let headerMedia: { relativePath: string; mimeType: string; bytesSize: number } | null = null;
+  let headerMedia: { relativePath: string; mimeType: string; bytesSize: number; sha256: string | null } | null = null;
   if (campaign.headerParam && templateVars.header.format && templateVars.header.format !== "TEXT") {
     try {
       const stored = await saveMediaFromMeta(
@@ -112,7 +112,7 @@ export async function processCampaignJob(job: CampaignJob) {
         campaign.headerParam,
         campaign.waAccount.accessToken!
       );
-      headerMedia = { relativePath: stored.relativePath, mimeType: stored.remoteMimeType, bytesSize: stored.bytesSize };
+      headerMedia = { relativePath: stored.relativePath, mimeType: stored.remoteMimeType, bytesSize: stored.bytesSize, sha256: stored.sha256 ?? null };
     } catch {
       headerMedia = null;
     }
@@ -222,6 +222,7 @@ export async function processCampaignJob(job: CampaignJob) {
           mediaUrl: headerMedia ? headerMedia.relativePath : null,
           mimeType: headerMedia ? headerMedia.mimeType : null,
           bytesSize: headerMedia ? headerMedia.bytesSize : null,
+          mediaSha256: headerMedia ? headerMedia.sha256 : null,
           status: "sent",
           timestamp: sentAt,
           campaignId: campaign.id,
