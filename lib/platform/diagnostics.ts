@@ -183,6 +183,7 @@ const EXPECTED_REPEATABLES: Array<{ queue: { getRepeatableJobs: () => Promise<Ar
   { queue: platformBackupQueue, name: "tick", label: "respaldos" },
   { queue: platformHealthQueue, name: "tick", label: "doctor" },
   { queue: inboxQueue, name: "tick", label: "bandeja (auto-resolver)" },
+  { queue: inboxQueue, name: "sla-tick", label: "SLA" },
   { queue: inboxQueue, name: "topic-monitor-tick", label: "monitores de temas" },
   { queue: automationTickQueue, name: "tick", label: "automatizaciones" },
   { queue: campaignScheduleQueue, name: "scheduled-tick", label: "campañas programadas" },
