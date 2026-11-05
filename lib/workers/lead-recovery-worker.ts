@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { sendRecoveryMessage, isWithinBusinessHours, isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramRecoveryMessage } from "@/lib/telegram/lead-recovery";
 import { sendMetaChannelRecoveryMessage } from "@/lib/meta-messaging/lead-recovery";
-import { hasAiCredits, reserveAiCredit } from "@/lib/ai/credits";
+import { reserveAiCredit } from "@/lib/ai/credits";
+import { channelHasFeature } from "@/lib/billing/entitlements";
 import type { Organization, WABot, WAAccount, ChannelAccount } from "@prisma/client";
-import { hasBotsAccess, isOrgWritable } from "@/lib/billing/gates";
+import { isOrgWritable } from "@/lib/billing/gates";
 
 // Scheduled runs are unattended, so keep each tick's blast radius bounded —
 // same reasoning as lead-scoring-worker.ts's CANDIDATE_POOL/BATCH_SIZE.
@@ -41,11 +42,8 @@ export async function processLeadRecoveryTick() {
 
 async function runRecoveryForOrg(settings: Organization, now: Date) {
   if (!(await isOrgWritable(settings.id))) return;
-  if (!(await hasBotsAccess(settings.id))) return;
-  if (!(await hasAiCredits(settings.id, now))) {
-    console.log(`[lead-recovery] Sin créditos de IA, se omite la recuperación de la organización ${settings.id} en este ciclo`);
-    return;
-  }
+  // La licencia y los créditos son los del dueño de cada canal (reglas 3 y 6
+  // de las licencias): se revisan por cuenta, al buscar su bot.
 
   if (
     !isWithinBusinessHours(now, {
@@ -88,8 +86,8 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
 
   const botCache = new Map<string, (WABot & { waAccount: WAAccount | null }) | null>();
   let sentCount = 0;
-  // Un crédito por mensaje generado; al agotarse, el tick termina para esta organización.
-  let outOfCredits = false;
+  // Un crédito por mensaje generado, del dueño del canal; la cuenta cuyo dueño
+  // se quedó sin créditos se salta el resto del tick.
 
   for (const chat of silentChats) {
     if (sentCount >= BATCH_SIZE) break;
@@ -124,18 +122,21 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
     if (attemptNumber === null) continue;
 
     if (!botCache.has(chat.accountId)) {
-      const bot = await prisma.wABot.findFirst({
-        where: { waAccountId: chat.accountId, isActive: true, status: "ACTIVE" },
-        include: { waAccount: true },
-      });
+      const allowed = await channelHasFeature({ waAccountId: chat.accountId }, "leadRecovery");
+      const bot = allowed
+        ? await prisma.wABot.findFirst({
+            where: { waAccountId: chat.accountId, isActive: true, status: "ACTIVE" },
+            include: { waAccount: true },
+          })
+        : null;
       botCache.set(chat.accountId, bot);
     }
     const bot = botCache.get(chat.accountId);
-    if (!bot) continue; // sin bot activo en esa cuenta, no hay con qué generar el mensaje
+    if (!bot) continue; // sin bot activo (o sin licencia Pro) en esa cuenta
 
-    if (!(await reserveAiCredit(settings.id, now))) {
-      outOfCredits = true;
-      break;
+    if (!(await reserveAiCredit({ channel: { waAccountId: chat.accountId } }, now))) {
+      botCache.set(chat.accountId, null);
+      continue;
     }
     try {
       await sendRecoveryMessage(chat, bot, attemptNumber, lastInbound.timestamp, now);
@@ -155,7 +156,7 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
   // fallar el envío en silencio y la recuperación nunca ocurría para esos dos
   // canales (ver lib/meta-messaging/lead-recovery.ts).
   const channelAccountIds = (await prisma.channelAccount.findMany({ where: { organizationId: settings.id }, select: { id: true } })).map((a) => a.id);
-  if (channelAccountIds.length > 0 && !outOfCredits) {
+  if (channelAccountIds.length > 0) {
     const channelCandidates = await prisma.conversation.findMany({
       where: {
         channelAccountId: { in: channelAccountIds },
@@ -211,16 +212,22 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
       if (attemptNumber === null) continue;
 
       if (!channelBotCache.has(conv.channelAccountId)) {
-        const bot = await prisma.wABot.findFirst({
-          where: { channelAccountId: conv.channelAccountId, isActive: true, status: "ACTIVE" },
-          include: { channelAccount: true },
-        });
+        const allowed = await channelHasFeature({ channelAccountId: conv.channelAccountId }, "leadRecovery");
+        const bot = allowed
+          ? await prisma.wABot.findFirst({
+              where: { channelAccountId: conv.channelAccountId, isActive: true, status: "ACTIVE" },
+              include: { channelAccount: true },
+            })
+          : null;
         channelBotCache.set(conv.channelAccountId, bot);
       }
       const channelBot = channelBotCache.get(conv.channelAccountId);
       if (!channelBot?.channelAccount) continue;
 
-      if (!(await reserveAiCredit(settings.id, now))) break;
+      if (!(await reserveAiCredit({ channel: { channelAccountId: conv.channelAccountId } }, now))) {
+        channelBotCache.set(conv.channelAccountId, null);
+        continue;
+      }
       try {
         if (channelBot.channelAccount.channel === "TELEGRAM") {
           await sendTelegramRecoveryMessage(conv, channelBot, attemptNumber, now);

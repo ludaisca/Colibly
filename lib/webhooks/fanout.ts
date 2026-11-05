@@ -4,7 +4,8 @@ import { webhookDeliveryQueue } from "@/lib/queue";
 import type { DomainEvent } from "@/lib/events/types";
 import { resolveIntegrationScope, scopeIncludes, type ResolvedScope } from "@/lib/integrations/account-scope";
 import { buildPublicEvent, type PublicEvent } from "./payload";
-import { hasWebhookAccess, isOrgWritable, orgIdForAccount } from "@/lib/billing/gates";
+import { isOrgWritable, orgIdForAccount } from "@/lib/billing/gates";
+import { integrationOwnerHas } from "@/lib/billing/entitlements";
 
 // Worker de domain-events → una WebhookDelivery por endpoint que coincide
 // (tipo de evento + alcance de cuentas de su dueño) y un job de entrega por
@@ -34,17 +35,18 @@ export async function fanOutToWebhooks(event: DomainEvent): Promise<number> {
   let payload: PublicEvent | null = null;
   let created = 0;
 
-  // Webhooks salientes: solo en planes que los incluyen y con la cuenta al corriente.
-  const deliverable = new Map<string, Promise<boolean>>();
-  const orgCanReceive = (organizationId: string) => {
-    if (!deliverable.has(organizationId)) {
-      deliverable.set(organizationId, Promise.all([hasWebhookAccess(organizationId), isOrgWritable(organizationId)]).then(([hooks, ok]) => hooks && ok));
-    }
-    return deliverable.get(organizationId)!;
+  // Webhooks salientes: con la cuenta al corriente y un dueño admin cuya
+  // licencia los incluya (regla 5 de las licencias).
+  const writable = new Map<string, Promise<boolean>>();
+  const ownerAllowed = new Map<string, Promise<boolean>>();
+  const canReceive = async (endpoint: { userId: string; organizationId: string }) => {
+    if (!writable.has(endpoint.organizationId)) writable.set(endpoint.organizationId, isOrgWritable(endpoint.organizationId));
+    if (!ownerAllowed.has(endpoint.userId)) ownerAllowed.set(endpoint.userId, integrationOwnerHas(endpoint.userId, "webhooks"));
+    return (await writable.get(endpoint.organizationId)!) && (await ownerAllowed.get(endpoint.userId)!);
   };
 
   for (const endpoint of endpoints) {
-    if (!(await orgCanReceive(endpoint.organizationId))) continue;
+    if (!(await canReceive(endpoint))) continue;
     const scopeKey = `${endpoint.userId}:${endpoint.accountIds.join(",")}:${endpoint.channelAccountIds.join(",")}`;
     if (!scopeByOwner.has(scopeKey)) {
       scopeByOwner.set(scopeKey, resolveIntegrationScope(endpoint.userId, endpoint));

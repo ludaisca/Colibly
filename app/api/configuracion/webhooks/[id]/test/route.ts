@@ -6,8 +6,9 @@ import { requireAdmin } from "@/lib/integrations/admin-session";
 import { createDelivery } from "@/lib/webhooks/fanout";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
-import { orgWhere, requireOrgId } from "@/lib/tenancy";
-import { checkWebhookAccess } from "@/lib/billing/gates";
+import { orgWhere } from "@/lib/tenancy";
+import { USERS_PATH } from "@/lib/billing/gates";
+import { integrationFeatureMessage } from "@/lib/billing/entitlements";
 import { BRAND_NAME } from "@/lib/brand";
 
 type Params = { params: Promise<{ id: string }> };
@@ -19,16 +20,16 @@ export async function POST(_req: Request, { params }: Params) {
   try {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
-    // Las entregas son del plan Pro: sin esto, una cuenta que bajó a Esencial o Negocio
-    // seguiría mandando eventos a sus webhooks viejos con este botón.
-    const noHooks = await checkWebhookAccess(await requireOrgId(admin.userId));
-    if (noHooks) return noHooks;
     const { allowed } = await rateLimit(`webhook-test:${admin.userId}`, 10, 60);
     if (!allowed) return NextResponse.json({ error: "Demasiadas pruebas, espera un momento" }, { status: 429 });
 
     const { id } = await params;
-    const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(admin.userId)) }, select: { id: true, active: true } });
+    const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(admin.userId)) }, select: { id: true, active: true, userId: true } });
     if (!endpoint) return NextResponse.json({ error: "Webhook no encontrado" }, { status: 404 });
+    // Mismo candado que el fanout: su dueño sigue siendo admin con webhooks en
+    // su licencia (si no, una cuenta que bajó de plan seguiría mandando eventos).
+    const blocked = await integrationFeatureMessage(endpoint.userId, "webhooks");
+    if (blocked) return NextResponse.json({ error: blocked, code: "plan_limit", limit: "webhooks", actionUrl: USERS_PATH }, { status: 402 });
     if (!endpoint.active) return NextResponse.json({ error: "Activa el webhook antes de probarlo" }, { status: 400 });
 
     const delivery = await createDelivery(endpoint.id, {

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
-import { BILLING_PLAN_PATH } from "@/lib/billing/gates";
+import { USERS_PATH } from "@/lib/billing/gates";
 import { TranscribeError, transcribeMessage, type TranscribeErrorCode } from "@/lib/ai/transcribe";
 
 // Transcribir una nota de voz (WhatsApp o canal genérico: el id se busca en
@@ -54,7 +54,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ messag
       if (!(error instanceof TranscribeError)) throw error;
       const body: Record<string, unknown> = { error: error.message };
       if (error.code === "ai_credits") body.code = "ai_credits";
-      if (error.code === "no_access") Object.assign(body, { code: "plan_limit", limit: "aiAccess", actionUrl: BILLING_PLAN_PATH });
+      if (error.code === "no_access") Object.assign(body, { code: "plan_limit", limit: "aiAssist", actionUrl: USERS_PATH });
       return NextResponse.json(body, { status: STATUS[error.code] });
     }
   } catch (error) {

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { requireOrgId } from "@/lib/tenancy";
-import { hasAiAccess } from "@/lib/billing/gates";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { rewriteDraft, WritingAssistError } from "@/lib/ai/writing-assist";
@@ -24,9 +24,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ chatId:
     if (!resolved) return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
 
     const organizationId = await requireOrgId(session.user.id);
-    if (!(await hasAiAccess(organizationId))) {
-      return NextResponse.json({ error: "La IA no está incluida en tu plan.", code: "plan_limit", limit: "ai" }, { status: 402 });
-    }
+    const noAi = await checkUserFeature(session.user.id, "aiAssist");
+    if (noAi) return noAi;
 
     const parsed = bodySchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

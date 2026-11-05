@@ -6,11 +6,16 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { MacroBlockedError, MacroNotFoundError, REQUIRED_FIELDS_CODE, runMacro } from "@/lib/macros/execute";
 import { OutboundError } from "@/lib/messaging/outbound";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    // Aplicar una macro depende de la licencia de quien la aplica (regla 4).
+    const notInLicense = await checkUserFeature(session.user.id, "macros");
+    if (notInLicense) return notInLicense;
 
     const { allowed } = await rateLimit(`macro-run:${session.user.id}`, 60, 60);
     if (!allowed) return NextResponse.json({ error: "Demasiadas ejecuciones" }, { status: 429 });

@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { callingErrorResponse, loadDirectChat, peerDigits, readSdp } from "@/lib/whatsapp/calling/access";
 import { connectCall, getCallPermission, isCallPermissionError } from "@/lib/whatsapp/calling/meta";
+import { checkChannelFeature } from "@/lib/billing/entitlements";
 
 const OPEN = ["RINGING", "CONNECTING", "ACTIVE"] as const;
 
@@ -58,6 +59,9 @@ export async function POST(req: Request) {
 
     const chat = await loadDirectChat(session.user.id, body.chatId);
     if (!chat) return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
+    // Las llamadas dependen de la licencia del dueño del número (regla 3).
+    const notInLicense = await checkChannelFeature({ waAccountId: chat.accountId }, "calls");
+    if (notInLicense) return notInLicense;
     const to = peerDigits(chat.remoteJid);
     if (!to) return NextResponse.json({ error: "Este chat no tiene un número al que llamar" }, { status: 400 });
 

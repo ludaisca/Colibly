@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { mapLeadStatusToMetaEvent } from "@/lib/meta/lead-status-mapping";
 import { sendConversionEvent, buildInstantFormPayload, buildCtwaPayload } from "@/lib/meta/conversions";
+import { integrationOwnerHas } from "@/lib/billing/entitlements";
 
 // Punto de entrada único compartido por el trigger automático (PATCH
 // /api/whatsapp/contacts/[id] -> metaConversionsQueue) y cualquier reenvío
@@ -39,6 +40,12 @@ export async function sendLeadConversionEvent(contactId: string, leadStatus: Lea
   }
   if (account.status !== "CONNECTED") {
     console.log(`[meta-conversions] MetaAdsAccount ${account.id} no está CONNECTED — se omite`);
+    return;
+  }
+  // Las conversiones las mantiene vivas un admin con licencia Pro: el dueño
+  // de la cuenta de Meta Ads (regla 5 de las licencias).
+  if (!(await integrationOwnerHas(account.userId, "metaAds"))) {
+    console.log(`[meta-conversions] el dueño de MetaAdsAccount ${account.id} no tiene Meta Ads en su licencia — se omite`);
     return;
   }
   if (!account.datasetId || !account.capiAccessToken) {

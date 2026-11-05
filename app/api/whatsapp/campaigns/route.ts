@@ -6,7 +6,8 @@ import { getUserAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
-import { checkCampaignsAccess, checkPlanLimit } from "@/lib/billing/gates";
+import { checkPlanLimit } from "@/lib/billing/gates";
+import { checkChannelFeature, checkUserFeature } from "@/lib/billing/entitlements";
 
 export async function POST(req: Request) {
   try {
@@ -67,7 +68,9 @@ export async function POST(req: Request) {
     // Cada destinatario que aún no es contacto se vuelve uno al enviarle: la
     // campaña no puede pasar el límite de contactos del plan.
     const organizationId = await requireOrgId(session.user.id);
-    const noCampaigns = await checkCampaignsAccess(organizationId);
+    // Quien la crea necesita la función en su licencia y el número la necesita
+    // en la de su dueño: el envío corre con la del canal (reglas 3 y 4).
+    const noCampaigns = (await checkUserFeature(session.user.id, "campaigns")) ?? (await checkChannelFeature({ waAccountId }, "campaigns"));
     if (noCampaigns) return noCampaigns;
     const phones = [...new Set(recipients.map((r) => r.phoneNumber))];
     const known = await prisma.contact.count({ where: { accountId: waAccountId, remoteJid: { in: phones } } });

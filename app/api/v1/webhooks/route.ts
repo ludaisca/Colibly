@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
 import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
-import { createWebhook, serializeWebhook, webhookCreateSchema, WebhookInputError, WebhookLimitError } from "@/lib/webhooks/crud";
+import { createWebhook, serializeWebhook, webhookCreateSchema, WebhookAccessError, WebhookInputError, WebhookLimitError } from "@/lib/webhooks/crud";
 
 // Los webhooks son del dueño de la key (no de la key): una integración que
 // rota su key sigue viendo y administrando los mismos endpoints.
@@ -21,6 +21,7 @@ export const POST = withApiErrors(async (req: Request) => {
     const { endpoint, secret } = await createWebhook(ctx.userId, parsed.data);
     return apiOk({ ...serializeWebhook(endpoint), secret }, 201);
   } catch (err) {
+    if (err instanceof WebhookAccessError) throw new ApiError(402, "plan_limit", err.message);
     if (err instanceof WebhookInputError) throw new ApiError(400, "invalid_request", err.message);
     if (err instanceof WebhookLimitError) throw new ApiError(409, "limit_reached", err.message);
     throw err;

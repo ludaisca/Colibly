@@ -4,6 +4,7 @@ import { automationChannel, findAccessibleAutomation, requireAutomationSession }
 import { parseGraph, publishAutomation, validateForPublish } from "@/lib/automations/publish";
 import { hasErrors } from "@/lib/automations/validate";
 import { checkPlanLimit } from "@/lib/billing/gates";
+import { checkChannelFeature, checkUserFeature } from "@/lib/billing/entitlements";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -27,6 +28,12 @@ export async function POST(_req: Request, { params }: Params) {
     }
     // Publicar activa: si ya estaba activa no ocupa otro lugar del plan.
     if (a.status !== "ACTIVE") {
+      // Quien la activa necesita automatizaciones en su licencia, y la cuenta en
+      // la de su dueño: la ejecución corre con la del canal (reglas 3 y 4).
+      const notInLicense =
+        (await checkUserFeature(session.user.id, "automations")) ??
+        (await checkChannelFeature({ waAccountId: a.waAccountId, channelAccountId: a.channelAccountId }, "automations"));
+      if (notInLicense) return notInLicense;
       const overLimit = await checkPlanLimit(a.organizationId, "activeAutomations");
       if (overLimit) return overLimit;
     }

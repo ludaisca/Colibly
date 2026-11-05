@@ -8,8 +8,8 @@ import type { ScoreDetails } from "@/lib/whatsapp/export-columns";
 import type { WALeadScorerBot } from "@prisma/client";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
-import { hasLeadScoringAccess } from "@/lib/billing/gates";
-import { reserveAiCredit } from "@/lib/ai/credits";
+import { channelFeatureMessage, userFeatureMessage, type ChannelRef } from "@/lib/billing/entitlements";
+import { AI_CREDITS_EXHAUSTED_MESSAGE, reserveAiCredit, type AiPayer } from "@/lib/ai/credits";
 
 // Five-phase funnel (replaces the old frio/tibio/caliente 3-tier system) —
 // distinguishes "never engaged" from "explicitly rejected", and separates
@@ -58,7 +58,15 @@ export class LeadScoringError extends Error {}
 // tick worker (lead-scoring-worker.ts) so both paths score identically and
 // log usage the same way — usage logging matters here because the scheduled
 // path runs unattended and its cost needs to show up in budget checks.
-export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBot, channel: "WHATSAPP" | "TELEGRAM") {
+// `requestedBy`: la persona que pulsó "Calificar" (su licencia y sus
+// créditos). Sin él (tick programado, automatización), cuentan la licencia y
+// los créditos del dueño del canal (reglas 3 y 6 de las licencias).
+export async function scoreChatWithScorer(
+  chatId: string,
+  scorer: WALeadScorerBot,
+  channel: "WHATSAPP" | "TELEGRAM",
+  opts: { requestedBy?: string } = {}
+) {
   // Los ÚLTIMOS 200 mensajes (desc + reverse), no los primeros: el contrato
   // JSON pide priorizar lo más reciente, y en chats largos los mensajes nuevos
   // son justo los que traen las señales de compra.
@@ -82,8 +90,9 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
     throw new LeadScoringError("La conversación no tiene mensajes");
   }
   const owner = channel === "TELEGRAM"
-    ? await prisma.conversation.findUnique({ where: { id: chatId }, select: { contactId: true } })
-    : await prisma.wAChat.findUnique({ where: { id: chatId }, select: { contactId: true } });
+    ? await prisma.conversation.findUnique({ where: { id: chatId }, select: { contactId: true, channelAccountId: true } })
+    : await prisma.wAChat.findUnique({ where: { id: chatId }, select: { contactId: true, accountId: true } });
+  const chatChannel: ChannelRef = owner && "accountId" in owner ? { waAccountId: owner.accountId } : { channelAccountId: owner?.channelAccountId ?? null };
   if (await isContactOverLimit(owner?.contactId)) {
     throw new LeadScoringError("Este contacto superó el 120 % del límite de contactos del plan: la calificación con IA está en pausa");
   }
@@ -104,11 +113,11 @@ export async function scoreChatWithScorer(chatId: string, scorer: WALeadScorerBo
   if (!apiKey) {
     throw new LeadScoringError("La IA no está disponible en este momento");
   }
-  if (!(await hasLeadScoringAccess(scorer.organizationId))) {
-    throw new LeadScoringError("La calificación de leads está en el plan Pro");
-  }
-  if (!(await reserveAiCredit(scorer.organizationId))) {
-    throw new LeadScoringError("Se acabaron los créditos de IA de este mes");
+  const blocked = opts.requestedBy ? await userFeatureMessage(opts.requestedBy, "leadScoring") : await channelFeatureMessage(chatChannel, "leadScoring");
+  if (blocked) throw new LeadScoringError(blocked);
+  const payer: AiPayer = opts.requestedBy ? { userId: opts.requestedBy } : { channel: chatChannel };
+  if (!(await reserveAiCredit(payer))) {
+    throw new LeadScoringError(AI_CREDITS_EXHAUSTED_MESSAGE);
   }
 
   const transcript = messages

@@ -21,4 +21,3 @@ export const monitorSchema = z.object({
   active: z.boolean().optional(),
 });
 
-export const PLAN_MESSAGE = "Los monitores de temas están en el plan Pro.";

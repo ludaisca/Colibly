@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { requireOrgId } from "@/lib/tenancy";
 import { prisma } from "@/lib/prisma";
-import { getOrgBilling, getSeatUsage, invalidateOrgBilling } from "@/lib/billing/gates";
-import { accessMode, aiCreditLimit, planLimits, seatCap } from "@/lib/billing/state";
+import { effectiveOrgLimits, getOrgBilling, getSeatUsage, invalidateOrgBilling } from "@/lib/billing/gates";
+import { accessMode, seatCap } from "@/lib/billing/state";
+import { orgAiCreditSummary } from "@/lib/ai/credits";
 import { isStripeConfigured } from "@/lib/billing/stripe";
 import { SEAT_CHANNEL_LABELS, SEAT_CHANNELS } from "@/lib/billing/plans";
 import { PlanView, type PlanViewData } from "./_view";
@@ -18,15 +19,16 @@ export default async function PlanPage() {
   const organizationId = await requireOrgId(session.user.id);
   // Recién vuelto de Stripe el estado puede haber cambiado por el webhook.
   invalidateOrgBilling(organizationId);
-  const [org, usage, owner] = await Promise.all([
+  const [org, usage, owner, aiCredits] = await Promise.all([
     getOrgBilling(organizationId),
     getSeatUsage(organizationId),
     prisma.organization.findUnique({ where: { id: organizationId }, select: { ownerId: true } }),
+    orgAiCreditSummary(organizationId),
   ]);
   if (!org) redirect("/configuracion");
 
   const now = new Date();
-  const limits = planLimits(org);
+  const limits = await effectiveOrgLimits(org);
   const finite = (n: number) => (Number.isFinite(n) ? n : null);
   const paidSeats = seatCap(org);
   const trialing = org.status === "TRIALING" && !org.isInternal;
@@ -73,10 +75,10 @@ export default async function PlanPage() {
         key: "ai",
         label: "Créditos de IA este mes",
         hint: !limits.aiAccess ? "Tu plan no incluye IA." : `1 crédito = 1 respuesta o análisis de IA. ${poolHint("créditos")}${
-          org.aiCreditsBonus > 0 ? `, más ${org.aiCreditsBonus.toLocaleString("es-MX")} créditos extra de este periodo` : ""
+          (aiCredits?.bonus ?? 0) > 0 ? `, más ${(aiCredits?.bonus ?? 0).toLocaleString("es-MX")} créditos extra de este periodo` : ""
         }`,
-        used: org.aiCreditsUsed,
-        max: finite(aiCreditLimit(org)),
+        used: aiCredits?.used ?? 0,
+        max: finite(aiCredits?.limit ?? 0),
       },
     ],
   };

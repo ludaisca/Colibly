@@ -7,6 +7,7 @@ import { saveMediaFromMeta, isImageMime, isVideoMime } from "@/lib/whatsapp/medi
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { isOrgWritable } from "@/lib/billing/gates";
+import { channelFeatureMessage } from "@/lib/billing/entitlements";
 
 function mediaMessageTypeFromMime(mimeType: string): string {
   if (isImageMime(mimeType)) return "image";
@@ -30,13 +31,15 @@ export async function processScheduledCampaignsTick() {
     // vencieron hace menos de una hora (el tick de facturación aún no las
     // marca) se saltan abajo y quedan programadas.
     where: { status: "SCHEDULED", scheduledAt: { lte: now }, organization: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } } },
-    select: { id: true, organizationId: true },
+    select: { id: true, organizationId: true, waAccountId: true },
     orderBy: { scheduledAt: "asc" },
     take: 20,
   });
 
-  for (const { id, organizationId } of due) {
+  for (const { id, organizationId, waAccountId } of due) {
     if (!(await isOrgWritable(organizationId))) continue;
+    // El número bajó a una licencia sin difusiones después de programarla.
+    if (await pauseIfNotInLicense(id, waAccountId, "SCHEDULED")) continue;
     const claimed = await prisma.wACampaign.updateMany({
       where: { id, status: "SCHEDULED" },
       data: { status: "SENDING", sentAt: now },
@@ -44,6 +47,32 @@ export async function processScheduledCampaignsTick() {
     if (claimed.count === 0) continue;
     await campaignQueue.add("send", { campaignId: id });
   }
+}
+
+/**
+ * Si la licencia del dueño del número ya no incluye difusiones (bajó de plan
+ * o el número se quedó sin dueño), la campaña vuelve a borrador — se conserva
+ * y quien la creó recibe un aviso — en vez de enviarse. true = se pausó.
+ */
+async function pauseIfNotInLicense(campaignId: string, waAccountId: string, from: "SCHEDULED" | "SENDING"): Promise<boolean> {
+  const blocked = await channelFeatureMessage({ waAccountId }, "campaigns");
+  if (!blocked) return false;
+  const paused = await prisma.wACampaign.updateMany({ where: { id: campaignId, status: from }, data: { status: "DRAFT", scheduledAt: null } });
+  if (paused.count > 0) {
+    const campaign = await prisma.wACampaign.findUnique({ where: { id: campaignId }, select: { name: true, userId: true } });
+    if (campaign) {
+      await prisma.notification.create({
+        data: {
+          userId: campaign.userId,
+          type: "BILLING",
+          title: `La difusión "${campaign.name}" no se envió`,
+          body: `${blocked} Quedó como borrador.`,
+          link: `/whatsapp/campanas`,
+        },
+      });
+    }
+  }
+  return true;
 }
 
 export async function processCampaignJob(job: CampaignJob) {
@@ -71,6 +100,8 @@ export async function processCampaignJob(job: CampaignJob) {
     await prisma.wACampaign.update({ where: { id: campaignId }, data: { status: "FAILED", completedAt: new Date() } });
     return;
   }
+
+  if (await pauseIfNotInLicense(campaignId, campaign.waAccountId, "SENDING")) return;
 
   if (
     campaign.waAccount.channel !== "META_CLOUD" ||

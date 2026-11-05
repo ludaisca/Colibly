@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { checkLeadScoringAccess } from "@/lib/billing/gates";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { leadScorerBotSchema } from "@/lib/validations";
@@ -8,6 +7,7 @@ import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
 import { pickCuratedModel } from "@/lib/ai/platform";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 
 // El cliente nunca ve ni elige provider/model — se omiten de toda respuesta.
 const SELECT_SCORER = {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     }
     const denied = forbidRoles(session, ["user"]);
     if (denied) return denied;
-    const noScoring = await checkLeadScoringAccess(await requireOrgId(session.user.id));
+    const noScoring = await checkUserFeature(session.user.id, "leadScoring");
     if (noScoring) return noScoring;
 
     const body = await req.json().catch(() => null);

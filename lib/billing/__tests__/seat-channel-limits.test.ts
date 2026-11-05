@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const db = vi.hoisted(() => ({
   organization: { findUnique: vi.fn() },
-  user: { count: vi.fn() },
+  user: { count: vi.fn(), findMany: vi.fn() },
   authToken: { count: vi.fn() },
   wAAccount: { count: vi.fn() },
   channelAccount: { count: vi.fn() },
@@ -48,6 +48,7 @@ describe("perSeatLimitMessage", () => {
   });
 });
 
+// Catálogo anterior (por asiento): rige a las organizaciones con legacyUntil.
 describe("evaluatePlanLimit (dry run, sin conectar nada)", () => {
   let n = 0;
   const orgId = () => `org-${n}`;
@@ -55,7 +56,7 @@ describe("evaluatePlanLimit (dry run, sin conectar nada)", () => {
     n++;
     invalidateOrgBilling(orgId());
     vi.clearAllMocks();
-    db.organization.findUnique.mockResolvedValue({ id: orgId(), name: "Vamex", plan: "ESSENTIAL", status: "TRIALING", isInternal: false, seatQuantity: 1, trialEndsAt: new Date(Date.now() + 864e5), graceEndsAt: null, cancelAtPeriodEnd: false, currentPeriodEnd: null, aiCreditsUsed: 0, aiCreditsBonus: 0, aiCreditsPeriodStart: null, stripeCustomerId: null, stripeSubscriptionId: null, canceledAt: null });
+    db.organization.findUnique.mockResolvedValue({ id: orgId(), name: "Vamex", plan: "ESSENTIAL", status: "TRIALING", isInternal: false, seatQuantity: 1, trialEndsAt: new Date(Date.now() + 864e5), graceEndsAt: null, cancelAtPeriodEnd: false, currentPeriodEnd: null, aiCreditsUsed: 0, aiCreditsBonus: 0, aiCreditsPeriodStart: null, stripeCustomerId: null, stripeSubscriptionId: null, canceledAt: null, legacyUntil: new Date(Date.now() + 30 * 864e5) });
     db.user.count.mockResolvedValue(1);
     db.authToken.count.mockResolvedValue(1); // invitación pendiente: no cuenta
     db.wAAccount.count.mockResolvedValue(1);
@@ -85,5 +86,51 @@ describe("evaluatePlanLimit (dry run, sin conectar nada)", () => {
   });
   it("los asientos de la prueba siguen siendo 3", async () => {
     expect(await evaluatePlanLimit(orgId(), "seats")).toBeNull();
+  });
+});
+
+// Catálogo de licencias: cupos de la organización según las licencias de sus
+// personas activas (docs/PLAN_LICENCIAS_2026-11-04.md, decisión 2).
+describe("evaluatePlanLimit con licencias", () => {
+  let n = 0;
+  const orgId = () => `lic-${n}`;
+  beforeEach(() => {
+    n++;
+    invalidateOrgBilling(orgId());
+    vi.clearAllMocks();
+    db.organization.findUnique.mockResolvedValue({ id: orgId(), name: "Spa Aurora", plan: "PRO", status: "ACTIVE", isInternal: false, seatQuantity: 3, trialEndsAt: null, graceEndsAt: null, cancelAtPeriodEnd: false, currentPeriodEnd: null, aiCreditsUsed: 0, aiCreditsBonus: 0, aiCreditsPeriodStart: null, stripeCustomerId: "cus", stripeSubscriptionId: "sub", canceledAt: null, legacyUntil: null });
+    db.user.findMany.mockResolvedValue([{ license: "ESSENTIAL" }, { license: "ESSENTIAL" }, { license: "BUSINESS" }]);
+    db.user.count.mockResolvedValue(3);
+    db.authToken.count.mockResolvedValue(0);
+    db.wAAccount.count.mockResolvedValue(3);
+    db.channelAccount.count.mockResolvedValue(1);
+    db.contact.count.mockResolvedValue(8_999);
+    db.automation.count.mockResolvedValue(40);
+    db.pipeline.count.mockResolvedValue(5);
+    db.contactCustomFieldDefinition.count.mockResolvedValue(10);
+    db.wABot.count.mockResolvedValue(9);
+  });
+
+  it("un canal de cada tipo por licencia: con 3 licencias y 3 números, el cuarto no", async () => {
+    const r = await evaluatePlanLimit(orgId(), "whatsapp");
+    expect(r).toMatchObject({ limit: "whatsapp", current: 3, max: 3, actionUrl: "/usuarios" });
+    expect(r?.message).toContain("Cada licencia incluye un número de WhatsApp");
+    expect(await evaluatePlanLimit(orgId(), "telegram")).toBeNull();
+    expect(await evaluatePlanLimit(orgId(), "webchat")).toBeNull();
+  });
+
+  it("contactos y leads se suman por licencia (2 × 2,000 + 5,000)", async () => {
+    expect(await evaluatePlanLimit(orgId(), "contacts")).toBeNull();
+    expect(await evaluatePlanLimit(orgId(), "contacts", 2)).toMatchObject({ max: 9_000 });
+  });
+
+  it("embudos y campos son los de la licencia más alta (Avanzado: 5 / 50)", async () => {
+    expect(await evaluatePlanLimit(orgId(), "funnels")).toMatchObject({ max: 5 });
+    expect(await evaluatePlanLimit(orgId(), "customFields")).toBeNull();
+  });
+
+  it("automatizaciones y agentes no tienen tope de cantidad (los decide la licencia)", async () => {
+    expect(await evaluatePlanLimit(orgId(), "activeAutomations")).toBeNull();
+    expect(await evaluatePlanLimit(orgId(), "aiAgents")).toBeNull();
   });
 });

@@ -39,13 +39,15 @@ export async function simulate(input: {
   ownerId: string;
   organizationId: string;
   automationId: string;
+  /** Quien corre la prueba: paga la IA de los pasos simulados. */
+  payerUserId: string;
 }): Promise<SimulationResult> {
   const facts: SimFacts = { ...input.facts, tags: [...input.facts.tags], customFields: { ...input.facts.customFields } };
   const transcript: SimEntry[] = [];
   const effect = (text: string): void => {
     transcript.push({ kind: "effect", text });
   };
-  const aiCtx = { ownerId: input.ownerId, organizationId: input.organizationId, automationId: input.automationId, runId: null, waChatId: null, conversationId: null };
+  const aiCtx = { ownerId: input.ownerId, organizationId: input.organizationId, automationId: input.automationId, runId: null, waChatId: null, conversationId: null, payer: { userId: input.payerUserId } };
 
   const templateName = async (id: string) =>
     (await prisma.wATemplate.findUnique({ where: { id }, select: { name: true } }))?.name ?? "plantilla";

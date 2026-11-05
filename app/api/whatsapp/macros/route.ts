@@ -5,6 +5,7 @@ import { requireOrgId } from "@/lib/tenancy";
 import { forbidRoles } from "@/lib/roles";
 import { macroInputSchema } from "@/lib/macros/types";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 
 export async function GET() {
   try {
@@ -28,6 +29,8 @@ export async function POST(req: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
+    const notInLicense = await checkUserFeature(session.user.id, "macros");
+    if (notInLicense) return notInLicense;
 
     const parsed = macroInputSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

@@ -9,8 +9,8 @@ import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { buildAppointmentMarkerContract, parseAppointmentMarker } from "@/lib/ai/appointment-marker";
 import type { AppointmentProposal } from "@/lib/ai/appointment-marker";
 import { reserveAiCredit } from "@/lib/ai/credits";
+import { channelHasFeature } from "@/lib/billing/entitlements";
 import { transcribeForBot, voiceNoteForBot } from "@/lib/ai/transcribe";
-import { hasBotsAccess } from "@/lib/billing/gates";
 import { getBotSkipReason } from "@/lib/bots/guards";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
@@ -176,11 +176,14 @@ async function handleBotMessage(job: BotMessageJob) {
     return;
   }
 
-  if (!(await hasBotsAccess(bot.organizationId))) return;
+  // El bot funciona con la licencia del dueño de su canal (regla 3) y gasta
+  // sus créditos (regla 6). Canal sin dueño activo = Básico: sin agente.
+  const botChannel = { waAccountId: bot.waAccountId, channelAccountId: bot.channelAccountId };
+  if (!(await channelHasFeature(botChannel, "aiAgent"))) return;
 
   // Un crédito de IA por respuesta; sin créditos el bot calla (sin marcar
   // ERROR — no es una falla del bot) y el admin ya recibió el aviso del 100 %.
-  if (!(await reserveAiCredit(bot.organizationId))) {
+  if (!(await reserveAiCredit({ channel: botChannel }))) {
     console.log(`[bots] Sin créditos de IA — el bot "${bot.name}" no responde este mensaje`);
     return;
   }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
-import { hasAiAccess } from "@/lib/billing/gates";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { suggestTaskTitle, WritingAssistError } from "@/lib/ai/writing-assist";
 import { recordContactActivity } from "@/lib/contacts/activity";
@@ -61,9 +61,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const suggest = body && typeof body === "object" && body.suggest === true;
     let title: string;
     if (suggest) {
-      if (!(await hasAiAccess(organizationId))) {
-        return NextResponse.json({ error: "La IA no está incluida en tu plan.", code: "plan_limit", limit: "ai" }, { status: 402 });
-      }
+      const noAi = await checkUserFeature(session.user.id, "aiAssist");
+      if (noAi) return noAi;
       const lines = contact.chat
         ? await prisma.wAMessage.findMany({ where: { chatId: contact.chat.id }, orderBy: { timestamp: "desc" }, take: 20, select: { direction: true, body: true } })
         : contact.conversation

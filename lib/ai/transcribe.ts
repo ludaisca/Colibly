@@ -2,12 +2,13 @@ import { promises as fs } from "fs";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey } from "@/lib/ai/platform";
-import { hasAiCredits, reserveAiCredit } from "@/lib/ai/credits";
+import { AI_CREDITS_EXHAUSTED_MESSAGE, hasAiCredits, reserveAiCredit, type AiPayer } from "@/lib/ai/credits";
 import { recordAssistUsage } from "@/lib/ai/assist-usage";
 import { OPENCODE_AUDIO_MODEL } from "@/lib/ai/providers/opencode";
 import type { AIProvider } from "@/lib/ai/types";
 import { DEFAULT_AI_MODEL } from "@/lib/billing/plans";
-import { hasAiAccess, isOrgWritable } from "@/lib/billing/gates";
+import { isOrgWritable } from "@/lib/billing/gates";
+import { channelFeatureMessage, userFeatureMessage, type ChannelRef } from "@/lib/billing/entitlements";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
 import { inboxQueue } from "@/lib/queue";
 
@@ -53,21 +54,22 @@ interface AudioRow {
   mimeType: string | null;
   transcript: string | null;
   organizationId: string;
+  channel: ChannelRef;
 }
 
 async function loadAudioRow(kind: TranscribeKind, messageId: string): Promise<AudioRow | null> {
   if (kind === "whatsapp") {
     const m = await prisma.wAMessage.findUnique({
       where: { id: messageId },
-      select: { id: true, messageType: true, mediaUrl: true, mimeType: true, transcript: true, chat: { select: { account: { select: { organizationId: true } } } } },
+      select: { id: true, messageType: true, mediaUrl: true, mimeType: true, transcript: true, chat: { select: { accountId: true, account: { select: { organizationId: true } } } } },
     });
-    return m && { ...m, organizationId: m.chat.account.organizationId };
+    return m && { ...m, organizationId: m.chat.account.organizationId, channel: { waAccountId: m.chat.accountId } };
   }
   const m = await prisma.channelMessage.findUnique({
     where: { id: messageId },
-    select: { id: true, messageType: true, mediaUrl: true, mimeType: true, transcript: true, conversation: { select: { channelAccount: { select: { organizationId: true } } } } },
+    select: { id: true, messageType: true, mediaUrl: true, mimeType: true, transcript: true, conversation: { select: { channelAccountId: true, channelAccount: { select: { organizationId: true } } } } },
   });
-  return m && { ...m, organizationId: m.conversation.channelAccount.organizationId };
+  return m && { ...m, organizationId: m.conversation.channelAccount.organizationId, channel: { channelAccountId: m.conversation.channelAccountId } };
 }
 
 interface TranscriberOption {
@@ -172,13 +174,17 @@ export async function transcribeMessage(
 
   const chain = await transcriberChain();
   if (chain.length === 0) throw new TranscribeError("unavailable", "La transcripción no está disponible en este momento.");
-  if (!(await hasAiAccess(row.organizationId))) throw new TranscribeError("no_access", "Tu plan no incluye IA.");
+  // Manual: la licencia y los créditos de quien la pide. Automática: los del
+  // dueño del canal (regla 6 de las licencias).
+  const payer: AiPayer = opts.userId ? { userId: opts.userId } : { channel: row.channel };
+  const blocked = opts.userId ? await userFeatureMessage(opts.userId, "aiAssist") : await channelFeatureMessage(row.channel, "aiAssist");
+  if (blocked) throw new TranscribeError("no_access", blocked);
 
   // El tamaño se valida ANTES de reservar: un audio enorme no gasta crédito.
   const buffer = await readAudio(row.mediaUrl);
 
-  if (!(await reserveAiCredit(row.organizationId))) {
-    throw new TranscribeError("ai_credits", "Se acabaron los créditos de IA de este mes.");
+  if (!(await reserveAiCredit(payer))) {
+    throw new TranscribeError("ai_credits", AI_CREDITS_EXHAUSTED_MESSAGE);
   }
 
   const text = await transcribeBuffer({ chain, buffer, mimeType: row.mimeType, organizationId: row.organizationId, userId: opts.userId });
@@ -189,7 +195,7 @@ export async function transcribeMessage(
 /**
  * Para los bots: la nota de voz como texto, para que respondan con el modelo
  * de texto de la plataforma. No reserva otro crédito (la respuesta del bot ya
- * reservó el suyo) ni revisa el plan (el bot ya pasó hasBotsAccess). Reusa una
+ * reservó el suyo) ni revisa la licencia (el bot ya pasó channelHasFeature "aiAgent"). Reusa una
  * transcripción existente y guarda la nueva en el mensaje, así también se ve
  * en la bandeja. null = no se pudo; el bot sigue con la etiqueta de audio.
  */
@@ -234,7 +240,8 @@ export async function queueAutoTranscribe(kind: TranscribeKind, messageId: strin
     const org = await prisma.organization.findUnique({ where: { id: row.organizationId }, select: { autoTranscribeAudio: true } });
     if (!org?.autoTranscribeAudio) return;
     if (!(await isOrgWritable(row.organizationId))) return;
-    if (!(await hasAiCredits(row.organizationId))) return;
+    if (await channelFeatureMessage(row.channel, "aiAssist")) return;
+    if (!(await hasAiCredits({ channel: row.channel }))) return;
     await inboxQueue.add("transcribe", { kind, messageId }, { jobId: `transcribe-${messageId}` });
   } catch (error) {
     console.error(`[transcribe] no se pudo encolar ${kind}:${messageId}`, error);

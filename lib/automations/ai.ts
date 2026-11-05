@@ -2,11 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
-import { reserveAiCredit } from "@/lib/ai/credits";
+import { reserveAiCredit, type AiPayer } from "@/lib/ai/credits";
 import { SCOPE_GUARDRAIL, wrapUserPrompt } from "@/lib/ai/prompt-sanitizer";
 
-// IA de los pasos de automatización: OpenCode por defecto, y un crédito de la
-// organización por llamada. Devuelve null en vez de lanzar si no hay IA
+// IA de los pasos de automatización: OpenCode por defecto, y un crédito por
+// llamada de `payer` (una ejecución real: el dueño del canal; "Probar": quien
+// prueba — regla 6 de las licencias). Devuelve null en vez de lanzar si no hay IA
 // disponible (sin créditos, sin proveedor, respuesta ilegible): los pasos
 // tienen una rama "otro" / seguir sin el dato para ese caso.
 
@@ -17,6 +18,7 @@ export interface AiCallContext {
   runId: string | null;
   waChatId: string | null;
   conversationId: string | null;
+  payer: AiPayer;
 }
 
 async function complete(ctx: AiCallContext, system: string, user: string, maxTokens: number): Promise<string | null> {
@@ -25,7 +27,7 @@ async function complete(ctx: AiCallContext, system: string, user: string, maxTok
   const { provider, model } = picked;
   const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) return null;
-  if (!(await reserveAiCredit(ctx.organizationId))) return null;
+  if (!(await reserveAiCredit(ctx.payer))) return null;
 
   const result = await getAIProvider(provider, apiKey).complete({
     model,

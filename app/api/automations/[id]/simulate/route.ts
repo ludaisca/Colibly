@@ -60,6 +60,7 @@ export async function POST(req: Request, { params }: Params) {
       ownerId: a.waAccount?.userId ?? a.channelAccount!.userId,
       organizationId: a.organizationId,
       automationId: a.id,
+      payerUserId: session.user.id,
     });
     return NextResponse.json(result);
   } catch (error) {

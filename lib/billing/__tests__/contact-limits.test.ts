@@ -21,8 +21,8 @@ vi.mock("@/lib/billing/gates", () => ({
   getOrgBilling: vi.fn(async () => ({ plan: "PRO", isInternal: db.org.isInternal, status: "ACTIVE", seatQuantity: 1 })),
   getOrgUsage: vi.fn(async () => ({ contacts: db.contacts })),
   orgIdForAccount: vi.fn(async () => "org1"),
+  effectiveOrgLimits: vi.fn(async () => ({ contacts: db.max })),
 }));
-vi.mock("@/lib/billing/state", () => ({ planLimits: vi.fn(() => ({ contacts: db.max })) }));
 vi.mock("@/lib/billing/notify", () => ({ notifyOrgAdmins: (...a: unknown[]) => db.notify(...(a as [])) }));
 
 import { afterContactCreated, checkContactAlerts, contactLimitLevel, graceCap, isContactOverLimit, nextAlertState } from "@/lib/billing/contact-limits";

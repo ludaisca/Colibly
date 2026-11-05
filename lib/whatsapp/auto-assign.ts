@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getEligibleAssignees } from "@/lib/chat-assignees";
 import { assignableCandidateIds } from "@/lib/users/availability";
+import { channelHasFeature } from "@/lib/billing/entitlements";
 
 /**
  * Auto-asigna un chat sin asignar. Primero prueba las reglas de enrutamiento
@@ -19,6 +20,8 @@ export async function autoAssignChat(accountId: string, chatId: string): Promise
     select: { autoAssignEnabled: true, autoAssignOnlineOnly: true },
   });
   if (!account?.autoAssignEnabled) return null;
+  // Depende de la licencia del dueño del número (regla 3 de las licencias).
+  if (!(await channelHasFeature({ waAccountId: accountId }, "autoAssign"))) return null;
 
   const candidates = await getEligibleAssignees(accountId);
   if (candidates.length === 0) return null;

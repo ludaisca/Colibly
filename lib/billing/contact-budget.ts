@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { evaluatePlanLimit, getOrgBilling, getOrgUsage, orgIdForAccount } from "@/lib/billing/gates";
-import { planLimits } from "@/lib/billing/state";
+import { effectiveOrgLimits, evaluatePlanLimit, getOrgBilling, getOrgUsage, orgIdForAccount } from "@/lib/billing/gates";
 import { notifyAccountAdmins } from "@/lib/whatsapp/coexistence/notify";
 
 // Cuántos contactos nuevos caben todavía en el plan de la organización de una
@@ -10,7 +9,7 @@ export async function contactsRemaining(waAccountId: string): Promise<number> {
   if (!organizationId) return 0;
   const org = await getOrgBilling(organizationId);
   if (!org) return 0;
-  const max = planLimits(org).contacts;
+  const max = (await effectiveOrgLimits(org)).contacts;
   if (max === Infinity) return Infinity;
   const { contacts } = await getOrgUsage(organizationId);
   return Math.max(0, max - contacts);

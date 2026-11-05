@@ -1,11 +1,11 @@
 import { Prisma, type PlanId } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { TRIAL_LICENSE } from "./licenses";
+import { invalidateChannelEntitlement } from "./entitlements";
 
 // Licencias por usuario y dueños de canal (docs/PLAN_LICENCIAS_2026-11-04.md).
-// Fase 1: solo se guardan los datos; los candados siguen leyendo el plan de la
-// organización (gates.ts). En la Fase 3 la licencia de una persona nueva la
-// elige el admin al invitarla.
+// Los candados que leen estos datos están en entitlements.ts. En la Fase 3 la
+// licencia de una persona nueva la elige el admin al invitarla.
 
 /** Licencia con la que entra una persona nueva mientras no haya selector: el plan de la organización. */
 export async function defaultLicenseFor(organizationId: string): Promise<PlanId> {
@@ -31,6 +31,7 @@ export async function claimChannelOwner(kind: "whatsapp" | "channel", accountId:
     } else {
       await prisma.channelAccount.update({ where: { id: accountId }, data: { ownerId: userId } });
     }
+    invalidateChannelEntitlement(kind === "whatsapp" ? { waAccountId: accountId } : { channelAccountId: accountId });
     return true;
   } catch (error) {
     if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) {

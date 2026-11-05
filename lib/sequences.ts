@@ -6,6 +6,7 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { isOrgWritable } from "@/lib/billing/gates";
+import { channelHasFeature } from "@/lib/billing/entitlements";
 
 // Roadmap P3-a — motor de secuencias lineales (ver comentario de
 // SequenceTriggerType en schema.prisma para el porqué de "sin ramas"). Dos
@@ -279,6 +280,12 @@ export async function processSequenceTick(): Promise<void> {
 
   for (const enrollment of enrollments) {
     if (!(await isOrgWritable(enrollment.sequence.organizationId))) continue;
+    // Las secuencias corren con la licencia del dueño del canal (regla 3). Sin
+    // ella, la inscripción se aplaza una hora para no ocupar el lote.
+    if (!(await channelHasFeature({ waAccountId: enrollment.sequence.waAccountId, channelAccountId: enrollment.sequence.channelAccountId }, "automations"))) {
+      await prisma.wASequenceEnrollment.update({ where: { id: enrollment.id }, data: { nextRunAt: new Date(now.getTime() + 3_600_000) } });
+      continue;
+    }
     try {
       await processSingleEnrollment(enrollment, now);
     } catch (err) {

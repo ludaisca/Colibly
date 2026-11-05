@@ -6,6 +6,7 @@ import { deliverInput, HOLDING_STATUSES, startRun } from "./runner";
 import { parseSettings } from "./settings";
 import type { Trigger, TriggerType } from "./types";
 import { isAccountWritable } from "@/lib/billing/gates";
+import { channelHasFeature } from "@/lib/billing/entitlements";
 
 // Punto de entrada del motor desde fuera:
 //  - dispatchInboundMessage: la ingesta lo llama con cada mensaje entrante,
@@ -23,10 +24,12 @@ export interface InboundContext {
   isFirstMessage: boolean;
 }
 
-// Solo lectura: no arrancan ni avanzan automatizaciones (lo entrante se
-// guarda igual; las ejecuciones en espera retoman al reactivar el plan).
-function accountWritable(account: AccountRef) {
-  return isAccountWritable(account.kind === "whatsapp" ? { waAccountId: account.id } : { channelAccountId: account.id });
+// Solo lectura, o la licencia del dueño del canal sin automatizaciones
+// (regla 3): no arrancan ni avanzan (lo entrante se guarda igual; las
+// ejecuciones en espera retoman al reactivar el plan o subir la licencia).
+async function accountWritable(account: AccountRef) {
+  const ref = account.kind === "whatsapp" ? { waAccountId: account.id } : { channelAccountId: account.id };
+  return (await isAccountWritable(ref)) && (await channelHasFeature(ref, "automations"));
 }
 
 function accountWhere(account: AccountRef) {

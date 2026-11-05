@@ -5,6 +5,7 @@ import { resolveChatChannel } from "@/lib/chat-resolver";
 import { suggestReply, ReplySuggestionError } from "@/lib/whatsapp/reply-suggestion";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 
 // Copiloto de IA (roadmap P3-e) — mismo alcance de canal que /score y
 // /scorers hoy: WhatsApp + Telegram, no Messenger/Instagram todavía.
@@ -103,8 +104,11 @@ export async function POST(
       return NextResponse.json({ error: "Bot no encontrado" }, { status: 404 });
     }
 
+    const noAi = await checkUserFeature(session.user.id, "aiAssist");
+    if (noAi) return noAi;
+
     try {
-      const result = await suggestReply(chatId, bot, resolved.channel);
+      const result = await suggestReply(chatId, bot, resolved.channel, session.user.id);
       return NextResponse.json(result);
     } catch (err) {
       if (err instanceof ReplySuggestionError) {

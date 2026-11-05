@@ -9,6 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
+import { checkIntegrationFeature } from "@/lib/billing/entitlements";
 
 // CRUD admin-only: MetaAdsAccount es config de negocio sensible (credenciales
 // que mandan datos reales a un ad account en producción), no una cuenta
@@ -23,6 +24,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    // Las conversiones de Meta Ads las mantiene un admin con licencia Pro (regla 5).
+    const notInLicense = await checkIntegrationFeature(session.user.id, "metaAds");
+    if (notInLicense) return notInLicense;
     const unverified = await requireVerifiedEmail(session.user.id);
     if (unverified) return unverified;
 

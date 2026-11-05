@@ -7,6 +7,7 @@ import { searchKnowledge } from "@/lib/ai/rag";
 import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { reserveAiCredit } from "@/lib/ai/credits";
+import { channelHasFeature } from "@/lib/billing/entitlements";
 import { transcribeForBot, voiceNoteForBot } from "@/lib/ai/transcribe";
 import { getBotSkipReason } from "@/lib/bots/guards";
 import { recordBotUsage } from "@/lib/bots/usage";
@@ -15,7 +16,7 @@ import { extractDocumentText } from "@/lib/whatsapp/extract-document-text";
 import { splitReply, computeTypingDelay } from "@/lib/whatsapp/humanize";
 import { botSendQueue } from "@/lib/queue";
 import type { AIMessage, ContentPart } from "@/lib/ai/types";
-import { BillingBlockedError, hasBotsAccess, isBotWritable } from "@/lib/billing/gates";
+import { BillingBlockedError, isBotWritable } from "@/lib/billing/gates";
 
 // Hermano de lib/workers/bot-worker.ts, no una bifurcación dentro de él: ese
 // archivo toca ~10 puntos acoplados a WAAccount/WAChat/WAMessage (historial,
@@ -157,11 +158,14 @@ async function handleTelegramBotMessage(job: TelegramBotMessageJob) {
     return;
   }
 
-  if (!(await hasBotsAccess(bot.organizationId))) return;
+  // El bot funciona con la licencia del dueño de su canal (regla 3) y gasta
+  // sus créditos (regla 6). Canal sin dueño activo = Básico: sin agente.
+  const botChannel = { waAccountId: bot.waAccountId, channelAccountId: bot.channelAccountId };
+  if (!(await channelHasFeature(botChannel, "aiAgent"))) return;
 
   // Un crédito de IA por respuesta; sin créditos el bot calla (sin marcar
   // ERROR — no es una falla del bot) y el admin ya recibió el aviso del 100 %.
-  if (!(await reserveAiCredit(bot.organizationId))) {
+  if (!(await reserveAiCredit({ channel: botChannel }))) {
     console.log(`[bots] Sin créditos de IA — el bot "${bot.name}" no responde este mensaje`);
     return;
   }

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
 import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
-import { serializeWebhook, updateWebhook, webhookUpdateSchema, WebhookInputError } from "@/lib/webhooks/crud";
+import { serializeWebhook, updateWebhook, webhookUpdateSchema, WebhookAccessError, WebhookInputError } from "@/lib/webhooks/crud";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,6 +23,7 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
     if (!endpoint) throw new ApiError(404, "not_found", "Webhook no encontrado");
     return apiOk(serializeWebhook(endpoint));
   } catch (err) {
+    if (err instanceof WebhookAccessError) throw new ApiError(402, "plan_limit", err.message);
     if (err instanceof WebhookInputError) throw new ApiError(400, "invalid_request", err.message);
     throw err;
   }

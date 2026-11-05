@@ -26,6 +26,8 @@ vi.mock("@/lib/tenancy", () => ({ orgWhere: vi.fn(async () => ({ organizationId:
 vi.mock("@/lib/shared-accounts", () => ({ getUserAccountIds: vi.fn(async () => db.ownAccounts), getUserChannelAccountIds: vi.fn(async () => []) }));
 vi.mock("@/lib/crypto", () => ({ encrypt: (s: string) => `enc:${s}` }));
 vi.mock("@/lib/api/limits", () => ({ webhookCapExceeded: vi.fn(async () => null) }));
+// Licencia del nuevo dueño: admin con webhooks (el candado se prueba en entitlements).
+vi.mock("@/lib/billing/entitlements", () => ({ integrationFeatureMessage: vi.fn(async () => null) }));
 
 import { pauseWebhooksOfUser } from "@/lib/webhooks/ownership";
 import { updateWebhook, WebhookInputError, webhookStatus } from "@/lib/webhooks/crud";

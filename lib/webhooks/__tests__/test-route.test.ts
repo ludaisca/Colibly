@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = vi.hoisted(() => ({ apiAccess: true, add: vi.fn(), createDelivery: vi.fn(async () => ({ id: "d1" })), findFirst: vi.fn(async () => ({ id: "w1", active: true })) }));
+const db = vi.hoisted(() => ({ apiAccess: true, add: vi.fn(), createDelivery: vi.fn(async () => ({ id: "d1" })), findFirst: vi.fn(async () => ({ id: "w1", active: true, userId: "u1" })) }));
 vi.mock("@/lib/prisma", () => ({ prisma: { webhookEndpoint: { findFirst: () => db.findFirst() } } }));
 vi.mock("@/lib/queue", () => ({ webhookDeliveryQueue: { add: (...a: unknown[]) => db.add(...a) } }));
 vi.mock("@/lib/integrations/admin-session", () => ({ requireAdmin: vi.fn(async () => ({ userId: "u1" })) }));
@@ -8,20 +8,17 @@ vi.mock("@/lib/webhooks/fanout", () => ({ createDelivery: () => db.createDeliver
 vi.mock("@/lib/rate-limit", () => ({ rateLimit: vi.fn(async () => ({ allowed: true, remaining: 9, resetAt: 0 })) }));
 vi.mock("@/lib/api-errors", () => ({ publicErrorMessage: (_e: unknown, f: string) => f }));
 vi.mock("@/lib/tenancy", () => ({ orgWhere: vi.fn(async () => ({ organizationId: "org1" })), requireOrgId: vi.fn(async () => "org1") }));
-vi.mock("@/lib/billing/gates", async () => {
-  const { NextResponse } = await import("next/server");
-  return {
-    checkWebhookAccess: vi.fn(async () =>
-      db.apiAccess ? null : NextResponse.json({ error: "Los webhooks salientes están en Avanzado y Pro.", code: "plan_limit" }, { status: 402 })
-    ),
-  };
-});
+vi.mock("@/lib/billing/gates", () => ({ USERS_PATH: "/usuarios" }));
+// El candado es la licencia del dueño del endpoint (admin con webhooks).
+vi.mock("@/lib/billing/entitlements", () => ({
+  integrationFeatureMessage: vi.fn(async () => (db.apiAccess ? null : "Solo un admin con licencia Pro puede usar webhooks.")),
+}));
 
 import { POST } from "@/app/api/configuracion/webhooks/[id]/test/route";
 
 const call = () => POST(new Request("https://app.test/api/configuracion/webhooks/w1/test", { method: "POST" }), { params: Promise.resolve({ id: "w1" }) });
 
-describe("botón Probar webhook: candado del plan Pro", () => {
+describe("botón Probar webhook: candado de la licencia del dueño", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     db.apiAccess = true;

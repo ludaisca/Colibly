@@ -7,6 +7,7 @@ import { forbidRoles } from "@/lib/roles";
 import { tagBelongsTo } from "@/lib/tags";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 
 // Roadmap P3-a — secuencias de automatización lineales. Recurso plano (no
 // nested bajo /accounts/[id], a diferencia de routing-rules) porque, igual
@@ -94,6 +95,8 @@ export async function POST(req: Request) {
     }
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
+    const notInLicense = await checkUserFeature(session.user.id, "automations");
+    if (notInLicense) return notInLicense;
 
     const body = await req.json().catch(() => null);
     const parsed = sequenceSchema.safeParse(body);

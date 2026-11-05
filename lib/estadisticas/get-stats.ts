@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getOrgAiCost } from "@/lib/ai/budget";
-import { getOrgBilling } from "@/lib/billing/gates";
-import { aiCreditLimit } from "@/lib/billing/state";
+import { orgAiCreditSummary } from "@/lib/ai/credits";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { orgWhere } from "@/lib/tenancy";
 import {
@@ -168,7 +167,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     accountsList,
     chatCountsByAccount,
     monthlyCost,
-    orgBilling,
+    aiCreditSummary,
     assignedChats,
     assignedChannelChats,
     campaignsForMessageStats,
@@ -238,7 +237,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     // Misma función que usan bot-worker/lead-scoring/lead-recovery para decidir
     // pausar el gasto — así el % de presupuesto mostrado nunca diverge del real.
     getOrgAiCost(org.organizationId, monthStart),
-    getOrgBilling(org.organizationId),
+    orgAiCreditSummary(org.organizationId),
     prisma.wAChat.findMany({
       where: {
         assignedToId: { not: null },
@@ -506,8 +505,8 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     agentPerformance,
     monthlyCost: Math.round(monthlyCost * 10000) / 10000,
     aiCredits: {
-      used: orgBilling?.aiCreditsUsed ?? 0,
-      limit: orgBilling && Number.isFinite(aiCreditLimit(orgBilling)) ? aiCreditLimit(orgBilling) : null,
+      used: aiCreditSummary?.used ?? 0,
+      limit: aiCreditSummary && Number.isFinite(aiCreditSummary.limit) ? aiCreditSummary.limit : null,
     },
     campaignMessagesByOrigin,
     campaignMessageBreakdown,

@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getOrgBilling, getOrgUsage, orgIdForAccount } from "./gates";
-import { planLimits } from "./state";
+import { effectiveOrgLimits, getOrgBilling, getOrgUsage, orgIdForAccount } from "./gates";
 import { notifyOrgAdmins } from "./notify";
 
 // Uso de contactos de la organización frente al límite del plan.
@@ -60,7 +59,7 @@ export async function getContactUsage(organizationId: string): Promise<ContactUs
     getOrgUsage(organizationId),
     prisma.contact.count({ where: { overLimit: true, OR: [{ account: { organizationId } }, { channelAccount: { organizationId } }] } }),
   ]);
-  const rawMax = org ? planLimits(org).contacts : Infinity;
+  const rawMax = org ? (await effectiveOrgLimits(org)).contacts : Infinity;
   const max = rawMax === Infinity ? null : rawMax;
   return {
     count: contacts,

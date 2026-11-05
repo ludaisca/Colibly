@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { publicErrorMessage } from "@/lib/api-errors";
-import { BILLING_PLAN_PATH, hasLeadScoringAccess } from "@/lib/billing/gates";
+import { checkUserFeature, userHasFeature } from "@/lib/billing/entitlements";
 import { MAX_MONITORS_PER_ORG } from "@/lib/monitors/rules";
-import { PLAN_MESSAGE, monitorSchema, monitorSession } from "./_shared";
+import { monitorSchema, monitorSession } from "./_shared";
 
 export async function GET() {
   try {
@@ -15,7 +15,7 @@ export async function GET() {
         orderBy: { createdAt: "asc" },
         select: { id: true, name: true, description: true, active: true, createdAt: true, _count: { select: { matches: true } } },
       }),
-      hasLeadScoringAccess(ctx.organizationId),
+      userHasFeature(ctx.userId, "topicMonitors"),
     ]);
     return NextResponse.json({
       planIncluded,
@@ -31,9 +31,9 @@ export async function POST(req: Request) {
   try {
     const ctx = await monitorSession();
     if (ctx instanceof NextResponse) return ctx;
-    if (!(await hasLeadScoringAccess(ctx.organizationId))) {
-      return NextResponse.json({ error: PLAN_MESSAGE, code: "plan_limit", limit: "leadScoring", actionUrl: BILLING_PLAN_PATH }, { status: 402 });
-    }
+    // El monitor corre con la licencia y los créditos de quien lo crea (regla 6).
+    const notInLicense = await checkUserFeature(ctx.userId, "topicMonitors");
+    if (notInLicense) return notInLicense;
     const parsed = monitorSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     const count = await prisma.topicMonitor.count({ where: { organizationId: ctx.organizationId } });

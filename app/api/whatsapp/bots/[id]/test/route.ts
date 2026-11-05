@@ -5,7 +5,8 @@ import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey } from "@/lib/ai/platform";
 import type { AIProvider } from "@/lib/ai/types";
 import { rateLimit } from "@/lib/rate-limit";
-import { reserveAiCredit } from "@/lib/ai/credits";
+import { AI_CREDITS_EXHAUSTED_MESSAGE, reserveAiCredit } from "@/lib/ai/credits";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 import { recordBotUsage } from "@/lib/bots/usage";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
@@ -66,8 +67,11 @@ export async function POST(
       );
     }
 
-    if (!(await reserveAiCredit(bot.organizationId))) {
-      return NextResponse.json({ error: "Se acabaron los créditos de IA de este mes. Mejora tu plan en Configuración → Plan y facturación.", code: "ai_credits" }, { status: 402 });
+    // Probar el bot lo pide una persona: gasta sus créditos (regla 6).
+    const noAi = await checkUserFeature(session.user.id, "aiAssist");
+    if (noAi) return noAi;
+    if (!(await reserveAiCredit({ userId: session.user.id }))) {
+      return NextResponse.json({ error: AI_CREDITS_EXHAUSTED_MESSAGE, code: "ai_credits" }, { status: 402 });
     }
 
     const client = getAIProvider(provider, apiKey);

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import type { Organization } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { invalidateOrgApiAccess } from "@/lib/api/auth-cache";
-import { limitsForSeats, PLANS, SEAT_CHANNEL_LABELS, SEAT_CHANNELS, type SeatChannel } from "./plans";
+import { limitsForSeats, PLANS, SEAT_CHANNEL_LABELS, SEAT_CHANNELS, type PlanLimits, type SeatChannel } from "./plans";
+import { catalogMode, countLicenses, orgLicenseLimits, type LicenseCounts } from "./licenses";
 import type { SeatUsage } from "./state";
 import { accessMode, channelSeatBase, planLimits, seatCap, type AccessMode, type BillingSnapshot } from "./state";
 
@@ -10,7 +11,8 @@ import { accessMode, channelSeatBase, planLimits, seatCap, type AccessMode, type
 // escribir y enviar?) y límites del plan. Las APIs responden 402 con un
 // `code` estable que la UI puede reconocer: "read_only" o "plan_limit".
 
-export type OrgBilling = BillingSnapshot & Pick<Organization, "id" | "name" | "aiCreditsUsed" | "aiCreditsBonus" | "aiCreditsPeriodStart" | "stripeCustomerId" | "stripeSubscriptionId" | "canceledAt">;
+export type OrgBilling = BillingSnapshot &
+  Pick<Organization, "id" | "name" | "aiCreditsUsed" | "aiCreditsBonus" | "aiCreditsPeriodStart" | "stripeCustomerId" | "stripeSubscriptionId" | "canceledAt" | "legacyUntil">;
 
 // Caché corto: se consulta en cada envío y en cada mutación de la UI. Un
 // cambio de estado (webhook de Stripe, tick) invalida el de su organización en
@@ -40,6 +42,7 @@ export async function getOrgBilling(organizationId: string): Promise<OrgBilling 
       aiCreditsPeriodStart: true,
       stripeCustomerId: true,
       stripeSubscriptionId: true,
+      legacyUntil: true,
     },
   });
   cache.set(organizationId, { value, at: Date.now() });
@@ -127,7 +130,42 @@ export function readOnlyResponse() {
 // seats: usuarios activos + invitaciones pendientes (dueño y admins incluidos).
 // whatsapp: números de WhatsApp (1 por asiento). channels: Telegram/Messenger/
 // Instagram (el widget web no cuenta).
-export type LimitKey = "seats" | "whatsapp" | SeatChannel | "contacts" | "activeLeads" | "activeAutomations" | "funnels" | "customFields" | "aiAgents";
+export type LimitKey = "seats" | "whatsapp" | SeatChannel | "webchat" | "contacts" | "activeLeads" | "activeAutomations" | "funnels" | "customFields" | "aiAgents";
+
+/** Licencias de las personas activas de la organización, por plan. */
+export async function activeLicenseCounts(organizationId: string): Promise<LicenseCounts> {
+  const users = await prisma.user.findMany({ where: { organizationId, disabledAt: null }, select: { license: true } });
+  return countLicenses(users.map((u) => u.license));
+}
+
+export type EffectiveLimits = PlanLimits & { webchat: boolean; webchatAccounts: number };
+
+/**
+ * Límites de la organización según el catálogo que la rige. Con licencias:
+ * contactos y leads suman las licencias de las personas activas, embudos y
+ * campos son los de la licencia más alta, y cabe un canal de cada tipo por
+ * licencia. Automatizaciones y agentes no tienen tope de cantidad: los decide
+ * la licencia de quien publica y la del dueño del canal (entitlements.ts).
+ */
+export async function effectiveOrgLimits(org: OrgBilling): Promise<EffectiveLimits> {
+  const base = planLimits(org);
+  if (catalogMode(org, new Date()) !== "license") return { ...base, webchatAccounts: Infinity };
+  const l = orgLicenseLimits(await activeLicenseCounts(org.id));
+  return {
+    ...base,
+    contacts: l.contacts,
+    activeLeads: l.activeLeads,
+    funnels: l.funnels,
+    customFields: l.customFields,
+    whatsapp: l.channelsPerType,
+    telegram: l.channelsPerType,
+    messenger: l.channelsPerType,
+    instagram: l.channelsPerType,
+    webchatAccounts: l.channelsPerType,
+    activeAutomations: Infinity,
+    aiAgents: Infinity,
+  };
+}
 
 export type OrgUsage = Omit<SeatUsage, "apiKeys" | "webhooks">;
 
@@ -218,6 +256,8 @@ function limitMessage(key: LimitKey, planName: string, max: number, trialing: bo
         : `Tu organización paga ${max} ${max === 1 ? "usuario" : "usuarios"} y ya están ocupados (las invitaciones pendientes cuentan). Agrega un asiento en Configuración → Plan y facturación, o desactiva a alguien.`;
     case "whatsapp":
       return `Tu plan permite ${max} ${max === 1 ? "número de WhatsApp" : "números de WhatsApp"}. Agrega un usuario en Configuración → Plan y facturación para conectar otro.`;
+    case "webchat":
+      return `Tu plan permite ${max} ${max === 1 ? "chat web" : "chats web"}.`;
     case "telegram":
     case "messenger":
     case "instagram": {
@@ -259,6 +299,8 @@ export async function evaluatePlanLimit(organizationId: string, key: LimitKey, a
   const org = await getOrgBilling(organizationId);
   if (!org) return { limit: key, message: "Organización no encontrada", current: 0, max: 0 };
   const trialing = org.status === "TRIALING";
+  if (catalogMode(org, new Date()) === "license" && key !== "seats") return evaluateLicenseLimit(org, key, adding);
+  if (key === "webchat") return null;
   if (isPerSeatKey(key)) {
     if (org.isInternal) return null;
     const [usage, activeUsers] = await Promise.all([
@@ -289,6 +331,41 @@ export async function evaluatePlanLimit(organizationId: string, key: LimitKey, a
   return { limit: key, message: limitMessage(key, PLANS[org.plan].name, max, trialing, PLANS[org.plan].perOrg.maxSeats), current, max, ...(key === "seats" ? { actionUrl: BILLING_SEATS_PATH } : {}) };
 }
 
+// [con artículo, singular, plural, "otro/otra"]
+const CHANNEL_LIMIT_LABELS: Partial<Record<LimitKey, [string, string, string, string]>> = {
+  whatsapp: ["un número de WhatsApp", "número de WhatsApp", "números de WhatsApp", "otro"],
+  telegram: ["una cuenta de Telegram", "cuenta de Telegram", "cuentas de Telegram", "otra"],
+  messenger: ["una cuenta de Messenger", "cuenta de Messenger", "cuentas de Messenger", "otra"],
+  instagram: ["una cuenta de Instagram", "cuenta de Instagram", "cuentas de Instagram", "otra"],
+  webchat: ["un chat web", "chat web", "chats web", "otro"],
+};
+
+async function evaluateLicenseLimit(org: OrgBilling, key: LimitKey, adding: number): Promise<PlanLimitExceeded | null> {
+  const limits = await effectiveOrgLimits(org);
+  const max = key === "webchat" ? limits.webchatAccounts : (limits[key as keyof PlanLimits] as number);
+  if (!Number.isFinite(max)) return null;
+  const current = (await getOrgUsage(org.id))[key as keyof OrgUsage];
+  if (current + adding <= max) return null;
+  const fmt = (n: number) => n.toLocaleString("es-MX");
+  const channel = CHANNEL_LIMIT_LABELS[key];
+  if (channel) {
+    return {
+      limit: key,
+      message: `Cada licencia incluye ${channel[0]} y tu organización tiene ${fmt(max)} ${max === 1 ? "licencia" : "licencias"} con ${fmt(current)} ${current === 1 ? channel[1] : channel[2]}. Agrega a otra persona en Usuarios para conectar ${channel[3]}.`,
+      current,
+      max,
+      actionUrl: USERS_PATH,
+    };
+  }
+  const what: Record<string, string> = {
+    contacts: `Llegaste al límite de ${fmt(max)} contactos de tu organización (la suma de sus licencias). Los mensajes entrantes se siguen guardando; agrega personas o sube licencias para agregar más.`,
+    activeLeads: `Llegaste al límite de ${fmt(max)} leads activos de tu organización (la suma de sus licencias). Pasa leads a Cliente o Perdido, o sube licencias, para abrir más.`,
+    funnels: `Tu organización permite ${fmt(max)} ${max === 1 ? "embudo" : "embudos"} (según su licencia más alta) y ya los tiene.`,
+    customFields: `Tu organización permite ${fmt(max)} campos personalizados (según su licencia más alta) y ya los tiene.`,
+  };
+  return { limit: key, message: what[key] ?? "Llegaste al límite de tu organización.", current, max, actionUrl: USERS_PATH };
+}
+
 // Igual que evaluatePlanLimit, como respuesta 402 lista para devolver.
 export async function checkPlanLimit(organizationId: string, key: LimitKey, adding = 1): Promise<NextResponse | null> {
   const exceeded = await evaluatePlanLimit(organizationId, key, adding);
@@ -309,73 +386,14 @@ export async function checkPlanLimit(organizationId: string, key: LimitKey, addi
 }
 
 
-// API pública: los tres planes la incluyen. Se conserva el candado por si un
-// plan futuro la apaga.
+// API pública con el catálogo anterior (caché de acceso de lib/api/auth.ts).
+// Con licencias manda la del dueño de la key: entitlements.integrationOwnerHas.
 export async function hasApiAccess(organizationId: string): Promise<boolean> {
   const org = await getOrgBilling(organizationId);
   return !!org && planLimits(org).apiAccess;
 }
 
-export async function hasWebhookAccess(organizationId: string): Promise<boolean> {
-  const org = await getOrgBilling(organizationId);
-  return !!org && planLimits(org).webhooks;
-}
-
-export async function checkWebhookAccess(organizationId: string): Promise<NextResponse | null> {
-  if (await hasWebhookAccess(organizationId)) return null;
-  return NextResponse.json(
-    { error: "Los webhooks salientes están en Avanzado y Pro. Mejora tu plan para usarlos.", code: "plan_limit", limit: "webhooks", actionUrl: BILLING_PLAN_PATH },
-    { status: 402 }
-  );
-}
-
-export async function checkCampaignsAccess(organizationId: string): Promise<NextResponse | null> {
-  const org = await getOrgBilling(organizationId);
-  if (org && planLimits(org).campaigns) return null;
-  return NextResponse.json(
-    { error: "Las difusiones de WhatsApp están en Avanzado y Pro. Mejora tu plan para crearlas.", code: "plan_limit", limit: "campaigns", actionUrl: BILLING_PLAN_PATH },
-    { status: 402 }
-  );
-}
-
-export async function hasBotsAccess(organizationId: string): Promise<boolean> {
-  const org = await getOrgBilling(organizationId);
-  return !!org && planLimits(org).bots;
-}
-
-export async function checkBotsAccess(organizationId: string): Promise<NextResponse | null> {
-  if (await hasBotsAccess(organizationId)) return null;
-  return NextResponse.json(
-    { error: "Los bots que responden solos están en Avanzado y Pro. En Básico puedes usar sugerencias y resúmenes.", code: "plan_limit", limit: "bots", actionUrl: BILLING_PLAN_PATH },
-    { status: 402 }
-  );
-}
-
-export async function hasLeadScoringAccess(organizationId: string): Promise<boolean> {
-  const org = await getOrgBilling(organizationId);
-  return !!org && planLimits(org).leadScoring;
-}
-
-export async function checkLeadScoringAccess(organizationId: string): Promise<NextResponse | null> {
-  if (await hasLeadScoringAccess(organizationId)) return null;
-  return NextResponse.json(
-    { error: "La calificación de leads está en el plan Pro.", code: "plan_limit", limit: "leadScoring", actionUrl: BILLING_PLAN_PATH },
-    { status: 402 }
-  );
-}
-
-// IA (sugerencias, resúmenes, bots, calificadores): hoy los tres planes.
-export async function hasAiAccess(organizationId: string): Promise<boolean> {
-  const org = await getOrgBilling(organizationId);
-  return !!org && planLimits(org).aiAccess;
-}
-
-export const AI_NOT_INCLUDED_MESSAGE = "Tu plan no incluye IA. Mejora tu plan para usar sugerencias, bots y calificadores.";
-
-export async function checkAiAccess(organizationId: string): Promise<NextResponse | null> {
-  if (await hasAiAccess(organizationId)) return null;
-  return NextResponse.json({ error: AI_NOT_INCLUDED_MESSAGE, code: "plan_limit", limit: "aiAccess", actionUrl: BILLING_PLAN_PATH }, { status: 402 });
-}
+export const AI_NOT_INCLUDED_MESSAGE = "Nadie en tu organización tiene una licencia con IA. Sube una licencia a Avanzado o Pro para usar sugerencias, bots y calificadores.";
 
 // Chat web: los tres planes (además del flag del canal en /plataforma).
 export async function checkWebchatAccess(organizationId: string): Promise<NextResponse | null> {
@@ -387,10 +405,6 @@ export async function checkWebchatAccess(organizationId: string): Promise<NextRe
   );
 }
 
-export async function checkApiAccess(organizationId: string): Promise<NextResponse | null> {
-  if (await hasApiAccess(organizationId)) return null;
-  return NextResponse.json(
-    { error: "La API no está incluida en tu plan.", code: "plan_limit", limit: "apiAccess", actionUrl: BILLING_PLAN_PATH },
-    { status: 402 }
-  );
-}
+// Los candados por función (bots, difusiones, calificación, IA, API,
+// webhooks…) viven en entitlements.ts: dependen de la licencia de la persona,
+// del dueño del canal o del dueño de la integración, no de la organización.

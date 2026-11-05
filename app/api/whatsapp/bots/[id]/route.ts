@@ -7,6 +7,7 @@ import { findOtherActiveBot } from "@/lib/bots/guards";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
 import { modelChoiceError, pickCuratedModel } from "@/lib/ai/platform";
+import { checkChannelFeature } from "@/lib/billing/entitlements";
 
 export async function GET(
   _req: Request,
@@ -140,6 +141,11 @@ export async function PATCH(
     // Mover un bot ACTIVO a una cuenta que ya tiene otro bot activo dejaría dos
     // respondiendo al mismo mensaje — mismo criterio que el toggle.
     if (existing.isActive && (fields.waAccountId || fields.channelAccountId)) {
+      const notInLicense = await checkChannelFeature(
+        { waAccountId: fields.waAccountId || null, channelAccountId: fields.waAccountId ? null : fields.channelAccountId || null },
+        "aiAgent"
+      );
+      if (notInLicense) return notInLicense;
       const other = await findOtherActiveBot(existing.id, {
         waAccountId: fields.waAccountId || null,
         channelAccountId: fields.waAccountId ? null : fields.channelAccountId || null,

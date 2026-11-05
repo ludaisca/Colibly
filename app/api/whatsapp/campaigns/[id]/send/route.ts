@@ -6,6 +6,7 @@ import { getUserAccountIds } from "@/lib/shared-accounts";
 import { rateLimit } from "@/lib/rate-limit";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
+import { checkChannelFeature, checkUserFeature } from "@/lib/billing/entitlements";
 
 export async function POST(
   _req: Request,
@@ -37,6 +38,12 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // Quien envía necesita difusiones en su licencia y el número en la de su
+    // dueño (reglas 3 y 4 de las licencias).
+    const notInLicense =
+      (await checkUserFeature(session.user.id, "campaigns")) ?? (await checkChannelFeature({ waAccountId: campaign.waAccountId }, "campaigns"));
+    if (notInLicense) return notInLicense;
 
     if (campaign.status === "SENDING" || campaign.status === "COMPLETED") {
       return NextResponse.json(

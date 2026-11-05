@@ -43,6 +43,7 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
     runId: ctx.runId,
     waChatId: isWhatsapp ? ctx.chat.id : null,
     conversationId: isWhatsapp ? null : ctx.chat.id,
+    payer: { channel: ctx.account.kind === "whatsapp" ? { waAccountId: ctx.account.id } : { channelAccountId: ctx.account.id } },
   };
   const channel: Facts["channel"] = ctx.account.kind === "whatsapp" ? "WHATSAPP" : ctx.account.channel;
 

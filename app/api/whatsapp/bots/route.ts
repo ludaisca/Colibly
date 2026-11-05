@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { checkBotsAccess, checkPlanLimit } from "@/lib/billing/gates";
+import { checkPlanLimit } from "@/lib/billing/gates";
+import { checkChannelFeature } from "@/lib/billing/entitlements";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { botSchema } from "@/lib/validations";
@@ -18,8 +19,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
     const organizationId = await requireOrgId(session.user.id);
-    const noBots = await checkBotsAccess(organizationId);
-    if (noBots) return noBots;
     const overAgents = await checkPlanLimit(organizationId, "aiAgents");
     if (overAgents) return overAgents;
 
@@ -73,6 +72,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
       }
     }
+
+    // El agente depende de la licencia del dueño del canal, no de quien lo
+    // configura (regla 7 de las licencias).
+    const notInLicense = await checkChannelFeature({ waAccountId, channelAccountId }, "aiAgent");
+    if (notInLicense) return notInLicense;
 
     const bot = await prisma.wABot.create({
       data: {

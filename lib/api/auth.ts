@@ -16,6 +16,7 @@ import {
 } from "./constants";
 import { mergeRateLimitInfo, setRateLimitInfo, type RateLimitScope } from "./rate-headers";
 import { getCachedApiKey, getCachedOrgAccess, setCachedApiKey, setCachedOrgAccess, type CachedApiKey } from "./auth-cache";
+import { integrationOwnerHas } from "@/lib/billing/entitlements";
 
 export interface ApiContext extends ResolvedScope {
   keyId: string;
@@ -140,11 +141,13 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
     throw new ApiError(401, "unauthorized", "El dueño de esta API key ya no tiene acceso");
   }
 
-  // Facturación: la API es del plan Pro, y en solo lectura solo se consulta.
-  const access = await loadOrgAccess(key.organizationId);
-  if (!access.apiAccess) {
-    throw new ApiError(402, "plan_limit", "La API está incluida en el plan Pro. Mejora el plan de tu cuenta para usarla.");
+  // Facturación: la API la mantiene viva un admin con licencia Pro (regla 5
+  // de las licencias; caché de 15 s por proceso), y en solo lectura solo se
+  // consulta.
+  if (!(await integrationOwnerHas(key.userId, "api"))) {
+    throw new ApiError(402, "plan_limit", "La API requiere que el dueño de la API key sea admin con licencia Pro.");
   }
+  const access = await loadOrgAccess(key.organizationId);
   if (!SAFE_METHODS.has(req.method) && !access.writable) {
     throw new ApiError(402, "read_only", "La cuenta está en solo lectura (prueba vencida o pago pendiente): la API solo admite consultas.");
   }

@@ -8,6 +8,7 @@ import { AUTOMATION_TEMPLATES } from "@/lib/automations/templates";
 import { defaultSettings } from "@/lib/automations/settings";
 import type { Graph } from "@/lib/automations/types";
 import { requireOrgId } from "@/lib/tenancy";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 
 // Lista de automatizaciones de todas las cuentas del usuario (propias +
 // compartidas), con conteo de ejecuciones por estado.
@@ -73,6 +74,8 @@ export async function POST(req: Request) {
   try {
     const session = await requireAutomationSession();
     if (session instanceof NextResponse) return session;
+    const notInLicense = await checkUserFeature(session.user.id, "automations");
+    if (notInLicense) return notInLicense;
 
     const parsed = createSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

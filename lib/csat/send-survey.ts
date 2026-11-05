@@ -4,6 +4,7 @@ import { appUrl } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
+import { channelHasFeature } from "@/lib/billing/entitlements";
 
 // Envía la encuesta una sola vez por chat, al resolverlo. Si Meta no acepta el
 // mensaje (ventana cerrada, cuenta sin credenciales, plan de solo lectura) se
@@ -14,6 +15,8 @@ export async function maybeSendCsat(chatId: string): Promise<boolean> {
     include: { account: true },
   });
   if (!chat || !chat.contactId || !chat.account.csatEnabled) return false;
+  // Depende de la licencia del dueño del número (regla 3 de las licencias).
+  if (!(await channelHasFeature({ waAccountId: chat.accountId }, "csat"))) return false;
 
   const existing = await prisma.csatResponse.findUnique({ where: { chatId }, select: { id: true } });
   if (existing) return false;

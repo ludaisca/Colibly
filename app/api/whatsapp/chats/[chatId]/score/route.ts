@@ -103,7 +103,7 @@ export async function POST(
     }
 
     try {
-      const leadScore = await scoreChatWithScorer(chatId, scorer, resolved.channel);
+      const leadScore = await scoreChatWithScorer(chatId, scorer, resolved.channel, { requestedBy: session.user.id });
       return NextResponse.json(leadScore);
     } catch (err) {
       if (err instanceof LeadScoringError) {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getEligibleChannelAssignees } from "@/lib/chat-assignees";
 import { assignableCandidateIds } from "@/lib/users/availability";
+import { channelHasFeature } from "@/lib/billing/entitlements";
 
 // Equivalente de lib/whatsapp/auto-assign.ts para ChannelAccount (Telegram,
 // Messenger, Instagram, Web), sin reglas de enrutamiento: asigna al candidato
@@ -12,6 +13,8 @@ export async function autoAssignConversation(channelAccountId: string, conversat
     select: { autoAssignEnabled: true, autoAssignOnlineOnly: true },
   });
   if (!account?.autoAssignEnabled) return null;
+  // Depende de la licencia del dueño del canal (regla 3 de las licencias).
+  if (!(await channelHasFeature({ channelAccountId }, "autoAssign"))) return null;
 
   const candidates = await getEligibleChannelAssignees(channelAccountId);
   if (candidates.length === 0) return null;

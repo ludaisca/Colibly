@@ -8,6 +8,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { generateWebhookSecret } from "./signature";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
 import { webhookCapExceeded } from "@/lib/api/limits";
+import { integrationFeatureMessage } from "@/lib/billing/entitlements";
 
 // Alta/edición de webhooks — compartido por /api/configuracion/webhooks (UI,
 // sesión de admin) y /api/v1/webhooks (API key con webhooks:manage).
@@ -34,6 +35,14 @@ export const webhookUpdateSchema = webhookCreateSchema.partial().extend({
 });
 
 export class WebhookInputError extends Error {}
+// Quien sería dueño del webhook no es admin con una licencia que incluya
+// webhooks (regla 5 de las licencias). Las rutas responden 402.
+export class WebhookAccessError extends Error {}
+
+async function assertCanOwnWebhook(ownerId: string) {
+  const blocked = await integrationFeatureMessage(ownerId, "webhooks");
+  if (blocked) throw new WebhookAccessError(blocked);
+}
 // Tope de webhooks por organización (lib/api/limits.ts).
 export class WebhookLimitError extends Error {
   constructor(message: string, public readonly current: number, public readonly max: number) {
@@ -65,6 +74,9 @@ async function validateTargets(ownerId: string, input: { url?: string; accountId
 // Devuelve el endpoint y el secreto en claro — única vez que se muestra.
 export async function createWebhook(ownerId: string, input: z.infer<typeof webhookCreateSchema>) {
   const organizationId = await requireOrgId(ownerId);
+  // Aquí y no en cada ruta: la pantalla y POST /api/v1/webhooks pasan por el
+  // mismo candado (la API antes lo saltaba).
+  await assertCanOwnWebhook(ownerId);
   const cap = await webhookCapExceeded(organizationId);
   if (cap) throw new WebhookLimitError(cap.message, cap.current, cap.max);
   await validateTargets(ownerId, input);
@@ -89,6 +101,7 @@ export async function updateWebhook(actorId: string, id: string, input: z.infer<
     throw new WebhookInputError("Su creador ya no es administrador: para reactivarlo, toma la propiedad del webhook (takeOwnership: true).");
   }
   const ownerId = transfer ? actorId : existing.userId;
+  if (reactivating || transfer) await assertCanOwnWebhook(ownerId);
   // Al cambiar de dueño, el recorte de cuentas se valida contra el nuevo.
   await validateTargets(ownerId, transfer ? { ...fields, accountIds: fields.accountIds ?? existing.accountIds, channelAccountIds: fields.channelAccountIds ?? existing.channelAccountIds } : fields);
   return prisma.webhookEndpoint.update({

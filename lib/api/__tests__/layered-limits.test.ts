@@ -10,6 +10,7 @@ const findUnique = vi.fn();
 const update = vi.fn().mockResolvedValue({});
 vi.mock("@/lib/prisma", () => ({ prisma: { apiKey: { findUnique: (...a: unknown[]) => findUnique(...a), update: (...a: unknown[]) => update(...a), findMany: vi.fn().mockResolvedValue([]) } } }));
 vi.mock("@/lib/billing/gates", () => ({ hasApiAccess: vi.fn().mockResolvedValue(true), isOrgWritable: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/lib/billing/entitlements", () => ({ integrationOwnerHas: vi.fn().mockResolvedValue(true) }));
 vi.mock("@/lib/integrations/account-scope", () => ({ resolveIntegrationScope: vi.fn().mockResolvedValue({ accountIds: ["wa1"], channelAccountIds: [] }) }));
 vi.mock("@/lib/net/client-ip", () => ({ clientIp: () => "203.0.113.7" }));
 vi.mock("@/lib/api-errors", () => ({ publicErrorMessage: (_e: unknown, f: string) => f }));

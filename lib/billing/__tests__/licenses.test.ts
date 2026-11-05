@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   canOwnChannel,
+  catalogMode,
   channelLicense,
   countLicenses,
   EMPTY_LICENSE_COUNTS,
+  featureBlockedMessage,
   hasFeature,
   highestLicense,
   isLegacyActive,
+  legacyHasFeature,
+  LICENSE_FEATURE_LABELS,
   LICENSE_FEATURES,
   LICENSE_ORDER,
   LICENSES,
@@ -19,7 +23,7 @@ import {
   userAiCreditLimit,
   type LicenseUsage,
 } from "../licenses";
-import { PLANS } from "../plans";
+import { limitsForSeats, PLANS } from "../plans";
 import type { PlanId } from "@prisma/client";
 
 const NO_USAGE: LicenseUsage = {
@@ -187,5 +191,56 @@ describe("isLegacyActive", () => {
     expect(isLegacyActive({ legacyUntil: null }, now)).toBe(false);
     expect(isLegacyActive({ legacyUntil: new Date("2026-12-01T00:00:00Z") }, now)).toBe(true);
     expect(isLegacyActive({ legacyUntil: new Date("2026-11-01T00:00:00Z") }, now)).toBe(false);
+  });
+});
+
+describe("catalogMode", () => {
+  const now = new Date("2026-11-05T00:00:00Z");
+  it("interna > legacy vigente > licencias", () => {
+    expect(catalogMode({ isInternal: true, legacyUntil: null }, now)).toBe("internal");
+    expect(catalogMode({ isInternal: false, legacyUntil: new Date("2027-01-01T00:00:00Z") }, now)).toBe("legacy");
+    expect(catalogMode({ isInternal: false, legacyUntil: new Date("2026-11-01T00:00:00Z") }, now)).toBe("license");
+    expect(catalogMode({ isInternal: false, legacyUntil: null }, now)).toBe("license");
+  });
+});
+
+describe("legacyHasFeature (catálogo anterior durante la gracia)", () => {
+  const old = (id: PlanId) => limitsForSeats(PLANS[id], 1);
+  it("Básico anterior conserva IA y API, sin bots, difusiones ni webhooks", () => {
+    expect(legacyHasFeature(old("ESSENTIAL"), "aiAssist")).toBe(true);
+    expect(legacyHasFeature(old("ESSENTIAL"), "api")).toBe(true);
+    expect(legacyHasFeature(old("ESSENTIAL"), "aiAgent")).toBe(false);
+    expect(legacyHasFeature(old("ESSENTIAL"), "campaigns")).toBe(false);
+    expect(legacyHasFeature(old("ESSENTIAL"), "webhooks")).toBe(false);
+    expect(legacyHasFeature(old("ESSENTIAL"), "automations")).toBe(false);
+  });
+  it("lo que el catálogo anterior no capaba sigue encendido", () => {
+    for (const f of ["macros", "leadSources", "autoAssign", "csat", "metaAds", "calls"] as const) expect(legacyHasFeature(old("ESSENTIAL"), f)).toBe(true);
+  });
+  it("Avanzado anterior: bots y webhooks sí, calificación no; Pro anterior: todo", () => {
+    expect(legacyHasFeature(old("BUSINESS"), "aiAgent")).toBe(true);
+    expect(legacyHasFeature(old("BUSINESS"), "webhooks")).toBe(true);
+    expect(legacyHasFeature(old("BUSINESS"), "leadScoring")).toBe(false);
+    for (const f of LICENSE_FEATURES) expect(legacyHasFeature(old("PRO"), f)).toBe(true);
+  });
+});
+
+describe("featureBlockedMessage", () => {
+  it("por persona: su licencia, desde qué plan y quién la cambia", () => {
+    const m = featureBlockedMessage({ feature: "aiAssist", license: "ESSENTIAL", scope: "user", planName });
+    expect(m).toContain("Tu licencia Básico");
+    expect(m).toContain("desde Avanzado");
+    expect(m).toContain("Usuarios");
+  });
+  it("por canal: distingue el canal sin dueño", () => {
+    expect(featureBlockedMessage({ feature: "aiAgent", license: "ESSENTIAL", scope: "channel", planName })).toContain("licencia Básico de su dueño");
+    expect(featureBlockedMessage({ feature: "aiAgent", license: "ESSENTIAL", scope: "channel", ownerless: true, planName })).toContain("no tiene dueño");
+  });
+  it("integraciones: admin Pro; legacy: el plan de la organización", () => {
+    expect(featureBlockedMessage({ feature: "webhooks", license: "BUSINESS", scope: "integration", planName })).toContain("admin con licencia Pro");
+    expect(featureBlockedMessage({ feature: "campaigns", license: "ESSENTIAL", scope: "legacy", planName })).toContain("Tu plan Básico");
+  });
+  it("cada función tiene etiqueta", () => {
+    for (const f of LICENSE_FEATURES) expect(LICENSE_FEATURE_LABELS[f].length).toBeGreaterThan(0);
   });
 });

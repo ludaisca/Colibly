@@ -1,4 +1,5 @@
 import type { PlanId } from "@prisma/client";
+import type { PlanLimits } from "./plans";
 
 // Catálogo de LICENCIAS por usuario (docs/PLAN_LICENCIAS_2026-11-04.md).
 // Cada persona de la organización paga una licencia de un plan, y una
@@ -9,8 +10,9 @@ import type { PlanId } from "@prisma/client";
 // plans.ts: lo leen el servidor, la UI y, en la Fase 4, el generador de cPanel.
 // Nombres y precios siguen en plans.ts (PLANS[id].name / pricePerSeatMxn).
 //
-// Fase 1: este catálogo existe y está probado, pero los candados todavía leen
-// plans.ts. La Fase 2 conecta gates.ts aquí.
+// Los candados del servidor (entitlements.ts) leen este catálogo, salvo en las
+// organizaciones internas y en las que conservan el catálogo anterior
+// (`legacyUntil`), que siguen con plans.ts vía legacyHasFeature().
 
 export const LICENSE_ORDER: readonly PlanId[] = ["ESSENTIAL", "BUSINESS", "PRO"];
 
@@ -112,6 +114,58 @@ export const TRIAL_AI_CREDITS_PER_USER = 500;
 // Canal sin dueño válido (decisión 3): funciona como Básico hasta que se le
 // asigne uno.
 export const OWNERLESS_CHANNEL_LICENSE: PlanId = "ESSENTIAL";
+
+/** Cómo se nombra cada función en los mensajes ("no incluye …"). */
+export const LICENSE_FEATURE_LABELS: Record<LicenseFeature, string> = {
+  automations: "automatizaciones ni secuencias",
+  macros: "macros",
+  campaigns: "difusiones de WhatsApp",
+  leadSources: "fuentes de leads",
+  autoAssign: "asignación automática",
+  csat: "encuestas de satisfacción",
+  aiAssist: "asistente de IA",
+  aiAgent: "agentes de IA",
+  leadScoring: "calificación de leads",
+  topicMonitors: "monitores de temas",
+  leadRecovery: "recuperación de leads",
+  api: "la API",
+  webhooks: "webhooks",
+  metaAds: "conversiones de Meta Ads",
+  calls: "llamadas de WhatsApp",
+};
+
+/**
+ * Equivalencia con el catálogo anterior (plans.ts) para las organizaciones
+ * que lo conservan durante la gracia (`legacyUntil`) y las internas: lo que
+ * aquel catálogo no capaba sigue encendido.
+ */
+export function legacyHasFeature(limits: PlanLimits, feature: LicenseFeature): boolean {
+  switch (feature) {
+    case "automations":
+      return limits.activeAutomations > 0;
+    case "campaigns":
+      return limits.campaigns;
+    case "aiAssist":
+    case "topicMonitors":
+      return limits.aiAccess;
+    case "aiAgent":
+    case "leadRecovery":
+      return limits.bots;
+    case "leadScoring":
+      return limits.leadScoring;
+    case "api":
+      return limits.apiAccess;
+    case "webhooks":
+      return limits.webhooks;
+    case "macros":
+    case "leadSources":
+    case "autoAssign":
+    case "csat":
+    case "metaAds":
+    case "calls":
+      return true;
+  }
+}
 
 export function licenseRank(id: PlanId): number {
   return LICENSE_ORDER.indexOf(id);
@@ -317,4 +371,48 @@ export const LEGACY_GRACE_DAYS = 60;
 /** Mientras sea true, la organización conserva lo que tenía con el catálogo anterior. */
 export function isLegacyActive(org: { legacyUntil: Date | null }, now: Date): boolean {
   return !!org.legacyUntil && org.legacyUntil > now;
+}
+
+/**
+ * Qué catálogo rige a una organización: "internal" (sin topes), "legacy"
+ * (plans.ts a nivel organización, con la bolsa de créditos compartida) o
+ * "license" (licencia por persona y plan del dueño de cada canal).
+ */
+export type CatalogMode = "internal" | "legacy" | "license";
+
+export function catalogMode(org: { isInternal: boolean; legacyUntil: Date | null }, now: Date): CatalogMode {
+  if (org.isInternal) return "internal";
+  return isLegacyActive(org, now) ? "legacy" : "license";
+}
+
+// ── Mensajes de candado ──
+
+/**
+ * Texto del 402 cuando una función no está en la licencia. `scope` dice de
+ * quién es la licencia: la persona que lo pide ("user"), el dueño del canal
+ * ("channel") o el dueño de una integración ("integration": admin Pro).
+ */
+export function featureBlockedMessage(input: {
+  feature: LicenseFeature;
+  license: PlanId;
+  scope: "user" | "channel" | "integration" | "legacy";
+  ownerless?: boolean;
+  planName: (id: PlanId) => string;
+}): string {
+  const label = LICENSE_FEATURE_LABELS[input.feature];
+  const from = input.planName(minLicenseFor(input.feature));
+  const current = input.planName(input.license);
+  switch (input.scope) {
+    // Catálogo anterior: el plan es de la organización.
+    case "legacy":
+      return `Tu plan ${current} no incluye ${label}. Mejora tu plan en Configuración → Plan y facturación.`;
+    case "user":
+      return `Tu licencia ${current} no incluye ${label}; está disponible desde ${from}. Un admin puede cambiar tu licencia en Usuarios.`;
+    case "channel":
+      return input.ownerless
+        ? `Este canal no tiene dueño con licencia activa y funciona como ${current}, que no incluye ${label}. Asígnale un dueño con licencia ${from} o superior.`
+        : `Este canal funciona con la licencia ${current} de su dueño, que no incluye ${label}; está disponible desde ${from}.`;
+    case "integration":
+      return `Solo un admin con licencia ${from} puede usar ${label}. Tu licencia es ${current}.`;
+  }
 }

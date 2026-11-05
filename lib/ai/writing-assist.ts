@@ -1,6 +1,6 @@
 import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey, pickCuratedModel } from "@/lib/ai/platform";
-import { reserveAiCredit } from "@/lib/ai/credits";
+import { AI_CREDITS_EXHAUSTED_MESSAGE, reserveAiCredit } from "@/lib/ai/credits";
 import { recordAssistUsage } from "@/lib/ai/assist-usage";
 import type { AiAssistKind } from "@prisma/client";
 
@@ -12,13 +12,14 @@ async function complete(
   system: string,
   user: string,
   maxTokens: number,
-  userId?: string | null
+  userId: string
 ): Promise<string> {
   const picked = await pickCuratedModel(false);
   if (!picked) throw new WritingAssistError("La IA no está disponible en este momento.");
   const apiKey = await getPlatformApiKey(picked.provider);
   if (!apiKey) throw new WritingAssistError("La IA no está disponible en este momento.");
-  if (!(await reserveAiCredit(organizationId))) throw new WritingAssistError("Se acabaron los créditos de IA de este mes.");
+  // Lo pide una persona: gasta sus créditos (regla 6 de las licencias).
+  if (!(await reserveAiCredit({ userId }))) throw new WritingAssistError(AI_CREDITS_EXHAUSTED_MESSAGE);
   const client = getAIProvider(picked.provider, apiKey);
   const result = await client.complete({
     model: picked.model,
@@ -35,7 +36,7 @@ async function complete(
   return text;
 }
 
-export function rewriteDraft(organizationId: string, draft: string, userId?: string | null): Promise<string> {
+export function rewriteDraft(organizationId: string, draft: string, userId: string): Promise<string> {
   return complete(
     organizationId,
     "REWRITE",
@@ -46,7 +47,7 @@ export function rewriteDraft(organizationId: string, draft: string, userId?: str
   );
 }
 
-export function suggestTaskTitle(organizationId: string, transcript: string, userId?: string | null): Promise<string> {
+export function suggestTaskTitle(organizationId: string, transcript: string, userId: string): Promise<string> {
   return complete(
     organizationId,
     "TASK",

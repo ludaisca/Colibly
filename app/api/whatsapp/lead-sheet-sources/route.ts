@@ -10,6 +10,7 @@ import { importNewLeadsForSource } from "@/lib/google/lead-sheet-import";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
+import { checkUserFeature } from "@/lib/billing/entitlements";
 
 export async function GET() {
   try {
@@ -44,6 +45,8 @@ export async function POST(req: Request) {
     }
     const denied = forbidRoles(session, ["ejecutivo"]);
     if (denied) return denied;
+    const notInLicense = await checkUserFeature(session.user.id, "leadSources");
+    if (notInLicense) return notInLicense;
 
     const body = await req.json().catch(() => null);
     const parsed = leadSheetSourceSchema.safeParse(body);

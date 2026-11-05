@@ -3,8 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { getBotControlState, type BotChatRef } from "@/lib/bots/guards";
-import { getOrgBilling, isBotWritable } from "@/lib/billing/gates";
-import { aiCreditLimit } from "@/lib/billing/state";
+import { isBotWritable } from "@/lib/billing/gates";
+import { channelFeatureMessage } from "@/lib/billing/entitlements";
+import { aiCreditStatus } from "@/lib/ai/credits";
 import { getPlatformApiKey } from "@/lib/ai/platform";
 import type { AIProvider } from "@/lib/ai/types";
 import { publicErrorMessage } from "@/lib/api-errors";
@@ -42,12 +43,13 @@ async function modeFor(ctx: NonNullable<Awaited<ReturnType<typeof context>>>) {
   if ((bot.provider !== "google" && bot.provider !== "opencode") || !(await getPlatformApiKey(bot.provider as AIProvider))) {
     return { mode: "OFF", detail: "El proveedor de IA del bot no está configurado", until: null, canResume: false };
   }
-  const billing = await getOrgBilling(bot.organizationId);
-  if (billing && aiCreditLimit(billing) === 0) {
-    return { mode: "OFF", detail: "Tu plan no incluye IA", until: null, canResume: false };
-  }
-  if (billing && billing.aiCreditsUsed >= aiCreditLimit(billing)) {
-    return { mode: "OFF", detail: "Los créditos de IA de este periodo se agotaron", until: null, canResume: false };
+  // Licencia y créditos del dueño del canal (reglas 3 y 6 de las licencias).
+  const channel = ctx.whatsapp ? { waAccountId: ctx.accountId } : { channelAccountId: ctx.accountId };
+  const blocked = await channelFeatureMessage(channel, "aiAgent");
+  if (blocked) return { mode: "OFF", detail: blocked, until: null, canResume: false };
+  const credits = await aiCreditStatus({ channel });
+  if (!credits || credits.used >= credits.max) {
+    return { mode: "OFF", detail: "Los créditos de IA del dueño de este canal se agotaron en este periodo", until: null, canResume: false };
   }
 
   if (control.kind === "human") {

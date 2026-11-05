@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkWebchatAccess } from "@/lib/billing/gates";
+import { checkPlanLimit, checkWebchatAccess } from "@/lib/billing/gates";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { webchatAccountSchema } from "@/lib/validations";
@@ -49,6 +49,9 @@ export async function POST(req: Request) {
     if (channelDisabled) return channelDisabled;
     const notInPlan = await checkWebchatAccess(organizationId);
     if (notInPlan) return notInPlan;
+    // Con licencias: un chat web por licencia.
+    const overLimit = await checkPlanLimit(organizationId, "webchat");
+    if (overLimit) return overLimit;
 
     const { allowed } = await rateLimit(`channel-account-create:${session.user.id}`, 10, 60);
     if (!allowed) {

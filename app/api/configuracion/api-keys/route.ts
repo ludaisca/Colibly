@@ -7,7 +7,7 @@ import { isApiScope } from "@/lib/api/scopes";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere, requireOrgId } from "@/lib/tenancy";
-import { checkApiAccess } from "@/lib/billing/gates";
+import { checkIntegrationFeature } from "@/lib/billing/entitlements";
 import { apiKeyCapExceeded } from "@/lib/api/limits";
 
 const createSchema = z.object({
@@ -36,7 +36,8 @@ export async function POST(req: Request) {
     const admin = await requireAdmin();
     if (admin instanceof NextResponse) return admin;
     const organizationId = await requireOrgId(admin.userId);
-    const noApi = await checkApiAccess(organizationId);
+    // La key vive mientras su dueño sea admin con la API en su licencia (regla 5).
+    const noApi = await checkIntegrationFeature(admin.userId, "api");
     if (noApi) return noApi;
     const cap = await apiKeyCapExceeded(organizationId);
     if (cap) return NextResponse.json({ error: cap.message, code: "limit_reached", current: cap.current, max: cap.max }, { status: 409 });

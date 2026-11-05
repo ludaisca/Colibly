@@ -34,13 +34,16 @@ vi.mock("@/lib/ai/platform", () => ({
   getPlatformApiKey: vi.fn(async (provider: string) => state.keys[provider] ?? null),
 }));
 vi.mock("@/lib/ai/credits", () => ({
+  AI_CREDITS_EXHAUSTED_MESSAGE: "Se acabaron tus créditos de IA de este mes.",
   reserveAiCredit: vi.fn(async () => {
     state.reserve();
     return state.credit;
   }),
   hasAiCredits: vi.fn(async () => true),
 }));
-vi.mock("@/lib/billing/gates", () => ({ hasAiAccess: vi.fn(async () => true), isOrgWritable: vi.fn(async () => true) }));
+vi.mock("@/lib/billing/gates", () => ({ isOrgWritable: vi.fn(async () => true) }));
+// La licencia de quien transcribe (o del dueño del canal) incluye IA.
+vi.mock("@/lib/billing/entitlements", () => ({ userFeatureMessage: vi.fn(async () => null), channelFeatureMessage: vi.fn(async () => null) }));
 vi.mock("@/lib/ai/assist-usage", () => ({ recordAssistUsage: state.usage }));
 vi.mock("@/lib/ai/factory", () => ({
   getAIProvider: (provider: string) => ({
@@ -61,7 +64,7 @@ function audioRow(extra: Record<string, unknown> = {}) {
     mediaUrl: "acc/a.ogg",
     mimeType: "audio/ogg; codecs=opus",
     transcript: null,
-    chat: { account: { organizationId: "org1" } },
+    chat: { accountId: "acc1", account: { organizationId: "org1" } },
     ...extra,
   };
 }

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { orgAiSettingsUpdateSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
-import { aiCreditLimit } from "@/lib/billing/state";
+import { orgAiCreditSummary } from "@/lib/ai/credits";
 
 // IA y operación de la organización (solo admin). La IA la provee la
 // plataforma: aquí se ven los créditos del plan y los modelos disponibles, y se
@@ -44,13 +44,15 @@ type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
   aiCreditsBonus: number;
 };
 
-// El cliente nunca ve qué proveedor/modelo usan sus bots — solo sus créditos.
-function serialize(org: OrgAiRow) {
-  const limit = aiCreditLimit(org);
-  const { plan: _plan, isInternal: _internal, status: _status, seatQuantity: _seats, aiCreditsUsed, aiCreditsBonus: _bonus, ...rest } = org;
+// El cliente nunca ve qué proveedor/modelo usan sus bots — solo sus créditos
+// (con licencias, la suma de las personas de la organización).
+async function serialize(organizationId: string, org: OrgAiRow) {
+  const credits = await orgAiCreditSummary(organizationId);
+  const { plan: _plan, isInternal: _internal, status: _status, seatQuantity: _seats, aiCreditsUsed: _used, aiCreditsBonus: _bonus, ...rest } = org;
+  const limit = credits?.limit ?? 0;
   return {
     ...rest,
-    aiCredits: { used: aiCreditsUsed, limit: Number.isFinite(limit) ? limit : null },
+    aiCredits: { used: credits?.used ?? 0, limit: Number.isFinite(limit) ? limit : null },
   };
 }
 
@@ -66,7 +68,7 @@ export async function GET() {
     const ctx = await requireAdminOrg();
     if ("error" in ctx) return ctx.error;
     const org = await prisma.organization.findUniqueOrThrow({ where: { id: ctx.organizationId }, select: SELECT });
-    return NextResponse.json(serialize(org));
+    return NextResponse.json(await serialize(ctx.organizationId, org));
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno") }, { status: 500 });
   }
@@ -93,7 +95,7 @@ export async function PATCH(req: Request) {
     if (awayEnabled && !awayText) return NextResponse.json({ error: "Escribe el mensaje fuera de horario antes de activarlo" }, { status: 400 });
 
     const org = await prisma.organization.update({ where: { id: ctx.organizationId }, data: parsed.data, select: SELECT });
-    return NextResponse.json(serialize(org));
+    return NextResponse.json(await serialize(ctx.organizationId, org));
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno") }, { status: 500 });
   }

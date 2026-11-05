@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { scoreChatWithScorer } from "@/lib/whatsapp/lead-scoring";
-import { hasAiCredits } from "@/lib/ai/credits";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import type { WALeadScorerBot } from "@prisma/client";
 import { isOrgWritable } from "@/lib/billing/gates";
@@ -35,12 +34,9 @@ export async function processLeadScoringTick() {
 async function runScheduledScorer(scorer: WALeadScorerBot, now: Date) {
   // Solo lectura: la calificación automática no gasta IA.
   if (!(await isOrgWritable(scorer.organizationId))) return;
-  // Cada calificación reserva su crédito (scoreChatWithScorer); esto solo
-  // evita recorrer el lote si ya no queda ninguno.
-  if (!(await hasAiCredits(scorer.organizationId, now))) {
-    console.log(`[lead-scoring] Sin créditos de IA, se omite el calificador ${scorer.id} en este ciclo`);
-    return;
-  }
+  // Cada calificación revisa la licencia y reserva el crédito del dueño del
+  // canal de ese chat (scoreChatWithScorer): no hay una bolsa común que
+  // revisar antes del lote.
 
   // Mirrors what manual scoring already allows (own + shared accounts, via
   // getUserAccountIds), further narrowed by the scorer's own account scope

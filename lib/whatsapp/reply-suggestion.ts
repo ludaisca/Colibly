@@ -4,7 +4,7 @@ import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { searchKnowledge } from "@/lib/ai/rag";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { estimateCost } from "@/lib/ai/pricing";
-import { reserveAiCredit } from "@/lib/ai/credits";
+import { AI_CREDITS_EXHAUSTED_MESSAGE, reserveAiCredit } from "@/lib/ai/credits";
 import type { AIMessage } from "@/lib/ai/types";
 import type { WABot } from "@prisma/client";
 
@@ -36,7 +36,9 @@ interface HistoryMessage {
 export async function suggestReply(
   chatId: string,
   bot: WABot,
-  channel: "WHATSAPP" | "TELEGRAM"
+  channel: "WHATSAPP" | "TELEGRAM",
+  // Quien pide la sugerencia: gasta sus créditos (regla 6 de las licencias).
+  userId: string
 ): Promise<{ suggestion: string }> {
   const picked = await resolvePlatformModel();
   if (!picked) {
@@ -47,8 +49,8 @@ export async function suggestReply(
   if (!apiKey) {
     throw new ReplySuggestionError("La IA no está disponible en este momento.");
   }
-  if (!(await reserveAiCredit(bot.organizationId))) {
-    throw new ReplySuggestionError("Se acabaron los créditos de IA de este mes.");
+  if (!(await reserveAiCredit({ userId }))) {
+    throw new ReplySuggestionError(AI_CREDITS_EXHAUSTED_MESSAGE);
   }
 
   const history: HistoryMessage[] = (
