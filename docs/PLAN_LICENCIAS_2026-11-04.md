@@ -78,7 +78,7 @@ Reglas:
 | 4 | Textos públicos, landing, `/precios`, correos, docs (el sitio de cPanel ya no existía: se eliminó `cpanel-site/`) | bajo |
 | 5 | Migración de clientes reales y despliegue (ver §4) | alto |
 
-**Estado:** Fases 1 a 4 terminadas en dev el 2026-11-05 (la 3 probada contra Stripe en modo prueba) (sin desplegar; la Fase 2 solo puede salir junto con la 5, que primero pone `legacyUntil` a los clientes actuales). Detalle técnico en [`arquitectura/billing.md`](arquitectura/billing.md) → "Per-user licenses".
+**Estado:** Fases 1 a 4 terminadas en dev el 2026-11-05 (la 3 probada contra Stripe en modo prueba). Fase 5 preparada: la migración `20261105120000_license_grandfathering` deja a las organizaciones existentes 60 días con el catálogo anterior; sin correo porque en producción todas las cuentas son del dueño del producto (sin desplegar; la Fase 2 solo puede salir junto con la 5, que primero pone `legacyUntil` a los clientes actuales). Detalle técnico en [`arquitectura/billing.md`](arquitectura/billing.md) → "Per-user licenses".
 
 Cada fase se verifica en dev (tsc, lint, pruebas, build, recorrido real) antes de pasar a la siguiente. Producción solo al final, con confirmación.
 
