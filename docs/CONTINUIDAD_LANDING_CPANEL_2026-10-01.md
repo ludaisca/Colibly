@@ -1,5 +1,7 @@
 # Continuidad: despliegue público de Colibly
 
+> **Histórico (2026-11-05).** La landing de cPanel ya no existe: `colibly.com` lo sirve Next.js y la carpeta `cpanel-site/` se eliminó del repositorio. Se conserva como registro.
+
 **Corte verificado: 2 de octubre de 2026.** Este documento deja el estado operativo para retomar el proyecto sin reconstruir decisiones anteriores. No contiene contraseñas ni tokens.
 
 ## Arquitectura activa

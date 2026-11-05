@@ -65,7 +65,7 @@ Reglas:
 - `/plataforma`: licencias por organización, bono de créditos por usuario.
 
 ### Textos públicos
-- Landing, `/precios` (matriz nueva, "Todo lo de X, más…"), términos, `/docs/api` (API y webhooks: Pro), sitio de cPanel (`scripts/gen-cpanel-pricing.mjs`), correos de bienvenida y de prueba.
+- Landing, `/precios` (matriz nueva, "Todo lo de X, más…"), términos, `/docs/api` (API y webhooks: Pro), correos de bienvenida y de prueba.
 - Quitar "Más popular"; "Recomendado" en Avanzado.
 
 ## 3. Fases
@@ -75,10 +75,10 @@ Reglas:
 | 1 | Datos y catálogo: licencia por usuario e invitación, créditos por usuario, dueño de canal, reglas puras con pruebas. Migración que deja a cada usuario con el plan actual de su organización (nadie cambia de funciones todavía) | bajo, solo dev |
 | 2 | Candados por persona, por dueño de canal y por admin Pro; créditos por usuario en las 13 llamadas | medio: probar cada candado con una organización por plan |
 | 3 | Stripe con varias líneas, `/configuracion/plan`, `/usuarios`, invitaciones, dueño del canal | alto: prueba completa en modo test de Stripe |
-| 4 | Textos públicos, landing, `/precios`, cPanel, correos, docs | bajo |
+| 4 | Textos públicos, landing, `/precios`, correos, docs (el sitio de cPanel ya no existía: se eliminó `cpanel-site/`) | bajo |
 | 5 | Migración de clientes reales y despliegue (ver §4) | alto |
 
-**Estado:** Fases 1, 2 y 3 terminadas en dev el 2026-11-05 (la 3 probada contra Stripe en modo prueba) (sin desplegar; la Fase 2 solo puede salir junto con la 5, que primero pone `legacyUntil` a los clientes actuales). Detalle técnico en [`arquitectura/billing.md`](arquitectura/billing.md) → "Per-user licenses".
+**Estado:** Fases 1 a 4 terminadas en dev el 2026-11-05 (la 3 probada contra Stripe en modo prueba) (sin desplegar; la Fase 2 solo puede salir junto con la 5, que primero pone `legacyUntil` a los clientes actuales). Detalle técnico en [`arquitectura/billing.md`](arquitectura/billing.md) → "Per-user licenses".
 
 Cada fase se verifica en dev (tsc, lint, pruebas, build, recorrido real) antes de pasar a la siguiente. Producción solo al final, con confirmación.
 

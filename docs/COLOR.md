@@ -9,7 +9,7 @@
 - Acento de apoyo: coral `#C21E4C` (`--accent-2`) sobre tinte `#FFE4EA` — badges y highlights, no CTA. El lab usaba `#E11D48`; se oscureció para WCAG AA sobre el tinte.
 - Cian `#67E8F9` solo decorativo.
 
-Hex espejo: `lib/brand-colors.ts` ↔ primitivos en `app/globals.css`. Contraste: `lib/design/__tests__/contrast.test.ts`. Espejo cPanel: `cpanel-site/assets/site.css`.
+Hex espejo: `lib/brand-colors.ts` ↔ primitivos en `app/globals.css`. Contraste: `lib/design/__tests__/contrast.test.ts`.
 
 Tema oscuro: `.dark` solo remapea semánticos (fondos/textos/tintes); los hex de marca en primitivos no cambian. Toggle compartido panel + sitio público.
 

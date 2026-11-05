@@ -60,8 +60,8 @@ describe("contrastRatio", () => {
   });
 });
 
-// Pares fijos en hex (correos, imágenes, widget de chat, copia estática de
-// cpanel-site): no leen los tokens CSS, así que se verifican aparte.
+// Pares fijos en hex (correos, imágenes, widget de chat): no leen los tokens
+// CSS, así que se verifican aparte.
 const HEX_PAIRS: [string, string, string, number][] = [
   ["tinta sobre fondo", B.ink, B.background, 4.5],
   ["tinta sobre blanco (correo)", B.ink, B.surface, 4.5],
@@ -89,29 +89,5 @@ describe("pares fijos de lib/brand-colors.ts", () => {
     expect(t["accent-2"].toLowerCase()).toBe(B.coral.toLowerCase());
     expect(t["foreground"].toLowerCase()).toBe(B.ink.toLowerCase());
     expect(t["background"].toLowerCase()).toBe(B.background.toLowerCase());
-  });
-});
-
-// cpanel-site/assets/site.css usa variables propias: se leen del :root.
-const siteCss = readFileSync(path.resolve(__dirname, "../../../cpanel-site/assets/site.css"), "utf8");
-const siteVars = Object.fromEntries([...siteCss.matchAll(/--([a-z-]+):(#[0-9a-fA-F]{3,6})\b/g)].map((m) => [m[1], m[2].length === 4 ? `#${[...m[2].slice(1)].map((c) => c + c).join("")}` : m[2]]));
-describe("cpanel-site/assets/site.css", () => {
-  it.each([
-    ["foreground", "background"],
-    ["muted", "background"],
-    ["muted", "surface"],
-    ["muted-strong", "surface-light"],
-    ["accent-ink", "background"],
-    ["accent-ink", "accent-subtle"],
-    ["success", "success-bg"],
-  ])("--%s sobre --%s ≥ 4.5", (fg, bg) => {
-    expect(contrastRatio(siteVars[fg], siteVars[bg])).toBeGreaterThanOrEqual(4.5);
-  });
-  it("blanco sobre el botón primario ≥ 4.5", () => {
-    expect(contrastRatio("#ffffff", siteVars["accent"])).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio("#ffffff", siteVars["accent-hover"])).toBeGreaterThanOrEqual(4.5);
-  });
-  it("no queda violeta de la paleta anterior", () => {
-    expect(siteCss).not.toMatch(/5b34e6|4a26c9|eee9fe|d9cffc/i);
   });
 });

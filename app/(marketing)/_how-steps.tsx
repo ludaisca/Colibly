@@ -7,7 +7,7 @@ import { Reveal } from "./_reveal";
 const STEPS = [
   {
     title: "Crea tu cuenta y conecta WhatsApp",
-    text: "API oficial de Meta. Cada ejecutivo puede usar su número en el celular y en Colibly a la vez.",
+    text: "API oficial de Meta. Cada persona de tu equipo puede usar su número en el celular y en Colibly a la vez.",
   },
   {
     title: "Enséñale a tu bot tu negocio",

@@ -11,7 +11,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) | Plan maestro: decisiones, marca, dominio, legal, Meta, Stripe. |
 | [TIPOGRAFIA.md](TIPOGRAFIA.md) | Fuentes en producción (Newsreader + Figtree) y reserva (Syne + DM Sans). |
 | [COLOR.md](COLOR.md) | Paleta Laguna: problema de monocromía y direcciones en `/marca/color`. |
-| [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md) | Estado y pasos siguientes de la landing beta y `cpanel-site/`. |
+| [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md) | **Histórico**: la landing en cPanel ya no existe; `colibly.com` lo sirve Next.js y `cpanel-site/` se eliminó (2026-11-05). |
 | [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md) | Plan A (Contabo) y plan B (ludaisca), DNS, correo. |
 | [DOMINIOS_Y_LANDING_BETA.md](DOMINIOS_Y_LANDING_BETA.md) | Separación `colibly.com` / `app.colibly.com`. |
 | [BITACORA_LANZAMIENTO_2026-10-19.md](BITACORA_LANZAMIENTO_2026-10-19.md) | **Vigente**: bitácora del pulido de lanzamiento (decisiones, planes, API, Meta, Stripe, producción) y pendientes. |
@@ -22,7 +22,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [RENDIMIENTO_2026-11-04.md](RENDIMIENTO_2026-11-04.md) | **Vigente**: diagnóstico de velocidad (polling, consultas, carga en producción), arreglos ya hechos y plan R1–R8 tomado de Chatwoot y Twenty. |
 | [BENCHMARK_CHATWOOT_TWENTY_2026-11-01.md](BENCHMARK_CHATWOOT_TWENTY_2026-11-01.md) | **Vigente**: segunda revisión de Chatwoot y Twenty: 18 funciones y 10 patrones de UI/UX que faltan, con prioridad y orden propuesto. |
 | [ROADMAP_PARIDAD_CHATWOOT.md](ROADMAP_PARIDAD_CHATWOOT.md) | Brechas frente a Chatwoot (P1/P2/P3 con esfuerzo) y siguiente paso propuesto. |
-| [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md) | **Vigente**: precio por ejecutivo (asientos) en MXN, reglas, Stripe y copias públicas. |
+| [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md) | **Superado** por [PLAN_LICENCIAS_2026-11-04.md](PLAN_LICENCIAS_2026-11-04.md) (licencias por usuario); rige solo a organizaciones con `legacyUntil`. |
 | [OFERTA_BETA_COLIBLY.md](OFERTA_BETA_COLIBLY.md) | Propuesta de oferta beta (superada: registro abierto y precio por ejecutivo). |
 | [RESPALDOS.md](RESPALDOS.md) | Respaldo diario de la base a S3/R2: configuración, restauración y límites. |
 

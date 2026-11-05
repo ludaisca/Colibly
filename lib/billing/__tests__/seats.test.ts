@@ -13,7 +13,8 @@ describe("catálogo por usuario (plans.ts)", () => {
     expect(PLANS.BUSINESS.pricePerSeatMxn).toBe(89);
     expect(PLANS.BUSINESS.name).toBe("Avanzado");
     expect(PLANS.PRO.pricePerSeatMxn).toBe(149);
-    expect(PLANS.PRO.badge).toBe("Más popular");
+    expect(PLANS.BUSINESS.badge).toBe("Recomendado");
+    expect(PLANS.PRO.badge).toBeNull();
     expect(monthlyTotalMxn(PLANS.PRO, 4)).toBe(596);
   });
   it("sin leyenda fiscal mientras no se facture", () => expect(PRICE_TAX_NOTE).toBeNull());

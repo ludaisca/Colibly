@@ -1,12 +1,12 @@
 import type { PlanId } from "@prisma/client";
 export type { PlanId };
 
-// Catálogo de planes — ÚNICO lugar para cambiar precios y límites. Lo leen la
-// landing (precios), los candados del servidor (lib/billing/gates.ts), la
-// pantalla "Plan y facturación", el panel de plataforma y el generador del
-// sitio de cPanel. Sin dependencias de servidor ni imports de valores (solo
-// `import type`): se importa desde componentes cliente y desde Node directo
-// (scripts/gen-cpanel-pricing.mjs, con type stripping).
+// Catálogo de planes: ÚNICO lugar para los PRECIOS y los nombres (Básico,
+// Avanzado, Pro). Las funciones y cupos de cada licencia viven en
+// licenses.ts; los cupos por asiento de abajo (perSeat/perOrg) son del
+// catálogo ANTERIOR y solo rigen a las organizaciones con legacyUntil. Sin
+// dependencias de servidor ni imports de valores (solo `import type`): se
+// importa desde componentes cliente.
 
 // ── Precio por usuario (oferta pública, 2026-10-27) ──
 // Se cobra por usuario: cada persona de la organización (dueño y admins
@@ -17,8 +17,6 @@ export type { PlanId };
 // Instagram usan la fórmula de la landing (incluidos + 1 por usuario extra, o
 // sin tope). Telegram y Messenger no tienen tope. La prueba usa el plan Pro
 // con TRIAL_MAX_SEATS usuarios: los límites sí se multiplican.
-// scripts/gen-cpanel-pricing.mjs copia estos números al sitio de cPanel; el
-// test lib/billing/__tests__/cpanel-pricing.test.ts falla si divergen.
 
 export const PRICE_CURRENCY = "MXN" as const;
 export const PRICE_UNIT = "MXN por usuario al mes";
@@ -114,7 +112,7 @@ export const PLANS: Record<PlanId, Plan> = {
     id: "ESSENTIAL",
     name: "Básico",
     pricePerSeatMxn: 59,
-    tagline: "Para equipos pequeños que buscan funciones de IA básicas",
+    tagline: "Para atender a tus clientes desde una bandeja, con CRM y embudo de ventas",
     badge: null,
     perSeat: {
       whatsapp: includedPlus(1),
@@ -144,8 +142,8 @@ export const PLANS: Record<PlanId, Plan> = {
     id: "BUSINESS",
     name: "Avanzado",
     pricePerSeatMxn: 89,
-    tagline: "Para equipos en desarrollo que buscan automatizar con IA",
-    badge: null,
+    tagline: "Para automatizar con IA: bots, difusiones y automatizaciones",
+    badge: "Recomendado",
     perSeat: {
       whatsapp: includedPlus(3),
       instagram: includedPlus(3),
@@ -174,8 +172,8 @@ export const PLANS: Record<PlanId, Plan> = {
     id: "PRO",
     name: "Pro",
     pricePerSeatMxn: 149,
-    tagline: "Para equipos consolidados que implementan IA avanzada",
-    badge: "Más popular",
+    tagline: "Para equipos que integran IA avanzada, API y Meta Ads",
+    badge: null,
     perSeat: {
       whatsapp: UNLIMITED_QUOTA,
       instagram: UNLIMITED_QUOTA,

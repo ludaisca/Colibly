@@ -9,7 +9,7 @@ Decisión **2026-10-25** (laboratorio `/marca/tipografia`).
 | **Display** (títulos, marca, precios grandes, wordmark) | **Newsreader** | `--font-display` → `font-display` |
 | **Body** (párrafos, UI, nav) | **Figtree** | `--font-body` → `--font-sans` |
 
-Carga: `next/font/google` en `app/layout.tsx`. El sitio cPanel (`cpanel-site/assets/site.css`) debe usar el mismo par.
+Carga: `next/font/google` en `app/layout.tsx`.
 
 Par anterior (histórico): Bricolage Grotesque + Hanken Grotesk.
 
@@ -22,7 +22,7 @@ Si Newsreader + Figtree no convence en el panel (densidad de listas/chats) o se 
 | Display | **Syne** |
 | Body | **DM Sans** |
 
-Nombre en el laboratorio: **Geométrica viva**. No está cargada en producción; para activarla, cambiar los loaders en `app/layout.tsx` (y el `@import` de `cpanel-site/assets/site.css`) y actualizar esta nota.
+Nombre en el laboratorio: **Geométrica viva**. No está cargada en producción; para activarla, cambiar los loaders en `app/layout.tsx` y actualizar esta nota.
 
 ## Laboratorio
 

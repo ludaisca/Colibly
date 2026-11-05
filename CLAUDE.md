@@ -90,7 +90,7 @@ What the two worlds share:
 
 ## Beta landing and host split (prepared in DEV, not deployed)
 
-The public landing lives in `app/(marketing)/page.tsx` (canonical `/`). `/beta` and `/producto` redirect to `/`. With `SITE_URL` (`colibly.com`) next to `APP_URL` (`app.colibly.com`), `proxy.ts` splits hosts: marketing on the site host, auth/app on the app host. `cpanel-site/` is legacy PHP (no longer required when `colibly.com` points at Next); price sync via `scripts/gen-cpanel-pricing.mjs` + `cpanel-pricing.test.ts` remains until that folder is removed. Trial is 14 days (`TRIAL_DAYS` in `lib/billing/plans.ts`). Typography: Newsreader + Figtree (reserve Syne + DM Sans — `docs/TIPOGRAFIA.md`). Docs index: `docs/README.md`.
+The public landing lives in `app/(marketing)/page.tsx` (canonical `/`). `/beta` and `/producto` redirect to `/`. With `SITE_URL` (`colibly.com`) next to `APP_URL` (`app.colibly.com`), `proxy.ts` splits hosts: marketing on the site host, auth/app on the app host. `colibly.com` is served by this Next app (verified 2026-11-05); the old PHP copy `cpanel-site/` and its price generator were removed in the license Phase 4 — public pricing comes only from `app/(marketing)/_landing-offer-data.ts`, built from `lib/billing/licenses.ts` + `plans.ts`. Trial is 14 days (`TRIAL_DAYS` in `lib/billing/plans.ts`). Typography: Newsreader + Figtree (reserve Syne + DM Sans — `docs/TIPOGRAFIA.md`). Docs index: `docs/README.md`.
 
 ## Navigation
 

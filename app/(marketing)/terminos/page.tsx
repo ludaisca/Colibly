@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
-import { GRACE_DAYS, PLAN_LIST, priceSentence, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_DAYS, TRIAL_MAX_SEATS, TRIAL_POOL_TEXT } from "@/lib/billing/plans";
+import { GRACE_DAYS, PLAN_LIST, RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL, TRIAL_DAYS, formatMxn } from "@/lib/billing/plans";
+import { TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/billing/licenses";
 import { META_FEES_NOTE } from "@/lib/billing/plan-features";
 import { LEGAL, LegalPage } from "../_legal";
 
 export const metadata: Metadata = { title: "Términos y condiciones", alternates: { canonical: "/terminos" } };
 
 export default function TermsPage() {
-  const prices = PLAN_LIST.map(priceSentence).join("; ");
+  const prices = PLAN_LIST.map((p) => `${p.name}, ${formatMxn(p.pricePerSeatMxn)} MXN por usuario al mes`).join("; ");
   return (
     <LegalPage title="Términos y condiciones de uso">
       <p>
@@ -25,16 +26,16 @@ export default function TermsPage() {
 
       <h2>2. Prueba gratuita</h2>
       <p>
-        Cada cuenta nueva tiene {TRIAL_DAYS} días de prueba con el plan Pro, para hasta {TRIAL_MAX_SEATS} usuarios, con {TRIAL_POOL_TEXT}, y sin tarjeta. Al terminar, si no se elige un
-        plan, la cuenta pasa a modo de solo lectura ese mismo día, sin periodo de gracia: los datos se conservan y los mensajes entrantes se siguen
+        Cada cuenta nueva tiene {TRIAL_DAYS} días de prueba para hasta {TRIAL_MAX_USERS} usuarios, todos con licencia Pro y {TRIAL_AI_CREDITS_PER_USER.toLocaleString("es-MX")} créditos de IA cada uno, sin tarjeta. Al terminar, si no se contratan
+        licencias, la cuenta pasa a modo de solo lectura ese mismo día, sin periodo de gracia: los datos se conservan y los mensajes entrantes se siguen
         recibiendo, pero no se envían mensajes ni funcionan los bots, automatizaciones y campañas.
       </p>
 
       <h2>3. Planes, precios y pagos</h2>
       <ul>
-        <li>Los planes vigentes son {prices}. El precio se cobra por ejecutivo: cada usuario de la cuenta que puede atender conversaciones (incluidos el dueño y los administradores) y cada invitación pendiente ocupa un asiento. El número de asientos de la suscripción es el máximo de ejecutivos de la cuenta.</li>
-        <li>Los límites de cada plan (números de WhatsApp, cuentas de Telegram, Messenger e Instagram, contactos y créditos de IA por ejecutivo; automatizaciones, IA, chat web, API y máximo de ejecutivos por cuenta) se muestran en la página de precios y en la cuenta.</li>
-        <li>Los precios están en pesos mexicanos (MXN) y se cobran por mes adelantado con tarjeta a través de Stripe. La suscripción se renueva automáticamente hasta que se cancele. Al agregar o quitar asientos o cambiar de plan, Stripe prorratea la diferencia en el siguiente cobro. No se pueden contratar menos asientos que los ejecutivos activos de la cuenta.</li>
+        <li>Las licencias vigentes son {prices}. Cada usuario de la cuenta (incluidos el dueño y los administradores) y cada invitación pendiente ocupa una licencia del plan que se le asigne, y una cuenta puede combinar licencias de distintos planes.</li>
+        <li>Cada licencia incluye un canal de cada tipo (WhatsApp, Instagram, Messenger, Telegram y chat web). Cada canal funciona con las funciones de la licencia de su dueño; un canal sin dueño con licencia activa funciona como Básico. Las funciones, los contactos y leads activos (que se suman en la cuenta) y los créditos de IA de cada licencia se muestran en la página de precios y en la cuenta.</li>
+        <li>Los precios están en pesos mexicanos (MXN) y se cobran por mes adelantado con tarjeta a través de Stripe. La suscripción se renueva automáticamente hasta que se cancele. Al agregar o quitar licencias o cambiar la licencia de un usuario, Stripe prorratea la diferencia: los aumentos se cobran al momento y las reducciones quedan como saldo a favor. No se pueden contratar menos licencias de un plan que las asignadas.</li>
         <li>{META_FEES_NOTE}</li>
         <li>Si un cobro de una suscripción ya pagada falla, hay {GRACE_DAYS} días de gracia con el servicio completo; después la cuenta pasa a solo lectura hasta que se regularice el pago.</li>
         <li>Podemos cambiar precios o límites avisando con al menos 30 días de anticipación; el cambio aplica a partir del siguiente periodo.</li>
@@ -43,8 +44,9 @@ export default function TermsPage() {
 
       <h2>4. Créditos de inteligencia artificial</h2>
       <p>
-        Cada plan incluye créditos mensuales de IA; cada respuesta de bot, sugerencia, calificación o paso de IA consume
-        uno. Los créditos no usados no se acumulan. Las respuestas generadas por IA pueden contener errores: el Cliente
+        Las licencias Avanzado y Pro incluyen créditos mensuales de IA para el usuario que la tiene; cada respuesta de bot,
+        sugerencia, calificación o paso de IA consume uno. Lo que la IA hace de forma automática en un canal consume los
+        créditos del dueño de ese canal. Los créditos no usados no se acumulan. Las respuestas generadas por IA pueden contener errores: el Cliente
         es responsable de revisar la configuración de sus bots y de lo que comunica a sus clientes.
       </p>
 

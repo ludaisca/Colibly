@@ -1,6 +1,17 @@
-// Oferta pública de la landing y de /precios. Los precios y los topes numéricos
-// salen de lib/billing/plans.ts (Básico / Avanzado / Pro). Esta matriz describe
-// las funciones; una fila solo puede decir «sí» cuando el producto ya la tiene.
+// Oferta pública de la landing y de /precios: licencias por usuario
+// (docs/PLAN_LICENCIAS_2026-11-04.md). Precios de lib/billing/plans.ts; cupos y
+// funciones de lib/billing/licenses.ts — la misma fuente que cobra la app y
+// que deciden los candados, así que la página no puede prometer otra cosa.
+
+import type { PlanId } from "@prisma/client";
+import {
+  hasFeature,
+  LICENSE_FEATURE_NAMES,
+  LICENSES,
+  licenseAddedFeatures,
+  type LicenseFeature,
+} from "@/lib/billing/licenses";
+import { PLANS } from "@/lib/billing/plans";
 
 export type OfferCell = true | false | string;
 
@@ -17,54 +28,38 @@ export type LandingPlan = {
   featured?: boolean;
 };
 
-export const OFFER_FROM_MXN = 59;
+export const OFFER_FROM_MXN = PLANS.ESSENTIAL.pricePerSeatMxn;
+
+/** Cada licencia: un canal de cada tipo. */
+export const CHANNELS_PER_USER_LINE = "1 WhatsApp (con Coexistencia), 1 Instagram, 1 Messenger, 1 Telegram y 1 chat web por usuario";
+
+const n = (v: number) => v.toLocaleString("es-MX");
+const funnelsText = (id: PlanId) => (Number.isFinite(LICENSES[id].funnels) ? `${n(LICENSES[id].funnels)} ${LICENSES[id].funnels === 1 ? "embudo" : "embudos"}` : "Embudos sin tope");
+
+function licensePlan(id: PlanId, key: LandingPlan["id"], tagline: string, base: string[]): LandingPlan {
+  const t = LICENSES[id];
+  return {
+    id: key,
+    name: PLANS[id].name,
+    tagline,
+    priceMxn: PLANS[id].pricePerSeatMxn,
+    leads: `${n(t.activeLeads)} leads activos y ${n(t.contacts)} contactos por usuario`,
+    credits: t.aiCreditsPerMonth > 0 ? `${n(t.aiCreditsPerMonth)} créditos de IA por usuario al mes` : "Sin créditos de IA",
+    channels: CHANNELS_PER_USER_LINE,
+    includes: [...base, ...licenseAddedFeatures(id).map((f) => LICENSE_FEATURE_NAMES[f]), `${funnelsText(id)} y ${n(t.customFields)} campos personalizados`],
+    featured: id === "BUSINESS",
+  };
+}
 
 export const LANDING_PLANS: LandingPlan[] = [
-  {
-    id: "base",
-    name: "Básico",
-    tagline: "Para equipos pequeños que buscan funciones de IA básicas",
-    priceMxn: 59,
-    leads: "2,500 leads por usuario",
-    credits: "750 créditos de IA por usuario al mes",
-    channels: "1 número de WhatsApp y 1 cuenta de Instagram. Cada usuario adicional desbloquea 1 canal.",
-    includes: [
-      "Múltiples embudos con etapas editables",
-      "Bandeja unificada",
-      "Calendario y tareas",
-      "Respuestas sugeridas, resúmenes y asistencia de escritura con IA",
-    ],
-  },
-  {
-    id: "advanced",
-    name: "Avanzado",
-    tagline: "Para equipos en desarrollo que buscan automatizar con IA",
-    priceMxn: 89,
-    leads: "5,000 leads por usuario",
-    credits: "1,250 créditos de IA por usuario al mes",
-    channels: "3 números de WhatsApp y 3 cuentas de Instagram. Después, 1 canal más por cada usuario extra.",
-    includes: [
-      "Todo en Básico",
-      "Automatizaciones, difusiones y bots sin código",
-      "Hasta 3 agentes de IA",
-      "200 campos personalizados y webhooks",
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    tagline: "Para equipos consolidados que implementan IA avanzada",
-    priceMxn: 149,
-    leads: "10,000 leads por usuario",
-    credits: "2,250 créditos de IA por usuario al mes",
-    channels: "Números de WhatsApp ilimitados y cuentas de Instagram ilimitadas.",
-    includes: [
-      "Todo en Avanzado",
-      "Hasta 50 agentes de IA y calificación de leads",
-      "400 campos personalizados",
-    ],
-    featured: true,
-  },
+  licensePlan("ESSENTIAL", "base", "Para atender a tus clientes desde una bandeja, con CRM y embudo de ventas", [
+    "Bandeja unificada",
+    "CRM, embudo de ventas y tareas",
+    "Calendario y citas",
+    "Respuestas rápidas",
+  ]),
+  licensePlan("BUSINESS", "advanced", "Para automatizar con IA: bots, difusiones y automatizaciones", ["Todo en Básico, más:"]),
+  licensePlan("PRO", "pro", "Para equipos que integran IA avanzada, API y Meta Ads", ["Todo en Avanzado, más:"]),
   {
     id: "enterprise",
     name: "Empresarial",
@@ -72,11 +67,8 @@ export const LANDING_PLANS: LandingPlan[] = [
     priceMxn: null,
     leads: "Leads y contactos a la medida",
     credits: "Créditos de IA a la medida",
-    channels: "Canales ilimitados, más allá de los límites estándar.",
-    includes: [
-      "Todo en Pro, con límites a la medida",
-      "Seguridad y soporte que se cotizan aparte",
-    ],
+    channels: "Canales y licencias a la medida.",
+    includes: ["Todo en Pro, con límites a la medida", "Seguridad y soporte que se cotizan aparte"],
   },
 ];
 
@@ -85,20 +77,21 @@ type Sub = { kind: "sub"; label: string };
 export type OfferGroup = { title: string; items: Array<Row | Sub> };
 
 const y = true;
-const n = false;
+const custom = "A la medida";
 function r(label: string, base: OfferCell, advanced: OfferCell, pro: OfferCell, enterprise: OfferCell): Row {
   return { kind: "row", label, cells: [base, advanced, pro, enterprise] };
 }
 function sub(label: string): Sub {
   return { kind: "sub", label };
 }
-
-const wa1 = "1 incluido +1 número por usuario adicional";
-const wa3 = "3 incluidos +1 número por usuario adicional";
-const ig1 = "1 incluida +1 cuenta por usuario adicional";
-const ig3 = "3 incluidas +1 cuenta por usuario adicional";
-const inf = "Ilimitado";
-const custom = "A la medida";
+/** Fila de una función de licencia: sí/no por plan, y Empresarial siempre. */
+function f(label: string, feature: LicenseFeature): Row {
+  return r(label, hasFeature("ESSENTIAL", feature), hasFeature("BUSINESS", feature), hasFeature("PRO", feature), y);
+}
+/** Fila numérica por licencia. */
+function num(label: string, pick: (id: PlanId) => string): Row {
+  return r(label, pick("ESSENTIAL"), pick("BUSINESS"), pick("PRO"), custom);
+}
 
 /** Comparación pública: solo filas que el producto ya hace. */
 export const OFFER_GROUPS: OfferGroup[] = [
@@ -107,50 +100,50 @@ export const OFFER_GROUPS: OfferGroup[] = [
     items: [
       r("Bandeja unificada", y, y, y, y),
       r("WhatsApp oficial, con Coexistencia", y, y, y, y),
-      r("Números de WhatsApp", wa1, wa3, inf, inf),
-      r("Cuentas de Instagram", ig1, ig3, inf, inf),
-      r("Cuentas de Telegram", inf, inf, inf, inf),
-      r("Cuentas de Facebook Messenger", inf, inf, inf, inf),
-      r("Chat web", y, y, y, y),
+      r("Canales por usuario", "1 de cada tipo", "1 de cada tipo", "1 de cada tipo", custom),
+      r("Instagram, Messenger, Telegram y chat web", y, y, y, y),
       r("Plantillas y botones de WhatsApp", y, y, y, y),
-      r("Difusiones de WhatsApp", n, y, y, y),
+      f("Difusiones de WhatsApp", "campaigns"),
+      f("Llamadas de WhatsApp", "calls"),
     ],
   },
   {
     title: "Embudo y trabajo",
     items: [
-      r("Embudos", "50", "50", "50", custom),
+      num("Embudos (por organización)", (id) => (Number.isFinite(LICENSES[id].funnels) ? n(LICENSES[id].funnels) : "Sin tope")),
       r("Etapas editables", y, y, y, y),
-      r("Leads activos por usuario", "2,500", "5,000", "10,000", custom),
-      r("Contactos por usuario", "12,500", "25,000", "50,000", custom),
-      r("Campos personalizados", "100", "200", "400", custom),
-      r("Tareas por contacto", y, y, y, y),
-      r("Calendario y citas", y, y, y, y),
-      r("Ganados y perdidos (30 días)", y, y, y, y),
+      num("Leads activos por usuario", (id) => n(LICENSES[id].activeLeads)),
+      num("Contactos por usuario", (id) => n(LICENSES[id].contacts)),
+      num("Campos personalizados (por organización)", (id) => n(LICENSES[id].customFields)),
+      r("Tareas, calendario y citas", y, y, y, y),
+      r("Respuestas rápidas", y, y, y, y),
+      f("Macros", "macros"),
+      f("Asignación automática", "autoAssign"),
+      f("Encuestas de satisfacción (CSAT)", "csat"),
     ],
   },
   {
     title: "IA y automatización",
     items: [
-      r("Créditos de IA al mes por usuario", "750", "1,250", "2,250", custom),
-      sub("Asistencia"),
-      r("Respuestas sugeridas", y, y, y, y),
-      r("Resúmenes", y, y, y, y),
-      r("Asistencia de escritura", y, y, y, y),
-      r("Sugerencia de tareas", y, y, y, y),
-      sub("Agentes"),
-      r("Agentes de IA", n, "3", "50", custom),
-      r("Automatizaciones", n, y, y, y),
-      r("Calificación de leads", n, n, y, y),
+      r("Créditos de IA al mes por usuario", false, n(LICENSES.BUSINESS.aiCreditsPerMonth), n(LICENSES.PRO.aiCreditsPerMonth), custom),
+      sub("Asistente"),
+      f("Respuestas sugeridas y resúmenes", "aiAssist"),
+      f("Reescritura y transcripción de notas de voz", "aiAssist"),
+      sub("Agentes y automatización"),
+      f("Agente de IA (bot) en tus canales", "aiAgent"),
+      f("Automatizaciones y secuencias", "automations"),
+      f("Calificación de leads", "leadScoring"),
+      f("Monitores de temas", "topicMonitors"),
+      f("Recuperación de leads", "leadRecovery"),
     ],
   },
   {
     title: "Integraciones",
     items: [
-      r("Google Sheets", y, y, y, y),
-      r("Formularios de leads de Meta", y, y, y, y),
-      r("API", y, y, y, y),
-      r("Webhooks", n, y, y, y),
+      f("Google Sheets y fuentes de leads", "leadSources"),
+      f("Formularios y conversiones de Meta Ads", "metaAds"),
+      f("API", "api"),
+      f("Webhooks", "webhooks"),
     ],
   },
 ];

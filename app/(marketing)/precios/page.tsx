@@ -2,6 +2,7 @@ import { appUrl } from "@/lib/app-url";
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
+import { LICENSES, TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/billing/licenses";
 import { META_FEES_NOTE } from "@/lib/billing/plan-features";
 import { LINK } from "../_page";
 import { LandingOffer } from "../_landing-offer";
@@ -23,6 +24,18 @@ export const metadata: Metadata = {
   },
 };
 
+const num = (v: number) => v.toLocaleString("es-MX");
+const { ESSENTIAL: B, BUSINESS: A, PRO: P } = LICENSES;
+
+// Reglas de las licencias (docs/PLAN_LICENCIAS_2026-11-04.md); números del catálogo.
+const NOTES = [
+  "Cada persona de tu equipo, incluidos el dueño y los administradores, paga una licencia, y en un mismo equipo puedes mezclar Básico, Avanzado y Pro. Agregas o quitas licencias cuando quieras; el pago es mensual.",
+  "Cada licencia incluye un canal de cada tipo: un WhatsApp (con Coexistencia), un Instagram, un Messenger, un Telegram y un chat web. Cada canal funciona con la licencia de su dueño: por ejemplo, el bot solo responde en los canales de una persona con Avanzado o Pro.",
+  `Contactos y leads activos se suman en tu equipo: Básico aporta ${num(B.contacts)} contactos y ${num(B.activeLeads)} leads; Avanzado, ${num(A.contacts)} y ${num(A.activeLeads)}; Pro, ${num(P.contacts)} y ${num(P.activeLeads)}. Embudos y campos personalizados son los de la licencia más alta del equipo.`,
+  `Los créditos de IA son de cada persona: ${num(A.aiCreditsPerMonth)} al mes con Avanzado y ${num(P.aiCreditsPerMonth)} con Pro; Básico no incluye IA. Lo automático en un chat (bot, automatizaciones) usa los créditos del dueño del canal. Los que no usas no pasan al mes siguiente.`,
+  "La API, los webhooks y las conversiones de Meta Ads los configura un administrador con licencia Pro.",
+];
+
 export default function PricingPage() {
   return (
     <div>
@@ -31,8 +44,8 @@ export default function PricingPage() {
           Planes y precios
         </h1>
         <p className="mt-4 text-pretty text-base leading-relaxed text-muted sm:text-lg">
-          Pagas por usuario, cada mes, en pesos. Básico $59, Avanzado $89 y Pro $149. Empresarial es a la
-          medida. Prueba {TRIAL_DAYS} días, sin tarjeta.
+          Cada persona de tu equipo paga una licencia, cada mes, en pesos: Básico $59, Avanzado $89 o Pro $149, y
+          puedes mezclarlas. Empresarial es a la medida. Prueba {TRIAL_DAYS} días, sin tarjeta.
         </p>
       </header>
 
@@ -46,34 +59,17 @@ export default function PricingPage() {
             Lo que conviene saber
           </h2>
           <ul className="mt-6 space-y-3 text-[15px] leading-relaxed text-foreground/90">
+            {NOTES.map((note) => (
+              <li key={note} className="flex gap-2.5">
+                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
+                <span className="min-w-0 text-pretty">{note}</span>
+              </li>
+            ))}
             <li className="flex gap-2.5">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
               <span className="min-w-0 text-pretty">
-                El precio es por usuario al mes. Todos los usuarios de la cuenta van en el mismo plan y puedes
-                agregar o quitar cuando quieras. El pago es mensual.
-              </span>
-            </li>
-            <li className="flex gap-2.5">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
-              <span className="min-w-0 text-pretty">
-                Los leads y los créditos de IA son por usuario y se multiplican por el equipo. Básico incluye
-                2,500 leads y 750 créditos al mes; Avanzado, 5,000 y 1,250; Pro, 10,000 y 2,250. Los créditos
-                que no usas no pasan al mes siguiente.
-              </span>
-            </li>
-            <li className="flex gap-2.5">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
-              <span className="min-w-0 text-pretty">
-                Básico incluye 1 WhatsApp y 1 Instagram; cada usuario adicional desbloquea un canal. Avanzado
-                incluye 3 de cada uno. Pro y Empresarial no tienen tope. Facebook y Telegram van en todos los
-                planes.
-              </span>
-            </li>
-            <li className="flex gap-2.5">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
-              <span className="min-w-0 text-pretty">
-                La prueba de {TRIAL_DAYS} días incluye todas las funciones, sin tarjeta. La API está documentada
-                en{" "}
+                La prueba de {TRIAL_DAYS} días es para hasta {TRIAL_MAX_USERS} personas, todas con licencia Pro y{" "}
+                {TRIAL_AI_CREDITS_PER_USER.toLocaleString("es-MX")} créditos de IA cada una, sin tarjeta. La API (licencia Pro) está documentada en{" "}
                 <a href={appUrl("/docs/api")} className="font-medium text-accent-ink underline underline-offset-2">
                   la referencia para desarrolladores
                 </a>

@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { InstagramIcon, MessengerIcon, TelegramIcon, WebchatIcon, WhatsAppIcon } from "@/app/components/ui/channel-icons";
 import { Button } from "@/app/components/ui/button";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
+import { LICENSES, TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/billing/licenses";
 import { COEXISTENCE_PITCH, META_FEES_NOTE } from "@/lib/billing/plan-features";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { appUrl, siteUrl } from "@/lib/app-url";
@@ -54,31 +55,31 @@ function ChannelIcon({ name }: { name: (typeof CHANNELS)[number] }) {
 const FAQ = [
   {
     q: "¿Necesito tarjeta para la prueba?",
-    a: `No. Tienes ${TRIAL_DAYS} días con todas las funciones, sin tarjeta. Al terminar eliges un plan; si no lo haces, ese mismo día tu cuenta queda en solo lectura y tus datos se conservan.`,
+    a: `No. Tienes ${TRIAL_DAYS} días con todas las funciones (licencia Pro para hasta ${TRIAL_MAX_USERS} personas, ${TRIAL_AI_CREDITS_PER_USER} créditos de IA cada una), sin tarjeta. Al terminar contratas las licencias de tu equipo; si no lo haces, ese mismo día tu cuenta queda en solo lectura y tus datos se conservan.`,
   },
   {
     q: "¿Cómo conecto mi WhatsApp?",
-    a: "Con la API oficial de WhatsApp Business de Meta. Cada ejecutivo puede conectar su propio número y seguir usándolo en el celular (Coexistencia). Te guiamos paso a paso.",
+    a: "Con la API oficial de WhatsApp Business de Meta. Cada persona de tu equipo puede conectar su propio número y seguir usándolo en el celular (Coexistencia). Te guiamos paso a paso.",
   },
   {
     q: "¿Cómo activo Instagram, Messenger, Telegram o el chat web?",
-    a: "Desde Básico conectas mensajería. Ese plan incluye 1 número de WhatsApp y 1 cuenta de Instagram; cada usuario adicional desbloquea 1 canal. Avanzado incluye 3 de cada uno. Pro y Empresarial no tienen tope de WhatsApp ni de Instagram. Facebook y Telegram van en todos los planes.",
+    a: "Con cualquier licencia. Cada persona de tu equipo trae un canal de cada tipo: un WhatsApp, un Instagram, un Messenger, un Telegram y un chat web. Cada canal funciona con la licencia de su dueño; por ejemplo, el bot responde en los canales de quien tiene Avanzado o Pro.",
   },
   {
     q: "¿Cómo se cobra?",
-    a: `Por usuario, cada mes, en pesos: Básico $59, Avanzado $89 y Pro $149. Empresarial es a la medida. ${META_FEES_NOTE}`,
+    a: `Cada persona de tu equipo paga una licencia, cada mes, en pesos: Básico $59, Avanzado $89 o Pro $149, y puedes mezclarlas (por ejemplo, tres Básico y un Pro). Empresarial es a la medida. ${META_FEES_NOTE}`,
   },
   {
     q: "¿Qué es un crédito de IA?",
-    a: "Básico incluye 750 créditos por usuario al mes, Avanzado 1,250 y Pro 2,250. Se multiplican por los usuarios de la cuenta: 3 usuarios en Pro son 6,750 créditos. Se renuevan en la fecha de facturación y los que no usas no pasan al mes siguiente.",
+    a: `Una respuesta del bot, una sugerencia, una calificación o un paso de IA. Son de cada persona: ${LICENSES.BUSINESS.aiCreditsPerMonth.toLocaleString("es-MX")} al mes con Avanzado y ${LICENSES.PRO.aiCreditsPerMonth.toLocaleString("es-MX")} con Pro (Básico no incluye IA). Lo que hace el bot en un chat usa los créditos del dueño de ese canal. Se renuevan en la fecha de facturación.`,
   },
   {
     q: "¿Puedo cambiar de plan o cancelar?",
-    a: "Todos los usuarios de la cuenta van en el mismo plan. Puedes cambiar de plan o agregar y quitar usuarios cuando quieras. El pago es mensual.",
+    a: "Sí. Puedes cambiar la licencia de cada persona, agregar o quitar licencias, o cancelar cuando quieras. El pago es mensual y los cambios se prorratean.",
   },
   {
     q: "¿Los créditos que no uso se acumulan?",
-    a: "No. Se restablecen en tu fecha de facturación. Si se acaban antes, puedes subir de plan o agregar usuarios.",
+    a: "No. Se restablecen en tu fecha de facturación. Si a alguien se le acaban antes, puedes subir su licencia a Pro.",
   },
   {
     q: "¿Mis datos están seguros?",
@@ -196,7 +197,7 @@ export default function LandingPage() {
             </div>
           </div>
           <p className="mt-2 text-xs text-muted">
-            Conecta cada canal con tus propias credenciales desde tu cuenta. Los límites dependen de tu plan.
+            Conecta cada canal con tus propias credenciales desde tu cuenta. Cada licencia incluye un canal de cada tipo.
           </p>
         </div>
       </section>
@@ -287,10 +288,10 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20 md:px-6 md:py-24">
           <Reveal>
             <h2 className="text-balance text-center font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-              Elige el plan de CRM con IA
+              Elige la licencia de cada persona
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-pretty text-center text-muted">
-              {TRIAL_DAYS} días gratis, sin tarjeta. Pagas cada mes, por usuario.
+              {TRIAL_DAYS} días gratis, sin tarjeta. Cada persona paga su licencia, cada mes, y puedes mezclar planes.
             </p>
           </Reveal>
           <LandingOffer cta={CTA} />

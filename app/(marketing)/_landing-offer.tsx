@@ -16,10 +16,10 @@ import {
 } from "./_landing-offer-data";
 
 function FeatureLabel({ label }: { label: string }) {
-  if (label === "Google Sheets") {
+  if (label === "Google Sheets y fuentes de leads") {
     return <span className="inline-flex items-center gap-2"><GoogleSheetsIcon size={16} className="shrink-0" />{label}</span>;
   }
-  if (label === "Formularios de leads de Meta") {
+  if (label === "Formularios y conversiones de Meta Ads") {
     return <span className="inline-flex items-center gap-2"><MetaIcon size={16} className="shrink-0" />{label}</span>;
   }
   return label;
@@ -48,7 +48,7 @@ function PlanCard({ plan, cta }: { plan: LandingPlan; cta: string }) {
         <h3 className="min-w-0 font-display text-xl font-semibold">{plan.name}</h3>
         {plan.featured ? (
           <Badge tone="accent" size="sm" className="shrink-0">
-            Más popular
+            Recomendado
           </Badge>
         ) : null}
       </div>
@@ -73,12 +73,16 @@ function PlanCard({ plan, cta }: { plan: LandingPlan; cta: string }) {
         <li className="font-medium">{plan.leads}</li>
         <li className="font-medium">{plan.credits}</li>
         <li className="text-pretty text-muted">{plan.channels}</li>
-        {plan.includes.map((line) => (
-          <li key={line} className="flex items-start gap-2">
-            <Check size={16} className="mt-0.5 shrink-0 text-accent-ink" aria-hidden />
-            <span className="min-w-0 text-pretty">{line}</span>
-          </li>
-        ))}
+        {plan.includes.map((line) =>
+          line.endsWith(", más:") ? (
+            <li key={line} className="text-pretty text-muted-strong">{line}</li>
+          ) : (
+            <li key={line} className="flex items-start gap-2">
+              <Check size={16} className="mt-0.5 shrink-0 text-accent-ink" aria-hidden />
+              <span className="min-w-0 text-pretty">{line}</span>
+            </li>
+          )
+        )}
       </ul>
       <Button
         href={custom ? "/contacto" : "/register"}

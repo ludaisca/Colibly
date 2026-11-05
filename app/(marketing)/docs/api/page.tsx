@@ -91,7 +91,8 @@ export default function ApiDocsPage() {
           <p className="mt-4 max-w-3xl text-pretty text-base text-muted-strong sm:text-lg">
             Con la API tu sistema consulta y actualiza contactos, lee conversaciones, envía mensajes de WhatsApp y arranca automatizaciones.
             Con los webhooks, {BRAND_NAME} avisa a tu servidor cada vez que llega un mensaje, se crea un contacto o cambia la etapa de un lead.
-            Ambos están incluidos en el plan Pro y en la prueba gratuita.
+            Ambos se incluyen con la licencia Pro (y en la prueba gratuita): las API keys y los webhooks los crea un administrador con licencia Pro,
+            y dejan de funcionar si esa persona deja de ser administrador o baja de licencia.
           </p>
           <dl className="mt-6 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
             <dt className="font-semibold">URL base</dt>

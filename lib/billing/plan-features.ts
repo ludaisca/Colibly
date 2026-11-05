@@ -1,12 +1,11 @@
-import type { Plan, PlanId, SeatQuota } from "./plans";
-import { PLAN_LIST } from "./plans";
+import type { Plan, SeatQuota } from "./plans";
 
-// Lo que incluye cada plan, en texto para la landing, /precios, la pantalla
-// del plan y el sitio de cPanel (scripts/gen-cpanel-pricing.mjs). Sale de
-// plans.ts: cambiar un número cambia todas las copias. Solo `import type`
-// de Prisma vía plans; PLAN_LIST es valor puro (sin Node).
+// Textos de planes compartidos. planFeatures() describe el catálogo ANTERIOR
+// (por asiento): solo lo usan las tarjetas de /configuracion/plan para las
+// organizaciones que lo conservan (legacyUntil). La oferta pública sale del
+// catálogo de licencias (app/(marketing)/_landing-offer-data.ts).
 
-export const COEXISTENCE_PITCH = "Cada ejecutivo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia).";
+export const COEXISTENCE_PITCH = "Cada persona de tu equipo conecta su propio WhatsApp y lo sigue usando en su celular (Coexistencia).";
 
 export const META_FEES_NOTE =
   "Meta cobra aparte algunos mensajes de WhatsApp según su categoría y destino; ese cargo lo paga el cliente directamente a Meta y no forma parte de la suscripción.";
@@ -66,102 +65,6 @@ export function planFeatures(plan: Plan): PlanFeature[] {
   ];
 }
 
-/** Celda de la matriz pública de planes (`/precios`). */
-export type PlanCompareCell = boolean | string;
-
-export interface PlanCompareRow {
-  id: string;
-  label: string;
-  hint?: string;
-  values: Record<PlanId, PlanCompareCell>;
-}
-
-function fmtNum(v: number): string {
-  return v.toLocaleString("es-MX");
-}
-
-/** Filas de comparación derivadas de PLAN_LIST — una sola fuente con las cards. */
-export function planCompareRows(): PlanCompareRow[] {
-  const byId = Object.fromEntries(PLAN_LIST.map((p) => [p.id, p])) as Record<PlanId, Plan>;
-  const cell = (pick: (p: Plan) => PlanCompareCell): Record<PlanId, PlanCompareCell> => ({
-    ESSENTIAL: pick(byId.ESSENTIAL),
-    BUSINESS: pick(byId.BUSINESS),
-    PRO: pick(byId.PRO),
-  });
-
-  return [
-    {
-      id: "whatsapp",
-      label: "WhatsApp",
-      hint: "Con Coexistencia: el número sigue en el celular",
-      values: cell((p) => quotaLine(p.perSeat.whatsapp, "número", "números").text),
-    },
-    {
-      id: "instagram",
-      label: "Instagram",
-      values: cell((p) => quotaLine(p.perSeat.instagram, "cuenta", "cuentas", true).text),
-    },
-    {
-      id: "contacts",
-      label: "Contactos por usuario",
-      values: cell((p) => fmtNum(p.perSeat.contacts)),
-    },
-    {
-      id: "leads",
-      label: "Leads activos por usuario",
-      values: cell((p) => fmtNum(p.perSeat.activeLeads)),
-    },
-    {
-      id: "ai",
-      label: "Créditos de IA / mes por usuario",
-      hint: "1 crédito ≈ 1 respuesta de bot, sugerencia o calificación",
-      values: cell((p) => (p.perOrg.aiAccess ? fmtNum(p.perSeat.aiCreditsPerMonth) : false)),
-    },
-    {
-      id: "automations",
-      label: "Automatizaciones activas",
-      values: cell((p) =>
-        p.perOrg.activeAutomations === 0 ? false : Number.isFinite(p.perOrg.activeAutomations) ? String(p.perOrg.activeAutomations) : "Sin tope"
-      ),
-    },
-    {
-      id: "bots",
-      label: "Bots que responden solos",
-      values: cell((p) => p.perOrg.bots),
-    },
-    {
-      id: "scoring",
-      label: "Calificación de leads",
-      values: cell((p) => p.perOrg.leadScoring),
-    },
-    {
-      id: "campaigns",
-      label: "Difusiones de WhatsApp",
-      values: cell((p) => p.perOrg.campaigns),
-    },
-    {
-      id: "webchat",
-      label: "Chat web",
-      values: cell((p) => p.perOrg.webchat),
-    },
-    {
-      id: "api",
-      label: "API",
-      values: cell((p) => p.perOrg.apiAccess),
-    },
-    {
-      id: "webhooks",
-      label: "Webhooks",
-      values: cell((p) => p.perOrg.webhooks),
-    },
-    {
-      id: "seats",
-      label: "Máximo de usuarios",
-      values: cell((p) => fmtNum(p.perOrg.maxSeats)),
-    },
-  ];
-}
-
 // Nota pública junto a los precios: moneda (sin afirmar nada de IVA, ver
 // PRICE_CURRENCY_NOTE en plans.ts) y cargos de Meta aparte.
-export const PRICING_FOOTNOTE = "Precios en MXN, por usuario al mes. Los cargos de Meta por mensajes de WhatsApp se pagan aparte, directamente a Meta.";
+export const PRICING_FOOTNOTE = "Precios en MXN, por licencia (usuario) al mes. Los cargos de Meta por mensajes de WhatsApp se pagan aparte, directamente a Meta.";

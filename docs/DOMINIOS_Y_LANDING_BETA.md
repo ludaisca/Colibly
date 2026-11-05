@@ -1,8 +1,6 @@
 # Landing beta y separación de dominios
 
-Desplegado públicamente el 2 de octubre de 2026 con la arquitectura separada: la copia PHP/cPanel sirve `https://colibly.com` y la aplicación de Coolify en ludaisca sirve `https://app.colibly.com`.
-
-La arquitectura activa sirve **una copia independiente** desde cPanel/Neubox en `colibly.com`, dejando `app.colibly.com` en ludaisca. Archivos y operación: [cpanel-site/README.md](../cpanel-site/README.md). La separación descrita abajo corresponde a la alternativa en que ambos hostnames llegan al mismo Next.js; no es la configuración pública actual.
+**Estado actual (verificado el 2026-11-05):** `https://colibly.com` y `https://app.colibly.com` llegan al mismo Next.js (la respuesta trae `x-powered-by: Next.js`); `proxy.ts` separa el sitio de la app con `SITE_URL` y `APP_URL`. La copia PHP de cPanel/Neubox que sirvió `colibly.com` desde el 2 de octubre de 2026 ya no existe y la carpeta `cpanel-site/` se eliminó del repositorio en la Fase 4 de licencias (2026-11-05). Lo de abajo describe esa separación en Next.js.
 
 ## Opción Next.js con ambos dominios en el mismo servicio
 

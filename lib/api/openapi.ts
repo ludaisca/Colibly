@@ -332,7 +332,7 @@ export function exampleEvent(type: string, data: Record<string, unknown>) {
 export const API_ERROR_CODES: { code: string; status: number; description: string }[] = [
   { code: "invalid_request", status: 400, description: "Cuerpo o parámetros inválidos; `message` dice cuál." },
   { code: "unauthorized", status: 401, description: "Falta la API key, es inválida, está revocada o vencida, o su dueño ya no es admin." },
-  { code: "plan_limit", status: 402, description: "La API es del plan Pro, o se alcanzó un límite del plan (p. ej. contactos)." },
+  { code: "plan_limit", status: 402, description: "El dueño de la API key ya no es administrador con licencia Pro, o se alcanzó un límite de la organización (p. ej. contactos)." },
   { code: "read_only", status: 402, description: "Cuenta en solo lectura (prueba vencida o pago pendiente): solo GET." },
   { code: "forbidden", status: 403, description: "La key no tiene el permiso que pide el endpoint." },
   { code: "not_found", status: 404, description: "No existe o no está al alcance de la key." },
