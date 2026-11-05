@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { TRIAL_DAYS, TRIAL_PLAN } from "@/lib/billing/plans";
+import { TRIAL_LICENSE } from "@/lib/billing/licenses";
 import { createDefaultPipeline } from "@/lib/pipeline/ensure";
 
 // Alta de un cliente nuevo (SaaS): la organización nace en prueba (plan Pro,
@@ -30,7 +31,8 @@ export async function createOrganizationWithOwner(
     },
   });
   const owner = await tx.user.create({
-    data: { name: input.name, email: input.email, password: input.hashedPassword, role: "admin", organizationId: organization.id },
+    // La organización nace en prueba: el dueño entra con la licencia de la prueba.
+    data: { name: input.name, email: input.email, password: input.hashedPassword, role: "admin", organizationId: organization.id, license: TRIAL_LICENSE },
   });
   await tx.organization.update({ where: { id: organization.id }, data: { ownerId: owner.id } });
   await createDefaultPipeline(tx, organization.id);

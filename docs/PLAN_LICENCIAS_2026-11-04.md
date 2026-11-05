@@ -33,9 +33,9 @@ Reglas:
 ### Datos (`prisma/schema.prisma`)
 - `User.license PlanId` (`license`) y, en la invitación (`AuthToken` tipo `INVITE`), `license`.
 - Créditos por usuario: `User.aiCreditsUsed`, `aiCreditsBonus`, `aiCreditsPeriodStart`, `aiCreditsAlertLevel`. Los de `Organization` quedan sin uso y se quitan en una migración posterior.
-- Canales: `WAAccount.userId` y `ChannelAccount.userId` pasan a significar **dueño** (hoy es "quien lo conectó"). Unicidad lógica: un dueño, un canal por tipo; se valida en la aplicación (un índice único parcial por `(userId, channel)` en `channel_accounts` y por `userId` en `wa_accounts`, solo para cuentas no borradas).
+- Canales: columna nueva `ownerId` (**dueño**, la licencia que ocupa) en `WAAccount` y `ChannelAccount`, aparte de `userId` (quien lo conectó, que sigue decidiendo los permisos de edición). Unicidad en la base: `owner_id` único en `wa_accounts` y `(owner_id, channel)` en `channel_accounts`; los NULL (sin dueño) no chocan.
 - `TopicMonitor.createdById` (hoy solo tiene organización).
-- `Organization.plan` se queda solo para la prueba; `seatQuantity` se reemplaza por la cantidad por plan que trae Stripe (`licenseQuantities Json`, `{ ESSENTIAL: n, BUSINESS: n, PRO: n }`).
+- `Organization.plan` se queda solo para la prueba; `seatQuantity` se reemplaza por la cantidad por plan que trae Stripe (`licensesEssential`, `licensesBusiness`, `licensesPro`), y `legacyUntil` marca a los clientes del catálogo anterior.
 
 ### Catálogo y reglas puras (`lib/billing/plans.ts`, `state.ts`)
 - Un solo `Plan.features` booleano por función (los de la tabla) y `Plan.perLicense` (`contacts`, `activeLeads`, `aiCreditsPerMonth`). Se va `SeatQuota`/`includedPlus`.
@@ -78,6 +78,8 @@ Reglas:
 | 4 | Textos públicos, landing, `/precios`, cPanel, correos, docs | bajo |
 | 5 | Migración de clientes reales y despliegue (ver §4) | alto |
 
+**Estado:** Fase 1 terminada en dev el 2026-11-05 (sin desplegar). Detalle técnico en [`arquitectura/billing.md`](arquitectura/billing.md) → "Per-user licenses".
+
 Cada fase se verifica en dev (tsc, lint, pruebas, build, recorrido real) antes de pasar a la siguiente. Producción solo al final, con confirmación.
 
 ## 4. Clientes actuales
@@ -86,7 +88,7 @@ Cada fase se verifica en dev (tsc, lint, pruebas, build, recorrido real) antes d
 - Lo que **pierden** con el catálogo nuevo: Básico pierde IA y API; Avanzado pierde API; los cupos de canales pasan a 1 por licencia; contactos y créditos bajan. Antes de desplegar hay que contar en producción cuántas organizaciones pagadas están en cada caso.
 - Propuesta: respetar lo que tienen hoy **60 días** (bandera `legacyUntil` en la organización) y avisarles por correo con la opción de cambiar licencias.
 
-## 5. Decisiones con valor propuesto (confirmar)
+## 5. Decisiones (confirmadas por el dueño del producto el 2026-11-04)
 
 1. **Prueba gratis:** 14 días, hasta 3 usuarios, todos con licencia Pro; créditos de IA de la prueba: 500 por persona (hoy son 1,000 para toda la organización).
 2. **Embudos y campos personalizados:** de la organización, según su licencia más alta: Básico 1 / 10, Avanzado 5 / 50, Pro sin tope / 400.

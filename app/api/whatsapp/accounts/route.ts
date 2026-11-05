@@ -12,6 +12,7 @@ import { requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
 import { getUserAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
+import { claimChannelOwner } from "@/lib/billing/user-license";
 import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 
 export async function POST(req: Request) {
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
       },
     });
     invalidateAccountScopes();
+    await claimChannelOwner("whatsapp", account.id, session.user.id);
 
     // verifyToken is only ever stored hashed — this is the one response where the
     // caller can see the plaintext value, since it must be copied into Meta's webhook config.

@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Máximo ${MAX_MONITORS_PER_ORG} monitores por organización` }, { status: 400 });
     }
     const monitor = await prisma.topicMonitor.create({
-      data: { organizationId: ctx.organizationId, name: parsed.data.name, description: parsed.data.description, active: parsed.data.active ?? true },
+      data: { organizationId: ctx.organizationId, createdById: ctx.userId, name: parsed.data.name, description: parsed.data.description, active: parsed.data.active ?? true },
       select: { id: true, name: true, description: true, active: true, createdAt: true },
     });
     return NextResponse.json({ ...monitor, matchCount: 0 }, { status: 201 });

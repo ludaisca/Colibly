@@ -7,12 +7,12 @@ import { MONITOR_DESCRIPTION_MAX } from "@/lib/monitors/rules";
 
 // Monitores de temas (F2): solo admin, como Bots IA (nav oculto → proxy.ts
 // USER_BLOCKED/EXECUTIVE_BLOCKED → 403 aquí).
-export async function monitorSession(): Promise<{ organizationId: string } | NextResponse> {
+export async function monitorSession(): Promise<{ organizationId: string; userId: string } | NextResponse> {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const denied = forbidRoles(session, ["user", "ejecutivo"]);
   if (denied) return denied;
-  return { organizationId: await requireOrgId(session.user.id) };
+  return { organizationId: await requireOrgId(session.user.id), userId: session.user.id };
 }
 
 export const monitorSchema = z.object({

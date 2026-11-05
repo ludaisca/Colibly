@@ -8,6 +8,7 @@ import { findValidAuthToken } from "@/lib/auth-tokens";
 import { checkPlanLimit } from "@/lib/billing/gates";
 import { BRAND_NAME } from "@/lib/brand";
 import { clientIp } from "@/lib/net/client-ip";
+import { defaultLicenseFor } from "@/lib/billing/user-license";
 
 const INVALID = "La invitación no es válida o ya venció. Pide a tu administrador que te envíe una nueva.";
 
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
       });
       if (count !== 1) throw new InvitationError(INVALID);
       await tx.user.create({
-        data: { name: parsed.data.name, email: record.email, password, role, organizationId, emailVerifiedAt: new Date() },
+        data: { name: parsed.data.name, email: record.email, password, role, organizationId, emailVerifiedAt: new Date(), license: record.license ?? (await defaultLicenseFor(organizationId)) },
       });
     });
     return NextResponse.json({ success: true, email: record.email }, { status: 201 });

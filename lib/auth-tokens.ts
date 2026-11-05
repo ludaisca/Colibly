@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { AuthToken, AuthTokenType } from "@prisma/client";
+import type { AuthToken, AuthTokenType, PlanId } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/crypto";
 
@@ -19,6 +19,8 @@ interface IssueInput {
   userId?: string;
   organizationId?: string;
   role?: string;
+  // Invitación: licencia con la que entrará la persona.
+  license?: PlanId;
   invitedById?: string;
 }
 
@@ -39,6 +41,7 @@ export async function issueAuthToken(input: IssueInput): Promise<{ token: string
         userId: input.userId,
         organizationId: input.organizationId,
         role: input.role,
+        license: input.license,
         invitedById: input.invitedById,
         expiresAt: new Date(Date.now() + AUTH_TOKEN_TTL_MS[input.type]),
       },

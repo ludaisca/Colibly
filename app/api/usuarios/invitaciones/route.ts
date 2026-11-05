@@ -9,6 +9,7 @@ import { issueAuthToken } from "@/lib/auth-tokens";
 import { sendInvitationEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
 import { BRAND_NAME } from "@/lib/brand";
+import { defaultLicenseFor } from "@/lib/billing/user-license";
 
 // Invitaciones pendientes de la organización (solo admin).
 export async function GET() {
@@ -67,6 +68,8 @@ export async function POST(req: Request) {
       type: "INVITE",
       email,
       role,
+      // Fase 1 de licencias: entra con el plan de la organización (la Fase 3 agrega el selector).
+      license: await defaultLicenseFor(inviter.organization.id),
       organizationId: inviter.organization.id,
       invitedById: session.user.id,
     });

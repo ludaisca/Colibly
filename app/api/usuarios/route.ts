@@ -11,6 +11,7 @@ import { emailField } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { checkPlanLimit } from "@/lib/billing/gates";
+import { defaultLicenseFor } from "@/lib/billing/user-license";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
@@ -197,7 +198,7 @@ export async function POST(req: Request) {
     // invitación). Sin esto el login lo rechazaba siempre con
     // email_not_verified y nunca se le mandaba un correo para confirmarlo.
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId, emailVerifiedAt: new Date() },
+      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId, emailVerifiedAt: new Date(), license: await defaultLicenseFor(organizationId) },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });
 

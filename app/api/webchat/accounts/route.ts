@@ -7,6 +7,7 @@ import { encrypt } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
+import { claimChannelOwner } from "@/lib/billing/user-license";
 import { getUserChannelAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { assertChannelEnabled } from "@/lib/channel-flags";
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
       select: ACCOUNT_SELECT,
     });
     invalidateAccountScopes();
+    await claimChannelOwner("channel", account.id, session.user.id);
 
     return NextResponse.json(account, { status: 201 });
   } catch (error) {

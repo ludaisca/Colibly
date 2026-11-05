@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { claimChannelOwner } from "@/lib/billing/user-license";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { coexistenceSyncQueue } from "@/lib/queue";
@@ -70,6 +71,7 @@ export function realEmbeddedSignupDeps(app: PlatformApp): EmbeddedSignupDeps {
           select: { id: true },
         });
         invalidateAccountScopes();
+        await claimChannelOwner("whatsapp", account.id, data.userId);
         return account;
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {

@@ -5,6 +5,7 @@ import { encrypt, decrypt, hashToken } from "@/lib/crypto";
 import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { subscribePageToApp, unsubscribePageFromApp } from "@/lib/meta-messaging";
 import { requireOrgId } from "@/lib/tenancy";
+import { claimChannelOwner } from "@/lib/billing/user-license";
 import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 // Lógica compartida por app/api/messenger/accounts y app/api/instagram/
@@ -58,6 +59,7 @@ export async function createMetaChannelAccount(
     select: ACCOUNT_SELECT,
   });
   invalidateAccountScopes();
+  await claimChannelOwner("channel", account.id, input.userId);
 
   // Equivalente a Telegram setWebhook(): sin esto, Meta nunca manda
   // webhooks a la cuenta recién creada aunque todo lo demás esté bien.

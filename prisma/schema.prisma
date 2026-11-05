@@ -39,6 +39,18 @@ model User {
   // Se incrementa para invalidar todas las sesiones JWT ya emitidas del
   // usuario (al desactivarlo) — el token guarda la versión con la que se firmó.
   sessionVersion Int       @default(0) @map("session_version")
+  // Licencia de esta persona (docs/PLAN_LICENCIAS_2026-11-04.md): cada usuario
+  // paga una, independiente de su rol. Decide lo que pide la persona (asistente
+  // de IA, crear automatizaciones…) y el plan de los canales de los que es dueña.
+  license                PlanId           @default(PRO)
+  // Créditos de IA personales (sin bolsa de equipo): el tope sale de la
+  // licencia (lib/billing/licenses.ts) más el bono que da la plataforma; se
+  // reinician con el periodo. Mientras la Fase 2 no conecte los candados, el
+  // consumo real sigue contándose en Organization.aiCreditsUsed.
+  aiCreditsUsed          Int              @default(0) @map("ai_credits_used")
+  aiCreditsBonus         Int              @default(0) @map("ai_credits_bonus")
+  aiCreditsPeriodStart   DateTime         @default(now()) @map("ai_credits_period_start")
+  aiCreditsAlertLevel    Int              @default(0) @map("ai_credits_alert_level")
   // Espacio de trabajo al que pertenece (un usuario = una organización). role
   // es el rol DENTRO de esta organización.
   organizationId String       @map("organization_id")
@@ -53,7 +65,11 @@ model User {
 
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
-  waAccounts            WAAccount[]
+  waAccounts            WAAccount[]            @relation("WAAccountCreator")
+  // Canales cuya licencia ocupa esta persona (uno de cada tipo).
+  ownedWaAccounts       WAAccount[]            @relation("WAAccountOwner")
+  ownedChannelAccounts  ChannelAccount[]       @relation("ChannelAccountOwner")
+  topicMonitors         TopicMonitor[]
   waCampaigns           WACampaign[]
   waBots                WABot[]
   leadScorerBots        WALeadScorerBot[]
@@ -67,7 +83,7 @@ model User {
   notifications         Notification[]
   sentMessages          WAMessage[]
   leadSheetSources      LeadSheetSource[]
-  channelAccounts       ChannelAccount[]
+  channelAccounts       ChannelAccount[]       @relation("ChannelAccountCreator")
   assignedConversations Conversation[]
   sentChannelMessages   ChannelMessage[]
   sharedChannelAccounts ChannelAccountShare[]
@@ -112,8 +128,15 @@ model GoogleAccount {
 
 model WAAccount {
   id                String          @id @default(cuid())
+  // Quien lo conectó (permisos de edición, accountManageWhere). El DUEÑO, cuya
+  // licencia ocupa el número y decide su plan, es ownerId.
   userId            String
-  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                   User                    @relation("WAAccountCreator", fields: [userId], references: [id], onDelete: Cascade)
+  // Dueño (licencia que ocupa): un WhatsApp por persona. NULL = sin dueño
+  // válido (organizaciones que ya tenían más números que licencias): se trata
+  // como Básico hasta asignarle uno. Los NULL no chocan en el índice único.
+  ownerId                String?                 @unique @map("owner_id")
+  owner                  User?                   @relation("WAAccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   organizationId    String          @map("organization_id")
   organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name              String
@@ -424,8 +447,12 @@ enum Channel {
 
 model ChannelAccount {
   id                String          @id @default(cuid())
+  // Quien lo conectó; el dueño (licencia que ocupa) es ownerId, igual que en WAAccount.
   userId            String
-  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User            @relation("ChannelAccountCreator", fields: [userId], references: [id], onDelete: Cascade)
+  // Una cuenta de cada tipo por persona (@@unique([ownerId, channel])); NULL = sin dueño.
+  ownerId              String?         @map("owner_id")
+  owner                User?           @relation("ChannelAccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   organizationId    String          @map("organization_id")
   organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   channel           Channel
@@ -473,6 +500,7 @@ model ChannelAccount {
   // Instagram: si dos ChannelAccount terminaran apuntando a la misma
   // Página, esto lo rechaza en vez de ocultar la colisión con un findFirst.
   @@unique([channel, externalAccountId])
+  @@unique([ownerId, channel])
   @@index([organizationId])
   @@map("channel_accounts")
 }
@@ -2200,6 +2228,14 @@ model Organization {
   // prueba se usa TRIAL_MAX_SEATS (plans.ts); al sincronizar el webhook se
   // actualiza. Los límites de contactos/créditos/WhatsApp = perSeat × seats.
   seatQuantity         Int                @default(1) @map("seat_quantity")
+  // Licencias compradas por plan (quantity de cada línea de la suscripción;
+  // docs/PLAN_LICENCIAS_2026-11-04.md). Reemplazan a seatQuantity en la Fase 3.
+  licensesEssential          Int                @default(0) @map("licenses_essential")
+  licensesBusiness           Int                @default(0) @map("licenses_business")
+  licensesPro                Int                @default(0) @map("licenses_pro")
+  // Clientes del catálogo anterior: hasta esta fecha conservan lo que tenían
+  // (funciones y cupos por organización). NULL = catálogo de licencias.
+  legacyUntil                DateTime?          @map("legacy_until")
   // El cliente canceló desde el portal: sigue activa hasta currentPeriodEnd.
   cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
   // Cuándo pasó a CANCELED — la purga de datos corre RETENTION_DAYS_AFTER_CANCEL después.
@@ -2298,6 +2334,8 @@ model AuthToken {
   organizationId String?       @map("organization_id")
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role           String?
+  // Invitación: licencia con la que entra la persona (la paga la organización).
+  license        PlanId?
   invitedById    String?       @map("invited_by_id")
   invitedBy      User?         @relation("AuthTokenInviter", fields: [invitedById], references: [id], onDelete: SetNull)
   expiresAt      DateTime      @map("expires_at")
@@ -2627,6 +2665,9 @@ model TopicMonitor {
   id             String       @id @default(cuid())
   organizationId String       @map("organization_id")
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Quien lo creó: sus créditos de IA pagan el monitor y su licencia lo habilita.
+  createdById    String?      @map("created_by_id")
+  createdBy      User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
   name           String
   description    String       @db.Text
   active         Boolean      @default(true)
@@ -2659,4 +2700,3 @@ model TopicMatch {
   @@index([monitorId, createdAt])
   @@map("topic_matches")
 }
-
