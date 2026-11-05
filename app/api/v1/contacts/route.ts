@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { jidCandidates } from "@/lib/whatsapp/coexistence/normalize";
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { ApiError, apiOk, decodeCursor, encodeCursor, readPageParams, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, decodeCursor, encodeCursor, readPageParams, withApiErrors, readJsonBody, methodNotAllowed } from "@/lib/api/respond";
 import { API_CONTACT_SELECT, contactScopeWhere, findScopedContact, serializeContact } from "@/lib/api/resources";
 import { apiContactCreateSchema } from "@/lib/api/schemas";
 import { setCustomFieldsByKey } from "@/lib/contacts/custom-fields";
@@ -75,9 +75,8 @@ export const GET = withApiErrors(async (req: Request) => {
 // plataforma cuando la persona escribe primero.
 export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "contacts:write");
-  const parsed = apiContactCreateSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
-  const input = parsed.data;
+  const body = await readJsonBody(req, apiContactCreateSchema);
+  const input = body;
 
   if (ctx.channelAccountIds.includes(input.accountId)) {
     throw new ApiError(400, "invalid_request", "Solo se pueden crear contactos en cuentas de WhatsApp");
@@ -154,3 +153,8 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
 
   return apiOk(serializeContact(await findScopedContact(ctx, created.id)), 201);
 }));
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const PUT = methodNotAllowed("GET", "POST");
+export const PATCH = PUT;
+export const DELETE = PUT;

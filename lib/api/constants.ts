@@ -24,6 +24,8 @@ export const API_SEND_PER_MINUTE_PER_ORG = envInt("API_RATE_LIMIT_SEND_PER_ORG",
 export const API_CONVERSATIONS_LIST_PER_MINUTE = envInt("API_RATE_LIMIT_CONVERSATIONS_PER_KEY", 60);
 /** POST /webhooks/{id}/deliveries/{deliveryId}/replay: reenvíos por minuto por organización. */
 export const API_WEBHOOK_REPLAYS_PER_MINUTE = envInt("API_RATE_LIMIT_WEBHOOK_REPLAYS_PER_ORG", 30);
+// Eventos webhook.test por minuto por organización (POST /webhooks/{id}/test).
+export const API_WEBHOOK_TESTS_PER_MINUTE = 10;
 /** POST /messages: envíos por día (UTC) por organización. */
 export const API_DAILY_SENDS_PER_ORG = envInt("API_DAILY_SEND_CAP_PER_ORG", 10_000);
 /** Tamaño máximo del cuerpo de una solicitud a /api/v1. */
@@ -40,7 +42,7 @@ export const API_BAD_KEY_ATTEMPTS_PER_MINUTE = 30;
  * webhook. Cambia solo con un cambio documentado en el changelog del OpenAPI;
  * los cambios son aditivos (campos nuevos), nunca se quita ni renombra uno.
  */
-export const API_SCHEMA_VERSION = "2026-11-04";
+export const API_SCHEMA_VERSION = "2026-11-05";
 export const API_SCHEMA_VERSION_HEADER = "X-Colibly-Schema-Version";
 /** Página de listados. */
 export const API_PAGE_DEFAULT = 25;

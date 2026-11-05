@@ -1,21 +1,15 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { webhookDeliveryQueue } from "@/lib/queue";
 import { requireAdmin } from "@/lib/integrations/admin-session";
-import { createDelivery } from "@/lib/webhooks/fanout";
+import { sendWebhookTestEvent } from "@/lib/webhooks/test-event";
 import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
 import { USERS_PATH } from "@/lib/billing/gates";
-import { integrationFeatureMessage } from "@/lib/billing/entitlements";
-import { BRAND_NAME } from "@/lib/brand";
 
 type Params = { params: Promise<{ id: string }> };
 
-// "Enviar evento de prueba": una entrega real (firmada, con reintentos y
-// registro) de un evento webhook.test, para validar la URL y la verificación
-// de firma del receptor sin esperar a que ocurra un evento real.
+// "Enviar evento de prueba" (lib/webhooks/test-event.ts).
 export async function POST(_req: Request, { params }: Params) {
   try {
     const admin = await requireAdmin();
@@ -26,24 +20,13 @@ export async function POST(_req: Request, { params }: Params) {
     const { id } = await params;
     const endpoint = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(admin.userId)) }, select: { id: true, active: true, userId: true } });
     if (!endpoint) return NextResponse.json({ error: "Webhook no encontrado" }, { status: 404 });
-    // Mismo candado que el fanout: su dueño sigue siendo admin con webhooks en
-    // su licencia (si no, una cuenta que bajó de plan seguiría mandando eventos).
-    const blocked = await integrationFeatureMessage(endpoint.userId, "webhooks");
-    if (blocked) return NextResponse.json({ error: blocked, code: "plan_limit", limit: "webhooks", actionUrl: USERS_PATH }, { status: 402 });
-    if (!endpoint.active) return NextResponse.json({ error: "Activa el webhook antes de probarlo" }, { status: 400 });
-
-    const delivery = await createDelivery(endpoint.id, {
-      id: randomUUID(),
-      type: "webhook.test",
-      occurredAt: new Date().toISOString(),
-      account: null,
-      contact: null,
-      conversation: null,
-      data: { message: `Evento de prueba enviado desde ${BRAND_NAME}` },
-    });
-    if (!delivery) return NextResponse.json({ error: "No se pudo crear la entrega" }, { status: 500 });
-    await webhookDeliveryQueue.add("deliver", { deliveryId: delivery.id }, { jobId: delivery.id });
-    return NextResponse.json({ deliveryId: delivery.id }, { status: 202 });
+    const result = await sendWebhookTestEvent(endpoint);
+    if (!result.ok) {
+      if (result.reason === "not_in_plan") return NextResponse.json({ error: result.message, code: "plan_limit", limit: "webhooks", actionUrl: USERS_PATH }, { status: 402 });
+      if (result.reason === "inactive") return NextResponse.json({ error: "Activa el webhook antes de probarlo" }, { status: 400 });
+      return NextResponse.json({ error: "No se pudo crear la entrega" }, { status: 500 });
+    }
+    return NextResponse.json({ deliveryId: result.deliveryId }, { status: 202 });
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno del servidor") }, { status: 500 });
   }

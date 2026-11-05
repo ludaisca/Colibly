@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
+import { OUTBOUND_MEDIA_TYPES } from "@/lib/messaging/outbound-media";
 
 // Validación de entrada de la API pública (/api/v1). Mensajes en español,
 // igual que lib/validations.ts; los `code` de error viven en respond.ts.
@@ -58,7 +59,7 @@ export const apiSendMessageSchema = z
   .object({
     conversationId: z.string().min(1).optional(),
     contactId: z.string().min(1).optional(),
-    type: z.enum(["text", "buttons", "template"]),
+    type: z.enum(["text", "buttons", "template", ...OUTBOUND_MEDIA_TYPES]),
     text: z.string().trim().min(1).max(4096).optional(),
     buttons: z.array(buttonSchema).min(1).max(3).optional(),
     template: z
@@ -69,6 +70,16 @@ export const apiSendMessageSchema = z
         buttonParam: z.string().max(1024).nullable().optional(),
       })
       .optional(),
+    // Archivo por URL (type image, document, audio o video).
+    media: z
+      .object({
+        url: z.string().trim().url("media.url debe ser una URL").max(2048).refine((v) => v.startsWith("https://"), "media.url debe usar https://"),
+        filename: z.string().trim().min(1).max(200).optional(),
+        mimeType: z.string().trim().min(3).max(127).optional(),
+      })
+      .strict()
+      .optional(),
+    caption: z.string().trim().min(1).max(1024, "caption admite máximo 1024 caracteres").optional(),
   })
   .refine((d) => !!d.conversationId !== !!d.contactId, "Envía conversationId o contactId (uno de los dos)")
   .refine((d) => d.type !== "text" || !!d.text, { message: "text es requerido", path: ["text"] })
@@ -76,6 +87,23 @@ export const apiSendMessageSchema = z
     message: "text y buttons son requeridos",
     path: ["buttons"],
   })
-  .refine((d) => d.type !== "template" || !!d.template, { message: "template es requerido", path: ["template"] });
+  .refine((d) => d.type !== "template" || !!d.template, { message: "template es requerido", path: ["template"] })
+  .refine((d) => !isMediaType(d.type) || !!d.media, { message: "media es requerido para image, document, audio y video", path: ["media"] })
+  .refine((d) => isMediaType(d.type) || !d.media, { message: "media solo va con type image, document, audio o video", path: ["media"] })
+  .refine((d) => isMediaType(d.type) || !d.caption, { message: "caption solo va con un archivo; para texto usa text", path: ["caption"] })
+  .refine((d) => d.type !== "audio" || !d.caption, { message: "Un audio no lleva caption", path: ["caption"] });
+
+function isMediaType(t: string): t is (typeof OUTBOUND_MEDIA_TYPES)[number] {
+  return (OUTBOUND_MEDIA_TYPES as readonly string[]).includes(t);
+}
+
+export const apiConversationUpdateSchema = z
+  .object({
+    status: z.enum(["OPEN", "PENDING", "RESOLVED"]).optional(),
+    // null = quitar la asignación.
+    assignedToId: z.string().min(1).nullable().optional(),
+  })
+  .strict()
+  .refine((d) => d.status !== undefined || d.assignedToId !== undefined, "Envía status, assignedToId o ambos");
 
 export type ApiSendMessageInput = z.infer<typeof apiSendMessageSchema>;

@@ -1961,6 +1961,10 @@ model WebhookEndpoint {
   // Secreto de firma, cifrado con lib/crypto.ts (se muestra al crearlo y se
   // puede rotar, nunca se devuelve en claro después).
   secret              String
+  // Rotación con periodo de gracia: el secreto anterior (cifrado) sigue
+  // firmando, como segunda v1 del header, hasta previousSecretExpiresAt.
+  previousSecret          String?   @map("previous_secret")
+  previousSecretExpiresAt DateTime? @map("previous_secret_expires_at")
   events              String[]  @default([])
   accountIds          String[]  @default([]) @map("account_ids")
   channelAccountIds   String[]  @default([]) @map("channel_account_ids")

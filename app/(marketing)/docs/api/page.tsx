@@ -4,7 +4,7 @@ import { appUrl } from "@/lib/app-url";
 import { buildOpenApiSpec } from "@/lib/api/openapi";
 import { API_SCOPES } from "@/lib/api/scopes";
 import { WEBHOOK_DELIVERY_RETENTION_DAYS } from "@/lib/api/constants";
-import { NODE_VERIFY, PAGINATION_NODE, PHP_VERIFY } from "./_snippets";
+import { NODE_VERIFY, PAGINATION_NODE, PHP_VERIFY, PYTHON_VERIFY } from "./_snippets";
 import { Code, InlineText, ParamTable, Section, SubHeading } from "./_ui";
 import { curlFor, endpointList, type EndpointDoc } from "./_endpoints";
 
@@ -184,7 +184,26 @@ export default function ApiDocsPage() {
 
         <Section id="errores" title="Errores">
           <p>Los errores responden con el status HTTP y un cuerpo estable. Decide según <code className="font-mono text-sm">code</code>; <code className="font-mono text-sm">message</code> está en español y puede cambiar.</p>
-          <Code>{`{ "error": { "code": "window_closed", "message": "Fuera de la ventana de 24 h: envía una plantilla aprobada" } }`}</Code>
+          <Code>{`{ "error": { "code": "window_closed", "message": "Fuera de la ventana de 24 h: envía una plantilla aprobada", "requestId": "req_4fQm1x9TzK2bLw7a" } }`}</Code>
+          <p>
+            En un error de validación, <code className="font-mono text-sm">details</code> lista cada campo con su ruta (<code className="font-mono text-sm">template.id</code>,{" "}
+            <code className="font-mono text-sm">buttons.0.title</code>), para que corrijas todo de una vez:
+          </p>
+          <Code>{`{
+  "error": {
+    "code": "invalid_request",
+    "message": "type: Opción inválida: se esperaba una de \"text\"|\"buttons\"|\"template\" (y 1 más en details)",
+    "details": [
+      { "path": "type", "message": "Opción inválida: se esperaba una de \"text\"|\"buttons\"|\"template\"" },
+      { "path": "template.id", "message": "Entrada inválida: se esperaba texto, recibido indefinido" }
+    ],
+    "requestId": "req_b8YmONFwR90UzIEW"
+  }
+}`}</Code>
+          <p>
+            Cada respuesta, buena o mala, trae el header <code className="font-mono text-sm">X-Request-Id</code> (igual a <code className="font-mono text-sm">error.requestId</code>). Guárdalo en tus logs e
+            inclúyelo si escribes a soporte: con él encontramos tu llamada.
+          </p>
           <ParamTable
             head={["Status", "code", "Cuándo"]}
             rows={spec["x-colibly-error-codes"].map((e) => [String(e.status), <code key={e.code} className="font-mono text-sm">{e.code}</code>, e.description])}
@@ -195,7 +214,9 @@ export default function ApiDocsPage() {
           <p>
             Los listados devuelven <code className="font-mono text-sm">{"{ data, nextCursor }"}</code>. Pide la siguiente página con{" "}
             <code className="font-mono text-sm">?cursor=&lt;nextCursor&gt;</code>; cuando <code className="font-mono text-sm">nextCursor</code> es <code className="font-mono text-sm">null</code>, terminaste.{" "}
-            <code className="font-mono text-sm">limit</code> va de 1 a {limits.pageMax} (por defecto {limits.pageDefault}). El cursor es opaco: no lo construyas ni lo guardes por mucho tiempo.
+            <code className="font-mono text-sm">limit</code> va de 1 a {limits.pageMax} (por defecto {limits.pageDefault}). El cursor es opaco: no lo construyas ni lo guardes por mucho tiempo.{" "}
+            Los catálogos (<code className="font-mono text-sm">/accounts</code>, <code className="font-mono text-sm">/templates</code>, <code className="font-mono text-sm">/tags</code>,{" "}
+            <code className="font-mono text-sm">/users</code>, <code className="font-mono text-sm">/automations</code>) devuelven la lista completa en <code className="font-mono text-sm">data</code>, sin cursor.
           </p>
           <Code>{PAGINATION_NODE.replace("https://app.colibly.com/api/v1", base)}</Code>
           <p className="text-sm text-muted-strong">
@@ -222,9 +243,16 @@ export default function ApiDocsPage() {
           </p>
           <ul className="list-disc space-y-1.5 pl-5">
             <li>La URL debe ser <code className="font-mono text-sm">https://</code> y pública. Rechazamos direcciones internas o reservadas, y no seguimos redirecciones.</li>
-            <li>Al crearlo recibes un secreto <code className="font-mono text-sm">whsec_…</code>, que se muestra una vez y se puede rotar. Sirve para verificar la firma.</li>
+            <li>
+              Al crearlo recibes un secreto <code className="font-mono text-sm">whsec_…</code>, que se muestra una vez y sirve para verificar la firma. Se rota en la pantalla o con{" "}
+              <code className="font-mono text-sm">POST /webhooks/{"{id}"}/rotate-secret</code>. Con <code className="font-mono text-sm">{"{ \"graceHours\": 24 }"}</code> el anterior sigue firmando ese tiempo
+              (hasta 72 h); sin él, deja de firmar en ese momento.
+            </li>
             <li>Máximo {limits.maxWebhooks} webhooks por cuenta.</li>
-            <li>El botón <strong>Probar</strong> envía un evento <code className="font-mono text-sm">webhook.test</code> firmado, para validar tu receptor sin esperar un evento real.</li>
+            <li>
+              El botón <strong>Probar</strong> (o <code className="font-mono text-sm">POST /webhooks/{"{id}"}/test</code>) envía un evento <code className="font-mono text-sm">webhook.test</code> firmado, para
+              validar tu receptor sin esperar un evento real. Su resultado queda en el historial de entregas.
+            </li>
           </ul>
 
           <SubHeading>Cada entrega</SubHeading>
@@ -263,10 +291,17 @@ export default function ApiDocsPage() {
 
           <SubHeading>Verificar la firma</SubHeading>
           <p>Verifica cada entrega antes de confiar en ella: compara la firma con una función de tiempo constante y rechaza las que tengan más de 5 minutos.</p>
+          <p>
+            El header puede traer <strong>más de una</strong> <code className="font-mono text-sm">v1</code>: al rotar el secreto con periodo de gracia, cada entrega va firmada con el nuevo y con el
+            anterior (<code className="font-mono text-sm">t=…,v1=&lt;nuevo&gt;,v1=&lt;anterior&gt;</code>) hasta que vence. Acepta la entrega si cualquiera coincide con tu secreto; así cambias el
+            secreto de tu servidor sin perder eventos. Las recetas de abajo ya lo hacen.
+          </p>
           <p className="text-sm font-semibold">Node.js</p>
           <Code>{NODE_VERIFY}</Code>
           <p className="text-sm font-semibold">PHP</p>
           <Code>{PHP_VERIFY}</Code>
+          <p className="text-sm font-semibold">Python</p>
+          <Code>{PYTHON_VERIFY}</Code>
 
           <SubHeading>Reintentos, desactivación y pausa</SubHeading>
           <ul className="list-disc space-y-1.5 pl-5">

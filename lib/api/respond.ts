@@ -1,4 +1,7 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { applyRateLimitHeaders } from "./rate-headers";
 import { API_MAX_BODY_BYTES, API_PAGE_DEFAULT, API_PAGE_MAX, API_SCHEMA_VERSION, API_SCHEMA_VERSION_HEADER } from "./constants";
@@ -22,10 +25,35 @@ export type ApiErrorCode =
   | "internal_error"
   | "payload_too_large"
   | "daily_limit_reached"
-  | "service_unavailable";
+  | "service_unavailable"
+  | "method_not_allowed"
+  | "required_fields";
 
-export function apiError(status: number, code: ApiErrorCode, message: string, headers?: HeadersInit): NextResponse {
-  return NextResponse.json({ error: { code, message } }, { status, headers });
+/** Un problema concreto del cuerpo: `path` con puntos (`template.id`, `buttons.0.title`); "" = el cuerpo entero. */
+export interface ApiErrorDetail {
+  path: string;
+  message: string;
+}
+
+// Id de cada solicitud (X-Request-Id y `error.requestId`): lo que un
+// integrador nos manda a soporte para encontrar su llamada en los logs.
+export const REQUEST_ID_HEADER = "X-Request-Id";
+const requestContext = new AsyncLocalStorage<{ requestId: string }>();
+
+export function newRequestId(): string {
+  return `req_${randomBytes(12).toString("base64url")}`;
+}
+
+export function currentRequestId(): string | null {
+  return requestContext.getStore()?.requestId ?? null;
+}
+
+export function apiError(status: number, code: ApiErrorCode, message: string, headers?: HeadersInit, details?: ApiErrorDetail[]): NextResponse {
+  const requestId = currentRequestId();
+  const error: Record<string, unknown> = { code, message };
+  if (details?.length) error.details = details;
+  if (requestId) error.requestId = requestId;
+  return NextResponse.json({ error }, { status, headers });
 }
 
 export function apiOk<T>(data: T, status = 200): NextResponse {
@@ -38,33 +66,118 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: ApiErrorCode,
     message: string,
-    public readonly headers?: Record<string, string>
+    public readonly headers?: Record<string, string>,
+    public readonly details?: ApiErrorDetail[]
   ) {
     super(message);
   }
+}
+
+// Lee y valida el cuerpo JSON de un POST/PATCH. Errores pensados para quien
+// integra: cuerpo vacío o JSON mal formado con su propio mensaje (no "se
+// esperaba objeto, recibido nulo"), y los de validación en español con la
+// ruta del campo — el primero en `message`, todos en `details`.
+// Los mensajes propios de cada esquema (lib/api/schemas.ts) ganan al locale.
+const ES_LOCALE = z.locales.es();
+
+export function issuesToDetails(issues: readonly z.core.$ZodIssue[]): ApiErrorDetail[] {
+  return issues.map((i) => ({ path: i.path.map(String).join("."), message: i.message }));
+}
+
+export function detailsMessage(details: ApiErrorDetail[]): string {
+  const first = details[0];
+  if (!first) return "Cuerpo inválido";
+  const head = first.path ? `${first.path}: ${first.message}` : first.message;
+  return details.length > 1 ? `${head} (y ${details.length - 1} más en details)` : head;
+}
+
+/** `optional`: un cuerpo vacío vale como `{}` (endpoints con opciones, p. ej. rotate-secret). */
+export async function readJsonBody<S extends z.ZodType>(req: Request, schema: S, opts: { optional?: boolean } = {}): Promise<z.infer<S>> {
+  let raw: string;
+  try {
+    raw = await req.text();
+  } catch (err) {
+    if (bodyOverflowed(req) || err instanceof ApiError) throw err instanceof ApiError ? err : payloadTooLarge(API_MAX_BODY_BYTES);
+    throw new ApiError(400, "invalid_request", "No se pudo leer el cuerpo de la solicitud");
+  }
+  if (!raw.trim() && opts.optional) raw = "{}";
+  if (!raw.trim()) {
+    throw new ApiError(400, "invalid_request", "El cuerpo está vacío: envía un objeto JSON con Content-Type: application/json");
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(raw);
+  } catch (err) {
+    const pos = err instanceof Error ? /position (\d+)/.exec(err.message)?.[1] : undefined;
+    throw new ApiError(400, "invalid_request", `El cuerpo no es JSON válido${pos ? ` (error en la posición ${pos})` : ""}`);
+  }
+  const parsed = schema.safeParse(body, { error: ES_LOCALE.localeError });
+  if (!parsed.success) {
+    const details = issuesToDetails(parsed.error.issues);
+    throw new ApiError(400, "invalid_request", detailsMessage(details), undefined, details);
+  }
+  return parsed.data;
+}
+
+// 405 en JSON con `Allow` (Next respondería un 405 vacío): cada ruta de
+// /api/v1 exporta los métodos que no atiende con este handler.
+export function methodNotAllowed(...allowed: string[]) {
+  const allow = allowed.join(", ");
+  return async (req: Request): Promise<Response> =>
+    requestContext.run({ requestId: newRequestId() }, () =>
+      finish(apiError(405, "method_not_allowed", `${req.method} no está permitido en ${new URL(req.url).pathname}. Métodos: ${allow}`, { Allow: allow }))
+    );
+}
+
+// Headers comunes de toda respuesta de /api/v1 (versión del contrato e id de solicitud).
+function finish(res: Response): Response {
+  const out = withSchemaVersion(res);
+  const id = currentRequestId();
+  if (id) {
+    try {
+      out.headers.set(REQUEST_ID_HEADER, id);
+    } catch {
+      // Headers inmutables: se entrega sin el id.
+    }
+  }
+  return out;
 }
 
 // Envuelve un handler: ApiError → su respuesta; cualquier otra cosa → 500 sin
 // filtrar detalles de Prisma (publicErrorMessage ya los registra). Agrega los
 // headers X-RateLimit-* que dejó authenticateApiKey.
 export function withApiErrors<A extends [Request, ...unknown[]]>(handler: (...args: A) => Promise<Response>) {
-  return async (...args: A): Promise<Response> => {
-    let res: Response;
-    try {
-      args[0] = guardRequestBody(args[0]);
-      res = await handler(...args);
-    } catch (err) {
-      res =
-        err instanceof ApiError
-          ? apiError(err.status, err.code, err.message, err.headers)
-          : apiError(500, "internal_error", publicErrorMessage(err, "Error interno del servidor"));
-    }
-    if (bodyOverflowed(args[0])) {
-      const tooLarge = payloadTooLarge(API_MAX_BODY_BYTES);
-      res = apiError(tooLarge.status, tooLarge.code, tooLarge.message);
-    }
-    return withSchemaVersion(applyRateLimitHeaders(args[0], res));
-  };
+  return async (...args: A): Promise<Response> =>
+    requestContext.run({ requestId: currentRequestId() ?? newRequestId() }, async () => {
+      let res: Response;
+      try {
+        args[0] = guardRequestBody(args[0]);
+        res = await handler(...args);
+      } catch (err) {
+        if (err instanceof ApiError) {
+          res = apiError(err.status, err.code, err.message, err.headers, err.details);
+        } else {
+          console.error(`[api] ${currentRequestId()} ${args[0].method} ${new URL(args[0].url).pathname}: error interno`);
+          res = apiError(500, "internal_error", publicErrorMessage(err, "Error interno del servidor"));
+        }
+      }
+      if (bodyOverflowed(args[0])) {
+        const tooLarge = payloadTooLarge(API_MAX_BODY_BYTES);
+        res = apiError(tooLarge.status, tooLarge.code, tooLarge.message);
+      }
+      return finish(applyRateLimitHeaders(args[0], res));
+    });
+}
+
+/** Para respuestas armadas fuera de withApiErrors (p. ej. el 404 del catch-all). */
+export function withRequestContext(fn: () => Response): Response {
+  return requestContext.run({ requestId: newRequestId() }, () => finish(fn()));
+}
+
+/** Envoltura externa (p. ej. withIdempotency): sus propias respuestas también llevan el id. */
+export function withRequestScope<A extends [Request, ...unknown[]]>(handler: (...args: A) => Promise<Response>) {
+  return (...args: A): Promise<Response> =>
+    requestContext.run({ requestId: currentRequestId() ?? newRequestId() }, async () => finish(await handler(...args)));
 }
 
 export function withSchemaVersion(res: Response): Response {

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, withApiErrors, readJsonBody, methodNotAllowed } from "@/lib/api/respond";
 import { findScopedContact } from "@/lib/api/resources";
 import { startRun } from "@/lib/automations/runner";
 import { withIdempotency } from "@/lib/api/idempotency";
@@ -18,10 +18,9 @@ const bodySchema = z.object({
 export const POST = withIdempotency(withApiErrors(async (req: Request, { params }: Params) => {
   const ctx = await authenticateApiKey(req, "automations:run");
   const { id } = await params;
-  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
+  const body = await readJsonBody(req, bodySchema);
 
-  const contact = await findScopedContact(ctx, parsed.data.contactId);
+  const contact = await findScopedContact(ctx, body.contactId);
   const automation = await prisma.automation.findFirst({
     where: {
       id,
@@ -44,9 +43,15 @@ export const POST = withIdempotency(withApiErrors(async (req: Request, { params 
       ? { kind: "whatsapp", id: automation.waAccountId }
       : { kind: "channel", id: automation.channelAccountId!, channel: automation.channelAccount!.channel },
     chat: chatId ? (contact.accountId ? { kind: "whatsapp", id: chatId } : { kind: "channel", id: chatId }) : null,
-    vars: parsed.data.vars,
+    vars: body.vars,
     force: true,
   });
   if (!result.started) throw new ApiError(409, "conflict", result.reason);
   return apiOk({ runId: result.runId }, 201);
 }));
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const GET = methodNotAllowed("POST");
+export const PUT = GET;
+export const PATCH = GET;
+export const DELETE = GET;

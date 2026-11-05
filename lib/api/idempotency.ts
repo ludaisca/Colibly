@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { getRedisClient } from "@/lib/redis";
 import { hashToken } from "@/lib/crypto";
-import { ApiError, apiError, bodyOverflowed, guardRequestBody } from "./respond";
+import { ApiError, apiError, bodyOverflowed, guardRequestBody, withRequestScope } from "./respond";
 import { API_KEY_PREFIX } from "./keys";
 import { IDEMPOTENCY_TTL_HOURS } from "./constants";
 
@@ -34,7 +34,7 @@ type Stored =
   | { state: "done"; fingerprint: string; status: number; body: string; contentType: string | null };
 
 export function withIdempotency<A extends [Request, ...unknown[]]>(handler: (...args: A) => Promise<Response>) {
-  return async (...args: A): Promise<Response> => {
+  return withRequestScope(async (...args: A): Promise<Response> => {
     const key = args[0].headers.get(IDEMPOTENCY_HEADER);
     if (key === null) return handler(...args);
     // El tope de cuerpo va antes de leerlo para la huella.
@@ -99,7 +99,7 @@ export function withIdempotency<A extends [Request, ...unknown[]]>(handler: (...
       console.error("[api] No se pudo guardar la respuesta idempotente:", err instanceof Error ? err.message : err);
     }
     return res;
-  };
+  });
 }
 
 function replay(stored: Stored, fingerprint: string): Response {

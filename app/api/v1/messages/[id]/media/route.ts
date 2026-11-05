@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { ApiError, withApiErrors } from "@/lib/api/respond";
+import { ApiError, withApiErrors, methodNotAllowed } from "@/lib/api/respond";
 import { contentDisposition, mediaReadStream, resolveAbsolutePath } from "@/lib/whatsapp/media-store";
 
 type Params = { params: Promise<{ id: string }> };
@@ -39,3 +39,9 @@ export const GET = withApiErrors(async (req: Request, { params }: Params) => {
   headers.set("Cache-Control", "private, max-age=3600");
   return new Response(mediaReadStream(message.mediaUrl) as unknown as ReadableStream, { headers });
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET");
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

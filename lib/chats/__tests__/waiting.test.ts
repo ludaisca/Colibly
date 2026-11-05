@@ -47,7 +47,7 @@ describe("puntos que mantienen waitingSince", () => {
     "lib/workers/bot-send-worker.ts",
     "lib/telegram/bot-worker.ts",
     "lib/meta-messaging/bot-worker.ts",
-    "app/api/whatsapp/chats/[chatId]/status/route.ts",
+    "lib/chats/actions.ts",
     "app/api/whatsapp/chats/bulk/route.ts",
     "lib/macros/execute.ts",
   ])("%s limpia waitingSince", (file) => {

@@ -109,11 +109,16 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
     }
   }
 
-  async function handleRotate() {
+  // graceHours > 0: el secreto anterior sigue firmando ese tiempo (segunda v1).
+  async function handleRotate(graceHours: number) {
     if (!rotating) return;
     setBusy(true);
     try {
-      const data = await call(`/api/configuracion/webhooks/${rotating.id}/rotate-secret`, { method: "POST" }, "Secreto rotado");
+      const data = await call(
+        `/api/configuracion/webhooks/${rotating.id}/rotate-secret`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ graceHours }) },
+        graceHours > 0 ? `Secreto rotado: el anterior sigue firmando ${graceHours} h` : "Secreto rotado"
+      );
       setRotating(null);
       setRotatedSecret(data.secret);
     } catch (err) {
@@ -217,16 +222,28 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
         description="Su creador ya no es administrador. Al reactivarlo pasa a ser tuyo y enviará los eventos de las cuentas a las que tú tienes acceso."
         confirmLabel="Reactivar y tomar propiedad"
       />
-      <ConfirmDialog
+      <Modal
         open={!!rotating}
         onClose={() => setRotating(null)}
-        onConfirm={handleRotate}
-        loading={busy}
-        tone="warning"
         title={`¿Rotar el secreto de “${rotating?.name}”?`}
-        description="El secreto actual deja de firmar de inmediato: actualiza tu servidor con el nuevo o rechazará las entregas."
-        confirmLabel="Rotar"
-      />
+        description="Con 24 h de gracia, cada entrega va firmada con el secreto nuevo y con el actual (dos v1 en X-Colibly-Signature) mientras actualizas tu servidor. Sin gracia, el actual deja de firmar en este momento."
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRotating(null)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button variant="secondary" onClick={() => handleRotate(0)} disabled={busy}>
+              Rotar ya
+            </Button>
+            <Button onClick={() => handleRotate(24)} loading={busy}>
+              Rotar con 24 h de gracia
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-strong">Tu verificador debe aceptar la entrega si cualquiera de las firmas v1 coincide (las recetas de la documentación ya lo hacen).</p>
+      </Modal>
       <Modal
         open={!!rotatedSecret}
         onClose={() => setRotatedSecret(null)}

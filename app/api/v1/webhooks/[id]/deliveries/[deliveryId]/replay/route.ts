@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey, enforceLimit } from "@/lib/api/auth";
-import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, withApiErrors, methodNotAllowed } from "@/lib/api/respond";
 import { withIdempotency } from "@/lib/api/idempotency";
 import { REPLAY_ENDPOINT_SELECT, replayDelivery } from "@/lib/webhooks/replay";
 import { API_WEBHOOK_REPLAYS_PER_MINUTE } from "@/lib/api/constants";
@@ -30,3 +30,9 @@ export const POST = withIdempotency(withApiErrors(async (req: Request, { params 
   }
   return apiOk({ id: delivery.id, status: "pending" }, 202);
 }));
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const GET = methodNotAllowed("POST");
+export const PUT = GET;
+export const PATCH = GET;
+export const DELETE = GET;

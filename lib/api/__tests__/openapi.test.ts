@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildOpenApiSpec } from "@/lib/api/openapi";
@@ -28,6 +28,25 @@ describe("OpenAPI", () => {
     for (const r of routes(V1).filter((r) => r !== "/openapi.json" && r !== "/{...path}")) expect(documented).toContain(r);
   });
 
+  // Cada ruta atiende exactamente los métodos que documenta, y responde 405 en
+  // JSON a los demás (Next respondería un 405 vacío si no se exportan).
+  it("cada ruta exporta los 5 métodos y atiende solo los documentados", () => {
+    const paths = spec.paths as unknown as Record<string, Record<string, unknown>>;
+    for (const r of routes(V1).filter((r) => r !== "/{...path}")) {
+      const file = path.join(V1, r.replace(/\{([^}]+)\}/g, "[$1]"), "route.ts");
+      const src = readFileSync(file, "utf8");
+      const served: string[] = [];
+      for (const m of ["GET", "POST", "PUT", "PATCH", "DELETE"]) {
+        const decl = new RegExp(`^export (?:const|async function|function) ${m}\\b(.*)$`, "m").exec(src);
+        expect(decl, `${r}: falta exportar ${m}`).toBeTruthy();
+        const isGuard = /=\s*(?:methodNotAllowed\(|(?:GET|POST|PUT|PATCH|DELETE);)/.test(decl![1]);
+        if (!isGuard) served.push(m.toLowerCase());
+      }
+      if (r === "/openapi.json") continue;
+      expect(served.sort(), r).toEqual(Object.keys(paths[r]).sort());
+    }
+  });
+
   it("todo endpoint tiene respuesta de éxito con ejemplo y headers de límite", () => {
     for (const [p, item] of Object.entries(spec.paths as Record<string, Record<string, { responses: Record<string, { headers?: object; content?: Record<string, { example?: unknown }> }> }>>)) {
       for (const [m, op] of Object.entries(item)) {
@@ -38,6 +57,7 @@ describe("OpenAPI", () => {
         if (content["application/json"]) expect(content["application/json"].example, `${m} ${p}`).toBeDefined();
         else expect(Object.keys(content).length, `${m} ${p}`).toBeGreaterThan(0);
         expect(ok![1].headers, `${m} ${p}`).toHaveProperty("X-RateLimit-Remaining");
+        expect(ok![1].headers, `${m} ${p}`).toHaveProperty("X-Request-Id");
       }
     }
   });

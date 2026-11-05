@@ -2,7 +2,7 @@ import type { ChatStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey, enforceLimit } from "@/lib/api/auth";
 import { API_CONVERSATIONS_LIST_PER_MINUTE } from "@/lib/api/constants";
-import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors, methodNotAllowed } from "@/lib/api/respond";
 import { serializeConversation } from "@/lib/api/resources";
 
 const STATUSES: ChatStatus[] = ["OPEN", "PENDING", "RESOLVED"];
@@ -91,3 +91,9 @@ export const GET = withApiErrors(async (req: Request) => {
     nextCursor: merged.length > limit && last ? encodeCursor({ t: last.at.toISOString(), id: last.id }) : null,
   });
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET");
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

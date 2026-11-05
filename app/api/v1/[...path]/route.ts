@@ -1,4 +1,4 @@
-import { apiError, withSchemaVersion } from "@/lib/api/respond";
+import { apiError, withRequestContext } from "@/lib/api/respond";
 
 // Cualquier ruta inexistente bajo /api/v1 responde el JSON de error de la API
 // ({ error: { code, message } }), no la página 404 de la app: un integrador
@@ -6,7 +6,7 @@ import { apiError, withSchemaVersion } from "@/lib/api/respond";
 // Las rutas reales siempre ganan a este catch-all.
 function notFound(req: Request): Response {
   const path = new URL(req.url).pathname;
-  return withSchemaVersion(apiError(404, "not_found", `No existe ${req.method} ${path}. Consulta /api/v1/openapi.json`));
+  return withRequestContext(() => apiError(404, "not_found", `No existe ${req.method} ${path}. Consulta /api/v1/openapi.json`));
 }
 
 export const GET = notFound;

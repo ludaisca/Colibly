@@ -115,6 +115,8 @@ export interface SafeFetchOptions {
   body?: string;
   timeoutMs?: number;
   maxResponseBytes?: number;
+  /** Respuesta binaria (un archivo): llena `buffer` y deja `body` vacío. */
+  binary?: boolean;
   // Solo para desarrollo local: permite loopback y LAN privada (nunca
   // link-local/metadata). Por defecto, true únicamente con
   // NODE_ENV=development — en producción nunca.
@@ -125,6 +127,8 @@ export interface SafeFetchResponse {
   status: number;
   headers: Record<string, string>;
   body: string;
+  /** Los bytes recibidos (hasta maxResponseBytes). */
+  buffer: Buffer;
   truncated: boolean;
 }
 
@@ -208,15 +212,18 @@ export async function safeFetch(rawUrl: string, options: SafeFetchOptions = {}):
           }
           chunks.push(chunk);
         });
-        const finish = () =>
+        const finish = () => {
+          const buffer = Buffer.concat(chunks);
           resolve({
             status: res.statusCode ?? 0,
             headers: Object.fromEntries(
               Object.entries(res.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(", ") : String(v ?? "")])
             ),
-            body: Buffer.concat(chunks).toString("utf8"),
+            body: options.binary ? "" : buffer.toString("utf8"),
+            buffer,
             truncated,
           });
+        };
         res.on("end", finish);
         res.on("close", () => truncated && finish());
         res.on("error", (err) => (truncated ? finish() : reject(new SafeFetchError("NETWORK", err.message))));

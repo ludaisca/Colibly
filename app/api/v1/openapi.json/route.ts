@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildOpenApiSpec } from "@/lib/api/openapi";
-import { withSchemaVersion } from "@/lib/api/respond";
+import { withSchemaVersion, methodNotAllowed } from "@/lib/api/respond";
 
 // El documento no cambia mientras corre el proceso: se arma una vez por URL
 // base (antes se reconstruía en cada petición, ~190 ms de servidor).
@@ -20,3 +20,9 @@ export function GET(req: Request) {
     })
   );
 }
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET");
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

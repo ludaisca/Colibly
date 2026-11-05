@@ -168,3 +168,30 @@ Misma auditoría de solo lectura (`api-audit.py`, 150 mensajes reales de 3 conve
 
 - `status`, `deliveredAt` y `readAt` siguen casi siempre en null en esta muestra: son ecos de la app y mensajes anteriores al corte, que no se pueden reconstruir. Los nuevos ya nacen con estado.
 - `referral` en null en toda la muestra: ninguna de esas conversaciones vino de un anuncio.
+
+## 9. Segunda ronda: experiencia del integrador (v1.2.0, 2026-11-05)
+
+Recorrido en dev como un integrador nuevo, con una key temporal. Lo que faltaba:
+
+| # | Hallazgo | Arreglo |
+|---|---|---|
+| B1 | No había cómo saber el `template.id` que pide `POST /messages` (y fuera de la ventana de 24 h solo sale una plantilla), ni el `tagId`, el id de una persona para `assignedToId` o el id de una automatización manual. | `GET /templates` (con `params`: cuántos `bodyParams`, si pide `headerParam` y de qué formato, si pide `buttonParam`), `GET /tags`, `GET /users`, `GET /automations` (`runnable`). |
+| B2 | Las conversaciones eran de solo lectura: no se podía resolver, reabrir ni asignar. | `PATCH /conversations/{id}` (permiso nuevo `conversations:write`), con los mismos efectos que la bandeja (lógica compartida en `lib/chats/actions.ts`). |
+| B3 | El evento de prueba y la rotación del secreto existían solo en la pantalla. | `POST /webhooks/{id}/test` y `POST /webhooks/{id}/rotate-secret`. |
+| B4 | Un JSON mal formado respondía "Invalid input: expected object, received null"; los errores de validación salían en inglés, sin el campo y uno a la vez. | Mensaje propio para cuerpo vacío y JSON inválido; validación en español con `error.details[] = { path, message }`. |
+| B5 | Sin forma de rastrear una llamada concreta en soporte. | `X-Request-Id` en cada respuesta y `error.requestId`; los 500 lo registran. |
+| B6 | Un método no soportado (`DELETE /me`) respondía 405 sin cuerpo. | 405 en JSON (`method_not_allowed`) con header `Allow` en todas las rutas; una prueba exige que cada ruta exporte los cinco métodos y atienda exactamente los documentados. |
+
+Además: receta de verificación de firma en Python en `/docs/api` (comprobada contra una firma real del servidor), `x-colibly-limits` con los límites de prueba y reenvío, y `API_SCHEMA_VERSION` `2026-11-05`.
+
+Verificación en dev (datos temporales borrados al terminar):
+- catálogos con datos reales de la organización; `runnable=true` filtra;
+- `PATCH` con una persona inválida dio 400 con `details`; resolver y asignar en una llamada, y reabrir y desasignar, funcionaron; los eventos `conversation.assigned`, `conversation.resolved` y `webhook.test` llegaron al webhook;
+- con la key de otra organización: `/users` y `/tags` solo con lo suyo, y `PATCH` de una conversación ajena, `test` y `rotate-secret` de un webhook ajeno dieron 404;
+- las rutas de la bandeja (`status`, `assign`) siguen respondiendo con la lógica compartida.
+
+Agregado en la misma versión:
+- **Archivos por API**: `POST /messages` con `type` image, document, audio o video y `media.url` (https pública que Colibly descarga), en WhatsApp, Telegram, Messenger e Instagram. Tipos y tamaños de WhatsApp para todos los canales; errores con `details[0].path = "media.url"` (404 del servidor, tipo no admitido, dirección interna). El chat web aún no recibe archivos (400 antes de descargar).
+- **Rotación con periodo de gracia**: `graceHours` (hasta 72) en `rotate-secret` y "Rotar con 24 h de gracia" en la pantalla. Durante la gracia el header lleva `t=…,v1=<nuevo>,v1=<anterior>`; sin ella, la forma de siempre. Las recetas publicadas (Node, PHP, Python) aceptan cualquier v1 y se ejecutaron contra ambas formas.
+
+Verificación en dev de esta parte: un receptor local recibió dos v1 tras rotar con 24 h (cada una coincide con su secreto) y una sola tras rotar sin gracia; `graceHours: 100` dio 400. Un PDF real se descargó y validó; un HTML como documento, un 404, un dominio inexistente y `169.254.169.254` dieron 400. De punta a punta (con permiso del usuario, a sus propias cuentas de dev): un PDF con `caption` salió por Telegram y por WhatsApp; WhatsApp lo marcó `delivered`, y `GET /messages/{id}/media` devolvió el mismo archivo (sha256 igual al original, también en `media.sha256Hex`). Messenger/Instagram no se probaron (sin cuenta conectada en dev).

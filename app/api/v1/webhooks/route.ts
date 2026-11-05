@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, withApiErrors, readJsonBody, methodNotAllowed } from "@/lib/api/respond";
 import { createWebhook, serializeWebhook, webhookCreateSchema, WebhookAccessError, WebhookInputError, WebhookLimitError } from "@/lib/webhooks/crud";
 
 // Los webhooks son del dueño de la key (no de la key): una integración que
@@ -15,10 +15,9 @@ export const GET = withApiErrors(async (req: Request) => {
 // la firma X-Colibly-Signature de cada entrega.
 export const POST = withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "webhooks:manage");
-  const parsed = webhookCreateSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
+  const body = await readJsonBody(req, webhookCreateSchema);
   try {
-    const { endpoint, secret } = await createWebhook(ctx.userId, parsed.data);
+    const { endpoint, secret } = await createWebhook(ctx.userId, body);
     return apiOk({ ...serializeWebhook(endpoint), secret }, 201);
   } catch (err) {
     if (err instanceof WebhookAccessError) throw new ApiError(402, "plan_limit", err.message);
@@ -27,3 +26,8 @@ export const POST = withApiErrors(async (req: Request) => {
     throw err;
   }
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const PUT = methodNotAllowed("GET", "POST");
+export const PATCH = PUT;
+export const DELETE = PUT;

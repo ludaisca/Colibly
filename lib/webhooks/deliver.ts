@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { safeFetch, SafeFetchError } from "@/lib/net/safe-fetch";
 import { WEBHOOK_DELIVERY_ATTEMPTS } from "@/lib/queue";
-import { SIGNATURE_HEADER, signWebhookBody } from "./signature";
+import { SIGNATURE_HEADER, signingSecrets, signWebhookBody } from "./signature";
 import { API_SCHEMA_VERSION, API_SCHEMA_VERSION_HEADER, WEBHOOK_MAX_CONSECUTIVE_FAILURES, WEBHOOK_PER_ENDPOINT_CONCURRENCY, WEBHOOK_TIMEOUT_SECONDS } from "@/lib/api/constants";
 
 // Tras tantas entregas fallidas SEGUIDAS (cada una ya agotó sus reintentos) el
@@ -92,7 +92,7 @@ async function deliverOnce(job: Job<WebhookDeliveryJob>): Promise<void> {
       body,
       headers: {
         "Content-Type": "application/json",
-        [SIGNATURE_HEADER]: signWebhookBody(decrypt(endpoint.secret), body),
+        [SIGNATURE_HEADER]: signWebhookBody(signingSecrets(endpoint, decrypt), body),
         "X-Colibly-Event": delivery.eventType,
         "X-Colibly-Delivery": delivery.id,
         // Agregados (compatibles): id del evento para deduplicar entre

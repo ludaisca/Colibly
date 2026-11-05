@@ -1,4 +1,6 @@
 import { API_SCOPES } from "./scopes";
+import { OUTBOUND_MEDIA_RULES, OUTBOUND_MEDIA_TYPES } from "@/lib/messaging/outbound-media";
+import { WEBHOOK_ROTATION_MAX_GRACE_HOURS } from "@/lib/webhooks/crud";
 import { OUTBOUND_ORIGINS } from "@/lib/messages/origin";
 import { DOMAIN_EVENT_CATALOG, type DomainEventType } from "@/lib/events/types";
 import { BRAND_NAME } from "@/lib/brand";
@@ -17,6 +19,7 @@ import {
   API_SCHEMA_VERSION,
   API_SCHEMA_VERSION_HEADER,
   API_WEBHOOK_REPLAYS_PER_MINUTE,
+  API_WEBHOOK_TESTS_PER_MINUTE,
   IDEMPOTENCY_TTL_HOURS,
   MAX_ACTIVE_API_KEYS,
   MAX_WEBHOOKS,
@@ -37,13 +40,26 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.1.0";
+export const API_VERSION = "1.2.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.1.0",
+    version: "1.2.0",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-05",
+    changes: [
+      "Catálogos para armar llamadas: GET /templates (con los parámetros que pide cada plantilla), GET /tags, GET /users y GET /automations (runnable = acepta POST /automations/{id}/runs).",
+      "PATCH /conversations/{id}: cambiar status (OPEN, PENDING, RESOLVED) y assignedToId, con los mismos efectos que en la bandeja. Permiso nuevo conversations:write.",
+      "POST /messages envía archivos: type image, document, audio o video con media.url (https pública; Colibly la descarga), media.filename, media.mimeType y caption. Funciona en WhatsApp (dentro de la ventana de 24 h), Telegram, Messenger e Instagram.",
+      "Webhooks: POST /webhooks/{id}/test (evento webhook.test firmado) y POST /webhooks/{id}/rotate-secret, con graceHours opcional: el secreto anterior sigue firmando ese tiempo como segunda v1 de X-Colibly-Signature (t=…,v1=<nuevo>,v1=<anterior>). Webhook.previousSecretExpiresAt.",
+      "Errores: error.details[] con la ruta de cada campo inválido y error.requestId; mensajes de validación en español; cuerpo vacío o JSON mal formado con su propio mensaje. Códigos nuevos: method_not_allowed (405, con header Allow) y required_fields (422).",
+      "Header X-Request-Id en cada respuesta: inclúyelo al escribir a soporte.",
+    ],
+  },
+  {
+    version: "1.1.0",
+    schemaVersion: "2026-11-04",
     date: "2026-11-04",
     changes: [
       "Message: origin, sentBy y senderName (quién y qué parte de Colibly mandó cada saliente); error con title, details y href de Meta; externalId, content, media (descarga con GET /messages/{id}/media), replyTo, reaction, transcript, deliveredAt, readAt y pricing.",
@@ -82,7 +98,9 @@ const rateHeaders = {
   "X-RateLimit-Reset": { $ref: "#/components/headers/RateLimitReset" },
   "X-RateLimit-Scope": { $ref: "#/components/headers/RateLimitScope" },
 };
-const ok = (schema: object, example?: unknown, description = "OK") => ({ description, headers: rateHeaders, content: json(schema, example) });
+const requestIdHeader = { "X-Request-Id": { $ref: "#/components/headers/RequestId" } };
+const ok = (schema: object, example?: unknown, description = "OK") => ({ description, headers: { ...rateHeaders, ...requestIdHeader }, content: json(schema, example) });
+const list = (item: string) => ({ type: "object", required: ["data"], properties: { data: { type: "array", items: ref(item) } } });
 const err = (name: string) => ({ $ref: `#/components/responses/${name}` });
 const errors = {
   "400": err("InvalidRequest"),
@@ -202,7 +220,31 @@ const EX = {
     disabledAt: null,
     consecutiveFailures: 0,
     lastDeliveryAt: "2026-10-18T19:02:13.000Z",
+    previousSecretExpiresAt: null,
     createdAt: "2026-10-01T15:00:00.000Z",
+  },
+  template: {
+    id: "cmtpl_01",
+    accountId: "cmacc_wa_01",
+    name: "confirmacion_pedido",
+    language: "es_MX",
+    category: "UTILITY",
+    status: "APPROVED",
+    params: { bodyParamCount: 2, header: null, buttonParamRequired: false },
+    bodyText: "Hola {{1}}, tu pedido {{2}} va en camino.",
+    syncedAt: "2026-10-18T12:00:00.000Z",
+  },
+  tag: { id: "cmtag_01", accountId: "cmacc_wa_01", name: "Mayoreo", color: "accent", createdAt: "2026-10-01T16:20:00.000Z" },
+  user: { id: "cmusr_02", name: "Carlos Ventas", email: "carlos@ejemplo.mx", role: "user", active: true },
+  automation: {
+    id: "cmaut_01",
+    accountId: "cmacc_wa_01",
+    name: "Pedido confirmado",
+    description: "Avisa al cliente y lo etiqueta",
+    status: "ACTIVE",
+    triggerType: "manual",
+    runnable: true,
+    updatedAt: "2026-10-15T18:00:00.000Z",
   },
 };
 const cursorExample = "eyJ0IjoiMjAyNi0xMC0xOFQxOTowMjoxMS4wMDBaIiwiaWQiOiJjbWNvbl8wMSJ9";
@@ -330,16 +372,18 @@ export function exampleEvent(type: string, data: Record<string, unknown>) {
 
 // ─── Errores ────────────────────────────────────────────────────────────────
 export const API_ERROR_CODES: { code: string; status: number; description: string }[] = [
-  { code: "invalid_request", status: 400, description: "Cuerpo o parámetros inválidos; `message` dice cuál." },
+  { code: "invalid_request", status: 400, description: "Cuerpo o parámetros inválidos; `message` dice cuál y `details` trae cada campo (`path`, `message`)." },
   { code: "unauthorized", status: 401, description: "Falta la API key, es inválida, está revocada o vencida, o su dueño ya no es admin." },
   { code: "plan_limit", status: 402, description: "El dueño de la API key ya no es administrador con licencia Pro, o se alcanzó un límite de la organización (p. ej. contactos)." },
   { code: "read_only", status: 402, description: "Cuenta en solo lectura (prueba vencida o pago pendiente): solo GET." },
   { code: "forbidden", status: 403, description: "La key no tiene el permiso que pide el endpoint." },
   { code: "not_found", status: 404, description: "No existe o no está al alcance de la key." },
+  { code: "method_not_allowed", status: 405, description: "La ruta existe pero no acepta ese método; el header `Allow` dice cuáles sí." },
   { code: "conflict", status: 409, description: "Choca con el estado actual (p. ej. automatización ya en curso, o la misma Idempotency-Key sigue en proceso)." },
   { code: "limit_reached", status: 409, description: `Tope por cuenta: ${MAX_WEBHOOKS} webhooks.` },
   { code: "window_closed", status: 422, description: "WhatsApp: fuera de la ventana de 24 h solo se puede enviar una plantilla aprobada." },
   { code: "idempotency_conflict", status: 422, description: "La Idempotency-Key ya se usó con otro cuerpo o en otro endpoint." },
+  { code: "required_fields", status: 422, description: "No se puede resolver la conversación: faltan atributos obligatorios (ver `details`)." },
   { code: "payload_too_large", status: 413, description: `El cuerpo supera ${Math.round(API_MAX_BODY_BYTES / 1024)} KB.` },
   { code: "rate_limited", status: 429, description: "Demasiadas solicitudes (por key, organización, IP o endpoint; ver `X-RateLimit-Scope`); espera los segundos de `Retry-After`." },
   { code: "daily_limit_reached", status: 429, description: `Cupo diario de ${API_DAILY_SENDS_PER_ORG} envíos por API por organización (día UTC); \`Retry-After\` indica cuándo se renueva.` },
@@ -348,10 +392,10 @@ export const API_ERROR_CODES: { code: string; status: number; description: strin
   { code: "service_unavailable", status: 503, description: "Servicio temporalmente no disponible (p. ej. el limitador de velocidad); reintenta tras `Retry-After`." },
 ];
 
-const errorResponse = (description: string, code: string, message: string, headers?: object) => ({
+const errorResponse = (description: string, code: string, message: string, headers?: object, details?: { path: string; message: string }[]) => ({
   description,
-  ...(headers ? { headers } : {}),
-  content: json(ref("Error"), { error: { code, message } }),
+  headers: { ...requestIdHeader, ...(headers ?? {}) },
+  content: json(ref("Error"), { error: { code, message, ...(details ? { details } : {}), requestId: "req_4fQm1x9TzK2bLw7a" } }),
 });
 
 export function buildOpenApiSpec(serverUrl: string) {
@@ -365,12 +409,14 @@ export function buildOpenApiSpec(serverUrl: string) {
         "Autenticación: `Authorization: Bearer sk_live_...` (API key creada por un admin en Configuración → API). " +
         `Límites: ${API_REQUESTS_PER_MINUTE} solicitudes por minuto por key y ${API_ORG_REQUESTS_PER_MINUTE} por organización (todas sus keys), informados en los headers \`X-RateLimit-*\`; ` +
         `\`POST /messages\`: ${API_SEND_PER_MINUTE_PER_ORG} por minuto y ${API_DAILY_SENDS_PER_ORG} por día por organización. Cuerpo máximo: ${Math.round(API_MAX_BODY_BYTES / 1024)} KB. ` +
-        "Los errores tienen la forma `{ error: { code, message } }` (también un 404 de ruta inexistente). Los POST aceptan `Idempotency-Key`.\n\n" +
+        "Los errores tienen la forma `{ error: { code, message, details?, requestId } }` (también un 404 de ruta inexistente o un 405): ramifica por `code`; `details` lista cada campo inválido. " +
+        "Cada respuesta lleva `X-Request-Id`: inclúyelo si escribes a soporte. Los POST aceptan `Idempotency-Key`.\n\n" +
         "**Versiones**: la versión va en la ruta (`/api/v1`). Dentro de v1 solo se agregan cosas (campos, endpoints, eventos, valores de enum); " +
         "un cambio incompatible saldría como `/api/v2` y v1 se mantendría al menos 12 meses, avisando por correo a los admins con keys activas. " +
         `Cada respuesta y cada entrega de webhook lleva \`${API_SCHEMA_VERSION_HEADER}: ${API_SCHEMA_VERSION}\` (fecha del contrato de datos vigente); los cambios están en \`x-colibly-changelog\`.\n\n` +
         "**Webhooks salientes**: cada entrega es un POST con el evento en el cuerpo y el header " +
         "`X-Colibly-Signature: t=<unix>,v1=<hex>`, donde v1 = HMAC-SHA256(secret, `${t}.${cuerpo}`). " +
+        "Tras rotar el secreto con periodo de gracia el header trae una v1 por secreto (`t=…,v1=<nuevo>,v1=<anterior>`): acepta la entrega si cualquiera coincide. " +
         `Responde 2xx en menos de ${WEBHOOK_TIMEOUT_SECONDS} s; hay ${WEBHOOK_DELIVERY_ATTEMPTS} intentos con espera creciente. ` +
         "Headers de cada entrega: `X-Colibly-Event` (tipo), `X-Colibly-Event-Id` (id del evento, igual en todos los endpoints y reintentos: deduplica con él), " +
         `\`X-Colibly-Delivery\` (id de la entrega a ese endpoint), \`X-Colibly-Attempt\` (1 a ${WEBHOOK_DELIVERY_ATTEMPTS}) y \`${API_SCHEMA_VERSION_HEADER}\`. ` +
@@ -399,6 +445,8 @@ export function buildOpenApiSpec(serverUrl: string) {
       webhookMaxConsecutiveFailures: WEBHOOK_MAX_CONSECUTIVE_FAILURES,
       maxActiveApiKeys: MAX_ACTIVE_API_KEYS,
       maxWebhooks: MAX_WEBHOOKS,
+      webhookReplaysPerMinutePerOrg: API_WEBHOOK_REPLAYS_PER_MINUTE,
+      webhookTestsPerMinutePerOrg: API_WEBHOOK_TESTS_PER_MINUTE,
     },
     "x-colibly-error-codes": API_ERROR_CODES,
     "x-colibly-events": WEBHOOK_EVENT_DOCS.map((e) => ({ ...e, example: exampleEvent(e.type, e.example) })),
@@ -408,6 +456,7 @@ export function buildOpenApiSpec(serverUrl: string) {
       { name: "Conversaciones" },
       { name: "Mensajes" },
       { name: "Automatizaciones" },
+      { name: "Catálogos", description: "Ids que piden los demás endpoints: plantillas, etiquetas, personas y automatizaciones" },
       { name: "Webhooks", description: "Administración de webhooks salientes por API" },
     ],
     paths: {
@@ -515,6 +564,17 @@ export function buildOpenApiSpec(serverUrl: string) {
       },
       "/conversations/{id}": {
         get: { tags: ["Conversaciones"], summary: "Obtener conversación", description: scopeNote("conversations:read"), parameters: [idParam], responses: { "200": ok(ref("Conversation"), EX.conversation), ...errors } },
+        patch: {
+          tags: ["Conversaciones"],
+          summary: "Resolver, reabrir o asignar",
+          description:
+            `${scopeNote("conversations:write")} \`status\` y/o \`assignedToId\` (id de GET /users; \`null\` quita la asignación). Mismos efectos que en la bandeja: ` +
+            "resolver deja de marcarla como \"esperando respuesta\", puede mandar la encuesta CSAT (WhatsApp) y emite `conversation.resolved`; asignar avisa a la persona y emite `conversation.assigned`. " +
+            "Si la conversación tiene atributos obligatorios sin llenar, resolverla responde 422 required_fields. La persona asignada debe poder atender esa cuenta (si no, 400). Devuelve la conversación actualizada.",
+          parameters: [idParam],
+          requestBody: { required: true, content: json(ref("ConversationUpdate"), { status: "RESOLVED", assignedToId: "cmusr_02" }) },
+          responses: { "200": ok(ref("Conversation"), { ...EX.conversation, status: "RESOLVED" }), ...writeErrors },
+        },
       },
       "/conversations/{id}/messages": {
         get: {
@@ -537,7 +597,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           summary: "Descargar el medio de un mensaje",
           description: `${scopeNote("conversations:read")} Bytes del archivo (imagen, audio, video, sticker o documento), como descarga. Es la URL de \`message.media.url\`. 404 si el mensaje no tiene medio o aún se está bajando de Meta.`,
           parameters: [idParam],
-          responses: { "200": { description: "El archivo (Content-Type real del medio)", headers: rateHeaders, content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } }, ...errors },
+          responses: { "200": { description: "El archivo (Content-Type real del medio)", headers: { ...rateHeaders, ...requestIdHeader }, content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } }, ...errors },
         },
       },
       "/messages/{id}": {
@@ -572,9 +632,28 @@ export function buildOpenApiSpec(serverUrl: string) {
           description:
             `${scopeNote("messages:send")} Destino: \`conversationId\` o \`contactId\`. En WhatsApp, texto y botones solo dentro de la ventana de 24 h ` +
             "(fuera de ella: 422 window_closed → usa una plantilla aprobada). Una plantilla a un contacto sin chat abre el chat. " +
-            "**Manda siempre `Idempotency-Key`**: si reintentas por un timeout, el mensaje no sale dos veces.",
+            "**Manda siempre `Idempotency-Key`**: si reintentas por un timeout, el mensaje no sale dos veces.\n\n" +
+            "**Archivos** (`type` image, document, audio o video): pasa `media.url`, una URL https pública; Colibly la descarga y la manda por el canal. Tipos y tamaños admitidos (los de WhatsApp, para que el mismo envío sirva en todos los canales): " +
+            OUTBOUND_MEDIA_TYPES.map((t) => `${t} hasta ${OUTBOUND_MEDIA_RULES[t].maxBytes / (1024 * 1024)} MB (${OUTBOUND_MEDIA_RULES[t].mimeTypes.map((m) => m.split("/")[1]).join(", ")})`).join("; ") +
+            ". Una URL que no responde, un tipo no admitido o un archivo muy grande dan 400 con `details[0].path = \"media.url\"`. El chat web todavía no recibe archivos, y Messenger e Instagram no admiten `caption`.",
           parameters: [idempotencyParam],
-          requestBody: { required: true, content: json(ref("SendMessage"), { conversationId: "cmchat_01", type: "text", text: "Sí, enviamos a todo México." }) },
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: ref("SendMessage"),
+                example: { conversationId: "cmchat_01", type: "text", text: "Sí, enviamos a todo México." },
+                examples: {
+                  texto: { summary: "Texto", value: { conversationId: "cmchat_01", type: "text", text: "Sí, enviamos a todo México." } },
+                  documento: {
+                    summary: "Documento por URL",
+                    value: { conversationId: "cmchat_01", type: "document", media: { url: "https://erp.ejemplo.mx/facturas/A-1043.pdf", filename: "Factura A-1043.pdf" }, caption: "Tu factura" },
+                  },
+                  plantilla: { summary: "Plantilla", value: { contactId: "cmcon_01", type: "template", template: { id: "cmtpl_01", bodyParams: ["Ana", "A-1043"] } } },
+                },
+              },
+            },
+          },
           responses: {
             "201": ok(
               { type: "object", properties: { id: { type: "string" }, conversationId: { type: "string" }, externalId: { type: ["string", "null"], description: "id del mensaje en WhatsApp/canal" } } },
@@ -600,6 +679,52 @@ export function buildOpenApiSpec(serverUrl: string) {
             ),
           },
           responses: { "201": ok({ type: "object", properties: { runId: { type: "string" } } }, { runId: "cmrun_01" }, "Iniciada"), ...writeErrors },
+        },
+      },
+      "/templates": {
+        get: {
+          tags: ["Catálogos"],
+          summary: "Plantillas de WhatsApp",
+          description:
+            `${scopeNote("messages:send")} Plantillas de las cuentas de WhatsApp de la key, con lo que pide cada una en POST /messages (\`type: "template"\`): ` +
+            "`params.bodyParamCount` valores en `bodyParams`, `headerParam` si `params.header` no es null (texto, o URL pública https si el formato es IMAGE, VIDEO o DOCUMENT) y `buttonParam` si `params.buttonParamRequired`. " +
+            "Solo las `APPROVED` se pueden enviar. Lista completa, por nombre.",
+          parameters: [
+            { name: "accountId", in: "query", schema: str },
+            { name: "status", in: "query", schema: str, description: "Estado de Meta: APPROVED, PENDING, REJECTED, PAUSED, DISABLED…" },
+          ],
+          "x-example-query": "status=APPROVED",
+          responses: { "200": ok(list("Template"), { data: [EX.template] }), ...errors },
+        },
+      },
+      "/tags": {
+        get: {
+          tags: ["Catálogos"],
+          summary: "Etiquetas",
+          description: `${scopeNote("contacts:read")} Etiquetas de contacto de las cuentas de la key (cada cuenta tiene las suyas). Para \`GET /contacts?tagId=\` y \`POST /contacts/{id}/tags\`. Lista completa, por nombre.`,
+          parameters: [{ name: "accountId", in: "query", schema: str }],
+          responses: { "200": ok(list("Tag"), { data: [EX.tag] }), ...errors },
+        },
+      },
+      "/users": {
+        get: {
+          tags: ["Catálogos"],
+          summary: "Personas de la organización",
+          description: `${scopeNote("conversations:read")} Para traducir \`assignedToId\` y para asignar con PATCH /conversations/{id}. Incluye las desactivadas (\`active: false\`), que pueden seguir en conversaciones viejas. Lista completa, por nombre.`,
+          responses: { "200": ok(list("User"), { data: [EX.user] }), ...errors },
+        },
+      },
+      "/automations": {
+        get: {
+          tags: ["Catálogos"],
+          summary: "Automatizaciones",
+          description: `${scopeNote("automations:run")} Automatizaciones de las cuentas de la key (sin archivadas). \`runnable: true\` = activa con disparador "Manual": la que acepta POST /automations/{id}/runs. Lista completa, por nombre.`,
+          parameters: [
+            { name: "accountId", in: "query", schema: str },
+            { name: "runnable", in: "query", schema: { type: "string", enum: ["true"] }, description: "Solo las que se pueden iniciar por API" },
+          ],
+          "x-example-query": "runnable=true",
+          responses: { "200": ok(list("Automation"), { data: [EX.automation] }), ...errors },
         },
       },
       "/webhooks": {
@@ -635,6 +760,53 @@ export function buildOpenApiSpec(serverUrl: string) {
           description: `${scopeNote("webhooks:manage")} Borra también su registro de entregas.`,
           parameters: [idParam],
           responses: { "200": ok({ type: "object", properties: { deleted: { type: "boolean" } } }, { deleted: true }), ...errors },
+        },
+      },
+      "/webhooks/{id}/test": {
+        post: {
+          tags: ["Webhooks"],
+          summary: "Enviar un evento de prueba",
+          description:
+            `${scopeNote("webhooks:manage")} Entrega un evento \`webhook.test\` firmado a ese endpoint, como una entrega real (reintentos e historial incluidos), para validar la URL y tu verificación de firma. ` +
+            `Su resultado se lee en GET /webhooks/{id}/deliveries/{deliveryId}. Un webhook desactivado responde 409. Límite: ${API_WEBHOOK_TESTS_PER_MINUTE} por minuto por organización.`,
+          parameters: [idParam],
+          responses: {
+            "202": ok({ type: "object", properties: { deliveryId: str, status: { type: "string", enum: ["pending"] } } }, { deliveryId: EX.delivery.id, status: "pending" }, "Encolada"),
+            "409": err("Conflict"),
+            ...errors,
+          },
+        },
+      },
+      "/webhooks/{id}/rotate-secret": {
+        post: {
+          tags: ["Webhooks"],
+          summary: "Rotar el secreto",
+          description:
+            `${scopeNote("webhooks:manage")} Genera un secreto nuevo y lo devuelve (única vez que se ve). Sin cuerpo (o \`graceHours: 0\`) el anterior deja de firmar de inmediato. ` +
+            `Con \`graceHours\` (1 a ${WEBHOOK_ROTATION_MAX_GRACE_HOURS}) el anterior sigue firmando ese tiempo: cada entrega lleva \`t=…,v1=<nuevo>,v1=<anterior>\`, así que puedes cambiar el secreto de tu receptor sin perder entregas ` +
+            "(tu verificador debe aceptar si cualquiera de las v1 coincide; las recetas de la documentación ya lo hacen). Rotar otra vez descarta el más viejo.",
+          parameters: [idParam],
+          requestBody: {
+            required: false,
+            content: json(
+              { type: "object", additionalProperties: false, properties: { graceHours: { type: "integer", minimum: 0, maximum: WEBHOOK_ROTATION_MAX_GRACE_HOURS, default: 0 } } },
+              { graceHours: 24 }
+            ),
+          },
+          responses: {
+            "200": ok(
+              {
+                type: "object",
+                properties: {
+                  id: str,
+                  secret: { type: "string", description: "whsec_…" },
+                  previousSecretExpiresAt: { type: ["string", "null"], format: "date-time", description: "Hasta cuándo firma también el anterior; null = ya no firma" },
+                },
+              },
+              { id: EX.webhook.id, secret: "whsec_Q7v…", previousSecretExpiresAt: "2026-11-06T16:00:00.000Z" }
+            ),
+            ...errors,
+          },
         },
       },
       "/webhooks/{id}/deliveries": {
@@ -689,7 +861,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           summary: "Evento entregado a tu URL",
           description: WEBHOOK_EVENT_DOCS.map((e) => `- \`${e.type}\`: ${e.description}`).join("\n"),
           parameters: [
-            { name: "X-Colibly-Signature", in: "header", required: true, schema: { type: "string" }, description: "t=<unix>,v1=<hex HMAC-SHA256(secret, `${t}.${cuerpo}`)>" },
+            { name: "X-Colibly-Signature", in: "header", required: true, schema: { type: "string" }, description: "t=<unix>,v1=<hex HMAC-SHA256(secret, `${t}.${cuerpo}`)>; durante el periodo de gracia de una rotación, una v1 por secreto (acepta si cualquiera coincide)" },
             { name: "X-Colibly-Event", in: "header", required: true, schema: { type: "string" } },
             { name: "X-Colibly-Delivery", in: "header", required: true, schema: { type: "string" }, description: "Id de la entrega; se repite en los reintentos" },
             { name: "X-Colibly-Event-Id", in: "header", required: true, schema: { type: "string" }, description: "Id del evento (igual a `id` del cuerpo): el mismo en todos los endpoints y reintentos" },
@@ -726,13 +898,16 @@ export function buildOpenApiSpec(serverUrl: string) {
         RateLimitRemaining: { description: "Solicitudes que quedan en la ventana actual", schema: { type: "integer" } },
         RateLimitReset: { description: "Segundos hasta que se libera un lugar", schema: { type: "integer" } },
         RetryAfter: { description: "Segundos a esperar antes de reintentar", schema: { type: "integer" } },
+        RequestId: { description: "Id de esta solicitud (también en `error.requestId`): inclúyelo si escribes a soporte", schema: { type: "string", example: "req_4fQm1x9TzK2bLw7a" } },
         RateLimitScope: {
           description: "Límite informado en X-RateLimit-*: el más ajustado, o el que rechazó en un 429",
           schema: { type: "string", enum: ["key", "organization", "ip", "endpoint", "daily"] },
         },
       },
       responses: {
-        InvalidRequest: errorResponse("Solicitud inválida", "invalid_request", "phone debe tener entre 8 y 15 dígitos, con código de país"),
+        InvalidRequest: errorResponse("Solicitud inválida", "invalid_request", "template.id: Entrada inválida: se esperaba texto, recibido indefinido", undefined, [
+          { path: "template.id", message: "Entrada inválida: se esperaba texto, recibido indefinido" },
+        ]),
         Unauthorized: errorResponse("Sin API key válida", "unauthorized", "API key inválida, revocada o expirada"),
         PaymentRequired: errorResponse("plan_limit o read_only", "plan_limit", "La API está incluida en el plan Pro. Mejora el plan de tu cuenta para usarla."),
         Forbidden: errorResponse("Falta un permiso", "forbidden", "Esta API key no tiene el permiso messages:send"),
@@ -758,7 +933,16 @@ export function buildOpenApiSpec(serverUrl: string) {
             error: {
               type: "object",
               required: ["code", "message"],
-              properties: { code: { type: "string", enum: API_ERROR_CODES.map((e) => e.code) }, message: { type: "string", description: "En español, para mostrar o registrar; ramifica por `code`" } },
+              properties: {
+                code: { type: "string", enum: API_ERROR_CODES.map((e) => e.code) },
+                message: { type: "string", description: "En español, para mostrar o registrar; ramifica por `code`" },
+                details: {
+                  type: "array",
+                  description: "Solo en errores de validación: cada problema con la ruta del campo (`template.id`, `buttons.0.title`; vacía = el cuerpo entero)",
+                  items: { type: "object", required: ["path", "message"], properties: { path: str, message: str } },
+                },
+                requestId: { type: "string", description: "Igual al header X-Request-Id" },
+              },
             },
           },
         },
@@ -913,7 +1097,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           properties: {
             conversationId: str,
             contactId: str,
-            type: { type: "string", enum: ["text", "buttons", "template"] },
+            type: { type: "string", enum: ["text", "buttons", "template", ...OUTBOUND_MEDIA_TYPES] },
             text: { type: "string", maxLength: 4096, description: "Requerido para text y buttons" },
             buttons: {
               type: "array",
@@ -931,6 +1115,75 @@ export function buildOpenApiSpec(serverUrl: string) {
                 buttonParam: strNull,
               },
             },
+            media: {
+              type: "object",
+              required: ["url"],
+              additionalProperties: false,
+              description: "Requerido para image, document, audio y video. Colibly descarga la URL al enviar (sin redirecciones, 30 s como máximo).",
+              properties: {
+                url: { type: "string", format: "uri", description: "https pública del archivo" },
+                filename: { type: "string", maxLength: 200, description: "Nombre que verá el cliente (documentos). Por defecto, el de la URL" },
+                mimeType: { type: "string", description: "Tipo del archivo si tu servidor no lo informa bien (p. ej. responde application/octet-stream)" },
+              },
+            },
+            caption: { type: "string", maxLength: 1024, description: "Texto junto al archivo (image, video, document). No en audio, ni en Messenger/Instagram" },
+          },
+        },
+        ConversationUpdate: {
+          type: "object",
+          minProperties: 1,
+          additionalProperties: false,
+          properties: {
+            status: { type: "string", enum: ["OPEN", "PENDING", "RESOLVED"] },
+            assignedToId: { ...strNull, description: "Id de GET /users; null quita la asignación" },
+          },
+        },
+        Template: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "El `template.id` de POST /messages" },
+            accountId: str,
+            name: { type: "string", description: "Nombre en Meta" },
+            language: { type: "string", example: "es_MX" },
+            category: { type: "string", description: "MARKETING, UTILITY o AUTHENTICATION" },
+            status: { type: "string", description: "Estado en Meta; solo APPROVED se envía" },
+            params: {
+              type: "object",
+              properties: {
+                bodyParamCount: { type: "integer", description: "Cuántos valores van en bodyParams ({{1}}, {{2}}…)" },
+                header: { type: ["object", "null"], properties: { format: { type: "string", enum: ["TEXT", "IMAGE", "VIDEO", "DOCUMENT"] } }, description: "null = no pide headerParam" },
+                buttonParamRequired: { type: "boolean", description: "true = pide buttonParam (sufijo del botón URL)" },
+              },
+            },
+            bodyText: { ...strNull, description: "Texto del cuerpo con sus {{n}}" },
+            syncedAt: { type: "string", format: "date-time", description: "Última sincronización con Meta" },
+          },
+        },
+        Tag: {
+          type: "object",
+          properties: { id: str, accountId: str, name: str, color: { type: "string", description: "Nombre del tono en la app" }, createdAt: { type: "string", format: "date-time" } },
+        },
+        User: {
+          type: "object",
+          properties: {
+            id: str,
+            name: strNull,
+            email: str,
+            role: { type: "string", enum: ["admin", "user", "ejecutivo"] },
+            active: { type: "boolean", description: "false = desactivada (no se le puede asignar)" },
+          },
+        },
+        Automation: {
+          type: "object",
+          properties: {
+            id: str,
+            accountId: str,
+            name: str,
+            description: strNull,
+            status: { type: "string", enum: ["DRAFT", "ACTIVE", "PAUSED"] },
+            triggerType: { ...strNull, description: "manual, message_received, tag_added…" },
+            runnable: { type: "boolean", description: "true = acepta POST /automations/{id}/runs" },
+            updatedAt: { type: "string", format: "date-time" },
           },
         },
         WebhookCreate: {
@@ -991,6 +1244,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             disabledAt: { type: ["string", "null"], format: "date-time" },
             consecutiveFailures: { type: "integer" },
             lastDeliveryAt: { type: ["string", "null"], format: "date-time" },
+            previousSecretExpiresAt: { type: ["string", "null"], format: "date-time", description: "Tras rotar con periodo de gracia: hasta cuándo el secreto anterior también firma" },
             createdAt: { type: "string", format: "date-time" },
             secret: { type: "string", description: "Solo en la respuesta de creación" },
           },

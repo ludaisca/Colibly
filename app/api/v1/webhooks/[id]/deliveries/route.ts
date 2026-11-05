@@ -1,7 +1,7 @@
 import type { WebhookDeliveryStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors, methodNotAllowed } from "@/lib/api/respond";
 import { DELIVERY_PUBLIC_SELECT, serializeDelivery } from "@/lib/webhooks/replay";
 
 type Params = { params: Promise<{ id: string }> };
@@ -46,3 +46,9 @@ export const GET = withApiErrors(async (req: Request, { params }: Params) => {
     nextCursor: rows.length > limit && last ? encodeCursor({ t: last.createdAt.toISOString(), id: last.id }) : null,
   });
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET");
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

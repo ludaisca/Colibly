@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors } from "@/lib/api/respond";
+import { apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors, methodNotAllowed } from "@/lib/api/respond";
 import { findScopedConversation } from "@/lib/api/resources";
 import { MESSAGE_SERIALIZE_SELECT_CHANNEL, MESSAGE_SERIALIZE_SELECT_WA, resolveReplyIds, serializeMessage } from "@/lib/messages/serialize";
 
@@ -52,3 +52,9 @@ export const GET = withApiErrors(async (req: Request, { params }: Params) => {
       rows.length > limit && last ? encodeCursor({ t: (since ? last.createdAt : last.timestamp).toISOString(), id: last.id }) : null,
   });
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET");
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

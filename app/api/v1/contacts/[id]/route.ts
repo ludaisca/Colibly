@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, withApiErrors, readJsonBody, methodNotAllowed } from "@/lib/api/respond";
 import { findScopedContact, serializeContact } from "@/lib/api/resources";
 import { apiContactUpdateSchema } from "@/lib/api/schemas";
 import { setCustomFieldsByKey } from "@/lib/contacts/custom-fields";
@@ -22,9 +22,8 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
   const { id } = await params;
   const contact = await findScopedContact(ctx, id);
 
-  const parsed = apiContactUpdateSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
-  const { customFields, expectedCloseAt, ...fields } = parsed.data;
+  const body = await readJsonBody(req, apiContactUpdateSchema);
+  const { customFields, expectedCloseAt, ...fields } = body;
 
   if (customFields) {
     const { unknownKeys } = await setCustomFieldsByKey(contact, customFields);
@@ -46,3 +45,8 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
 
   return apiOk(serializeContact(await findScopedContact(ctx, id)));
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET", "PATCH");
+export const PUT = POST;
+export const DELETE = POST;

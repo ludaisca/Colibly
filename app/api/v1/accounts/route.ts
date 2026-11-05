@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { apiOk, withApiErrors } from "@/lib/api/respond";
+import { apiOk, withApiErrors, methodNotAllowed } from "@/lib/api/respond";
 import { toE164 } from "@/lib/phone/e164";
 
 // Cuentas al alcance de la key (WhatsApp y demás canales) — los ids que piden
@@ -27,3 +27,9 @@ export const GET = withApiErrors(async (req: Request) => {
     ],
   });
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET");
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

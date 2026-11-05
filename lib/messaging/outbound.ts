@@ -13,6 +13,12 @@ import type { OutboundOrigin } from "@/lib/messages/origin";
 import { markReplied } from "@/lib/chats/waiting";
 import type { MessageSource } from "@/lib/events/types";
 import { assertOrgCanSend } from "@/lib/billing/gates";
+import { uploadMedia } from "@/lib/whatsapp";
+import { decrypt } from "@/lib/crypto";
+import { saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
+import { sendTelegramMedia } from "@/lib/telegram/send";
+import { sendMetaChannelMedia } from "@/lib/meta-messaging/send";
+import type { OutboundMediaFile, OutboundMediaType } from "@/lib/messaging/outbound-media";
 
 // Envío saliente iniciado por el sistema (API pública; en la fase 2 también
 // las automatizaciones): manda por el canal que corresponda, persiste el
@@ -33,7 +39,20 @@ export type OutboundContent =
   | { type: "text"; text: string }
   | { type: "buttons"; text: string; buttons: OutboundOption[] }
   | { type: "list"; text: string; buttonLabel: string; rows: OutboundOption[] }
-  | { type: "template"; templateId: string; bodyParams?: string[]; headerParam?: string | null; buttonParam?: string | null };
+  | { type: "template"; templateId: string; bodyParams?: string[]; headerParam?: string | null; buttonParam?: string | null }
+  // Archivo ya descargado y validado (lib/messaging/outbound-media.ts).
+  | { type: "media"; mediaType: OutboundMediaType; file: OutboundMediaFile; caption?: string | null };
+
+// Columnas de medio del mensaje guardado (WAMessage y ChannelMessage las comparten).
+interface StoredMediaColumns {
+  mediaId: string | null;
+  mediaUrl: string;
+  mimeType: string;
+  filename: string;
+  bytesSize: number;
+  mediaSha256: string | null;
+  caption: string | null;
+}
 
 // Forma de interactivePayload en WAMessage y ChannelMessage — la burbuja del
 // chat (chat-thread-panel.tsx) dibuja `buttons` igual para botones y listas.
@@ -127,9 +146,30 @@ async function sendWhatsapp(
   let body: string;
   let messageType = "text";
   let interactivePayload: InteractivePayload | undefined;
+  let media: StoredMediaColumns | null = null;
 
   try {
-    if (content.type === "text") {
+    if (content.type === "media") {
+      if (!chat.account.phoneNumberId || !chat.account.accessToken) {
+        throw new OutboundError("invalid_request", "La cuenta de WhatsApp no está conectada");
+      }
+      const { buffer, mimeType, filename } = content.file;
+      // Dos pasos de Meta: subir el archivo (media id) y mandar el mensaje con él.
+      const uploaded = await uploadMedia(chat.account.phoneNumberId, decrypt(chat.account.accessToken), buffer, filename, mimeType);
+      const stored = await saveMediaFromBuffer(chat.accountId, buffer, mimeType);
+      ({ wamid } = await sendWhatsAppMessage(chat.account, {
+        to: chat.remoteJid,
+        type: content.mediaType,
+        mediaId: uploaded.id,
+        caption: content.caption ?? undefined,
+        mimeType,
+        filename,
+        localMediaPath: stored.relativePath,
+      }));
+      media = { mediaId: uploaded.id, mediaUrl: stored.relativePath, mimeType, filename, bytesSize: buffer.length, mediaSha256: stored.sha256 ?? null, caption: content.caption ?? null };
+      body = content.caption || `[${content.mediaType}]`;
+      messageType = content.mediaType;
+    } else if (content.type === "text") {
       ({ wamid } = await sendWhatsAppMessage(chat.account, { to: chat.remoteJid, type: "text", body: content.text }));
       body = content.text;
     } else if (content.type === "buttons") {
@@ -198,7 +238,9 @@ async function sendWhatsapp(
       chatId: chat.id,
       direction: "OUTBOUND",
       messageType,
-      body,
+      // Un medio guarda su leyenda en caption; body queda vacío como en la bandeja.
+      body: media ? null : body,
+      ...(media ?? {}),
       interactivePayload: interactivePayload as Prisma.InputJsonObject | undefined,
       status: "sent",
       senderId: opts.senderId ?? null,
@@ -233,6 +275,7 @@ async function sendChannel(
   if (content.type === "template") {
     throw new OutboundError("invalid_request", "Las plantillas solo existen en WhatsApp");
   }
+  if (content.type === "media") return sendChannelMedia(conversation, content, opts);
 
   const now = new Date();
   const text = content.text;
@@ -276,13 +319,103 @@ async function sendChannel(
     throw new OutboundError("upstream_error", err instanceof Error ? err.message : String(err));
   }
 
+  return persistChannelOutbound(conversation, opts, now, {
+    externalMessageId: externalId,
+    messageType: options ? "interactive" : "text",
+    body: text,
+    preview: text,
+    interactivePayload,
+    media: null,
+  });
+}
+
+/**
+ * Reglas de canal para un archivo, sin red: el chat web no recibe archivos y
+ * Messenger/Instagram no muestran caption. La API la llama antes de descargar
+ * la URL (para no bajar un archivo que no va a salir); sendChannelMedia, otra vez.
+ */
+export function assertMediaSupported(target: OutboundTarget, caption: string | null | undefined): void {
+  if (target.kind === "whatsapp") return;
+  const channel = target.conversation.channelAccount.channel;
+  if (channel === "WEBCHAT") {
+    throw new OutboundError("invalid_request", "El chat web todavía no recibe archivos: envía un texto con el enlace");
+  }
+  if ((channel === "MESSENGER" || channel === "INSTAGRAM") && caption?.trim()) {
+    throw new OutboundError("invalid_request", "Messenger e Instagram no muestran texto junto a un archivo: quita caption y mándalo como mensaje aparte");
+  }
+}
+
+async function sendChannelMedia(
+  conversation: Conversation & { channelAccount: ChannelAccount },
+  content: Extract<OutboundContent, { type: "media" }>,
+  opts: OutboundOpts
+): Promise<OutboundResult> {
+  const { channelAccount } = conversation;
+  const { buffer, mimeType, filename } = content.file;
+  const caption = content.caption?.trim() || null;
+  assertMediaSupported({ kind: "channel", conversation }, caption);
+  if (channelAccount.channel === "MESSENGER" && conversation.firstResponseAt === null) {
+    const fromComment = await prisma.channelMessage.findFirst({
+      where: { conversationId: conversation.id, direction: "INBOUND", isFromComment: true },
+      select: { id: true },
+    });
+    if (fromComment) {
+      throw new OutboundError("invalid_request", "La primera respuesta a un comentario de Facebook solo puede ser texto (respuesta privada de Meta)");
+    }
+  }
+
+  const now = new Date();
+  let externalId: string | null = null;
+  let mediaId: string | null = null;
+  try {
+    if (channelAccount.channel === "TELEGRAM") {
+      const r = await sendTelegramMedia(channelAccount, { to: conversation.externalId, type: content.mediaType, buffer, filename, mimeType, caption: caption ?? undefined });
+      externalId = r.externalMessageId;
+      mediaId = r.fileId;
+    } else {
+      const r = await sendMetaChannelMedia(channelAccount, { to: conversation.externalId, buffer, filename, mimeType });
+      externalId = r.externalMessageId;
+      mediaId = r.attachmentId;
+    }
+  } catch (err) {
+    throw new OutboundError("upstream_error", err instanceof Error ? err.message : String(err));
+  }
+  const stored = await saveMediaFromBuffer(channelAccount.id, buffer, mimeType);
+  return persistChannelOutbound(conversation, opts, now, {
+    externalMessageId: externalId,
+    messageType: content.mediaType,
+    body: null,
+    preview: caption ?? `[${content.mediaType}]`,
+    interactivePayload: undefined,
+    media: { mediaId, mediaUrl: stored.relativePath, mimeType, filename, bytesSize: buffer.length, mediaSha256: stored.sha256 ?? null, caption },
+  });
+}
+
+async function persistChannelOutbound(
+  conversation: Conversation & { channelAccount: ChannelAccount },
+  opts: OutboundOpts,
+  now: Date,
+  row: {
+    externalMessageId: string | null;
+    messageType: string;
+    body: string | null;
+    preview: string;
+    interactivePayload: InteractivePayload | undefined;
+    media: StoredMediaColumns | null;
+  }
+): Promise<OutboundResult> {
+  const { channelAccount } = conversation;
+  const externalId = row.externalMessageId;
+  const interactivePayload = row.interactivePayload;
+  const text = row.preview;
   const message = await prisma.channelMessage.create({
     data: {
       externalMessageId: externalId,
       conversationId: conversation.id,
       direction: "OUTBOUND",
-      messageType: options ? "interactive" : "text",
-      body: text,
+      messageType: row.messageType,
+      body: row.body,
+      ...(row.media ?? {}),
       interactivePayload: interactivePayload as Prisma.InputJsonObject | undefined,
       status: "sent",
       senderId: opts.senderId ?? null,

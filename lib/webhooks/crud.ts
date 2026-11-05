@@ -116,12 +116,26 @@ export async function updateWebhook(actorId: string, id: string, input: z.infer<
   });
 }
 
-export async function rotateWebhookSecret(ownerId: string, id: string) {
-  const existing = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(ownerId)) }, select: { id: true } });
+// Periodo de gracia al rotar: 0 = el anterior deja de firmar ya; hasta 72 h.
+export const WEBHOOK_ROTATION_MAX_GRACE_HOURS = 72;
+
+/** Rota el secreto. Con `graceHours` > 0 el anterior sigue firmando (segunda v1) ese tiempo. */
+export async function rotateWebhookSecret(ownerId: string, id: string, graceHours = 0) {
+  const existing = await prisma.webhookEndpoint.findFirst({ where: { id, ...(await orgWhere(ownerId)) }, select: { id: true, secret: true } });
   if (!existing) return null;
+  const hours = Math.max(0, Math.min(WEBHOOK_ROTATION_MAX_GRACE_HOURS, Math.floor(graceHours)));
   const secret = generateWebhookSecret();
-  await prisma.webhookEndpoint.update({ where: { id }, data: { secret: encrypt(secret) } });
-  return secret;
+  const previousSecretExpiresAt = hours > 0 ? new Date(Date.now() + hours * 3_600_000) : null;
+  await prisma.webhookEndpoint.update({
+    where: { id },
+    data: {
+      secret: encrypt(secret),
+      // Solo se conserva el inmediato anterior: rotar dos veces descarta el más viejo.
+      previousSecret: hours > 0 ? existing.secret : null,
+      previousSecretExpiresAt,
+    },
+  });
+  return { secret, previousSecretExpiresAt };
 }
 
 // active → entrega; paused → su dueño perdió el acceso; disabled → se apagó
@@ -151,6 +165,8 @@ export function serializeWebhook(e: WebhookEndpoint) {
     disabledAt: e.disabledAt,
     consecutiveFailures: e.consecutiveFailures,
     lastDeliveryAt: e.lastDeliveryAt,
+    // Hasta cuándo el secreto anterior sigue firmando (rotación con gracia); null = solo el vigente.
+    previousSecretExpiresAt: e.previousSecret && e.previousSecretExpiresAt && e.previousSecretExpiresAt > new Date() ? e.previousSecretExpiresAt : null,
     createdAt: e.createdAt,
   };
 }

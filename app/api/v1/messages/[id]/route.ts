@@ -1,5 +1,5 @@
 import { authenticateApiKey } from "@/lib/api/auth";
-import { ApiError, apiOk, withApiErrors } from "@/lib/api/respond";
+import { ApiError, apiOk, withApiErrors, methodNotAllowed } from "@/lib/api/respond";
 import { findScopedMessage } from "@/lib/api/messages-feed";
 
 type Params = { params: Promise<{ id: string }> };
@@ -14,3 +14,9 @@ export const GET = withApiErrors(async (req: Request, { params }: Params) => {
   if (!message) throw new ApiError(404, "not_found", "Mensaje no encontrado");
   return apiOk(message);
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET");
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

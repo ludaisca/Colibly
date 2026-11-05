@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { apiOk, withApiErrors } from "@/lib/api/respond";
+import { apiOk, withApiErrors, methodNotAllowed } from "@/lib/api/respond";
 
 // Identidad de la key: útil para que una integración verifique su conexión.
 export const GET = withApiErrors(async (req: Request) => {
@@ -16,3 +16,9 @@ export const GET = withApiErrors(async (req: Request) => {
     channelAccountIds: ctx.channelAccountIds,
   });
 });
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const POST = methodNotAllowed("GET");
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

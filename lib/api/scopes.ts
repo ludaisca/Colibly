@@ -4,6 +4,7 @@ export const API_SCOPES = {
   "contacts:read": "Leer contactos, etiquetas y campos",
   "contacts:write": "Crear y editar contactos, etapas y etiquetas",
   "conversations:read": "Leer conversaciones y mensajes",
+  "conversations:write": "Cambiar el estado y la asignación de conversaciones",
   "messages:send": "Enviar mensajes (texto, plantillas y botones)",
   "webhooks:manage": "Administrar webhooks salientes",
   "automations:run": "Iniciar automatizaciones manuales",

@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey, type ApiContext } from "@/lib/api/auth";
-import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors, type ApiErrorCode } from "@/lib/api/respond";
+import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors, type ApiErrorCode, readJsonBody, methodNotAllowed } from "@/lib/api/respond";
 import { messagesFeed } from "@/lib/api/messages-feed";
 import { findScopedContact, findScopedConversation } from "@/lib/api/resources";
 import { apiSendMessageSchema, type ApiSendMessageInput } from "@/lib/api/schemas";
-import { OutboundError, sendOutbound, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
+import { assertMediaSupported, OutboundError, sendOutbound, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
+import { fetchOutboundMedia, OutboundMediaError, OUTBOUND_MEDIA_TYPES, type OutboundMediaFile, type OutboundMediaType } from "@/lib/messaging/outbound-media";
 import { withIdempotency } from "@/lib/api/idempotency";
 import { enforceLimit, rateLimiterUnavailable } from "@/lib/api/auth";
 import { API_CONVERSATIONS_LIST_PER_MINUTE, API_DAILY_SENDS_PER_ORG, API_SEND_PER_MINUTE_PER_ORG } from "@/lib/api/constants";
@@ -54,9 +55,8 @@ export const GET = withApiErrors(async (req: Request) => {
 // abre el chat.
 export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "messages:send");
-  const parsed = apiSendMessageSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) throw new ApiError(400, "invalid_request", parsed.error.issues[0].message);
-  const input = parsed.data;
+  const body = await readJsonBody(req, apiSendMessageSchema);
+  const input = body;
 
   // Límites propios del envío (además de los de key/organización): por minuto
   // por organización, y un cupo diario (día UTC) que protege la calidad del
@@ -82,8 +82,24 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
       ? { target: (await findScopedConversation(ctx, input.conversationId)).target, openedChatId: null }
       : await targetForContact(ctx, input.contactId!, input.type === "template");
 
+    // El archivo se descarga ya con el destino validado (un 404 no gasta una descarga).
+    let file: OutboundMediaFile | null = null;
+    if (input.media && isMedia(input.type)) {
+      try {
+        assertMediaSupported(target, input.caption);
+        file = await fetchOutboundMedia(input.type, input.media);
+      } catch (err) {
+        if (openedChatId) await prisma.wAChat.delete({ where: { id: openedChatId } }).catch(() => {});
+        if (err instanceof OutboundError) throw new ApiError(400, "invalid_request", err.message);
+        if (err instanceof OutboundMediaError) {
+          throw new ApiError(400, "invalid_request", err.message, undefined, [{ path: "media.url", message: err.message }]);
+        }
+        throw err;
+      }
+    }
+
     try {
-      const result = await sendOutbound(target, toContent(input), { source: "api" });
+      const result = await sendOutbound(target, toContent(input, file), { source: "api" });
       sent = true;
       const conversationId = target.kind === "whatsapp" ? target.chat.id : target.conversation.id;
       return apiOk({ id: result.messageId, conversationId, externalId: result.externalId }, 201);
@@ -103,7 +119,12 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   }
 }));
 
-function toContent(input: ApiSendMessageInput): OutboundContent {
+function isMedia(t: string): t is OutboundMediaType {
+  return (OUTBOUND_MEDIA_TYPES as readonly string[]).includes(t);
+}
+
+function toContent(input: ApiSendMessageInput, file: OutboundMediaFile | null): OutboundContent {
+  if (isMedia(input.type)) return { type: "media", mediaType: input.type, file: file!, caption: input.caption ?? null };
   if (input.type === "text") return { type: "text", text: input.text! };
   if (input.type === "buttons") {
     return {
@@ -143,3 +164,8 @@ async function targetForContact(
   });
   return { target: { kind: "whatsapp", chat }, openedChatId: chat.id };
 }
+
+// Métodos que esta ruta no atiende: 405 en JSON con el header Allow.
+export const PUT = methodNotAllowed("GET", "POST");
+export const PATCH = PUT;
+export const DELETE = PUT;
