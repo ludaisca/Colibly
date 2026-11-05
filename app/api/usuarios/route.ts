@@ -10,8 +10,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { emailField } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
-import { checkPlanLimit } from "@/lib/billing/gates";
-import { defaultLicenseFor } from "@/lib/billing/user-license";
+import { checkLicenseAvailable, suggestedLicense } from "@/lib/billing/license-billing";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "Nombre requerido"),
@@ -19,6 +18,8 @@ const createUserSchema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres"),
   role: z.enum(["admin", "user", "ejecutivo"]).default("user"),
   maxOpenChats: z.number().int().positive().nullable().optional(),
+  // Licencia de la persona (si no viene: una libre, o la de la prueba).
+  license: z.enum(["ESSENTIAL", "BUSINESS", "PRO"]).optional(),
 });
 
 export async function GET() {
@@ -39,7 +40,11 @@ export async function GET() {
         disabledAt: true,
         createdAt: true,
         twoFactorEnabledAt: true,
+        license: true,
+        aiCreditsUsed: true,
         waAccounts: { select: { id: true, name: true } },
+        ownedWaAccounts: { select: { id: true, name: true } },
+        ownedChannelAccounts: { select: { id: true, name: true, channel: true } },
         ownedOrganization: { select: { id: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -87,7 +92,7 @@ export async function PATCH(req: Request) {
     const orgId = await requireOrgId(session.user.id);
     const target = await prisma.user.findFirst({
       where: { id: userId, organizationId: orgId },
-      select: { id: true, role: true, disabledAt: true, ownedOrganization: { select: { id: true } } },
+      select: { id: true, role: true, disabledAt: true, license: true, ownedOrganization: { select: { id: true } } },
     });
     if (!target) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
@@ -126,9 +131,9 @@ export async function PATCH(req: Request) {
     if (disabled === true && target.id === session.user.id) {
       return NextResponse.json({ error: "No puedes desactivar tu propia cuenta" }, { status: 400 });
     }
-    // Reactivar ocupa un lugar del plan (desactivar lo libera).
+    // Reactivar ocupa una licencia de su plan (desactivar la libera).
     if (disabled === false && target.disabledAt) {
-      const overLimit = await checkPlanLimit(orgId, "seats");
+      const overLimit = await checkLicenseAvailable(orgId, target.license);
       if (overLimit) return overLimit;
     }
 
@@ -188,7 +193,8 @@ export async function POST(req: Request) {
     }
 
     const organizationId = await requireOrgId(session.user.id);
-    const overLimit = await checkPlanLimit(organizationId, "seats");
+    const license = parsed.data.license ?? (await suggestedLicense(organizationId));
+    const overLimit = await checkLicenseAvailable(organizationId, license);
     if (overLimit) return overLimit;
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -198,7 +204,7 @@ export async function POST(req: Request) {
     // invitación). Sin esto el login lo rechazaba siempre con
     // email_not_verified y nunca se le mandaba un correo para confirmarlo.
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId, emailVerifiedAt: new Date(), license: await defaultLicenseFor(organizationId) },
+      data: { name, email, password: hashedPassword, role, maxOpenChats: maxOpenChats ?? null, organizationId, emailVerifiedAt: new Date(), license },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });
 

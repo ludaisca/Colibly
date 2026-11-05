@@ -20,6 +20,7 @@ function isForbiddenRole(role: string | undefined): boolean {
 }
 
 const ACCOUNT_SELECT = {
+  owner: { select: { id: true, name: true, email: true, license: true, disabledAt: true } },
   id: true,
   userId: true,
   name: true,

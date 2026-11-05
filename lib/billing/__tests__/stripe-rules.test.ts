@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkoutIdempotencyKey, checkoutSessionParams, CHECKOUT_IDEMPOTENCY_WINDOW_MS, isLiveSubscriptionStatus, PLAN_LOOKUP_KEYS, planForLookupKey, priceMatchesPlan, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "../stripe-rules";
+import { checkoutIdempotencyKey, checkoutSessionParams, CHECKOUT_IDEMPOTENCY_WINDOW_MS, isLiveSubscriptionStatus, licenseCheckoutIdempotencyKey, licenseCountsFromItems, licenseItemsUpdate, licenseLineItems, licenseProrationBehavior, licenseUpdateIdempotencyKey, PLAN_LOOKUP_KEYS, planForLookupKey, priceMatchesPlan, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "../stripe-rules";
 
 describe("lookup keys", () => {
   it("una por plan", () => {
@@ -91,4 +91,63 @@ describe("checkoutSessionParams", () => {
     expect(checkoutSessionParams({ customerId: "c", organizationId: "o", priceId: "p", seats: 1, trialEnd: 123, automaticTax: true, successUrl: "s", cancelUrl: "c" })).toMatchObject({ automatic_tax: { enabled: true }, subscription_data: { trial_end: 123 } });
   });
   it("sin trial_end cuando no hay prueba", () => expect(p.subscription_data).not.toHaveProperty("trial_end"));
+});
+
+describe("licencias: una línea por plan", () => {
+  const priceFor = (p: string) => `price_${p.toLowerCase()}`;
+  it("Checkout omite los planes en 0", () => {
+    expect(licenseLineItems({ ESSENTIAL: 3, BUSINESS: 0, PRO: 1 }, priceFor)).toEqual([
+      { price: "price_essential", quantity: 3 },
+      { price: "price_pro", quantity: 1 },
+    ]);
+  });
+
+  it("actualiza, agrega y borra líneas para llegar al destino", () => {
+    const current = [
+      { id: "si_b", plan: "BUSINESS" as const, quantity: 5 },
+      { id: "si_p", plan: "PRO" as const, quantity: 1 },
+      { id: "si_x", plan: null, quantity: 1 },
+    ];
+    expect(licenseItemsUpdate(current, { ESSENTIAL: 2, BUSINESS: 4, PRO: 0 }, priceFor)).toEqual([
+      { price: "price_essential", quantity: 2 },
+      { id: "si_b", quantity: 4 },
+      { id: "si_p", deleted: true },
+    ]);
+  });
+
+  it("una suscripción del catálogo anterior (1 línea) ya son licencias de ese plan", () => {
+    const current = [{ id: "si_1", plan: "BUSINESS" as const, quantity: 5 }];
+    expect(licenseCountsFromItems(current)).toEqual({ ESSENTIAL: 0, BUSINESS: 5, PRO: 0 });
+    expect(licenseItemsUpdate(current, { ESSENTIAL: 0, BUSINESS: 5, PRO: 0 }, priceFor)).toEqual([]);
+  });
+
+  it("funde líneas repetidas del mismo plan", () => {
+    const current = [
+      { id: "a", plan: "PRO" as const, quantity: 1 },
+      { id: "b", plan: "PRO" as const, quantity: 2 },
+    ];
+    expect(licenseCountsFromItems(current).PRO).toBe(3);
+    expect(licenseItemsUpdate(current, { ESSENTIAL: 0, BUSINESS: 0, PRO: 3 }, priceFor)).toEqual([{ id: "a", quantity: 3 }, { id: "b", deleted: true }]);
+  });
+
+  it("prorrateo: cobra al momento solo si sube el total mensual", () => {
+    expect(licenseProrationBehavior({ ESSENTIAL: 2, BUSINESS: 0, PRO: 0 }, { ESSENTIAL: 1, BUSINESS: 1, PRO: 0 })).toBe("always_invoice");
+    expect(licenseProrationBehavior({ ESSENTIAL: 0, BUSINESS: 0, PRO: 1 }, { ESSENTIAL: 0, BUSINESS: 1, PRO: 0 })).toBe("create_prorations");
+  });
+
+  it("llaves de idempotencia distinguen cantidades y solicitudes", () => {
+    const a = licenseUpdateIdempotencyKey({ subscriptionId: "s", from: { ESSENTIAL: 1, BUSINESS: 0, PRO: 0 }, to: { ESSENTIAL: 2, BUSINESS: 0, PRO: 0 }, requestId: "r1" });
+    const b = licenseUpdateIdempotencyKey({ subscriptionId: "s", from: { ESSENTIAL: 1, BUSINESS: 0, PRO: 0 }, to: { ESSENTIAL: 2, BUSINESS: 0, PRO: 0 }, requestId: "r2" });
+    expect(a).not.toBe(b);
+    const now = 1_780_000_000_000;
+    const k1 = licenseCheckoutIdempotencyKey({ organizationId: "o", customerId: "c", counts: { ESSENTIAL: 1, BUSINESS: 0, PRO: 2 }, trialEnd: null }, now);
+    const k2 = licenseCheckoutIdempotencyKey({ organizationId: "o", customerId: "c", counts: { ESSENTIAL: 1, BUSINESS: 1, PRO: 1 }, trialEnd: null }, now);
+    expect(k1).not.toBe(k2);
+  });
+
+  it("Checkout con varias líneas marca la suscripción como de licencias", () => {
+    const p = checkoutSessionParams({ customerId: "c", organizationId: "o", lineItems: [{ price: "p1", quantity: 2 }, { price: "p2", quantity: 1 }], trialEnd: null, automaticTax: false, successUrl: "s", cancelUrl: "x" });
+    expect(p.line_items).toHaveLength(2);
+    expect(p.subscription_data.metadata).toMatchObject({ organizationId: "o", catalog: "licenses" });
+  });
 });

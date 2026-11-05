@@ -18,8 +18,10 @@ import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { ConexionCard } from "./_conexion";
 import { useToast } from "@/app/components/ui/toast";
 import { canSendLabel, messagingLimitLabel, nameStatusLabel, qualityLabel } from "@/lib/platform/whatsapp-health-rules";
+import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
 
 interface AccountDetail {
+  owner?: ChannelOwnerInfo | null;
   id: string;
   userId: string;
   name: string;
@@ -162,6 +164,7 @@ export default function CuentaDetailPage() {
   const [ruleAssignedToId, setRuleAssignedToId] = useState("");
   const [addingRule, setAddingRule] = useState(false);
 
+  const [ownerOpen, setOwnerOpen] = useState(false);
   const fetchAccount = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -755,6 +758,22 @@ export default function CuentaDetailPage() {
               </div>
               <Switch checked={account.csatEnabled} onCheckedChange={handleToggleCsat} label="Encuesta CSAT al resolver" />
             </div>
+          </section>
+        )}
+
+        {isAdmin && (
+          <section className="space-y-4">
+            <SectionHeader title="Dueño y licencia" />
+            <p className="text-sm text-muted">
+              El número funciona con la licencia de su dueño: bots, difusiones, automatizaciones y llamadas dependen de ese plan. Cada licencia incluye un número de WhatsApp.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <ChannelOwnerBadge owner={account.owner} />
+              <Button size="sm" variant="secondary" onClick={() => setOwnerOpen(true)}>
+                Cambiar dueño
+              </Button>
+            </div>
+            <ChannelOwnerModal open={ownerOpen} onClose={() => setOwnerOpen(false)} kind="whatsapp" account={account} onChanged={fetchAccount} />
           </section>
         )}
 

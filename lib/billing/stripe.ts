@@ -5,7 +5,19 @@ import { getPlatformSettings } from "@/lib/platform-settings";
 import { deriveFromSubscription, type SubscriptionSnapshot } from "./state";
 import { invalidateOrgBilling } from "./gates";
 import { notifyBillingTransition } from "./notify";
-import { isLiveSubscriptionStatus, PLAN_LOOKUP_KEYS, planForLookupKey, priceMatchesPlan, prorationBehaviorFor, subscriptionUpdateIdempotencyKey } from "./stripe-rules";
+import {
+  isLiveSubscriptionStatus,
+  licenseCountsFromItems,
+  licenseItemsUpdate,
+  licenseProrationBehavior,
+  licenseUpdateIdempotencyKey,
+  PLAN_LOOKUP_KEYS,
+  planForLookupKey,
+  priceMatchesPlan,
+  prorationBehaviorFor,
+  subscriptionUpdateIdempotencyKey,
+} from "./stripe-rules";
+import { highestLicense, LICENSE_ORDER, totalLicenses, type LicenseCounts } from "./licenses";
 import { listPlatformAdminEmails } from "@/lib/platform-admin";
 import { sendEmailSafely } from "@/lib/email/mailer";
 import { billingNoticeTemplate } from "@/lib/email/templates";
@@ -174,6 +186,46 @@ export async function updateSubscriptionItem(
   return { prorationBehavior, pending: { invoiceUrl } };
 }
 
+// Licencias por usuario: lleva la suscripción a `target` (una línea por plan).
+// Mismas reglas que updateSubscriptionItem: subir el total cobra de inmediato
+// y, si ese cobro falla, el cambio queda pendiente sin aplicarse.
+export async function updateSubscriptionLicenses(
+  subscriptionId: string,
+  opts: { target: LicenseCounts; requestId: string }
+): Promise<SubscriptionItemUpdate & { changed: boolean }> {
+  const stripe = await getStripe();
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  const current = await Promise.all(
+    sub.items.data.map(async (i) => ({ id: i.id, plan: await planForPrice(i.price.id, i.price.lookup_key), quantity: i.quantity ?? 0 }))
+  );
+  const from = licenseCountsFromItems(current);
+  const prices = Object.fromEntries(await Promise.all(LICENSE_ORDER.map(async (p) => [p, await priceIdFor(p)] as const))) as Record<PlanId, string>;
+  const items = licenseItemsUpdate(current, opts.target, (p) => prices[p]);
+  if (items.length === 0) return { prorationBehavior: "create_prorations", pending: null, changed: false };
+  const prorationBehavior = licenseProrationBehavior(from, opts.target);
+  const updated = await stripe.subscriptions.update(
+    subscriptionId,
+    {
+      items,
+      proration_behavior: prorationBehavior,
+      ...(prorationBehavior === "always_invoice" ? { payment_behavior: "pending_if_incomplete" as const } : {}),
+      metadata: { ...(sub.metadata ?? {}), catalog: "licenses" },
+    },
+    { idempotencyKey: licenseUpdateIdempotencyKey({ subscriptionId, from, to: opts.target, requestId: opts.requestId }) }
+  );
+  if (!updated.pending_update) return { prorationBehavior, pending: null, changed: true };
+  let invoiceUrl: string | null = null;
+  const invoiceId = idOf(updated.latest_invoice);
+  if (invoiceId) {
+    try {
+      invoiceUrl = (await stripe.invoices.retrieve(invoiceId)).hosted_invoice_url ?? null;
+    } catch (err) {
+      console.warn(`[billing] No se pudo leer la factura pendiente ${invoiceId}:`, (err as Error)?.message);
+    }
+  }
+  return { prorationBehavior, pending: { invoiceUrl }, changed: true };
+}
+
 // Deja una sola Checkout Session abierta por cliente: al abrir una nueva se
 // vencen las demás, para que no se paguen dos (dos pestañas, otros asientos o
 // pasada la ventana de idempotencia) y nazcan dos suscripciones. Best-effort:
@@ -253,10 +305,29 @@ export async function syncSubscription(subscriptionId: string, hintOrganizationI
   // pasarle planForPrice (que ahora es async) como callback.
   const plan = snapshot.priceId ? await planForPrice(snapshot.priceId, sub.items.data[0]?.price.lookup_key) : null;
   const update = deriveFromSubscription(snapshot, org, new Date(), () => plan);
+  // Licencias: una línea por plan. Las cantidades de Stripe mandan; el plan de
+  // la organización queda como el más alto (lo usan el catálogo anterior y los
+  // textos) y los asientos, como el total.
+  const counts = licenseCountsFromItems(
+    await Promise.all(sub.items.data.map(async (i) => ({ plan: await planForPrice(i.price.id, i.price.lookup_key), quantity: i.quantity ?? 0 })))
+  );
+  const licenseFields =
+    totalLicenses(counts) > 0
+      ? {
+          licensesEssential: counts.ESSENTIAL,
+          licensesBusiness: counts.BUSINESS,
+          licensesPro: counts.PRO,
+          seatQuantity: totalLicenses(counts),
+          plan: highestLicense(LICENSE_ORDER.filter((p) => counts[p] > 0)) ?? update.plan,
+        }
+      : {};
   await prisma.organization.update({
     where: { id: org.id },
     data: {
       ...update,
+      ...licenseFields,
+      // Una suscripción de licencias cierra el catálogo anterior (decisión 4).
+      ...(sub.metadata?.catalog === "licenses" ? { legacyUntil: null } : {}),
       stripeSubscriptionId: sub.id,
       ...(customerId ? { stripeCustomerId: customerId } : {}),
       // Pagar cierra la prueba: ya no aplica su fecha.

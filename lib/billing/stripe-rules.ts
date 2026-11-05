@@ -1,5 +1,6 @@
 import type { PlanId } from "@prisma/client";
 import { monthlyTotalMxn, PLANS } from "./plans";
+import { monthlyTotalForLicenses, type LicenseCounts } from "./licenses";
 
 // Reglas puras de la integración con Stripe (sin SDK ni base): lookup keys de
 // los precios, prorrateo de cambios y llaves de idempotencia. Testeadas en
@@ -86,8 +87,10 @@ export function isLiveSubscriptionStatus(status: string): boolean {
 export function checkoutSessionParams(input: {
   customerId: string;
   organizationId: string;
-  priceId: string;
-  seats: number;
+  // Una línea (catálogo anterior: plan × asientos) o varias (licencias por plan).
+  priceId?: string;
+  seats?: number;
+  lineItems?: Array<{ price: string; quantity: number }>;
   trialEnd: number | null;
   automaticTax: boolean;
   successUrl: string;
@@ -98,7 +101,7 @@ export function checkoutSessionParams(input: {
     customer: input.customerId,
     client_reference_id: input.organizationId,
     locale: "es" as const,
-    line_items: [{ price: input.priceId, quantity: input.seats }],
+    line_items: input.lineItems ?? [{ price: input.priceId!, quantity: input.seats ?? 1 }],
     // Datos para facturar en México: dirección obligatoria y RFC opcional;
     // se guardan en el cliente de Stripe (customer_update) para las facturas
     // siguientes y el portal.
@@ -108,11 +111,77 @@ export function checkoutSessionParams(input: {
     // Stripe Tax: interruptor en /plataforma, apagado hasta definir el IVA.
     automatic_tax: { enabled: input.automaticTax },
     subscription_data: {
-      metadata: { organizationId: input.organizationId },
+      metadata: { organizationId: input.organizationId, ...(input.lineItems ? { catalog: "licenses" } : {}) },
       ...(input.trialEnd ? { trial_end: input.trialEnd } : {}),
     },
     allow_promotion_codes: true,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
   };
+}
+
+// ── Licencias por usuario: una línea por plan (docs/PLAN_LICENCIAS_2026-11-04.md) ──
+//
+// La suscripción lleva hasta 3 items, uno por precio (Básico, Avanzado, Pro),
+// con quantity = licencias de ese plan. Mismos precios que el catálogo
+// anterior: una suscripción vieja de un solo item ya es "N licencias del plan".
+
+const LICENSE_PLAN_ORDER: readonly PlanId[] = ["ESSENTIAL", "BUSINESS", "PRO"];
+
+/** Líneas de Checkout para unas cantidades por plan (omite los ceros). */
+export function licenseLineItems(counts: LicenseCounts, priceFor: (plan: PlanId) => string) {
+  return LICENSE_PLAN_ORDER.filter((p) => Math.floor(counts[p] || 0) > 0).map((p) => ({ price: priceFor(p), quantity: Math.floor(counts[p]) }));
+}
+
+export interface CurrentSubscriptionItem {
+  id: string;
+  plan: PlanId | null; // null = un precio que no es de ningún plan (se deja como está)
+  quantity: number;
+}
+
+/**
+ * Items para `subscriptions.update` que llevan la suscripción a `target`:
+ * actualiza la cantidad de las líneas existentes, agrega las que faltan y
+ * borra las que quedan en 0. Dos líneas del mismo plan (no debería pasar) se
+ * funden en la primera. Un item de un precio desconocido no se toca.
+ */
+export function licenseItemsUpdate(current: CurrentSubscriptionItem[], target: LicenseCounts, priceFor: (plan: PlanId) => string) {
+  const out: Array<{ id: string; quantity: number } | { id: string; deleted: true } | { price: string; quantity: number }> = [];
+  for (const plan of LICENSE_PLAN_ORDER) {
+    const want = Math.max(0, Math.floor(target[plan] || 0));
+    const items = current.filter((i) => i.plan === plan);
+    const [first, ...dupes] = items;
+    if (first) {
+      if (want === 0) out.push({ id: first.id, deleted: true });
+      else if (first.quantity !== want) out.push({ id: first.id, quantity: want });
+    } else if (want > 0) {
+      out.push({ price: priceFor(plan), quantity: want });
+    }
+    for (const d of dupes) out.push({ id: d.id, deleted: true });
+  }
+  return out;
+}
+
+/** Cantidades por plan que cobra la suscripción (suma líneas repetidas; ignora precios desconocidos). */
+export function licenseCountsFromItems(items: Array<{ plan: PlanId | null; quantity: number | null }>): LicenseCounts {
+  const out: LicenseCounts = { ESSENTIAL: 0, BUSINESS: 0, PRO: 0 };
+  for (const i of items) if (i.plan) out[i.plan] += Math.max(0, Math.floor(i.quantity ?? 0));
+  return out;
+}
+
+/** Subir el total mensual se cobra de inmediato; bajar deja el crédito para la siguiente factura. */
+export function licenseProrationBehavior(from: LicenseCounts, to: LicenseCounts): ProrationBehavior {
+  const price = (p: PlanId) => PLANS[p].pricePerSeatMxn;
+  return monthlyTotalForLicenses(to, price) > monthlyTotalForLicenses(from, price) ? "always_invoice" : "create_prorations";
+}
+
+const countsKey = (c: LicenseCounts) => LICENSE_PLAN_ORDER.map((p) => Math.floor(c[p] || 0)).join("-");
+
+export function licenseCheckoutIdempotencyKey(input: { organizationId: string; customerId: string; counts: LicenseCounts; trialEnd: number | null }, now: number): string {
+  const bucket = Math.floor(now / CHECKOUT_IDEMPOTENCY_WINDOW_MS);
+  return `checkout-licenses:${input.organizationId}:${input.customerId}:${countsKey(input.counts)}:${input.trialEnd ?? "none"}:${bucket}`;
+}
+
+export function licenseUpdateIdempotencyKey(input: { subscriptionId: string; from: LicenseCounts; to: LicenseCounts; requestId: string }): string {
+  return `sub-licenses:${input.subscriptionId}:${countsKey(input.from)}->${countsKey(input.to)}:${input.requestId}`;
 }

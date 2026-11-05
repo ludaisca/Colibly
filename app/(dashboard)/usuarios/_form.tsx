@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import type { PlanId } from "@prisma/client";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -9,6 +10,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import { licenseHint, LicenseSelect, needsPurchase, useLicenseState } from "./_licenses";
 
 interface Props {
   open: boolean;
@@ -24,6 +26,10 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("user");
   const [maxOpenChats, setMaxOpenChats] = useState("");
+  const { state: licenses } = useLicenseState(open);
+  const [chosenLicense, setLicense] = useState<PlanId | null>(null);
+  // Sin elección: la sugerida (una libre, o la de la prueba).
+  const license = chosenLicense ?? licenses?.suggested ?? null;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   // 402 por asientos: enlace para agregar ejecutivos (lib/billing/gates.ts).
@@ -36,6 +42,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
     setPassword("");
     setRole("user");
     setMaxOpenChats("");
+    setLicense(null);
     setError("");
     setBillingUrl(null);
     setFieldErrors({});
@@ -66,6 +73,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
           password,
           role,
           maxOpenChats: maxOpenChats.trim() ? Number(maxOpenChats) : null,
+          ...(license ? { license } : {}),
         }),
       });
       const data = await res.json();
@@ -110,7 +118,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
             {billingUrl && (
               <>
                 {" "}
-                <a href={billingUrl} className="font-medium underline underline-offset-2">Agregar ejecutivos en Plan y facturación</a>
+                <a href={billingUrl} className="font-medium underline underline-offset-2">Agregar licencias en Plan y facturación</a>
               </>
             )}
           </Banner>
@@ -164,6 +172,17 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
             )}
           </FormField>
         </div>
+        {license && (
+          <FormField label="Licencia" hint={licenseHint(licenses)}>
+            {(id) => <LicenseSelect id={id} value={license} onChange={setLicense} state={licenses} />}
+          </FormField>
+        )}
+        {license && needsPurchase(licenses, license) && (
+          <Banner tone="warning">
+            No hay licencias de ese plan libres.{" "}
+            <a href="/configuracion/plan#licencias" className="font-medium underline underline-offset-2">Agrégala en Plan y facturación</a> o elige otra.
+          </Banner>
+        )}
         <FormField label="Máximo de chats abiertos" hint="Opcional — usado por la auto-asignación de chats. Vacío = sin límite.">
           {(id) => (
             <Input

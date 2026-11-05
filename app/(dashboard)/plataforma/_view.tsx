@@ -33,6 +33,13 @@ const TABS = ["organizaciones", "soporte", "configuracion", "respaldos", "operac
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = { organizaciones: "Organizaciones", soporte: "Soporte", configuracion: "Configuración", respaldos: "Respaldos", operacion: "Operación" };
 
+
+// "2 Básico · 1 Pro" (las de Stripe); en prueba o sin suscripción, el plan.
+function licensesLabel(r: { plan: PlanId; licenses: { ESSENTIAL: number; BUSINESS: number; PRO: number }; legacy: boolean; hasSubscription: boolean }): string {
+  const parts = (["PRO", "BUSINESS", "ESSENTIAL"] as const).filter((p) => r.licenses[p] > 0).map((p) => `${r.licenses[p]} ${PLANS[p].name}`);
+  const base = r.hasSubscription && parts.length > 0 ? parts.join(" · ") : PLANS[r.plan].name;
+  return r.legacy ? `${base} (plan anterior)` : base;
+}
 export interface PlatformSummary {
   total: number;
   trialing: number;
@@ -62,6 +69,8 @@ export interface PlatformOrgRow {
   ownerEmail: string | null;
   ownerVerified: boolean;
   members: number;
+  licenses: { ESSENTIAL: number; BUSINESS: number; PRO: number };
+  legacy: boolean;
   channels: number;
   channelFlags: { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean };
   whatsappCoexistence: boolean;
@@ -135,7 +144,7 @@ export function PlatformView({
         </div>
       ),
     },
-    { key: "plan", header: "Plan", hideBelow: "sm", render: (r) => PLANS[r.plan].name },
+    { key: "plan", header: "Licencias", hideBelow: "sm", render: (r) => licensesLabel(r) },
     { key: "team", header: "Usuarios · cuentas", hideBelow: "md", cellClassName: "tabular-nums", render: (r) => `${r.members} · ${r.channels}` },
     {
       key: "ai",
@@ -254,7 +263,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
   const canTrial = !org.isInternal && org.status !== "SUSPENDED" && org.status !== "ACTIVE" && org.status !== "PAST_DUE" && !(org.status === "READ_ONLY" && org.hasSubscription);
   const detail = [
     ["Dueño", org.ownerName ? `${org.ownerName} · ${org.ownerEmail}` : (org.ownerEmail ?? "—")],
-    ["Plan", PLANS[org.plan].name],
+    ["Licencias", licensesLabel(org)],
     ["Estado", org.isInternal ? "Interna" : `${ORG_STATUS_BADGE[org.status].label}${statusDetail(org) ? ` · ${statusDetail(org)}` : ""}`],
     ["Suscripción en Stripe", org.hasSubscription ? "Sí" : "No"],
     ["Usuarios · cuentas", `${org.members} · ${org.channels}`],

@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X, KeyRound } from "lucide-react";
+import { BadgeCheck, Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X, KeyRound } from "lucide-react";
+import type { PlanId } from "@prisma/client";
+import { LICENSE_ORDER } from "@/lib/billing/licenses";
+import { PLANS } from "@/lib/billing/plans";
 import { useSession } from "next-auth/react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -15,6 +18,8 @@ import { Banner } from "@/app/components/ui/banner";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { UserFormModal } from "./_form";
 import { InviteFormModal } from "./_invite";
+import { LicenseModal } from "./_license";
+import { useLicenseState } from "./_licenses";
 
 interface UserData {
   id: string;
@@ -24,6 +29,10 @@ interface UserData {
   disabledAt: string | null;
   createdAt: string;
   waAccounts: Array<{ id: string; name: string }>;
+  ownedWaAccounts: Array<{ id: string; name: string }>;
+  ownedChannelAccounts: Array<{ id: string; name: string; channel: string }>;
+  license: PlanId;
+  aiCreditsUsed: number;
   isOwner: boolean;
   twoFactorEnabled: boolean;
 }
@@ -32,12 +41,14 @@ interface Invitation {
   id: string;
   email: string;
   role: string;
+  license: PlanId | null;
   createdAt: string;
   expiresAt: string;
   invitedBy: { name: string | null; email: string } | null;
 }
 
 const ROLE_LABEL: Record<string, string> = { admin: "Admin", user: "Usuario", ejecutivo: "Ejecutivo" };
+const LICENSE_TONE: Record<PlanId, "neutral" | "info" | "accent"> = { ESSENTIAL: "neutral", BUSINESS: "info", PRO: "accent" };
 
 export default function UsersPage() {
   const { success, error: toastError } = useToast();
@@ -51,6 +62,8 @@ export default function UsersPage() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [invitationLoadError, setInvitationLoadError] = useState<string | null>(null);
   const [invitationBusy, setInvitationBusy] = useState<string | null>(null);
+  const { state: licenses, reload: reloadLicenses } = useLicenseState();
+  const [licenseUser, setLicenseUser] = useState<UserData | null>(null);
 
   const fetchInvitations = useCallback(async () => {
     setInvitationLoadError(null);
@@ -73,7 +86,7 @@ export default function UsersPage() {
       const res = await fetch("/api/usuarios/invitaciones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inv.email, role: inv.role }),
+        body: JSON.stringify({ email: inv.email, role: inv.role, ...(inv.license ? { license: inv.license } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -215,6 +228,29 @@ export default function UsersPage() {
         }
       />
 
+      {licenses && licenses.mode === "license" && !licenses.isInternal && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+          <span className="font-medium">Licencias</span>
+          {[...LICENSE_ORDER].reverse().map((p) => (
+            <span key={p} className="tabular-nums text-muted">
+              {PLANS[p].name}:{" "}
+              <span className={licenses.overAssigned[p] > 0 && licenses.hasSubscription ? "font-semibold text-danger" : "font-semibold text-foreground"}>{licenses.assigned[p]}</span>
+              {licenses.trialing && !licenses.hasSubscription ? " asignadas" : ` de ${licenses.purchased[p]}`}
+            </span>
+          ))}
+          <a href="/configuracion/plan#licencias" className="ml-auto text-accent-ink underline underline-offset-2">
+            {licenses.trialing && !licenses.hasSubscription ? `Prueba: hasta ${licenses.trialMaxUsers} personas` : "Contratar licencias"}
+          </a>
+        </div>
+      )}
+      {licenses && licenses.mode === "legacy" && (
+        <Banner tone="info">
+          Tu organización conserva el plan anterior
+          {licenses.legacyUntil ? ` hasta el ${new Date(licenses.legacyUntil).toLocaleDateString("es-MX", { day: "numeric", month: "long" })}` : ""}. Para elegir la licencia de cada persona,{" "}
+          <a href="/configuracion/plan#licencias" className="font-medium underline underline-offset-2">pásate a licencias</a>.
+        </Banner>
+      )}
+
       {invitationLoadError && <Banner tone="danger">{invitationLoadError} <button type="button" onClick={fetchInvitations} className="underline">Reintentar</button></Banner>}
 
       {invitations.length > 0 && (
@@ -231,7 +267,12 @@ export default function UsersPage() {
                 <EntityRow
                   leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" figure />}
                   title={<span className="font-mono">{inv.email}</span>}
-                  badges={<Badge tone="neutral" size="sm">{ROLE_LABEL[inv.role] ?? inv.role}</Badge>}
+                  badges={
+                    <>
+                      <Badge tone="neutral" size="sm">{ROLE_LABEL[inv.role] ?? inv.role}</Badge>
+                      {inv.license && <Badge tone={LICENSE_TONE[inv.license]} size="sm">{PLANS[inv.license].name}</Badge>}
+                    </>
+                  }
                   subtitle={`Vence el ${new Date(inv.expiresAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}${inv.invitedBy ? ` · la envió ${inv.invitedBy.name ?? inv.invitedBy.email}` : ""}`}
                 />
                 <span className="flex shrink-0 items-center justify-end gap-1 border-t border-border pt-2 sm:border-0 sm:pt-0">
@@ -270,6 +311,7 @@ export default function UsersPage() {
                   <Badge tone={u.role === "admin" ? "warning" : u.role === "ejecutivo" ? "info" : "neutral"} size="sm">
                     {u.role === "admin" ? "Admin" : u.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}
                   </Badge>
+                  <Badge tone={LICENSE_TONE[u.license]} size="sm">{PLANS[u.license].name}</Badge>
                   {u.isOwner && <Badge tone="accent" size="sm">Dueña</Badge>}
                   {u.disabledAt && <Badge tone="danger" size="sm">Desactivado</Badge>}
                   {u.twoFactorEnabled && <Badge tone="success" size="sm">2 pasos</Badge>}
@@ -277,7 +319,7 @@ export default function UsersPage() {
               }
               subtitle={
                 <>
-                  <span className="font-mono">{u.email}</span> · {u.waAccounts.length} cuenta(s)
+                  <span className="font-mono">{u.email}</span> · {u.ownedWaAccounts.length + u.ownedChannelAccounts.length === 0 ? "sin canales propios" : `dueña de ${u.ownedWaAccounts.length + u.ownedChannelAccounts.length} canal(es)`}
                 </>
               }
               meta={
@@ -286,6 +328,13 @@ export default function UsersPage() {
                 </span>
               }
             />
+            {licenses?.mode !== "legacy" && (
+              <span className="flex shrink-0 items-center justify-end border-t border-border pt-2 sm:border-0 sm:pt-0">
+                <Button variant="ghost" size="sm" icon={BadgeCheck} onClick={() => setLicenseUser(u)} className="text-muted-darker">
+                  Licencia
+                </Button>
+              </span>
+            )}
             {u.twoFactorEnabled && u.id !== session?.user?.id && (
               <span className="flex shrink-0 items-center justify-end border-t border-border pt-2 sm:border-0 sm:pt-0">
                 <Button variant="ghost" size="sm" icon={KeyRound} onClick={() => setConfirmReset2fa(u)} disabled={togglingId === u.id} className="text-muted-darker">
@@ -354,12 +403,20 @@ export default function UsersPage() {
         loading={!!confirmReset2fa && togglingId === confirmReset2fa.id}
       />
 
-      <InviteFormModal open={showInvite} onClose={() => setShowInvite(false)} onInvited={fetchInvitations} />
+      <InviteFormModal open={showInvite} onClose={() => setShowInvite(false)} onInvited={() => { void fetchInvitations(); void reloadLicenses(); }} />
+
+      <LicenseModal
+        key={licenseUser?.id ?? "none"}
+        user={licenseUser}
+        licenses={licenses}
+        onClose={() => setLicenseUser(null)}
+        onChanged={() => { void fetchUsers(); void reloadLicenses(); }}
+      />
 
       <UserFormModal
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={fetchUsers}
+        onCreated={() => { void fetchUsers(); void reloadLicenses(); }}
       />
     </div>
   );

@@ -19,8 +19,10 @@ import { useToast } from "@/app/components/ui/toast";
 import { ChannelLimitBanner, useChannelLimit } from "@/app/components/billing/channel-limit";
 import { CuentaFormModal } from "./_form";
 import { ConectarWhatsAppModal } from "./_conectar-whatsapp";
+import { ChannelOwnerBadge, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
 
 interface WaAccount {
+  owner?: ChannelOwnerInfo | null;
   id: string;
   userId: string;
   name: string;
@@ -204,6 +206,7 @@ function CuentasView() {
                 badges={
                   <>
                     <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
+                    <ChannelOwnerBadge owner={a.owner} />
                     {!a.hasAppSecret && <Badge tone="danger" size="sm">Sin App Secret</Badge>}
                     {a.coexistence && <Badge tone="neutral" size="sm">App WhatsApp Business</Badge>}
                   </>

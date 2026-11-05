@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
+import { MAX_SEATS } from "@/lib/billing/plans";
 
 // Email normalizado (trim + minúsculas) ANTES de validar el formato — lib/auth.ts
 // busca al usuario con el email en minúsculas, así que cualquier alta que lo
@@ -43,6 +44,8 @@ export const resetPasswordSchema = z.object({
 export const invitationSchema = z.object({
   email: emailField,
   role: z.enum(["admin", "user", "ejecutivo"], { message: "Rol inválido" }),
+  // Licencia con la que entra (si no viene: una libre, o la de la prueba).
+  license: z.enum(["ESSENTIAL", "BUSINESS", "PRO"], { message: "Licencia inválida" }).optional(),
 });
 
 export const acceptInvitationSchema = z.object({
@@ -616,3 +619,15 @@ export const orgAiSettingsUpdateSchema = z
     message: "La hora de cierre debe ser posterior a la de apertura",
     path: ["businessHourEnd"],
   });
+
+// Licencias contratadas por plan (Checkout y cambio de licencias).
+export const licenseCountsSchema = z
+  .object({
+    ESSENTIAL: z.number().int().min(0).max(MAX_SEATS),
+    BUSINESS: z.number().int().min(0).max(MAX_SEATS),
+    PRO: z.number().int().min(0).max(MAX_SEATS),
+  })
+  .refine((c) => c.ESSENTIAL + c.BUSINESS + c.PRO >= 1 && c.ESSENTIAL + c.BUSINESS + c.PRO <= MAX_SEATS, {
+    message: `Entre 1 y ${MAX_SEATS} licencias en total`,
+  });
+

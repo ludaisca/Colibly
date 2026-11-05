@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import { aiCreditLimit } from "@/lib/billing/state";
+import { orgAiCreditSummary } from "@/lib/ai/credits";
 import { PLANS } from "@/lib/billing/plans";
 import { PlatformView, type PlatformOrgRow, type PlatformSummary } from "./_view";
 
@@ -57,6 +58,10 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
         aiCreditsUsed: true,
         aiCreditsBonus: true,
         seatQuantity: true,
+        licensesEssential: true,
+        licensesBusiness: true,
+        licensesPro: true,
+        legacyUntil: true,
         stripeSubscriptionId: true,
         channelTelegramEnabled: true,
         channelMessengerEnabled: true,
@@ -68,7 +73,8 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
       },
     }),
     prisma.organization.groupBy({ by: ["status"], where: { isInternal: false }, _count: true }),
-    prisma.organization.groupBy({ by: ["plan"], where: { isInternal: false, status: "ACTIVE" }, _sum: { seatQuantity: true } }),
+    // MRR por licencias contratadas (una línea de Stripe por plan).
+    prisma.organization.aggregate({ where: { isInternal: false, status: "ACTIVE" }, _sum: { licensesEssential: true, licensesBusiness: true, licensesPro: true } }),
     prisma.organization.count({ where: { isInternal: false, createdAt: { gte: weekAgo } } }),
   ]);
 
@@ -80,12 +86,17 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
     pastDue: count("PAST_DUE"),
     inactive: count("READ_ONLY") + count("CANCELED"),
     suspended: count("SUSPENDED"),
-    mrrMxn: activeByPlan.reduce((n, b) => n + (b._sum.seatQuantity ?? 0) * PLANS[b.plan].pricePerSeatMxn, 0),
+    mrrMxn:
+      (activeByPlan._sum.licensesEssential ?? 0) * PLANS.ESSENTIAL.pricePerSeatMxn +
+      (activeByPlan._sum.licensesBusiness ?? 0) * PLANS.BUSINESS.pricePerSeatMxn +
+      (activeByPlan._sum.licensesPro ?? 0) * PLANS.PRO.pricePerSeatMxn,
     signups7d,
   };
 
-  const rows: PlatformOrgRow[] = orgs.map((o) => {
-    const limit = aiCreditLimit(o);
+  // Créditos: con licencias, la suma de las personas; en legacy, la bolsa.
+  const credits = await Promise.all(orgs.map((o) => orgAiCreditSummary(o.id)));
+  const rows: PlatformOrgRow[] = orgs.map((o, i) => {
+    const limit = credits[i]?.limit ?? aiCreditLimit(o);
     return {
       id: o.id,
       name: o.name,
@@ -96,8 +107,10 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
       currentPeriodEnd: o.currentPeriodEnd?.toISOString() ?? null,
       canceledAt: o.canceledAt?.toISOString() ?? null,
       createdAt: o.createdAt.toISOString(),
-      aiCreditsUsed: o.aiCreditsUsed,
-      aiCreditsBonus: o.aiCreditsBonus,
+      aiCreditsUsed: credits[i]?.used ?? o.aiCreditsUsed,
+      aiCreditsBonus: credits[i]?.bonus ?? o.aiCreditsBonus,
+      licenses: { ESSENTIAL: o.licensesEssential, BUSINESS: o.licensesBusiness, PRO: o.licensesPro },
+      legacy: !!o.legacyUntil && o.legacyUntil > new Date(),
       aiCreditsLimit: Number.isFinite(limit) ? limit : null,
       hasSubscription: !!o.stripeSubscriptionId,
       ownerName: o.owner?.name ?? null,

@@ -78,7 +78,7 @@ Reglas:
 | 4 | Textos públicos, landing, `/precios`, cPanel, correos, docs | bajo |
 | 5 | Migración de clientes reales y despliegue (ver §4) | alto |
 
-**Estado:** Fase 1 y Fase 2 terminadas en dev el 2026-11-05 (sin desplegar; la Fase 2 solo puede salir junto con la 5, que primero pone `legacyUntil` a los clientes actuales). Detalle técnico en [`arquitectura/billing.md`](arquitectura/billing.md) → "Per-user licenses".
+**Estado:** Fases 1, 2 y 3 terminadas en dev el 2026-11-05 (la 3 probada contra Stripe en modo prueba) (sin desplegar; la Fase 2 solo puede salir junto con la 5, que primero pone `legacyUntil` a los clientes actuales). Detalle técnico en [`arquitectura/billing.md`](arquitectura/billing.md) → "Per-user licenses".
 
 Cada fase se verifica en dev (tsc, lint, pruebas, build, recorrido real) antes de pasar a la siguiente. Producción solo al final, con confirmación.
 

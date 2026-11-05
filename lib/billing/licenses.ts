@@ -416,3 +416,92 @@ export function featureBlockedMessage(input: {
       return `Solo un admin con licencia ${from} puede usar ${label}. Tu licencia es ${current}.`;
   }
 }
+
+// ── Comprar y asignar (Fase 3) ──
+
+/**
+ * Lo que impide pasar la suscripción a `target`: nunca menos licencias de un
+ * plan que las asignadas (personas activas + invitaciones pendientes) y al
+ * menos una en total.
+ */
+export function licenseTargetBlockers(target: LicenseCounts, assigned: LicenseCounts, planName: (id: PlanId) => string): string[] {
+  const blockers: string[] = [];
+  if (totalLicenses(target) < 1) blockers.push("Elige al menos una licencia.");
+  for (const id of LICENSE_ORDER) {
+    const want = Math.max(0, Math.floor(target[id] || 0));
+    const used = Math.max(0, Math.floor(assigned[id] || 0));
+    if (want < used) {
+      blockers.push(`Tienes ${plural(used, `persona con licencia ${planName(id)}`, `personas con licencia ${planName(id)}`)} (o invitaciones pendientes): no puedes contratar menos. Cambia primero su licencia en Usuarios.`);
+    }
+  }
+  return blockers;
+}
+
+/**
+ * ¿Se puede dar una licencia de `license` a una persona más (invitarla,
+ * crearla, reactivarla o cambiarle la licencia)? null = sí; si no, el motivo.
+ * En la prueba sin suscripción cualquier licencia vale hasta TRIAL_MAX_USERS
+ * personas; con suscripción, tiene que haber una libre de ese plan.
+ */
+export function licenseAssignBlocker(input: {
+  license: PlanId;
+  trialing: boolean;
+  hasSubscription: boolean;
+  isInternal: boolean;
+  purchased: LicenseCounts;
+  assigned: LicenseCounts;
+  planName: (id: PlanId) => string;
+}): string | null {
+  if (input.isInternal) return null;
+  if (input.trialing && !input.hasSubscription) {
+    return totalLicenses(input.assigned) + 1 <= TRIAL_MAX_USERS
+      ? null
+      : `La prueba gratis incluye hasta ${TRIAL_MAX_USERS} personas (las invitaciones pendientes cuentan). Contrata licencias en Configuración → Plan y facturación para sumar más.`;
+  }
+  const { free } = licenseAvailability(input.purchased, input.assigned);
+  if (free[input.license] >= 1) return null;
+  const name = input.planName(input.license);
+  return `No tienes licencias ${name} libres (${fmt(Math.floor(input.purchased[input.license] || 0))} contratadas, todas asignadas). Agrega una en Configuración → Plan y facturación.`;
+}
+
+/**
+ * Licencias a contratar después de cambiar la licencia de una persona de
+ * `from` a `to` ajustando la factura: si no hay una `to` libre se compra una,
+ * y la `from` que queda libre se deja de pagar. null = no hay que tocar Stripe.
+ */
+export function purchasedAfterLicenseChange(purchased: LicenseCounts, assigned: LicenseCounts, from: PlanId, to: PlanId): LicenseCounts | null {
+  if (from === to) return null;
+  const next: LicenseCounts = { ...purchased };
+  const { free } = licenseAvailability(purchased, assigned);
+  if (free[to] < 1) next[to] = Math.floor(purchased[to] || 0) + 1;
+  // Tras el cambio, `from` tiene una asignada menos: sobra una pagada.
+  if (Math.floor(purchased[from] || 0) > Math.max(0, Math.floor(assigned[from] || 0) - 1)) next[from] = Math.floor(purchased[from] || 0) - 1;
+  const same = LICENSE_ORDER.every((id) => next[id] === purchased[id]);
+  return same ? null : next;
+}
+
+/** Nombre positivo de cada función (listas de "incluye"). */
+export const LICENSE_FEATURE_NAMES: Record<LicenseFeature, string> = {
+  automations: "Automatizaciones y secuencias",
+  macros: "Macros",
+  campaigns: "Difusiones de WhatsApp",
+  leadSources: "Fuentes de leads",
+  autoAssign: "Asignación automática",
+  csat: "Encuestas de satisfacción (CSAT)",
+  aiAssist: "Asistente de IA: sugerencias, resúmenes, reescritura y transcripción",
+  aiAgent: "Agente de IA (bot) en sus canales",
+  leadScoring: "Calificación de leads con IA",
+  topicMonitors: "Monitores de temas",
+  leadRecovery: "Recuperación de leads con IA",
+  api: "API",
+  webhooks: "Webhooks",
+  metaAds: "Conversiones de Meta Ads",
+  calls: "Llamadas de WhatsApp",
+};
+
+/** Lo que una licencia agrega sobre la anterior ("Todo lo de Avanzado, más…"). */
+export function licenseAddedFeatures(id: PlanId): LicenseFeature[] {
+  const i = licenseRank(id);
+  const below = i > 0 ? LICENSES[LICENSE_ORDER[i - 1]].features : new Set<LicenseFeature>();
+  return LICENSE_FEATURES.filter((f) => LICENSES[id].features.has(f) && !below.has(f));
+}

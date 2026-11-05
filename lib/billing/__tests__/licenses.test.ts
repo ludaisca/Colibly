@@ -14,8 +14,11 @@ import {
   LICENSE_FEATURES,
   LICENSE_ORDER,
   LICENSES,
+  licenseAssignBlocker,
   licenseAvailability,
   licenseChangeImpact,
+  licenseTargetBlockers,
+  purchasedAfterLicenseChange,
   minLicenseFor,
   monthlyTotalForLicenses,
   orgLicenseLimits,
@@ -242,5 +245,43 @@ describe("featureBlockedMessage", () => {
   });
   it("cada función tiene etiqueta", () => {
     for (const f of LICENSE_FEATURES) expect(LICENSE_FEATURE_LABELS[f].length).toBeGreaterThan(0);
+  });
+});
+
+describe("comprar y asignar licencias", () => {
+  const counts = (e: number, b: number, p: number) => ({ ESSENTIAL: e, BUSINESS: b, PRO: p });
+  const base = { trialing: false, hasSubscription: true, isInternal: false, planName };
+
+  it("no se contrata menos de lo asignado de cada plan", () => {
+    expect(licenseTargetBlockers(counts(3, 1, 0), counts(3, 1, 0), planName)).toEqual([]);
+    const b = licenseTargetBlockers(counts(2, 1, 0), counts(3, 1, 0), planName);
+    expect(b).toHaveLength(1);
+    expect(b[0]).toContain("3 personas con licencia Básico");
+    expect(licenseTargetBlockers(counts(0, 0, 0), counts(0, 0, 0), planName)[0]).toContain("al menos una");
+  });
+
+  it("asignar exige una libre de ese plan", () => {
+    expect(licenseAssignBlocker({ ...base, license: "ESSENTIAL", purchased: counts(3, 0, 1), assigned: counts(2, 0, 1) })).toBeNull();
+    expect(licenseAssignBlocker({ ...base, license: "PRO", purchased: counts(3, 0, 1), assigned: counts(2, 0, 1) })).toContain("licencias Pro libres");
+  });
+
+  it("en la prueba sin suscripción: cualquier licencia hasta 3 personas", () => {
+    const trial = { ...base, trialing: true, hasSubscription: false, purchased: counts(0, 0, 0) };
+    expect(licenseAssignBlocker({ ...trial, license: "PRO", assigned: counts(0, 0, 2) })).toBeNull();
+    expect(licenseAssignBlocker({ ...trial, license: "ESSENTIAL", assigned: counts(1, 0, 2) })).toContain("hasta 3 personas");
+  });
+
+  it("interna: sin tope", () => {
+    expect(licenseAssignBlocker({ ...base, isInternal: true, license: "PRO", purchased: counts(0, 0, 0), assigned: counts(0, 0, 9) })).toBeNull();
+  });
+
+  it("cambiar de licencia ajustando la factura compra la nueva y suelta la vieja", () => {
+    // 2 Básico pagadas y asignadas; una persona pasa a Pro.
+    expect(purchasedAfterLicenseChange(counts(2, 0, 0), counts(2, 0, 0), "ESSENTIAL", "PRO")).toEqual(counts(1, 0, 1));
+    // Ya había una Pro libre: solo se suelta la Básico.
+    expect(purchasedAfterLicenseChange(counts(2, 0, 1), counts(2, 0, 0), "ESSENTIAL", "PRO")).toEqual(counts(1, 0, 1));
+    // Sobraba una Pro libre y otra Básico libre, de Básico a Pro: suelta solo una Básico.
+    expect(purchasedAfterLicenseChange(counts(3, 0, 1), counts(2, 0, 0), "ESSENTIAL", "PRO")).toEqual(counts(2, 0, 1));
+    expect(purchasedAfterLicenseChange(counts(1, 0, 0), counts(1, 0, 0), "ESSENTIAL", "ESSENTIAL")).toBeNull();
   });
 });

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Plus, RefreshCw, Trash2, Share2 } from "lucide-react";
+import { Search, Plus, RefreshCw, Trash2, Share2, BadgeCheck } from "lucide-react";
 import { TelegramIcon } from "@/app/components/ui/channel-icons";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
@@ -18,9 +18,11 @@ import { ChannelLimitBanner, useChannelLimit } from "@/app/components/billing/ch
 import { TelegramCuentaFormModal } from "./_form";
 import { useSession } from "next-auth/react";
 import { ChannelAccountShareModal } from "@/app/components/channel-accounts/share-modal";
+import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
 import { ChannelAvailabilityNotice, useChannelAvailability } from "@/app/components/channel-accounts/availability";
 
 interface ChannelAccount {
+  owner?: ChannelOwnerInfo | null;
   id: string;
   userId: string;
   name: string;
@@ -63,6 +65,7 @@ function TelegramCuentasView() {
   // Solo el admin dueño comparte; una cuenta compartida contigo se ve y se
   // atiende, pero no se comparte ni elimina desde aquí.
   const [shareAccount, setShareAccount] = useState<ChannelAccount | null>(null);
+  const [ownerAccount, setOwnerAccount] = useState<ChannelAccount | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
   const openNewFromUrl = available === true && searchParams.get("nueva") === "1";
@@ -178,6 +181,11 @@ function TelegramCuentasView() {
             session?.user?.role === "admin" || a.userId === session?.user?.id ? (
               <>
                 {session?.user?.role === "admin" && (
+                  <DropdownItem icon={BadgeCheck} onClick={() => setOwnerAccount(a)}>
+                    Dueño (licencia)
+                  </DropdownItem>
+                )}
+                {session?.user?.role === "admin" && (
                   <DropdownItem icon={Share2} onClick={() => setShareAccount(a)}>
                     Compartir
                   </DropdownItem>
@@ -198,7 +206,12 @@ function TelegramCuentasView() {
               <EntityRow
                 leading={<EntityAvatar id={a.id} name={a.name} size="sm" />}
                 title={a.name}
-                badges={<Badge tone={badge.tone} size="sm">{badge.label}</Badge>}
+                badges={
+                  <>
+                    <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
+                    <ChannelOwnerBadge owner={a.owner} />
+                  </>
+                }
                 subtitle={a.status === "ERROR" && a.errorMessage ? a.errorMessage : "Bot de Telegram"}
                 meta={
                   <>
@@ -217,6 +230,7 @@ function TelegramCuentasView() {
       </div>
 
       <ChannelAccountShareModal open={!!shareAccount} onClose={() => setShareAccount(null)} account={shareAccount} />
+      <ChannelOwnerModal open={!!ownerAccount} onClose={() => setOwnerAccount(null)} kind="channel" account={ownerAccount} onChanged={fetchAccounts} />
 
       <ConfirmDialog
         open={!!deleteId}

@@ -121,6 +121,7 @@ export async function GET(req: Request) {
         phoneNumberId: true,
         wabaId: true,
         userId: true,
+        owner: { select: { id: true, name: true, email: true, license: true, disabledAt: true } },
         status: true,
         errorMessage: true,
         lastActivity: true,

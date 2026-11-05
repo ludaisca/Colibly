@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { PlanId } from "@prisma/client";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -9,6 +10,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { useToast } from "@/app/components/ui/toast";
 import { invitationSchema } from "@/lib/validations";
+import { licenseHint, LicenseSelect, needsPurchase, useLicenseState } from "./_licenses";
 
 interface Props {
   open: boolean;
@@ -21,6 +23,10 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
   const { success } = useToast();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("user");
+  const { state: licenses } = useLicenseState(open);
+  const [chosenLicense, setLicense] = useState<PlanId | null>(null);
+  // Sin elección: la sugerida (una libre, o la de la prueba).
+  const license = chosenLicense ?? licenses?.suggested ?? null;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   // 402 por asientos: enlace para agregar ejecutivos (lib/billing/gates.ts).
@@ -30,6 +36,7 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
   function handleClose() {
     setEmail("");
     setRole("user");
+    setLicense(null);
     setError("");
     setBillingUrl(null);
     setEmailError("");
@@ -39,7 +46,7 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
   async function handleSubmit() {
     setError("");
     setEmailError("");
-    const parsed = invitationSchema.safeParse({ email, role });
+    const parsed = invitationSchema.safeParse({ email, role, ...(license ? { license } : {}) });
     if (!parsed.success) {
       setEmailError(parsed.error.issues[0].message);
       return;
@@ -91,7 +98,7 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
             {billingUrl && (
               <>
                 {" "}
-                <a href={billingUrl} className="font-medium underline underline-offset-2">Agregar ejecutivos en Plan y facturación</a>
+                <a href={billingUrl} className="font-medium underline underline-offset-2">Agregar licencias en Plan y facturación</a>
               </>
             )}
           </Banner>
@@ -108,6 +115,17 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
             />
           )}
         </FormField>
+        {license && (
+          <FormField label="Licencia" hint={licenseHint(licenses)}>
+            {(id) => <LicenseSelect id={id} value={license} onChange={setLicense} state={licenses} />}
+          </FormField>
+        )}
+        {license && needsPurchase(licenses, license) && (
+          <Banner tone="warning">
+            No hay licencias de ese plan libres.{" "}
+            <a href="/configuracion/plan#licencias" className="font-medium underline underline-offset-2">Agrégala en Plan y facturación</a> o elige otra.
+          </Banner>
+        )}
         <FormField label="Rol" hint="Admin: todo. Usuario: todo menos Contactos, Bots IA, Meta Ads y Usuarios. Ejecutivo: solo chats, contactos y citas.">
           {(id) => (
             <Select id={id} value={role} onChange={(e) => setRole(e.target.value)}>

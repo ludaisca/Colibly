@@ -31,6 +31,7 @@ import {
 import { COEXISTENCE_PITCH, planFeatures, PRICING_FOOTNOTE } from "@/lib/billing/plan-features";
 import { planChangeImpact, type AccessMode } from "@/lib/billing/state";
 import { DataSection } from "./_datos";
+import { LicensesSection, type LicensesViewData } from "./_licencias";
 import { OrgStatusBadge } from "@/app/components/billing/org-status-badge";
 import { formatInZone } from "@/lib/format/dates";
 
@@ -54,6 +55,8 @@ export interface PlanViewData {
   webhooks: number;
   webchat: number;
   seatsPaid: number | null;
+  /** null en organizaciones internas. "legacy": conserva el catálogo anterior. */
+  licenses: LicensesViewData | null;
   usage: Array<{ key: string; label: string; hint: string | null; used: number; max: number | null }>;
 }
 
@@ -61,8 +64,23 @@ function formatDate(iso: string | null): string {
   return formatInZone(iso, { day: "numeric", month: "long", year: "numeric" });
 }
 
+// "3 licencias asignadas: 2 Pro · 1 Básico" (personas e invitaciones) y lo que se paga al mes.
+function licenseSummary(l: LicensesViewData): string {
+  const order = ["PRO", "BUSINESS", "ESSENTIAL"] as const;
+  const people = order.reduce((n, p) => n + l.assigned[p], 0);
+  const parts = order.filter((p) => l.assigned[p] > 0).map((p) => `${l.assigned[p]} ${PLANS[p].name}`);
+  const who = `${people} ${people === 1 ? "licencia asignada" : "licencias asignadas"}${parts.length ? `: ${parts.join(" · ")}` : ""}`;
+  if (!l.hasSubscription) return who;
+  const paid = order.reduce((n, p) => n + l.purchased[p] * PLANS[p].pricePerSeatMxn, 0);
+  return `${who} · ${formatMxn(paid)} MXN al mes`;
+}
+
 function statusLine(d: PlanViewData): string {
   if (d.isInternal) return "Cuenta interna: sin cobro ni límites.";
+  if (d.status === "TRIALING" && d.licenses?.mode === "license") {
+    if (d.access !== "full") return `Tu prueba terminó. Contrata licencias para reactivar tu cuenta; sin ellas, tus datos se eliminan ${RETENTION_DAYS_AFTER_TRIAL} días después de terminar la prueba.`;
+    return `Prueba gratis de ${TRIAL_DAYS} días hasta el ${formatDate(d.trialEndsAt)}: hasta ${TRIAL_MAX_SEATS} personas con cualquier licencia y 500 créditos de IA cada una. Si no contratas, ese día tu cuenta pasa a solo lectura.`;
+  }
   if (d.status === "TRIALING") {
     if (d.access !== "full") return `Tu prueba terminó. Elige un plan para reactivar tu cuenta; sin plan, tus datos se eliminan ${RETENTION_DAYS_AFTER_TRIAL} días después de terminar la prueba.`;
     return `Prueba gratis de ${TRIAL_DAYS} días con el plan Pro (hasta ${TRIAL_MAX_SEATS} usuarios, con ${TRIAL_POOL_TEXT}), hasta el ${formatDate(d.trialEndsAt)}. Si no eliges un plan, ese día tu cuenta pasa a solo lectura.`;
@@ -210,11 +228,17 @@ export function PlanView({ data }: { data: PlanViewData }) {
 
       <section className="rounded-xl border border-border bg-surface p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-display text-xl font-semibold">Plan {PLANS[data.plan].name}</p>
+          <p className="font-display text-xl font-semibold">{data.licenses?.mode === "license" ? "Licencias por persona" : `Plan ${PLANS[data.plan].name}`}</p>
           {!data.isInternal && <OrgStatusBadge status={data.status} />}
         </div>
         <p className={cn("mt-2 text-sm", data.access === "full" ? "text-muted" : "text-danger")}>{statusLine(data)}</p>
-        {!data.isInternal && (
+        {data.licenses?.mode === "license" && (
+          <p className="mt-3 text-sm text-muted-strong">
+            {licenseSummary(data.licenses)}
+            {PRICE_TAX_NOTE ? ` · ${PRICE_TAX_NOTE}` : null}
+          </p>
+        )}
+        {!data.isInternal && data.licenses?.mode !== "license" && (
           <p className="mt-3 text-sm text-muted-strong">
             {data.seatsPaid === null
               ? `${data.seatsUsed.toLocaleString("es-MX")} ${data.seatsUsed === 1 ? "ejecutivo" : "ejecutivos"} ocupados`
@@ -258,7 +282,11 @@ export function PlanView({ data }: { data: PlanViewData }) {
         </div>
       </section>
 
-      {!data.isInternal && (
+      {data.licenses && (
+        <LicensesSection data={data.licenses} stripeConfigured={data.stripeConfigured} chargeDeferredToTrialEnd={data.chargeDeferredToTrialEnd} onPortal={goPortal} />
+      )}
+
+      {!data.isInternal && data.licenses?.mode === "legacy" && (
         <section id="asientos" className="space-y-4 scroll-mt-24">
           <SectionHeader eyebrow="Planes" title={data.hasSubscription ? "Cambiar plan o asientos" : "Elige tu plan"} />
           <p className="text-sm text-muted">

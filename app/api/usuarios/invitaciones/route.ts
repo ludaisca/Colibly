@@ -7,9 +7,8 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { issueAuthToken } from "@/lib/auth-tokens";
 import { sendInvitationEmail } from "@/lib/auth-emails";
-import { checkPlanLimit } from "@/lib/billing/gates";
 import { BRAND_NAME } from "@/lib/brand";
-import { defaultLicenseFor } from "@/lib/billing/user-license";
+import { checkLicenseAvailable, suggestedLicense } from "@/lib/billing/license-billing";
 
 // Invitaciones pendientes de la organización (solo admin).
 export async function GET() {
@@ -20,7 +19,7 @@ export async function GET() {
     }
     const invitations = await prisma.authToken.findMany({
       where: { type: "INVITE", organizationId: await requireOrgId(session.user.id), usedAt: null, expiresAt: { gt: new Date() } },
-      select: { id: true, email: true, role: true, createdAt: true, expiresAt: true, invitedBy: { select: { name: true, email: true } } },
+      select: { id: true, email: true, role: true, license: true, createdAt: true, expiresAt: true, invitedBy: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(invitations);
@@ -54,11 +53,17 @@ export async function POST(req: Request) {
 
     // Reinvitar al mismo correo reemplaza su invitación: no ocupa otro lugar.
     const organizationId = await requireOrgId(session.user.id);
-    const pendingSame = await prisma.authToken.count({
+    const pendingSame = await prisma.authToken.findFirst({
       where: { organizationId, type: "INVITE", email, usedAt: null, expiresAt: { gt: new Date() } },
+      select: { license: true },
     });
-    const overLimit = await checkPlanLimit(organizationId, "seats", pendingSame > 0 ? 0 : 1);
-    if (overLimit) return overLimit;
+    const license = parsed.data.license ?? pendingSame?.license ?? (await suggestedLicense(organizationId));
+    // La invitación pendiente ocupa una licencia de su plan; reinvitar con la
+    // misma no ocupa otra.
+    if (!pendingSame || pendingSame.license !== license) {
+      const overLimit = await checkLicenseAvailable(organizationId, license);
+      if (overLimit) return overLimit;
+    }
 
     const inviter = await prisma.user.findUniqueOrThrow({
       where: { id: session.user.id },
@@ -68,14 +73,13 @@ export async function POST(req: Request) {
       type: "INVITE",
       email,
       role,
-      // Fase 1 de licencias: entra con el plan de la organización (la Fase 3 agrega el selector).
-      license: await defaultLicenseFor(inviter.organization.id),
+      license,
       organizationId: inviter.organization.id,
       invitedById: session.user.id,
     });
     after(() => sendInvitationEmail({ token, email, role, organizationName: inviter.organization.name, inviterName: inviter.name }));
 
-    return NextResponse.json({ id: record.id, email, role, createdAt: record.createdAt, expiresAt: record.expiresAt }, { status: 201 });
+    return NextResponse.json({ id: record.id, email, role, license, createdAt: record.createdAt, expiresAt: record.expiresAt }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno") }, { status: 500 });
   }

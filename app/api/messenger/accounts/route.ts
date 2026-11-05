@@ -76,6 +76,7 @@ export async function GET() {
       select: {
         id: true,
         userId: true,
+        owner: { select: { id: true, name: true, email: true, license: true, disabledAt: true } },
         name: true,
         channel: true,
         status: true,
