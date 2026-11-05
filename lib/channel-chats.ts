@@ -1,4 +1,5 @@
 import type { Channel } from "@prisma/client";
+import { teamFilterIds } from "@/lib/teams/teams";
 import { prisma } from "@/lib/prisma";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { buildChannelChatWhere, CHANNEL_CHAT_SELECT, mapChannelChatRow, parseChatListFilters } from "@/lib/chats/query";
@@ -29,6 +30,7 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
   }
 
   const filters = parseChatListFilters(searchParams, userId);
+  filters.teamIds = await teamFilterIds(searchParams.get("team"), userId);
   const pageParam = searchParams.get("page");
   const paginate = pageParam !== null;
   const page = Math.max(1, Number(pageParam) || 1);

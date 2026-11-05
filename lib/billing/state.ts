@@ -114,6 +114,9 @@ export const TRIAL_ENDING_NOTICE_DAYS = 3;
 // Recordatorios por correo/notificación de la prueba (14 días): a 7, 3 y 1 día
 // de terminar. El banner se pone en amarillo desde TRIAL_ENDING_NOTICE_DAYS.
 export const TRIAL_REMINDER_DAYS: readonly number[] = [7, 3, 1];
+// Pago fallido (PAST_DUE, GRACE_DAYS de gracia): además del aviso al fallar,
+// recordatorios a 3 y 1 día de pasar a solo lectura.
+export const PAST_DUE_REMINDER_DAYS: readonly number[] = [3, 1];
 
 // El aviso superior que corresponde (o null si no hay nada que decir).
 export function billingNotice(org: BillingSnapshot, now: Date): BillingNotice | null {

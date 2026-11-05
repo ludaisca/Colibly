@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { CHAT_ATTRIBUTION_MESSAGE_QUERY, resolveChatAttribution } from "@/lib/whatsapp/chat-attribution";
+import { slaBreachFlags } from "@/lib/sla/rules";
 
 // Capa compartida por GET /api/whatsapp/chats y lib/channel-chats.ts. No
 // intenta ser un endpoint único: WhatsApp y Conversation viven en tablas
@@ -19,6 +20,10 @@ export interface ChatListFilters {
   hasReplied?: "yes" | "no";
   /** Solo chats cuyo cliente espera respuesta (waitingSince) y no están resueltos. */
   awaiting?: boolean;
+  /** Solo chats fuera de SLA ahora (lib/sla/tick.ts mantiene sla*BreachedFor al día). */
+  slaBreached?: boolean;
+  /** Equipos: ids concretos (un equipo o "mis equipos", ya resueltos por el caller). */
+  teamIds?: string[];
 }
 
 const STATUSES = ["OPEN", "PENDING", "RESOLVED"];
@@ -52,6 +57,7 @@ export function parseChatListFilters(searchParams: URLSearchParams, userId: stri
     campaignId: searchParams.get("campaignId") || undefined,
     hasReplied: repliedParam === "yes" || repliedParam === "no" ? repliedParam : undefined,
     awaiting: searchParams.get("awaiting") === "1" || undefined,
+    slaBreached: searchParams.get("sla") === "1" || undefined,
   };
 }
 
@@ -83,6 +89,8 @@ export function buildWaChatWhere(filters: ChatListFilters, accountIds: string[])
       : { OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: new Date() } }] });
   }
   if (filters.awaiting) and.push({ waitingSince: { not: null }, status: { not: "RESOLVED" } });
+  if (filters.slaBreached) and.push(SLA_BREACHED_WHERE);
+  if (filters.teamIds) and.push({ teamId: { in: filters.teamIds } });
   if (and.length > 0) where.AND = and;
 
   return where;
@@ -126,10 +134,19 @@ export function buildChannelChatWhere(
       : { OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: new Date() } }] });
   }
   if (filters.awaiting) and.push({ waitingSince: { not: null }, status: { not: "RESOLVED" } });
+  if (filters.slaBreached) and.push(SLA_BREACHED_WHERE);
+  if (filters.teamIds) and.push({ teamId: { in: filters.teamIds } });
   if (and.length > 0) where.AND = and;
 
   return where;
 }
+
+// "Fuera de SLA": el tick solo deja un aviso no nulo mientras corresponde al
+// reloj actual, así que basta con mirar las columnas.
+const SLA_BREACHED_WHERE = {
+  status: "OPEN" as const,
+  OR: [{ slaResponseBreachedFor: { not: null } }, { slaResolutionBreachedFor: { not: null } }],
+};
 
 // Selects compartidos para que el mapeo y las rutas no se desincronicen.
 export const WA_CHAT_SELECT = {
@@ -146,6 +163,11 @@ export const WA_CHAT_SELECT = {
   priority: true,
   snoozedUntil: true,
   waitingSince: true,
+  openedAt: true,
+  teamId: true,
+  team: { select: { id: true, name: true } },
+  slaResponseBreachedFor: true,
+  slaResolutionBreachedFor: true,
   assignedToId: true,
   assignedTo: { select: { id: true, name: true } },
   createdAt: true,
@@ -170,6 +192,11 @@ export const CHANNEL_CHAT_SELECT = {
   priority: true,
   snoozedUntil: true,
   waitingSince: true,
+  openedAt: true,
+  teamId: true,
+  team: { select: { id: true, name: true } },
+  slaResponseBreachedFor: true,
+  slaResolutionBreachedFor: true,
   assignedToId: true,
   assignedTo: { select: { id: true, name: true } },
   createdAt: true,
@@ -181,8 +208,8 @@ export type WaChatRow = Prisma.WAChatGetPayload<{ select: typeof WA_CHAT_SELECT 
 export type ChannelChatRow = Prisma.ConversationGetPayload<{ select: typeof CHANNEL_CHAT_SELECT }>;
 
 export function mapWaChatRow(row: WaChatRow) {
-  const { messages, ...chat } = row;
-  return { ...chat, campaign: resolveChatAttribution(messages), channel: "WHATSAPP" as const };
+  const { messages, openedAt: _opened, slaResponseBreachedFor: _r, slaResolutionBreachedFor: _z, ...chat } = row;
+  return { ...chat, sla: slaBreachFlags(row), campaign: resolveChatAttribution(messages), channel: "WHATSAPP" as const };
 }
 
 export function mapChannelChatRow(row: ChannelChatRow) {
@@ -200,6 +227,9 @@ export function mapChannelChatRow(row: ChannelChatRow) {
     priority: row.priority,
     snoozedUntil: row.snoozedUntil,
     waitingSince: row.waitingSince,
+    sla: slaBreachFlags(row),
+    teamId: row.teamId,
+    team: row.team,
     assignedToId: row.assignedToId,
     assignedTo: row.assignedTo,
     createdAt: row.createdAt,

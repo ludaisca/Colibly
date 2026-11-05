@@ -45,6 +45,9 @@ export function LivePanel() {
           value: String(data.awaiting),
           hint: data.oldestWaitingSince ? `el más antiguo ${formatRelative(data.oldestWaitingSince, new Date(now))}` : "nadie espera",
         },
+        ...(data.slaBreached !== null
+          ? [{ label: "Fuera de SLA", value: String(data.slaBreached), href: "/whatsapp/chat?sla=1", hint: data.slaBreached ? "ver en la bandeja" : "todo a tiempo" }]
+          : []),
         {
           label: "Equipo en línea",
           value: `${data.agents.filter((agent) => agent.availability === "ONLINE").length}/${data.agents.length}`,

@@ -1,14 +1,15 @@
 import { checkContactAlerts, reconcileOverLimit } from "./contact-limits";
 import { prisma } from "@/lib/prisma";
-import { daysUntil, planLimits, purgeDue, tickTransition, TRIAL_REMINDER_DAYS } from "./state";
+import { daysUntil, PAST_DUE_REMINDER_DAYS, planLimits, purgeDue, tickTransition, TRIAL_REMINDER_DAYS } from "./state";
 import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "./plans";
 import { deleteOrganizationData } from "@/lib/org-data/delete";
 import { invalidateOrgBilling } from "./gates";
-import { notifyBillingTransition, notifyOrgAdmins, trialEndingNotice } from "./notify";
+import { notifyBillingTransition, notifyOrgAdmins, pastDueReminderNotice, trialEndingNotice } from "./notify";
 
 // Tick horario de facturación (cola billing-tick):
 //  1. prueba vencida o gracia vencida → READ_ONLY (con aviso);
-//  2. aviso "tu prueba termina en N días" (una vez por día restante ≤ 3);
+//  2. aviso "tu prueba termina en N días" (7, 3 y 1) y, con un pago fallido,
+//     "tu cuenta pasa a solo lectura en N días" (3 y 1);
 //  3. contactos: overLimit más allá del 120 % y avisos de 80/100/120 % (una vez por umbral y periodo);
 //  4. purga de organizaciones canceladas o con la prueba vencida sin pago
 //     (purgeDue en state.ts).
@@ -46,6 +47,14 @@ export async function processBillingTick(now = new Date()): Promise<void> {
         const key = `trial_ending:${daysLeft}`;
         if (TRIAL_REMINDER_DAYS.includes(daysLeft) && org.lastBillingNotice !== key && (await claimNotice(org.id, org.lastBillingNotice, key))) {
           await notifyOrgAdmins(org.id, trialEndingNotice(daysLeft));
+        }
+      }
+
+      if (org.status === "PAST_DUE" && org.graceEndsAt) {
+        const daysLeft = daysUntil(org.graceEndsAt, now);
+        const key = `past_due:${daysLeft}`;
+        if (PAST_DUE_REMINDER_DAYS.includes(daysLeft) && org.lastBillingNotice !== key && (await claimNotice(org.id, org.lastBillingNotice, key))) {
+          await notifyOrgAdmins(org.id, pastDueReminderNotice(daysLeft));
         }
       }
 

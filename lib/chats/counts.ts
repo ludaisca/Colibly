@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getRedisClient } from "@/lib/redis";
 import { buildChannelChatWhere, buildWaChatWhere, parseChatListFilters } from "@/lib/chats/query";
+import { userTeamIds } from "@/lib/teams/teams";
 
 // Contadores de las vistas rápidas de la bandeja (U4): chats activos —abiertos
 // o pendientes y sin posponer— de todas las cuentas del usuario, en WhatsApp y
@@ -9,12 +10,16 @@ import { buildChannelChatWhere, buildWaChatWhere, parseChatListFilters } from "@
 // GET /api/whatsapp/chats/counts y GET /api/inbox/sync.
 const VIEWS = {
   awaiting: "awaiting=1",
+  sla: "sla=1",
   mine: "assigned=me",
   unassigned: "assigned=unassigned",
   all: "",
 } as const;
 
-export type ViewCounts = Record<keyof typeof VIEWS, number>;
+export type ViewCounts = Record<keyof typeof VIEWS, number> & {
+  /** Activos de mis equipos; ausente si la persona no está en ningún equipo. */
+  teams?: number;
+};
 
 /**
  * "Todos", "Míos" y "Sin asignar" son el mismo conjunto de chats activos
@@ -25,7 +30,9 @@ export type ViewCounts = Record<keyof typeof VIEWS, number>;
 export function countsFromAssigneeGroups(
   groups: Array<{ assignedToId: string | null; count: number }>,
   userId: string,
-  awaiting: number
+  awaiting: number,
+  sla = 0,
+  teams: number | null = null
 ): ViewCounts {
   let all = 0, mine = 0, unassigned = 0;
   for (const group of groups) {
@@ -33,7 +40,7 @@ export function countsFromAssigneeGroups(
     if (group.assignedToId === null) unassigned += group.count;
     else if (group.assignedToId === userId) mine += group.count;
   }
-  return { awaiting, mine, unassigned, all };
+  return { awaiting, sla, mine, unassigned, all, ...(teams === null ? {} : { teams }) };
 }
 
 export async function getViewCounts(userId: string, accountIds: string[], channelAccountIds: string[]): Promise<ViewCounts> {
@@ -43,8 +50,13 @@ export async function getViewCounts(userId: string, accountIds: string[], channe
   const awaitingFilters = parseChatListFilters(new URLSearchParams(`status=OPEN,PENDING&${VIEWS.awaiting}`), userId);
   const channelActive = channelAccountIds.length ? buildChannelChatWhere(active, channelAccountIds) : null;
   const channelAwaiting = channelAccountIds.length ? buildChannelChatWhere(awaitingFilters, channelAccountIds) : null;
+  const slaFilters = parseChatListFilters(new URLSearchParams(`status=OPEN,PENDING&${VIEWS.sla}`), userId);
+  const channelSla = channelAccountIds.length ? buildChannelChatWhere(slaFilters, channelAccountIds) : null;
+  const myTeams = await userTeamIds(userId);
+  const teamFilters = myTeams.length ? { ...active, teamIds: myTeams } : null;
+  const channelTeams = teamFilters && channelAccountIds.length ? buildChannelChatWhere(teamFilters, channelAccountIds) : null;
 
-  const [waGroups, channelGroups, waAwaiting, channelAwaitingCount] = await Promise.all([
+  const [waGroups, channelGroups, waAwaiting, channelAwaitingCount, waSla, channelSlaCount, waTeams, channelTeamsCount] = await Promise.all([
     accountIds.length
       ? prisma.wAChat.groupBy({ by: ["assignedToId"], where: buildWaChatWhere(active, accountIds), _count: { _all: true } })
       : [],
@@ -53,10 +65,14 @@ export async function getViewCounts(userId: string, accountIds: string[], channe
       : [],
     accountIds.length ? prisma.wAChat.count({ where: buildWaChatWhere(awaitingFilters, accountIds) }) : 0,
     channelAwaiting ? prisma.conversation.count({ where: channelAwaiting }) : 0,
+    accountIds.length ? prisma.wAChat.count({ where: buildWaChatWhere(slaFilters, accountIds) }) : 0,
+    channelSla ? prisma.conversation.count({ where: channelSla }) : 0,
+    teamFilters && accountIds.length ? prisma.wAChat.count({ where: buildWaChatWhere(teamFilters, accountIds) }) : 0,
+    channelTeams ? prisma.conversation.count({ where: channelTeams }) : 0,
   ]);
 
   const groups = [...waGroups, ...channelGroups].map((group) => ({ assignedToId: group.assignedToId, count: group._count._all }));
-  return countsFromAssigneeGroups(groups, userId, waAwaiting + channelAwaitingCount);
+  return countsFromAssigneeGroups(groups, userId, waAwaiting + channelAwaitingCount, waSla + channelSlaCount, teamFilters ? waTeams + channelTeamsCount : null);
 }
 
 // R3 de docs/RENDIMIENTO_2026-11-04.md: los contadores cuestan 2 groupBy + 2 `count` y la

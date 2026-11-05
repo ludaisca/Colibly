@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { teamFilterIds } from "@/lib/teams/teams";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
@@ -23,6 +24,7 @@ export async function GET(req: Request) {
     }
 
     const filters = parseChatListFilters(searchParams, session.user.id);
+    filters.teamIds = await teamFilterIds(searchParams.get("team"), session.user.id);
     const where = buildWaChatWhere(filters, accountIds);
 
     // Paginación opt-in: sin `page`/`pageSize` en la query se preserva el

@@ -291,6 +291,8 @@ export function stepSummary(step: Step): string {
       return step.config.title;
     case "assign":
       return step.config.mode === "auto" ? "Autoasignación de la cuenta" : "A una persona";
+    case "assign_team":
+      return step.config.teamId ? "A un equipo" : "Elige el equipo";
     case "handoff":
       return step.config.message ?? "Sin mensaje";
     default:

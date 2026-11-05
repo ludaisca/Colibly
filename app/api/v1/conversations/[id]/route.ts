@@ -3,7 +3,7 @@ import { authenticateApiKey } from "@/lib/api/auth";
 import { ApiError, apiOk, methodNotAllowed, readJsonBody, withApiErrors } from "@/lib/api/respond";
 import { findScopedConversation, serializeConversation, type ScopedConversation } from "@/lib/api/resources";
 import { apiConversationUpdateSchema } from "@/lib/api/schemas";
-import { assignChat, ChatActionError, setChatStatus } from "@/lib/chats/actions";
+import { assignChat, ChatActionError, setChatStatus, setChatTeam } from "@/lib/chats/actions";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,8 +23,8 @@ export const GET = withApiErrors(async (req: Request, { params }: Params) => {
 });
 
 // PATCH /api/v1/conversations/{id} — cambia el estado (OPEN, PENDING,
-// RESOLVED) y/o la asignación (assignedToId: id de GET /users, o null para
-// quitarla). Mismos efectos que en la bandeja: resolver exige los atributos
+// RESOLVED), la asignación (assignedToId: id de GET /users, o null para
+// quitarla) y/o el equipo (teamId: id de GET /teams, o null). Mismos efectos que en la bandeja: resolver exige los atributos
 // obligatorios (422 required_fields), limpia "esperando respuesta", puede
 // mandar la encuesta CSAT y emite conversation.resolved / conversation.assigned.
 // La persona asignada debe poder atender la cuenta (si no, 400).
@@ -36,11 +36,18 @@ export const PATCH = withApiErrors(async (req: Request, { params }: Params) => {
   const kind = found.kind;
 
   try {
-    // Primero la asignación: si la persona no es válida no se toca el estado.
+    // Primero el equipo (puede autoasignar dentro de él), después la asignación
+    // explícita, que gana; si algo no es válido, el estado no se toca.
+    if (body.teamId !== undefined) await setChatTeam(kind, id, body.teamId, { organizationId: ctx.organizationId, actorId: ctx.userId });
     if (body.assignedToId !== undefined) await assignChat(kind, id, body.assignedToId, ctx.userId);
     if (body.status !== undefined) await setChatStatus(kind, id, body.status);
   } catch (err) {
     if (err instanceof ChatActionError) {
+      if (err.code === "invalid_team") {
+        throw new ApiError(400, "invalid_request", "teamId: el equipo no existe en tu organización", undefined, [
+          { path: "teamId", message: "Usa un id de GET /teams" },
+        ]);
+      }
       if (err.code === "invalid_assignee") {
         throw new ApiError(400, "invalid_request", "assignedToId: la persona no existe, está desactivada o no puede atender esta cuenta", undefined, [
           { path: "assignedToId", message: "No puede atender esta cuenta" },

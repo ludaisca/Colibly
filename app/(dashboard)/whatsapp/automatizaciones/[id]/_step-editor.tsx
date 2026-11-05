@@ -21,6 +21,7 @@ export interface EditorOptions {
   templates: { id: string; name: string; language: string; components: unknown }[];
   scorers: { id: string; name: string }[];
   users: { id: string; name: string }[];
+  teams: { id: string; name: string }[];
   scoreLabels: string[];
 }
 
@@ -219,6 +220,28 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
           </FormField>
           {step.config.mode === "user" && <UserSelect value={step.config.userId} users={options.users} onChange={(userId) => set(step, { userId })} />}
           {step.config.mode === "auto" && <p className="text-xs text-muted">Usa la autoasignación de la cuenta; si está apagada, no asigna.</p>}
+        </>
+      )}
+
+      {step.type === "assign_team" && (
+        <>
+          <FormField label="Equipo" required>
+            {(id) => (
+              <Select id={id} value={step.config.teamId} onChange={(e) => set(step, { teamId: e.target.value })}>
+                <option value="">Elige un equipo</option>
+                {options.teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+          <p className="text-xs text-muted">
+            {options.teams.length === 0
+              ? "Aún no hay equipos: un admin los crea en Usuarios → Equipos."
+              : "Si nadie tiene el chat, se asigna a quien tenga menos carga en el equipo (con la autoasignación de la cuenta activa)."}
+          </p>
         </>
       )}
 

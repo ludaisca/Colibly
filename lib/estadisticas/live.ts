@@ -22,6 +22,8 @@ export interface LiveSnapshot {
   awaiting: number;
   /** Desde cuándo espera el chat más antiguo sin respuesta (ISO) o null. */
   oldestWaitingSince: string | null;
+  /** Chats fuera de SLA ahora; null si la organización no tiene el SLA encendido. */
+  slaBreached: number | null;
   agents: LiveAgent[];
 }
 
@@ -33,7 +35,8 @@ export async function getLiveSnapshot(userId: string, organizationId: string, no
   const wa = { accountId: { in: accountIds }, status: { in: ["OPEN" as const, "PENDING" as const] }, ...notSnoozed };
   const ch = { channelAccountId: { in: channelAccountIds }, status: { in: ["OPEN" as const, "PENDING" as const] }, ...notSnoozed };
 
-  const [waByStatus, chByStatus, waUnassigned, chUnassigned, waWaiting, chWaiting, waLoad, chLoad, members] = await Promise.all([
+  const slaBreachedWhere = { status: "OPEN" as const, OR: [{ slaResponseBreachedFor: { not: null } }, { slaResolutionBreachedFor: { not: null } }] };
+  const [waByStatus, chByStatus, waUnassigned, chUnassigned, waWaiting, chWaiting, waLoad, chLoad, members, org, waSla, chSla] = await Promise.all([
     prisma.wAChat.groupBy({ by: ["status"], where: wa, _count: { _all: true } }),
     prisma.conversation.groupBy({ by: ["status"], where: ch, _count: { _all: true } }),
     prisma.wAChat.count({ where: { ...wa, assignedToId: null } }),
@@ -46,6 +49,9 @@ export async function getLiveSnapshot(userId: string, organizationId: string, no
       where: { organizationId, disabledAt: null },
       select: { id: true, name: true, email: true, availability: true, lastSeenAt: true },
     }),
+    prisma.organization.findUnique({ where: { id: organizationId }, select: { slaEnabledAt: true } }),
+    prisma.wAChat.count({ where: { accountId: { in: accountIds }, ...slaBreachedWhere } }),
+    prisma.conversation.count({ where: { channelAccountId: { in: channelAccountIds }, ...slaBreachedWhere } }),
   ]);
 
   const statusCount = (status: "OPEN" | "PENDING") =>
@@ -77,6 +83,7 @@ export async function getLiveSnapshot(userId: string, organizationId: string, no
     unassigned: waUnassigned + chUnassigned,
     awaiting: waWaiting._count._all + chWaiting._count._all,
     oldestWaitingSince: oldest?.toISOString() ?? null,
+    slaBreached: org?.slaEnabledAt ? waSla + chSla : null,
     agents,
   };
 }

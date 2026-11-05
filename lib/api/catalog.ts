@@ -46,6 +46,10 @@ export function serializeTag(t: { id: string; name: string; color: string; waAcc
   return { id: t.id, accountId: t.waAccountId ?? t.channelAccountId, name: t.name, color: t.color, createdAt: t.createdAt };
 }
 
+export function serializeTeam(t: { id: string; name: string; createdAt: Date; members: Array<{ userId: string }> }) {
+  return { id: t.id, name: t.name, memberIds: t.members.map((m) => m.userId), createdAt: t.createdAt };
+}
+
 export function serializeUser(u: { id: string; name: string | null; email: string; role: string; disabledAt: Date | null }) {
   return { id: u.id, name: u.name, email: u.email, role: u.role, active: u.disabledAt === null };
 }

@@ -2,7 +2,7 @@
 
 import {
   MessageSquare, LayoutList, ListChecks, FileText, Clock, MessageCircleQuestion, GitBranch, Tag, TagsIcon, KanbanSquare,
-  FormInput, UserPlus, BellRing, Sparkles, ScanText, Target, Bot, Webhook, Hand, CircleStop, Zap,
+  FormInput, UserPlus, Users, BellRing, Sparkles, ScanText, Target, Bot, Webhook, Hand, CircleStop, Zap,
 } from "lucide-react";
 import type { StepType } from "@/lib/automations/types";
 
@@ -35,6 +35,7 @@ export const STEP_ICON: Record<StepType, React.ElementType> = {
   set_lead_status: KanbanSquare,
   set_custom_field: FormInput,
   assign: UserPlus,
+  assign_team: Users,
   notify_team: BellRing,
   ai_classify: Sparkles,
   ai_extract: ScanText,
@@ -54,7 +55,7 @@ export function stepTone(type: StepType): "accent" | "info" | "warning" | "neutr
   if (type === "wait" || type === "wait_for_reply") return "warning";
   if (type === "condition") return "neutral";
   if (type === "handoff" || type === "end" || type === "webhook") return "neutral";
-  if (["add_tag", "remove_tag", "set_lead_status", "set_custom_field", "assign", "notify_team"].includes(type)) return "success";
+  if (["add_tag", "remove_tag", "set_lead_status", "set_custom_field", "assign", "assign_team", "notify_team"].includes(type)) return "success";
   return "accent";
 }
 

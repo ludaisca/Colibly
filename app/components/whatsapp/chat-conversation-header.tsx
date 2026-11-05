@@ -8,6 +8,7 @@ import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
 import { Select } from "@/app/components/ui/select";
 import { ChatAssigneePicker } from "./chat-assignee-picker";
+import { ChatTeamPicker } from "./chat-team-picker";
 import { ChatBotMode } from "./chat-bot-mode";
 import { ChatTagPicker } from "./chat-tag-picker";
 import { ChatPriorityPicker } from "./chat-priority-picker";
@@ -147,6 +148,10 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
               <section className="min-w-0 space-y-2">
                 <h3 className="text-xs font-semibold text-muted-darker">Asignación</h3>
                 <ChatAssigneePicker chatId={chat.id} assignedTo={chat.assignedTo} onAssigned={onAssigned} />
+              </section>
+              <section className="min-w-0 space-y-2">
+                <h3 className="text-xs font-semibold text-muted-darker">Equipo</h3>
+                <ChatTeamPicker chatId={chat.id} team={chat.team ?? null} onAssigned={onAssigned} />
               </section>
               <section className="min-w-0 space-y-2">
                 <h3 className="text-xs font-semibold text-muted-darker">Prioridad</h3>

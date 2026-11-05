@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { autoAssignConversation } from "./auto-assign";
+import { accountDefaultTeamId } from "@/lib/teams/teams";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { dispatchInboundMessage } from "@/lib/automations/dispatch";
@@ -126,6 +127,8 @@ export async function ingestChannelMessage(
       lastMessageAt: msg.timestamp,
       unreadCount: 1,
       contactId: contactRecord.id,
+      // Conversación nueva: entra al equipo por defecto de la cuenta (lib/teams/).
+      teamId: existingConversation ? undefined : await accountDefaultTeamId("channel", channelAccountId),
     },
     update: {
       ...(conversationNameShouldUpdate ? { name: nameCandidate! } : {}),
@@ -143,7 +146,8 @@ export async function ingestChannelMessage(
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: {
-        ...(conversation.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null } : {}),
+        // openedAt: empieza otro ciclo (reloj de resolución del SLA).
+        ...(conversation.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null, openedAt: new Date() } : {}),
         snoozedUntil: null,
       },
     });

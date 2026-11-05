@@ -297,3 +297,14 @@ describe("renderText", () => {
     expect(renderText("Línea 1\n\nLínea {{var.x}}", { ...ctx, vars: { x: "2" } })).toBe("Línea 1\n\nLínea 2");
   });
 });
+
+describe("execute — asignar a equipo", () => {
+  it("mueve el chat al equipo y sigue con el paso siguiente", async () => {
+    const g = graph([{ id: "e", type: "assign_team", config: { teamId: "team_1" } }, text("a", "Ya te atiende el equipo")]);
+    const f = fakeAdapters();
+    const r = await execute(g, startState(g), { kind: "start" }, f.adapters);
+    expect(r.outcome.status).toBe("completed");
+    expect(f.calls.map((c) => c.op)).toEqual(["assignTeam", "send"]);
+    expect(f.calls[0].arg).toBe("team_1");
+  });
+});

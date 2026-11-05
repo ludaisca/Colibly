@@ -42,7 +42,8 @@ export const API_BAD_KEY_ATTEMPTS_PER_MINUTE = 30;
  * webhook. Cambia solo con un cambio documentado en el changelog del OpenAPI;
  * los cambios son aditivos (campos nuevos), nunca se quita ni renombra uno.
  */
-export const API_SCHEMA_VERSION = "2026-11-05";
+// Fecha del contrato; un segundo cambio el mismo día lleva sufijo (.2).
+export const API_SCHEMA_VERSION = "2026-11-05.2";
 export const API_SCHEMA_VERSION_HEADER = "X-Colibly-Schema-Version";
 /** Página de listados. */
 export const API_PAGE_DEFAULT = 25;

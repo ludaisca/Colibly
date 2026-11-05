@@ -49,6 +49,10 @@ export function fakeAdapters(overrides: Partial<Facts> = {}) {
       calls.push({ op: "setCustomField", arg: [k, v] });
     },
     assign: async (mode, userId) => void calls.push({ op: "assign", arg: [mode, userId] }),
+    assignTeam: async (teamId) => {
+      calls.push({ op: "assignTeam", arg: teamId });
+      return "Ventas";
+    },
     notifyTeam: async (target, userId, title) => void calls.push({ op: "notify", arg: title }),
     aiClassify: async () => control.classify,
     aiExtract: async () => "2026-10-03",

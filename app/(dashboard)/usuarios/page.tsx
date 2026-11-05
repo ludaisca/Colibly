@@ -20,6 +20,7 @@ import { UserFormModal } from "./_form";
 import { InviteFormModal } from "./_invite";
 import { LicenseModal } from "./_license";
 import { useLicenseState } from "./_licenses";
+import { TeamsSection } from "./_teams";
 
 interface UserData {
   id: string;
@@ -402,6 +403,8 @@ export default function UsersPage() {
         tone="warning"
         loading={!!confirmReset2fa && togglingId === confirmReset2fa.id}
       />
+
+      <TeamsSection />
 
       <InviteFormModal open={showInvite} onClose={() => setShowInvite(false)} onInvited={() => { void fetchInvitations(); void reloadLicenses(); }} />
 

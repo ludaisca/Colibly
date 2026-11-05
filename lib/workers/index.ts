@@ -22,6 +22,7 @@ import { handleDomainEvent as handleAutomationEvent } from "@/lib/automations/di
 import { recordContactActivityFromEvent } from "@/lib/contacts/activity";
 import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
 import { processBillingTick } from "@/lib/billing/tick";
+import { processActivationTick } from "@/lib/activation/tick";
 import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
 import { processBackupTick, runBackup, BackupAlreadyRunningError } from "@/lib/backups/runner";
 import { processPlatformHealthTick } from "./platform-health-worker";
@@ -144,6 +145,9 @@ export function startWorkers() {
 
   const billingTickWorker = new Worker("billing-tick", async () => {
     await processBillingTick();
+    // Activación (hitos y consejos de la prueba): un fallo aquí no debe
+    // reintentar el tick de facturación.
+    await processActivationTick().catch((err) => console.error("[activation-tick]", err));
   }, { connection, concurrency: 1 });
 
   // Coexistencia de WhatsApp. Concurrencia 1: los lotes de historial de una
@@ -323,6 +327,10 @@ export function startWorkers() {
   inboxQueue
     .add("tick", {}, { jobId: "inbox-tick", repeat: { pattern: "5,20,35,50 * * * *" } })
     .catch((err) => console.error("[workers] No se pudo programar inbox-tick:", err));
+  // SLA de la bandeja (lib/sla/tick.ts): cada 5 min.
+  inboxQueue
+    .add("sla-tick", {}, { jobId: "sla-tick", repeat: { pattern: "*/5 * * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar sla-tick:", err));
   // Monitores de temas con IA (lib/monitors/scan.ts): una vez por hora.
   inboxQueue
     .add("topic-monitor-tick", {}, { jobId: "topic-monitor-tick", repeat: { pattern: "40 * * * *" } })

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { teamFilterIds } from "@/lib/teams/teams";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
@@ -64,6 +65,7 @@ export async function GET(req: Request) {
     ]);
 
     const filters = parseChatListFilters(searchParams, userId);
+    filters.teamIds = await teamFilterIds(searchParams.get("team"), userId);
     if (filters.accountId && !accountIds.includes(filters.accountId) && !channelAccountIds.includes(filters.accountId)) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }

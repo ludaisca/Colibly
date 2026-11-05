@@ -97,6 +97,7 @@ model User {
   automations           Automation[]
   automationVersions    AutomationVersion[]
   createdMacros         Macro[]
+  teamMemberships       TeamMember[]
 
   @@index([organizationId])
   @@map("users")
@@ -190,6 +191,10 @@ model WAAccount {
   // Con auto-asignación: solo a ejecutivos en línea; si nadie lo está, el
   // chat queda sin asignar. Apagado = comportamiento anterior.
   autoAssignOnlineOnly Boolean      @default(false) @map("auto_assign_online_only")
+  // Equipo que recibe los chats nuevos de este número (lib/teams/). Se elige
+  // desde el equipo, en Usuarios → Equipos.
+  defaultTeamId        String?      @map("default_team_id")
+  defaultTeam          Team?        @relation("WAAccountDefaultTeam", fields: [defaultTeamId], references: [id], onDelete: SetNull)
   // Encuesta de satisfacción al resolver un chat (solo si la ventana de 24 h
   // sigue abierta). Apagada por defecto: es un mensaje al cliente final.
   csatEnabled       Boolean         @default(false) @map("csat_enabled")
@@ -480,6 +485,9 @@ model ChannelAccount {
   // Con auto-asignación: solo a ejecutivos en línea; si nadie lo está, el
   // chat queda sin asignar. Apagado = comportamiento anterior.
   autoAssignOnlineOnly Boolean      @default(false) @map("auto_assign_online_only")
+  // Igual que WAAccount.defaultTeamId.
+  defaultTeamId        String?      @map("default_team_id")
+  defaultTeam          Team?        @relation("ChannelAccountDefaultTeam", fields: [defaultTeamId], references: [id], onDelete: SetNull)
   lastActivity      DateTime?
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
@@ -545,6 +553,19 @@ model Conversation {
   assignedTo       User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   resolvedAt       DateTime?
   firstResponseAt  DateTime?
+  // Inicio del ciclo abierto actual: lo pone quien reabre un chat resuelto
+  // (ingest, bandeja, API); null = desde createdAt. Base del reloj de
+  // resolución del SLA (lib/sla/rules.ts).
+  openedAt        DateTime?    @map("opened_at")
+  // SLA vencido: el inicio del reloj (respuesta / resolución) por el que ya se
+  // avisó. El tick lo pone al vencer y lo limpia cuando el reloj cambia
+  // (contestaron, se resolvió, empezó otro ciclo). No nulo = fuera de SLA.
+  slaResponseBreachedFor   DateTime? @map("sla_response_breached_for")
+  slaResolutionBreachedFor DateTime? @map("sla_resolution_breached_for")
+  // Equipo que atiende el chat (lib/teams/): enruta la autoasignación y filtra
+  // la bandeja; no cambia quién puede verlo. Quitar el equipo lo deja en null.
+  teamId          String?      @map("team_id")
+  team            Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
   botResumedAt     DateTime?
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
@@ -564,6 +585,7 @@ model Conversation {
   @@index([channelAccountId, waitingSince])
   @@index([channelAccountId, createdAt])
   @@index([channelAccountId, resolvedAt])
+  @@index([teamId])
   @@map("conversations")
 }
 
@@ -643,6 +665,19 @@ model WAChat {
   resolvedAt      DateTime?
   firstResponseAt DateTime?
   botResumedAt    DateTime?
+  // Inicio del ciclo abierto actual: lo pone quien reabre un chat resuelto
+  // (ingest, bandeja, API); null = desde createdAt. Base del reloj de
+  // resolución del SLA (lib/sla/rules.ts).
+  openedAt        DateTime?    @map("opened_at")
+  // SLA vencido: el inicio del reloj (respuesta / resolución) por el que ya se
+  // avisó. El tick lo pone al vencer y lo limpia cuando el reloj cambia
+  // (contestaron, se resolvió, empezó otro ciclo). No nulo = fuera de SLA.
+  slaResponseBreachedFor   DateTime? @map("sla_response_breached_for")
+  slaResolutionBreachedFor DateTime? @map("sla_resolution_breached_for")
+  // Equipo que atiende el chat (lib/teams/): enruta la autoasignación y filtra
+  // la bandeja; no cambia quién puede verlo. Quitar el equipo lo deja en null.
+  teamId          String?      @map("team_id")
+  team            Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
@@ -667,6 +702,7 @@ model WAChat {
   @@index([accountId, waitingSince])
   @@index([accountId, createdAt])
   @@index([accountId, resolvedAt])
+  @@index([teamId])
   @@map("wa_chats")
 }
 
@@ -1900,6 +1936,8 @@ enum NotificationType {
   // Llamada de WhatsApp entrante (Cloud API). La campana es un aviso; el
   // timbre real es el poll de la bandeja, porque hay ~30–60 s para contestar.
   WHATSAPP_CALL
+  // Un chat superó el tiempo de respuesta o de resolución del SLA (lib/sla/tick.ts).
+  SLA_BREACH
 }
 
 model Notification {
@@ -2284,6 +2322,14 @@ model Organization {
   // es un mensaje al cliente final.
   awayMessageEnabled     Boolean @default(false) @map("away_message_enabled")
   awayMessageText        String? @map("away_message_text")
+  // SLA (lib/sla/): null = apagado. Al encenderlo guarda el momento: los
+  // relojes nunca cuentan tiempo anterior, así los chats viejos no vencen
+  // todos de golpe. Respuesta = cuánto espera el cliente (waitingSince);
+  // resolución = cuánto lleva abierto el ciclo (openedAt ?? createdAt).
+  slaEnabledAt           DateTime? @map("sla_enabled_at")
+  slaResponseMinutes     Int       @default(60) @map("sla_response_minutes")
+  slaResolutionHours     Int       @default(8) @map("sla_resolution_hours")
+  slaBusinessHoursOnly   Boolean   @default(true) @map("sla_business_hours_only")
   // Cursor del escaneo de monitores de temas (lib/monitors/): hasta qué
   // lastMessageAt ya se revisaron los chats de la organización.
   topicMonitorScanAt     DateTime? @map("topic_monitor_scan_at")
@@ -2313,9 +2359,71 @@ model Organization {
   waCalls          WACall[]
   macros           Macro[]
   aiAssistUsage    AiAssistUsage[]
+  activation       OrgActivation?
+  teams            Team[]
 
   @@index([status])
   @@map("organizations")
+}
+
+// Equipos de la organización (Ventas, Soporte…): agrupan personas para
+// enrutar chats. No son un rol ni dan permisos — quién ve una cuenta sigue
+// siendo admin / dueño / compartida (lib/shared-accounts.ts). lib/teams/.
+model Team {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  members         TeamMember[]
+  chats           WAChat[]
+  conversations   Conversation[]
+  waAccounts      WAAccount[]      @relation("WAAccountDefaultTeam")
+  channelAccounts ChannelAccount[] @relation("ChannelAccountDefaultTeam")
+
+  @@unique([organizationId, name])
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId    String   @map("team_id")
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([teamId, userId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+// Hitos de activación de una organización (docs/arquitectura/billing.md →
+// "Activación"). Sellos de un solo uso que pone lib/activation/tick.ts con la
+// fecha real del primer hecho (primer canal, primer mensaje…); nunca se
+// borran aunque después se elimine lo que los produjo. Alimentan el embudo de
+// /plataforma y los consejos por correo durante la prueba.
+model OrgActivation {
+  organizationId  String       @id @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailVerifiedAt DateTime?    @map("email_verified_at")
+  channelAt       DateTime?    @map("channel_at")
+  firstInboundAt  DateTime?    @map("first_inbound_at")
+  firstReplyAt    DateTime?    @map("first_reply_at")
+  automationAt    DateTime?    @map("automation_at")
+  teamAt          DateTime?    @map("team_at")
+  paidAt          DateTime?    @map("paid_at")
+  // Última revisión del tick (las más viejas se revisan primero).
+  checkedAt       DateTime     @default(now()) @map("checked_at")
+  // Consejos enviados (claves de lib/activation/rules.ts) y baja del dueño.
+  nudgesSent      String[]     @default([]) @map("nudges_sent")
+  lastNudgeAt     DateTime?    @map("last_nudge_at")
+  nudgesOptOut    Boolean      @default(false) @map("nudges_opt_out")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([checkedAt])
+  @@map("org_activations")
 }
 
 enum AuthTokenType {

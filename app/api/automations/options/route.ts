@@ -23,7 +23,7 @@ export async function GET(req: Request) {
       ? await prisma.wAAccount.findUniqueOrThrow({ where: { id: account.waAccountId }, select: { organizationId: true } })
       : await prisma.channelAccount.findUniqueOrThrow({ where: { id: account.channelAccountId }, select: { organizationId: true } });
 
-    const [tags, fields, templates, scorers, users, scoreLabels] = await Promise.all([
+    const [tags, fields, templates, scorers, users, scoreLabels, teams] = await Promise.all([
       prisma.tag.findMany({ where: scope, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       prisma.contactCustomFieldDefinition.findMany({ where: scope, select: { key: true, label: true, type: true, options: true }, orderBy: { order: "asc" } }),
       isWa
@@ -36,6 +36,7 @@ export async function GET(req: Request) {
       prisma.wALeadScorerBot.findMany({ where: { organizationId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       isWa ? getEligibleAssignees(account.waAccountId) : getEligibleChannelAssignees(account.channelAccountId),
       prisma.wALeadScore.findMany({ distinct: ["label"], select: { label: true }, take: 20 }),
+      prisma.team.findMany({ where: { organizationId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     ]);
 
     return NextResponse.json({
@@ -44,6 +45,7 @@ export async function GET(req: Request) {
       templates,
       scorers,
       users: users.map((u) => ({ id: u.id, name: u.name ?? u.email })),
+      teams,
       scoreLabels: [...new Set(["prioridad_alta", "oportunidad", "interesado", "frio", "descartado", ...scoreLabels.map((s) => s.label)])],
     });
   } catch (error) {

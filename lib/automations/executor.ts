@@ -50,6 +50,8 @@ export interface ExecutorAdapters {
   setLeadStatus(status: string): Promise<void>;
   setCustomField(key: string, value: string): Promise<void>;
   assign(mode: "user" | "auto", userId: string | null): Promise<void>;
+  /** Devuelve el nombre del equipo; lanza si ya no existe. */
+  assignTeam(teamId: string): Promise<string>;
   notifyTeam(target: "assignee" | "user", userId: string | null, title: string, body: string): Promise<void>;
   // Devuelven null si no hay IA disponible (sin API key, presupuesto agotado).
   aiClassify(input: { instructions: string; categories: { id: string; label: string; description: string }[]; text: string }): Promise<string | null>;
@@ -268,6 +270,12 @@ export async function execute(graph: Graph, initial: RunState, input: RunInput, 
       case "assign": {
         await adapters.assign(step.config.mode, step.config.userId);
         log(step, "ok", step.config.mode === "auto" ? "Asignado automáticamente" : "Asignado");
+        state.nodeId = next;
+        break;
+      }
+      case "assign_team": {
+        const name = await adapters.assignTeam(step.config.teamId);
+        log(step, "ok", `Equipo: ${name}`);
         state.nodeId = next;
         break;
       }

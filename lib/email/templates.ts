@@ -117,3 +117,69 @@ export function welcomeTemplate(input: { to: string; name: string | null; appUrl
     text: `${hello}\n\n${intro}\n\n${steps}\n\n${meta}\n\nEntra a ${BRAND_NAME}: ${input.appUrl}\n\n¿Dudas? Escríbenos a ${BRAND_CONTACT_EMAIL} o visita ${input.supportUrl}`,
   };
 }
+
+// Consejos durante la prueba (lib/activation/tick.ts): uno por paso en que la
+// cuenta se atoró. Llevan baja de un clic (List-Unsubscribe, RFC 8058) porque
+// no son avisos de la cuenta sino recomendaciones.
+export type ActivationNudgeKind = "channel" | "first_message" | "automation" | "team";
+
+const NUDGE_COPY: Record<ActivationNudgeKind, { subject: string; title: string; paragraphs: string[]; cta: string }> = {
+  channel: {
+    subject: `Conecta tu WhatsApp y empieza a atender en ${BRAND_NAME}`,
+    title: "Tu cuenta está lista: falta conectar tu canal",
+    paragraphs: [
+      "Todavía no conectas ningún canal. En cuanto conectes tu número de WhatsApp, los mensajes de tus clientes llegan a una sola bandeja que comparte todo tu equipo.",
+      "Toma unos minutos: entras con tu cuenta de Facebook, eliges tu número y listo. También puedes empezar con Instagram, Messenger, Telegram o el chat de tu sitio web.",
+    ],
+    cta: "Conectar un canal",
+  },
+  first_message: {
+    subject: "Haz la prueba: escríbele a tu propio número",
+    title: "Haz la prueba: escríbete",
+    paragraphs: [
+      "Ya conectaste tu canal, pero todavía no llega ningún mensaje.",
+      `Escríbele a tu número desde otro teléfono y contesta desde la bandeja de ${BRAND_NAME}: en un minuto ves el recorrido completo, del mensaje del cliente a tu respuesta.`,
+    ],
+    cta: "Abrir la bandeja",
+  },
+  automation: {
+    subject: "Deja que tu bot conteste las preguntas de siempre",
+    title: "Que tu bot conteste lo de siempre",
+    paragraphs: [
+      "Precios, horarios, ubicación, cómo agendar: un bot con IA contesta al instante con la información de tu negocio, a cualquier hora.",
+      "Cuando el cliente necesita a una persona, el bot te pasa la conversación. Para empezar, pega tu lista de precios o tus preguntas frecuentes y pruébalo antes de activarlo.",
+    ],
+    cta: "Crear mi bot",
+  },
+  team: {
+    subject: "Reparte los chats con tu equipo",
+    title: "Atiende en equipo",
+    paragraphs: [
+      "Ya estás contestando a tus clientes. Invita a tus vendedores para repartir las conversaciones: cada quien ve las suyas y nadie contesta dos veces.",
+      "Puedes darles el rol de ejecutivo para que solo vean los chats, los contactos y las citas.",
+    ],
+    cta: "Invitar a mi equipo",
+  },
+};
+
+export function activationNudgeTemplate(input: { to: string; name: string | null; kind: ActivationNudgeKind; url: string; unsubscribeUrl: string }): EmailMessage {
+  const copy = NUDGE_COPY[input.kind];
+  const hello = input.name ? `Hola ${input.name},` : "Hola,";
+  const help = `¿Te atoraste? Responde este correo y te ayudamos.`;
+  return {
+    to: input.to,
+    replyTo: BRAND_CONTACT_EMAIL,
+    subject: copy.subject,
+    headers: {
+      "List-Unsubscribe": `<${input.unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+    html: layout({
+      title: escapeHtml(copy.title),
+      paragraphs: [hello, ...copy.paragraphs, help].map(escapeHtml),
+      cta: { label: escapeHtml(copy.cta), url: input.url },
+      footnote: `Te escribimos porque estás probando ${BRAND_NAME}. <a href="${escapeHtml(input.unsubscribeUrl)}" style="color:${BRAND_COLORS.muted}">No quiero más consejos</a>.`,
+    }),
+    text: `${hello}\n\n${copy.paragraphs.join("\n\n")}\n\n${copy.cta}: ${input.url}\n\n${help}\n\nNo quiero más consejos: ${input.unsubscribeUrl}`,
+  };
+}

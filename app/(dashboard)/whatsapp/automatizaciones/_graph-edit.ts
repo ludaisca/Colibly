@@ -214,6 +214,8 @@ export function createStep(type: StepType): Step {
       return { id, type, config: { key: "", value: "" } };
     case "assign":
       return { id, type, config: { mode: "auto", userId: null } };
+    case "assign_team":
+      return { id, type, config: { teamId: "" } };
     case "notify_team":
       return { id, type, config: { target: "assignee", userId: null, title: "{{nombre}} necesita atención", body: "" } };
     case "ai_classify":

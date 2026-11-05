@@ -17,7 +17,7 @@ import { cn } from "@/app/components/ui/cn";
 import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./chat-filters-panel";
 import { ChatViewsMenu } from "./chat-views-menu";
 import { useNowMs } from "./use-now";
-import { WaitingBadge } from "./waiting-badge";
+import { SlaBadge, WaitingBadge } from "./waiting-badge";
 import { ChatRowMenu } from "./chat-row-menu";
 import {
   displayMessageText,
@@ -96,6 +96,8 @@ interface ChatListPanelProps {
   onSnoozedFilterChange: (value: SnoozedFilter) => void;
   awaitingFilter: boolean;
   onAwaitingFilterChange: (value: boolean) => void;
+  /** Vista rápida "Fuera de SLA" activa (no tiene control propio en el panel de filtros). */
+  slaFilter?: boolean;
 
   selectionMode: boolean;
   onToggleSelectionMode: () => void;
@@ -145,6 +147,7 @@ export function ChatListPanel({
   onSnoozedFilterChange,
   awaitingFilter,
   onAwaitingFilterChange,
+  slaFilter = false,
   selectionMode,
   onToggleSelectionMode,
   selectedChatIds,
@@ -304,7 +307,7 @@ export function ChatListPanel({
           </div>
         ) : loadError ? (
           <div className="p-4"><ListErrorState message={loadError} onRetry={onRetry} /></div>
-        ) : !hasResults && totalChatsLoaded === 0 && !(search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter) ? (
+        ) : !hasResults && totalChatsLoaded === 0 && !(search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter || slaFilter) ? (
           <GettingStarted
             title="Tu bandeja está lista"
             description="Aquí llegan los mensajes de todos tus canales. Conecta uno para empezar a recibirlos."
@@ -316,7 +319,7 @@ export function ChatListPanel({
               icon={MessageSquare}
               title={totalChatsLoaded === 0 ? "Sin chats" : "Sin resultados"}
               description={totalChatsLoaded === 0 ? "No tienes chats activos. Cuando recibas mensajes aparecerán aquí." : "No se encontraron chats con ese filtro."}
-              action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter) ? (
+              action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter || slaFilter) ? (
                 <Button variant="secondary" size="sm" onClick={() => {
                   onSearchChange("");
                   onCampaignFilterChange("");
@@ -421,6 +424,9 @@ export function ChatListPanel({
                         )}
                         {now > 0 && chat.waitingSince && chat.status !== "RESOLVED" && (
                           <WaitingBadge since={chat.waitingSince} now={now} />
+                        )}
+                        {(chat.sla?.responseBreached || chat.sla?.resolutionBreached) && (
+                          <SlaBadge response={!!chat.sla?.responseBreached} />
                         )}
                       </div>
                     </div>

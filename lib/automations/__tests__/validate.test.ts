@@ -109,3 +109,11 @@ describe("plantillas de la galería", () => {
     expect(errors).toEqual([]);
   });
 });
+
+describe("validateGraph — asignar a equipo", () => {
+  it("exige elegir el equipo", () => {
+    const issues = validateGraph(graph([{ id: "e", type: "assign_team", config: { teamId: "" } }]), "WHATSAPP");
+    expect(issues.some((i) => i.message === "Elige el equipo")).toBe(true);
+    expect(validateGraph(graph([{ id: "e", type: "assign_team", config: { teamId: "team_1" } }]), "WHATSAPP").some((i) => i.message === "Elige el equipo")).toBe(false);
+  });
+});

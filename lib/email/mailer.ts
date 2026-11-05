@@ -16,6 +16,8 @@ export interface EmailMessage {
   subject: string;
   html: string;
   text: string;
+  // Cabeceras extra (p. ej. List-Unsubscribe en los consejos de la prueba).
+  headers?: Record<string, string>;
 }
 
 interface SmtpConfig {

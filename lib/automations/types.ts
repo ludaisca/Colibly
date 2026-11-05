@@ -106,6 +106,8 @@ export type Step = StepBase &
     | { type: "set_lead_status"; config: { status: LeadStatusValue } }
     | { type: "set_custom_field"; config: { key: string; value: string } }
     | { type: "assign"; config: { mode: "user" | "auto"; userId: string | null } }
+    // Mueve el chat a un equipo (lib/teams/); sin nadie asignado, reparte entre sus miembros.
+    | { type: "assign_team"; config: { teamId: string } }
     | { type: "notify_team"; config: { target: "assignee" | "user"; userId: string | null; title: string; body: string } }
     | {
         type: "ai_classify";

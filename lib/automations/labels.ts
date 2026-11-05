@@ -18,6 +18,7 @@ export const STEP_META: Record<StepType, { label: string; description: string; g
   set_lead_status: { label: "Cambiar etapa", description: "Mueve el lead en el Pipeline", group: "CRM" },
   set_custom_field: { label: "Guardar campo", description: "Escribe un campo personalizado", group: "CRM" },
   assign: { label: "Asignar", description: "A una persona o por autoasignación", group: "CRM" },
+  assign_team: { label: "Asignar a equipo", description: "Mueve el chat a un equipo y reparte entre sus miembros", group: "CRM" },
   notify_team: { label: "Avisar al equipo", description: "Notificación en la campana", group: "CRM" },
   ai_classify: { label: "Clasificar con IA", description: "La IA elige la rama según lo que pide el cliente", group: "IA" },
   ai_extract: { label: "Extraer dato con IA", description: "Saca un dato (fecha, presupuesto…) de la conversación", group: "IA" },

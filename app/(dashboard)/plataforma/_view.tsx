@@ -27,11 +27,12 @@ import { PlataformaRespaldos } from "./_respaldos";
 import { PlataformaOperacion } from "./_operacion";
 import { PlataformaSoporte } from "./_soporte";
 import { HeroTabs } from "@/app/components/ui/hero-tabs";
+import { PlataformaActivacion } from "./_activacion";
 import { formatInZone } from "@/lib/format/dates";
 
-const TABS = ["organizaciones", "soporte", "configuracion", "respaldos", "operacion"] as const;
+const TABS = ["organizaciones", "activacion", "soporte", "configuracion", "respaldos", "operacion"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = { organizaciones: "Organizaciones", soporte: "Soporte", configuracion: "Configuración", respaldos: "Respaldos", operacion: "Operación" };
+const TAB_LABEL: Record<Tab, string> = { organizaciones: "Organizaciones", activacion: "Activación", soporte: "Soporte", configuracion: "Configuración", respaldos: "Respaldos", operacion: "Operación" };
 
 
 // "2 Básico · 1 Pro" (las de Stripe); en prueba o sin suscripción, el plan.
@@ -167,6 +168,8 @@ export function PlatformView({
         <PlataformaRespaldos />
       ) : tab === "operacion" ? (
         <PlataformaOperacion />
+      ) : tab === "activacion" ? (
+        <PlataformaActivacion />
       ) : tab === "soporte" ? (
         <PlataformaSoporte />
       ) : (

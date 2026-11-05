@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Plus, Ban, Trash2 } from "lucide-react";
+import { KeyRound, Plus, Ban, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { DropdownItem } from "@/app/components/ui/dropdown";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { Modal } from "@/app/components/ui/modal";
+import { SecretField } from "@/app/components/integrations/secret-field";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { useToast } from "@/app/components/ui/toast";
 import { ApiKeyFormModal } from "./_api-key-form";
@@ -39,6 +41,8 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
   const [createOpen, setCreateOpen] = useState(false);
   const [revoking, setRevoking] = useState<ApiKeyRow | null>(null);
   const [deleting, setDeleting] = useState<ApiKeyRow | null>(null);
+  const [rotating, setRotating] = useState<ApiKeyRow | null>(null);
+  const [rotatedSecret, setRotatedSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const fetchKeys = useCallback(async () => {
@@ -76,6 +80,29 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
       fetchKeys();
     } catch (err) {
       toastError(err instanceof Error ? err.message : "No se pudo revocar");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // graceHours 24: la key anterior sigue funcionando un día mientras cambias tu integración.
+  async function handleRotate(graceHours: 0 | 24) {
+    if (!rotating) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/configuracion/api-keys/${rotating.id}/rotate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ graceHours }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo rotar la key");
+      success(graceHours ? "Key rotada: la anterior funciona 24 h más" : "Key rotada: la anterior ya no funciona");
+      setRotating(null);
+      setRotatedSecret(data.secret);
+      fetchKeys();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo rotar la key");
     } finally {
       setBusy(false);
     }
@@ -138,6 +165,9 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
         }}
         rowActions={(k) => (
           <>
+            {keyState(k).label === "Activa" && (
+              <DropdownItem icon={RefreshCw} onClick={() => setRotating(k)}>Rotar</DropdownItem>
+            )}
             {!k.revokedAt && (
               <DropdownItem icon={Ban} onClick={() => setRevoking(k)}>Revocar</DropdownItem>
             )}
@@ -158,6 +188,39 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
         description="Las integraciones que la usan dejarán de funcionar de inmediato. No se puede deshacer."
         confirmLabel="Revocar"
       />
+      <Modal
+        open={!!rotating}
+        onClose={() => setRotating(null)}
+        title={`¿Rotar “${rotating?.name}”?`}
+        description="Se crea una key nueva con los mismos permisos, cuentas y vencimiento. Con 24 h de gracia, la actual sigue funcionando un día mientras la cambias en tu integración; sin gracia, deja de funcionar en este momento."
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRotating(null)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button variant="secondary" onClick={() => handleRotate(0)} disabled={busy}>
+              Rotar ya
+            </Button>
+            <Button onClick={() => handleRotate(24)} loading={busy}>
+              Rotar con 24 h de gracia
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-strong">Si la key se filtró, usa &quot;Rotar ya&quot;: la gracia también le sirve a quien la tenga.</p>
+      </Modal>
+      <Modal
+        open={!!rotatedSecret}
+        onClose={() => setRotatedSecret(null)}
+        persistent
+        title="Tu nueva API key"
+        description="Cópiala ahora; no se vuelve a mostrar."
+        size="md"
+        footer={<Button onClick={() => setRotatedSecret(null)}>Listo</Button>}
+      >
+        {rotatedSecret && <SecretField label="API key" value={rotatedSecret} />}
+      </Modal>
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). Repo, folder, containers, database and npm package are all named Colibly. Use `lib/brand.ts` (`BRAND_NAME`, `BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`) in user-facing text, never a literal, and colors only through the semantic tokens (palette "Colibrí"; hex copy for emails/images in `lib/brand-colors.ts`). The logo is **Nexo** (geometric C + east triangle) — `BrandMark` / `lib/brand-mark.ts`; see `docs/PLAN_LANZAMIENTO.md`.
+The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). Repo, folder, containers, database and npm package are all named Colibly. Use `lib/brand.ts` (`BRAND_NAME`, `BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`) in user-facing text, never a literal, and colors only through the semantic tokens (palette "Laguna + coral", `docs/COLOR.md`; hex copy for emails/images in `lib/brand-colors.ts`). The logo is **Nexo** (geometric C + east triangle) — `BrandMark` / `lib/brand-mark.ts`; see `docs/PLAN_LANZAMIENTO.md`.
 
 @AGENTS.md
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ViewCounts } from "./chat-shared";
-import { Bookmark, Hourglass, Inbox, Plus, Trash2, User, UserX } from "lucide-react";
+import { Bookmark, Hourglass, Inbox, Plus, TimerOff, Trash2, User, Users, UserX } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
 import { Input } from "@/app/components/ui/input";
@@ -16,14 +16,18 @@ interface SavedView {
 
 const STORAGE_KEY = "colibly:chat-views";
 
-type CountKey = keyof ViewCounts;
+type CountKey = "awaiting" | "mine" | "unassigned" | "all" | "sla" | "teams";
 
 // Vistas rápidas: el mismo query que aplicaría una vista guardada. Los
 // contadores llegan por GET /api/inbox/sync (lib/chats/counts.ts, mismos builders que la
 // lista). Sin pestañas en la cabecera: se quitaron a propósito.
 const QUICK_VIEWS: Array<{ key: CountKey; label: string; query: string; icon: typeof Inbox }> = [
   { key: "awaiting", label: "Esperando respuesta", query: "awaiting=1", icon: Hourglass },
+  // Solo se muestra si hay chats fuera de SLA (con el SLA apagado siempre es 0).
+  { key: "sla", label: "Fuera de SLA", query: "sla=1", icon: TimerOff },
   { key: "mine", label: "Míos", query: "assigned=me", icon: User },
+  // Solo si la persona está en algún equipo (lib/teams/).
+  { key: "teams", label: "Mis equipos", query: "team=mine", icon: Users },
   { key: "unassigned", label: "Sin asignar", query: "assigned=unassigned", icon: UserX },
   { key: "all", label: "Todos los activos", query: "", icon: Inbox },
 ];
@@ -112,7 +116,11 @@ export function ChatViewsMenu({
       >
         <div className="w-64 p-1">
           <p className="px-2.5 pb-1 pt-1.5 text-eyebrow uppercase text-muted-darker">Vistas rápidas</p>
-          {QUICK_VIEWS.map((view) => (
+          {QUICK_VIEWS.filter(
+            (view) =>
+              (view.key !== "sla" || (counts?.sla ?? 0) > 0 || currentQuery.includes("sla=1")) &&
+              (view.key !== "teams" || counts?.teams !== undefined)
+          ).map((view) => (
             <button
               key={view.key}
               type="button"
@@ -122,8 +130,16 @@ export function ChatViewsMenu({
               <view.icon size={14} className="shrink-0 text-muted" aria-hidden />
               <span className="min-w-0 flex-1 truncate">{view.label}</span>
               {counts && (
-                <span className={`tabular-nums text-xs ${view.key === "awaiting" && counts.awaiting > 0 ? "font-semibold text-warning" : "text-muted-darker"}`}>
-                  {formatCount(counts[view.key])}
+                <span
+                  className={`tabular-nums text-xs ${
+                    view.key === "awaiting" && counts.awaiting > 0
+                      ? "font-semibold text-warning"
+                      : view.key === "sla" && (counts.sla ?? 0) > 0
+                        ? "font-semibold text-danger"
+                        : "text-muted-darker"
+                  }`}
+                >
+                  {formatCount(counts[view.key] ?? 0)}
                 </span>
               )}
             </button>

@@ -33,6 +33,10 @@ const SELECT = {
   awayMessageEnabled: true,
   awayMessageText: true,
   autoTranscribeAudio: true,
+  slaEnabledAt: true,
+  slaResponseMinutes: true,
+  slaResolutionHours: true,
+  slaBusinessHoursOnly: true,
 } as const;
 
 type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
@@ -48,10 +52,11 @@ type OrgAiRow = { [K in keyof typeof SELECT]: unknown } & {
 // (con licencias, la suma de las personas de la organización).
 async function serialize(organizationId: string, org: OrgAiRow) {
   const credits = await orgAiCreditSummary(organizationId);
-  const { plan: _plan, isInternal: _internal, status: _status, seatQuantity: _seats, aiCreditsUsed: _used, aiCreditsBonus: _bonus, ...rest } = org;
+  const { plan: _plan, isInternal: _internal, status: _status, seatQuantity: _seats, aiCreditsUsed: _used, aiCreditsBonus: _bonus, slaEnabledAt, ...rest } = org;
   const limit = credits?.limit ?? 0;
   return {
     ...rest,
+    slaEnabled: slaEnabledAt !== null,
     aiCredits: { used: credits?.used ?? 0, limit: Number.isFinite(limit) ? limit : null },
   };
 }
@@ -83,7 +88,7 @@ export async function PATCH(req: Request) {
 
     const current = await prisma.organization.findUniqueOrThrow({
       where: { id: ctx.organizationId },
-      select: { businessHourStart: true, businessHourEnd: true, awayMessageEnabled: true, awayMessageText: true },
+      select: { businessHourStart: true, businessHourEnd: true, awayMessageEnabled: true, awayMessageText: true, slaEnabledAt: true },
     });
     const start = parsed.data.businessHourStart ?? current.businessHourStart;
     const end = parsed.data.businessHourEnd ?? current.businessHourEnd;
@@ -94,7 +99,19 @@ export async function PATCH(req: Request) {
     const awayText = parsed.data.awayMessageText !== undefined ? parsed.data.awayMessageText : current.awayMessageText;
     if (awayEnabled && !awayText) return NextResponse.json({ error: "Escribe el mensaje fuera de horario antes de activarlo" }, { status: 400 });
 
-    const org = await prisma.organization.update({ where: { id: ctx.organizationId }, data: parsed.data, select: SELECT });
+    // SLA: encender guarda el momento (los relojes no cuentan tiempo anterior);
+    // apagar borra los avisos vigentes para que la bandeja no marque nada.
+    const { slaEnabled, ...data } = parsed.data;
+    const slaData =
+      slaEnabled === true && !current.slaEnabledAt ? { slaEnabledAt: new Date() } : slaEnabled === false ? { slaEnabledAt: null } : {};
+    const org = await prisma.organization.update({ where: { id: ctx.organizationId }, data: { ...data, ...slaData }, select: SELECT });
+    if (slaEnabled === false && current.slaEnabledAt) {
+      const clear = { slaResponseBreachedFor: null, slaResolutionBreachedFor: null };
+      await Promise.all([
+        prisma.wAChat.updateMany({ where: { account: { organizationId: ctx.organizationId } }, data: clear }),
+        prisma.conversation.updateMany({ where: { channelAccount: { organizationId: ctx.organizationId } }, data: clear }),
+      ]);
+    }
     return NextResponse.json(await serialize(ctx.organizationId, org));
   } catch (error) {
     return NextResponse.json({ error: publicErrorMessage(error, "Error interno") }, { status: 500 });

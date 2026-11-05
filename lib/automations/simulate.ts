@@ -89,6 +89,10 @@ export async function simulate(input: {
       effect(`Campo ${k} = ${v}`);
     },
     assign: async (mode) => effect(mode === "auto" ? "Se asignaría automáticamente" : "Se asignaría al usuario elegido"),
+    assignTeam: async () => {
+      effect("Se movería al equipo elegido (y se asignaría dentro de él si nadie lo tiene)");
+      return "equipo";
+    },
     notifyTeam: async (_t, _u, title) => effect(`Aviso al equipo: ${title}`),
     aiClassify: (i) => aiClassify(aiCtx, i),
     aiExtract: (i) => aiExtract(aiCtx, i),

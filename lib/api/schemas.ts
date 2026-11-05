@@ -102,8 +102,10 @@ export const apiConversationUpdateSchema = z
     status: z.enum(["OPEN", "PENDING", "RESOLVED"]).optional(),
     // null = quitar la asignación.
     assignedToId: z.string().min(1).nullable().optional(),
+    // null = sacarla de su equipo.
+    teamId: z.string().min(1).max(64).nullable().optional(),
   })
   .strict()
-  .refine((d) => d.status !== undefined || d.assignedToId !== undefined, "Envía status, assignedToId o ambos");
+  .refine((d) => d.status !== undefined || d.assignedToId !== undefined || d.teamId !== undefined, "Envía status, assignedToId, teamId o varios");
 
 export type ApiSendMessageInput = z.infer<typeof apiSendMessageSchema>;

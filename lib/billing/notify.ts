@@ -52,6 +52,17 @@ export function trialEndingNotice(daysLeft: number): Notice {
   };
 }
 
+export function pastDueReminderNotice(daysLeft: number): Notice {
+  return {
+    title: daysLeft <= 1 ? "Mañana tu cuenta pasa a solo lectura" : `Tu cuenta pasa a solo lectura en ${daysLeft} días`,
+    paragraphs: [
+      "Seguimos sin poder cobrar tu suscripción. Actualiza tu tarjeta en \"Administrar facturación\" para que tus bots, automatizaciones y envíos sigan funcionando.",
+      "Si el banco rechazó el cargo, a veces basta con autorizarlo en tu app bancaria o usar otra tarjeta. Tus datos no se pierden.",
+    ],
+    email: true,
+  };
+}
+
 // Aviso según la transición de estado (webhook de Stripe o tick horario).
 export async function notifyBillingTransition(organizationId: string, from: OrganizationStatus, to: OrganizationStatus): Promise<void> {
   const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { graceEndsAt: true } });
@@ -62,7 +73,10 @@ export async function notifyBillingTransition(organizationId: string, from: Orga
     const until = org?.graceEndsAt ? ` antes del ${formatDate(org.graceEndsAt)}` : "";
     notice = {
       title: "No pudimos cobrar tu suscripción",
-      paragraphs: [`Actualiza tu método de pago${until} para que tu cuenta no pase a solo lectura. Mientras tanto, todo sigue funcionando.`],
+      paragraphs: [
+        `Actualiza tu método de pago${until} para que tu cuenta no pase a solo lectura. Mientras tanto, todo sigue funcionando.`,
+        "Entra a tu plan y abre \"Administrar facturación\" para cambiar la tarjeta; el cobro se reintenta solo.",
+      ],
       email: true,
     };
   } else if (to === "READ_ONLY") {

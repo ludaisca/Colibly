@@ -65,7 +65,16 @@ export async function validateForPublish(
     ).map((d) => d.key)
   );
 
+  // Equipos de la organización (un id de otra, o uno borrado, no publica).
+  const teamIds = [...new Set(steps.flatMap((s) => (s.type === "assign_team" && s.config.teamId ? [s.config.teamId] : [])))];
+  const validTeams = teamIds.length
+    ? new Set((await prisma.team.findMany({ where: { id: { in: teamIds }, organizationId: scope.organizationId }, select: { id: true } })).map((t) => t.id))
+    : new Set<string>();
+
   for (const s of steps) {
+    if (s.type === "assign_team" && s.config.teamId && !validTeams.has(s.config.teamId)) {
+      err(s.id, "Ese equipo ya no existe");
+    }
     if (s.type === "assign" && s.config.mode === "user" && s.config.userId && !assignees.includes(s.config.userId)) {
       err(s.id, "Ese usuario no tiene acceso a esta cuenta");
     }

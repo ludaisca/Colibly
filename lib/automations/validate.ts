@@ -200,6 +200,9 @@ function validateStep(
     case "assign":
       if (step.config.mode === "user" && !step.config.userId) err(id, "Elige a quién asignar");
       break;
+    case "assign_team":
+      if (!step.config.teamId) err(id, "Elige el equipo");
+      break;
     case "notify_team":
       if (!step.config.title.trim()) err(id, "Escribe el título del aviso");
       if (step.config.target === "user" && !step.config.userId) err(id, "Elige a quién avisar");

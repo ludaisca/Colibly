@@ -5,6 +5,7 @@ import { afterContactCreated } from "@/lib/billing/contact-limits";
 import { prisma } from "@/lib/prisma";
 import { botQueue, mediaDownloadQueue } from "@/lib/queue";
 import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
+import { accountDefaultTeamId } from "@/lib/teams/teams";
 import { shouldUpdateName } from "@/lib/whatsapp/contact-name";
 import { addressBookNameFor, forgetAddressBookEntry, shouldApplyProfileName } from "@/lib/whatsapp/address-book";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
@@ -146,6 +147,8 @@ export async function ingestInboundMessage(
       lastMessageAt: msg.timestamp,
       unreadCount: 1,
       contactId: contactRecord.id,
+      // Chat nuevo: entra al equipo por defecto del número (lib/teams/).
+      teamId: existingChat ? undefined : await accountDefaultTeamId("whatsapp", accountId),
     },
     update: {
       ...(chatNameShouldUpdate ? { name: msg.contactName } : {}),
@@ -165,7 +168,8 @@ export async function ingestInboundMessage(
     await prisma.wAChat.update({
       where: { id: chat.id },
       data: {
-        ...(chat.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null } : {}),
+        // openedAt: empieza otro ciclo (reloj de resolución del SLA).
+        ...(chat.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null, openedAt: new Date() } : {}),
         snoozedUntil: null,
       },
     });

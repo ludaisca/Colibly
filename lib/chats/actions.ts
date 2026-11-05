@@ -6,6 +6,8 @@ import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForChat } from "@/lib/events/refs";
 import { maybeSendCsat } from "@/lib/csat/send-survey";
 import { missingRequiredForChat, requiredFieldsMessage } from "@/lib/chats/required-fields";
+import { autoAssignChat } from "@/lib/whatsapp/auto-assign";
+import { autoAssignConversation } from "@/lib/telegram/auto-assign";
 
 // Cambiar el estado y la asignación de un chat (WAChat o Conversation). Un solo
 // lugar para la bandeja (/api/whatsapp/chats/[chatId]/{status,assign}) y la API
@@ -19,7 +21,7 @@ export type ChatStatusValue = (typeof CHAT_STATUSES)[number];
 
 export class ChatActionError extends Error {
   constructor(
-    public readonly code: "invalid_assignee" | "required_fields",
+    public readonly code: "invalid_assignee" | "required_fields" | "invalid_team",
     message: string,
     public readonly fields?: unknown
   ) {
@@ -46,6 +48,8 @@ export async function setChatStatus(kind: ChatKind, chatId: string, status: Chat
       data: {
         status,
         resolvedAt: willBeResolved ? new Date() : wasResolved ? null : undefined,
+        // Reabrir empieza otro ciclo (reloj de resolución del SLA).
+        ...(wasResolved && !willBeResolved ? { openedAt: new Date() } : {}),
         // Un chat resuelto no espera respuesta (lib/chats/waiting.ts).
         ...(willBeResolved ? { waitingSince: null } : {}),
       },
@@ -59,6 +63,8 @@ export async function setChatStatus(kind: ChatKind, chatId: string, status: Chat
       data: {
         status,
         resolvedAt: willBeResolved ? new Date() : wasResolved ? null : undefined,
+        // Reabrir empieza otro ciclo (reloj de resolución del SLA).
+        ...(wasResolved && !willBeResolved ? { openedAt: new Date() } : {}),
         ...(willBeResolved ? { waitingSince: null } : {}),
       },
       select,
@@ -129,4 +135,40 @@ async function notifyAssignment(input: { assignedToId: string | null; actorId: s
   } catch (error) {
     console.error("[chats] no se pudo crear la notificación de asignación", error);
   }
+}
+
+/**
+ * Mueve el chat a un equipo (o lo saca con null). El equipo debe ser de la
+ * organización. No cambia a la persona asignada; si el chat no tiene a nadie,
+ * se intenta la autoasignación dentro del equipo (si la cuenta la tiene
+ * activa), con su evento y su aviso.
+ */
+export async function setChatTeam(
+  kind: ChatKind,
+  chatId: string,
+  teamId: string | null,
+  ctx: { organizationId: string; actorId: string }
+): Promise<{ team: { id: string; name: string } | null; assignedTo: { id: string; name: string | null } | null }> {
+  let team: { id: string; name: string } | null = null;
+  if (teamId) {
+    team = await prisma.team.findFirst({ where: { id: teamId, organizationId: ctx.organizationId }, select: { id: true, name: true } });
+    if (!team) throw new ChatActionError("invalid_team", "El equipo no existe o es de otra organización");
+  }
+  const row =
+    kind === "whatsapp"
+      ? await prisma.wAChat
+          .update({ where: { id: chatId }, data: { teamId }, select: { ...ASSIGNEE_SELECT, accountId: true, name: true, remoteJid: true, contact: { select: { name: true } } } })
+          .then((c) => ({ ...c, contactName: displayName(c.contact?.name ?? c.name, c.remoteJid) }))
+      : await prisma.conversation
+          .update({ where: { id: chatId }, data: { teamId }, select: { ...ASSIGNEE_SELECT, channelAccountId: true, name: true, externalId: true, contact: { select: { name: true } } } })
+          .then((c) => ({ ...c, accountId: c.channelAccountId, contactName: displayName(c.contact?.name ?? c.name, c.externalId) }));
+
+  if (!team || row.assignedToId) return { team, assignedTo: row.assignedTo };
+  const autoId = kind === "whatsapp" ? await autoAssignChat(row.accountId, chatId) : await autoAssignConversation(row.accountId, chatId);
+  if (!autoId) return { team, assignedTo: null };
+  const refs = await eventRefsForChat(chatId);
+  if (refs) await emitDomainEvent({ type: "conversation.assigned", ...refs, data: { assignedToId: autoId, auto: true } });
+  await notifyAssignment({ assignedToId: autoId, actorId: ctx.actorId, accountId: row.accountId, chatId, contactName: row.contactName });
+  const user = await prisma.user.findUnique({ where: { id: autoId }, select: { id: true, name: true } });
+  return { team, assignedTo: user };
 }

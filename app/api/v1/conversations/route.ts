@@ -12,7 +12,7 @@ const CHANNELS = ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"] a
 // ordenada por último mensaje. Las dos tablas se paginan con el mismo cursor
 // (lastMessageAt, id): cada página pide `limit` a cada una, mezcla y corta, así
 // el orden global es exacto. Conversaciones sin ningún mensaje no se listan.
-// Filtros: accountId, channel, status, assignedToId, contactId, updatedSince
+// Filtros: accountId, channel, status, assignedToId, teamId, contactId, updatedSince
 // (solo las que cambiaron desde esa fecha: mensaje, estado, asignación…).
 export const GET = withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "conversations:read");
@@ -33,6 +33,7 @@ export const GET = withApiErrors(async (req: Request) => {
   const accountId = url.searchParams.get("accountId");
   const assignedToId = url.searchParams.get("assignedToId");
   const contactId = url.searchParams.get("contactId");
+  const teamId = url.searchParams.get("teamId");
   const updatedSince = readDateParam(url, "updatedSince");
 
   const common = {
@@ -40,6 +41,7 @@ export const GET = withApiErrors(async (req: Request) => {
     ...(status ? { status: status as ChatStatus } : {}),
     ...(assignedToId ? { assignedToId } : {}),
     ...(contactId ? { contactId } : {}),
+    ...(teamId ? { teamId } : {}),
     ...(updatedSince ? { updatedAt: { gte: updatedSince } } : {}),
     ...(after
       ? { OR: [{ lastMessageAt: { lt: after.t } }, { lastMessageAt: after.t, id: { lt: after.id } }] }

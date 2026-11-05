@@ -216,7 +216,7 @@ export default function ApiDocsPage() {
             <code className="font-mono text-sm">?cursor=&lt;nextCursor&gt;</code>; cuando <code className="font-mono text-sm">nextCursor</code> es <code className="font-mono text-sm">null</code>, terminaste.{" "}
             <code className="font-mono text-sm">limit</code> va de 1 a {limits.pageMax} (por defecto {limits.pageDefault}). El cursor es opaco: no lo construyas ni lo guardes por mucho tiempo.{" "}
             Los catálogos (<code className="font-mono text-sm">/accounts</code>, <code className="font-mono text-sm">/templates</code>, <code className="font-mono text-sm">/tags</code>,{" "}
-            <code className="font-mono text-sm">/users</code>, <code className="font-mono text-sm">/automations</code>) devuelven la lista completa en <code className="font-mono text-sm">data</code>, sin cursor.
+            <code className="font-mono text-sm">/users</code>, <code className="font-mono text-sm">/teams</code>, <code className="font-mono text-sm">/automations</code>) devuelven la lista completa en <code className="font-mono text-sm">data</code>, sin cursor.
           </p>
           <Code>{PAGINATION_NODE.replace("https://app.colibly.com/api/v1", base)}</Code>
           <p className="text-sm text-muted-strong">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Hourglass } from "lucide-react";
+import { Hourglass, TimerOff } from "lucide-react";
 import { formatInZone, minutesSince } from "@/lib/format/dates";
 import { waitingLabel, waitingTone } from "@/lib/chats/waiting-shared";
 
@@ -23,6 +23,19 @@ export function WaitingBadge({ since, now }: { since: string; now: number }) {
     >
       <Hourglass size={10} aria-hidden />
       {waitingLabel(minutes)}
+    </span>
+  );
+}
+
+// Fuera de SLA (lib/sla/): el tick avisó y el reloj sigue vencido.
+export function SlaBadge({ response }: { response: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 rounded px-1 text-[10px] font-semibold text-danger bg-danger-bg"
+      title={response ? "Fuera de SLA: se pasó el tiempo de respuesta" : "Fuera de SLA: se pasó el tiempo de resolución"}
+    >
+      <TimerOff size={10} aria-hidden />
+      SLA
     </span>
   );
 }

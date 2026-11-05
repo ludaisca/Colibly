@@ -14,6 +14,7 @@ import { scoreChatWithScorer } from "@/lib/whatsapp/lead-scoring";
 import { safeFetch } from "@/lib/net/safe-fetch";
 import { isFallbackName } from "@/lib/whatsapp/contact-name";
 import { emitDomainEvent } from "@/lib/events/emit";
+import { setChatTeam } from "@/lib/chats/actions";
 import { BOT_REPLY_DEBOUNCE_MS } from "@/lib/bots/guards";
 import { SendFailure, type ExecutorAdapters, type Facts, type OutgoingMessage } from "./executor";
 import { aiClassify, aiExtract, aiMatchOption, type AiCallContext } from "./ai";
@@ -195,6 +196,13 @@ export function createRunAdapters(ctx: RunContext): ExecutorAdapters {
         throw new Error("El usuario elegido ya no tiene acceso a esta cuenta");
       }
       await assignTo(userId, false);
+    },
+
+    async assignTeam(teamId) {
+      // Mismos efectos que el selector de la bandeja: valida el equipo contra la
+      // organización y, sin nadie asignado, autoasigna dentro del equipo.
+      const result = await setChatTeam(ctx.chat.kind, ctx.chat.id, teamId, { organizationId: ctx.organizationId, actorId: ctx.ownerId });
+      return result.team?.name ?? "";
     },
 
     async notifyTeam(targetKind, userId, title, body) {

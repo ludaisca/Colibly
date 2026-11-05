@@ -113,12 +113,12 @@ export async function POST(req: Request) {
         waIds.length
           ? action.status === "RESOLVED"
             ? prisma.wAChat.updateMany({ where: { id: { in: waIds } }, data: { status: "RESOLVED", resolvedAt: now, waitingSince: null } })
-            : prisma.wAChat.updateMany({ where: { id: { in: waIds } }, data: { status: "OPEN", resolvedAt: null } })
+            : reopenMany("whatsapp", waIds, now)
           : { count: 0 },
         channelIds.length
           ? action.status === "RESOLVED"
             ? prisma.conversation.updateMany({ where: { id: { in: channelIds } }, data: { status: "RESOLVED", resolvedAt: now, waitingSince: null } })
-            : prisma.conversation.updateMany({ where: { id: { in: channelIds } }, data: { status: "OPEN", resolvedAt: null } })
+            : reopenMany("channel", channelIds, now)
           : { count: 0 },
       ]);
 
@@ -200,4 +200,20 @@ async function notifyBulkAssignment(userId: string, count: number) {
   } catch (error) {
     console.error("[chats] no se pudo crear la notificación de asignación masiva", error);
   }
+}
+
+// Reabrir en lote: solo los RESUELTOS empiezan otro ciclo (openedAt, reloj de
+// resolución del SLA); un PENDING que pasa a OPEN sigue en el mismo ciclo.
+async function reopenMany(kind: "whatsapp" | "channel", ids: string[], now: Date): Promise<{ count: number }> {
+  const [resolved, others] =
+    kind === "whatsapp"
+      ? await Promise.all([
+          prisma.wAChat.updateMany({ where: { id: { in: ids }, status: "RESOLVED" }, data: { status: "OPEN", resolvedAt: null, openedAt: now } }),
+          prisma.wAChat.updateMany({ where: { id: { in: ids }, status: { not: "RESOLVED" } }, data: { status: "OPEN", resolvedAt: null } }),
+        ])
+      : await Promise.all([
+          prisma.conversation.updateMany({ where: { id: { in: ids }, status: "RESOLVED" }, data: { status: "OPEN", resolvedAt: null, openedAt: now } }),
+          prisma.conversation.updateMany({ where: { id: { in: ids }, status: { not: "RESOLVED" } }, data: { status: "OPEN", resolvedAt: null } }),
+        ]);
+  return { count: resolved.count + others.count };
 }

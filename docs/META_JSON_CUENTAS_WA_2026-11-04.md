@@ -211,4 +211,4 @@ Plan original:
 ## Pendiente
 
 - Conectar una cuenta en Coexistencia (Embedded Signup) y repetir este volcado: comparar `throughput`, `health_status`, `platform_type` y `messaging_limit_tier` con los de Cloud API, y guardar un ejemplo real de cada webhook de Coexistencia. Requiere que los webhooks lleguen (hallazgo 1).
-- Decidir los hallazgos 2–4. Son cambios de código pequeños; el 4 conviene probarlo con envíos reales.
+- ~~Decidir los hallazgos 2–4~~: hechos en `ca42d00` (2026-11-04): calidad y `health_status` leídos de Graph (`lib/whatsapp/phone-health.ts`) y todo el código en `GRAPH_API_VERSION` (v25.0).

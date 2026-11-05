@@ -123,7 +123,7 @@ Documentos relacionados: [AUDITORIA_API_WEBHOOKS_2026-10-19.md](AUDITORIA_API_WE
 ## 12. Pendientes
 - [x] Limpiar caché NGINX en cPanel (2026-10-20; la landing coincide con `cpanel-site/`).
 - [x] Corregir SMTP de producción (error 535): el usuario debía ser `noreply@colibly.com` (2026-10-20).
-- [ ] Stripe revenue recovery: Smart Retries (~7 días), correos de pago fallido, actualizador de tarjetas, "marcar como impaga".
+- [ ] Stripe revenue recovery: Smart Retries (~7 días), correos de pago fallido, actualizador de tarjetas, "marcar como impaga". **Del lado de Colibly hecho (2026-11-05)**: aviso al fallar + recordatorios a 3 y 1 día de solo lectura que mandan a "Administrar facturación". Falta activar en el dashboard de Stripe (live) Smart Retries, el actualizador automático de tarjetas y, si se quiere, sus correos de pago fallido.
 - [ ] Decidir cuenta de Stripe y pasar a live (llave live, recrear precios y webhook).
 - [ ] Rotar App Secret de Meta.
 - [ ] WABA: método de pago, verificación del negocio y nombre visible.
@@ -133,7 +133,7 @@ Documentos relacionados: [AUDITORIA_API_WEBHOOKS_2026-10-19.md](AUDITORIA_API_WE
 - [ ] Rotar token de Coolify.
 - [ ] Respaldos a R2 y monitoreo.
 - [ ] Logo final.
-- [ ] Rotación de llaves API en un clic.
+- [x] Rotación de llaves API en un clic (2026-11-05: "Rotar" en Configuración → API, con 24 h de gracia opcional).
 - [ ] Evaluar flexible billing mode de Stripe.
 - [ ] Probar en vivo la concurrencia de webhooks por endpoint.
 

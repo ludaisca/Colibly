@@ -97,6 +97,11 @@ export interface ChatItem {
   snoozedUntil: string | null;
   /** Desde cuándo el cliente espera respuesta (lib/chats/waiting.ts). */
   waitingSince?: string | null;
+  /** Fuera de SLA ahora (lib/sla/rules.ts:slaBreachFlags). */
+  sla?: { responseBreached: boolean; resolutionBreached: boolean };
+  /** Equipo que atiende el chat (lib/teams/). */
+  teamId?: string | null;
+  team?: { id: string; name: string } | null;
   assignedToId: string | null;
   assignedTo: { id: string; name: string | null } | null;
   account: { id: string; name: string; phoneNumber: string | null; coexistence?: boolean; callingEnabled?: boolean };
@@ -120,7 +125,7 @@ export function oldestLastMessageAt(chats: Array<{ lastMessageAt: string | null 
   return oldest;
 }
 
-export type ViewCounts = Record<"awaiting" | "mine" | "unassigned" | "all", number>;
+export type ViewCounts = Record<"awaiting" | "mine" | "unassigned" | "all", number> & { sla?: number; teams?: number };
 
 /** Respuesta de GET /api/inbox/sync. */
 export interface InboxSyncResponse {

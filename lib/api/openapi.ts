@@ -40,13 +40,21 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.2.0";
+export const API_VERSION = "1.3.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.2.0",
+    version: "1.3.0",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-05",
+    changes: [
+      "Equipos: GET /teams (id, name, memberIds), Conversation.teamId, filtro teamId en GET /conversations y teamId en PATCH /conversations/{id} (null la saca del equipo). Mover a un equipo una conversación sin asignar la asigna dentro del equipo si la cuenta tiene la asignación automática.",
+    ],
+  },
+  {
+    version: "1.2.0",
+    schemaVersion: "2026-11-05",
     date: "2026-11-05",
     changes: [
       "Catálogos para armar llamadas: GET /templates (con los parámetros que pide cada plantilla), GET /tags, GET /users y GET /automations (runnable = acepta POST /automations/{id}/runs).",
@@ -159,6 +167,7 @@ const EX = {
     name: "Ana López",
     status: "OPEN",
     assignedToId: "cmusr_02",
+    teamId: "cmteam_01",
     unreadCount: 1,
     lastMessage: "¿Tienen envío a Puebla?",
     lastMessageAt: "2026-10-18T19:02:11.000Z",
@@ -236,6 +245,7 @@ const EX = {
   },
   tag: { id: "cmtag_01", accountId: "cmacc_wa_01", name: "Mayoreo", color: "accent", createdAt: "2026-10-01T16:20:00.000Z" },
   user: { id: "cmusr_02", name: "Carlos Ventas", email: "carlos@ejemplo.mx", role: "user", active: true },
+  team: { id: "cmteam_01", name: "Ventas", memberIds: ["cmusr_02"], createdAt: "2026-11-05T15:00:00.000Z" },
   automation: {
     id: "cmaut_01",
     accountId: "cmacc_wa_01",
@@ -555,6 +565,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             { name: "channel", in: "query", schema: ref("Channel") },
             { name: "status", in: "query", schema: { type: "string", enum: ["OPEN", "PENDING", "RESOLVED"] } },
             { name: "assignedToId", in: "query", schema: { type: "string" } },
+            { name: "teamId", in: "query", schema: { type: "string" }, description: "Solo las de ese equipo (GET /teams)" },
             { name: "contactId", in: "query", schema: { type: "string" } },
             { name: "updatedSince", in: "query", description: "Solo las que cambiaron desde esa fecha (mensaje, estado, asignación, no leídos). Guarda el mayor `updatedAt` recibido y úsalo en la siguiente consulta", schema: { type: "string", format: "date-time" } },
           ],
@@ -712,6 +723,14 @@ export function buildOpenApiSpec(serverUrl: string) {
           summary: "Personas de la organización",
           description: `${scopeNote("conversations:read")} Para traducir \`assignedToId\` y para asignar con PATCH /conversations/{id}. Incluye las desactivadas (\`active: false\`), que pueden seguir en conversaciones viejas. Lista completa, por nombre.`,
           responses: { "200": ok(list("User"), { data: [EX.user] }), ...errors },
+        },
+      },
+      "/teams": {
+        get: {
+          tags: ["Catálogos"],
+          summary: "Equipos",
+          description: `${scopeNote("conversations:read")} Equipos de la organización (Usuarios → Equipos), para traducir \`teamId\` y mover conversaciones con PATCH /conversations/{id}. Un equipo enruta la asignación automática; no da permisos. \`memberIds\` = personas activas. Lista completa, por nombre.`,
+          responses: { "200": ok(list("Team"), { data: [EX.team] }), ...errors },
         },
       },
       "/automations": {
@@ -1028,6 +1047,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             name: strNull,
             status: { type: "string", enum: ["OPEN", "PENDING", "RESOLVED"] },
             assignedToId: strNull,
+            teamId: { ...strNull, description: "Equipo que la atiende (GET /teams)" },
             unreadCount: { type: "integer" },
             lastMessage: strNull,
             lastMessageAt: { type: ["string", "null"], format: "date-time" },
@@ -1136,6 +1156,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           properties: {
             status: { type: "string", enum: ["OPEN", "PENDING", "RESOLVED"] },
             assignedToId: { ...strNull, description: "Id de GET /users; null quita la asignación" },
+            teamId: { ...strNull, description: "Id de GET /teams; null la saca de su equipo. Si la conversación no tiene a nadie asignado, se asigna dentro del equipo (si la cuenta tiene la asignación automática); un assignedToId en el mismo cuerpo gana" },
           },
         },
         Template: {
@@ -1162,6 +1183,10 @@ export function buildOpenApiSpec(serverUrl: string) {
         Tag: {
           type: "object",
           properties: { id: str, accountId: str, name: str, color: { type: "string", description: "Nombre del tono en la app" }, createdAt: { type: "string", format: "date-time" } },
+        },
+        Team: {
+          type: "object",
+          properties: { id: str, name: str, memberIds: { type: "array", items: str }, createdAt: { type: "string", format: "date-time" } },
         },
         User: {
           type: "object",

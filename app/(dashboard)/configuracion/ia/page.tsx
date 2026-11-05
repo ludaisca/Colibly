@@ -34,6 +34,10 @@ interface OrgAiSettings {
   awayMessageEnabled: boolean;
   awayMessageText: string | null;
   autoTranscribeAudio: boolean;
+  slaEnabled: boolean;
+  slaResponseMinutes: number;
+  slaResolutionHours: number;
+  slaBusinessHoursOnly: boolean;
 }
 
 // Lunes primero (convención en México); el valor es el de Date#getDay.
@@ -92,6 +96,11 @@ export default function IASettingsPage() {
   const [autoResolveMessage, setAutoResolveMessage] = useState("");
   const [autoResolveTag, setAutoResolveTag] = useState("");
   const [autoResolveSkipWaiting, setAutoResolveSkipWaiting] = useState(true);
+  const [slaEnabled, setSlaEnabled] = useState(false);
+  const [slaResponseMinutes, setSlaResponseMinutes] = useState(60);
+  const [slaResolutionHours, setSlaResolutionHours] = useState(8);
+  const [slaBusinessHoursOnly, setSlaBusinessHoursOnly] = useState(true);
+  const [savingSla, setSavingSla] = useState(false);
   const [savingAutoResolve, setSavingAutoResolve] = useState(false);
 
   useEffect(() => {
@@ -111,6 +120,10 @@ export default function IASettingsPage() {
         setAutoResolveMessage(d.autoResolveMessage ?? "");
         setAutoResolveTag(d.autoResolveTagName ?? "");
         setAutoResolveSkipWaiting(d.autoResolveSkipWaiting);
+        setSlaEnabled(d.slaEnabled);
+        setSlaResponseMinutes(d.slaResponseMinutes);
+        setSlaResolutionHours(d.slaResolutionHours);
+        setSlaBusinessHoursOnly(d.slaBusinessHoursOnly);
         setBusinessDays(d.businessDays);
         setAwayEnabled(d.awayMessageEnabled);
         setAwayText(d.awayMessageText ?? "");
@@ -203,6 +216,20 @@ export default function IASettingsPage() {
       toastError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setSavingAutoResolve(false);
+    }
+  }
+
+  async function handleSaveSla() {
+    setSavingSla(true);
+    try {
+      await patch(
+        { slaEnabled, slaResponseMinutes, slaResolutionHours, slaBusinessHoursOnly },
+        slaEnabled ? "Tiempos de atención guardados" : "Tiempos de atención desactivados"
+      );
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setSavingSla(false);
     }
   }
 
@@ -415,6 +442,51 @@ export default function IASettingsPage() {
 
         <Button size="sm" variant="secondary" icon={Save} loading={savingAutoResolve} onClick={handleSaveAutoResolve}>
           Guardar auto-resolver
+        </Button>
+      </Card>
+
+      <Card as="section" className="space-y-5" id="sla">
+        <SectionHeader title="Tiempos de atención (SLA)" />
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Avisar cuando un chat se pasa del tiempo</p>
+            <p className="text-xs text-muted-darker">
+              Si un cliente espera respuesta más de lo acordado, o una conversación abierta tarda demasiado en
+              resolverse, avisamos en la campana (y con notificación del navegador) a quien tiene el chat asignado, o a
+              los administradores si nadie lo tiene. En la bandeja verás esos chats con el filtro &quot;Fuera de
+              SLA&quot;. Los chats pospuestos o pendientes no cuentan; el tiempo empieza a contar al activarlo.
+            </p>
+          </div>
+          <Switch checked={slaEnabled} onCheckedChange={setSlaEnabled} label="Activar tiempos de atención" />
+        </div>
+        {slaEnabled && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="Responder en (minutos)" hint="Cada vez que el cliente escribe. Entre 5 y 1440">
+                {(id) => (
+                  <Input id={id} type="number" min="5" max="1440" value={slaResponseMinutes} onChange={(e) => setSlaResponseMinutes(Number(e.target.value))} />
+                )}
+              </FormField>
+              <FormField label="Resolver en (horas)" hint="Desde que la conversación se abre. Entre 1 y 720">
+                {(id) => (
+                  <Input id={id} type="number" min="1" max="720" value={slaResolutionHours} onChange={(e) => setSlaResolutionHours(Number(e.target.value))} />
+                )}
+              </FormField>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Contar solo en horario del negocio</p>
+                <p className="text-xs text-muted-darker">
+                  Recomendado: un mensaje del sábado en la noche no vence hasta que abras el lunes. Usa el horario y los
+                  días hábiles de arriba.
+                </p>
+              </div>
+              <Switch checked={slaBusinessHoursOnly} onCheckedChange={setSlaBusinessHoursOnly} label="Contar solo en horario del negocio" />
+            </div>
+          </>
+        )}
+        <Button size="sm" variant="secondary" icon={Save} loading={savingSla} onClick={handleSaveSla}>
+          Guardar tiempos de atención
         </Button>
       </Card>
     </DetailPage>

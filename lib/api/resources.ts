@@ -110,6 +110,7 @@ interface ConversationLike {
   contactId: string | null;
   status: string;
   assignedToId: string | null;
+  teamId: string | null;
   unreadCount: number;
   lastMessage: string | null;
   lastMessageAt: Date | null;
@@ -126,6 +127,7 @@ export function serializeConversation(c: ConversationLike, accountId: string, ch
     name: c.name,
     status: c.status,
     assignedToId: c.assignedToId,
+    teamId: c.teamId,
     unreadCount: c.unreadCount,
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,

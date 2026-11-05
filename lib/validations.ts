@@ -604,6 +604,11 @@ export const orgAiSettingsUpdateSchema = z
       .transform((days) => Array.from(new Set(days)).sort((a, b) => a - b)).optional(),
     awayMessageEnabled: z.boolean().optional(),
     autoTranscribeAudio: z.boolean().optional(),
+    // SLA de la bandeja (lib/sla/): el interruptor se guarda como slaEnabledAt.
+    slaEnabled: z.boolean().optional(),
+    slaResponseMinutes: z.number().int("Usa minutos enteros").min(5, "Mínimo 5 minutos").max(1440, "Máximo 1440 minutos (24 h)").optional(),
+    slaResolutionHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(720, "Máximo 720 horas (30 días)").optional(),
+    slaBusinessHoursOnly: z.boolean().optional(),
     awayMessageText: z.string().trim().max(1000, "Máximo 1000 caracteres").nullable().optional()
       .transform((v) => (v ? v : v === undefined ? undefined : null)),
   })

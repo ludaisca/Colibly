@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { getEligibleChannelAssignees } from "@/lib/chat-assignees";
 import { assignableCandidateIds } from "@/lib/users/availability";
 import { channelHasFeature } from "@/lib/billing/entitlements";
+import { chatTeamMemberIds } from "@/lib/teams/teams";
+import { teamCandidateIds } from "@/lib/teams/rules";
 
 // Equivalente de lib/whatsapp/auto-assign.ts para ChannelAccount (Telegram,
 // Messenger, Instagram, Web), sin reglas de enrutamiento: asigna al candidato
@@ -18,7 +20,9 @@ export async function autoAssignConversation(channelAccountId: string, conversat
 
   const candidates = await getEligibleChannelAssignees(channelAccountId);
   if (candidates.length === 0) return null;
-  const candidateIds = await assignableCandidateIds(candidates.map((c) => c.id), account.autoAssignOnlineOnly);
+  // Con equipo, solo a sus miembros (lib/teams/rules.ts).
+  const inTeam = teamCandidateIds(candidates.map((c) => c.id), await chatTeamMemberIds("channel", conversationId));
+  const candidateIds = await assignableCandidateIds(inTeam, account.autoAssignOnlineOnly);
   if (candidateIds.length === 0) return null;
 
   const [users, openCounts] = await Promise.all([

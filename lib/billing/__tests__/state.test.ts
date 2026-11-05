@@ -175,10 +175,12 @@ describe("deriveFromSubscription", () => {
 describe("prueba de 14 días", () => {
   it("dura 14 días, avisa a 7, 3 y 1 días y la gracia solo es para impagos", async () => {
     const { TRIAL_DAYS, GRACE_DAYS } = await import("../plans");
-    const { TRIAL_REMINDER_DAYS } = await import("../state");
+    const { TRIAL_REMINDER_DAYS, PAST_DUE_REMINDER_DAYS } = await import("../state");
     expect(TRIAL_DAYS).toBe(14);
     expect(GRACE_DAYS).toBe(7);
     expect([...TRIAL_REMINDER_DAYS]).toEqual([7, 3, 1]);
+    // Los recordatorios de pago caen dentro de la gracia.
+    expect(PAST_DUE_REMINDER_DAYS.every((d) => d > 0 && d < GRACE_DAYS)).toBe(true);
   });
   it("al vencer pasa a solo lectura sin gracia aunque haya graceEndsAt", () =>
     expect(accessMode(org({ trialEndsAt: days(-1), graceEndsAt: days(5) }), NOW)).toBe("read_only"));

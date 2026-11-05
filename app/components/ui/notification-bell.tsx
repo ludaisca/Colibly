@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 
 import { useRouter } from "next/navigation";
 import {
   Bell, BellOff, CheckCheck, X, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, PhoneCall,
-  CalendarClock, CalendarPlus, Plug, CreditCard, UserCheck,
+  CalendarClock, CalendarPlus, Plug, CreditCard, UserCheck, TimerOff,
 } from "lucide-react";
 import type { NotificationType } from "@prisma/client";
 import { Dropdown } from "./dropdown";
@@ -48,6 +48,7 @@ const TYPE: Record<NotificationType, { icon: React.ElementType; tone: Tone }> = 
   INTEGRATION_ERROR: { icon: Plug, tone: "danger" },
   BILLING: { icon: CreditCard, tone: "warning" },
   WHATSAPP_CALL: { icon: PhoneCall, tone: "success" },
+  SLA_BREACH: { icon: TimerOff, tone: "danger" },
 };
 
 const CHIP: Record<Tone, string> = {

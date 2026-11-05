@@ -231,7 +231,10 @@ Repos clonados en `/data/Proyectos/colibly-bench/{chatwoot,twenty}`. El análisi
 - Grid mensual cliente sobre las citas ya cargadas; respeta filtros; click abre `AppointmentFormModal`.
 - Navegación de mes; celdas de hoy y días fuera del mes.
 
-### 7.2 Pendiente: SLA
+### 7.2 SLA — hecho (2026-11-05)
+Implementado con los defaults de la tabla (60 min / 8 h / horario laboral / pausa al posponer), **apagado por defecto** y editable por organización. Avisos: campana + push (no correo: con un retraso general serían decenas de correos). Detalle: `docs/arquitectura/bandeja.md` → "Tiempos de atención / SLA". Falta: métricas históricas de cumplimiento.
+
+Propuesta original:
 Propuesta de defaults (a confirmar por el negocio):
 
 | Regla | Default propuesto |
@@ -246,7 +249,10 @@ Propuesta de defaults (a confirmar por el negocio):
 
 Implementación prevista: campos de breach en chats, tick de 5 min, notificaciones deduplicadas y métricas en reportes. No empezar hasta confirmar reglas.
 
-### 7.3 Pendiente: equipos
+### 7.3 Equipos — hecho (2026-11-05)
+`Team`/`TeamMember`, `teamId` en chats, equipo por defecto por cuenta, autoasignación dentro del equipo, vista "Mis equipos" y selector en la conversación; sin roles nuevos. Detalle: `docs/arquitectura/bandeja.md` → "Equipos". Falta: API pública, automatizaciones y reportes por equipo.
+
+Propuesta original:
 `Team`/`TeamMember` por organización, `teamId` en chats, filtros y asignación por equipo. Solo vale la pena si el ICP opera con más de ~5 agentes; no añadir roles nuevos.
 
 ### 7.4 Pendiente: FAQ suggestions con IA
