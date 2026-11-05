@@ -22,7 +22,7 @@ Hecho el 2026-10-20:
 - [ ] **Una suscripción real con tarjeta propia** (Esencial, 1 asiento) para confirmar que el webhook live firma bien (Workbench → Webhooks → colibly-produccion → Entregas = 200); luego cancelar y reembolsar.
 - [ ] Stripe: activar recuperación de pagos (Smart Retries, correos de pago fallido, actualizador de tarjetas) y, cuando se defina el IVA, Stripe Tax + código fiscal SaaS en los 3 productos.
 - [ ] Respaldos de producción y monitoreo (`/api/health/respaldos` responde `disabled`).
-- [ ] Aviso de privacidad con identidad y domicilio del responsable; IVA, SAT y CFDI con el contador (sección 3).
+- [x] Responsable del aviso de privacidad: **Colibly Inc.** (2026-11-05). No se emite CFDI (decidido 2026-11-05). Pendiente: IVA con el contador (sección 3).
 - [ ] Meta: método de pago del WABA (error 141006, sin él no hay plantillas), verificación del negocio, rotar App Secret, segundo administrador (sección 4).
 - [ ] Rotar credenciales que pasaron por el chat el 2026-10-20: llave secreta del sandbox de Stripe, contraseña de `noreply@colibly.com` (actualizarla también en `/plataforma`) y contraseña del FTP.
 
@@ -119,9 +119,9 @@ Qué implicaba el cambio en el código (hecho el 2026-09-27, salvo la identidad 
 
 - [x] Publicar términos y privacidad con texto genérico funcional para la etapa beta (confirmado por el propietario el 2026-10-02).
 - [x] Textos legales **genéricos por decisión (2026-10-04)**: razón social «Colibly», domicilio para notificaciones y contacto por correo (`contacto@colibly.com`), jurisdicción México; sin huecos `<Blank>`. El aviso de privacidad ya cubre la importación de la app WhatsApp Business (coexistencia) y las copias de seguridad en almacenamiento externo. La copia de `cpanel-site/` se mantiene a mano con los mismos textos.
-- [ ] **Antes del lanzamiento general** (la beta puede seguir así): nombrar en el aviso al responsable como persona física o moral y su domicilio —la ley de protección de datos mexicana exige identidad y domicilio del responsable en el aviso de privacidad—, y decidir si los precios incluyen impuestos y cómo se factura.
+- [ ] **Antes del lanzamiento general**: el responsable ya es **Colibly Inc.** (2026-11-05) y no se emite CFDI; falta el domicilio físico en el aviso (hoy se pide por correo; la ley mexicana de datos personales pide identidad y domicilio del responsable) y decidir si los precios incluyen IVA.
 - [ ] Revisión con abogado antes del lanzamiento.
-- [ ] Con el contador: alta en el SAT con actividad empresarial (también se necesita para cobrar y facturar) y si hay que emitir CFDI a clientes mexicanos (Stripe no lo hace).
+- [ ] Con el contador: IVA (si los precios lo incluyen). **No se emite CFDI** a clientes (decidido 2026-11-05).
 
 ### 4. Meta: Tech Provider y Embedded Signup (WhatsApp)
 

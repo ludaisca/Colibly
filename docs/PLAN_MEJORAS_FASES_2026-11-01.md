@@ -2,7 +2,7 @@
 
 **Creado:** 2026-11-01
 **Rama de trabajo:** `feat/inbox-operativa`
-**Estado:** Fases 0, 1, 2 y 3 completas. Fase 4 parcial (calendario hecho; SLA, equipos, FAQ suggestions y merge pendientes).
+**Estado:** Fases 0, 1, 2 y 3 completas. Fase 4 parcial (calendario, SLA y equipos hechos; FAQ suggestions y merge pendientes).
 **Producción:** `main` sigue en `9a99cdd` y no se ha mergeado nada. `origin/feat/inbox-operativa` se quedó en `de4ad4a` (el commit de claim); los **7 commits posteriores** y este documento están solo en local.
 
 Este documento es el índice para retomar el trabajo: qué se hizo, por qué se tomó cada decisión, qué migraciones hay y qué falta. El detalle técnico vive también en `AGENTS.md` (secciones “Inbox operations”, “Contact timeline, reports and command actions”, “Contact import, CSAT, campaign analytics and calendar” y “Macros / Conversation attributes”).

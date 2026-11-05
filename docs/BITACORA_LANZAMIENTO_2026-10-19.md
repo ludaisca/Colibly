@@ -127,9 +127,9 @@ Documentos relacionados: [AUDITORIA_API_WEBHOOKS_2026-10-19.md](AUDITORIA_API_WE
 - [ ] Decidir cuenta de Stripe y pasar a live (llave live, recrear precios y webhook).
 - [ ] Rotar App Secret de Meta.
 - [ ] WABA: método de pago, verificación del negocio y nombre visible.
-- [ ] Datos del responsable en el aviso de privacidad (hoy muestra el placeholder público "[DATOS DEL RESPONSABLE PENDIENTES]").
+- [x] Responsable en el aviso de privacidad: Colibly Inc. (2026-11-05).
 - [ ] Cambiar contraseña del FTP.
-- [ ] IVA con el contador.
+- [ ] IVA con el contador (no se emite CFDI: decidido 2026-11-05).
 - [ ] Rotar token de Coolify.
 - [ ] Respaldos a R2 y monitoreo.
 - [ ] Logo final.

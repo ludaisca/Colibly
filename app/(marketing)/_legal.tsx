@@ -8,12 +8,13 @@ import { BRAND_CONTACT_EMAIL } from "@/lib/brand";
 // Datos de la empresa pendientes: mientras sigan así, la página muestra el
 // aviso de borrador y los marcadores resaltados.
 export const LEGAL = {
-  company: "Colibly",
+  // Razón social del responsable (decidido el 2026-11-05).
+  company: "Colibly Inc.",
   address: "el que se indique escribiendo a contacto@colibly.com",
   // Buzón del dominio de la marca: debe existir antes del lanzamiento.
   email: BRAND_CONTACT_EMAIL,
   jurisdiction: "los Estados Unidos Mexicanos",
-  updatedAt: "4 de octubre de 2026",
+  updatedAt: "5 de noviembre de 2026",
 };
 
 export function Blank({ children }: { children: React.ReactNode }) {

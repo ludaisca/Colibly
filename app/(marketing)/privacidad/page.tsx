@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
 import { RETENTION_DAYS_AFTER_CANCEL, RETENTION_DAYS_AFTER_TRIAL } from "@/lib/billing/plans";
-import { Blank, LEGAL, LegalPage } from "../_legal";
+import { LEGAL, LegalPage } from "../_legal";
 
 export const metadata: Metadata = { title: "Aviso de privacidad", alternates: { canonical: "/privacidad" } };
 
@@ -9,8 +9,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="Aviso de privacidad">
       <p>
-        <strong>Responsable:</strong> <Blank>[DATOS DEL RESPONSABLE PENDIENTES]</Blank> (nombre completo o razón social,
-        domicilio para oír y recibir notificaciones, y datos de contacto).
+        <strong>Responsable:</strong> {LEGAL.company} Contacto y domicilio para oír y recibir notificaciones: {LEGAL.email}.
       </p>
       <p>
         {LEGAL.company} es responsable del tratamiento
