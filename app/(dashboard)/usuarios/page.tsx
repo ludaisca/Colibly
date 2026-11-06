@@ -1,5 +1,6 @@
 "use client";
 
+import { formatInZone } from "@/lib/format/dates";
 import { useState, useEffect, useCallback } from "react";
 import { BadgeCheck, Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X, KeyRound } from "lucide-react";
 import type { PlanId } from "@prisma/client";
@@ -247,7 +248,7 @@ export default function UsersPage() {
       {licenses && licenses.mode === "legacy" && (
         <Banner tone="info">
           Tu organización conserva el plan anterior
-          {licenses.legacyUntil ? ` hasta el ${new Date(licenses.legacyUntil).toLocaleDateString("es-MX", { day: "numeric", month: "long" })}` : ""}. Para elegir la licencia de cada persona,{" "}
+          {licenses.legacyUntil ? ` hasta el ${formatInZone(licenses.legacyUntil, { day: "numeric", month: "long" })}` : ""}. Para elegir la licencia de cada persona,{" "}
           <a href="/configuracion/plan#licencias" className="font-medium underline underline-offset-2">pásate a licencias</a>.
         </Banner>
       )}
@@ -274,7 +275,7 @@ export default function UsersPage() {
                       {inv.license && <Badge tone={LICENSE_TONE[inv.license]} size="sm">{PLANS[inv.license].name}</Badge>}
                     </>
                   }
-                  subtitle={`Vence el ${new Date(inv.expiresAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}${inv.invitedBy ? ` · la envió ${inv.invitedBy.name ?? inv.invitedBy.email}` : ""}`}
+                  subtitle={`Vence el ${formatInZone(inv.expiresAt, { day: "2-digit", month: "short" })}${inv.invitedBy ? ` · la envió ${inv.invitedBy.name ?? inv.invitedBy.email}` : ""}`}
                 />
                 <span className="flex shrink-0 items-center justify-end gap-1 border-t border-border pt-2 sm:border-0 sm:pt-0">
                   <Button variant="ghost" size="sm" icon={RotateCw} disabled={invitationBusy === inv.id} onClick={() => resendInvitation(inv)}>
@@ -325,7 +326,7 @@ export default function UsersPage() {
               }
               meta={
                 <span className="font-mono">
-                  {new Date(u.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
+                  {formatInZone(u.createdAt, { day: "2-digit", month: "short", year: "numeric" })}
                 </span>
               }
             />

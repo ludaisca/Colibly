@@ -1,5 +1,6 @@
 "use client";
 
+import { formatInZone } from "@/lib/format/dates";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ExternalLink, Minus, Plus, Users } from "lucide-react";
@@ -132,7 +133,7 @@ export function LicensesSection({
       {data.mode === "legacy" && (
         <Banner tone="info">
           Tu organización conserva el plan anterior
-          {data.legacyUntil ? ` hasta el ${new Date(data.legacyUntil).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}` : ""}.
+          {data.legacyUntil ? ` hasta el ${formatInZone(data.legacyUntil, { day: "numeric", month: "long", year: "numeric" })}` : ""}.
           Puedes pasarte antes: tus personas conservan la licencia que tienen asignada y Stripe prorratea la diferencia.
         </Banner>
       )}
