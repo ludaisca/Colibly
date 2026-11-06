@@ -11,7 +11,7 @@ export interface SendTemplateParams {
   language: string;
   bodyParams?: string[];
   headerFormat?: "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | null;
-  // TEXT header → texto plano; IMAGE/VIDEO/DOCUMENT → Meta media id (no una URL).
+  // TEXT header → texto plano; IMAGE/VIDEO/DOCUMENT → Meta media id o una URL https pública.
   headerParam?: string | null;
   buttonIndex?: number | null;
   buttonParam?: string | null;
@@ -57,9 +57,12 @@ export async function sendTemplateMessage(
       });
     } else {
       const mediaType = params.headerFormat.toLowerCase();
+      // La API pública documenta una URL https; las campañas pasan el id de un
+      // medio ya subido a Meta. Meta acepta `link` o `id` según el caso.
+      const media = /^https:\/\//i.test(params.headerParam) ? { link: params.headerParam } : { id: params.headerParam };
       templateComponents.push({
         type: "header",
-        parameters: [{ type: mediaType, [mediaType]: { id: params.headerParam } }],
+        parameters: [{ type: mediaType, [mediaType]: media }],
       });
     }
   }
