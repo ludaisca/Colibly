@@ -20,6 +20,7 @@ import {
   CornerUpLeft,
   ArrowDown,
   Eye,
+  FileWarning,
 } from "lucide-react";
 import { ChatMessageActions, MessageContextMenu } from "./chat-message-actions";
 import { WhatsAppText } from "./whatsapp-text";
@@ -54,6 +55,20 @@ const MESSAGE_STATUS_LABEL: Record<string, string> = {
   sending: "Enviando", failed: "No enviado", sent: "Enviado",
   delivered: "Entregado", read: "Leído",
 };
+
+// Archivo del cliente que Meta no pudo entregar (más de 100 MB): lib/whatsapp/media-too-large.ts.
+// El texto ya dice si se puede ver en el teléfono conectado.
+function MediaTooLargeNotice({ msg }: { msg: Message }) {
+  return (
+    <div className="flex items-start gap-2" role="note">
+      <FileWarning size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
+      <div className="min-w-0">
+        <p className="font-semibold">Archivo demasiado grande</p>
+        <p className="mt-0.5 break-words text-muted-strong">{msg.body}</p>
+      </div>
+    </div>
+  );
+}
 
 function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: MediaChannel; onPreview: (media: PreviewMedia) => void }) {
   const mediaSrc = msg.localPreviewUrl ?? (msg.mediaUrl ? mediaEndpointFor(msg.id, channel) : null);
@@ -320,7 +335,9 @@ function MessageBubble({
         className={`relative max-w-[75%] text-sm leading-[1.4] transition-opacity duration-base lg:max-w-[65%] ${
           mediaOnly ? "p-1" : "px-3 py-2"
         } ${
-          msg.messageType === "sticker" ? "rounded-xl bg-transparent text-foreground" : isInbound
+          msg.messageType === "sticker" ? "rounded-xl bg-transparent text-foreground" : msg.messageType === "media_too_large"
+            ? "rounded-2xl border border-dashed border-warning-border bg-warning-bg text-foreground"
+            : isInbound
             ? "rounded-2xl border border-border bg-bubble-in text-foreground shadow-sm"
             : "rounded-2xl bg-bubble-out text-foreground shadow-sm"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
@@ -357,7 +374,8 @@ function MessageBubble({
           </div>
         )}
         {msg.messageType === "location" && <LocationContent msg={msg} />}
-        {!hasMedia && msg.messageType !== "location" && msg.body && msg.body !== "[interactive]" && (
+        {msg.messageType === "media_too_large" && <MediaTooLargeNotice msg={msg} />}
+        {!hasMedia && msg.messageType !== "location" && msg.messageType !== "media_too_large" && msg.body && msg.body !== "[interactive]" && (
           <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={msg.body} /> : msg.body}</p>
         )}
         {!hasMedia && msg.body === "[interactive]" && !(buttons && buttons.length > 0) && "Mensaje con botones"}

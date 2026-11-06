@@ -40,13 +40,21 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.4.0";
+export const API_VERSION = "1.5.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.4.0",
+    version: "1.5.0",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-06",
+    changes: [
+      "Archivos que Meta no entrega: cuando un cliente manda un archivo de más de 100 MB, WhatsApp no lo pasa a la API. Antes no quedaba rastro; ahora hay un mensaje entrante con `type: \"media_too_large\"`, `text` con el aviso en español y `content: {kind, maxMb, sizeMb, onPhone}` (`onPhone: true` = se puede ver en la app de WhatsApp Business del teléfono conectado). También llega como `message.received`. No trae `media`. Quien filtre por `type` debe tolerar este valor nuevo.",
+    ],
+  },
+  {
+    version: "1.4.0",
+    schemaVersion: "2026-11-06",
     date: "2026-11-06",
     changes: [
       "Plantillas: POST /templates/sync pregunta a Meta por el estado de las plantillas de las cuentas de la key y devuelve la lista actualizada (útil tras crear una plantilla: pasa de PENDING a APPROVED o REJECTED). Template.statusReason trae el motivo de un rechazo, pausa o aviso de calidad. GET /templates ya no se queda con un estado viejo: refresca en segundo plano las plantillas en revisión.",
@@ -1088,7 +1096,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             id: str,
             conversationId: str,
             direction: { type: "string", enum: ["INBOUND", "OUTBOUND"] },
-            type: str,
+            type: { type: "string", description: "text, image, video, audio, document, sticker, location, contacts, interactive, template, order, system… y `media_too_large`: aviso de un archivo del cliente de más de 100 MB que Meta no entrega (su `text` explica y `content` trae {kind, maxMb, sizeMb, onPhone}; no tiene `media`)" },
             text: strNull,
             caption: strNull,
             mimeType: strNull,

@@ -15,6 +15,7 @@ import { COEXISTENCE_FIELDS, handleCoexistenceChange, type CoexistenceField } fr
 import { handleCallsWebhook } from "@/lib/whatsapp/calling/ingest";
 import { applyConnectionLifecycle } from "@/lib/whatsapp/coexistence/lifecycle";
 import { handleTemplateChange, TEMPLATE_FIELDS } from "@/lib/whatsapp/template-webhook";
+import { isMediaTooLargeStatus, recordMediaTooLarge } from "@/lib/whatsapp/media-too-large";
 
 // El contenido (texto, medios, ubicación, contactos, pedido, contexto…) tiene
 // la misma forma en `messages`, `smb_message_echoes` e `history`: vive en
@@ -142,6 +143,17 @@ async function applyStatusUpdate(accountId: string, status: WebhookStatus): Prom
     // rastro. Solo código y texto de Meta, nunca el contenido del mensaje.
     const err = status.errors?.[0];
     console.warn(`[webhook] Envío fallido (cuenta ${accountId}, ${status.id}): ${err?.code ?? "sin código"} ${statusErrorDetail(status) ?? ""}`.trim());
+    // 131052: el CLIENTE mandó un archivo de más de 100 MB que Meta no entrega
+    // a la API. No hay mensaje que actualizar: se deja un aviso en el chat.
+    // Si el wamid ya es un mensaje nuestro (un envío propio rechazado) sigue el
+    // camino normal y queda "No enviado".
+    if (isMediaTooLargeStatus(status)) {
+      const recorded = await recordMediaTooLarge(accountId, status).catch((e) => {
+        console.error("[webhook] aviso de archivo grande falló:", e instanceof Error ? e.message : e);
+        return false;
+      });
+      if (recorded) return;
+    }
   }
   await applyReactionStatus(accountId, status.id, status.status);
 

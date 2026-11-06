@@ -22,3 +22,18 @@ describe("resolveOutboundMime", () => {
     expect(defaultFilename("image", "image/jpeg")).toMatch(/^image\.(jpg|jpeg)$/);
   });
 });
+
+import { mediaLimitFor as mediaLimitForTest } from "@/lib/messaging/outbound-media";
+
+describe("mediaLimitFor (límites de la bandeja por tipo)", () => {
+  it("imagen 5 MB, audio y video 16 MB, documentos 20 MB", () => {
+    expect(mediaLimitForTest("image/jpeg")).toMatchObject({ type: "image", maxBytes: 5 * 1024 * 1024 });
+    expect(mediaLimitForTest("video/mp4")).toMatchObject({ type: "video", maxBytes: 16 * 1024 * 1024 });
+    expect(mediaLimitForTest("audio/ogg")).toMatchObject({ type: "audio", maxBytes: 16 * 1024 * 1024 });
+    expect(mediaLimitForTest("application/pdf")).toMatchObject({ type: "document", maxBytes: 20 * 1024 * 1024 });
+  });
+  it("sin tipo no hay regla propia", () => {
+    expect(mediaLimitForTest("")).toBeNull();
+    expect(mediaLimitForTest(null)).toBeNull();
+  });
+});

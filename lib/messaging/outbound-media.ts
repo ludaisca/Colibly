@@ -35,6 +35,20 @@ export const OUTBOUND_MEDIA_RULES: Record<OutboundMediaType, { maxBytes: number;
   },
 };
 
+/**
+ * Límite de tamaño de un archivo según su MIME (los de WhatsApp Cloud API, que
+ * son más estrictos que cualquier otro canal). Lo usan la bandeja y la API para
+ * rechazar antes de subir en vez de esperar el error de Meta. null = sin regla
+ * propia (el tope general lo pone quien llama).
+ */
+export function mediaLimitFor(mimeType: string | null | undefined): { type: OutboundMediaType; maxBytes: number; label: string } | null {
+  const mime = (mimeType ?? "").toLowerCase();
+  const type: OutboundMediaType | null = mime.startsWith("image/") ? "image" : mime.startsWith("video/") ? "video" : mime.startsWith("audio/") ? "audio" : mime ? "document" : null;
+  if (!type) return null;
+  const labels: Record<OutboundMediaType, string> = { image: "Las imágenes", video: "Los videos", audio: "Los audios", document: "Los documentos" };
+  return { type, maxBytes: OUTBOUND_MEDIA_RULES[type].maxBytes, label: labels[type] };
+}
+
 // Muchos servidores mandan application/octet-stream: el tipo se deduce de la extensión.
 const MIME_BY_EXT: Record<string, string> = {
   jpg: "image/jpeg",

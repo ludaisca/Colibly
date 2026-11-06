@@ -1,3 +1,4 @@
+import { mediaLimitFor } from "@/lib/messaging/outbound-media";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -30,6 +31,12 @@ export async function POST(req: Request) {
 
     if (file.size > 20 * 1024 * 1024) {
       return NextResponse.json({ error: "El archivo supera el límite de 20MB" }, { status: 413 });
+    }
+    // WhatsApp es más estricto por tipo (imagen 5 MB, audio y video 16 MB): se
+    // avisa aquí, no con el error de Meta después de subir el archivo.
+    const limit = mediaLimitFor(file.type);
+    if (limit && file.size > limit.maxBytes) {
+      return NextResponse.json({ error: `${limit.label} de WhatsApp pueden pesar hasta ${limit.maxBytes / (1024 * 1024)} MB. Este pesa ${(file.size / (1024 * 1024)).toFixed(1)} MB.` }, { status: 413 });
     }
 
     const accountIds = await getUserAccountIds(session.user.id);

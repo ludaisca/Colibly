@@ -64,6 +64,11 @@ export interface NormalizedInboundMessage {
   content?: StructuredContent | null;
   // `user_id` de Meta (id por negocio, para nombres de usuario de WhatsApp).
   metaUserId?: string | null;
+  // Aviso del sistema que ocupa el lugar de un mensaje del cliente que Meta no
+  // pudo entregar (p. ej. archivo de más de 100 MB). Cuenta como mensaje nuevo
+  // (no leído, esperando respuesta, notificación) pero no lo atienden el bot ni
+  // las automatizaciones ni el aviso fuera de horario: no es texto del cliente.
+  notice?: boolean;
 }
 
 export interface IngestResult {
@@ -280,6 +285,8 @@ export async function ingestInboundMessage(
   // Automatizaciones antes que el bot: una que esté esperando respuesta en
   // este chat, o que arranque con este mensaje, lo toma y el bot calla. Un
   // fallo del motor nunca debe dejar al lead sin respuesta del bot.
+  if (msg.notice) return { messageId: createdMessage.id, chatId: chat.id };
+
   const { suppressBot } = await dispatchInboundMessage({
     account: refs.account,
     chat: refs.chat,
