@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { templateCreateSchema } from "@/lib/validations";
-import { createTemplate } from "@/lib/whatsapp/templates";
+import { createTemplate, templateInputError } from "@/lib/whatsapp/templates";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { forbidRoles } from "@/lib/roles";
 import { publicErrorMessage } from "@/lib/api-errors";
@@ -27,15 +27,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const { waAccountId, name, language, components } = parsed.data;
+    const { waAccountId, name, language, category } = parsed.data;
 
-    const bodyVariableCount = new Set(components.body.match(/\{\{(\d+)\}\}/g)).size;
-    if (bodyVariableCount > 0 && (components.bodyExamples?.length ?? 0) !== bodyVariableCount) {
-      return NextResponse.json(
-        { error: `Debes dar un ejemplo para cada variable del cuerpo (${bodyVariableCount} requerido(s))` },
-        { status: 400 }
-      );
-    }
+    const inputError = templateInputError(parsed.data);
+    if (inputError) return NextResponse.json({ error: inputError }, { status: 400 });
 
     const accountIds = await getUserAccountIds(session.user.id);
 
@@ -58,13 +53,15 @@ export async function POST(req: Request) {
       );
     }
 
+    // El nombre es único por idioma en Meta: la misma plantilla puede existir
+    // en varios idiomas.
     const existing = await prisma.wATemplate.findFirst({
-      where: { waAccountId, name },
+      where: { waAccountId, name, language, status: { not: "DELETED" } },
     });
 
     if (existing) {
       return NextResponse.json(
-        { error: `Ya existe una plantilla con el nombre "${name}" en esta cuenta` },
+        { error: `Ya existe una plantilla con el nombre "${name}" en ese idioma en esta cuenta` },
         { status: 409 }
       );
     }
@@ -77,17 +74,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const template = await prisma.wATemplate.create({
-      data: {
-        waAccountId: account.id,
-        templateId: result.templateId,
-        name,
-        language,
-        category: "MARKETING",
-        status: "PENDING",
-        components: components as object,
-        syncedAt: new Date(),
-      },
+    // upsert: el webhook de estado (o la sincronización de respaldo) puede haber
+    // insertado ya la fila entre que Meta aceptó la plantilla y este punto.
+    const data = {
+      name,
+      language,
+      category,
+      status: "PENDING",
+      // La forma de Meta (array de componentes), la misma que deja la
+      // sincronización: getTemplateVariables y la vista previa la leen así.
+      components: result.components as object,
+      syncedAt: new Date(),
+    };
+    const template = await prisma.wATemplate.upsert({
+      where: { waAccountId_templateId: { waAccountId: account.id, templateId: result.templateId } },
+      create: { waAccountId: account.id, templateId: result.templateId, ...data },
+      update: { components: data.components, syncedAt: data.syncedAt },
     });
 
     return NextResponse.json(template, { status: 201 });

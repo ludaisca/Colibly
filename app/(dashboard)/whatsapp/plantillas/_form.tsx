@@ -52,7 +52,14 @@ interface ButtonDef {
   type: "QUICK_REPLY" | "URL";
   text: string;
   url?: string;
+  // Solo si la URL termina en {{1}}: la URL completa de ejemplo que pide Meta.
+  urlExample?: string;
 }
+
+const CATEGORIES = [
+  { value: "MARKETING", label: "Marketing", hint: "Promociones, novedades, recordatorios para vender." },
+  { value: "UTILITY", label: "Utilidad", hint: "Confirmaciones de pedido o cita, avisos de envío, seguimiento de algo que la persona ya pidió. No puede llevar promociones." },
+] as const;
 
 interface Props {
   accounts: Account[];
@@ -68,6 +75,8 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
   const [waAccountId, setWaAccountId] = useState(defaultAccountId);
   const [name, setName] = useState("");
   const [language, setLanguage] = useState("es");
+  const [category, setCategory] = useState<"MARKETING" | "UTILITY">("MARKETING");
+  const [headerExampleText, setHeaderExampleText] = useState("");
   const [headerEnabled, setHeaderEnabled] = useState(false);
   const [headerFormat, setHeaderFormat] = useState<"TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT">("TEXT");
   const [headerText, setHeaderText] = useState("");
@@ -86,6 +95,8 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
     setWaAccountId(defaultAccountId);
     setName("");
     setLanguage("es");
+    setCategory("MARKETING");
+    setHeaderExampleText("");
     setHeaderEnabled(false);
     setHeaderFormat("TEXT");
     setHeaderText("");
@@ -195,6 +206,8 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
     );
   }
 
+  const headerHasVariable = headerEnabled && headerFormat === "TEXT" && /\{\{1\}\}/.test(headerText);
+
   const previewComponents = useMemo(() => {
     const comps: unknown[] = [];
     if (headerEnabled) {
@@ -225,9 +238,18 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
       setError("Meta exige un valor de ejemplo para cada variable del cuerpo");
       return;
     }
+    if (headerEnabled && headerFormat === "TEXT" && headerHasVariable && !headerExampleText.trim()) {
+      setError("Escribe un ejemplo para la variable {{1}} de la cabecera");
+      return;
+    }
+    const badUrl = buttons.findIndex((b) => b.type === "URL" && b.url?.includes("{{") && !b.urlExample?.trim());
+    if (badUrl >= 0) {
+      setError(`Escribe una URL de ejemplo para el botón ${badUrl + 1} (con la variable ya resuelta)`);
+      return;
+    }
 
     const components: {
-      header?: { format: string; text?: string; exampleHandle?: string };
+      header?: { format: string; text?: string; exampleText?: string; exampleHandle?: string };
       body: string;
       bodyExamples?: string[];
       footer?: string;
@@ -244,6 +266,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
       components.header = {
         format: headerFormat,
         text: headerFormat === "TEXT" ? headerText : undefined,
+        exampleText: headerFormat === "TEXT" && headerHasVariable ? headerExampleText.trim() : undefined,
         exampleHandle: headerFormat !== "TEXT" ? headerExampleHandle : undefined,
       };
     }
@@ -259,6 +282,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
           waAccountId,
           name: name.trim(),
           language,
+          category,
           components,
         }),
       });
@@ -280,7 +304,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
     <DetailPage
       backHref="/whatsapp/plantillas"
       backLabel="Volver a plantillas"
-      title="Nueva plantilla de marketing"
+      title="Nueva plantilla"
       description="Crea una plantilla que será enviada a revisión por Meta."
       maxWidth="max-w-6xl"
     >
@@ -321,6 +345,16 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
             </FormField>
           </div>
 
+          <FormField label="Categoría" required hint={CATEGORIES.find((c) => c.value === category)?.hint}>
+            {(id) => (
+              <Select id={id} value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+
           {/* HEADER */}
           <div className="border border-border rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -336,11 +370,22 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
                   onChange={(v) => handleHeaderFormatChange(v as typeof headerFormat)}
                 />
                 {headerFormat === "TEXT" ? (
-                  <Input
-                    value={headerText}
-                    onChange={(e) => setHeaderText(e.target.value)}
-                    placeholder="Texto de la cabecera"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      value={headerText}
+                      onChange={(e) => setHeaderText(e.target.value)}
+                      placeholder="Texto de la cabecera (admite una variable: {{1}})"
+                      maxLength={60}
+                    />
+                    {headerHasVariable && (
+                      <Input
+                        value={headerExampleText}
+                        onChange={(e) => setHeaderExampleText(e.target.value)}
+                        placeholder="Ejemplo para {{1}}, p. ej. A-1043"
+                        maxLength={60}
+                      />
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     <input
@@ -463,7 +508,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
                       <Input
                         value={btn.url ?? ""}
                         onChange={(e) => updateButton(idx, "url", e.target.value)}
-                        placeholder="https://..."
+                        placeholder="https://tusitio.com/pedido/{{1}}"
                         className="min-w-40 flex-1"
                       />
                     )}
@@ -474,6 +519,14 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
                       icon={X}
                       onClick={() => removeButton(idx)}
                     />
+                    {btn.type === "URL" && btn.url?.includes("{{") && (
+                      <Input
+                        value={btn.urlExample ?? ""}
+                        onChange={(e) => updateButton(idx, "urlExample", e.target.value)}
+                        placeholder="Ejemplo: https://tusitio.com/pedido/A-1043"
+                        className="basis-full"
+                      />
+                    )}
                   </div>
                 ))}
               </div>

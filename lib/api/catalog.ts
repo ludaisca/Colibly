@@ -11,6 +11,7 @@ interface TemplateRow {
   language: string;
   category: string;
   status: string;
+  statusReason?: string | null;
   components: unknown;
   syncedAt: Date;
 }
@@ -30,6 +31,8 @@ export function serializeTemplate(t: TemplateRow) {
     language: t.language,
     category: t.category,
     status: t.status,
+    // Motivo del rechazo, pausa o aviso de calidad (texto corto); null si no hay.
+    statusReason: t.statusReason ?? null,
     // Lo que pide POST /messages con type "template".
     params: {
       bodyParamCount: vars.bodyParamCount,

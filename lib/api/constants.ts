@@ -20,6 +20,8 @@ export const API_ORG_REQUESTS_PER_MINUTE = envInt("API_RATE_LIMIT_PER_ORG", 600)
 export const API_IP_REQUESTS_PER_MINUTE = envInt("API_RATE_LIMIT_PER_IP", 3000);
 /** POST /messages: envíos por minuto por organización. */
 export const API_SEND_PER_MINUTE_PER_ORG = envInt("API_RATE_LIMIT_SEND_PER_ORG", 60);
+/** POST /templates/sync: sincronizaciones de plantillas con Meta por minuto por organización. */
+export const API_TEMPLATE_SYNCS_PER_MINUTE = envInt("API_RATE_LIMIT_TEMPLATE_SYNC_PER_ORG", 6);
 /** GET /conversations (el listado más caro): solicitudes por minuto por key. */
 export const API_CONVERSATIONS_LIST_PER_MINUTE = envInt("API_RATE_LIMIT_CONVERSATIONS_PER_KEY", 60);
 /** POST /webhooks/{id}/deliveries/{deliveryId}/replay: reenvíos por minuto por organización. */
@@ -43,7 +45,7 @@ export const API_BAD_KEY_ATTEMPTS_PER_MINUTE = 30;
  * los cambios son aditivos (campos nuevos), nunca se quita ni renombra uno.
  */
 // Fecha del contrato; un segundo cambio el mismo día lleva sufijo (.2).
-export const API_SCHEMA_VERSION = "2026-11-05.2";
+export const API_SCHEMA_VERSION = "2026-11-06";
 export const API_SCHEMA_VERSION_HEADER = "X-Colibly-Schema-Version";
 /** Página de listados. */
 export const API_PAGE_DEFAULT = 25;

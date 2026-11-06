@@ -355,10 +355,15 @@ export const templateCreateSchema = z.object({
     .max(512, "El nombre es demasiado largo")
     .regex(/^[a-z][a-z0-9_]*$/, "Solo minúsculas, números y guiones bajos (debe empezar con letra)"),
   language: z.string().min(2, "El idioma es requerido").max(5).default("es"),
+  // Meta cobra y modera distinto cada categoría. AUTHENTICATION (códigos de un
+  // solo uso) tiene otra estructura y no se crea desde aquí.
+  category: z.enum(["MARKETING", "UTILITY"]).default("MARKETING"),
   components: z.object({
     header: z.object({
       format: headerFormatEnum,
-      text: z.string().optional(),
+      text: z.string().max(60, "La cabecera admite 60 caracteres").optional(),
+      // Meta exige un ejemplo cuando el texto de la cabecera lleva {{1}}.
+      exampleText: z.string().max(60).optional(),
       // A Resumable Upload API handle (lib/whatsapp/resumable-upload.ts), not a URL —
       // Meta requires binary media uploaded through that flow for template creation.
       exampleHandle: z.string().optional(),
@@ -371,7 +376,10 @@ export const templateCreateSchema = z.object({
     buttons: z.array(z.object({
       type: buttonTypeEnum,
       text: z.string().min(1, "Texto requerido").max(25, "Máximo 25 caracteres"),
-      url: z.string().url("URL inválida").optional(),
+      // Puede terminar en {{1}} (URL dinámica); entonces urlExample es obligatorio.
+      url: z.string().max(2000).optional(),
+      // Ejemplo completo de la URL con la variable ya resuelta.
+      urlExample: z.string().max(2000).optional(),
     })).max(10, "Máximo 10 botones").optional(),
   }),
 });

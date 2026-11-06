@@ -40,10 +40,18 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.3.0";
+export const API_VERSION = "1.4.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
+  {
+    version: "1.4.0",
+    schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-06",
+    changes: [
+      "Plantillas: POST /templates/sync pregunta a Meta por el estado de las plantillas de las cuentas de la key y devuelve la lista actualizada (útil tras crear una plantilla: pasa de PENDING a APPROVED o REJECTED). Template.statusReason trae el motivo de un rechazo, pausa o aviso de calidad. GET /templates ya no se queda con un estado viejo: refresca en segundo plano las plantillas en revisión.",
+    ],
+  },
   {
     version: "1.3.0",
     schemaVersion: API_SCHEMA_VERSION,
@@ -239,6 +247,7 @@ const EX = {
     language: "es_MX",
     category: "UTILITY",
     status: "APPROVED",
+    statusReason: null,
     params: { bodyParamCount: 2, header: null, buttonParamRequired: false },
     bodyText: "Hola {{1}}, tu pedido {{2}} va en camino.",
     syncedAt: "2026-10-18T12:00:00.000Z",
@@ -708,6 +717,24 @@ export function buildOpenApiSpec(serverUrl: string) {
           responses: { "200": ok(list("Template"), { data: [EX.template] }), ...errors },
         },
       },
+      "/templates/sync": {
+        post: {
+          tags: ["Catálogos"],
+          summary: "Sincronizar plantillas con Meta",
+          description:
+            `${scopeNote("messages:send")} Consulta a Meta las plantillas de las cuentas de WhatsApp de la key (todas, o una con \`accountId\`) y devuelve la lista ya actualizada, con el formato de GET /templates. ` +
+            "Úsalo después de crear una plantilla para ver su revisión (PENDING → APPROVED o REJECTED, con `statusReason`) sin esperar. Meta también avisa por webhook y Colibly refresca las pendientes solo; este es el atajo explícito. " +
+            "`synced` lista las cuentas que respondieron y `failed` las que no. Las plantillas que Meta ya no devuelve quedan como DELETED (no se borran). Límite: 6 por minuto por organización.",
+          parameters: [{ name: "accountId", in: "query", schema: str }],
+          responses: {
+            "200": ok(
+              { type: "object", properties: { data: { type: "array", items: { $ref: "#/components/schemas/Template" } }, synced: { type: "array", items: str }, failed: { type: "array", items: { type: "object", properties: { accountId: str, error: str } } } } },
+              { data: [EX.template], synced: ["cmacc_wa_01"], failed: [] }
+            ),
+            ...errors,
+          },
+        },
+      },
       "/tags": {
         get: {
           tags: ["Catálogos"],
@@ -1167,7 +1194,8 @@ export function buildOpenApiSpec(serverUrl: string) {
             name: { type: "string", description: "Nombre en Meta" },
             language: { type: "string", example: "es_MX" },
             category: { type: "string", description: "MARKETING, UTILITY o AUTHENTICATION" },
-            status: { type: "string", description: "Estado en Meta; solo APPROVED se envía" },
+            status: { type: "string", description: "Estado en Meta (APPROVED, PENDING, IN_APPEAL, REJECTED, PAUSED, DISABLED, DELETED…); solo APPROVED se envía" },
+            statusReason: { ...strNull, description: "Motivo corto de un rechazo, pausa o aviso de calidad; null si no hay" },
             params: {
               type: "object",
               properties: {

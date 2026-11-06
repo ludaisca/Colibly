@@ -24,6 +24,7 @@ interface Template {
   language: string;
   category: string;
   status: string;
+  statusReason?: string | null;
   components: unknown;
   syncedAt: string;
   createdAt: string;
@@ -31,11 +32,14 @@ interface Template {
 }
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
-  PENDING: { label: "Pendiente", tone: "warning" },
+  PENDING: { label: "En revisión", tone: "warning" },
+  IN_APPEAL: { label: "En apelación", tone: "warning" },
   APPROVED: { label: "Aprobada", tone: "success" },
   REJECTED: { label: "Rechazada", tone: "danger" },
   PAUSED: { label: "Pausada", tone: "neutral" },
   DISABLED: { label: "Deshabilitada", tone: "neutral" },
+  PENDING_DELETION: { label: "Se eliminará", tone: "neutral" },
+  LIMIT_EXCEEDED: { label: "Límite excedido", tone: "danger" },
   DELETED: { label: "Ya no está en Meta", tone: "danger" },
 };
 
@@ -203,7 +207,7 @@ function TemplatesContent() {
                 leading={<EntityAvatar id={t.waAccountId} name={t.name} size="sm" />}
                 title={t.name}
                 badges={<Badge tone={badge.tone} size="sm">{badge.label}</Badge>}
-                subtitle={<>{t.language} · {t.category}</>}
+                subtitle={<>{t.language} · {t.category}{t.statusReason ? <> · <span className={t.status === "APPROVED" || t.status === "PENDING" ? "" : "text-danger"}>{t.statusReason}</span></> : null}</>}
                 meta={
                   <>
                     <span className="font-mono">

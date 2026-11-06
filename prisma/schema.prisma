@@ -1007,6 +1007,9 @@ model WATemplate {
   category    String
   status      String
   components  Json
+  // Motivo legible del último cambio de estado (rechazo, pausa, marcada por
+  // calidad…): lo trae el webhook message_template_status_update o la sincronización.
+  statusReason String?  @map("status_reason")
   syncedAt    DateTime  @default(now())
   createdAt   DateTime  @default(now()) @map("created_at")
 

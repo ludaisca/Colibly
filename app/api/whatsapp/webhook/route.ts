@@ -14,6 +14,7 @@ import { getPlatformSettings } from "@/lib/platform-settings";
 import { COEXISTENCE_FIELDS, handleCoexistenceChange, type CoexistenceField } from "@/lib/whatsapp/coexistence/webhook";
 import { handleCallsWebhook } from "@/lib/whatsapp/calling/ingest";
 import { applyConnectionLifecycle } from "@/lib/whatsapp/coexistence/lifecycle";
+import { handleTemplateChange, TEMPLATE_FIELDS } from "@/lib/whatsapp/template-webhook";
 
 // El contenido (texto, medios, ubicación, contactos, pedido, contexto…) tiene
 // la misma forma en `messages`, `smb_message_echoes` e `history`: vive en
@@ -528,6 +529,17 @@ export async function POST(req: Request) {
 
         if (field && COEXISTENCE_FIELDS.includes(field)) {
           await handleCoexistenceChange({ field: field as CoexistenceField, value: change.value, rawBody, signature });
+          continue;
+        }
+
+        if (field && TEMPLATE_FIELDS.includes(field)) {
+          await handleTemplateChange({
+            field: field as "message_template_status_update" | "template_category_update",
+            wabaId,
+            value: change.value,
+            rawBody,
+            signature,
+          }).catch((error) => console.error("[webhook] evento de plantilla falló", { field, error: error instanceof Error ? error.message : String(error) }));
           continue;
         }
 
