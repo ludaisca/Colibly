@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T12:45:00-06:00",
+  "title": "Design System: Colibly",
+  "extensions": {
+    "colorMeta": {
+      "laguna-deep": { "role": "primary", "displayName": "Laguna profunda", "canonical": "#0E7490", "tonalRamp": ["#0A4A5C", "#0C5F75", "#0E7490", "#38BDF8", "#67E8F9", "#9BD0DE", "#DDF0F5", "#F0F9FF"] },
+      "laguna-ink": { "role": "primary", "displayName": "Tinta laguna", "canonical": "#0A5A6E" },
+      "coral": { "role": "secondary", "displayName": "Coral", "canonical": "#C21E4C", "tonalRamp": ["#5E0F26", "#7F1433", "#9F1840", "#C21E4C", "#E0557A", "#F59AB0", "#FFC9D5", "#FFE4EA"] },
+      "mist-canvas": { "role": "neutral", "displayName": "Lienzo niebla", "canonical": "#F3F6F8", "tonalRamp": ["#0C1A22", "#3D4B58", "#5B6B7A", "#7A96A8", "#D5DCE3", "#ECF0F3", "#F3F6F8", "#FFFFFF"] },
+      "night-canvas": { "role": "neutral", "displayName": "Noche", "canonical": "#000000" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Cifras protagonistas en KPIs (text-hero)." },
+      "headline": { "displayName": "Headline", "purpose": "h1 de página vía PageHeader (text-page-title)." },
+      "title": { "displayName": "Title", "purpose": "Títulos de tarjetas y secciones." },
+      "body": { "displayName": "Body", "purpose": "Texto de interfaz, listas y mensajes." },
+      "label": { "displayName": "Label", "purpose": "Etiquetas de sección en mayúsculas (text-eyebrow)." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 2px rgba(15, 26, 26, 0.05)", "purpose": "Reposo: botón primario, ítem activo." },
+      { "name": "shadow-md", "value": "0 10px 28px rgba(15, 26, 26, 0.08), 0 2px 6px rgba(15, 26, 26, 0.05)", "purpose": "Hover de tarjetas interactivas, menús." },
+      { "name": "shadow-lg", "value": "0 20px 48px rgba(15, 26, 26, 0.12), 0 4px 10px rgba(15, 26, 26, 0.06)", "purpose": "Modales y drawers." }
+    ],
+    "motion": [
+      { "name": "dur-fast", "value": "120ms", "purpose": "Hover y cambios de color de controles." },
+      { "name": "dur", "value": "200ms", "purpose": "Transiciones de estado por defecto." },
+      { "name": "dur-slow", "value": "320ms", "purpose": "Paneles y superposiciones." },
+      { "name": "ease", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Curva única de la marca." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal de una vista; uno por zona.",
+      "html": "<button class=\"ds-btn-primary\">Guardar cambios</button>",
+      "css": ".ds-btn-primary { background: #0E7490; color: #fff; height: 38px; padding: 0 16px; border: 0; border-radius: 9px; font: 600 14px Figtree, system-ui, sans-serif; box-shadow: 0 1px 2px rgba(15,26,26,.05); transition: background-color 120ms cubic-bezier(.4,0,.2,1), box-shadow 120ms, transform 120ms; cursor: pointer; } .ds-btn-primary:hover { background: #0C5F75; box-shadow: 0 10px 28px rgba(15,26,26,.08), 0 2px 6px rgba(15,26,26,.05); transform: translateY(-1px); } .ds-btn-primary:active { transform: scale(.98); } .ds-btn-primary:focus-visible { outline: 2px solid #0E7490; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acciones secundarias junto a la principal.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary { background: #fff; color: #0C1A22; height: 38px; padding: 0 16px; border: 1px solid #D5DCE3; border-radius: 9px; font: 500 14px Figtree, system-ui, sans-serif; transition: background-color 120ms; cursor: pointer; } .ds-btn-secondary:hover { background: #ECF0F3; } .ds-btn-secondary:focus-visible { outline: 2px solid #0E7490; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de texto estándar dentro de FormField.",
+      "html": "<input class=\"ds-input\" placeholder=\"Buscar contacto…\" />",
+      "css": ".ds-input { background: #ECF0F3; color: #0C1A22; border: 1px solid #D5DCE3; border-radius: 9px; padding: 8px 12px; font: 400 14px Figtree, system-ui, sans-serif; width: 240px; transition: border-color 120ms; } .ds-input::placeholder { color: #5B6B7A; } .ds-input:focus { outline: none; border-color: #0E7490; box-shadow: 0 0 0 2px #9BD0DE; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Contenedor plano con filete.",
+      "html": "<div class=\"ds-card\"><strong>Chats sin responder</strong><p>12 esperan respuesta</p></div>",
+      "css": ".ds-card { background: #fff; border: 1px solid #D5DCE3; border-radius: 12px; padding: 16px; font: 400 14px Figtree, system-ui, sans-serif; color: #0C1A22; width: 260px; transition: box-shadow 200ms; } .ds-card p { color: #5B6B7A; margin: 4px 0 0; } .ds-card:hover { box-shadow: 0 10px 28px rgba(15,26,26,.08), 0 2px 6px rgba(15,26,26,.05); }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Ítem de la barra lateral; activo en laguna.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item is-active\" href=\"#\">Chats</a><a class=\"ds-nav-item\" href=\"#\">Contactos</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 200px; font: 500 14px Figtree, system-ui, sans-serif; } .ds-nav-item { padding: 8px 12px; border-radius: 9px; color: #5B6B7A; text-decoration: none; transition: background-color 120ms, color 120ms; } .ds-nav-item:hover { background: #ECF0F3; color: #0C1A22; } .ds-nav-item.is-active { background: #0E7490; color: #fff; font-weight: 600; box-shadow: 0 1px 2px rgba(15,26,26,.05); }"
+    },
+    {
+      "name": "Chat Bubbles",
+      "kind": "custom",
+      "refersTo": "bubble-outbound",
+      "description": "Burbujas de la bandeja: entrante en papel, saliente en teal claro.",
+      "html": "<div class=\"ds-thread\"><div class=\"ds-bubble ds-in\">Hola, ¿tienen envío a Puebla?</div><div class=\"ds-bubble ds-out\">¡Sí! Llega en 2 días.</div></div>",
+      "css": ".ds-thread { background: #ECF0F3; padding: 12px; display: flex; flex-direction: column; gap: 6px; width: 300px; font: 400 14px Figtree, system-ui, sans-serif; color: #0C1A22; } .ds-bubble { padding: 8px 12px; border-radius: 16px; max-width: 80%; } .ds-in { background: #fff; align-self: flex-start; } .ds-out { background: #D5EEF4; align-self: flex-end; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La bandeja serena",
+    "overview": "Colibly es una herramienta de trabajo para gente que contesta chats durante horas y para dueños que entran a ratos. La interfaz busca calma y orden: superficies claras y frías, un solo acento teal que marca la acción y el lugar, y todo subordinado a que ningún chat se pierda. Los controles deben sentirse precisos y discretos.",
+    "keyCharacteristics": [
+      "Un acento (Laguna) para acción primaria, selección y foco; un segundo acento (coral) escaso.",
+      "Tema claro frío y tema oscuro casi negro, ambos controlados por la app (clase .dark), nunca por el sistema.",
+      "Color por entidad (cuenta, persona) solo mediante hue-N en OKLCH, nunca a mano.",
+      "Estados semánticos (éxito, aviso, peligro, info) con trío texto/fondo/borde."
+    ],
+    "rules": [
+      { "name": "La regla de la voz única", "body": "El teal marca acción, selección y foco; nada más usa el acento a pantalla completa. Nunca text-accent para texto (falla contraste): se usa text-accent-ink.", "section": "colors" },
+      { "name": "La regla del token", "body": "Ningún color literal de Tailwind ni modificadores de opacidad sobre el acento; todo pasa por tokens semánticos y cada par nuevo entra a contrast.test.ts.", "section": "colors" },
+      { "name": "La regla de la serif escasa", "body": "Newsreader solo en display y headline; nunca en etiquetas, botones, datos ni navegación.", "section": "typography" }
+    ],
+    "dos": [
+      "Do usar los componentes de app/components/ui/ y los tokens semánticos.",
+      "Do usar hueClassFor(id) para el color de cada entidad.",
+      "Do mantener 9px en todo control y tabular-nums en cifras."
+    ],
+    "donts": [
+      "Don't usar dark: de Tailwind: el tema lo controla la app.",
+      "Don't usar Newsreader fuera de display/headline.",
+      "Don't volver a la dirección editorial rechazada (crema, terracota, serif en etiquetas, navegación numerada).",
+      "Don't escribir clases inline de botón, tarjeta o campo."
+    ]
+  }
+}
