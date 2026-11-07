@@ -24,6 +24,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [ROADMAP_PARIDAD_CHATWOOT.md](ROADMAP_PARIDAD_CHATWOOT.md) | Brechas frente a Chatwoot (P1/P2/P3 con esfuerzo) y siguiente paso propuesto. |
 | [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md) | **Superado** por [PLAN_LICENCIAS_2026-11-04.md](PLAN_LICENCIAS_2026-11-04.md) (licencias por usuario); rige solo a organizaciones con `legacyUntil`. |
 | [OFERTA_BETA_COLIBLY.md](OFERTA_BETA_COLIBLY.md) | Propuesta de oferta beta (superada: registro abierto y precio por ejecutivo). |
+| [INVENTARIO_UI_2026-11-07.md](INVENTARIO_UI_2026-11-07.md) | **Vigente**: inventario de componentes y librerías de UI, qué ofrece Tesela y reparto propuesto (Base UI + piezas portadas de Tesela + capa propia) para la nueva interfaz. |
 | [RESPALDOS.md](RESPALDOS.md) | Respaldo diario de la base a S3/R2: configuración, restauración y límites. |
 
 ## Revisiones de interfaz (sept. 2026)
