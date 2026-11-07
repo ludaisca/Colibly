@@ -226,6 +226,9 @@ Celdas de 3px, controles de 9px, filas de 8px, tarjetas de 12px y píldoras para
 - **Do** usar `hueClassFor(id)` para toda línea de cuenta.
 - **Do** mostrar la espera con `WaitCells` donde un chat espera respuesta.
 
+- **Do** conservar la barra de cita de WhatsApp (franja izquierda) dentro de la burbuja: es el modelo que la gente conoce. Es la única franja de color permitida dentro de un mensaje; está registrada como excepción del detector en `.impeccable/config.json`.
+- **Do** usar la escala de radios (3, 8, 9, 12 px y píldora) también en CSS a mano.
+
 ### Don't:
 - **Don't** poner etiquetas sobre los títulos.
 - **Don't** usar ámbar o rojo fuera de espera/SLA/errores.

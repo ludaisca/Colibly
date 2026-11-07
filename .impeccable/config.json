@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "app/components/whatsapp/chat-thread-panel.tsx"
+        ],
+        "createdAt": "2026-11-07T23:18:33.671Z",
+        "reason": "Barra de cita de WhatsApp dentro de la burbuja: PRODUCT.md pide conservar el modelo de burbujas de WhatsApp (decidido 2026-11-07)"
+      }
+    ]
+  }
+}

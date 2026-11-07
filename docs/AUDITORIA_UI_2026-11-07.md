@@ -66,7 +66,11 @@ Lectura: la escala tipográfica real tiene un escalón de 10–13px que `DESIGN.
 - Hecho: `Modal` sobre Base UI (ver `INVENTARIO_MODALES_2026-11-07.md`) y calendario de Tesela para `DatePicker` y `DateRangePicker` (fuera `hero-date-range`).
 - Hecho: pestañas sobre Base UI con la pestaña en la URL (`useUrlTab`); fuera `@heroui/*`, `react-aria-components`, `@internationalized/date` y `hero-ui.css`.
 - Hecho: token `text-micro` (11px) como piso del panel; 99 tamaños escritos a mano reemplazados por la escala (`micro`, `xs`, `sm`, `base`).
-- Siguientes avisos del detector (una regla a la vez): radios fuera de escala (`command-palette.css` 5px, `drawer.css` 24px), colores sin token (`contact-drawer.css`, `template-preview.tsx`) y una franja `border-l-2` en la cita del hilo (`chat-thread-panel.tsx`).
+- Hecho (2026-11-07), una regla a la vez:
+  - **Radios:** teclas de la paleta 5→3 px, hoja inferior del cajón 24→12 px (igual que el modal), editor de flujos 7/10→8/12 px.
+  - **Colores:** velo del cajón de contacto → `--overlay`; el verde de variables de la vista previa de plantillas va a la paleta `WA` del archivo (imita a WhatsApp a propósito).
+  - **Franja de la cita:** se conserva (modelo de WhatsApp, PRODUCT.md) como excepción registrada en `.impeccable/config.json` con su motivo.
+  - Resultado: `impeccable detect` sobre `app/(dashboard)` y `app/components` da **0 avisos** (sin contar `demo-componentes`).
 
 ## Prioridad sugerida
 

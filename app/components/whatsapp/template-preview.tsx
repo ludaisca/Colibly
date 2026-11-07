@@ -28,6 +28,8 @@ const WA = {
   muted: "#667781",
   mediaPlaceholder: "#e9e9e9",
   accent: "#008069",
+  /** Fondo de una variable {{1}}: el acento de WhatsApp al 12 %. */
+  variableBg: "rgba(0, 128, 105, 0.12)",
   border: "#e9e9e9",
 };
 
@@ -37,7 +39,7 @@ function highlightVariables(text: string, formatted = false) {
   const parts = text.split(/(\{\{\s*\d+\s*\}\})/g);
   return parts.map((part, i) =>
     /^\{\{\s*\d+\s*\}\}$/.test(part) ? (
-      <span key={i} className="inline-block rounded px-1 text-micro font-bold" style={{ background: "rgba(0,128,105,0.12)", color: WA.accent }}>
+      <span key={i} className="inline-block rounded px-1 text-micro font-bold" style={{ background: WA.variableBg, color: WA.accent }}>
         {part}
       </span>
     ) : (
