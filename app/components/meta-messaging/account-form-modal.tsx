@@ -191,7 +191,7 @@ export function MetaChannelAccountFormModal({ channel, open, onClose, onCreated 
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title={copy.title}

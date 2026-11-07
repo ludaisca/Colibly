@@ -148,7 +148,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title={isEditing ? "Editar calificador" : "Crear calificador"}

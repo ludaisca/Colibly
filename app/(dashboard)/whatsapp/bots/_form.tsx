@@ -157,7 +157,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title={isEditing ? "Editar bot" : "Crear bot"}

@@ -1,23 +1,22 @@
-/* El overlay usa el comportamiento de React Aria/HeroUI y la apariencia de Colibly. */
+/* Modal sobre Base UI Dialog (modal.tsx). Celular: hoja inferior (diálogo) o
+   pantalla completa (cajón). Escritorio: caja centrada o cajón a la derecha. */
 .colibly-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 60;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  overflow-y: auto;
   background: var(--overlay);
-  backdrop-filter: blur(3px);
+  transition: opacity 180ms ease-out;
 }
-.colibly-modal-container {
+.colibly-modal-backdrop[data-starting-style], .colibly-modal-backdrop[data-ending-style] { opacity: 0; }
+
+.colibly-modal-viewport {
+  position: fixed;
+  inset: 0;
+  z-index: 61;
   display: flex;
-  width: 100%;
-  min-width: 0;
-  max-height: calc(100dvh - env(safe-area-inset-top) - 8px);
   align-items: flex-end;
   justify-content: center;
-  outline: none;
+  overscroll-behavior: contain;
 }
 .colibly-modal-dialog {
   display: flex;
@@ -33,7 +32,23 @@
   color: var(--foreground);
   box-shadow: var(--shadow-lg);
   outline: none;
+  overscroll-behavior: contain;
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
 }
+.colibly-modal-dialog[data-starting-style], .colibly-modal-dialog[data-ending-style] { opacity: 0; transform: translateY(14px); }
+
+/* Cajón: pantalla completa en el celular. */
+.colibly-modal-viewport[data-layout="drawer"] { align-items: stretch; justify-content: flex-end; }
+.colibly-modal-dialog[data-layout="drawer"] {
+  max-height: none;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  padding-top: env(safe-area-inset-top);
+}
+.colibly-modal-dialog[data-layout="drawer"][data-starting-style],
+.colibly-modal-dialog[data-layout="drawer"][data-ending-style] { opacity: 1; transform: translateX(100%); }
+
 .colibly-modal-header, .colibly-modal-footer { flex: none; padding: 14px; }
 .colibly-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); }
 .colibly-modal-body { min-height: 0; flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; padding: 14px; }
@@ -41,17 +56,9 @@
 .colibly-modal-footer > * { width: 100%; }
 .colibly-modal-close { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 12px; color: var(--muted); cursor: pointer; }
 .colibly-modal-close:hover { background: var(--surface-light); color: var(--foreground); }
-.colibly-modal-backdrop[data-entering] { animation: colibly-modal-backdrop-in 180ms ease-out both; }
-.colibly-modal-backdrop[data-exiting] { animation: colibly-modal-backdrop-out 160ms ease-in both; }
-.colibly-modal-backdrop[data-entering] .colibly-modal-dialog { animation: colibly-modal-in 200ms ease-out both; }
-.colibly-modal-backdrop[data-exiting] .colibly-modal-dialog { animation: colibly-modal-out 160ms ease-in both; }
-@keyframes colibly-modal-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes colibly-modal-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes colibly-modal-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes colibly-modal-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(10px); } }
+
 @media (min-width: 640px) {
-  .colibly-modal-backdrop { align-items: center; padding: 20px; }
-  .colibly-modal-container { max-height: min(90dvh, 900px); align-items: center; }
+  .colibly-modal-viewport { align-items: center; padding: 20px; }
   .colibly-modal-dialog { max-height: min(90dvh, 900px); border-bottom: 1px solid var(--border); border-radius: 12px; }
   .colibly-modal-dialog[data-colibly-size="sm"] { max-width: 384px; }
   .colibly-modal-dialog[data-colibly-size="md"] { max-width: 448px; }
@@ -61,4 +68,16 @@
   .colibly-modal-body { padding: 16px 20px; }
   .colibly-modal-footer { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
   .colibly-modal-footer > * { width: auto; }
+
+  /* Cajón en escritorio: panel derecho a toda la altura; el ancho sale del tamaño. */
+  .colibly-modal-viewport[data-layout="drawer"] { align-items: stretch; padding: 0; }
+  .colibly-modal-dialog[data-layout="drawer"] { height: 100dvh; max-height: none; border: 0; border-left: 1px solid var(--border); border-radius: 0; padding-top: 0; }
+  .colibly-modal-dialog[data-layout="drawer"][data-colibly-size="sm"],
+  .colibly-modal-dialog[data-layout="drawer"][data-colibly-size="md"] { max-width: 480px; }
+  .colibly-modal-dialog[data-layout="drawer"][data-colibly-size="lg"] { max-width: 560px; }
+  .colibly-modal-dialog[data-layout="drawer"][data-colibly-size="xl"] { max-width: 720px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .colibly-modal-backdrop, .colibly-modal-dialog { transition-duration: .01ms; }
 }

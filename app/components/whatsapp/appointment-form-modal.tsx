@@ -252,7 +252,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
     (selectedContact ? contactLabelOf(selectedContact) : null);
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={onClose}
       title={isEdit ? "Editar cita" : "Agendar cita"}

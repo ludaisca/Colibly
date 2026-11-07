@@ -160,7 +160,7 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title="Agregar número"

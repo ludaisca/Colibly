@@ -281,7 +281,7 @@ export function PlataformaOperacion() {
         )}
       </section>
 
-      <Modal
+      <Modal layout="drawer"
         open={createOpen}
         onClose={resetForm}
         title={createdToken ? "Token creado" : "Crear token de operación"}

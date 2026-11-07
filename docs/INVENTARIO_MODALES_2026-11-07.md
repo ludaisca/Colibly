@@ -12,7 +12,7 @@ Cifras: **53 `<Modal>`** en 42 archivos y **33 `<ConfirmDialog>`** (encima de `M
 | **Cajón lateral** (formulario largo) | 15 | Formularios de 6 o más campos: tapan la lista para nada y en el celular quedan apretados. Un cajón deja ver el contexto en escritorio y es pantalla completa en el teléfono |
 | **Cajón lateral** (consulta) | 2 | Son listas para leer, no tareas: un cajón deja la página detrás |
 | **Modal corto** (se queda; en el celular, hoja inferior) | 12 | Crear o editar algo de 1 a 5 campos desde una lista: el patrón actual del proyecto funciona |
-| **En línea o panel anclado** | 5 | Un solo campo o un selector que ya vive junto a su botón: no hace falta interrumpir |
+| **En línea o panel anclado** | 5 revisados → 1 en línea, 1 cajón, 3 siguen como modal corto | Ver sección 5 |
 
 ## 1. Se queda como modal (19)
 
@@ -28,8 +28,8 @@ Cifras: **53 `<Modal>`** en 42 archivos y **33 `<ConfirmDialog>`** (encima de `M
 | `configuracion/_seguridad.tsx:279` | Desactivar verificación en dos pasos | Seguridad |
 | `plataforma/_soporte.tsx:195` | Quitar la verificación en dos pasos | Seguridad (operador) |
 | `configuracion/plan/_datos.tsx:125` | Eliminar la organización | Irreversible |
-| `configuracion/api/_api-keys.tsx:191` | ¿Rotar la API key? | Irreversible — **pasar a `ConfirmDialog`** (hoy es un `Modal` hecho a mano) |
-| `configuracion/api/_webhooks.tsx:225` | ¿Rotar el secreto? | Igual: **pasar a `ConfirmDialog`** |
+| `configuracion/api/_api-keys.tsx:191` | ¿Rotar la API key? | Irreversible y con tres opciones (cancelar, rotar ya, rotar con gracia): `ConfirmDialog` solo admite una, así que queda como `Modal kind="alert"` (hecho 2026-11-07) |
+| `configuracion/api/_webhooks.tsx:225` | ¿Rotar el secreto? | Igual: `Modal kind="alert"` |
 | `whatsapp/cuentas/_form.tsx:106` | Cuenta conectada | Muestra URL del webhook y verify token para copiar una vez |
 | `meta-ads/_form.tsx:159` | Cuenta de Meta Ads conectada | Igual |
 | `components/meta-messaging/account-form-modal.tsx:137` | Cuenta conectada (Messenger/Instagram) | Igual |
@@ -73,21 +73,25 @@ Las **33 confirmaciones** (`ConfirmDialog`: eliminar, desconectar, revocar, susp
 
 En el celular conviene que se abran como **hoja inferior** (pegados abajo, a todo lo ancho), no como caja centrada.
 
-## 5. En línea o panel anclado (5)
+## 5. En línea o panel anclado — revisado al implementar (5)
 
-| Archivo | Hoy | Propuesta |
+La primera clasificación salió del conteo automático; al abrir cada caso:
+
+| Archivo | Decisión | Por qué |
 |---|---|---|
-| `components/whatsapp/chat-views-menu.tsx:184` | Modal "Guardar vista" (1 campo) | Campo en línea dentro del mismo panel de Vistas |
-| `whatsapp/calificadores/page.tsx:658` | Modal "Exportar CSV" (1 campo) | Panel anclado al botón (`Dropdown panel`) |
-| `components/whatsapp/macro-picker-modal.tsx:78` | Modal "Aplicar macro" desde la cabecera del chat | Panel anclado con búsqueda, como los stickers |
-| `components/whatsapp/sticker-picker.tsx:82` | Modal "Stickers del equipo" | Panel anclado al botón del compositor |
-| `whatsapp/automatizaciones/[id]/_builder.tsx:174` | Modal `xl` "Agregar paso" | Panel lateral del editor, sin tapar el flujo que se está armando |
+| `components/whatsapp/chat-views-menu.tsx` | **En línea** (hecho) | "Guardar vista" es un solo campo: ahora se escribe dentro del mismo panel de Vistas |
+| `whatsapp/automatizaciones/[id]/_builder.tsx:174` | **Cajón** (hecho) | "Agregar paso" deja visible el flujo que se arma |
+| `whatsapp/calificadores/page.tsx:658` | Modal corto | No era un campo: alcance (radio) + cuadrícula de columnas; en un panel anclado no cabe en el celular |
+| `components/whatsapp/macro-picker-modal.tsx` | Modal corto | Se abre desde un ítem del menú "⋯", que se cierra: no hay botón al que anclar un panel |
+| `components/whatsapp/sticker-picker.tsx` | Modal corto | Igual: se abre desde "Más herramientas" del compositor |
 
 ## Cómo se haría
 
 1. **`Modal` sobre Base UI `Dialog`** sin cambiar su API (53 usos + `ConfirmDialog`), con `overscroll-behavior: contain` y, en el celular, hoja inferior.
 2. **Un prop `layout="drawer"`** en el mismo `Modal`: los 17 de las secciones 2 y 3 se mueven cambiando un prop, sin reescribir formularios. Pantalla completa en el teléfono, panel derecho en escritorio.
-3. Rotar API key y secreto → `ConfirmDialog`.
-4. Los 5 de la sección 5, uno por uno.
+3. Rotar API key y secreto → `Modal kind="alert"` (no `ConfirmDialog`: tienen tres opciones).
+4. Los 5 de la sección 5, revisados uno por uno (sección 5).
+
+**Estado (2026-11-07): hecho.** `Modal` y `ConfirmDialog` corren sobre Base UI `Dialog`/`AlertDialog`; 18 usan `layout="drawer"` (los 17 + "Agregar paso"). HeroUI sigue instalado solo por `hero-tabs` y `hero-date-range`.
 
 **Choca con una regla del proyecto:** `AGENTS.md` dice "CRUD is a `_form.tsx` modal next to the list". La sección 2 la cambiaría a "modal si es corto, cajón si tiene 6 o más campos". Se actualiza en el mismo cambio si se aprueba.

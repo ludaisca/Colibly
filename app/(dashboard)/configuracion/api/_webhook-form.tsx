@@ -117,7 +117,7 @@ export function WebhookFormModal({
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title={editing ? "Editar webhook" : "Nuevo webhook"}

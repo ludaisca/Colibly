@@ -215,7 +215,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title={isEdit ? "Editar cuenta de Meta Ads" : "Conectar cuenta de Meta Ads"}

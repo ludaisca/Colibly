@@ -111,7 +111,7 @@ export function CustomFieldFormModal({ open, onClose, accountId, channel, initia
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={onClose}
       title={isEditing ? "Editar campo" : "Nuevo campo personalizado"}

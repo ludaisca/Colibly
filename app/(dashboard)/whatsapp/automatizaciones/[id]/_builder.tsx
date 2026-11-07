@@ -171,7 +171,7 @@ export function StepPicker({
   onClose: () => void;
 }) {
   return (
-    <Modal open={!!request} onClose={onClose} title="Agregar paso" size="xl">
+    <Modal layout="drawer" open={!!request} onClose={onClose} title="Agregar paso" size="xl">
       <div className="space-y-5">
         {GROUPS.map((group) => (
           <section key={group}>

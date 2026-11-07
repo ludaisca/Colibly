@@ -94,7 +94,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title="Nuevo usuario"

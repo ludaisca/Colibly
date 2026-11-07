@@ -317,7 +317,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
         <ActivityHeatmap inbound={heatmap.inbound} resolved={heatmap.resolved} timeZone={heatmap.timeZone} />
       </div>
 
-      <Modal
+      <Modal layout="drawer"
         open={!!agentModal}
         onClose={() => setAgentModal(null)}
         title={agentModal ? `Chats de ${agentModal.userName}` : "Chats del agente"}

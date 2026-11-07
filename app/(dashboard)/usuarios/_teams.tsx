@@ -219,7 +219,7 @@ function TeamFormModal({
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open
       onClose={onClose}
       title={team ? `Editar ${team.name}` : "Nuevo equipo"}

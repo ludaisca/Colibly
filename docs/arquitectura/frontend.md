@@ -77,6 +77,12 @@ Overview page shape (see `dashboard/page.tsx`, `estadisticas/_view.tsx`): `PageH
 
 Standard entity CRUD lives in a `_form.tsx` file next to the list's `page.tsx`, exporting a single `<XxxFormModal open onClose onSaved initialData? />` that handles both create and edit (`initialData` present ⇒ edit). Structure: `<Modal size="md|lg|xl" footer={Cancelar/Guardar}>` + `{error && <Banner tone="danger">}` + `<FormField>` blocks. See `whatsapp/plantillas/_form.tsx` as the reference implementation.
 
+**Modal vs. drawer vs. inline (2026-11-07, Impeccable: "no modal for a task that needs neither interruption nor protected focus").** `Modal` runs on Base UI `Dialog` (`kind="alert"` → `AlertDialog`, used by `ConfirmDialog`; no outside-click close). On phones a dialog is a bottom sheet. Pick:
+- `<Modal>` — short create/edit (≤5 fields) and anything that must interrupt: one-time secrets (`persistent`), security, irreversible actions, a blocking step ("Completa antes de resolver"), the media viewer.
+- `<Modal layout="drawer">` — forms of 6+ fields and read-only detail panels: right-side panel on desktop (width from `size`: md 480, lg 560, xl 720), full screen on phones. 18 today (bots, secuencias, citas, Meta Ads, agregar número, nuevo usuario, calificadores, webhooks, API keys, atributos, campos, equipos, plataforma, reportes, detalle de calificación, "Agregar paso").
+- Inline — a single field (e.g. "Guardar vista" inside the Vistas panel).
+Both layouts set `overscroll-behavior: contain`. The full classification is in `docs/INVENTARIO_MODALES_2026-11-07.md`.
+
 Exceptions that stay as a dedicated page instead of a modal:
 - Unbounded dynamic content (`whatsapp/campanas/nueva` — recipient list can grow to hundreds of rows via CSV import; doesn't fit a modal's `max-h-[90vh]`).
 

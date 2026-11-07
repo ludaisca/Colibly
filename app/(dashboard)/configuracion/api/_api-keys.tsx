@@ -191,6 +191,7 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
       <Modal
         open={!!rotating}
         onClose={() => setRotating(null)}
+        kind="alert"
         title={`¿Rotar “${rotating?.name}”?`}
         description="Se crea una key nueva con los mismos permisos, cuentas y vencimiento. Con 24 h de gracia, la actual sigue funcionando un día mientras la cambias en tu integración; sin gracia, deja de funcionar en este momento."
         size="md"

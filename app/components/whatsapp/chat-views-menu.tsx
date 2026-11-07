@@ -6,7 +6,6 @@ import { Bookmark, Hourglass, Inbox, Plus, TimerOff, Trash2, User, Users, UserX 
 import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
 import { Input } from "@/app/components/ui/input";
-import { Modal } from "@/app/components/ui/modal";
 
 interface SavedView {
   id: string;
@@ -63,6 +62,7 @@ export function ChatViewsMenu({
   counts: ViewCounts | null;
 }) {
   const [views, setViews] = useState<SavedView[]>([]);
+  const [open, setOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [name, setName] = useState("");
   const awaiting = counts?.awaiting ?? 0;
@@ -87,6 +87,12 @@ export function ChatViewsMenu({
     persist([...views, { id: crypto.randomUUID(), name: trimmed, query: currentQuery }]);
     setName("");
     setSaveOpen(false);
+    setOpen(false);
+  }
+
+  function apply(query: string) {
+    onApply(query);
+    setOpen(false);
   }
 
   function remove(id: string) {
@@ -98,6 +104,10 @@ export function ChatViewsMenu({
       <Dropdown
         panel
         panelLabel="Vistas"
+        open={open}
+        onOpenChange={(next) => { setOpen(next); if (!next) setSaveOpen(false); }}
+        // El campo "Guardar vista" vive dentro del panel: no cerrar con cualquier clic.
+        closeOnSelect={false}
         align="right"
         portal
         trigger={
@@ -125,7 +135,7 @@ export function ChatViewsMenu({
             <button
               key={view.key}
               type="button"
-              onClick={() => onApply(view.query)}
+              onClick={() => apply(view.query)}
               className="flex w-full items-center gap-2 rounded-[9px] px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light"
             >
               <view.icon size={14} className="shrink-0 text-muted" aria-hidden />
@@ -146,13 +156,32 @@ export function ChatViewsMenu({
             </button>
           ))}
           <div className="my-1 border-t border-border" />
-          <button
-            type="button"
-            onClick={() => setSaveOpen(true)}
-            className="flex w-full items-center gap-2 rounded-[9px] px-2.5 py-2 text-left text-sm text-accent-ink transition-colors hover:bg-accent-subtle"
-          >
-            <Plus size={15} /> Guardar vista actual
-          </button>
+          {saveOpen ? (
+            // Andén / Impeccable: un campo no justifica un modal; se guarda aquí mismo.
+            <form
+              className="flex items-center gap-1.5 px-1.5 py-1.5"
+              onSubmit={(event) => { event.preventDefault(); save(); }}
+            >
+              <Input
+                aria-label="Nombre de la vista"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setSaveOpen(false); } }}
+                placeholder="Ej. Mis chats sin responder"
+                autoFocus
+                className="min-w-0 flex-1"
+              />
+              <Button type="submit" size="sm" disabled={!name.trim()}>Guardar</Button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSaveOpen(true)}
+              className="flex w-full items-center gap-2 rounded-[9px] px-2.5 py-2 text-left text-sm text-accent-ink transition-colors hover:bg-accent-subtle"
+            >
+              <Plus size={15} /> Guardar vista actual
+            </button>
+          )}
           {views.length === 0 ? (
             <p className="px-2.5 py-2 text-xs text-muted">Aún no tienes vistas guardadas.</p>
           ) : (
@@ -161,7 +190,7 @@ export function ChatViewsMenu({
                 <div key={view.id} className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => onApply(view.query)}
+                    onClick={() => apply(view.query)}
                     className="min-w-0 flex-1 truncate rounded-[9px] px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light"
                   >
                     {view.name}
@@ -181,30 +210,6 @@ export function ChatViewsMenu({
         </div>
       </Dropdown>
 
-      <Modal
-        open={saveOpen}
-        onClose={() => setSaveOpen(false)}
-        title="Guardar vista"
-        description="Se guarda en este navegador con los filtros actuales."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setSaveOpen(false)}>Cancelar</Button>
-            <Button onClick={save} disabled={!name.trim()}>Guardar</Button>
-          </>
-        }
-      >
-        <label className="block text-xs font-medium text-muted-darker" htmlFor="chat-view-name">
-          Nombre de la vista
-        </label>
-        <Input
-          id="chat-view-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Ej. Mis chats sin responder"
-          autoFocus
-          onKeyDown={(event) => { if (event.key === "Enter") save(); }}
-        />
-      </Modal>
     </>
   );
 }

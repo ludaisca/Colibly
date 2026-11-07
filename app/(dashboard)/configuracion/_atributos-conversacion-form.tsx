@@ -108,7 +108,7 @@ export function ChatAttributeFormModal({
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={onClose}
       title={editing ? "Editar atributo" : "Nuevo atributo de conversación"}

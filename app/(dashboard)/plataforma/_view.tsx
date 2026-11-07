@@ -281,7 +281,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
   ];
 
   return (
-    <Modal open onClose={onClose} title={org.name} size="xl">
+    <Modal layout="drawer" open onClose={onClose} title={org.name} size="xl">
       <div className="space-y-5">
         {error && <Banner tone="danger">{error}</Banner>}
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">

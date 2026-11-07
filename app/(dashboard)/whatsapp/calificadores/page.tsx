@@ -543,7 +543,7 @@ function LeadsTab() {
         </div>
       )}
 
-      <Modal
+      <Modal layout="drawer"
         open={!!detailRow}
         onClose={() => setDetailId(null)}
         title={detailRow ? (detailRow.chat.name || detailRow.chat.identifier.split("@")[0]) : undefined}

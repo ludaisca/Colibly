@@ -101,7 +101,7 @@ export function ApiKeyFormModal({
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title="Nueva API key"

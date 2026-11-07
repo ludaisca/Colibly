@@ -225,6 +225,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
       <Modal
         open={!!rotating}
         onClose={() => setRotating(null)}
+        kind="alert"
         title={`¿Rotar el secreto de “${rotating?.name}”?`}
         description="Con 24 h de gracia, cada entrega va firmada con el secreto nuevo y con el actual (dos v1 en X-Colibly-Signature) mientras actualizas tu servidor. Sin gracia, el actual deja de firmar en este momento."
         size="md"

@@ -195,7 +195,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
   }
 
   return (
-    <Modal
+    <Modal layout="drawer"
       open={open}
       onClose={handleClose}
       title={isEditing ? "Editar secuencia" : "Nueva secuencia"}
