@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { BarChart3, Bell, CreditCard, Mail, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/input";
@@ -19,6 +20,7 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 interface ConfigResponse {
   hasOpencodeApiKey: boolean;
   hasGoogleApiKey: boolean;
+  aiProvider: "opencode" | "google" | null;
   aiTextModel: string | null;
   aiVisionModel: string | null;
   hasStripeSecretKey: boolean;
@@ -181,40 +183,27 @@ export function blockStatus(checks: boolean[], optional = false): BlockStatus {
   return { label: "Pendiente", tone: "warning" };
 }
 
-// Bloque plegable accesible (<details>/<summary>): abierto en pantallas
-// anchas, cerrado en móvil. Los campos siguen montados aunque esté cerrado, así
-// que guardar envía todo como antes.
-function SettingsBlock({ eyebrow, title, status, defaultOpen, children }: { eyebrow: string; title: string; status: BlockStatus; defaultOpen: boolean; children: ReactNode }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const [touched, setTouched] = useState(false);
-  const isOpen = touched ? open : defaultOpen;
+// Sección de la configuración: solo se ve la activa (la navegación está a la
+// izquierda en pantallas anchas y arriba en móvil), pero todas siguen montadas
+// con `hidden`, así guardar envía todos los campos como siempre.
+function SettingsBlock({ id, active, eyebrow, title, status, children }: { id: string; active: boolean; eyebrow: string; title: string; status: BlockStatus; children: ReactNode }) {
   return (
-    <details
-      open={isOpen}
-      onToggle={(e) => {
-        setTouched(true);
-        setOpen((e.currentTarget as HTMLDetailsElement).open);
-      }}
-      className="group min-w-0 rounded-lg border border-border bg-surface"
-    >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
-        <span className="min-w-0">
-          <span className="block text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{eyebrow}</span>
-          <span className="block font-display text-base font-semibold tracking-tight text-foreground text-base">{title}</span>
-        </span>
-        <span className="flex shrink-0 items-center gap-2">
-          <Badge tone={status.tone} size="sm">{status.label}</Badge>
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-muted transition-transform group-open:rotate-180"><path d="M6 9l6 6 6-6" /></svg>
-        </span>
-      </summary>
-      <div className="min-w-0 space-y-4 border-t border-border p-4">{children}</div>
-    </details>
+    <section id={`cfg-${id}`} role="tabpanel" aria-labelledby={`cfg-tab-${id}`} hidden={!active} className="min-w-0 rounded-lg border border-border bg-surface">
+      <header className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
+        <div className="min-w-0">
+          <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{eyebrow}</p>
+          <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+        </div>
+        <Badge tone={status.tone} size="sm">{status.label}</Badge>
+      </header>
+      <div className="min-w-0 space-y-4 p-4 sm:p-5">{children}</div>
+    </section>
   );
 }
 
 // Llaves VAPID de las notificaciones push (lib/notifications/push.ts). No se
 // escriben a mano: se generan; regenerarlas borra todas las suscripciones.
-function PushKeysBlock({ defaultOpen }: { defaultOpen: boolean }) {
+function PushKeysBlock({ active }: { active: boolean }) {
   const { success, error: toastError } = useToast();
   const [state, setState] = useState<{ hasKeys: boolean; publicKey: string | null; subscriptions: number } | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -245,10 +234,11 @@ function PushKeysBlock({ defaultOpen }: { defaultOpen: boolean }) {
 
   return (
     <SettingsBlock
+      id="push"
+      active={active}
       eyebrow="Navegador"
       title="Notificaciones push"
       status={state?.hasKeys ? { tone: "success", label: "Configurado" } : { tone: "neutral", label: "Opcional" }}
-      defaultOpen={defaultOpen}
     >
       <p className="text-sm text-muted">
         Avisos del navegador para mensajes de chats asignados, chats asignados y llamadas entrantes, aunque la pestaña esté cerrada.
@@ -277,23 +267,20 @@ function PushKeysBlock({ defaultOpen }: { defaultOpen: boolean }) {
   );
 }
 
-// true en pantallas ≥ 640 px (sm). En el servidor y antes de montar: false
-// (cerrado), para no abrir todo en móvil.
-function useWide(): boolean {
-  const [wide, setWide] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 640px)");
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lee el media query al montar
-    setWide(mq.matches);
-    const on = (e: MediaQueryListEvent) => setWide(e.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return wide;
-}
+const SECTIONS = [
+  { id: "ia", label: "Inteligencia artificial", Icon: Sparkles },
+  { id: "stripe", label: "Facturación", Icon: CreditCard },
+  { id: "smtp", label: "Correo", Icon: Mail },
+  { id: "turnstile", label: "Captcha", Icon: ShieldCheck },
+  { id: "meta", label: "WhatsApp (Meta)", Icon: MessageCircle },
+  { id: "medicion", label: "Medición", Icon: BarChart3 },
+  { id: "push", label: "Notificaciones push", Icon: Bell },
+] as const;
+type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function PlataformaConfiguracion() {
-  const wide = useWide();
+  const [section, setSection] = useState<SectionId>("ia");
+  const [baseline, setBaseline] = useState("");
   const { success, error: toastError } = useToast();
   const [data, setData] = useState<ConfigResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -323,6 +310,7 @@ export function PlataformaConfiguracion() {
     googleAdsId: "",
     googleAdsSignupLabel: "",
     stripeAutomaticTax: false,
+    aiProvider: "",
     aiTextModel: "",
     aiVisionModel: "",
   });
@@ -339,7 +327,7 @@ export function PlataformaConfiguracion() {
       if (!res.ok) throw new Error();
       const json: ConfigResponse = await res.json();
       setData(json);
-      setPlain({
+      const nextPlain = {
         stripePriceEssential: json.stripePriceEssential ?? "",
         stripePriceBusiness: json.stripePriceBusiness ?? "",
         stripePricePro: json.stripePricePro ?? "",
@@ -356,9 +344,12 @@ export function PlataformaConfiguracion() {
         googleAdsId: json.googleAdsId ?? "",
         googleAdsSignupLabel: json.googleAdsSignupLabel ?? "",
         stripeAutomaticTax: json.stripeAutomaticTax ?? false,
+        aiProvider: json.aiProvider ?? "",
         aiTextModel: json.aiTextModel ?? "",
         aiVisionModel: json.aiVisionModel ?? "",
-      });
+      };
+      setPlain(nextPlain);
+      setBaseline(JSON.stringify(nextPlain));
       if (json.hasOpencodeApiKey) {
         const modelsRes = await fetch("/api/plataforma/configuracion/modelos");
         if (modelsRes.ok) {
@@ -386,6 +377,28 @@ export function PlataformaConfiguracion() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
     load();
   }, []);
+
+  // Enlace directo a una sección: /plataforma?...#ia
+  useEffect(() => {
+    const fromHash = window.location.hash.replace(/^#(cfg-)?/, "");
+    const match = SECTIONS.find((x) => x.id === fromHash);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lee el hash al montar
+    if (match) setSection(match.id);
+  }, []);
+
+  function selectSection(id: SectionId) {
+    setSection(id);
+    try {
+      window.history.replaceState(null, "", `#${id}`);
+    } catch {
+      /* sin historial: la sección igual cambia */
+    }
+  }
+
+  const dirty =
+    !!baseline &&
+    (JSON.stringify(plain) !== baseline ||
+      SECRET_FIELDS.some((f) => secrets[f].trim() !== "" || cleared[f]));
 
   function toggleClear(field: SecretField) {
     setCleared((c) => ({ ...c, [field]: !c[field] }));
@@ -416,6 +429,7 @@ export function PlataformaConfiguracion() {
       payload.googleAdsId = plain.googleAdsId.trim() || null;
       payload.googleAdsSignupLabel = plain.googleAdsSignupLabel.trim() || null;
       payload.stripeAutomaticTax = plain.stripeAutomaticTax;
+      payload.aiProvider = plain.aiProvider || null;
       payload.aiTextModel = plain.aiTextModel.trim() || null;
       payload.aiVisionModel = plain.aiVisionModel.trim() || null;
 
@@ -461,6 +475,16 @@ export function PlataformaConfiguracion() {
     );
   }
 
+  const statuses: Partial<Record<SectionId, BlockStatus>> = {
+    ia: blockStatus([data.hasOpencodeApiKey || data.hasGoogleApiKey]),
+    stripe: blockStatus([data.hasStripeSecretKey, data.hasStripeWebhookSecret]),
+    smtp: blockStatus([!!data.smtpHost, !!data.smtpUser, data.hasSmtpPass]),
+    turnstile: blockStatus([!!data.turnstileSiteKey, data.hasTurnstileSecretKey]),
+    meta: blockStatus([!!data.metaAppId, data.hasMetaAppSecret, !!data.metaEmbeddedSignupConfigId, data.hasMetaWebhookVerifyToken]),
+    medicion: blockStatus([!!data.metaPixelId || !!data.gaMeasurementId || !!data.googleAdsId], true),
+  };
+  const dot: Record<BlockStatus["tone"], string> = { success: "bg-success", warning: "bg-warning", neutral: "bg-muted" };
+
   return (
     <PageContainer width="6xl">
       <Banner tone="info">
@@ -468,7 +492,36 @@ export function PlataformaConfiguracion() {
         guardado durante 60 segundos (queda registrado en el log), escribe un valor nuevo para reemplazarlo o usa &ldquo;Quitar&rdquo; para borrarlo.
       </Banner>
 
-      <SettingsBlock eyebrow="Inteligencia artificial" title="OpenCode Go y Google" status={blockStatus([data.hasOpencodeApiKey || data.hasGoogleApiKey])} defaultOpen={wide}>
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-6">
+        <nav aria-label="Secciones de la configuración" className="min-w-0 lg:sticky lg:top-4 lg:self-start">
+          <div role="tablist" aria-orientation="vertical" className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-0 lg:pb-0">
+            {SECTIONS.map(({ id, label, Icon }) => {
+              const st = statuses[id];
+              const isActive = section === id;
+              return (
+                <button
+                  key={id}
+                  id={`cfg-tab-${id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`cfg-${id}`}
+                  onClick={() => selectSection(id)}
+                  className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:w-full ${
+                    isActive ? "border-accent-strong bg-accent-subtle font-medium text-foreground" : "border-transparent text-muted hover:bg-surface-light hover:text-foreground"
+                  }`}
+                >
+                  <Icon aria-hidden="true" size={16} className="shrink-0" />
+                  <span className="min-w-0 flex-1 whitespace-nowrap lg:whitespace-normal">{label}</span>
+                  {st ? <span className={`size-2 shrink-0 rounded-full ${dot[st.tone]}`} title={st.label} aria-label={st.label} /> : null}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="min-w-0 space-y-4">
+      <SettingsBlock id="ia" active={section === "ia"} eyebrow="Inteligencia artificial" title="OpenCode Go y Google" status={blockStatus([data.hasOpencodeApiKey || data.hasGoogleApiKey])}>
         <SecretField
           label="API key de OpenCode Go"
           hasValue={data.hasOpencodeApiKey}
@@ -488,6 +541,21 @@ export function PlataformaConfiguracion() {
           revealField="googleApiKey"
           onToggleClear={() => toggleClear("googleApiKey")}
         />
+        <FormField
+          label="Proveedor que responde"
+          hint="Quién atiende bots, calificación, recuperación, sugerencias y automatizaciones. Automático usa OpenCode si tiene llave y, si no, Google. Los embeddings de RAG siempre son de Google."
+        >
+          {(id) => (
+            <Select id={id} value={plain.aiProvider} onChange={(e) => setPlain((p) => ({ ...p, aiProvider: e.target.value }))}>
+              <option value="">Automático</option>
+              <option value="opencode" disabled={!data.hasOpencodeApiKey}>OpenCode Go{data.hasOpencodeApiKey ? "" : " (sin API key)"}</option>
+              <option value="google" disabled={!data.hasGoogleApiKey}>Google Gemini{data.hasGoogleApiKey ? "" : " (sin API key)"}</option>
+            </Select>
+          )}
+        </FormField>
+        {plain.aiProvider === "google" ? (
+          <p className="text-sm text-muted-darker">Con Google, los bots usan {DEFAULT_AI_MODEL.google}; los modelos de abajo solo aplican a OpenCode.</p>
+        ) : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FormField label="Modelo de texto" hint="Respuestas, calificación, recuperación y automatizaciones. Vacío usa GLM 5.3 Flash.">
             {(id) => (
@@ -511,10 +579,10 @@ export function PlataformaConfiguracion() {
           </FormField>
         </div>
         {modelsNote && <p className="text-sm text-muted-darker">{modelsNote}</p>}
-        <p className="text-sm text-muted-darker">Las notas de voz siguen en Gemini 3.8 Flash y necesitan la API key de Google.</p>
-      </SettingsBlock>
+        <p className="text-sm text-muted-darker">Las notas de voz se transcriben con OpenCode (MiMo) y Gemini de respaldo; con Google elegido, Gemini va primero.</p>
+          </SettingsBlock>
 
-      <SettingsBlock eyebrow="Facturación" title="Stripe" status={blockStatus([data.hasStripeSecretKey, data.hasStripeWebhookSecret])} defaultOpen={wide}>
+          <SettingsBlock id="stripe" active={section === "stripe"} eyebrow="Facturación" title="Stripe" status={blockStatus([data.hasStripeSecretKey, data.hasStripeWebhookSecret])}>
         <SecretField
           label="Secret key"
           hasValue={data.hasStripeSecretKey}
@@ -555,9 +623,9 @@ export function PlataformaConfiguracion() {
             <span className="text-muted-darker">Déjalo apagado hasta definir el IVA con el contador y registrar el impuesto en Stripe.</span>
           </span>
         </label>
-      </SettingsBlock>
+          </SettingsBlock>
 
-      <SettingsBlock eyebrow="Correo" title="SMTP" status={blockStatus([!!data.smtpHost, !!data.smtpUser, data.hasSmtpPass])} defaultOpen={wide}>
+          <SettingsBlock id="smtp" active={section === "smtp"} eyebrow="Correo" title="SMTP" status={blockStatus([!!data.smtpHost, !!data.smtpUser, data.hasSmtpPass])}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FormField label="Host">
             {(id) => <Input id={id} value={plain.smtpHost} onChange={(e) => setPlain((p) => ({ ...p, smtpHost: e.target.value }))} placeholder="smtp.ejemplo.com" />}
@@ -585,9 +653,9 @@ export function PlataformaConfiguracion() {
           <Switch checked={plain.smtpSecure} onCheckedChange={(v) => setPlain((p) => ({ ...p, smtpSecure: v }))} label="Conexión segura (TLS)" />
           Conexión segura (TLS)
         </label>
-      </SettingsBlock>
+          </SettingsBlock>
 
-      <SettingsBlock eyebrow="Captcha" title="Cloudflare Turnstile" status={blockStatus([!!data.turnstileSiteKey, data.hasTurnstileSecretKey])} defaultOpen={wide}>
+          <SettingsBlock id="turnstile" active={section === "turnstile"} eyebrow="Captcha" title="Cloudflare Turnstile" status={blockStatus([!!data.turnstileSiteKey, data.hasTurnstileSecretKey])}>
         <FormField label="Site key" hint="Pública — se envía al navegador en /register.">
           {(id) => <Input id={id} value={plain.turnstileSiteKey} onChange={(e) => setPlain((p) => ({ ...p, turnstileSiteKey: e.target.value }))} />}
         </FormField>
@@ -600,9 +668,9 @@ export function PlataformaConfiguracion() {
           revealField="turnstileSecretKey"
           onToggleClear={() => toggleClear("turnstileSecretKey")}
         />
-      </SettingsBlock>
+          </SettingsBlock>
 
-      <SettingsBlock eyebrow="WhatsApp" title="App de Meta de la plataforma (Embedded Signup)" status={blockStatus([!!data.metaAppId, data.hasMetaAppSecret, !!data.metaEmbeddedSignupConfigId, data.hasMetaWebhookVerifyToken])} defaultOpen={wide}>
+          <SettingsBlock id="meta" active={section === "meta"} eyebrow="WhatsApp" title="App de Meta de la plataforma (Embedded Signup)" status={blockStatus([!!data.metaAppId, data.hasMetaAppSecret, !!data.metaEmbeddedSignupConfigId, data.hasMetaWebhookVerifyToken])}>
         <Banner tone="info">
           Datos de la app de Meta de Colibly. Con ellos los clientes conectan su WhatsApp con un botón, sin copiar tokens. El App Secret
           firma los webhooks de esas cuentas; nunca se vuelve a mostrar.
@@ -633,9 +701,9 @@ export function PlataformaConfiguracion() {
           revealField="metaWebhookVerifyToken"
           onToggleClear={() => toggleClear("metaWebhookVerifyToken")}
         />
-      </SettingsBlock>
+          </SettingsBlock>
 
-      <SettingsBlock eyebrow="Medición" title="Meta Pixel, Google Analytics y Ads" status={blockStatus([!!data.metaPixelId || !!data.gaMeasurementId || !!data.googleAdsId], true)} defaultOpen={wide}>
+          <SettingsBlock id="medicion" active={section === "medicion"} eyebrow="Medición" title="Meta Pixel, Google Analytics y Ads" status={blockStatus([!!data.metaPixelId || !!data.gaMeasurementId || !!data.googleAdsId], true)}>
         <FormField label="Meta Pixel ID">
           {(id) => <Input id={id} value={plain.metaPixelId} onChange={(e) => setPlain((p) => ({ ...p, metaPixelId: e.target.value }))} />}
         </FormField>
@@ -659,12 +727,18 @@ export function PlataformaConfiguracion() {
         <FormField label="Google Ads: etiqueta de conversión de registro">
           {(id) => <Input id={id} value={plain.googleAdsSignupLabel} onChange={(e) => setPlain((p) => ({ ...p, googleAdsSignupLabel: e.target.value }))} />}
         </FormField>
-      </SettingsBlock>
+          </SettingsBlock>
 
-      <PushKeysBlock defaultOpen={wide} />
+          <PushKeysBlock active={section === "push"} />
 
-      <div className="flex justify-end border-t border-border pt-6">
-        <Button onClick={handleSave} loading={saving} className="w-full sm:w-auto">
+        </div>
+      </div>
+
+      <div className="sticky bottom-0 z-10 -mx-3 flex items-center justify-between gap-3 border-t border-border bg-surface px-3 py-3 sm:px-4 sm:mx-0 sm:rounded-lg sm:border">
+        <p className={`text-sm ${dirty ? "text-foreground" : "text-muted-darker"}`} aria-live="polite">
+          {dirty ? "Tienes cambios sin guardar." : "Todo guardado."}
+        </p>
+        <Button onClick={handleSave} loading={saving} disabled={!dirty} className="shrink-0">
           Guardar configuración
         </Button>
       </div>

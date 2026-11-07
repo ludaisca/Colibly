@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
-import { getPlatformApiKey } from "@/lib/ai/platform";
-import type { AIProvider } from "@/lib/ai/types";
+import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { rateLimit } from "@/lib/rate-limit";
 import { AI_CREDITS_EXHAUSTED_MESSAGE, reserveAiCredit } from "@/lib/ai/credits";
 import { checkUserFeature } from "@/lib/billing/entitlements";
@@ -57,8 +56,11 @@ export async function POST(
     }
     const { message, history } = parsed.data;
 
-    const provider = bot.provider as AIProvider;
-    const apiKey = await getPlatformApiKey(provider);
+    // Como el worker real: proveedor y modelo los decide la plataforma, no el bot.
+    const picked = await resolvePlatformModel();
+    const provider = picked?.provider ?? "google";
+    const model = picked?.model ?? bot.model;
+    const apiKey = picked ? await getPlatformApiKey(provider) : null;
 
     if (!apiKey) {
       return NextResponse.json(
@@ -83,7 +85,7 @@ export async function POST(
     const messages = buildTestMessages(bot, message, history, knowledge);
 
     const result = await client.complete({
-      model: bot.model,
+      model,
       messages,
       temperature: bot.temperature,
       maxTokens: bot.maxTokens,
@@ -91,7 +93,7 @@ export async function POST(
 
     // Las pruebas también gastan: antes no se registraban y el presupuesto
     // mensual quedaba por debajo del gasto real.
-    await recordBotUsage({ botId: bot.id, userId: bot.userId, model: bot.model, provider, usage: result.usage }).catch((err) =>
+    await recordBotUsage({ botId: bot.id, userId: bot.userId, model, provider, usage: result.usage }).catch((err) =>
       console.error("[bots/test] No se pudo registrar el uso de IA:", err instanceof Error ? err.message : err)
     );
 

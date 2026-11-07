@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   row: null as Record<string, unknown> | null,
   size: 1000,
+  aiProvider: null as string | null,
   keys: { opencode: "oc-key", google: "g-key" } as Record<string, string | null>,
   providers: [] as string[],
   credit: true,
@@ -33,6 +34,7 @@ vi.mock("@/lib/whatsapp/media-store", () => ({ resolveAbsolutePath: (p: string) 
 vi.mock("@/lib/ai/platform", () => ({
   getPlatformApiKey: vi.fn(async (provider: string) => state.keys[provider] ?? null),
 }));
+vi.mock("@/lib/platform-settings", () => ({ getPlatformSettings: vi.fn(async () => ({ aiProvider: state.aiProvider })) }));
 vi.mock("@/lib/ai/credits", () => ({
   AI_CREDITS_EXHAUSTED_MESSAGE: "Se acabaron tus créditos de IA de este mes.",
   reserveAiCredit: vi.fn(async () => {
@@ -83,12 +85,19 @@ describe("transcribeMessage", () => {
     state.row = audioRow();
     state.size = 1000;
     state.keys = { opencode: "oc-key", google: "g-key" };
+    state.aiProvider = null;
     state.providers = [];
     state.credit = true;
     state.reserve.mockClear();
     state.complete.mockReset().mockResolvedValue({ content: " hola, quiero precios ", usage: { promptTokens: 10, completionTokens: 5 } });
     state.update.mockClear();
     state.usage.mockClear();
+  });
+
+  it("con Google elegido como proveedor, Gemini transcribe primero", async () => {
+    state.aiProvider = "google";
+    await transcribeMessage("whatsapp", "m1", { userId: "u1" }).catch(() => null);
+    expect(state.providers[0]).toBe("google");
   });
 
   it("transcribe con OpenCode (MiMo, sin razonamiento), guarda y registra el uso", async () => {

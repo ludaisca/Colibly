@@ -21,6 +21,7 @@ const verifyToken = z.string().min(8, "Mínimo 8 caracteres").max(200).nullable(
 const updateSchema = z.object({
   opencodeApiKey: secretString,
   googleApiKey: secretString,
+  aiProvider: z.enum(["opencode", "google"]).nullable().optional(),
   aiTextModel: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,80}$/, "Modelo de texto inválido").nullable().optional(),
   aiVisionModel: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,80}$/, "Modelo de imágenes inválido").nullable().optional(),
   stripeSecretKey: secretString,
@@ -80,6 +81,7 @@ export async function GET() {
   return NextResponse.json({
     hasOpencodeApiKey: !!s.opencodeApiKey,
     hasGoogleApiKey: !!s.googleApiKey,
+    aiProvider: s.aiProvider,
     aiTextModel: s.aiTextModel,
     aiVisionModel: s.aiVisionModel,
     hasStripeSecretKey: !!s.stripeSecretKey,

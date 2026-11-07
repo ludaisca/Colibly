@@ -2506,6 +2506,10 @@ model PlatformSettings {
   googleApiKey   String? @map("google_api_key") // cifrado
   // Modelo de OpenCode elegido en /plataforma. Null = el recomendado
   // (glm-5.3-flash). El de visión se usa cuando el mensaje trae una imagen.
+  // Proveedor que atiende la IA de texto: "opencode" | "google". Null =
+  // automático (OpenCode si tiene llave, si no Google). Los embeddings y,
+  // sin llave de OpenCode, todo lo demás, siguen en Google.
+  aiProvider    String? @map("ai_provider")
   aiTextModel   String? @map("ai_text_model")
   aiVisionModel String? @map("ai_vision_model")
 

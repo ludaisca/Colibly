@@ -11,6 +11,7 @@ const CACHE_TTL_MS = 30_000;
 export interface PlatformSettings {
   opencodeApiKey: string | null;
   googleApiKey: string | null;
+  aiProvider: "opencode" | "google" | null;
   aiTextModel: string | null;
   aiVisionModel: string | null;
   stripeSecretKey: string | null;
@@ -58,6 +59,7 @@ async function loadSettings(): Promise<PlatformSettings> {
   return {
     opencodeApiKey: decryptOrNull(row?.opencodeApiKey),
     googleApiKey: decryptOrNull(row?.googleApiKey),
+    aiProvider: row?.aiProvider === "opencode" || row?.aiProvider === "google" ? row.aiProvider : null,
     aiTextModel: row?.aiTextModel ?? null,
     aiVisionModel: row?.aiVisionModel ?? null,
     stripeSecretKey: decryptOrNull(row?.stripeSecretKey),

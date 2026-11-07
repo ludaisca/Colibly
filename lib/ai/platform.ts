@@ -63,6 +63,8 @@ export async function modelChoiceError(provider: string, model: string): Promise
 export interface ModelPrefs {
   text?: string | null;
   vision?: string | null;
+  /** Proveedor elegido en /plataforma; null = automático. */
+  provider?: AIProvider | null;
 }
 
 export function selectCuratedModel(
@@ -70,7 +72,9 @@ export function selectCuratedModel(
   opts: { needsVision?: boolean } = {},
   prefs: ModelPrefs = {},
 ): { provider: AIProvider; model: string } | null {
-  if (enabled.has("opencode")) {
+  // Elegir Google solo cuenta si tiene llave; "opencode" y automático son lo mismo.
+  const preferGoogle = prefs.provider === "google" && enabled.has("google");
+  if (!preferGoogle && enabled.has("opencode")) {
     const chosen = opts.needsVision ? prefs.vision || prefs.text : prefs.text;
     return { provider: "opencode", model: chosen ? normalizeOpenCodeModel(chosen) : DEFAULT_AI_MODEL.opencode };
   }
@@ -80,7 +84,7 @@ export function selectCuratedModel(
 
 async function modelPrefs(): Promise<ModelPrefs> {
   const settings = await getPlatformSettings();
-  return { text: settings.aiTextModel, vision: settings.aiVisionModel };
+  return { text: settings.aiTextModel, vision: settings.aiVisionModel, provider: settings.aiProvider };
 }
 
 // El modelo que eligió el operador en /plataforma. `needsVision` para una

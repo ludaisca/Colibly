@@ -6,8 +6,7 @@ import { getBotControlState, type BotChatRef } from "@/lib/bots/guards";
 import { isBotWritable } from "@/lib/billing/gates";
 import { channelFeatureMessage } from "@/lib/billing/entitlements";
 import { aiCreditStatus } from "@/lib/ai/credits";
-import { getPlatformApiKey } from "@/lib/ai/platform";
-import type { AIProvider } from "@/lib/ai/types";
+import { resolvePlatformModel } from "@/lib/ai/platform";
 import { publicErrorMessage } from "@/lib/api-errors";
 
 type Params = { params: Promise<{ chatId: string }> };
@@ -40,7 +39,7 @@ async function modeFor(ctx: NonNullable<Awaited<ReturnType<typeof context>>>) {
   if (!bot) return { mode: "OFF", detail: "No hay un bot activo para esta cuenta", until: null, canResume: false };
   if (bot.status !== "ACTIVE") return { mode: "OFF", detail: `El bot ${bot.name} tiene un error y requiere revisión`, until: null, canResume: false };
   if (!(await isBotWritable(bot.id))) return { mode: "OFF", detail: "El plan no permite respuestas del bot en este momento", until: null, canResume: false };
-  if ((bot.provider !== "google" && bot.provider !== "opencode") || !(await getPlatformApiKey(bot.provider as AIProvider))) {
+  if (!(await resolvePlatformModel())) {
     return { mode: "OFF", detail: "El proveedor de IA del bot no está configurado", until: null, canResume: false };
   }
   // Licencia y créditos del dueño del canal (reglas 3 y 6 de las licencias).

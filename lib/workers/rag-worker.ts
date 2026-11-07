@@ -28,7 +28,10 @@ function chunkText(text: string): string[] {
 }
 
 export async function processRagJob(job: RagJob) {
-  const { title, content, botIds, provider, userId, sourceName } = job;
+  const { title, content, botIds, userId, sourceName } = job;
+  // Los embeddings siempre son de Google (OpenCode no tiene), aunque el trabajo
+  // se haya encolado con otro proveedor.
+  const provider: AIProvider = "google";
 
   const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) {

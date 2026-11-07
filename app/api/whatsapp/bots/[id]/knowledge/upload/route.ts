@@ -63,12 +63,13 @@ export async function POST(
       return NextResponse.json({ error: "Formato no soportado (.txt, .md, .csv, .json)" }, { status: 400 });
     }
 
-    const provider = bot.provider as AIProvider;
+    // Los embeddings siempre son de Google, sin importar qué proveedor responda.
+    const provider: AIProvider = "google";
 
     const apiKey = await getPlatformApiKey(provider);
     if (!apiKey) {
       return NextResponse.json(
-        { error: "No hay API key configurada para el proveedor de este bot" },
+        { error: "Indexar documentos requiere la API key de Google configurada en la plataforma" },
         { status: 400 }
       );
     }

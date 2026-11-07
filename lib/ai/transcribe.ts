@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey } from "@/lib/ai/platform";
+import { getPlatformSettings } from "@/lib/platform-settings";
 import { AI_CREDITS_EXHAUSTED_MESSAGE, hasAiCredits, reserveAiCredit, type AiPayer } from "@/lib/ai/credits";
 import { recordAssistUsage } from "@/lib/ai/assist-usage";
 import { OPENCODE_AUDIO_MODEL } from "@/lib/ai/providers/opencode";
@@ -84,6 +85,8 @@ export async function transcriberChain(): Promise<TranscriberOption[]> {
   const chain: TranscriberOption[] = [];
   if (opencode) chain.push({ provider: "opencode", model: OPENCODE_AUDIO_MODEL, apiKey: opencode });
   if (google) chain.push({ provider: "google", model: DEFAULT_AI_MODEL.google, apiKey: google });
+  // Con Google elegido como proveedor, Gemini transcribe primero.
+  if ((await getPlatformSettings()).aiProvider === "google") chain.sort((a, b) => (a.provider === "google" ? -1 : 0) - (b.provider === "google" ? -1 : 0));
   return chain;
 }
 

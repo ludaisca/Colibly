@@ -10,6 +10,8 @@ import type {
   ContentPart,
 } from "../types";
 
+const GOOGLE_MIN_OUTPUT_TOKENS = 1024;
+
 // gemini-embedding-2 defaults to 3072 dims; outputDimensionality truncates it
 // (Matryoshka Representation Learning — the API re-normalizes automatically)
 // down to the 768 this project's pgvector column expects. The installed SDK
@@ -97,7 +99,9 @@ export function createGoogleClient(apiKey: string) {
         // Gemini 3.8 ya no acepta parámetros de muestreo heredados; la
         // temperatura del bot sigue guardada para otros proveedores/modelos.
         ...(params.model.startsWith("gemini-3.") ? {} : { temperature: params.temperature ?? 0.7 }),
-        maxOutputTokens: params.maxTokens ?? 1024,
+        // Los tokens de razonamiento de Gemini cuentan contra este tope: con uno
+        // muy bajo (p. ej. 20) la respuesta sale vacía. Piso de 1024.
+        maxOutputTokens: Math.max(params.maxTokens ?? 1024, GOOGLE_MIN_OUTPUT_TOKENS),
       },
     });
 

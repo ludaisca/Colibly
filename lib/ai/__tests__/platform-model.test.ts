@@ -45,4 +45,16 @@ describe("selectCuratedModel", () => {
       model: "gemini-3.8-flash",
     });
   });
+
+  it("con Google elegido usa Gemini aunque OpenCode tenga llave", () => {
+    expect(selectCuratedModel(both, {}, { provider: "google", text: "kimi-k3" })).toEqual({ provider: "google", model: "gemini-3.8-flash" });
+  });
+
+  it("con Google elegido pero sin su llave sigue en OpenCode", () => {
+    expect(selectCuratedModel(new Set(["opencode"]), {}, { provider: "google" })).toEqual({ provider: "opencode", model: "glm-5.3-flash" });
+  });
+
+  it("con OpenCode elegido y solo Google configurado usa Google", () => {
+    expect(selectCuratedModel(new Set(["google"]), {}, { provider: "opencode" })).toEqual({ provider: "google", model: "gemini-3.8-flash" });
+  });
 });
