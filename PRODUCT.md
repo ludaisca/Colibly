@@ -28,7 +28,8 @@ CRM y bandeja de mensajería multicanal para pymes en México: WhatsApp (canal p
 
 ## Operating Context
 
-- Uso diario en escritorio para la bandeja; el dueño también entra a ratos. El panel es responsivo, pero la bandeja densa es la superficie central.
+- **Se usa sobre todo en el celular** (confirmado 2026-11-07): atendiendo desde el teléfono, en cualquier lugar y con cualquier luz (mostrador, calle, casa de noche). El escritorio es secundario. La bandeja es la superficie central y debe funcionar primero en una pantalla de teléfono.
+- Las burbujas tipo WhatsApp (izquierda/derecha) se conservan en cualquier rediseño: es el modelo mental de los usuarios.
 - Todo en español de México, con tuteo ("Atiende", "Tus chats").
 - Ventana de 24 h de WhatsApp, plantillas aprobadas por Meta y números mexicanos (52 / 521) son parte del trabajo diario.
 - Sin websockets: la información en vivo llega por sondeo, así que los estados de carga y "actualizado hace…" importan.
@@ -45,6 +46,7 @@ CRM y bandeja de mensajería multicanal para pymes en México: WhatsApp (canal p
 - Nombre **Colibly** (`colibly.com`), siempre a través de `lib/brand.ts`. Logo **Nexo** (C geométrica + triángulo al este), `BrandMark`.
 - Paleta vigente "Laguna + coral" y tipografía Newsreader + Figtree: son el estado actual, **no** compromisos fijos; la nueva interfaz puede proponer cambiarlos con una decisión explícita (ver `docs/INVENTARIO_UI_2026-11-07.md`).
 - Un rediseño editorial (crema, serif, terracota, navegación numerada) fue rechazado en noviembre de 2026; no repetir esa dirección.
+- **Identidad visual universal** (confirmado 2026-11-07): nada folclórico ni exclusivo de México (lotería, papel picado, Metro CDMX, etc.) en la interfaz, para poder expandirse a otros países sin rehacerla. El mercado inicial sigue siendo México; lo local vive en el contenido (moneda, números, idioma), no en el estilo.
 
 ## Evidence on Hand
 
