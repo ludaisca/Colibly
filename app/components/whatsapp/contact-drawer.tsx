@@ -18,7 +18,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
 import { ContactTasks } from "@/app/components/whatsapp/contact-tasks";
 import { ContactTimeline } from "@/app/components/whatsapp/contact-timeline";
-import { HeroTabs } from "@/app/components/ui/hero-tabs";
+import { Tabs } from "@/app/components/ui/tabs";
 import { FormField } from "@/app/components/ui/form-field";
 import { CurrencyInput } from "@/app/components/ui/currency-input";
 import { amountValue, formatAmountValue } from "@/lib/format/currency-input";
@@ -374,7 +374,7 @@ export function ContactDrawer({
             </Banner>
           )}
 
-          <HeroTabs items={DRAWER_TABS} value={tab} onChange={changeTab} label="Secciones del contacto">
+          <Tabs items={DRAWER_TABS} value={tab} onChange={changeTab} label="Secciones del contacto">
             <div className="space-y-5 pt-4">
               {tab === "resumen" && (
                 <>
@@ -575,7 +575,7 @@ export function ContactDrawer({
                 </>
               )}
             </div>
-          </HeroTabs>
+          </Tabs>
         </div>
       )}
               </div>

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useUrlTab } from "@/app/components/ui/tabs";
+
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Trash2, Power, PowerOff, Send, Upload, X, RotateCcw } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -62,13 +64,13 @@ const TABS = [
   { id: "uso", label: "Uso" },
 ] as const;
 
-export default function BotDetailPage() {
+function BotDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const { success, error: toastError } = useToast();
   const id = params.id as string;
 
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("config");
+  const [tab, setTab] = useUrlTab<(typeof TABS)[number]["id"]>(TABS.map((t) => t.id), "config");
   const [bot, setBot] = useState<BotDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -440,5 +442,14 @@ export default function BotDetailPage() {
         onSaved={fetchBot}
       />
     </DetailPage>
+  );
+}
+
+// useUrlTab lee `?tab=` con useSearchParams: la página va dentro de <Suspense>.
+export default function BotDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <BotDetailPageContent />
+    </Suspense>
   );
 }

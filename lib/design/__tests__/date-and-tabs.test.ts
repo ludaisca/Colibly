@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { DateRangePicker } from "@/app/components/ui/date-picker";
-import { HeroTabs } from "@/app/components/ui/hero-tabs";
+import { Tabs } from "@/app/components/ui/tabs";
 
-describe("HeroUI con estilos Colibly", () => {
+describe("Fechas y pestañas (Base UI + Tesela)", () => {
   it("el rango de fechas (calendario de Tesela) muestra el periodo con Intl", () => {
     const html = renderToString(createElement(DateRangePicker, { value: { start: "2026-09-01", end: "2026-09-29" }, onChange: () => {} }));
     expect(html).toMatch(/1 sept? 2026/);
@@ -14,7 +14,7 @@ describe("HeroUI con estilos Colibly", () => {
   it("mantiene una pestaña seleccionada y su panel asociado", () => {
     // createElement tipa `children` como prop obligatoria en componentes genéricos.
     // eslint-disable-next-line react/no-children-prop
-    const html = renderToString(createElement(HeroTabs, { items: [{ id: "a", label: "Primera" }, { id: "b", label: "Segunda" }], value: "b", onChange: () => {}, label: "Secciones", children: createElement("p", null, "Contenido activo") }));
+    const html = renderToString(createElement(Tabs, { items: [{ id: "a", label: "Primera" }, { id: "b", label: "Segunda" }], value: "b", onChange: () => {}, label: "Secciones", children: createElement("p", null, "Contenido activo") }));
     expect(html).toContain("Segunda");
     expect(html).toContain("Contenido activo");
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Megaphone, Trash2, Workflow, ExternalLink } from "lucide-react";
@@ -12,7 +12,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { useToast } from "@/app/components/ui/toast";
-import { HeroTabs } from "@/app/components/ui/hero-tabs";
+import { Tabs, useUrlTab } from "@/app/components/ui/tabs";
 
 interface Campaign {
   id: string;
@@ -54,8 +54,8 @@ const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" 
 
 type Tab = "campanas" | "automatizacion";
 
-export default function CampaignsPage() {
-  const [tab, setTab] = useState<Tab>("campanas");
+function CampaignsPageContent() {
+  const [tab, setTab] = useUrlTab<Tab>(["campanas", "automatizacion"], "campanas");
 
   return (
     <div className="space-y-5">
@@ -64,9 +64,9 @@ export default function CampaignsPage() {
         description="Envía mensajes masivos usando plantillas de WhatsApp, manualmente o disparados en automático desde una hoja de Google Sheets."
       />
 
-      <HeroTabs items={[{ id: "campanas", label: "Campañas" }, { id: "automatizacion", label: "Desde Google Sheets" }]} value={tab} onChange={setTab} label="Secciones de campañas">
+      <Tabs items={[{ id: "campanas", label: "Campañas" }, { id: "automatizacion", label: "Desde Google Sheets" }]} value={tab} onChange={setTab} label="Secciones de campañas">
         {tab === "campanas" ? <CampaignsTab /> : <AutomationTab />}
-      </HeroTabs>
+      </Tabs>
     </div>
   );
 }
@@ -370,5 +370,14 @@ function AutomationTab() {
         onConfirm={handleDelete}
       />
     </div>
+  );
+}
+
+// useUrlTab lee `?tab=` con useSearchParams: la página va dentro de <Suspense>.
+export default function CampaignsPage() {
+  return (
+    <Suspense fallback={null}>
+      <CampaignsPageContent />
+    </Suspense>
   );
 }

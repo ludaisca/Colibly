@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Plus, Target, Trash2, Pencil, Sparkles, Clock, Download } from "lucide-react";
@@ -15,7 +15,7 @@ import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
 import { Modal } from "@/app/components/ui/modal";
 import { DateRangePicker } from "@/app/components/ui/date-picker";
-import { HeroTabs } from "@/app/components/ui/hero-tabs";
+import { Tabs, useUrlTab } from "@/app/components/ui/tabs";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { RadioGroup } from "@/app/components/ui/radio";
 import { useToast } from "@/app/components/ui/toast";
@@ -69,12 +69,12 @@ function isoDaysAgo(days: number): string {
 const TABS = ["calificadores", "leads"] as const;
 type Tab = (typeof TABS)[number];
 
-export default function CalificadoresPage() {
+function CalificadoresPageContent() {
   const { data: session } = useSession();
   // El rol "user" solo puede ver leads ya calificados, no crear/editar/programar
   // calificadores — esa pestaña ni siquiera se ofrece como opción.
   const canManageScorers = !!session?.user && session.user.role !== "user";
-  const [tab, setTab] = useState<Tab>("calificadores");
+  const [tab, setTab] = useUrlTab<Tab>(TABS, "calificadores");
 
   return (
     <div className="space-y-5">
@@ -84,14 +84,14 @@ export default function CalificadoresPage() {
       />
 
       {canManageScorers ? (
-        <HeroTabs
+        <Tabs
           items={TABS.map((id) => ({ id, label: id === "calificadores" ? "Calificadores" : "Leads calificados" }))}
           value={tab}
           onChange={setTab}
           label="Secciones de calificadores"
         >
           {tab === "calificadores" ? <CalificadoresTab /> : <LeadsTab />}
-        </HeroTabs>
+        </Tabs>
       ) : <LeadsTab />}
     </div>
   );
@@ -722,5 +722,14 @@ function LeadsTab() {
         </div>
       </Modal>
     </>
+  );
+}
+
+// useUrlTab lee `?tab=` con useSearchParams: la página va dentro de <Suspense>.
+export default function CalificadoresPage() {
+  return (
+    <Suspense fallback={null}>
+      <CalificadoresPageContent />
+    </Suspense>
   );
 }

@@ -26,7 +26,7 @@ import { PlataformaConfiguracion } from "./_configuracion";
 import { PlataformaRespaldos } from "./_respaldos";
 import { PlataformaOperacion } from "./_operacion";
 import { PlataformaSoporte } from "./_soporte";
-import { HeroTabs } from "@/app/components/ui/hero-tabs";
+import { Tabs, useUrlTab } from "@/app/components/ui/tabs";
 import { PlataformaActivacion } from "./_activacion";
 import { formatInZone } from "@/lib/format/dates";
 
@@ -105,7 +105,7 @@ export function PlatformView({
   filters: { q: string; status: OrganizationStatus | null };
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("organizaciones");
+  const [tab, setTab] = useUrlTab<Tab>(TABS, "organizaciones");
   const [q, setQ] = useState(filters.q);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // La fila se toma de las props: tras router.refresh() el modal ve los datos nuevos.
@@ -161,7 +161,7 @@ export function PlatformView({
     <PageContainer width="6xl">
       <PageHeader title="Plataforma" description={`Todas las organizaciones de ${BRAND_NAME}, su cobro y acciones de soporte.`} />
 
-      <HeroTabs items={TABS.map((id) => ({ id, label: TAB_LABEL[id] }))} value={tab} onChange={setTab} label="Secciones de Plataforma">
+      <Tabs items={TABS.map((id) => ({ id, label: TAB_LABEL[id] }))} value={tab} onChange={setTab} label="Secciones de Plataforma">
       {tab === "configuracion" ? (
         <PlataformaConfiguracion />
       ) : tab === "respaldos" ? (
@@ -229,7 +229,7 @@ export function PlatformView({
           {selected && <OrgModal org={selected} onClose={() => setSelectedId(null)} onChanged={() => router.refresh()} />}
         </PageContainer>
       )}
-      </HeroTabs>
+      </Tabs>
     </PageContainer>
   );
 }

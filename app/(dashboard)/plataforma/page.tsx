@@ -6,6 +6,7 @@ import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import { aiCreditLimit } from "@/lib/billing/state";
 import { orgAiCreditSummary } from "@/lib/ai/credits";
 import { PLANS } from "@/lib/billing/plans";
+import { Suspense } from "react";
 import { PlatformView, type PlatformOrgRow, type PlatformSummary } from "./_view";
 
 const PAGE_SIZE = 50;
@@ -129,13 +130,16 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
   });
 
   return (
-    <PlatformView
-      summary={summary}
-      rows={rows}
-      total={total}
-      page={page}
-      totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
-      filters={{ q, status }}
-    />
+    // PlatformView lee `?tab=` (useUrlTab → useSearchParams).
+    <Suspense fallback={null}>
+      <PlatformView
+        summary={summary}
+        rows={rows}
+        total={total}
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+        filters={{ q, status }}
+      />
+    </Suspense>
   );
 }

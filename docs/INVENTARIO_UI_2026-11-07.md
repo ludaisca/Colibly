@@ -24,6 +24,8 @@ Punto de partida de la nueva interfaz (rama `feat/nueva-interfaz`): qué compone
 
 Quitar HeroUI y `react-aria-components` elimina 4 dependencias y deja **una sola** forma de hacer diálogos, menús y popovers.
 
+**Estado (2026-11-07): hecho.** Menús, paneles, selectores, tooltips, modales y pestañas van sobre Base UI; fechas con el calendario de Tesela. HeroUI, `react-aria-components` y `@internationalized/date` ya no están en `package.json`.
+
 ## 3. Componentes de Colibly (`app/components/ui/`)
 
 Uso = archivos que lo importan. "Hecho a mano" = comportamiento propio, sin librería.

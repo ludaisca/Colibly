@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "./cn";
-import { HeroTabs } from "./hero-tabs";
+import { Tabs } from "./tabs";
 
 // Plantilla compartida de página de detalle (cuentas/[id], bots/[id], etc.):
 // back-link + título (+ badge) + tabs opcionales + contenido. Sustituye al
@@ -67,9 +67,9 @@ export function DetailPage({
         </div>
       </div>
 
-      {tabs?.length ? <HeroTabs items={tabs} value={activeTab ?? tabs[0].id} onChange={(id) => onTabChange?.(id)} label={`Secciones de ${title}`}>
+      {tabs?.length ? <Tabs items={tabs} value={activeTab ?? tabs[0].id} onChange={(id) => onTabChange?.(id)} label={`Secciones de ${title}`}>
         {children}
-      </HeroTabs> : children}
+      </Tabs> : children}
     </div>
   );
 }
