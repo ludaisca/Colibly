@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -333,10 +334,9 @@ export function ContactDrawer({
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
                 <Drawer.Title className="truncate text-sm font-semibold text-foreground">{contact ? displayName(contact.name, contact.remoteJid) : "Contacto"}</Drawer.Title>
                 <div className="flex shrink-0 items-center gap-1">
-                  <button
+                  <Tooltip label="Copiar enlace"><button
                     type="button"
                     aria-label="Copiar enlace del contacto"
-                    title="Copiar enlace"
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(window.location.href);
@@ -348,7 +348,7 @@ export function ContactDrawer({
                     className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"
                   >
                     <Link2 size={16} />
-                  </button>
+                  </button></Tooltip>
                   <Drawer.Close aria-label="Cerrar ficha" className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"><X size={18} /></Drawer.Close>
                 </div>
               </div>
@@ -420,7 +420,7 @@ export function ContactDrawer({
               <Input
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="Nueva etiqueta..."
+                placeholder="Nueva etiqueta…"
                 className="flex-1"
               />
               <Button size="sm" variant="secondary" icon={Plus} onClick={handleCreateTag}>
@@ -452,11 +452,11 @@ export function ContactDrawer({
               <Textarea
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Agregar una nota..."
+                placeholder="Agregar una nota…"
                 rows={3}
               />
               <Button size="sm" onClick={handleAddNote} disabled={savingNote || !newNote.trim()}>
-                {savingNote ? "Guardando..." : "Agregar nota"}
+                {savingNote ? "Guardando…" : "Agregar nota"}
               </Button>
             </div>
             <div className="space-y-3">
@@ -566,7 +566,7 @@ export function ContactDrawer({
                   );
                 })}
                 <Button size="sm" variant="secondary" onClick={handleSaveCustomFields} disabled={savingFields}>
-                  {savingFields ? "Guardando..." : "Guardar campos"}
+                  {savingFields ? "Guardando…" : "Guardar campos"}
                 </Button>
               </div>
             </div>

@@ -260,7 +260,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                 disabled={loading || !scorerId}
                 className="w-full"
               >
-                {loading ? "Calificando..." : "Calificar con este agente"}
+                {loading ? "Calificando…" : "Calificar con este agente"}
               </Button>
             </div>
           </>

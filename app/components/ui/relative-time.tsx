@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "./cn";
 import { useSyncExternalStore } from "react";
 import { formatInZone, formatRelative } from "@/lib/format/dates";
 
@@ -39,7 +40,7 @@ export function RelativeTime({
   const iso = typeof value === "string" ? value : value.toISOString();
   const absolute = formatInZone(iso, ABSOLUTE, timeZone);
   return (
-    <time dateTime={iso} title={absolute} className={className}>
+    <time dateTime={iso} title={absolute} className={cn("tabular-nums", className)}>
       {now ? formatRelative(iso, now) : absolute}
     </time>
   );

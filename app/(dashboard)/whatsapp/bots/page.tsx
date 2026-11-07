@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -153,7 +154,7 @@ export default function BotsPage() {
               className="flex shrink-0 items-center gap-1"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
+              <Tooltip label={bot.isActive ? "Desactivar" : "Activar"}><button aria-label={bot.isActive ? "Desactivar" : "Activar"}
                 onClick={() => handleToggle(bot.id)}
                 disabled={togglingId === bot.id}
                 className={`p-1.5 rounded-md transition-colors ${
@@ -161,7 +162,6 @@ export default function BotsPage() {
                     ? "bg-success-bg text-success hover:bg-success-bg/80"
                     : "bg-surface-light text-muted-darker hover:text-foreground"
                 }`}
-                title={bot.isActive ? "Desactivar" : "Activar"}
               >
                 {togglingId === bot.id ? (
                   <Spinner size="sm" />
@@ -170,7 +170,7 @@ export default function BotsPage() {
                 ) : (
                   <PowerOff size={14} />
                 )}
-              </button>
+              </button></Tooltip>
               <Button
                 variant="ghost"
                 size="sm"

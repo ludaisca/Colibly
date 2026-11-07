@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { useEffect, useRef, useState } from "react";
 import { Sticker, Upload, Star, Send, Trash2 } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
@@ -77,7 +78,7 @@ export function StickerPicker({ disabled, onSend, open: controlledOpen, onOpenCh
     finally { setBusy(false); }
   }
   return <>
-    {!hideTrigger && <button type="button" disabled={disabled} onClick={() => setOpen(true)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong" title="Stickers" aria-label="Stickers"><Sticker size={18} /></button>}
+    {!hideTrigger && <Tooltip label="Stickers"><button type="button" disabled={disabled} onClick={() => setOpen(true)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong" aria-label="Stickers"><Sticker size={18} /></button></Tooltip>}
     <Modal open={open} onClose={() => { if (!busy) { setOpen(false); setSelectedId(null); setConfirmDelete(false); } }} title="Stickers del equipo" size="md">
       <div className="space-y-4">
         <p className="text-xs text-muted-darker">Biblioteca compartida por tu organización · {items.length}/100. WebP de 512 × 512 px: hasta 100 KB estáticos o 500 KB animados.</p>

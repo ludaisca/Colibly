@@ -261,7 +261,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Agendar"}
+            {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Agendar"}
           </Button>
         </>
       }
@@ -297,7 +297,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
                       value={contactSearch}
                       onChange={(e) => { setContactSearch(e.target.value); setShowResults(true); }}
                       onFocus={() => setShowResults(true)}
-                      placeholder="Buscar por nombre o teléfono..."
+                      placeholder="Buscar por nombre o teléfono…"
                     />
                     {showResults && contactSearch.trim() && contactResults.length > 0 && (
                       <div className="absolute z-10 mt-1.5 w-full rounded-lg border border-border bg-surface shadow-lg max-h-56 overflow-y-auto">
@@ -374,7 +374,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
 
         <FormField label="Notas">
           {(id) => (
-            <Textarea id={id} value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Detalles adicionales..." />
+            <Textarea id={id} value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Detalles adicionales…" />
           )}
         </FormField>
 

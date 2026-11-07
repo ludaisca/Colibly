@@ -244,14 +244,14 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
             </FormField>
 
             <FormField label="Token de la Página" required error={errors.pageAccessToken} hint="Page access token con permiso leads_retrieval">
-              {(id) => <Textarea id={id} value={pageAccessToken} onChange={(e) => setPageAccessToken(e.target.value)} placeholder="EAA..." rows={3} />}
+              {(id) => <Textarea id={id} value={pageAccessToken} onChange={(e) => setPageAccessToken(e.target.value)} placeholder="EAA…" rows={3} />}
             </FormField>
           </>
         )}
 
         {isEdit && (
           <FormField label="Token de la Página" hint="Déjalo vacío para no cambiarlo">
-            {(id) => <Textarea id={id} value={pageAccessToken} onChange={(e) => setPageAccessToken(e.target.value)} placeholder="EAA..." rows={2} />}
+            {(id) => <Textarea id={id} value={pageAccessToken} onChange={(e) => setPageAccessToken(e.target.value)} placeholder="EAA…" rows={2} />}
           </FormField>
         )}
 
@@ -263,7 +263,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
             ? "Déjalo vacío para no cambiarlo. Sin App Secret ningún leadgen se puede ingerir (la firma nunca valida)."
             : "Secreto de la app de Business — sin esto, ningún leadgen se puede ingerir (la firma nunca valida)"}
         >
-          {(id) => <Input id={id} type="password" autoComplete="off" value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123..." error={errors.appSecret} />}
+          {(id) => <Input id={id} type="password" autoComplete="off" value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123…" error={errors.appSecret} />}
         </FormField>
 
         <FormField label="Número de WhatsApp de seguimiento" hint="Bajo qué WAAccount se crean los contactos de Instant Forms de esta página, antes de que exista conversación">
@@ -284,7 +284,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
         <FormField label="Access token de Conversions API" error={errors.capiAccessToken} hint={isEdit ? initialData?.hasCapiAccessToken ? "Configurado. Déjalo vacío para conservarlo." : "Sin configurar." : "Token con permiso sobre el dataset"}>
           {(id) => (
             <div className="space-y-2">
-              <Textarea id={id} value={capiAccessToken} onChange={(e) => setCapiAccessToken(e.target.value)} placeholder={clearCapiToken ? "Se quitará al guardar" : "EAA..."} rows={2} disabled={clearCapiToken} />
+              <Textarea id={id} value={capiAccessToken} onChange={(e) => setCapiAccessToken(e.target.value)} placeholder={clearCapiToken ? "Se quitará al guardar" : "EAA…"} rows={2} disabled={clearCapiToken} />
               {isEdit && initialData?.hasCapiAccessToken && (
                 <Button type="button" size="sm" variant="secondary" onClick={() => { setClearCapiToken((v) => !v); setCapiAccessToken(""); }}>
                   {clearCapiToken ? "Deshacer" : "Quitar token"}

@@ -146,7 +146,7 @@ function TelegramCuentasView() {
             icon={Search}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre..."
+            placeholder="Buscar por nombre…"
             className="sm:max-w-xs flex-1"
           />
           <Select

@@ -177,7 +177,7 @@ export default function ContactosPage() {
             icon={Search}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Buscar por nombre o identificador..."
+            placeholder="Buscar por nombre o identificador…"
             className="min-w-0 flex-1"
           />
           <FiltersPanel

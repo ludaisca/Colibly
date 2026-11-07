@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "./tooltip";
 import { useEffect, useState, type RefObject } from "react";
 import { Bold, Code, Italic, Strikethrough, type LucideIcon } from "lucide-react";
 import { toggleFormat, type FormatKind } from "@/lib/whatsapp/format";
@@ -86,16 +87,14 @@ export function FormatToolbar({ textareaRef, value, onChange, className }: {
       onMouseDown={(event) => event.preventDefault()}
     >
       {BUTTONS.map(({ kind, icon: Icon, label, keys }) => (
-        <button
-          key={kind}
+        <Tooltip label={`${label} (${keys})`} key={kind}><button
           type="button"
           onClick={() => apply(kind)}
           aria-label={label}
-          title={`${label} (${keys})`}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
         >
           <Icon size={15} />
-        </button>
+        </button></Tooltip>
       ))}
     </div>
   );

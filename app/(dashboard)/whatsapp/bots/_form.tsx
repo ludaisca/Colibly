@@ -199,7 +199,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
 
           <FormField label="Prompt del sistema" required error={errors.systemPrompt} hint="Define cómo se comportará el bot. Incluye instrucciones, tono y límites.">
             {(id) => (
-              <Textarea id={id} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Eres un asistente virtual de soporte técnico..." rows={6} error={errors.systemPrompt} />
+              <Textarea id={id} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Eres un asistente virtual de soporte técnico…" rows={6} error={errors.systemPrompt} />
             )}
           </FormField>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "./tooltip";
 import { useMemo } from "react";
 import { CalendarDays, X } from "lucide-react";
 import { DateField, DateRangePicker, RangeCalendar } from "@heroui/react";
@@ -60,6 +61,6 @@ export function HeroDateRange({ value, onChange, label = "Periodo", className }:
         </RangeCalendar>
       </DateRangePicker.Popover>
     </DateRangePicker>
-    {(value.start || value.end) && <button type="button" className="colibly-hero-range-clear" onClick={() => onChange({ start: "", end: "" })} aria-label="Quitar filtro de fechas" title="Quitar filtro de fechas"><X size={14} /></button>}
+    {(value.start || value.end) && <Tooltip label="Quitar filtro de fechas"><button type="button" className="colibly-hero-range-clear" onClick={() => onChange({ start: "", end: "" })} aria-label="Quitar filtro de fechas"><X size={14} /></button></Tooltip>}
   </div></I18nProvider>;
 }

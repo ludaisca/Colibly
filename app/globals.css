@@ -92,6 +92,10 @@
   /* Celdas del tablero de espera (Andén): fondo de cada cifra. */
   --cell: var(--surface-light);
 
+  /* Velo detrás de modales, cajones y la paleta de comandos (antes tres
+     violetas sueltos en sus .css). */
+  --overlay: rgb(15 17 19 / 58%);
+
   /* Acento de apoyo: coral (badges, highlights). No es CTA. */
   --accent-2:       var(--coral-600);
   --accent-2-hover: var(--coral-700);

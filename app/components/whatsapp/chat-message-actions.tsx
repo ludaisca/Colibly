@@ -129,7 +129,6 @@ export function ChatMessageActions(props: MessageActionProps) {
             className="rounded-full p-1.5 text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
             aria-expanded={open}
             aria-label="Acciones del mensaje"
-            title="Acciones del mensaje"
           >
             <MoreHorizontal size={16} />
           </button>

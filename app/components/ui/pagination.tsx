@@ -28,7 +28,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
   }
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex items-center gap-2 tabular-nums", className)}>
       <button
         type="button"
         aria-label="Página anterior"

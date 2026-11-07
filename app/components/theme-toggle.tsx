@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { useHasMounted } from "@/app/hooks/use-has-mounted";
@@ -16,7 +17,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   const isDark = resolvedTheme === "dark";
 
   return (
-    <button
+    <Tooltip label={isDark ? "Modo claro" : "Modo oscuro"}><button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
@@ -24,9 +25,8 @@ export function ThemeToggle({ className }: { className?: string }) {
         className
       )}
       aria-label={isDark ? "Activar modo claro" : "Activar modo oscuro"}
-      title={isDark ? "Modo claro" : "Modo oscuro"}
     >
       {isDark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
-    </button>
+    </button></Tooltip>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "./tooltip";
 import { displayName } from "@/lib/chats/display-name";
 import { assignChatToMe, oneHourFromNow, resolveChat, setChatPriority, snoozeChat } from "@/lib/inbox/actions";
 import { useEffect, useMemo, useState } from "react";
@@ -308,18 +309,17 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
 
   return (
     <>
-      <button
+      <Tooltip label="Buscar chats, contactos y secciones (Ctrl/⌘ K)"><button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Buscar chats, contactos y secciones"
-        title="Buscar chats, contactos y secciones (Ctrl/⌘ K)"
         className="colibly-command-trigger"
       >
         <Search size={17} />
         <span className="hidden xl:inline">Buscar chats, contactos…</span>
         <span className="hidden lg:inline xl:hidden">Buscar</span>
         <kbd className="hidden lg:inline">⌘ K</kbd>
-      </button>
+      </button></Tooltip>
       <Command.Dialog
         open={open}
         onOpenChange={(next) => {

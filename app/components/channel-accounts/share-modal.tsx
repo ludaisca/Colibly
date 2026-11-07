@@ -133,7 +133,7 @@ export function ChannelAccountShareModal({
 
         <div className="flex items-center gap-2">
           <Select value={shareUserId} onChange={(e) => setShareUserId(e.target.value)} className="flex-1" aria-label="Usuario">
-            <option value="">Seleccionar usuario...</option>
+            <option value="">Seleccionar usuario…</option>
             {candidates.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name ?? u.email} ({ROLE_LABEL[u.role] ?? u.role})

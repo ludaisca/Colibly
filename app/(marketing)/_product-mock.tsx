@@ -341,7 +341,7 @@ export function InboxMock({ className }: { className?: string }) {
               <p className="text-sm font-bold tracking-tight">Chats</p>
               <div className="flex h-9 items-center gap-2 rounded-[12px] border border-border bg-surface-light px-2.5">
                 <Search size={14} className="shrink-0 text-muted-darker" aria-hidden />
-                <span className="text-xs text-muted-darker">Buscar chat...</span>
+                <span className="text-xs text-muted-darker">Buscar chat…</span>
               </div>
             </div>
             <div className="flex items-center gap-1.5 border-b border-border bg-surface/50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-darker">

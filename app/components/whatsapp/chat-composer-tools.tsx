@@ -132,7 +132,6 @@ export function ChatAiMenu({
           disabled={disabled}
           className={`${TOOL} ${open ? "bg-accent-subtle text-accent-ink" : ""}`}
           aria-label="Herramientas de IA"
-          title="Herramientas de IA"
           aria-expanded={open}
         >
           <Sparkles size={18} />
@@ -238,7 +237,6 @@ export function ChatMoreMenu({
             disabled={disabled}
             className={TOOL}
             aria-label="Más herramientas"
-            title="Más herramientas"
           >
             <Plus size={18} />
           </button>

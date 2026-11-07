@@ -280,8 +280,8 @@ export default function NewLeadSheetSourcePage() {
                       id={id}
                       value={waTemplateId}
                       onChange={handleTemplateChange}
-                      placeholder={loadingTemplates ? "Cargando..." : "Seleccionar"}
-                      searchPlaceholder="Buscar plantilla..."
+                      placeholder={loadingTemplates ? "Cargando…" : "Seleccionar"}
+                      searchPlaceholder="Buscar plantilla…"
                       error={errors.waTemplateId}
                       disabled={!waAccountId || loadingTemplates}
                       options={templates.map((t) => ({
@@ -325,7 +325,7 @@ export default function NewLeadSheetSourcePage() {
                         className="hidden"
                       />
                       <Button type="button" variant="secondary" size="sm" icon={Upload} onClick={() => headerFileInputRef.current?.click()} disabled={!waAccountId || headerUploading}>
-                        {headerUploading ? "Subiendo..." : "Subir archivo"}
+                        {headerUploading ? "Subiendo…" : "Subir archivo"}
                       </Button>
                       {headerFileName && !headerUploading && <p className="text-xs text-muted-darker">{headerFileName} — cargado</p>}
                       {!waAccountId && <p className="text-xs text-muted-darker">Selecciona primero una cuenta de WhatsApp</p>}
@@ -363,7 +363,7 @@ export default function NewLeadSheetSourcePage() {
                   </FormField>
                 )}
 
-                {loadingTab && <p className="text-xs text-muted-darker">Cargando columnas...</p>}
+                {loadingTab && <p className="text-xs text-muted-darker">Cargando columnas…</p>}
 
                 {header.length > 0 && !loadingTab && (
                   <div className="space-y-4">

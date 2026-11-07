@@ -525,7 +525,7 @@ export default function CuentaDetailPage() {
                     autoComplete="off"
                     value={appSecretDraft}
                     onChange={(e) => setAppSecretDraft(e.target.value)}
-                    placeholder="abc123..."
+                    placeholder="abc123…"
                     aria-label="Nuevo App Secret"
                     className="max-w-[200px] font-mono text-sm"
                   />
@@ -734,7 +734,7 @@ export default function CuentaDetailPage() {
                 <span className="text-xs text-muted-darker">→</span>
 
                 <Select aria-label="Agente destinatario de la regla" value={ruleAssignedToId} onChange={(e) => setRuleAssignedToId(e.target.value)} className="flex-1 min-w-[160px]">
-                  <option value="">Asignar a...</option>
+                  <option value="">Asignar a…</option>
                   {routingAssignees.map(u => <option key={u.id} value={u.id}>{u.name ?? u.email}</option>)}
                 </Select>
 
@@ -805,7 +805,7 @@ export default function CuentaDetailPage() {
 
             <div className="flex items-center gap-2">
               <Select aria-label="Usuario con quien compartir la cuenta" value={shareUserId} onChange={(e) => setShareUserId(e.target.value)} className="flex-1">
-                <option value="">Seleccionar usuario...</option>
+                <option value="">Seleccionar usuario…</option>
                 {allUsers
                   .filter((u) => u.id !== account.userId && !sharedUsers.some((s) => s.id === u.id))
                   .map((u) => (
@@ -842,7 +842,7 @@ export default function CuentaDetailPage() {
         onClose={() => setDeleteOpen(false)}
         title="Eliminar cuenta"
         description={`¿Estás seguro de eliminar "${account.name}"? Esta acción eliminará permanentemente todos los chats y mensajes asociados. No se puede deshacer.`}
-        confirmLabel={deleting ? "Eliminando..." : "Eliminar"}
+        confirmLabel={deleting ? "Eliminando…" : "Eliminar"}
         tone="danger"
         onConfirm={handleDelete}
       />

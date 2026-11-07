@@ -444,8 +444,8 @@ export default function NewCampaignPage() {
                         id={id}
                         value={waTemplateId}
                         onChange={handleTemplateChange}
-                        placeholder={loadingTemplates ? "Cargando..." : "Seleccionar"}
-                        searchPlaceholder="Buscar plantilla..."
+                        placeholder={loadingTemplates ? "Cargando…" : "Seleccionar"}
+                        searchPlaceholder="Buscar plantilla…"
                         error={errors.waTemplateId}
                         disabled={!waAccountId || loadingTemplates}
                         options={templates.map(t => ({
@@ -509,7 +509,7 @@ export default function NewCampaignPage() {
                           onClick={() => headerFileInputRef.current?.click()}
                           disabled={!waAccountId || headerUploading}
                         >
-                          {headerUploading ? "Subiendo..." : "Subir archivo"}
+                          {headerUploading ? "Subiendo…" : "Subir archivo"}
                         </Button>
                         {headerFileName && !headerUploading && (
                           <p className="text-xs text-muted-darker">{headerFileName} — cargado</p>
@@ -639,7 +639,7 @@ export default function NewCampaignPage() {
                             onClick={loadRecipientsByTag}
                             disabled={!waAccountId || !selectedTagId || loadingTagContacts}
                           >
-                            {loadingTagContacts ? "Cargando..." : "Cargar contactos"}
+                            {loadingTagContacts ? "Cargando…" : "Cargar contactos"}
                           </Button>
                         </div>
                       )}

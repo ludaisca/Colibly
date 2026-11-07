@@ -7,7 +7,7 @@
   align-items: flex-end;
   justify-content: center;
   overflow-y: auto;
-  background: rgb(17 13 31 / 62%);
+  background: var(--overlay);
   backdrop-filter: blur(3px);
 }
 .colibly-modal-container {

@@ -180,7 +180,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
               onChange={(e) => {
                 if (e.target.value) addField(e.target.value);
               }}
-              className="mb-3 cursor-pointer border-none bg-transparent text-xs font-semibold text-accent-ink focus:outline-none"
+              className="mb-3 cursor-pointer rounded border-none bg-transparent text-xs font-semibold text-accent-ink focus-visible:underline"
             >
               <option value="" disabled>+ Añadir condición</option>
               {addableFields.map((f) => (

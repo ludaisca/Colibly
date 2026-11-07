@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName } from "@/lib/chats/display-name";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -116,14 +117,13 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
       <div className="w-[260px] max-w-full">
         <div className="flex items-center gap-1.5">
           <audio controls src={mediaSrc} className="h-10 min-w-0 flex-1" />
-          <a
+          <Tooltip label="Descargar audio"><a aria-label="Descargar audio"
             href={mediaSrc}
             download={msg.filename ?? "audio.ogg"}
             className="text-muted-darker hover:text-foreground shrink-0"
-            title="Descargar audio"
           >
             <Download size={14} />
-          </a>
+          </a></Tooltip>
         </div>
         {/* Los temp-… (envío optimista) aún no existen en la base. */}
         {!msg.id.startsWith("temp-") && <AudioTranscript messageId={msg.id} initial={msg.transcript ?? null} />}
@@ -143,14 +143,13 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
     return (
       <div className="relative group max-w-full">
         <video controls src={mediaSrc} className="max-h-[320px] max-w-full rounded-xl" />
-        <button
+        <Tooltip label="Ver en grande"><button aria-label="Ver en grande"
           type="button"
           onClick={() => onPreview({ type: "video", src: mediaSrc, filename: msg.filename, mimeType: msg.mimeType })}
           className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white hover:bg-black/70"
-          title="Ver en grande"
         >
           <Maximize2 size={14} />
-        </button>
+        </button></Tooltip>
       </div>
     );
   }
@@ -349,10 +348,9 @@ function MessageBubble({
           </div>
         )}
         {msg.replyToWamid && (
-          <button
+          <Tooltip label="Ir al mensaje citado"><button
             type="button"
             onClick={() => quoted && onJumpToMessage(quoted.id)}
-            title="Ir al mensaje citado"
             className="mb-2 flex w-full max-w-full items-center gap-2 rounded-lg border-l-2 border-accent-strong bg-background/50 px-2 py-1.5 text-left text-xs transition-colors hover:bg-background/75 focus-visible:outline-2 focus-visible:outline-accent-strong"
           >
             {quotedThumb ? (
@@ -365,7 +363,7 @@ function MessageBubble({
               <span className="block font-semibold text-accent-ink">{quoted?.direction === "OUTBOUND" ? "Tú" : quoted?.direction === "INBOUND" ? leadName : "Mensaje citado"}</span>
               <span className="block truncate text-muted-darker">{quoted ? messagePreview(quoted) : "Mensaje anterior"}</span>
             </span>
-          </button>
+          </button></Tooltip>
         )}
         {hasMedia && (
           <div className={`${mediaOnly ? "" : "mb-1"} space-y-1`}>
@@ -710,15 +708,14 @@ export function ChatThreadPanel({
           <div ref={messagesEndRef} />
         </div>
         {!atBottom && (
-          <button
+          <Tooltip label="Ir al final"><button
             type="button"
             onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })}
             aria-label="Ir al final de la conversación"
-            title="Ir al final"
             className="absolute bottom-3 right-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-muted-darker shadow-md transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
           >
             <ArrowDown size={18} />
-          </button>
+          </button></Tooltip>
         )}
       </div>
     </>

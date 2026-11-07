@@ -62,7 +62,8 @@ Lectura: la escala tipográfica real tiene un escalón de 10–13px que `DESIGN.
 ## Estado
 
 - **Hecho (2026-11-07):** `dropdown`, `user-dropdown`, `notification-bell` (escritorio), `multi-select` y `searchable-select` pasan a Base UI (Menu / Popover / Combobox); `"..."` → `…` en los dos selectores; foco visible en sus campos. Verificado con teclado en el navegador (flechas, Fin, Escape y foco de regreso).
-- Pendiente: tooltips en lugar de `title=`, `transition-all` del shell, `motion-reduce` en `Button`, `tabular-nums` en tabla/paginación, `date-picker` y `filters-panel`.
+- **Hecho (2026-11-07, segunda pasada):** `Tooltip` sobre Base UI en lugar de `title` en 30 controles (de los 262 `title=` medidos al principio, la mayoría eran props `title` de componentes como `PageHeader`; los nativos en controles eran 32). Nueve botones de solo icono no tenían nombre accesible y ahora llevan `aria-label`. `transition-all` del shell → propiedades concretas; `Button` sin elevación y con `motion-reduce`; `tabular-nums` en tabla, paginación y `RelativeTime`; foco visible en `date-picker` (`ring-2`) y en el selector de `filters-panel`; 46 `"..."` → `…`; velo común `--overlay` para modal, cajón y paleta; `SectionHeader` sin etiqueta sobre el título.
+- Pendiente: sacar `Modal`, `hero-tabs` y `hero-date-range` de HeroUI (quita `hero-ui.css` y dos dependencias) y portar el calendario de Tesela; tamaños de 9–13px escritos a mano (decidir un token `text-micro`).
 
 ## Prioridad sugerida
 

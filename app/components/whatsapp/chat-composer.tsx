@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { FormatToolbar } from "@/app/components/ui/format-toolbar";
 import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check, Image as ImageIcon } from "lucide-react";
@@ -309,15 +310,14 @@ export function ChatComposer({
             <p className="text-xs truncate">{attachment.name}</p>
             <p className="text-[11px] text-muted-darker">{(attachment.size / 1024).toFixed(0)} KB</p>
           </div>
-          <button
+          <Tooltip label="Quitar adjunto"><button aria-label="Quitar adjunto"
             type="button"
             onClick={onClearAttachment}
             className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
             disabled={sending}
-            title="Quitar adjunto"
           >
             <X size={16} />
-          </button>
+          </button></Tooltip>
         </div>
       )}
 
@@ -327,14 +327,13 @@ export function ChatComposer({
             <span className="text-xs font-medium text-muted-darker">
               Botones de respuesta rápida ({interactiveButtons.length}/{MAX_BUTTONS})
             </span>
-            <button
+            <Tooltip label="Cerrar y quitar botones"><button aria-label="Cerrar y quitar botones"
               type="button"
               onClick={toggleButtons}
               className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
-              title="Cerrar y quitar botones"
             >
               <X size={14} />
-            </button>
+            </button></Tooltip>
           </div>
           <p className="text-xs text-muted-darker">Se enviarán con el mensaje. Hasta tres botones de 20 caracteres.</p>
           {interactiveButtons.map((title, i) => (
@@ -394,25 +393,24 @@ export function ChatComposer({
           <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-danger" />
           <span className="tabular-nums text-sm font-semibold text-foreground">{formatDuration(recording.seconds)}</span>
           <span className="flex-1 text-xs text-muted-darker">Grabando audio…</span>
-          <button type="button" onClick={() => finishRecording(true)} className={TOOL_BUTTON} aria-label="Cancelar grabación" title="Cancelar">
+          <Tooltip label="Cancelar"><button type="button" onClick={() => finishRecording(true)} className={TOOL_BUTTON} aria-label="Cancelar grabación">
             <X size={18} />
-          </button>
+          </button></Tooltip>
           <Button type="button" size="sm" icon={Check} onClick={() => finishRecording(false)}>Adjuntar</Button>
         </div>
       ) : (
       <div className="flex items-end gap-1">
         <div className="flex min-w-0 items-center" aria-label="Herramientas del mensaje">
           {supportsAttachments && (
-            <button
+            <Tooltip label={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar"}><button
               type="button"
               onClick={onPickFile}
               disabled={sending || attachmentsDisabled}
               className={TOOL_BUTTON}
-              title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar"}
               aria-label="Adjuntar archivo"
             >
               <Paperclip size={18} />
-            </button>
+            </button></Tooltip>
           )}
           <ChatAiMenu
             chatId={chatId}
@@ -481,16 +479,15 @@ export function ChatComposer({
         />
         </div>
         {canRecord && !attachment && interactiveButtons.length === 0 && (
-          <button
+          <Tooltip label="Grabar audio"><button
             type="button"
             onClick={() => void startRecording()}
             disabled={sending}
             className={TOOL_BUTTON}
             aria-label="Grabar audio"
-            title="Grabar audio"
           >
             <Mic size={18} />
-          </button>
+          </button></Tooltip>
         )}
         <Button
           type="submit"

@@ -238,13 +238,13 @@ export function MetaChannelAccountFormModal({ channel, open, onClose, onCreated 
             : "Page Access Token generado en Meta for Developers, con permisos pages_messaging e instagram_manage_messages"}
         >
           {(id) => (
-            <Textarea id={id} value={pageAccessToken} onChange={(e) => setPageAccessToken(e.target.value)} placeholder="EAA..." rows={3} />
+            <Textarea id={id} value={pageAccessToken} onChange={(e) => setPageAccessToken(e.target.value)} placeholder="EAA…" rows={3} />
           )}
         </FormField>
 
         <FormField label="App Secret" required error={errors.appSecret} hint="Secreto de la App de Meta, para validar la firma de los webhooks entrantes">
           {(id) => (
-            <Input id={id} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123..." />
+            <Input id={id} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123…" />
           )}
         </FormField>
 

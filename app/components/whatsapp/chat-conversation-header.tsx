@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName } from "@/lib/chats/display-name";
 import { useId, useState } from "react";
 import { ArrowLeft, Check, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
@@ -124,7 +125,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
         <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
         <div className="min-w-0 flex-1">
           {chat.contactId ? (
-            <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-[15px] font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>
+            <Tooltip label="Ver contacto"><button type="button" onClick={onOpenContactDrawer} className="block max-w-full truncate rounded text-left text-[15px] font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button></Tooltip>
           ) : <p className="truncate text-[15px] font-semibold text-foreground">{name}</p>}
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-darker" title={subtitle}>
             {/* Sin icono de canal: la insignia del avatar ya lo muestra. */}
@@ -142,7 +143,6 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
             <button
               type="button"
               aria-label="Acciones de la conversación"
-              title="Acciones"
               className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-accent-subtle text-accent-ink" : "text-muted-darker hover:bg-surface-light hover:text-foreground"}`}
             >
               <MoreVertical size={17} />

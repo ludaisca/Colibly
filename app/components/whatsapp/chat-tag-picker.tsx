@@ -128,7 +128,7 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
             <Input
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
-              placeholder="Nueva etiqueta..."
+              placeholder="Nueva etiqueta…"
               className="flex-1"
             />
             <Button size="sm" variant="secondary" icon={Plus} onClick={handleCreateTag} />

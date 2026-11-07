@@ -250,7 +250,7 @@ function buildWidgetScript(accountId: string): string {
     form.style.borderTop = "1px solid ${C.border}";
     var input = document.createElement("input");
     input.type = "text";
-    input.placeholder = "Escribe un mensaje...";
+    input.placeholder = "Escribe un mensaje…";
     input.style.flex = "1";
     input.style.border = "none";
     input.style.padding = "10px 12px";

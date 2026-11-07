@@ -79,7 +79,7 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
       align="right"
       portal
       trigger={compact ? (
-        <button type="button" aria-expanded={open} title={data.detail} className="inline-flex h-8 items-center gap-1.5 rounded-xl px-1 text-xs text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong">
+        <button type="button" aria-expanded={open} className="inline-flex h-8 items-center gap-1.5 rounded-xl px-1 text-xs text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong">
           <Icon size={14} className={iconTone} /> {compactLabel} <ChevronDown size={12} />
         </button>
       ) : <DropdownButton size="sm" icon={view.icon} label={view.label} className={`rounded-xl ${view.tone}`} />}

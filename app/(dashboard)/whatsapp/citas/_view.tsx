@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -339,18 +340,16 @@ export function CitasView() {
                     </div>
                     <div className="mt-1 space-y-1">
                       {items.slice(0, 3).map((appointment) => (
-                        <button
-                          key={appointment.id}
+                        <Tooltip label={`${appointment.title} · ${contactLabelOf(appointment.contact)}`} key={appointment.id}><button
                           type="button"
                           onClick={() => { setEditing(appointment); setModalOpen(true); }}
-                          title={`${appointment.title} · ${contactLabelOf(appointment.contact)}`}
                           className={cn(
                             "block w-full truncate rounded-[6px] px-1.5 py-1 text-left text-[10px] font-medium transition-opacity hover:opacity-80",
                             CALENDAR_STATUS[appointment.status]
                           )}
                         >
                           {new Date(appointment.scheduledAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} {appointment.title}
-                        </button>
+                        </button></Tooltip>
                       ))}
                       {items.length > 3 && <p className="px-1 text-[10px] text-muted-darker">+{items.length - 3} más</p>}
                     </div>

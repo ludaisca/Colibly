@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Languages } from "lucide-react";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -33,16 +34,15 @@ export function AudioTranscript({ messageId, initial }: { messageId: string; ini
 
   if (!transcript) {
     return (
-      <button
+      <Tooltip label="Usa 1 crédito de IA"><button
         type="button"
         onClick={transcribe}
         disabled={loading}
         className="mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground disabled:opacity-60"
-        title="Usa 1 crédito de IA"
       >
         {loading ? <Spinner size="sm" /> : <Languages size={12} aria-hidden />}
         {loading ? "Transcribiendo…" : "Transcribir"}
-      </button>
+      </button></Tooltip>
     );
   }
 

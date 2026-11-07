@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Workflow, Power, PowerOff, Trash2 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
@@ -142,7 +143,7 @@ export default function SequencesPage() {
               meta={<span className="tabular-nums">{seq._count.enrollments}</span>}
             />
             <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-              <button
+              <Tooltip label={seq.active ? "Pausar" : "Activar"}><button aria-label={seq.active ? "Pausar" : "Activar"}
                 onClick={() => handleToggle(seq)}
                 disabled={togglingId === seq.id}
                 className={`p-1.5 rounded-md transition-colors ${
@@ -150,10 +151,9 @@ export default function SequencesPage() {
                     ? "bg-success-bg text-success hover:bg-success-bg/80"
                     : "bg-surface-light text-muted-darker hover:text-foreground"
                 }`}
-                title={seq.active ? "Pausar" : "Activar"}
               >
                 {togglingId === seq.id ? <Spinner size="sm" /> : seq.active ? <Power size={14} /> : <PowerOff size={14} />}
-              </button>
+              </button></Tooltip>
               <Button
                 variant="ghost"
                 size="sm"

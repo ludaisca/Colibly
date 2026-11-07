@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "./tooltip";
 import React, { Suspense, useState, useEffect, useCallback } from "react";
 import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
@@ -76,26 +77,30 @@ function SidebarContent({
       ? pathname === item.href
       : pathname === item.href || pathname.startsWith(item.href + "/");
 
+    const linkEl = (
+      <Link
+        href={item.href}
+        onClick={onClose}
+        aria-label={collapsed ? item.label : undefined}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex items-center text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
+          collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
+          // Radio cercano al de la marca (rx=9 sobre 32): el item mide 40px
+          // de alto, así que 12px conserva la misma proporción visual.
+          active
+            ? cn("rounded-[9px]", activeClass(accent ?? "accent"))
+            : "rounded-[9px] text-muted hover:bg-surface-light hover:text-foreground"
+        )}
+      >
+        <Icon size={18} className="shrink-0" />
+        {!collapsed && item.label}
+      </Link>
+    );
+
     return (
       <li key={item.href} className="relative w-full">
-        <Link
-          href={item.href}
-          onClick={onClose}
-          title={collapsed ? item.label : undefined}
-          aria-current={active ? "page" : undefined}
-          className={cn(
-            "flex items-center text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
-            collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-            // Radio cercano al de la marca (rx=9 sobre 32): el item mide 40px
-            // de alto, así que 12px conserva la misma proporción visual.
-            active
-              ? cn("rounded-[9px]", activeClass(accent ?? "accent"))
-              : "rounded-[9px] text-muted hover:bg-surface-light hover:text-foreground"
-          )}
-        >
-          <Icon size={18} className="shrink-0" />
-          {!collapsed && item.label}
-        </Link>
+        {collapsed ? <Tooltip label={item.label} side="right">{linkEl}</Tooltip> : linkEl}
       </li>
     );
   };
@@ -154,7 +159,7 @@ function SidebarContent({
         collapsed ? "px-1 pt-3 mt-1 pb-4" : "px-3 pt-3 mt-1 pb-4"
       )}>
         {!collapsed && bottomActions}
-        <button
+        <Tooltip label="Cerrar sesión" side="right"><button aria-label="Cerrar sesión"
           // redirect: false + navegación relativa: la URL absoluta que arma el
           // servidor usa el origen interno del contenedor (0.0.0.0:5000) y
           // mandaba al usuario fuera de la app tras cerrar sesión.
@@ -167,7 +172,6 @@ function SidebarContent({
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.href = "/login";
           }}
-          title={collapsed ? "Cerrar sesión" : undefined}
           className={cn(
             "flex items-center text-sm font-medium text-muted transition-colors hover:bg-surface-light hover:text-danger rounded-lg",
             collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 w-full px-3 py-2.5"
@@ -175,7 +179,7 @@ function SidebarContent({
         >
           <LogOut size={18} />
           {!collapsed && "Cerrar sesión"}
-        </button>
+        </button></Tooltip>
       </div>
     </div>
   );
@@ -282,15 +286,14 @@ export function AppShell({
           </button>
 
           {collapsible && (
-            <button
+            <Tooltip label={collapsed ? "Expandir menú" : "Colapsar menú"}><button
               onClick={toggleCollapsed}
               className="hidden md:flex text-muted-darker hover:text-foreground transition-colors p-1 rounded-md"
               aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
               aria-expanded={!collapsed}
-              title={collapsed ? "Expandir menú" : "Colapsar menú"}
             >
               {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-            </button>
+            </button></Tooltip>
           )}
 
           <div className="md:hidden flex-1 flex items-center">

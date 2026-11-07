@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName, isWebchatVisitorId } from "@/lib/chats/display-name";
 import type { ElementType, ReactNode } from "react";
 import { GettingStarted } from "@/app/components/ui/getting-started";
@@ -190,10 +191,9 @@ export function ChatListPanel({
           </div>
           <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} counts={viewCounts} />
 
-          <button
+          <Tooltip label={selectionMode ? "Cancelar selección" : "Seleccionar chats"}><button
             type="button"
             aria-label={selectionMode ? "Cancelar selección" : "Seleccionar chats"}
-            title={selectionMode ? "Cancelar selección" : "Seleccionar chats"}
             aria-pressed={selectionMode}
             onClick={onToggleSelectionMode}
             className={cn(
@@ -204,7 +204,7 @@ export function ChatListPanel({
             )}
           >
             {selectionMode ? <X size={15} /> : <ListChecks size={15} />}
-          </button>
+          </button></Tooltip>
 
           <ChatFiltersPanel
             campaigns={campaigns}
@@ -265,7 +265,7 @@ export function ChatListPanel({
             onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
             <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-[9px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
               <Search size={16} className="shrink-0 text-muted-darker" />
-              <Combobox.Input data-inbox-search aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
+              <Combobox.Input data-inbox-search aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat…" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
             </Combobox.InputGroup>
             <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
               <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">

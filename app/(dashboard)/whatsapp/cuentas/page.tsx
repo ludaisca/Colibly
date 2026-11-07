@@ -145,7 +145,7 @@ function CuentasView() {
             icon={Search}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o número..."
+            placeholder="Buscar por nombre o número…"
             className="sm:max-w-xs flex-1"
           />
           <Select

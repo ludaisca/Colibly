@@ -104,7 +104,6 @@ export function ChatViewsMenu({
           <button
             type="button"
             aria-label={awaiting > 0 ? `Vistas — ${awaiting} esperando respuesta` : "Vistas"}
-            title="Vistas"
             className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground"
           >
             <Bookmark size={15} />

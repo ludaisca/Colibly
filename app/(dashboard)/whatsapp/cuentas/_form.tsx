@@ -192,7 +192,7 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
 
         <FormField label="Token de acceso" required error={errors.accessToken} hint="Token de acceso permanente generado en Meta for Developers">
           {(id) => (
-            <Textarea id={id} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="EAA..." rows={3} />
+            <Textarea id={id} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="EAA…" rows={3} />
           )}
         </FormField>
 
@@ -215,7 +215,7 @@ export function CuentaFormModal({ open, onClose, onCreated }: Props) {
           hint="En Meta for Developers → tu App → Configuración → Básica. Sin él, el webhook rechaza todos los mensajes entrantes (no se puede validar su firma)."
         >
           {(id) => (
-            <Input id={id} type="password" autoComplete="off" value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123..." error={errors.appSecret} />
+            <Input id={id} type="password" autoComplete="off" value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123…" error={errors.appSecret} />
           )}
         </FormField>
 

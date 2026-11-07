@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { Inbox } from "lucide-react";
 import { CHANNEL_ICONS } from "@/app/components/ui/channel-icons";
 import { EntityAvatar } from "@/app/components/ui/avatar";
@@ -83,10 +84,9 @@ function RailButton({
 }) {
   const Mark = channel && channel !== "WHATSAPP" ? CHANNEL_ICONS[channel] : null;
   return (
-    <button
+    <Tooltip label={label}><button aria-label={label}
       type="button"
       onClick={onClick}
-      title={label}
       aria-pressed={active}
       className={cn(
         "relative flex rounded-lg transition-opacity duration-fast ease-brand",
@@ -108,6 +108,6 @@ function RailButton({
           <Mark size={11} />
         </span>
       )}
-    </button>
+    </button></Tooltip>
   );
 }

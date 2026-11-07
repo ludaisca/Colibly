@@ -139,7 +139,7 @@ export function Table<T>({
                   <td
                     key={col.key}
                     className={cn(
-                      "px-3 py-2 first:pl-4",
+                      "px-3 py-2 first:pl-4 tabular-nums",
                       col.hideBelow && HIDE_BELOW_CLASS[col.hideBelow],
                       col.cellClassName
                     )}

@@ -403,7 +403,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
                       onClick={() => headerFileInputRef.current?.click()}
                       disabled={!waAccountId || headerUploading}
                     >
-                      {headerUploading ? "Subiendo..." : "Subir archivo de ejemplo"}
+                      {headerUploading ? "Subiendo…" : "Subir archivo de ejemplo"}
                     </Button>
                     {headerFileName && !headerUploading && (
                       <p className="text-xs text-muted-darker">{headerFileName} — cargado</p>

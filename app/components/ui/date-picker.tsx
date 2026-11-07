@@ -155,7 +155,7 @@ export function DatePicker({
           className={cn(
             "w-full h-[38px] rounded-[9px] border bg-surface-light px-4 pl-10 pr-8 text-sm text-foreground",
             "placeholder:text-muted-darker outline-none transition-colors",
-            "focus:border-accent-strong focus:ring-1 focus:ring-accent-muted",
+            "focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
             error ? "border-danger-border" : "border-border",
             disabled && "opacity-50 cursor-not-allowed"
           )}

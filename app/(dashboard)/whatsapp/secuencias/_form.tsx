@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
@@ -237,7 +238,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
           </FormField>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label="Se dispara cuando...">
+            <FormField label="Se dispara cuando…">
               {(id) => (
                 <Select id={id} value={triggerType} onChange={(e) => { setTriggerType(e.target.value); setTriggerValue(""); }}>
                   {Object.entries(TRIGGER_LABEL).map(([value, label]) => (
@@ -311,14 +312,13 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-darker">Paso {i + 1}</span>
                     {steps.length > 1 && (
-                      <button
+                      <Tooltip label="Quitar paso"><button aria-label="Quitar paso"
                         type="button"
                         onClick={() => removeStep(i)}
                         className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
-                        title="Quitar paso"
                       >
                         <Trash2 size={14} />
-                      </button>
+                      </button></Tooltip>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
