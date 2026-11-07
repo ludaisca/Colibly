@@ -170,7 +170,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                   <button
                     key={s.id}
                     onClick={() => setSelectedScoreId(s.id)}
-                    className={`text-[11px] px-2 py-1 rounded-[12px] border transition-colors ${
+                    className={`text-micro px-2 py-1 rounded-[12px] border transition-colors ${
                       s.id === selectedScoreId
                         ? "border-accent-strong text-accent-ink bg-accent-subtle"
                         : "border-border text-muted-darker hover:text-foreground"
@@ -186,11 +186,11 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
               <>
                 <div className="flex items-center justify-between">
                   <Badge tone={labelTone(selectedScore.label)}>{labelText(selectedScore.label)} · {selectedScore.score}/100</Badge>
-                  <span className="text-[11px] text-muted-darker">
+                  <span className="text-micro text-muted-darker">
                     {new Date(selectedScore.updatedAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-darker">Calificado por: {selectedScore.scorer.name}</p>
+                <p className="text-micro text-muted-darker">Calificado por: {selectedScore.scorer.name}</p>
                 <p className="text-sm text-foreground">{selectedScore.summary}</p>
                 {reasons.length > 0 && (
                   <ul className="text-xs text-muted list-disc pl-4 space-y-0.5">
@@ -204,12 +204,12 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                     {(selectedScore.details.producto_interes || selectedScore.details.urgencia) && (
                       <div className="flex flex-wrap gap-1.5">
                         {selectedScore.details.producto_interes && (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-accent-subtle text-accent-ink">
+                          <span className="text-micro px-2 py-0.5 rounded-full bg-accent-subtle text-accent-ink">
                             {selectedScore.details.producto_interes}
                           </span>
                         )}
                         {selectedScore.details.urgencia && (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-warning-bg text-warning">
+                          <span className="text-micro px-2 py-0.5 rounded-full bg-warning-bg text-warning">
                             Urgencia: {selectedScore.details.urgencia}
                           </span>
                         )}
@@ -217,7 +217,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                     )}
                     {selectedScore.details.senales_compra.length > 0 && (
                       <div>
-                        <p className="text-[11px] font-medium text-success">Señales de compra</p>
+                        <p className="text-micro font-medium text-success">Señales de compra</p>
                         <ul className="text-xs text-muted-darker list-disc pl-4">
                           {selectedScore.details.senales_compra.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
@@ -225,7 +225,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                     )}
                     {selectedScore.details.objeciones_dudas.length > 0 && (
                       <div>
-                        <p className="text-[11px] font-medium text-danger">Objeciones / dudas</p>
+                        <p className="text-micro font-medium text-danger">Objeciones / dudas</p>
                         <ul className="text-xs text-muted-darker list-disc pl-4">
                           {selectedScore.details.objeciones_dudas.map((o, i) => <li key={i}>{o}</li>)}
                         </ul>
@@ -233,7 +233,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                     )}
                     {selectedScore.details.proximos_pasos.length > 0 && (
                       <div>
-                        <p className="text-[11px] font-medium text-accent-ink">Próximos pasos sugeridos</p>
+                        <p className="text-micro font-medium text-accent-ink">Próximos pasos sugeridos</p>
                         <ul className="text-xs text-muted-darker list-disc pl-4">
                           {selectedScore.details.proximos_pasos.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>

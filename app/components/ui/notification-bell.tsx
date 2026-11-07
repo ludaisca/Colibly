@@ -101,9 +101,9 @@ function Row({ item, onOpen }: { item: NotificationItem; onOpen: (item: Notifica
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-3">
           <span className={cn("min-w-0 text-sm text-foreground", unread ? "font-semibold" : "font-medium")}>{item.title}</span>
-          <RelativeTime value={item.createdAt} className="shrink-0 pt-0.5 text-[11px] text-muted-darker" />
+          <RelativeTime value={item.createdAt} className="shrink-0 pt-0.5 text-micro text-muted-darker" />
         </span>
-        {item.body && <span className="mt-0.5 line-clamp-3 text-[13px] leading-snug text-muted">{item.body}</span>}
+        {item.body && <span className="mt-0.5 line-clamp-3 text-sm leading-snug text-muted">{item.body}</span>}
       </span>
       {unread && <span aria-label="Sin leer" className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent-strong" />}
     </button>
@@ -208,7 +208,7 @@ function Panel({
           groups.map((g) => (
             <section key={g.label ?? "todas"} aria-label={g.label ?? undefined}>
               {g.label && (
-                <h3 className="sticky top-0 z-10 border-b border-border bg-surface px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-darker md:px-5">
+                <h3 className="sticky top-0 z-10 border-b border-border bg-surface px-4 py-2 text-micro font-semibold uppercase tracking-wider text-muted-darker md:px-5">
                   {g.label}
                 </h3>
               )}
@@ -341,7 +341,7 @@ export function NotificationBell() {
     >
       <Bell size={18} />
       {unreadCount > 0 && (
-        <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">
+        <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-micro font-bold text-on-accent">
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}

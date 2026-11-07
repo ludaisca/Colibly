@@ -79,6 +79,14 @@
       "board-figure": {
         "displayName": "Cifra de tablero",
         "purpose": "Celdas de espera."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Ayudas y texto secundario (text-xs)."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Metadatos, insignias y contadores; piso del panel (text-micro)."
       }
     },
     "shadows": [
@@ -182,6 +190,11 @@
       {
         "name": "La regla del título solo",
         "body": "Ningún título lleva etiqueta encima; se sostiene solo.",
+        "section": "typography"
+      },
+      {
+        "name": "La regla del piso",
+        "body": "Nada en el panel va por debajo de 11px (text-micro); los tamaños escritos a mano no se usan.",
         "section": "typography"
       }
     ],

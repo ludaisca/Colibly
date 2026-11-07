@@ -45,7 +45,7 @@ export function MessageSearchResults({ query, onOpen }: { query: string; onOpen:
 
   return (
     <section aria-label="Resultados en mensajes" className="border-t border-border">
-      <p className="flex items-center gap-1.5 bg-surface/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-darker">
+      <p className="flex items-center gap-1.5 bg-surface/50 px-3 py-1.5 text-micro font-semibold uppercase tracking-wider text-muted-darker">
         <MessageSquareText size={12} aria-hidden /> En mensajes
         {loading && <Spinner size="sm" label="Buscando en mensajes" className="ml-auto" />}
       </p>
@@ -60,10 +60,10 @@ export function MessageSearchResults({ query, onOpen }: { query: string; onOpen:
             className="block w-full border-b border-border px-3 py-2 text-left transition-colors hover:bg-surface-light"
           >
             <span className="flex items-baseline justify-between gap-2">
-              <span className="truncate text-[13px] font-medium text-foreground">{hit.chatName}</span>
-              <RelativeTime value={hit.timestamp} className="shrink-0 text-[10px] tabular-nums text-muted-darker" />
+              <span className="truncate text-sm font-medium text-foreground">{hit.chatName}</span>
+              <RelativeTime value={hit.timestamp} className="shrink-0 text-micro tabular-nums text-muted-darker" />
             </span>
-            <span className="mt-0.5 line-clamp-2 text-[11px] text-muted">
+            <span className="mt-0.5 line-clamp-2 text-micro text-muted">
               {hit.direction === "OUTBOUND" && <span className="text-muted-darker">Tú: </span>}
               <Highlighted text={hit.snippet} query={q} />
             </span>

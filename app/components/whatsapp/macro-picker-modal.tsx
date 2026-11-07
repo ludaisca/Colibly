@@ -110,7 +110,7 @@ export function MacroPickerModal({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-foreground">{macro.name}</span>
                 {macro.description && <span className="mt-0.5 block truncate text-xs text-muted">{macro.description}</span>}
-                <span className="mt-1 block truncate text-[11px] text-muted-darker">{macroActionsSummary(macro.actions)}</span>
+                <span className="mt-1 block truncate text-micro text-muted-darker">{macroActionsSummary(macro.actions)}</span>
               </span>
             </button>
           ))}

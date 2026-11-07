@@ -195,7 +195,7 @@ export function ContactImportModal({
                   </option>
                 ))}
               </Select>
-              <p className="mt-1 text-[11px] text-muted-darker">Las etiquetas y los campos personalizados son de esta cuenta.</p>
+              <p className="mt-1 text-micro text-muted-darker">Las etiquetas y los campos personalizados son de esta cuenta.</p>
             </div>
 
             <div>
@@ -207,7 +207,7 @@ export function ContactImportModal({
                 onChange={(event) => void onFile(event.target.files?.[0] ?? null)}
                 className="block w-full cursor-pointer rounded-[9px] border border-border bg-surface-light px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-[9px] file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-accent-subtle"
               />
-              <p className="mt-1 text-[11px] text-muted-darker">Máximo 2 MB y 5,000 filas.</p>
+              <p className="mt-1 text-micro text-muted-darker">Máximo 2 MB y 5,000 filas.</p>
             </div>
 
             {fileName && (
@@ -220,7 +220,7 @@ export function ContactImportModal({
           <>
             <div className="max-h-72 overflow-y-auto rounded-lg border border-border">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-surface-light text-left text-[11px] uppercase text-muted-darker">
+                <thead className="sticky top-0 bg-surface-light text-left text-micro uppercase text-muted-darker">
                   <tr>
                     <th className="px-3 py-2 font-medium">Columna del archivo</th>
                     <th className="px-3 py-2 font-medium">Ejemplo</th>

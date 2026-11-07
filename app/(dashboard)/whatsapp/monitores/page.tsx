@@ -162,7 +162,7 @@ export default function MonitoresPage() {
                       </p>
                       <p className="mt-0.5 text-xs italic text-muted">“{match.quote}”</p>
                     </div>
-                    <RelativeTime value={match.createdAt} className="shrink-0 text-[11px] text-muted-darker" />
+                    <RelativeTime value={match.createdAt} className="shrink-0 text-micro text-muted-darker" />
                     {match.href && (
                       <Link href={match.href} className="shrink-0 text-xs font-semibold text-accent-ink hover:underline">Abrir chat</Link>
                     )}

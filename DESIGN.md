@@ -42,6 +42,16 @@ typography:
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
+  caption:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: 1.35
+  micro:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 500
+    lineHeight: 1rem
   label:
     fontFamily: "Barlow, system-ui, sans-serif"
     fontSize: "0.6875rem"
@@ -166,11 +176,15 @@ Los colores de cuenta salen de `hueClassFor(id)` (8 tonos OKLCH, más claros en 
 - **Headline** (700, 1.875rem / 1.2): título de página (`PageHeader`) y "Chats".
 - **Title** (600, 1rem): títulos de sección y tarjeta.
 - **Body** (400, 0.875rem / 1.5): interfaz, listas, mensajes.
+- **Caption** (400, 0.75rem, `text-xs`): ayudas bajo campos, texto secundario.
+- **Micro** (500, 0.6875rem / 1rem, `text-micro`): metadatos, insignias, contadores. Es el piso del panel.
 - **Label** (600, 0.6875rem, mayúsculas, 0.08em): etiquetas de KPI, pestañas del tablero y encabezados de columna.
 - **Board figure** (700, 1rem, cifras tabulares): celdas de espera.
 
 ### Named Rules
 **La regla del título solo.** Ningún título lleva etiqueta encima; se sostiene solo.
+
+**La regla del piso.** Nada en el panel va por debajo de 11px (`text-micro`); los tamaños escritos a mano (`text-[10px]`) no se usan.
 
 ## Layout
 

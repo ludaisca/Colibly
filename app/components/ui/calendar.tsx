@@ -171,7 +171,7 @@ export function Calendar(props: CalendarProps) {
               {Array.from({ length: 7 }, (_, i) => {
                 const sample = new Date(2023, 0, 2 + i); // 2 ene 2023 fue lunes
                 return (
-                  <abbr key={i} title={fmt.dowLong.format(sample)} className="grid h-7 place-items-center text-[11px] font-semibold uppercase text-muted no-underline">
+                  <abbr key={i} title={fmt.dowLong.format(sample)} className="grid h-7 place-items-center text-micro font-semibold uppercase text-muted no-underline">
                     {fmt.dow.format(sample)}
                   </abbr>
                 );

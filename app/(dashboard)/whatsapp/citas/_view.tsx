@@ -310,7 +310,7 @@ export function CitasView() {
             />
           </div>
           <div className="overflow-hidden rounded-xl border border-border bg-surface">
-            <div className="grid grid-cols-7 border-b border-border bg-surface-light/60 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-darker">
+            <div className="grid grid-cols-7 border-b border-border bg-surface-light/60 text-center text-micro font-semibold uppercase tracking-wider text-muted-darker">
               {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
                 <div key={day} className="px-1 py-2">{day}</div>
               ))}
@@ -336,7 +336,7 @@ export function CitasView() {
                       )}>
                         {day.getDate()}
                       </span>
-                      {items.length > 0 && <span className="text-[10px] text-muted-darker">{items.length}</span>}
+                      {items.length > 0 && <span className="text-micro text-muted-darker">{items.length}</span>}
                     </div>
                     <div className="mt-1 space-y-1">
                       {items.slice(0, 3).map((appointment) => (
@@ -344,14 +344,14 @@ export function CitasView() {
                           type="button"
                           onClick={() => { setEditing(appointment); setModalOpen(true); }}
                           className={cn(
-                            "block w-full truncate rounded-[6px] px-1.5 py-1 text-left text-[10px] font-medium transition-opacity hover:opacity-80",
+                            "block w-full truncate rounded-[6px] px-1.5 py-1 text-left text-micro font-medium transition-opacity hover:opacity-80",
                             CALENDAR_STATUS[appointment.status]
                           )}
                         >
                           {new Date(appointment.scheduledAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} {appointment.title}
                         </button></Tooltip>
                       ))}
-                      {items.length > 3 && <p className="px-1 text-[10px] text-muted-darker">+{items.length - 3} más</p>}
+                      {items.length > 3 && <p className="px-1 text-micro text-muted-darker">+{items.length - 3} más</p>}
                     </div>
                   </div>
                 );

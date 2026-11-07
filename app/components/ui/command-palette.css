@@ -8,7 +8,7 @@
   border-radius: 9px;
   background: var(--surface);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.875rem;
   cursor: pointer;
 }
 .colibly-command-trigger:hover {
@@ -22,7 +22,7 @@
   border-radius: 5px;
   color: var(--muted-darker);
   font: inherit;
-  font-size: 10px;
+  font-size: var(--text-micro);
 }
 @media (min-width: 1280px) {
   .colibly-command-trigger {
@@ -59,7 +59,7 @@
   outline: none;
   background: transparent;
   color: var(--foreground);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .colibly-command [cmdk-input]::placeholder {
   color: var(--muted-darker);
@@ -72,7 +72,7 @@
 .colibly-command [cmdk-group-heading] {
   padding: 9px 10px 5px;
   color: var(--muted-darker);
-  font-size: 10px;
+  font-size: var(--text-micro);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -85,7 +85,7 @@
   padding: 6px 10px;
   border-radius: 9px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 .colibly-command [cmdk-item][data-selected="true"] {
   background: var(--accent-subtle);
@@ -100,7 +100,7 @@
 .colibly-command-meta {
   overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -110,18 +110,18 @@
   gap: 8px;
   padding: 14px 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .colibly-command [cmdk-empty] {
   padding: 25px 10px;
   color: var(--muted);
   text-align: center;
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 .colibly-command-hint {
   border-top: 1px solid var(--border);
   padding: 9px 16px;
   color: var(--muted);
   text-align: right;
-  font-size: 10px;
+  font-size: var(--text-micro);
 }

@@ -75,7 +75,7 @@ function Entries({ items }: { items: ContextMenuEntry[] }) {
               <span className="w-[15px] shrink-0" />
             )}
             <span className="min-w-0 flex-1 truncate">{entry.label}</span>
-            {entry.shortcut && <kbd className="shrink-0 font-sans text-[11px] text-muted-darker">{entry.shortcut}</kbd>}
+            {entry.shortcut && <kbd className="shrink-0 font-sans text-micro text-muted-darker">{entry.shortcut}</kbd>}
           </Base.Item>
         );
       })}

@@ -549,7 +549,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
         <Card as="aside" className="min-w-0 lg:sticky lg:top-6">
           <p className="text-xs font-semibold text-muted-darker uppercase tracking-wider mb-3">Vista previa</p>
           <TemplatePreview components={previewComponents} headerImagePreview={headerPreviewUrl} />
-          <p className="text-[10px] text-muted-darker mt-2 text-center">
+          <p className="text-micro text-muted-darker mt-2 text-center">
             La revisión de Meta puede tomar hasta 24 horas. Aparecerá como &quot;Pendiente&quot; hasta que sea aprobada.
           </p>
         </Card>

@@ -214,7 +214,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
           </div>
           <span
             className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold",
+              "shrink-0 rounded px-1.5 py-0.5 text-micro font-semibold",
               scoreLabelClass(data.bestScore.label)
             )}
           >

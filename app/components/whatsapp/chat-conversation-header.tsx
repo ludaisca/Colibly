@@ -64,12 +64,12 @@ function SalesRoute({ status, accountId }: { status: NonNullable<ChatItem["leadS
                   now ? "h-3.5 w-3.5 -mt-0.5 border-entity bg-surface" : done ? "h-2.5 w-2.5 border-entity bg-entity" : "h-2.5 w-2.5 border-border bg-surface"
                 )}
               />
-              <span className={cn("text-[10px] leading-none", now ? "font-bold text-foreground" : "text-muted")}>{station.label}</span>
+              <span className={cn("text-micro leading-none", now ? "font-bold text-foreground" : "text-muted")}>{station.label}</span>
             </li>
           );
         })}
       </ol>
-      {lost && <span className="shrink-0 rounded-full border border-danger-border bg-danger-bg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-danger">Perdido</span>}
+      {lost && <span className="shrink-0 rounded-full border border-danger-border bg-danger-bg px-2 py-0.5 text-micro font-bold uppercase tracking-wider text-danger">Perdido</span>}
     </div>
   );
 }
@@ -125,15 +125,15 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
         <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
         <div className="min-w-0 flex-1">
           {chat.contactId ? (
-            <Tooltip label="Ver contacto"><button type="button" onClick={onOpenContactDrawer} className="block max-w-full truncate rounded text-left text-[15px] font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button></Tooltip>
-          ) : <p className="truncate text-[15px] font-semibold text-foreground">{name}</p>}
-          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-darker" title={subtitle}>
+            <Tooltip label="Ver contacto"><button type="button" onClick={onOpenContactDrawer} className="block max-w-full truncate rounded text-left text-base font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button></Tooltip>
+          ) : <p className="truncate text-base font-semibold text-foreground">{name}</p>}
+          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-micro text-muted-darker" title={subtitle}>
             {/* Sin icono de canal: la insignia del avatar ya lo muestra. */}
             <span className="truncate">{subtitle}</span>
-            {resolved && <span className="shrink-0 rounded-full bg-success-bg px-1.5 text-[10px] font-medium text-success">Resuelto</span>}
+            {resolved && <span className="shrink-0 rounded-full bg-success-bg px-1.5 text-micro font-medium text-success">Resuelto</span>}
           </p>
           {typingLabel && (
-            <p className="mt-0.5 truncate text-[10px] font-medium text-accent-ink motion-safe:animate-pulse">{typingLabel}</p>
+            <p className="mt-0.5 truncate text-micro font-medium text-accent-ink motion-safe:animate-pulse">{typingLabel}</p>
           )}
         </div>
         <Dropdown

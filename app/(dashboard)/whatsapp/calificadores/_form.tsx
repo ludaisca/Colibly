@@ -237,7 +237,7 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
                 </FormField>
               </>
             )}
-            <p className="text-[11px] text-muted-darker">
+            <p className="text-micro text-muted-darker">
               Cada calificación usa un crédito de IA de tu plan: si se acaban, las ejecuciones automáticas se omiten hasta el siguiente periodo.
             </p>
           </div>

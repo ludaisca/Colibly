@@ -65,7 +65,8 @@ Lectura: la escala tipográfica real tiene un escalón de 10–13px que `DESIGN.
 - **Hecho (2026-11-07, segunda pasada):** `Tooltip` sobre Base UI en lugar de `title` en 30 controles (de los 262 `title=` medidos al principio, la mayoría eran props `title` de componentes como `PageHeader`; los nativos en controles eran 32). Nueve botones de solo icono no tenían nombre accesible y ahora llevan `aria-label`. `transition-all` del shell → propiedades concretas; `Button` sin elevación y con `motion-reduce`; `tabular-nums` en tabla, paginación y `RelativeTime`; foco visible en `date-picker` (`ring-2`) y en el selector de `filters-panel`; 46 `"..."` → `…`; velo común `--overlay` para modal, cajón y paleta; `SectionHeader` sin etiqueta sobre el título.
 - Hecho: `Modal` sobre Base UI (ver `INVENTARIO_MODALES_2026-11-07.md`) y calendario de Tesela para `DatePicker` y `DateRangePicker` (fuera `hero-date-range`).
 - Hecho: pestañas sobre Base UI con la pestaña en la URL (`useUrlTab`); fuera `@heroui/*`, `react-aria-components`, `@internationalized/date` y `hero-ui.css`.
-- Pendiente: tamaños de 9–13px escritos a mano (decidir un token `text-micro`).
+- Hecho: token `text-micro` (11px) como piso del panel; 99 tamaños escritos a mano reemplazados por la escala (`micro`, `xs`, `sm`, `base`).
+- Siguientes avisos del detector (una regla a la vez): radios fuera de escala (`command-palette.css` 5px, `drawer.css` 24px), colores sin token (`contact-drawer.css`, `template-preview.tsx`) y una franja `border-l-2` en la cita del hilo (`chat-thread-panel.tsx`).
 
 ## Prioridad sugerida
 

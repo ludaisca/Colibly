@@ -133,7 +133,7 @@ function SidebarContent({
                     <div className="mx-auto my-1 h-px w-8 bg-border/70" aria-hidden="true" />
                   )}
                   {!collapsed && group.title && (
-                    <div className="px-3 text-[10px] font-bold text-muted-darker tracking-wider uppercase mb-1">
+                    <div className="px-3 text-micro font-bold text-muted-darker tracking-wider uppercase mb-1">
                       {group.title}
                     </div>
                   )}
@@ -344,7 +344,7 @@ export function AppShell({
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
+                    "flex flex-col items-center gap-0.5 py-2 text-micro font-medium transition-colors",
                     active ? "text-foreground" : "text-muted hover:text-foreground"
                   )}
                 >
@@ -358,7 +358,7 @@ export function AppShell({
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              className="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted transition-colors hover:text-foreground"
+              className="flex flex-col items-center gap-0.5 py-2 text-micro font-medium text-muted transition-colors hover:text-foreground"
             >
               <span className="flex h-7 w-12 items-center justify-center rounded-full"><MoreHorizontal size={18} aria-hidden /></span>
               Más

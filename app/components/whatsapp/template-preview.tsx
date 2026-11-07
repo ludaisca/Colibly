@@ -37,7 +37,7 @@ function highlightVariables(text: string, formatted = false) {
   const parts = text.split(/(\{\{\s*\d+\s*\}\})/g);
   return parts.map((part, i) =>
     /^\{\{\s*\d+\s*\}\}$/.test(part) ? (
-      <span key={i} className="inline-block rounded px-1 text-[10px] font-bold" style={{ background: "rgba(0,128,105,0.12)", color: WA.accent }}>
+      <span key={i} className="inline-block rounded px-1 text-micro font-bold" style={{ background: "rgba(0,128,105,0.12)", color: WA.accent }}>
         {part}
       </span>
     ) : (
@@ -67,20 +67,20 @@ export function TemplatePreview({ components, headerImagePreview }: Props) {
                 ) : (
                   <div className="flex flex-col items-center gap-1" style={{ color: WA.muted }}>
                     <FileText size={18} />
-                    <span className="text-[10px]">Sin imagen cargada</span>
+                    <span className="text-micro">Sin imagen cargada</span>
                   </div>
                 )
               )}
               {header.format === "VIDEO" && (
                 <div className="flex flex-col items-center gap-1" style={{ color: WA.muted }}>
                   <Video size={18} />
-                  <span className="text-[10px]">video</span>
+                  <span className="text-micro">video</span>
                 </div>
               )}
               {header.format === "DOCUMENT" && (
                 <div className="flex flex-col items-center gap-1" style={{ color: WA.muted }}>
                   <FileText size={18} />
-                  <span className="text-[10px]">documento</span>
+                  <span className="text-micro">documento</span>
                 </div>
               )}
             </div>
@@ -96,9 +96,9 @@ export function TemplatePreview({ components, headerImagePreview }: Props) {
               {body?.text ? highlightVariables(body.text, true) : <span style={{ color: WA.muted }}>(sin cuerpo)</span>}
             </p>
             {footer?.text && (
-              <p className="text-[10px] mt-1" style={{ color: WA.muted }}>{footer.text}</p>
+              <p className="text-micro mt-1" style={{ color: WA.muted }}>{footer.text}</p>
             )}
-            <p className="text-[10px] text-right mt-1" style={{ color: WA.muted }}>12:00 p.m.</p>
+            <p className="text-micro text-right mt-1" style={{ color: WA.muted }}>12:00 p.m.</p>
           </div>
 
           {buttonsComponent?.buttons && buttonsComponent.buttons.length > 0 && (

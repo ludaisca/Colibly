@@ -266,7 +266,7 @@ export default async function DashboardPage() {
                       {chat.waitingSince ? (
                         <WaitCells since={chat.waitingSince.toISOString()} now={now} />
                       ) : (
-                        <span className="text-[11px] font-medium tabular-nums text-muted-darker">
+                        <span className="text-micro font-medium tabular-nums text-muted-darker">
                           {formatTime(chat.lastMessageAt)}
                         </span>
                       )}

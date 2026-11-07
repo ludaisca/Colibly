@@ -105,7 +105,7 @@ export function FlowBuilderPreview({ graph, issues, selectedId, isDesktop, onSel
           const target = moveTargets[Number(event.target.value)];
           if (target) onConnect(target.sourceId, selected.id, target.sourceHandle);
         }}
-        className="min-h-8 max-w-full rounded-[9px] border border-border bg-surface px-2 text-[11px] font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
+        className="min-h-8 max-w-full rounded-[9px] border border-border bg-surface px-2 text-micro font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
       ><option value="">Mover a…</option>{moveTargets.map((target, index) => <option key={`${target.sourceId}:${target.sourceHandle ?? "next"}`} value={index}>{target.label}</option>)}</select>}
       {selected.id === "trigger" ? <button type="button" onClick={() => add("root", 0, graph.steps.length === 0)}><Plus size={14} /> Añadir al inicio</button> : <>
         <button type="button" onClick={() => add(selected.data.listId, selected.data.index, false)}><Plus size={14} /> Antes</button>

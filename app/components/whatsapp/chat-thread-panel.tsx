@@ -174,7 +174,7 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
             <p className="truncate text-sm font-medium text-foreground" title={msg.filename ?? undefined}>
               {msg.filename ?? "Documento"}
             </p>
-            <p className="text-[11px] text-muted-darker">
+            <p className="text-micro text-muted-darker">
               {pdf ? "PDF" : "Documento"}{msg.bytesSize ? ` · ${formatBytes(msg.bytesSize)}` : ""}
             </p>
           </div>
@@ -218,7 +218,7 @@ function LocationContent({ msg }: { msg: Message }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground" title={place || undefined}>{place || "Ubicación compartida"}</p>
-          <p className="font-mono text-[11px] tabular-nums text-muted-darker">
+          <p className="font-mono text-micro tabular-nums text-muted-darker">
             {location ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : "Sin coordenadas (mensaje anterior al 4 nov 2026)"}
           </p>
         </div>
@@ -302,15 +302,15 @@ function MessageBubble({
         <button
           type="button"
           onClick={() => onRetry?.(msg)}
-          className="mr-1 flex items-center gap-1 text-[10px] font-medium text-danger hover:underline"
+          className="mr-1 flex items-center gap-1 text-micro font-medium text-danger hover:underline"
         >
           <RotateCw size={10} /> Reintentar
         </button>
       )}
-      <span className="text-[10px]">{formatBubbleTime(msg.timestamp)}</span>
+      <span className="text-micro">{formatBubbleTime(msg.timestamp)}</span>
       {!isInbound && msg.status && (
         <AnimatePresence initial={false} mode="wait">
-          <motion.span key={msg.status} className="text-[10px]" role="img" aria-label={MESSAGE_STATUS_LABEL[msg.status] ?? msg.status}
+          <motion.span key={msg.status} className="text-micro" role="img" aria-label={MESSAGE_STATUS_LABEL[msg.status] ?? msg.status}
             initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={reduceMotion ? undefined : { opacity: 0, scale: 0.8 }}
@@ -342,7 +342,7 @@ function MessageBubble({
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
-          <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${isInbound ? "text-muted-darker" : "text-foreground/65"}`}>
+          <div className={`mb-1 flex items-center gap-1 text-micro font-medium ${isInbound ? "text-muted-darker" : "text-foreground/65"}`}>
             <MessageSquare size={10} />
             <span>Desde un comentario</span>
           </div>
@@ -653,7 +653,7 @@ export function ChatThreadPanel({
         {floatingDay && (
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center">
             <span
-              className={`rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm transition-opacity duration-300 ${floatingDay.visible ? "opacity-100" : "opacity-0"}`}
+              className={`rounded-full border border-border bg-surface px-2.5 py-1 text-micro font-medium text-muted-darker shadow-sm transition-opacity duration-300 ${floatingDay.visible ? "opacity-100" : "opacity-0"}`}
             >
               {floatingDay.label}
             </span>
@@ -685,7 +685,7 @@ export function ChatThreadPanel({
               {groups.map((group) => (
                 <div key={group.key} data-day-label={group.label}>
                   <div className="flex justify-center py-2">
-                    <span className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-darker shadow-sm">
+                    <span className="rounded-full border border-border bg-surface px-2.5 py-1 text-micro font-medium text-muted-darker shadow-sm">
                       {group.label}
                     </span>
                   </div>

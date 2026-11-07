@@ -124,7 +124,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
         {!compact && "Filtros"}
         {appliedCount > 0 && (
           <span className={cn(
-            "flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent",
+            "flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-micro font-bold text-on-accent",
             compact && "absolute -right-1 -top-1"
           )}>
             {appliedCount}

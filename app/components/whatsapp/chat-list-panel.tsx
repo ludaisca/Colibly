@@ -61,7 +61,7 @@ function BulkButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-7 items-center gap-1 rounded-[9px] border border-accent-muted bg-surface px-2 text-[11px] font-semibold text-accent-ink transition-colors hover:bg-accent-subtle disabled:opacity-50"
+      className="inline-flex h-7 items-center gap-1 rounded-[9px] border border-accent-muted bg-surface px-2 text-micro font-semibold text-accent-ink transition-colors hover:bg-accent-subtle disabled:opacity-50"
     >
       <Icon size={12} />
       {children}
@@ -187,7 +187,7 @@ export function ChatListPanel({
         <div className="flex items-center gap-1">
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-display text-2xl font-bold leading-none">Chats</h1>
-            <p className="mt-1 truncate text-[11px] text-muted">{awaitingFilter ? "Ordenado por espera" : "Por último mensaje"}</p>
+            <p className="mt-1 truncate text-micro text-muted">{awaitingFilter ? "Ordenado por espera" : "Por último mensaje"}</p>
           </div>
           <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} counts={viewCounts} />
 
@@ -272,7 +272,7 @@ export function ChatListPanel({
                 <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
                 <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
                   <span className="truncate font-medium">{displayName(item.chat.name, item.chat.remoteJid)}</span>
-                  <span className="truncate text-[11px] text-muted">{item.chat.account.name}{isWebchatVisitorId(item.chat.remoteJid) ? "" : ` · ${item.chat.remoteJid}`}</span>
+                  <span className="truncate text-micro text-muted">{item.chat.account.name}{isWebchatVisitorId(item.chat.remoteJid) ? "" : ` · ${item.chat.remoteJid}`}</span>
                 </Combobox.Item>}</Combobox.List>
               </Combobox.Popup>
             </Combobox.Positioner></Combobox.Portal>
@@ -281,7 +281,7 @@ export function ChatListPanel({
 
         {selectionMode && (
           <div className="flex flex-wrap items-center gap-1.5 rounded-[9px] bg-accent-subtle px-2 py-1.5">
-            <span className="mr-1 text-[11px] font-semibold text-accent-ink">
+            <span className="mr-1 text-micro font-semibold text-accent-ink">
               {selectedChatIds.size > 0 ? `${selectedChatIds.size} seleccionados` : "Selecciona chats"}
             </span>
             {selectedChatIds.size > 0 && (
@@ -310,7 +310,7 @@ export function ChatListPanel({
             type="button"
             aria-pressed={awaitingFilter}
             onClick={() => onAwaitingFilterChange(true)}
-            className={cn("rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors", awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
+            className={cn("rounded-full px-3 py-1 text-micro font-semibold uppercase tracking-wider transition-colors", awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
           >
             Esperando{viewCounts ? ` ${viewCounts.awaiting}` : ""}
           </button>
@@ -318,12 +318,12 @@ export function ChatListPanel({
             type="button"
             aria-pressed={!awaitingFilter}
             onClick={() => onAwaitingFilterChange(false)}
-            className={cn("rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors", !awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
+            className={cn("rounded-full px-3 py-1 text-micro font-semibold uppercase tracking-wider transition-colors", !awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
           >
             Todos
           </button>
         </div>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">{awaitingFilter ? "Espera" : "Último"}</span>
+        <span className="text-micro font-semibold uppercase tracking-[0.12em] text-muted">{awaitingFilter ? "Espera" : "Último"}</span>
       </div>
       <div className="scrollbar-thin flex-1 overflow-y-auto">
         {loadingChats ? (
@@ -394,7 +394,7 @@ export function ChatListPanel({
                       <span className={cn("flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-2.5", selectionMode ? "pl-9" : "pl-2.5")}>
                         <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
                         <span className="min-w-0 flex-1">
-                          <span className={cn("block truncate text-[13px]", chat.unreadCount > 0 ? "font-bold text-foreground" : "font-semibold text-foreground")}>
+                          <span className={cn("block truncate text-sm", chat.unreadCount > 0 ? "font-bold text-foreground" : "font-semibold text-foreground")}>
                             {name}
                           </span>
                           <span className={cn("mt-0.5 block truncate text-xs", chat.unreadCount > 0 ? "font-medium text-foreground" : "text-muted")}>
@@ -415,7 +415,7 @@ export function ChatListPanel({
                           {waiting && chat.waitingSince ? (
                             <WaitCells since={chat.waitingSince} now={now} overdue={!!chat.sla?.responseBreached} />
                           ) : chat.lastMessageAt ? (
-                            <span className={cn("text-[11px] tabular-nums", chat.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted")}>
+                            <span className={cn("text-micro tabular-nums", chat.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted")}>
                               {formatTime(chat.lastMessageAt)}
                             </span>
                           ) : null}
@@ -436,7 +436,7 @@ export function ChatListPanel({
                               <SlaBadge response={!!chat.sla?.responseBreached} />
                             )}
                             {chat.unreadCount > 0 && (
-                              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-bold tabular-nums text-background">
+                              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-micro font-bold tabular-nums text-background">
                                 {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
                                 <span className="sr-only"> sin leer</span>
                               </span>

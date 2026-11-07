@@ -106,8 +106,8 @@ export function ContactTimeline({ contactId, refreshKey = 0 }: { contactId: stri
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-foreground">{item.title}</p>
-                  {item.body && <p className="mt-0.5 whitespace-pre-wrap text-[11px] text-muted">{item.body}</p>}
-                  <p className="mt-0.5 text-[10px] text-muted-darker">
+                  {item.body && <p className="mt-0.5 whitespace-pre-wrap text-micro text-muted">{item.body}</p>}
+                  <p className="mt-0.5 text-micro text-muted-darker">
                     <RelativeTime value={item.createdAt} />
                     {item.actor?.name ? ` · ${item.actor.name}` : ""}
                   </p>

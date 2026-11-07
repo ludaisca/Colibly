@@ -46,7 +46,7 @@ export function ChatSnoozeControls({
   return (
     <div className="space-y-2">
       {active && snoozedUntil && (
-        <p className="flex items-center gap-1.5 rounded-[9px] bg-warning-bg px-2.5 py-1.5 text-[11px] font-medium text-warning">
+        <p className="flex items-center gap-1.5 rounded-[9px] bg-warning-bg px-2.5 py-1.5 text-micro font-medium text-warning">
           <Clock size={12} />
           Pospuesto hasta {formatSnoozeUntil(snoozedUntil)}
         </p>

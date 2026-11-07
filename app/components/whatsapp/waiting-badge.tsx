@@ -18,7 +18,7 @@ export function WaitingBadge({ since, now }: { since: string; now: number }) {
   const tone = waitingTone(minutes);
   return (
     <span
-      className={`inline-flex items-center gap-0.5 text-[10px] font-medium tabular-nums ${TONE_CLASS[tone]}`}
+      className={`inline-flex items-center gap-0.5 text-micro font-medium tabular-nums ${TONE_CLASS[tone]}`}
       title={`Esperando respuesta desde ${formatInZone(since, { dateStyle: "medium", timeStyle: "short" })}`}
     >
       <Hourglass size={10} aria-hidden />
@@ -31,7 +31,7 @@ export function WaitingBadge({ since, now }: { since: string; now: number }) {
 export function SlaBadge({ response }: { response: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-0.5 rounded px-1 text-[10px] font-semibold text-danger bg-danger-bg"
+      className="inline-flex items-center gap-0.5 rounded px-1 text-micro font-semibold text-danger bg-danger-bg"
       title={response ? "Fuera de SLA: se pasó el tiempo de respuesta" : "Fuera de SLA: se pasó el tiempo de resolución"}
     >
       <TimerOff size={10} aria-hidden />

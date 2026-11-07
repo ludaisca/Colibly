@@ -24,8 +24,8 @@ function figureUri(seed: string): string {
 // overview y desde componentes client.
 
 const SIZE: Record<"xs" | "sm" | "md" | "lg", string> = {
-  xs: "h-5 w-5 rounded-md text-[9px]",
-  sm: "h-8 w-8 text-[11px]",
+  xs: "h-5 w-5 rounded-md text-micro",
+  sm: "h-8 w-8 text-micro",
   md: "h-10 w-10 text-sm",
   lg: "h-12 w-12 text-base",
 };

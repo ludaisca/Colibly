@@ -333,10 +333,10 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
                 <div key={chat.id} className="rounded-lg border border-border bg-surface-light p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="min-w-0 truncate text-sm font-medium text-foreground">{chat.contactName}</p>
-                    <span className="text-[11px] text-muted">{CHANNEL_LABEL[chat.channel] ?? chat.channel}</span>
+                    <span className="text-micro text-muted">{CHANNEL_LABEL[chat.channel] ?? chat.channel}</span>
                   </div>
                   <p className="mt-0.5 text-xs text-muted">{chat.accountName} · {STATUS_LABEL[chat.status] ?? chat.status}</p>
-                  <p className="mt-1 text-[11px] text-muted-darker">
+                  <p className="mt-1 text-micro text-muted-darker">
                     Creado {new Date(chat.createdAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
                     {chat.resolvedAt ? ` · Resuelto ${new Date(chat.resolvedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}` : ""}
                   </p>

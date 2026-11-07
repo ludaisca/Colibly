@@ -60,7 +60,7 @@ function ChartTooltip({
           {formatLabel ? formatLabel(String(label)) : label}
         </p>
       )}
-      {sublabel && <p className="mb-1 font-mono text-[11px] text-muted-darker">{sublabel}</p>}
+      {sublabel && <p className="mb-1 font-mono text-micro text-muted-darker">{sublabel}</p>}
       <div className={sublabel ? "space-y-1" : "mt-1 space-y-1"}>
         {payload.map((entry, i) => (
           <div key={`${entry.dataKey}-${i}`} className="flex items-center gap-2 text-xs">
@@ -309,7 +309,7 @@ export function QualifiedLabelDonut({
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-display text-lg font-bold tabular-nums">{total}</span>
-          <span className="text-[10px] text-muted-darker">chats</span>
+          <span className="text-micro text-muted-darker">chats</span>
         </div>
       </div>
       <ul className="min-w-0 flex-1 space-y-1.5">

@@ -67,7 +67,7 @@ export function ActivityHeatmap({ inbound, resolved, timeZone }: { inbound: Heat
               <tr>
                 <th scope="col" className="w-10" />
                 {HOURS.map((hour) => (
-                  <th key={hour} scope="col" className="text-[10px] font-normal tabular-nums text-muted-darker">
+                  <th key={hour} scope="col" className="text-micro font-normal tabular-nums text-muted-darker">
                     {hour % 3 === 0 ? hour : ""}
                   </th>
                 ))}
@@ -76,7 +76,7 @@ export function ActivityHeatmap({ inbound, resolved, timeZone }: { inbound: Heat
             <tbody>
               {DAYS.map((day) => (
                 <tr key={day.dow}>
-                  <th scope="row" className="pr-1 text-left text-[11px] font-medium text-muted-darker">{day.label}</th>
+                  <th scope="row" className="pr-1 text-left text-micro font-medium text-muted-darker">{day.label}</th>
                   {HOURS.map((hour) => {
                     const count = grid[day.dow][hour];
                     const pct = Math.round(heatIntensity(count, max) * 100);
@@ -97,7 +97,7 @@ export function ActivityHeatmap({ inbound, resolved, timeZone }: { inbound: Heat
               ))}
             </tbody>
           </table>
-          <div className="mt-2 flex items-center justify-end gap-2 text-[10px] text-muted-darker" aria-hidden>
+          <div className="mt-2 flex items-center justify-end gap-2 text-micro text-muted-darker" aria-hidden>
             <span>Menos</span>
             {[0, 25, 50, 75, 100].map((step) => (
               <span

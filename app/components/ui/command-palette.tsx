@@ -375,7 +375,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
                     : <action.icon size={16} className="shrink-0 text-muted" />}
                   <span className="flex-1">{action.label}</span>
                   {action.keys && (
-                    <kbd className="ml-auto shrink-0 rounded-md border border-border bg-surface-light px-1.5 py-0.5 text-[10px] font-medium text-muted-darker">
+                    <kbd className="ml-auto shrink-0 rounded-md border border-border bg-surface-light px-1.5 py-0.5 text-micro font-medium text-muted-darker">
                       {action.keys}
                     </kbd>
                   )}

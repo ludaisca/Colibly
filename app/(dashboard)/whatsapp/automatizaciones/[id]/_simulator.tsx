@@ -117,7 +117,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
       <div className="min-h-[320px] flex-1 space-y-2 overflow-y-auto rounded-xl border border-border bg-surface-light/40 p-3">
         {entries.map((e, i) =>
           e.kind === "effect" || e.kind === "status" ? (
-            <p key={i} className={cn("text-center text-[11px]", e.kind === "status" ? "font-medium text-accent-ink" : "text-muted")}>
+            <p key={i} className={cn("text-center text-micro", e.kind === "status" ? "font-medium text-accent-ink" : "text-muted")}>
               {e.kind === "effect" ? `⚙ ${e.text}` : e.text}
             </p>
           ) : (
@@ -180,7 +180,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
           </Button>
         )}
       </div>
-      {facts.tags.length > 0 && <p className="mt-2 text-[11px] text-muted">Etiquetas simuladas: {facts.tags.join(", ")}</p>}
+      {facts.tags.length > 0 && <p className="mt-2 text-micro text-muted">Etiquetas simuladas: {facts.tags.join(", ")}</p>}
     </div>
   );
 }

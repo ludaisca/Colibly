@@ -252,7 +252,7 @@ export function ChatComposer({
   return (
     <form onSubmit={onSubmit} className="relative flex shrink-0 flex-col gap-1.5 border-t border-border bg-surface px-3 py-1.5">
       {signature && newMessage.trim() && !attachment && (
-        <p className="truncate px-1 text-[11px] text-muted-darker" title={signature}>
+        <p className="truncate px-1 text-micro text-muted-darker" title={signature}>
           Se agregará tu firma: <span className="text-foreground">{signature}</span>
         </p>
       )}
@@ -308,7 +308,7 @@ export function ChatComposer({
           )}
           <div className="flex-1 min-w-0">
             <p className="text-xs truncate">{attachment.name}</p>
-            <p className="text-[11px] text-muted-darker">{(attachment.size / 1024).toFixed(0)} KB</p>
+            <p className="text-micro text-muted-darker">{(attachment.size / 1024).toFixed(0)} KB</p>
           </div>
           <Tooltip label="Quitar adjunto"><button aria-label="Quitar adjunto"
             type="button"

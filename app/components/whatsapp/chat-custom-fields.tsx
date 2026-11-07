@@ -68,7 +68,7 @@ export function ChatCustomFields({ chatId, className }: { chatId: string; classN
       <div className="mt-2 space-y-2.5">
         {definitions.map((definition) => (
           <div key={definition.id}>
-            <label className="mb-1 block text-[11px] text-muted-darker" htmlFor={`chat-field-${definition.id}`}>
+            <label className="mb-1 block text-micro text-muted-darker" htmlFor={`chat-field-${definition.id}`}>
               {definition.label}
               {definition.required && <span className="ml-1 text-danger" aria-hidden="true">*</span>}
             </label>

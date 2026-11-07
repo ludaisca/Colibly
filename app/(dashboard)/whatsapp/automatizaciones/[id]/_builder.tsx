@@ -119,7 +119,7 @@ function Branches(props: BuilderProps & { step: Step; branches: Branch[] }) {
             {b.label}
           </span>
           <StepList {...props} listId={b.id} steps={b.steps} />
-          {b.steps.length === 0 && <p className="mt-1 text-[11px] text-muted-darker">Sin pasos: aquí termina</p>}
+          {b.steps.length === 0 && <p className="mt-1 text-micro text-muted-darker">Sin pasos: aquí termina</p>}
         </div>
       ))}
     </div>
