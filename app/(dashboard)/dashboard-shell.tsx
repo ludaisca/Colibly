@@ -139,6 +139,8 @@ export function DashboardShell({
   return (
     <BusinessNameProvider name={businessName ?? null}>
     <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
+      {/* Activa el mundo visual "Andén" (tokens y fuentes) en globals.css. */}
+      <span data-world="anden" hidden />
       {children}
       <CallDock pollIncoming={callingEnabled} />
     </AppShell>

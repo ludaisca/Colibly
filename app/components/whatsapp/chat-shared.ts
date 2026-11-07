@@ -97,6 +97,8 @@ export interface ChatItem {
   snoozedUntil: string | null;
   /** Desde cuándo el cliente espera respuesta (lib/chats/waiting.ts). */
   waitingSince?: string | null;
+  /** Estado del lead del contacto: la estación de la venta en la cabecera. */
+  leadStatus?: "NEW" | "CONTACTED" | "QUALIFIED" | "CUSTOMER" | "LOST" | null;
   /** Fuera de SLA ahora (lib/sla/rules.ts:slaBreachFlags). */
   sla?: { responseBreached: boolean; resolutionBreached: boolean };
   /** Equipo que atiende el chat (lib/teams/). */
@@ -109,6 +111,18 @@ export interface ChatItem {
   channel: Channel;
   /** Cursor de la sincronización: el más reciente que ya tenemos. */
   updatedAt?: string;
+}
+
+/**
+ * Orden del tablero de espera (Andén): primero quien lleva más esperando;
+ * los que no esperan van al final, por último mensaje. Ordena solo lo cargado:
+ * cada canal pagina por último mensaje (ver fetchChatsPage).
+ */
+export function compareByWaiting(a: Pick<ChatItem, "waitingSince" | "lastMessageAt">, b: Pick<ChatItem, "waitingSince" | "lastMessageAt">): number {
+  if (a.waitingSince && b.waitingSince) return a.waitingSince < b.waitingSince ? -1 : a.waitingSince > b.waitingSince ? 1 : 0;
+  if (a.waitingSince) return -1;
+  if (b.waitingSince) return 1;
+  return (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? "");
 }
 
 /** El updatedAt más reciente de la lista (ISO en UTC: se comparan como texto). */

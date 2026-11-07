@@ -19,7 +19,7 @@ related_targets: ["app/components/whatsapp"]
 
 THESIS: La bandeja es el tablero de un andén: los chats se ordenan por tiempo de espera y el tiempo es el dato protagonista. Rechaza la bandeja estándar ordenada por último mensaje, con avatares redondos y contadores de no leídos como único estado.
 
-OWN-WORLD: Concreto claro de día (#F3F4F2) y andén casi negro de noche (#0F1113), tinta #15171A, superficies blancas planas. Cada cuenta lleva su color de línea (franja de 4px a la izquierda de la fila, chips de línea). Lámparas de estado: ámbar a los 30 min de espera, rojo al vencer el SLA. Barlow para todo; Barlow Condensed solo en títulos y cifras del tablero. Cifras de espera en celdas con línea de corte al medio, `tabular-nums`.
+OWN-WORLD: Concreto claro de día (#F3F4F2) y andén casi negro de noche (#0F1113), tinta #15171A, superficies blancas planas. Cada cuenta lleva su color de línea (franja de 4px a la izquierda de la fila, chips de línea). Lámparas de estado: ámbar desde 15 min de espera, roja desde 60 o al vencer el SLA (umbrales ya existentes en lib/chats/waiting-shared.ts). Barlow para todo; Barlow Condensed solo en títulos y cifras del tablero. Cifras de espera en celdas con línea de corte al medio, `tabular-nums`.
 
 STORY: Al abrir, el agente ve de inmediato cuál chat lleva más esperando y cuánto; entiende por color de qué cuenta es y por lámpara si ya es urgente; abre, contesta y ve en qué estación de la venta va el cliente (Nuevo → Atendido → Cotizado → Venta).
 

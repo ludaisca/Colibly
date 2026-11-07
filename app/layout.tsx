@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { appUrl, siteUrl } from "@/lib/app-url";
 import { requestHost } from "@/lib/request-host";
-import { Figtree, Newsreader } from "next/font/google";
+import { Barlow, Barlow_Condensed, Figtree, Newsreader } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -21,6 +21,24 @@ const newsreader = Newsreader({
 const figtree = Figtree({
   variable: "--font-body",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Mundo "Andén" del panel (2026-11-07, docs/arquitectura/frontend.md):
+// Barlow para todo y Barlow Condensed para títulos y cifras del tablero. Solo
+// el panel lo activa (globals.css, `:root:has([data-world="anden"])`); la
+// landing sigue con Newsreader + Figtree.
+const barlow = Barlow({
+  variable: "--font-barlow",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow-condensed",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -58,7 +76,7 @@ export default function RootLayout({
     <html
       lang="es"
       data-scroll-behavior="smooth"
-      className={`${newsreader.variable} ${figtree.variable} antialiased`}
+      className={`${newsreader.variable} ${figtree.variable} ${barlow.variable} ${barlowCondensed.variable} antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-dvh flex flex-col bg-background text-foreground">

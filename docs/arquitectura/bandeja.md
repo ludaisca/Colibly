@@ -55,6 +55,15 @@ These mirror equivalent Contact-level concepts but are **separate models** scope
 - Filtro `awaiting=1` en `lib/chats/query.ts` (siempre en `AND`), en el panel de filtros ("Respuesta → Esperando respuesta"), en la URL y en las vistas guardadas. La fila muestra `WaitingBadge` ("espera 25 min"): ámbar desde 15 min, rojo desde 60 (`lib/chats/waiting-shared.ts`, importable desde el cliente).
 - Los builders de `lib/chats/query.ts` ya no confían en `accountId`: uno ajeno a la lista del usuario da `{ in: [] }`.
 
+### Bandeja "Andén" (2026-11-07)
+
+Primera superficie de la nueva interfaz (rama `feat/nueva-interfaz`; contrato en `.impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md`, mundo visual en `frontend.md` → "Mundo Andén").
+- **Una sola lista**, sin encabezados por cuenta: cada fila lleva a la izquierda la franja de color de su cuenta (`hueClassFor(accountId)` + `bg-entity`). `chat-workspace.tsx` pasa `groupedChats` como `{ all: [...] }`; Alt+J/K siguen ese orden.
+- **Orden por espera** en "Esperando" (`awaiting=1`): `compareByWaiting()` (`chat-shared.ts`) pone primero quien lleva más esperando. Ordena lo cargado en el cliente: cada canal sigue paginando por `lastMessageAt` (la sincronización usa ese piso), así que con más de una página de chats esperando por canal la segunda página continúa por último mensaje.
+- **Cifra de espera**: `WaitCells` (`waiting-badge.tsx`) dibuja `waitingClock()` ("1:12", "2d") en celdas que voltean al cambiar (`animate-flap`, sin animación con "reducir movimiento") y una lámpara: ámbar desde 15 min, roja desde 60 o fuera de SLA de respuesta (umbrales de `waiting-shared.ts`). Lectores de pantalla oyen `waitingSpoken()`.
+- Cabecera: título condensado, "Ordenado por espera / Por último mensaje", chips de línea por cuenta (bajo `lg`) y el selector "Esperando N · Todos" (alterna `awaitingFilter`).
+- **Ruta de la venta** en la cabecera de la conversación: `Contact.leadStatus` (NEW → CONTACTED → QUALIFIED → CUSTOMER; LOST se marca aparte) llega en la lista (`contact: { select: { leadStatus } }` en `WA_CHAT_SELECT` / `CHANNEL_CHAT_SELECT`, campo `leadStatus` de `ChatItem`).
+
 ### Resolver solos los chats inactivos (auto-resolver, 2026-11-01)
 
 - Configuración por organización en `/configuracion/ia` (tarjeta "Bandeja", solo admin; `PATCH /api/configuracion/ia`): `autoResolveAfterHours` (1–720, `null` = apagado), `autoResolveMessage`, `autoResolveTagName`, `autoResolveSkipWaiting` (default `true`).

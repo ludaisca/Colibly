@@ -3,21 +3,20 @@
 import { displayName, isWebchatVisitorId } from "@/lib/chats/display-name";
 import type { ElementType, ReactNode } from "react";
 import { GettingStarted } from "@/app/components/ui/getting-started";
-import { Search, MessageSquare, Inbox, Flag, Clock, ListChecks, UserCheck, Check, X } from "lucide-react";
+import { Search, MessageSquare, Flag, Clock, ListChecks, UserCheck, Check, X } from "lucide-react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
-import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { hueClassFor } from "@/app/components/ui/hue";
 import { cn } from "@/app/components/ui/cn";
 import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./chat-filters-panel";
 import { ChatViewsMenu } from "./chat-views-menu";
 import { useNowMs } from "./use-now";
-import { SlaBadge, WaitingBadge } from "./waiting-badge";
+import { SlaBadge, WaitCells } from "./waiting-badge";
 import { ChatRowMenu } from "./chat-row-menu";
 import {
   displayMessageText,
@@ -185,7 +184,10 @@ export function ChatListPanel({
         {/* Cabecera estilo Chatwoot: título a la izquierda y acciones de icono
             a la derecha; nunca compiten por espacio con la búsqueda. */}
         <div className="flex items-center gap-1">
-          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">Chats</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-2xl font-bold leading-none">Chats</h1>
+            <p className="mt-1 truncate text-[11px] text-muted">{awaitingFilter ? "Ordenado por espera" : "Por último mensaje"}</p>
+          </div>
           <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} counts={viewCounts} />
 
           <button
@@ -222,32 +224,33 @@ export function ChatListPanel({
         </div>
 
         {accountOptions.length > 1 && (
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 lg:hidden scrollbar-none">
+          // Andén: cada cuenta es una "línea" con su color (el mismo hue de la
+          // franja de sus filas). Arriba de lg, el rail de cuentas hace esto.
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 lg:hidden scrollbar-none" role="group" aria-label="Cuentas">
             <button
               type="button"
               onClick={() => onAccountFilterChange("")}
+              aria-pressed={accountFilter === ""}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-[9px] border px-3 py-1.5 text-xs font-semibold transition-colors",
-                accountFilter === ""
-                  ? "border-accent-strong bg-accent text-on-accent"
-                  : "border-border bg-surface text-muted hover:bg-surface-light"
+                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+                accountFilter === "" ? "border-foreground bg-foreground text-background" : "border-border bg-surface text-muted hover:bg-surface-light"
               )}
             >
-              <Inbox size={13} /> Todos
+              Todas
             </button>
             {accountOptions.map((acc) => (
               <button
                 key={acc.id}
                 type="button"
                 onClick={() => onAccountFilterChange(acc.id)}
+                aria-pressed={accountFilter === acc.id}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-[9px] border py-1 pl-1 pr-3 text-xs font-semibold transition-colors",
-                  accountFilter === acc.id
-                    ? "border-accent-strong bg-accent text-on-accent"
-                    : "border-border bg-surface text-muted hover:bg-surface-light"
+                  "flex shrink-0 items-center gap-1.5 rounded-full border py-1 pl-1.5 pr-3 text-xs font-semibold transition-colors",
+                  hueClassFor(acc.id),
+                  accountFilter === acc.id ? "border-foreground bg-foreground text-background" : "border-border bg-surface text-foreground hover:bg-surface-light"
                 )}
               >
-                <EntityAvatar id={acc.id} name={acc.name} size="sm" />
+                <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full bg-entity" />
                 {acc.name}
               </button>
             ))}
@@ -300,6 +303,28 @@ export function ChatListPanel({
           </div>
         )}
       </div>
+      {/* Cabecera del tablero: qué se ve y por qué columna se ordena. */}
+      <div className="flex items-center justify-between gap-2 px-3 pb-1.5 pt-2">
+        <div className="inline-flex rounded-full bg-surface-light p-0.5" role="group" aria-label="Qué chats ver">
+          <button
+            type="button"
+            aria-pressed={awaitingFilter}
+            onClick={() => onAwaitingFilterChange(true)}
+            className={cn("rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors", awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
+          >
+            Esperando{viewCounts ? ` ${viewCounts.awaiting}` : ""}
+          </button>
+          <button
+            type="button"
+            aria-pressed={!awaitingFilter}
+            onClick={() => onAwaitingFilterChange(false)}
+            className={cn("rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors", !awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
+          >
+            Todos
+          </button>
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">{awaitingFilter ? "Espera" : "Último"}</span>
+      </div>
       <div className="scrollbar-thin flex-1 overflow-y-auto">
         {loadingChats ? (
           <div className="flex items-center justify-center py-12">
@@ -317,8 +342,10 @@ export function ChatListPanel({
           <div className="py-8">
             <EmptyState
               icon={MessageSquare}
-              title={totalChatsLoaded === 0 ? "Sin chats" : "Sin resultados"}
-              description={totalChatsLoaded === 0 ? "No tienes chats activos. Cuando recibas mensajes aparecerán aquí." : "No se encontraron chats con ese filtro."}
+              title={awaitingFilter && !search ? "Nadie espera respuesta" : totalChatsLoaded === 0 ? "Sin chats" : "Sin resultados"}
+              description={awaitingFilter && !search
+                ? "Cuando un cliente escriba y nadie le conteste, aparecerá aquí con su tiempo de espera."
+                : totalChatsLoaded === 0 ? "No tienes chats activos. Cuando recibas mensajes aparecerán aquí." : "No se encontraron chats con ese filtro."}
               action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter || slaFilter) ? (
                 <Button variant="secondary" size="sm" onClick={() => {
                   onSearchChange("");
@@ -334,108 +361,96 @@ export function ChatListPanel({
             />
           </div>
         ) : (
-          <div>
-            {Object.entries(groupedChats).map(([accountId, accountChats]) => (
-              <div key={accountId}>
-                <div className={`flex items-center gap-1.5 border-b border-border bg-surface/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-darker ${hueClassFor(accountId)}`}>
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-entity" />
-                  {accountChats[0]?.account?.name ?? accountId}
-                </div>
-                {accountChats.map((chat) => (
-                  <div key={chat.id} className="relative">
-                    {selectionMode && (
-                      <input
-                        type="checkbox"
-                        checked={selectedChatIds.has(chat.id)}
-                        onChange={() => onToggleSelect(chat.id)}
-                        aria-label={`Seleccionar ${displayName(chat.name, chat.remoteJid)}`}
-                        className="absolute left-3 top-4 z-10 h-4 w-4 cursor-pointer rounded border-border accent-[var(--accent)]"
-                      />
-                    )}
-                    <ChatRowMenu chat={chat} currentUserId={currentUserId} onAction={onRowAction} disabled={selectionMode}>
+          <>
+          <ul className="grid gap-1 px-2 pb-2">
+            {Object.values(groupedChats).flat().map((chat) => {
+              const name = displayName(chat.name, chat.remoteJid);
+              const waiting = now > 0 && !!chat.waitingSince && chat.status !== "RESOLVED";
+              const selected = selectedChatId === chat.id;
+              return (
+                <li key={chat.id} className="relative">
+                  {selectionMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedChatIds.has(chat.id)}
+                      onChange={() => onToggleSelect(chat.id)}
+                      aria-label={`Seleccionar ${name}`}
+                      className="absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 cursor-pointer rounded border-border accent-[var(--accent)]"
+                    />
+                  )}
+                  <ChatRowMenu chat={chat} currentUserId={currentUserId} onAction={onRowAction} disabled={selectionMode}>
                     <button
                       type="button"
                       onClick={() => selectionMode ? onToggleSelect(chat.id) : onChatSelect(chat)}
+                      aria-current={selected ? "true" : undefined}
                       className={cn(
-                        "chat-list-row w-full border-b border-border py-2 text-left transition-colors hover:bg-surface-light",
-                        selectionMode ? "pl-9 pr-3" : "px-3",
-                        selectedChatId === chat.id && "bg-accent-subtle shadow-[inset_3px_0_0_var(--accent-strong)]"
+                        "chat-list-row flex w-full items-stretch overflow-hidden rounded-lg text-left transition-colors",
+                        selected ? "bg-accent-subtle ring-1 ring-accent-muted" : "bg-surface hover:bg-surface-light",
+                        hueClassFor(chat.accountId)
                       )}
-                      aria-current={selectedChatId === chat.id ? "true" : undefined}
                     >
-                    <div className="flex items-start justify-between gap-2">
-                      <ChannelAvatar
-                        id={chat.accountId}
-                        name={displayName(chat.name, chat.remoteJid)}
-                        channel={chat.channel}
-                        size="sm"
-                        className="mt-0.5"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className={`truncate text-[13px] ${chat.unreadCount > 0 ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
-                          {displayName(chat.name, chat.remoteJid)}
-                        </p>
-                        <p className={`mt-0.5 truncate text-[11px] ${chat.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-darker"}`}>
-                          {displayMessageText(chat.lastMessage) ?? "Sin mensajes"}
-                        </p>
-                        {(chat.assignedTo || chat.campaign) && (
-                          <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                            {chat.assignedTo && (
-                              <Badge tone="info" size="sm">
-                                {chat.assignedTo.name ?? "Asignado"}
-                              </Badge>
-                            )}
-                            {chat.campaign && (
-                              <Badge tone={campaignTone(chat.campaign.id)} size="sm" className="max-w-[10rem] truncate">
-                                {chat.campaign.name}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="flex items-center gap-1">
-                          {chat.priority !== "NORMAL" && (
-                            <span
-                              title={`Prioridad ${PRIORITY_META[chat.priority].label.toLowerCase()}`}
-                              className={PRIORITY_META[chat.priority].text}
-                            >
-                              <Flag size={10} fill="currentColor" />
-                            </span>
-                          )}
-                          {chat.snoozedUntil && new Date(chat.snoozedUntil).getTime() > now && (
-                            <span
-                              title={`Pospuesto hasta ${formatSnoozeUntil(chat.snoozedUntil)}`}
-                              className="text-muted-darker"
-                            >
-                              <Clock size={10} />
-                            </span>
-                          )}
-                          {chat.lastMessageAt && (
-                            <span className={`text-[10px] ${chat.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted-darker"}`}>
-                              {formatTime(chat.lastMessageAt)}
+                      {/* Línea de la cuenta. */}
+                      <span aria-hidden className="w-1 shrink-0 bg-entity" />
+                      <span className={cn("flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-2.5", selectionMode ? "pl-9" : "pl-2.5")}>
+                        <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
+                        <span className="min-w-0 flex-1">
+                          <span className={cn("block truncate text-[13px]", chat.unreadCount > 0 ? "font-bold text-foreground" : "font-semibold text-foreground")}>
+                            {name}
+                          </span>
+                          <span className={cn("mt-0.5 block truncate text-xs", chat.unreadCount > 0 ? "font-medium text-foreground" : "text-muted")}>
+                            {displayMessageText(chat.lastMessage) ?? "Sin mensajes"}
+                          </span>
+                          {(chat.assignedTo || chat.campaign) && (
+                            <span className="mt-1 flex flex-wrap items-center gap-1">
+                              {chat.assignedTo && <Badge tone="info" size="sm">{chat.assignedTo.name ?? "Asignado"}</Badge>}
+                              {chat.campaign && (
+                                <Badge tone={campaignTone(chat.campaign.id)} size="sm" className="max-w-[10rem] truncate">
+                                  {chat.campaign.name}
+                                </Badge>
+                              )}
                             </span>
                           )}
                         </span>
-                        {chat.unreadCount > 0 && (
-                          <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-accent text-on-accent text-[10px] font-bold">
-                            {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          {waiting && chat.waitingSince ? (
+                            <WaitCells since={chat.waitingSince} now={now} overdue={!!chat.sla?.responseBreached} />
+                          ) : chat.lastMessageAt ? (
+                            <span className={cn("text-[11px] tabular-nums", chat.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted")}>
+                              {formatTime(chat.lastMessageAt)}
+                            </span>
+                          ) : null}
+                          <span className="flex items-center gap-1">
+                            {chat.priority !== "NORMAL" && (
+                              <span title={`Prioridad ${PRIORITY_META[chat.priority].label.toLowerCase()}`} className={PRIORITY_META[chat.priority].text}>
+                                <Flag size={11} fill="currentColor" aria-hidden />
+                                <span className="sr-only">Prioridad {PRIORITY_META[chat.priority].label.toLowerCase()}</span>
+                              </span>
+                            )}
+                            {chat.snoozedUntil && new Date(chat.snoozedUntil).getTime() > now && (
+                              <span title={`Pospuesto hasta ${formatSnoozeUntil(chat.snoozedUntil)}`} className="text-muted">
+                                <Clock size={11} aria-hidden />
+                                <span className="sr-only">Pospuesto</span>
+                              </span>
+                            )}
+                            {(chat.sla?.resolutionBreached || (!waiting && chat.sla?.responseBreached)) && (
+                              <SlaBadge response={!!chat.sla?.responseBreached} />
+                            )}
+                            {chat.unreadCount > 0 && (
+                              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-bold tabular-nums text-background">
+                                {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+                                <span className="sr-only"> sin leer</span>
+                              </span>
+                            )}
                           </span>
-                        )}
-                        {now > 0 && chat.waitingSince && chat.status !== "RESOLVED" && (
-                          <WaitingBadge since={chat.waitingSince} now={now} />
-                        )}
-                        {(chat.sla?.responseBreached || chat.sla?.resolutionBreached) && (
-                          <SlaBadge response={!!chat.sla?.responseBreached} />
-                        )}
-                      </div>
-                    </div>
+                        </span>
+                      </span>
                     </button>
-                    </ChatRowMenu>
-                  </div>
-                ))}
-              </div>
-            ))}
+                  </ChatRowMenu>
+                </li>
+              );
+            })}
+          </ul>
+          <div>
             {totalChatsLoaded < chatsTotal && (
               <div className="p-3">
                 <Button variant="secondary" size="sm" fullWidth onClick={onLoadMore} disabled={loadingMoreChats}>
@@ -444,6 +459,7 @@ export function ChatListPanel({
               </div>
             )}
           </div>
+          </>
         )}
         {!loadingChats && messageResults}
       </div>

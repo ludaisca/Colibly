@@ -34,6 +34,7 @@ import {
   THREAD_CACHE_MAX,
   latestUpdatedAt,
   oldestLastMessageAt,
+  compareByWaiting,
   type InboxSyncResponse,
   type ViewCounts,
   type Channel,
@@ -1380,14 +1381,10 @@ export function ChatWorkspace({
     );
   });
 
-  const groupedChats: Record<string, ChatItem[]> = {};
-  for (const c of filteredChats) {
-    const key = c.account.id;
-    if (!groupedChats[key]) groupedChats[key] = [];
-    groupedChats[key].push(c);
-  }
-  // Orden visual de la lista (agrupada por cuenta) para Alt+J / Alt+K.
-  const visibleChats = Object.values(groupedChats).flat();
+  // Andén: una sola lista (la cuenta se ve en la franja de color de cada fila).
+  // En "Esperando" manda el tiempo de espera: primero quien lleva más.
+  const visibleChats = awaitingFilter ? [...filteredChats].sort(compareByWaiting) : filteredChats;
+  const groupedChats: Record<string, ChatItem[]> = visibleChats.length > 0 ? { all: visibleChats } : {};
 
   async function runShortcut(action: InboxShortcutAction) {
     if (action === "help") return setShortcutsOpen(true);

@@ -175,6 +175,8 @@ export const WA_CHAT_SELECT = {
   account: {
     select: { id: true, name: true, phoneNumber: true, coexistence: true, callingEnabled: true },
   },
+  // Estación de la venta en la cabecera de la bandeja (Andén).
+  contact: { select: { leadStatus: true } },
   messages: CHAT_ATTRIBUTION_MESSAGE_QUERY,
 } as const;
 
@@ -202,14 +204,21 @@ export const CHANNEL_CHAT_SELECT = {
   createdAt: true,
   updatedAt: true,
   channelAccount: { select: { id: true, name: true, channel: true } },
+  contact: { select: { leadStatus: true } },
 } as const;
 
 export type WaChatRow = Prisma.WAChatGetPayload<{ select: typeof WA_CHAT_SELECT }>;
 export type ChannelChatRow = Prisma.ConversationGetPayload<{ select: typeof CHANNEL_CHAT_SELECT }>;
 
 export function mapWaChatRow(row: WaChatRow) {
-  const { messages, openedAt: _opened, slaResponseBreachedFor: _r, slaResolutionBreachedFor: _z, ...chat } = row;
-  return { ...chat, sla: slaBreachFlags(row), campaign: resolveChatAttribution(messages), channel: "WHATSAPP" as const };
+  const { messages, contact, openedAt: _opened, slaResponseBreachedFor: _r, slaResolutionBreachedFor: _z, ...chat } = row;
+  return {
+    ...chat,
+    leadStatus: contact?.leadStatus ?? null,
+    sla: slaBreachFlags(row),
+    campaign: resolveChatAttribution(messages),
+    channel: "WHATSAPP" as const,
+  };
 }
 
 export function mapChannelChatRow(row: ChannelChatRow) {
@@ -227,6 +236,7 @@ export function mapChannelChatRow(row: ChannelChatRow) {
     priority: row.priority,
     snoozedUntil: row.snoozedUntil,
     waitingSince: row.waitingSince,
+    leadStatus: row.contact?.leadStatus ?? null,
     sla: slaBreachFlags(row),
     teamId: row.teamId,
     team: row.team,

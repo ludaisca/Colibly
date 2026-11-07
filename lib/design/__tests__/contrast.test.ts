@@ -5,7 +5,14 @@ import { contrastRatio, readThemeTokens } from "../contrast";
 import { BRAND_COLORS as B } from "../../brand-colors";
 
 const css = readFileSync(path.resolve(__dirname, "../../../app/globals.css"), "utf8");
-const THEMES = { claro: readThemeTokens(css), oscuro: readThemeTokens(css, ".dark") };
+const ANDEN = ':root:has([data-world="anden"])';
+const THEMES = {
+  claro: readThemeTokens(css),
+  oscuro: readThemeTokens(css, ".dark"),
+  // Mundo "Andén" del panel: se apila sobre el tema (globals.css).
+  "andén claro": readThemeTokens(css, ANDEN),
+  "andén oscuro": readThemeTokens(css, [".dark", ANDEN, 'html.dark:has([data-world="anden"])']),
+};
 
 // [texto, fondo, mínimo]. 4.5 = texto normal (WCAG AA); 3 = iconos, bordes
 // de controles y anillos de foco (WCAG 1.4.11).

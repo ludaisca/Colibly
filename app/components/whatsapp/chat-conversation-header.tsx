@@ -4,6 +4,8 @@ import { displayName } from "@/lib/chats/display-name";
 import { useId, useState } from "react";
 import { ArrowLeft, Check, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
+import { hueClassFor } from "@/app/components/ui/hue";
+import { cn } from "@/app/components/ui/cn";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown, DropdownItem } from "@/app/components/ui/dropdown";
 import { Select } from "@/app/components/ui/select";
@@ -27,6 +29,49 @@ const CHANNELS: Record<Channel, { label: string }> = {
   INSTAGRAM: { label: "Instagram" },
   WEBCHAT: { label: "Chat web" },
 };
+
+// Andén: la venta como una línea con estaciones, en el color de la cuenta.
+// Sale de Contact.leadStatus (el mismo que cambia la ficha y el pipeline).
+const ROUTE: Array<{ status: NonNullable<ChatItem["leadStatus"]>; label: string }> = [
+  { status: "NEW", label: "Nuevo" },
+  { status: "CONTACTED", label: "Contactado" },
+  { status: "QUALIFIED", label: "Calificado" },
+  { status: "CUSTOMER", label: "Cliente" },
+];
+
+function SalesRoute({ status, accountId }: { status: NonNullable<ChatItem["leadStatus"]>; accountId: string }) {
+  const lost = status === "LOST";
+  const current = ROUTE.findIndex((s) => s.status === status);
+  const label = lost ? "Etapa del lead: perdido" : `Etapa del lead: ${ROUTE[current]?.label} (${current + 1} de ${ROUTE.length})`;
+  return (
+    <div className={cn("flex items-center gap-3 px-3 pb-2.5 pt-1", hueClassFor(accountId))}>
+      <ol aria-label={label} className="relative flex min-w-0 flex-1">
+        {/* Vía: llena hasta la estación actual, gris después. */}
+        <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[5px] h-1 rounded-full bg-border" />
+        {!lost && current > 0 && (
+          <span aria-hidden className="absolute left-[12.5%] top-[5px] h-1 rounded-full bg-entity" style={{ width: `${(current / (ROUTE.length - 1)) * 75}%` }} />
+        )}
+        {ROUTE.map((station, index) => {
+          const done = !lost && index < current;
+          const now = !lost && index === current;
+          return (
+            <li key={station.status} aria-current={now ? "step" : undefined} className="relative z-[1] flex flex-1 flex-col items-center gap-1">
+              <span
+                aria-hidden
+                className={cn(
+                  "box-border rounded-full border-[3px]",
+                  now ? "h-3.5 w-3.5 -mt-0.5 border-entity bg-surface" : done ? "h-2.5 w-2.5 border-entity bg-entity" : "h-2.5 w-2.5 border-border bg-surface"
+                )}
+              />
+              <span className={cn("text-[10px] leading-none", now ? "font-bold text-foreground" : "text-muted")}>{station.label}</span>
+            </li>
+          );
+        })}
+      </ol>
+      {lost && <span className="shrink-0 rounded-full border border-danger-border bg-danger-bg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-danger">Perdido</span>}
+    </div>
+  );
+}
 
 interface Props {
   chat: ChatItem;
@@ -79,8 +124,8 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
         <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
         <div className="min-w-0 flex-1">
           {chat.contactId ? (
-            <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-sm font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>
-          ) : <p className="truncate text-sm font-semibold text-foreground">{name}</p>}
+            <button type="button" onClick={onOpenContactDrawer} title="Ver contacto" className="block max-w-full truncate rounded text-left text-[15px] font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button>
+          ) : <p className="truncate text-[15px] font-semibold text-foreground">{name}</p>}
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-darker" title={subtitle}>
             {/* Sin icono de canal: la insignia del avatar ya lo muestra. */}
             <span className="truncate">{subtitle}</span>
@@ -129,6 +174,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
           </div>
         </Dropdown>
       </div>
+      {chat.contactId && chat.leadStatus && <SalesRoute status={chat.leadStatus} accountId={chat.accountId} />}
       {detailsOpen && (
         <div className="border-t border-border bg-surface-light px-3 py-3 sm:px-4">
           <div id={detailsId} role="region" aria-labelledby={`${detailsId}-title`} className="@container flex max-h-[40dvh] flex-col overflow-hidden rounded-xl border border-accent-muted bg-surface shadow-md">

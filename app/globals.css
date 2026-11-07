@@ -89,6 +89,9 @@
      gris tenue para que la burbuja blanca destaque. */
   --chat-bg: var(--surface-light);
 
+  /* Celdas del tablero de espera (Andén): fondo de cada cifra. */
+  --cell: var(--surface-light);
+
   /* Acento de apoyo: coral (badges, highlights). No es CTA. */
   --accent-2:       var(--coral-600);
   --accent-2-hover: var(--coral-700);
@@ -206,6 +209,46 @@
 }
 
 /* ─────────────────────────────────────────────────
+   MUNDO "ANDÉN" — el panel (2026-11-07; brief en
+   .impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md). Lo activa
+   el marcador <span data-world="anden"> de dashboard-shell.tsx, así la
+   landing conserva su paleta y fuentes. Concreto de día, andén casi negro de
+   noche; Barlow para todo y Barlow Condensed para títulos y cifras.
+   :root:has() pesa más que .dark, por eso el bloque oscuro repite TODOS los
+   tokens que cambia el claro. Pares en contrast.test.ts.
+   ───────────────────────────────────────────────── */
+html:has([data-world="anden"]) {
+  --font-body:     var(--font-barlow);
+  --font-display:  var(--font-barlow-condensed);
+}
+:root:has([data-world="anden"]) {
+  --background:    #F3F4F2;
+  --foreground:    #15171A;
+  --surface-light: #ECEEEB;
+  --border:        #DCDFDB;
+  --cell:          #E6E8E4;
+  --chat-bg:       #ECEEEB;
+}
+html.dark:has([data-world="anden"]) {
+  --background:    #0F1113;
+  --foreground:    #EEF0EE;
+  --surface:       #181B1E;
+  --surface-light: #22262A;
+  --border:        #2C3035;
+  --cell:          #262A2E;
+  --chat-bg:       #0F1113;
+}
+
+/* Volteo de una celda del tablero al cambiar su cifra (ver WaitCells). */
+@keyframes flap {
+  0%   { transform: perspective(200px) rotateX(-90deg); opacity: .4; }
+  60%  { transform: perspective(200px) rotateX(12deg);  opacity: 1; }
+  100% { transform: perspective(200px) rotateX(0deg); }
+}
+.animate-flap { animation: flap 260ms var(--ease) both; transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) { .animate-flap { animation: none; } }
+
+/* ─────────────────────────────────────────────────
    HUE POR ENTIDAD — 8 clases; en .dark suben de luminosidad para leerse
    sobre fondo oscuro
    ───────────────────────────────────────────────── */
@@ -280,6 +323,7 @@
 
   --color-code:           var(--code-bg);
   --color-code-foreground: var(--code-fg);
+  --color-cell:           var(--cell);
 
   --color-entity:    var(--entity);
   --color-entity-bg: var(--entity-bg, color-mix(in oklab, var(--entity) 14%, transparent));

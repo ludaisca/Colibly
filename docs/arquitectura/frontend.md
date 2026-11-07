@@ -78,6 +78,14 @@ Exceptions that stay as a dedicated page instead of a modal:
 
 Account creation (`whatsapp/cuentas/_form.tsx:CuentaFormModal`) follows the standard modal pattern but has a two-step render: the create form, then (on success) a read-only "here are your values" step showing the webhook URL and the auto-generated verify token — `verifyToken` is never typed by the user and never stored in plaintext (`WAAccount.verifyTokenHash` only), so that success step is the *only* place it's ever visible. External entry points link to `/whatsapp/cuentas?nueva=1`, which auto-opens the modal (`cuentas/page.tsx` reads the `nueva` search param into the modal's initial `open` state — wrapped in `<Suspense>` per the `useSearchParams()` rule above).
 
+### Mundo "Andén" del panel (2026-11-07)
+
+Dirección visual de la nueva interfaz (rama `feat/nueva-interfaz`), elegida con Impeccable; el contrato vive en `.impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md` y `PRODUCT.md` fija lo de producto (celular primero, burbujas intactas, identidad universal sin folclor).
+- Se activa con el marcador `<span data-world="anden" hidden>` de `dashboard-shell.tsx`: `globals.css` aplica `html:has([data-world="anden"])` (fuentes: Barlow / Barlow Condensed, cargadas en `app/layout.tsx` como `--font-barlow*`) y `:root:has(...)` / `html.dark:has(...)` (concreto `#F3F4F2` de día, andén `#0F1113` de noche, `--cell` para las celdas del tablero). La landing no lo tiene y conserva Newsreader + Figtree. `:root:has()` pesa más que `.dark`: el bloque oscuro repite todo token que cambie el claro. `contrast.test.ts` prueba los temas "andén claro/oscuro".
+- Firma: el tiempo de espera como tablero (`WaitCells`, ver `bandeja.md`). `font-display` es Barlow Condensed dentro del panel: títulos y cifras, nunca etiquetas largas.
+- Las capturas con Playwright headless muestran un espaciado irregular entre letras: es el hinting de fuentes de Chromium sin pantalla, no la app. Lanzar con `--font-render-hinting=none`.
+- Pendiente para cerrar el mundo: extenderlo al resto del panel, revisión final y reescribir `DESIGN.md` (hoy es la línea base anterior).
+
 ## Fechas: zona de la organización y tiempo relativo (2026-11-01)
 
 - `lib/dates/zoned.ts` (puro, con tests): `zonedDayKey`, `zonedDayStart` (inicio del día local con el offset real de esa fecha, sirve en cambios de horario), `addDaysKey`, `zonedHourAndDow`, `safeTimeZone`. Úsalo para cortar días u horas por `Organization.timezone`; nunca un offset fijo como `-06:00`.

@@ -34,12 +34,13 @@ function readBlock(css: string, selector: string): Record<string, string> {
  * ".dark"); resuelve las referencias `var(--x)` hasta llegar a un hex. Los
  * valores que no terminan en hex (sombras, radios, oklch) se dejan tal cual.
  */
-export function readThemeTokens(css: string, themeSelector?: string): Record<string, string> {
-  const raw = {
+export function readThemeTokens(css: string, themeSelector?: string | string[]): Record<string, string> {
+  const layers = themeSelector === undefined ? [] : Array.isArray(themeSelector) ? themeSelector : [themeSelector];
+  const raw: Record<string, string> = {
     ...readBlock(css, ":root"),
     ...readBlock(css, ":root, .theme-light"),
-    ...(themeSelector ? readBlock(css, themeSelector) : {}),
   };
+  for (const selector of layers) Object.assign(raw, readBlock(css, selector));
 
   const resolve = (name: string, seen: Set<string>): string => {
     const value = raw[name];
