@@ -25,6 +25,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [PRECIOS_POR_EJECUTIVO_2026-10-19.md](PRECIOS_POR_EJECUTIVO_2026-10-19.md) | **Superado** por [PLAN_LICENCIAS_2026-11-04.md](PLAN_LICENCIAS_2026-11-04.md) (licencias por usuario); rige solo a organizaciones con `legacyUntil`. |
 | [OFERTA_BETA_COLIBLY.md](OFERTA_BETA_COLIBLY.md) | Propuesta de oferta beta (superada: registro abierto y precio por ejecutivo). |
 | [INVENTARIO_UI_2026-11-07.md](INVENTARIO_UI_2026-11-07.md) | **Vigente**: inventario de componentes y librerías de UI, qué ofrece Tesela y reparto propuesto (Base UI + piezas portadas de Tesela + capa propia) para la nueva interfaz. |
+| [INVENTARIO_MODALES_2026-11-07.md](INVENTARIO_MODALES_2026-11-07.md) | **Vigente**: los 53 modales y 33 confirmaciones clasificados con la regla de Impeccable (modal solo si interrumpe con razón): se quedan 19, 17 a cajón lateral, 12 cortos y 5 en línea; plan para pasar `Modal` a Base UI. |
 | [AUDITORIA_UI_2026-11-07.md](AUDITORIA_UI_2026-11-07.md) | **Vigente**: primera auditoría de `app/components/ui/` con Web Design Guidelines y el detector de Impeccable (teclado/ARIA de menús propios, foco, animación, desvíos de `DESIGN.md`). `PRODUCT.md` y `DESIGN.md` (raíz) son el contexto de Impeccable. |
 | [RESPALDOS.md](RESPALDOS.md) | Respaldo diario de la base a S3/R2: configuración, restauración y límites. |
 
