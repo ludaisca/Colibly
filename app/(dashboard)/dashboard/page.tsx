@@ -23,6 +23,8 @@ import { IconBox } from "@/app/components/ui/icon-box";
 import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { cn } from "@/app/components/ui/cn";
+import { hueClassFor } from "@/app/components/ui/hue";
+import { WaitCells } from "@/app/components/whatsapp/waiting-badge";
 import { OnboardingChecklist } from "@/app/components/ui/onboarding-checklist";
 import { getOnboardingSteps } from "@/lib/onboarding";
 import { formatInZone } from "@/lib/format/dates";
@@ -79,6 +81,8 @@ export default async function DashboardPage() {
         remoteJid: true,
         lastMessage: true,
         lastMessageAt: true,
+        waitingSince: true,
+        status: true,
         account: { select: { name: true } },
       },
     }),
@@ -88,7 +92,7 @@ export default async function DashboardPage() {
       take: 8,
       select: {
         id: true, channelAccountId: true, name: true, externalId: true,
-        lastMessage: true, lastMessageAt: true,
+        lastMessage: true, lastMessageAt: true, waitingSince: true, status: true,
         channelAccount: { select: { name: true, channel: true } },
       },
     }),
@@ -110,6 +114,7 @@ export default async function DashboardPage() {
     name: displayName(c.name, c.remoteJid),
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
+    waitingSince: c.status !== "RESOLVED" ? c.waitingSince : null,
     accountName: c.account?.name ?? "—",
     channel: "WHATSAPP" as AvatarChannel,
   })).concat(recentChannelChats.map((c) => ({
@@ -118,10 +123,13 @@ export default async function DashboardPage() {
     name: displayName(c.name, c.externalId),
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
+    waitingSince: c.status !== "RESOLVED" ? c.waitingSince : null,
     accountName: c.channelAccount.name,
     channel: c.channelAccount.channel as AvatarChannel,
   }))).sort((a, b) => (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)).slice(0, 8);
 
+  // Hora de la petición para la cifra de espera (página dinámica, por sesión).
+  const now = new Date().getTime();
   const showAccountBadge = accountsTotal > 1;
   const channelTypes = new Set(channelAccounts.map((account) => account.channel));
   const accountsHref = accountIds.length > 0 && channelAccounts.length === 0
@@ -183,7 +191,7 @@ export default async function DashboardPage() {
           un mensaje verde de "todo en orden" daría una señal equivocada. */}
       <div
         className={cn(
-          "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 shadow-sm",
+          "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3",
           needsSetup ? "bg-info-bg" : needsAttention ? "bg-warning-bg" : "bg-success-bg"
         )}
       >
@@ -215,7 +223,7 @@ export default async function DashboardPage() {
 
       <Workbench>
         <WorkbenchMain>
-          <section className="animate-fade-in-up animation-delay-300 rounded-xl border border-border bg-surface shadow-sm">
+          <section className="animate-fade-in-up animation-delay-300 overflow-hidden rounded-xl border border-border bg-surface">
             <div className="flex items-baseline justify-between gap-3 px-4 py-3">
               <SectionHeader
                 eyebrow="Actividad"
@@ -246,17 +254,22 @@ export default async function DashboardPage() {
                   <Link
                     key={chat.id}
                     href={`/whatsapp/chat/${chat.accountId}/${chat.id}`}
-                    className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-surface-light sm:flex sm:items-center sm:gap-3"
+                    className={cn("relative grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-surface-light sm:flex sm:items-center sm:gap-3", hueClassFor(chat.accountId))}
                   >
+                    <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-entity" />
                     <div className="row-span-2 sm:row-span-1"><ChannelAvatar id={chat.accountId} name={chat.name} channel={chat.channel} size="sm" /></div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{chat.name}</p>
                       <p className="truncate text-xs text-muted-darker">{chat.lastMessage ?? "—"}</p>
                     </div>
                     <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-1 sm:ml-auto sm:shrink-0 sm:flex-col sm:items-end">
-                      <span className="text-[11px] font-medium tabular-nums text-muted-darker">
-                        {formatTime(chat.lastMessageAt)}
-                      </span>
+                      {chat.waitingSince ? (
+                        <WaitCells since={chat.waitingSince.toISOString()} now={now} />
+                      ) : (
+                        <span className="text-[11px] font-medium tabular-nums text-muted-darker">
+                          {formatTime(chat.lastMessageAt)}
+                        </span>
+                      )}
                       {showAccountBadge && (
                         <Badge tone="neutral" size="sm">{chat.accountName}</Badge>
                       )}
@@ -269,7 +282,7 @@ export default async function DashboardPage() {
         </WorkbenchMain>
 
         <WorkbenchAside>
-          <section className="animate-fade-in-up animation-delay-400 rounded-xl border border-border bg-surface shadow-sm">
+          <section className="animate-fade-in-up animation-delay-400 rounded-xl border border-border bg-surface">
             <div className="px-4 py-3">
               <SectionHeader eyebrow="Atajos" title="Acceso rápido" />
             </div>

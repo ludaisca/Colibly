@@ -5,7 +5,7 @@ import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Menu, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Menu, LogOut, PanelLeftClose, PanelLeftOpen, MoreHorizontal } from "lucide-react";
 import { Drawer } from "./drawer";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
@@ -30,6 +30,8 @@ export interface NavGroup {
 
 export interface AppShellProps {
   nav: (NavItem | NavGroup)[];
+  /** Andén: accesos de la barra inferior en el celular (máx. 3; el cuarto es "Más", que abre el menú). */
+  mobileTabs?: NavItem[];
   accent?: "accent" | "danger";
   bottomActions?: React.ReactNode;
   logoArea?: React.ReactNode;
@@ -47,8 +49,10 @@ export interface AppShellProps {
 
 function activeClass(accent: "accent" | "danger") {
   return accent === "accent"
-    ? "bg-accent text-on-accent font-semibold shadow-sm"
-    : "bg-danger text-surface font-semibold shadow-sm";
+    // Andén: la selección se marca en tinta (como los chips y pestañas de la
+    // bandeja); el acento queda para la acción principal.
+    ? "bg-foreground text-background font-semibold"
+    : "bg-danger text-surface font-semibold";
 }
 
 function SidebarContent({
@@ -80,7 +84,7 @@ function SidebarContent({
           title={collapsed ? item.label : undefined}
           aria-current={active ? "page" : undefined}
           className={cn(
-            "flex items-center text-sm font-medium transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
+            "flex items-center text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
             collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
             // Radio cercano al de la marca (rx=9 sobre 32): el item mide 40px
             // de alto, así que 12px conserva la misma proporción visual.
@@ -97,8 +101,8 @@ function SidebarContent({
   };
 
   return (
-    <div className={cn("flex flex-col h-full transition-all", collapsed ? "items-center px-2" : "")}>
-      <div className={cn("shrink-0 transition-all", collapsed ? "px-0 py-5" : "px-4 py-4")}>
+    <div className={cn("flex flex-col h-full", collapsed ? "items-center px-2" : "")}>
+      <div className={cn("shrink-0", collapsed ? "px-0 py-5" : "px-4 py-4")}>
         {logoArea ?? (
           <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2">
             <BrandMark className="h-8 w-8" />
@@ -146,7 +150,7 @@ function SidebarContent({
       </nav>
 
       <div className={cn(
-        "shrink-0 border-t border-border transition-all w-full",
+        "shrink-0 border-t border-border w-full",
         collapsed ? "px-1 pt-3 mt-1 pb-4" : "px-3 pt-3 mt-1 pb-4"
       )}>
         {!collapsed && bottomActions}
@@ -179,6 +183,7 @@ function SidebarContent({
 
 export function AppShell({
   nav,
+  mobileTabs,
   accent = "accent",
   bottomActions,
   logoArea,
@@ -200,6 +205,8 @@ export function AppShell({
   // y editores también usan todo el ancho; el resto se centra a 6XL.
   const segments = pathname.split("/").filter(Boolean);
   const immersive = pathname.startsWith("/whatsapp/chat");
+  // Dentro de una conversación abierta la barra estorba al compositor.
+  const inConversation = /^\/whatsapp\/chat\/[^/]+\/[^/]+/.test(pathname);
   const automationEditor =
     segments.length === 3 && segments[0] === "whatsapp" && segments[1] === "automatizaciones";
   const wideContent = immersive || automationEditor;
@@ -235,7 +242,7 @@ export function AppShell({
       </Suspense>
       <aside
         className={cn(
-          "hidden md:flex sticky top-0 self-start h-svh overflow-hidden border-r border-border/60 bg-background flex-col shrink-0 transition-all duration-200",
+          "hidden md:flex sticky top-0 self-start h-svh overflow-hidden border-r border-border/60 bg-background flex-col shrink-0 transition-[width] duration-200 motion-reduce:transition-none",
           collapsed ? "w-16" : "w-56 lg:w-60"
         )}
       >
@@ -318,6 +325,43 @@ export function AppShell({
         >
           {wideContent ? children : <div className="mx-auto w-full min-w-0 max-w-6xl">{children}</div>}
         </main>
+
+        {mobileTabs && mobileTabs.length > 0 && !inConversation && (
+          <nav
+            aria-label="Accesos rápidos"
+            className="sticky bottom-0 z-30 grid shrink-0 border-t border-border bg-surface pb-[env(safe-area-inset-bottom,0px)] md:hidden"
+            style={{ gridTemplateColumns: `repeat(${mobileTabs.slice(0, 3).length + 1}, minmax(0, 1fr))` }}
+          >
+            {mobileTabs.slice(0, 3).map((item) => {
+              const Icon = item.icon;
+              const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
+                    active ? "text-foreground" : "text-muted hover:text-foreground"
+                  )}
+                >
+                  <span className={cn("flex h-7 w-12 items-center justify-center rounded-full", active && "bg-foreground text-background")}>
+                    <Icon size={18} aria-hidden />
+                  </span>
+                  {item.label}
+                </Link>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted transition-colors hover:text-foreground"
+            >
+              <span className="flex h-7 w-12 items-center justify-center rounded-full"><MoreHorizontal size={18} aria-hidden /></span>
+              Más
+            </button>
+          </nav>
+        )}
       </div>
     </div>
   );

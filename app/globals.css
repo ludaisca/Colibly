@@ -228,6 +228,9 @@ html:has([data-world="anden"]) {
   --border:        #DCDFDB;
   --cell:          #E6E8E4;
   --chat-bg:       #ECEEEB;
+  /* Superficies planas: en reposo casi sin sombra; la profundidad queda
+     para lo que flota (menús, modales). */
+  --shadow-sm:     0 1px 1px rgba(21, 23, 26, 0.04);
 }
 html.dark:has([data-world="anden"]) {
   --background:    #0F1113;

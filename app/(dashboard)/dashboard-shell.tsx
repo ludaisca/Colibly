@@ -136,9 +136,18 @@ export function DashboardShell({
     NAV.push({ title: "Plataforma", items: [{ href: "/plataforma", label: "Organizaciones", icon: Building2 }] });
   }
 
+  // Barra inferior del celular (Andén): los tres primeros accesos que este rol
+  // tiene, en este orden; "Más" abre el menú completo.
+  const navItems = NAV.flatMap((entry) => ("items" in entry ? entry.items : [entry]));
+  const mobileTabs = ["/whatsapp/chat", "/whatsapp/contactos", "/ventas", "/whatsapp/citas"]
+    .map((href) => navItems.find((item) => item.href === href))
+    .filter((item): item is NavItem => !!item)
+    .slice(0, 3)
+    .map((item) => (item.href === "/whatsapp/chat" ? { ...item, label: "Chats" } : item));
+
   return (
     <BusinessNameProvider name={businessName ?? null}>
-    <AppShell nav={NAV} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
+    <AppShell nav={NAV} mobileTabs={mobileTabs} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
       {/* Activa el mundo visual "Andén" (tokens y fuentes) en globals.css. */}
       <span data-world="anden" hidden />
       {children}

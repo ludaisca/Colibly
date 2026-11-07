@@ -1,62 +1,63 @@
 ---
 name: Colibly
-description: Bandeja multicanal y CRM para pymes en México; interfaz de trabajo calmada con un solo acento.
+description: Bandeja multicanal y CRM para pymes; panel "Andén", un tablero de espera claro de día y oscuro de noche.
 colors:
-  laguna-deep: "#0E7490"
-  laguna-deeper: "#0C5F75"
-  laguna-ink: "#0A5A6E"
-  laguna-mist: "#DDF0F5"
-  laguna-haze: "#9BD0DE"
-  coral: "#C21E4C"
-  coral-deep: "#9F1840"
-  coral-blush: "#FFE4EA"
-  mist-canvas: "#F3F6F8"
+  concrete: "#F3F4F2"
   paper: "#FFFFFF"
-  cloud: "#ECF0F3"
-  hairline: "#D5DCE3"
+  concrete-raised: "#ECEEEB"
+  hairline: "#DCDFDB"
+  board-cell: "#E6E8E4"
+  ink: "#15171A"
   slate-muted: "#5B6B7A"
-  slate-strong: "#3D4B58"
-  night-ink: "#0C1A22"
-  bubble-out: "#D5EEF4"
+  platform-night: "#0F1113"
+  night-surface: "#181B1E"
+  night-raised: "#22262A"
+  night-hairline: "#2C3035"
+  night-cell: "#262A2E"
+  night-ink: "#EEF0EE"
+  laguna: "#0E7490"
+  laguna-deep: "#0C5F75"
+  laguna-ink: "#0A5A6E"
+  lamp-amber: "#9A4307"
+  lamp-red: "#B42318"
   success: "#17663F"
-  warning: "#9A4307"
-  danger: "#B42318"
   info: "#1D5FBF"
-  night-canvas: "#000000"
-  night-surface: "#0A0A0B"
-  night-raised: "#161718"
-  night-hairline: "#26282A"
-  night-text: "#EDEFF0"
-  night-accent-ink: "#67E8F9"
 typography:
   display:
-    fontFamily: "Newsreader, system-ui, sans-serif"
+    fontFamily: "Barlow Condensed, system-ui, sans-serif"
     fontSize: "2.75rem"
+    fontWeight: 700
     lineHeight: 1.05
   headline:
-    fontFamily: "Newsreader, system-ui, sans-serif"
+    fontFamily: "Barlow Condensed, system-ui, sans-serif"
     fontSize: "1.875rem"
+    fontWeight: 700
     lineHeight: 1.2
   title:
-    fontFamily: "Figtree, system-ui, sans-serif"
+    fontFamily: "Barlow, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 600
   body:
-    fontFamily: "Figtree, system-ui, sans-serif"
+    fontFamily: "Barlow, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Figtree, system-ui, sans-serif"
+    fontFamily: "Barlow, system-ui, sans-serif"
     fontSize: "0.6875rem"
     fontWeight: 600
-    lineHeight: 1rem
+    letterSpacing: "0.08em"
+  board-figure:
+    fontFamily: "Barlow Condensed, system-ui, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 700
+    fontFeature: "\"tnum\""
 rounded:
+  cell: "3px"
   control: "9px"
-  sm: "6px"
-  md: "8px"
-  lg: "12px"
-  xl: "16px"
+  row: "8px"
+  card: "12px"
+  pill: "999px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -65,159 +66,155 @@ spacing:
   xl: "24px"
 components:
   button-primary:
-    backgroundColor: "{colors.laguna-deep}"
+    backgroundColor: "{colors.laguna}"
     textColor: "{colors.paper}"
     rounded: "{rounded.control}"
     padding: "0 16px"
     height: "38px"
   button-primary-hover:
-    backgroundColor: "{colors.laguna-deeper}"
+    backgroundColor: "{colors.laguna-deep}"
   button-secondary:
     backgroundColor: "{colors.paper}"
-    textColor: "{colors.night-ink}"
+    textColor: "{colors.ink}"
     rounded: "{rounded.control}"
     padding: "0 16px"
     height: "38px"
-  button-ghost:
-    textColor: "{colors.slate-muted}"
+  selection-pill:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.concrete}"
+    rounded: "{rounded.pill}"
+    padding: "4px 12px"
+  nav-item-active:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.concrete}"
     rounded: "{rounded.control}"
-    padding: "0 16px"
-    height: "38px"
-  input:
-    backgroundColor: "{colors.cloud}"
-    textColor: "{colors.night-ink}"
-    rounded: "{rounded.control}"
-    padding: "8px 12px"
+  chat-row:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.row}"
+    padding: "8px 10px"
+  wait-cell:
+    backgroundColor: "{colors.board-cell}"
+    textColor: "{colors.ink}"
+    typography: "{typography.board-figure}"
+    rounded: "{rounded.cell}"
+    height: "24px"
   card:
     backgroundColor: "{colors.paper}"
-    rounded: "{rounded.lg}"
+    rounded: "{rounded.card}"
     padding: "16px"
-  nav-item-active:
-    backgroundColor: "{colors.laguna-deep}"
-    textColor: "{colors.paper}"
-    rounded: "{rounded.control}"
-  bubble-outbound:
-    backgroundColor: "{colors.bubble-out}"
-    textColor: "{colors.night-ink}"
-    rounded: "{rounded.xl}"
 ---
 
-<!-- LÍNEA BASE: documenta la interfaz de `main` en b4dbb59 (2026-11-07) antes de la nueva interfaz (rama feat/nueva-interfaz). La fuente normativa de los valores sigue siendo app/globals.css; docs/COLOR.md, docs/TIPOGRAFIA.md y docs/arquitectura/frontend.md tienen el detalle. Cuando la nueva interfaz fije su mundo visual, este archivo se reemplaza. -->
+<!-- Mundo "Andén" del panel, documentado desde lo construido en la rama feat/nueva-interfaz (2026-11-07). Fuente normativa de valores: app/globals.css (bloques :has([data-world="anden"])); contrato: .impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md. La landing (app/(marketing)) no usa este mundo: conserva Laguna + Newsreader/Figtree y tendrá su propia dirección. -->
 
 # Design System: Colibly
 
 ## Overview
 
-**Creative North Star: "La bandeja serena"**
+**Creative North Star: "Andén"**
 
-Colibly es una herramienta de trabajo para gente que contesta chats durante horas y para dueños que entran a ratos. La interfaz busca calma y orden: superficies claras y frías, un solo acento teal que marca la acción y el lugar, y todo subordinado a que ningún chat se pierda. El color fuerte aparece poco y con intención; el resto es papel, niebla y tinta.
+El panel es el tablero de un andén: lo que importa es quién lleva más tiempo esperando, y el tiempo es el dato protagonista. Cada cuenta es una línea con su color; cada conversación avanza por estaciones hasta la venta. Se usa sobre todo en el celular, con cualquier luz, por eso tiene dos temas de primera: concreto claro de día y andén casi negro de noche.
 
-La densidad es de producto, no de revista: listas compactas, tipografía sans en casi todo, y la serif Newsreader reservada a cifras protagonistas y títulos de página. Los controles deben sentirse **precisos y discretos**: compactos, consistentes y al servicio del contenido.
+Es una herramienta de trabajo: densidad de producto, controles estándar y una sola familia tipográfica (Barlow) con su versión condensada para títulos y cifras. Los controles son precisos y discretos: sin saltos al pasar el cursor, superficies planas, la selección marcada en tinta. Nada folclórico ni exclusivo de un país: lenguajes de señalética y tableros que se entienden en cualquier lugar.
 
-Una dirección editorial (crema, serif en etiquetas, terracota, navegación numerada) se probó y se rechazó en noviembre de 2026.
+Se rechazaron: la dirección editorial cálida (crema, serif, terracota, navegación numerada) y la lotería/Metro CDMX por locales.
 
 **Key Characteristics:**
-- Un acento (Laguna) para acción primaria, selección y foco; un segundo acento (coral) escaso.
-- Tema claro frío y tema oscuro casi negro, ambos controlados por la app (clase `.dark`), nunca por el sistema.
-- Color por entidad (cuenta, persona) solo mediante `hue-N` en OKLCH, nunca a mano.
-- Estados semánticos (éxito, aviso, peligro, info) con trío texto/fondo/borde.
+- La espera como cifra de tablero ("1:12") con lámpara ámbar o roja.
+- Una línea de color por cuenta (hue por entidad) en filas, tarjetas y chips.
+- Selección en tinta (pestañas, chips, navegación activa); el teal Laguna solo para la acción principal y el foco.
+- Superficies blancas planas sobre concreto; la sombra queda para lo que flota.
+- Barra inferior en el celular: Chats, Contactos, Pipeline, Más.
 
 ## Colors
 
-Paleta "Laguna + coral": neutros fríos con un teal profundo como única voz principal.
+Neutros de concreto y tinta, colores de línea por cuenta y lámparas de estado; un solo acento de acción.
 
 ### Primary
-- **Laguna profunda** (`laguna-deep`): fondo del botón primario, ítem de navegación activo y anillo de foco en claro. Su versión **más profunda** (`laguna-deeper`) es el hover.
-- **Tinta laguna** (`laguna-ink`): texto y enlaces en acento sobre fondo claro (`text-accent-ink`); en oscuro pasa a cian claro (`night-accent-ink`).
-- **Niebla laguna** (`laguna-mist`) y **bruma laguna** (`laguna-haze`): fondos sutiles de selección y anillos suaves.
-
-### Secondary
-- **Coral** (`coral`, hover `coral-deep`, fondo `coral-blush`): acento secundario para avisos de marca y llamadas puntuales. Nunca compite con el teal en la misma zona.
+- **Laguna** (`laguna`, hover `laguna-deep`): botón principal y anillo de foco. Texto en acento: `laguna-ink`.
 
 ### Neutral
-- **Lienzo niebla** (`mist-canvas`): fondo de la app.
-- **Papel** (`paper`): superficies, tarjetas, burbujas entrantes.
-- **Nube** (`cloud`): superficie secundaria, campos, fondo del hilo de chat.
-- **Filete** (`hairline`): bordes y divisores.
-- **Pizarra** (`slate-muted`, `slate-strong`): texto secundario y microtexto (≥ 7:1).
-- **Tinta noche** (`night-ink`): texto principal.
-- **Burbuja saliente** (`bubble-out`): mensajes enviados, teal muy claro.
-- Tema oscuro: `night-canvas`, `night-surface`, `night-raised`, `night-hairline`, `night-text`.
+- **Concreto** (`concrete`): fondo del panel de día. **Andén** (`platform-night`): fondo de noche.
+- **Papel** (`paper`) / `night-surface`: filas, tarjetas, superficies.
+- **Concreto alto** (`concrete-raised`) / `night-raised`: campos, pestañas inactivas, lienzo del hilo.
+- **Celda** (`board-cell`) / `night-cell`: fondo de cada cifra del tablero.
+- **Filete** (`hairline`) / `night-hairline`: bordes y divisores.
+- **Tinta** (`ink`) / `night-ink`: texto principal y selección.
+
+### Lámparas y estados
+- **Ámbar** (`lamp-amber`, token `warning`): espera desde 15 min.
+- **Roja** (`lamp-red`, token `danger`): espera desde 60 min o fuera de SLA.
+- `success` e `info` conservan su trío texto/fondo/borde.
+
+### Líneas
+Los colores de cuenta salen de `hueClassFor(id)` (8 tonos OKLCH, más claros en oscuro), nunca escritos a mano.
 
 ### Named Rules
-**La regla de la voz única.** El teal marca acción, selección y foco; nada más usa el acento a pantalla completa. Nunca `text-accent` para texto (falla contraste): se usa `text-accent-ink`.
+**La regla de la tinta.** Lo seleccionado se marca en tinta; el teal es para actuar, no para señalar dónde estás.
 
-**La regla del token.** Ningún color literal de Tailwind ni modificadores de opacidad sobre el acento; todo pasa por tokens semánticos y cada par nuevo entra a `contrast.test.ts`.
+**La regla de la lámpara.** Ámbar y rojo solo encienden por tiempo de espera o SLA; ningún adorno usa esos colores.
 
 ## Typography
 
-**Display Font:** Newsreader (con system-ui)
-**Body Font:** Figtree (con system-ui)
-**Label/Mono Font:** Figtree; `font-mono` es un alias temporal de la sans y las cifras usan `tabular-nums`.
+**Display Font:** Barlow Condensed (con system-ui)
+**Body Font:** Barlow (con system-ui)
 
-**Character:** una serif de lectura, cálida, para las cifras y títulos que se miran de lejos, sobre una sans redonda y clara que hace todo el trabajo.
+**Character:** la sans de la señalética de transporte: clara, firme y legible en movimiento; la condensada pone las cifras y títulos como en un tablero.
 
 ### Hierarchy
-- **Display** (`text-hero`, 2.75rem / 1.05): cifras protagonistas en KPIs.
-- **Headline** (`text-page-title`, 1.875rem / 1.2): h1 de cada página vía `PageHeader`.
-- **Title** (600, 1rem): títulos de tarjetas y secciones.
-- **Body** (400, 0.875rem / 1.5): texto de interfaz, listas, mensajes.
-- **Label** (`text-eyebrow`, 600, 0.6875rem / 1rem, mayúsculas): etiquetas de sección.
+- **Display** (700, 2.75rem / 1.05): cifras de KPIs.
+- **Headline** (700, 1.875rem / 1.2): título de página (`PageHeader`) y "Chats".
+- **Title** (600, 1rem): títulos de sección y tarjeta.
+- **Body** (400, 0.875rem / 1.5): interfaz, listas, mensajes.
+- **Label** (600, 0.6875rem, mayúsculas, 0.08em): etiquetas de KPI, pestañas del tablero y encabezados de columna.
+- **Board figure** (700, 1rem, cifras tabulares): celdas de espera.
 
 ### Named Rules
-**La regla de la serif escasa.** Newsreader solo en display y headline; nunca en etiquetas, botones, datos ni navegación.
+**La regla del título solo.** Ningún título lleva etiqueta encima; se sostiene solo.
 
 ## Layout
 
-Rejilla de Tailwind en pasos de 4px. Shell con barra lateral colapsable y contenido en `max-w-* mx-auto`. Las páginas de resumen siguen `PageHeader` → `KpiStrip` (2 columnas en móvil, 4 en `lg`) → `Workbench` + `SectionHeader`; los listados usan `EntityList`. La bandeja es la excepción: tres paneles a pantalla completa (rail de cuentas, lista, hilo) con su propia densidad. Breakpoints por defecto de Tailwind (`md` 768px, `lg` 1024px).
+Rejilla de 4px. En el celular: cabecera compacta, contenido a todo lo ancho y barra inferior fija con tres accesos por rol más "Más" (abre el menú); dentro de una conversación la barra se oculta. En escritorio: barra lateral colapsable con navegación en tinta. La bandeja es una lista única ordenada por espera en "Esperando". Las páginas de resumen siguen `PageHeader` → `KpiStrip` → `Workbench`.
 
 ## Elevation & Depth
 
-Híbrido: superficies planas separadas por tono (lienzo niebla → papel) y filetes de 1px, con sombras suaves y frías para lo que flota o responde al cursor. En oscuro, la sombra se vuelve un filete claro casi invisible más una sombra negra profunda.
-
-### Shadow Vocabulary
-- **Reposo** (`--shadow-sm`, `0 1px 2px rgba(15,26,26,.05)`): botón primario, ítem activo.
-- **Hover / flotante** (`--shadow-md`): tarjetas interactivas al pasar el cursor, menús.
-- **Capa** (`--shadow-lg`): modales, drawers, enlace de salto.
+Plano por defecto: superficies blancas separadas del concreto por tono y un filete de 1px; `--shadow-sm` es casi nulo. La sombra media/alta queda para menús, paneles y modales. En oscuro, la separación la dan los filetes.
 
 ## Shapes
 
-Esquinas suaves y uniformes: 9px en todos los controles (botón, campo, select, chip, ítem de navegación), 12px en tarjetas, 16px en burbujas y contenedores grandes. `rounded-bubble` (una esquina recortada) es herencia de un rediseño anterior: no agregar usos nuevos.
+Celdas de 3px, controles de 9px, filas de 8px, tarjetas de 12px y píldoras para selección. La línea de cuenta es una franja de 4px pegada al borde izquierdo de filas y tarjetas (ganada por el contrato de dirección).
 
 ## Components
 
 ### Buttons
-- **Shape:** esquinas suaves (9px); alturas 32 / 38 / 44px.
-- **Primary:** fondo laguna profunda, texto blanco, semibold, sombra de reposo.
-- **Hover / Focus:** hover a laguna más profunda con sombra flotante y elevación de 1px; activo vuelve a 0 y escala 0.98; foco con anillo teal.
-- **Secondary / Ghost / Danger / Link:** secundario con filete sobre papel; ghost sin fondo en pizarra; peligro con trío rojo; enlace en tinta laguna subrayado al pasar.
+- **Primary:** Laguna con texto blanco, 38px, sin sombra ni elevación; hover a Laguna profunda.
+- **Secondary / Ghost:** filete sobre papel / sin fondo; mismas medidas.
 
-### Cards / Containers
-- **Corner Style:** 12px.
-- **Background:** papel con filete.
-- **Shadow Strategy:** plana en reposo; sombra flotante solo si es interactiva.
-- **Internal Padding:** 12 / 16 / 20px.
+### Selección (pestañas, chips, navegación)
+- Píldora o ítem en tinta con texto concreto cuando está activo; inactivo en `muted` sobre `concrete-raised`.
 
-### Inputs / Fields
-- **Style:** fondo nube, filete, 9px, `text-sm`; icono opcional a la izquierda.
-- **Focus:** borde teal y anillo bruma.
-- **Error / Disabled:** borde y mensaje en peligro con `role="alert"`; deshabilitado al 60 %.
+### Filas de chat
+- Papel, 8px, franja de cuenta a la izquierda, avatar con insignia de canal, nombre y último mensaje; a la derecha la cifra de espera con lámpara o la hora.
 
-### Navigation
-- Barra lateral con grupos por rol; ítem en `text-sm` medio, pizarra en reposo, hover sobre nube, activo con fondo laguna y texto blanco (`aria-current="page"`). En móvil, cajón.
+### Cifra de espera (componente firma)
+- Celdas de 24px con línea de corte tenue; la cifra voltea al cambiar (260 ms, sin animación con "reducir movimiento"); lectura para lectores de pantalla ("Espera 1 h 12 min").
 
-### Bandeja (componente firma)
-Burbujas: entrantes en papel, salientes en teal muy claro, esquinas de 16px, sobre el lienzo nube del hilo. Densidad alta en la lista de chats; la estructura del rail se mantiene salvo acuerdo explícito.
+### Ruta de la venta
+- Nuevo → Contactado → Calificado → Cliente en el color de la cuenta; la estación actual es un círculo de correspondencia; "Perdido" aparte.
+
+### Cards / KPIs
+- Papel con filete, 12px, planas; hover en `concrete-raised`.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** usar los componentes de `app/components/ui/` y los tokens semánticos (`bg-surface`, `text-muted`, `text-accent-ink`, `bg-accent` + `text-on-accent`).
-- **Do** usar `hueClassFor(id)` para el color de cada entidad.
-- **Do** mantener 9px en todo control y `tabular-nums` en cifras.
+- **Do** marcar la selección en tinta y la acción en Laguna.
+- **Do** usar `hueClassFor(id)` para toda línea de cuenta.
+- **Do** mostrar la espera con `WaitCells` donde un chat espera respuesta.
 
 ### Don't:
-- **Don't** usar `dark:` de Tailwind: el tema lo controla la app.
-- **Don't** usar Newsreader fuera de display/headline.
-- **Don't** volver a la dirección editorial rechazada (crema, terracota, serif en etiquetas, navegación numerada).
-- **Don't** escribir clases inline de botón, tarjeta o campo.
+- **Don't** poner etiquetas sobre los títulos.
+- **Don't** usar ámbar o rojo fuera de espera/SLA/errores.
+- **Don't** agregar sombras o saltos a controles en reposo.
+- **Don't** usar referencias folclóricas o exclusivas de un país.
+- **Don't** usar Tailwind `dark:`; el tema lo controla la app.

@@ -84,7 +84,9 @@ Dirección visual de la nueva interfaz (rama `feat/nueva-interfaz`), elegida con
 - Se activa con el marcador `<span data-world="anden" hidden>` de `dashboard-shell.tsx`: `globals.css` aplica `html:has([data-world="anden"])` (fuentes: Barlow / Barlow Condensed, cargadas en `app/layout.tsx` como `--font-barlow*`) y `:root:has(...)` / `html.dark:has(...)` (concreto `#F3F4F2` de día, andén `#0F1113` de noche, `--cell` para las celdas del tablero). La landing no lo tiene y conserva Newsreader + Figtree. `:root:has()` pesa más que `.dark`: el bloque oscuro repite todo token que cambie el claro. `contrast.test.ts` prueba los temas "andén claro/oscuro".
 - Firma: el tiempo de espera como tablero (`WaitCells`, ver `bandeja.md`). `font-display` es Barlow Condensed dentro del panel: títulos y cifras, nunca etiquetas largas.
 - Las capturas con Playwright headless muestran un espaciado irregular entre letras: es el hinting de fuentes de Chromium sin pantalla, no la app. Lanzar con `--font-render-hinting=none`.
-- Pendiente para cerrar el mundo: extenderlo al resto del panel, revisión final y reescribir `DESIGN.md` (hoy es la línea base anterior).
+- Extendido a todo el panel (2026-11-07): navegación activa en tinta (`app-shell.tsx`), `Button` sin elevación ni sombra al pasar el cursor, `KpiStrip`/`Card` planas (hover en `surface-light`), `--shadow-sm` casi nulo dentro de Andén, franja de cuenta en "Chats recientes" del Panel y en las tarjetas del Pipeline (`lineAccountId`, también para contactos de canales genéricos).
+- **Barra inferior en el celular**: `AppShell` recibe `mobileTabs` (máx. 3) y agrega "Más", que abre el menú; `dashboard-shell.tsx` elige por rol los tres primeros de Chats, Contactos, Pipeline, Citas. Se oculta dentro de una conversación abierta (`/whatsapp/chat/[cuenta]/[chat]`).
+- **Sin etiquetas sobre los títulos**: `SectionHeader` ignora `eyebrow` (regla de Impeccable). `DESIGN.md` describe Andén; la landing queda fuera.
 
 ## Fechas: zona de la organización y tiempo relativo (2026-11-01)
 

@@ -25,7 +25,7 @@ export function Card({ padding = "md", interactive = false, className, children,
       className={cn(
         "rounded-lg border border-border bg-surface",
         PAD[padding],
-        interactive && "transition-shadow cursor-pointer hover:shadow-md hover:border-border",
+        interactive && "transition-colors cursor-pointer hover:bg-surface-light",
         className
       )}
       {...rest}

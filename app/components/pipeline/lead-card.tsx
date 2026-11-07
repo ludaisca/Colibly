@@ -10,6 +10,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
+import { hueClassFor } from "@/app/components/ui/hue";
 import { RelativeTime, useMinuteNow } from "@/app/components/ui/relative-time";
 import type { LeadStatus } from "@prisma/client";
 import { formatMxn } from "@/lib/money";
@@ -21,6 +22,8 @@ export interface LeadCardData {
   leadStatus: LeadStatus;
   stageId: string;
   accountId: string | null;
+  /** Cuenta (WhatsApp o canal) para la línea de color de la tarjeta. */
+  lineAccountId?: string | null;
   channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
   tags: { tag: { id: string; name: string; color: string } }[];
   bestScore: { score: number; label: string } | null;
@@ -118,10 +121,13 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow",
+        // Andén: tarjeta plana con la línea de color de su cuenta a la izquierda.
+        "group relative overflow-hidden rounded-xl border border-border bg-surface p-4 pl-5",
+        data.lineAccountId && hueClassFor(data.lineAccountId),
         isDragging && "shadow-lg opacity-80 z-50 ring-2 ring-accent-muted"
       )}
     >
+      {data.lineAccountId && <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-entity" />}
       <div className="flex items-start gap-3">
         <ChannelAvatar id={data.accountId ?? data.id} name={displayName} channel={data.channel} size="sm" />
 

@@ -48,6 +48,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
       dealValueCents: true,
       expectedCloseAt: true,
       accountId: true,
+      channelAccountId: true,
       channelAccount: { select: { channel: true } },
       tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
       chat: {
@@ -82,6 +83,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
       leadStatus: contact.leadStatus,
       stageId,
       accountId: contact.accountId,
+      lineAccountId: contact.accountId ?? contact.channelAccountId,
       channel: contact.accountId ? "WHATSAPP" : contact.channelAccount?.channel ?? "WEBCHAT",
       tags: contact.tags,
       bestScore: contact.chat?.leadScores?.[0] ?? null,

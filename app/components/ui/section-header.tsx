@@ -6,22 +6,19 @@ import { cn } from "./cn";
 
 interface SectionHeaderProps {
   title: string;
-  /** Etiqueta pequeña uppercase sobre el título, p. ej. "Actividad". */
+  /** @deprecated Ya no se muestra (Andén). */
   eyebrow?: string;
   /** Acción a la derecha (link "Ver todo", botón) — ReactNode, no icono suelto. */
   action?: React.ReactNode;
   className?: string;
 }
 
-export function SectionHeader({ title, eyebrow, action, className }: SectionHeaderProps) {
+// Andén (2026-11-07): sin etiqueta sobre el título — Impeccable la prohíbe; el
+// título se sostiene solo. `eyebrow` se acepta y se ignora para no tocar 45 llamadas.
+export function SectionHeader({ title, action, className }: SectionHeaderProps) {
   return (
     <div className={cn("flex items-end justify-between gap-3", className)}>
       <div className="min-w-0">
-        {eyebrow && (
-          <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">
-            {eyebrow}
-          </p>
-        )}
         <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
           {title}
         </h2>
