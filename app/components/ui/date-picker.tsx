@@ -1,8 +1,37 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useState } from "react";
+import { Popover } from "@base-ui/react/popover";
+import { CalendarDays, X } from "lucide-react";
 import { cn } from "./cn";
+import { Calendar } from "./calendar";
+import { Tooltip } from "./tooltip";
+import { formatCalendarDate, type IsoRange } from "@/lib/format/calendar";
+
+// Selectores de fecha y de rango (2026-11-07): un botón que muestra la fecha
+// con Intl (es-MX) y abre el calendario de Tesela portado (ui/calendar.tsx)
+// en un panel de Base UI. Reemplazan al selector hecho a mano y al rango de
+// HeroUI; las APIs públicas no cambiaron. Valor en ISO `AAAA-MM-DD`.
+
+const TRIGGER =
+  "relative flex h-[38px] w-full items-center gap-2 rounded-[9px] border bg-surface-light pl-3 pr-9 text-left text-sm outline-none transition-colors focus-visible:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted data-[popup-open]:border-accent-strong disabled:cursor-not-allowed disabled:opacity-50";
+const PANEL =
+  "z-[80] rounded-xl border border-border bg-surface p-3 shadow-lg outline-none origin-[var(--transform-origin)] transition-[opacity,scale] duration-fast ease-brand data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none";
+
+function ClearButton({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <Tooltip label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        onClick={onClear}
+        className="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-muted hover:text-foreground"
+      >
+        <X size={14} aria-hidden />
+      </button>
+    </Tooltip>
+  );
+}
 
 interface DatePickerProps {
   value?: string;
@@ -18,38 +47,10 @@ interface DatePickerProps {
   className?: string;
 }
 
-const MONTHS = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
-
-const DAYS = ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"];
-
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(year: number, month: number): number {
-  return new Date(year, month, 1).getDay();
-}
-
-function formatDate(iso: string): string {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
-
-function parseDisplay(display: string): string | null {
-  const match = display.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!match) return null;
-  const [, d, m, y] = match;
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-}
-
 export function DatePicker({
   value = "",
   onChange,
-  placeholder = "DD/MM/AAAA",
+  placeholder = "Elige una fecha",
   error,
   showErrorMessage = false,
   disabled,
@@ -59,203 +60,80 @@ export function DatePicker({
   ariaLabel,
   className,
 }: DatePickerProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [panelOffset, setPanelOffset] = useState(0);
-  const [display, setDisplay] = useState(formatDate(value));
-  const [prevValue, setPrevValue] = useState(value);
-  if (value !== prevValue) {
-    setPrevValue(value);
-    setDisplay(formatDate(value));
-  }
-
-  const today = new Date();
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
-
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: MouseEvent) {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open]);
-
-  const applyDate = useCallback(
-    (y: number, m: number, d: number) => {
-      const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      setDisplay(formatDate(iso));
-      onChange?.(iso);
-      setOpen(false);
-    },
-    [onChange]
-  );
-
-  const handleInputBlur = () => {
-    const parsed = parseDisplay(display);
-    if (parsed) {
-      onChange?.(parsed);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDisplay(e.target.value);
-  };
-
-  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-  const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
-  const cells: (number | null)[] = [];
-
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-  const todayISO = today.toISOString().split("T")[0];
-  const selectedISO = parseDisplay(display);
-
+  const shown = formatCalendarDate(value);
   return (
     <div className={cn("relative", className)}>
-      <div className="relative">
-        <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker pointer-events-none" />
-        <input
-          ref={inputRef}
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        <Popover.Trigger
           id={id}
-          aria-label={ariaLabel}
-          type="text"
-          value={display}
-          onChange={handleInputChange}
-          onFocus={() => {
-            if (disabled) return;
-            const left = inputRef.current?.getBoundingClientRect().left ?? 0;
-            setPanelOffset(Math.max(8 - left, Math.min(0, window.innerWidth - left - 288)));
-            setOpen(true);
-          }}
-          onBlur={handleInputBlur}
-          placeholder={placeholder}
           disabled={disabled}
-          min={min}
-          max={max}
-          className={cn(
-            "w-full h-[38px] rounded-[9px] border bg-surface-light px-4 pl-10 pr-8 text-sm text-foreground",
-            "placeholder:text-muted-darker outline-none transition-colors",
-            "focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
-            error ? "border-danger-border" : "border-border",
-            disabled && "opacity-50 cursor-not-allowed"
-          )}
-        />
-        {display && !disabled && (
-          <button
-            type="button"
-            aria-label={`Borrar fecha ${ariaLabel ?? placeholder}`}
-            onClick={() => { setDisplay(""); onChange?.(""); }}
-            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-darker hover:text-foreground"
-          >
-            <X size={14} />
-          </button>
-        )}
-      </div>
-
-      {error && showErrorMessage && <p className="mt-1.5 text-xs text-danger">{error}</p>}
-
-      {open && (
-        <div
-          ref={panelRef}
-          style={{ left: panelOffset }}
-          className={cn(
-            "absolute z-50 mt-1.5 rounded-lg border border-border bg-surface shadow-lg p-3 w-[280px]",
-            "animate-fade-in"
-          )}
+          aria-invalid={!!error}
+          aria-label={ariaLabel ? `${ariaLabel}${shown ? `: ${shown}` : ""}` : undefined}
+          className={cn(TRIGGER, error ? "border-danger-border" : "border-border")}
         >
-          <div className="flex items-center justify-between mb-3">
-            <button
-              type="button"
-              aria-label="Mes anterior"
-              onClick={() => {
-                if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
-                else setViewMonth(viewMonth - 1);
-              }}
-              className="p-1 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-sm font-medium text-foreground">
-              {MONTHS[viewMonth]} {viewYear}
-            </span>
-            <button
-              type="button"
-              aria-label="Mes siguiente"
-              onClick={() => {
-                if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
-                else setViewMonth(viewMonth + 1);
-              }}
-              className="p-1 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 mb-1">
-            {DAYS.map((d) => (
-              <div key={d} className="text-center text-[10px] font-medium text-muted-darker py-1">
-                {d}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-0.5">
-            {cells.map((day, i) => {
-              if (day === null) return <div key={`e-${i}`} />;
-              const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-              const isToday = iso === todayISO;
-              const isSelected = iso === selectedISO;
-
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => applyDate(viewYear, viewMonth, day)}
-                  className={cn(
-                    "h-8 w-full rounded-md text-xs font-medium transition-colors",
-                    "hover:bg-surface-light",
-                    isSelected && "bg-accent text-on-accent hover:bg-accent-hover",
-                    isToday && !isSelected && "border border-accent-strong text-accent-ink",
-                    !isSelected && !isToday && "text-foreground"
-                  )}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              applyDate(today.getFullYear(), today.getMonth(), today.getDate());
-            }}
-            className="mt-3 w-full text-xs text-accent-ink hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-surface-light"
-          >
-            Hoy
-          </button>
-        </div>
-      )}
+          <CalendarDays size={16} aria-hidden className="shrink-0 text-muted" />
+          <span className={cn("truncate tabular-nums", !shown && "text-muted")}>{shown || placeholder}</span>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Positioner side="bottom" align="start" sideOffset={6} collisionPadding={8} className="z-[80] outline-none">
+            <Popover.Popup aria-label={ariaLabel ?? "Elegir fecha"} className={PANEL}>
+              <Calendar
+                value={value}
+                min={min}
+                max={max}
+                autoFocus
+                onChange={(iso) => { onChange?.(iso); setOpen(false); }}
+              />
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
+      {value && !disabled && <ClearButton label={`Borrar ${ariaLabel ?? "fecha"}`} onClear={() => onChange?.("")} />}
+      {error && showErrorMessage && <p className="mt-1.5 text-xs text-danger" role="alert">{error}</p>}
     </div>
   );
+}
+
+/** Rango de fechas (antes `HeroDateRange`): dos meses en escritorio, uno en el celular. */
+export function DateRangePicker({ value, onChange, label = "Periodo", className }: {
+  value: IsoRange;
+  onChange: (value: IsoRange) => void;
+  label?: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const wide = useWide();
+  const shown = value.start && value.end ? `${formatCalendarDate(value.start)} – ${formatCalendarDate(value.end)}` : "";
+  return (
+    <div className={cn("relative w-full sm:w-auto sm:min-w-64", className)}>
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        <Popover.Trigger aria-label={`${label}${shown ? `: ${shown}` : ""}`} className={cn(TRIGGER, "border-border")}>
+          <CalendarDays size={16} aria-hidden className="shrink-0 text-muted" />
+          <span className={cn("truncate tabular-nums", !shown && "text-muted")}>{shown || label}</span>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Positioner side="bottom" align="start" sideOffset={6} collisionPadding={8} className="z-[80] outline-none">
+            <Popover.Popup aria-label={label} className={PANEL}>
+              <Calendar
+                mode="range"
+                value={value}
+                months={wide ? 2 : 1}
+                autoFocus
+                onChange={(range) => { onChange(range); setOpen(false); }}
+              />
+              <p className="mt-2 text-xs text-muted">Elige el primer y el último día.</p>
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
+      {(value.start || value.end) && <ClearButton label="Quitar filtro de fechas" onClear={() => onChange({ start: "", end: "" })} />}
+    </div>
+  );
+}
+
+/** ≥ 640 px: caben dos meses lado a lado. */
+function useWide() {
+  const [wide] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches);
+  return wide;
 }

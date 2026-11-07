@@ -14,7 +14,7 @@ import { Pagination } from "@/app/components/ui/pagination";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
 import { Modal } from "@/app/components/ui/modal";
-import { HeroDateRange } from "@/app/components/ui/hero-date-range";
+import { DateRangePicker } from "@/app/components/ui/date-picker";
 import { HeroTabs } from "@/app/components/ui/hero-tabs";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { RadioGroup } from "@/app/components/ui/radio";
@@ -476,7 +476,7 @@ function LeadsTab() {
             ))}
           </Select>
         </div>
-        <HeroDateRange
+        <DateRangePicker
           value={{ start: dateFrom, end: dateTo }}
           onChange={({ start, end }) => { setDateFrom(start); setDateTo(end); }}
           label="Periodo de calificación"

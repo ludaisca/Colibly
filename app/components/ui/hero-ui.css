@@ -1,33 +1,5 @@
-/* HeroUI se usa sin su tema global. Estas reglas solo afectan a los controles
+/* HeroUI se usa sin su tema global, solo para las pestañas (hero-tabs.tsx).
    integrados en Colibly y reutilizan nuestros tokens claro/oscuro. */
-.colibly-hero-range-wrap { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
-.colibly-hero-range { display: block; min-width: 0; }
-.colibly-hero-range [data-slot="date-input-group"] { display: flex; align-items: center; min-height: 40px; padding: 0 5px 0 11px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-light); color: var(--foreground); }
-.colibly-hero-range [data-slot="date-input-group"]:focus-within { border-color: var(--accent-strong); box-shadow: 0 0 0 2px var(--accent-muted); }
-.colibly-hero-range [data-slot="date-input-group-input-container"] { display: flex; align-items: center; flex: 1; gap: 3px; min-width: 0; }
-.colibly-hero-range [data-slot="date-input-group-input"] { display: inline-flex; min-width: 0; white-space: nowrap; font-size: 12px; }
-.colibly-hero-range [data-slot="date-input-group-segment"] { display: inline-flex; min-width: 24px; min-height: 24px; align-items: center; justify-content: center; padding: 2px 3px; border-radius: 4px; outline: none; font-variant-numeric: tabular-nums; }
-.colibly-hero-range [data-slot="date-input-group-segment"][data-placeholder="true"] { color: var(--muted-darker); }
-.colibly-hero-range [data-slot="date-input-group-segment"]:focus-visible { background: var(--accent-subtle); color: var(--accent-ink); }
-.colibly-hero-range [data-slot="date-range-picker-range-separator"] { padding: 0 5px; color: var(--muted); }
-.colibly-hero-range [data-slot="date-input-group-suffix"] { display: flex; align-items: center; margin-left: 6px; }
-.colibly-hero-range [data-slot="date-range-picker-trigger"] { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 9px; color: var(--muted); cursor: pointer; }
-.colibly-hero-range [data-slot="date-range-picker-trigger"]:hover { background: var(--accent-subtle); color: var(--accent-ink); }
-.colibly-hero-range-clear { display: grid; flex-shrink: 0; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: var(--muted); cursor: pointer; }.colibly-hero-range-clear:hover { background: var(--surface-light); color: var(--foreground); }
-.colibly-hero-range-popover { z-index: 100000; width: 280px; max-width: calc(100vw - 20px); padding: 12px; border: 1px solid var(--border); border-radius: 12px; outline: none; background: var(--surface); color: var(--foreground); box-shadow: var(--shadow-lg); }
-.colibly-hero-range-popover [data-slot="range-calendar"] { width: 100%; }
-.colibly-hero-range-popover [data-slot="range-calendar-header"] { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-bottom: 10px; }
-.colibly-hero-range-popover [data-slot="range-calendar-heading"] { flex: 1; text-align: center; font-size: 12px; font-weight: 700; }
-.colibly-hero-range-popover [data-slot="range-calendar-nav-button"] { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: var(--accent-ink); cursor: pointer; }.colibly-hero-range-popover [data-slot="range-calendar-nav-button"]:hover { background: var(--accent-subtle); }.colibly-hero-range-popover [data-slot="range-calendar-nav-button"][data-disabled="true"] { opacity: .4; cursor: not-allowed; }
-.colibly-hero-range-popover [data-slot="range-calendar-grid"] { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.colibly-hero-range-popover [data-slot="range-calendar-header-cell"] { height: 29px; color: var(--muted); text-align: center; font-size: 10px; font-weight: 700; }
-.colibly-hero-range-popover [data-slot="range-calendar-cell"] { height: 34px; padding: 1px; border-radius: 8px; text-align: center; color: var(--foreground); font-size: 11px; cursor: pointer; }
-.colibly-hero-range-popover [data-slot="range-calendar-cell"] [data-slot="range-calendar-cell-button"] { display: grid; place-items: center; width: 100%; height: 32px; border-radius: 8px; }
-.colibly-hero-range-popover [data-slot="range-calendar-cell"]:hover [data-slot="range-calendar-cell-button"] { background: var(--surface-light); }
-.colibly-hero-range-popover [data-slot="range-calendar-cell"][data-selected="true"] { background: var(--accent-subtle); color: var(--accent-ink); }
-.colibly-hero-range-popover [data-slot="range-calendar-cell"][data-selection-start="true"] [data-slot="range-calendar-cell-button"],.colibly-hero-range-popover [data-slot="range-calendar-cell"][data-selection-end="true"] [data-slot="range-calendar-cell-button"] { background: var(--accent); color: var(--on-accent); }
-.colibly-hero-range-popover [data-slot="range-calendar-cell"][data-disabled="true"] { opacity: .35; cursor: not-allowed; }.colibly-hero-range-popover [data-slot="range-calendar-cell"]:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: -2px; }
-@media (max-width: 450px) { .colibly-hero-range-wrap { width: 100%; }.colibly-hero-range { flex: 1; }.colibly-hero-range [data-slot="date-input-group"] { padding-top: 5px; padding-bottom: 5px; }.colibly-hero-range [data-slot="date-input-group-input-container"] { flex-direction: column; align-items: flex-start; gap: 1px; }.colibly-hero-range [data-slot="date-range-picker-range-separator"] { display: none; } }
 .colibly-hero-tabs [data-slot="tabs-list"] { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 .colibly-hero-tabs [data-slot="tabs-tab"] { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 39px; padding: 8px 13px; border-radius: 10px 10px 0 0; outline: none; color: var(--muted); white-space: nowrap; font-size: 13px; font-weight: 600; cursor: pointer; }
 .colibly-hero-tabs [data-slot="tabs-tab"]:hover { color: var(--foreground); background: var(--surface-light); }

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { HeroDateRange } from "@/app/components/ui/hero-date-range";
+import { DateRangePicker } from "@/app/components/ui/date-picker";
 import { HeroTabs } from "@/app/components/ui/hero-tabs";
 
 describe("HeroUI con estilos Colibly", () => {
-  it("renderiza el rango controlado sin el tema global de HeroUI", () => {
-    const html = renderToString(createElement(HeroDateRange, { value: { start: "2026-09-01", end: "2026-09-29" }, onChange: () => {} }));
-    expect(html).toContain("colibly-hero-range");
-    expect(html).toContain("2026");
+  it("el rango de fechas (calendario de Tesela) muestra el periodo con Intl", () => {
+    const html = renderToString(createElement(DateRangePicker, { value: { start: "2026-09-01", end: "2026-09-29" }, onChange: () => {} }));
+    expect(html).toMatch(/1 sept? 2026/);
+    expect(html).toMatch(/29 sept? 2026/);
   });
 
   it("mantiene una pestaña seleccionada y su panel asociado", () => {
