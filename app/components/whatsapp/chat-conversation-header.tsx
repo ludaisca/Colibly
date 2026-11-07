@@ -2,10 +2,10 @@
 
 import { displayName } from "@/lib/chats/display-name";
 import { useId, useState } from "react";
-import { ArrowLeft, Check, Loader2, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
+import { ArrowLeft, Check, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Button } from "@/app/components/ui/button";
-import { Dropdown } from "@/app/components/ui/dropdown";
+import { Dropdown, DropdownItem } from "@/app/components/ui/dropdown";
 import { Select } from "@/app/components/ui/select";
 import { ChatAssigneePicker } from "./chat-assignee-picker";
 import { ChatTeamPicker } from "./chat-team-picker";
@@ -63,7 +63,6 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
       : typingUsers.length === 2
         ? `${typingUsers[0]?.name ?? "Alguien"} y ${typingUsers[1]?.name ?? "otra persona"} están escribiendo…`
         : `${typingUsers[0]?.name ?? "Alguien"} y ${typingUsers.length - 1} más están escribiendo…`;
-  const MENU_ITEM = "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong disabled:opacity-50";
 
   async function changeStatus(status: ChatStatus) {
     if (changingStatus) return;
@@ -105,31 +104,28 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
             </button>
           }
         >
-          <div className="w-56 p-1">
-            <button type="button" className={MENU_ITEM} onClick={() => setDetailsOpen((open) => !open)}>
-              <SlidersHorizontal size={15} /> {detailsOpen ? "Ocultar detalles" : "Detalles"}
-            </button>
-            <button type="button" className={MENU_ITEM} onClick={() => setMacroOpen(true)}>
-              <Zap size={15} /> Aplicar macro
-            </button>
+          <div className="w-56">
+            <DropdownItem icon={SlidersHorizontal} onClick={() => setDetailsOpen((open) => !open)}>
+              {detailsOpen ? "Ocultar detalles" : "Detalles"}
+            </DropdownItem>
+            <DropdownItem icon={Zap} onClick={() => setMacroOpen(true)}>
+              Aplicar macro
+            </DropdownItem>
             {canCall && (
-              <button
-                type="button"
-                className={MENU_ITEM}
+              <DropdownItem
+                icon={Phone}
                 onClick={() => window.dispatchEvent(new CustomEvent("colibly-whatsapp-call", { detail: { chatId: chat.id, name } }))}
               >
-                <Phone size={15} /> Llamar
-              </button>
+                Llamar
+              </DropdownItem>
             )}
-            <button
-              type="button"
-              className={MENU_ITEM}
+            <DropdownItem
+              icon={resolved ? RotateCw : Check}
               disabled={changingStatus}
               onClick={() => void changeStatus(resolved ? "OPEN" : "RESOLVED")}
             >
-              {changingStatus ? <Loader2 size={15} className="animate-spin" /> : resolved ? <RotateCw size={15} /> : <Check size={15} />}
-              {resolved ? "Reabrir" : "Resolver"}
-            </button>
+              {changingStatus ? "Guardando…" : resolved ? "Reabrir" : "Resolver"}
+            </DropdownItem>
           </div>
         </Dropdown>
       </div>

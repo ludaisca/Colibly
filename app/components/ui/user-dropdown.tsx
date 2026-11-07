@@ -4,9 +4,9 @@ import { EntityAvatar } from "./avatar";
 import { useSession, signOut } from "next-auth/react";
 import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { Menu } from "@base-ui/react/menu";
 import { Settings, LogOut, ChevronDown, Check, BellRing } from "lucide-react";
-import { Switch } from "./switch";
 import { enablePush, needsHomeScreenInstall, pushSupported, syncPush } from "@/lib/notifications/push-client";
 import { AVAILABILITY_LABEL, type Availability } from "@/lib/users/availability-rules";
 import { useToast } from "./toast";
@@ -44,7 +44,6 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const [availability, setAvailability] = useState<Availability | null>(initialUser?.availability ?? null);
-  const ref = useRef<HTMLDivElement>(null);
   const { error: toastError } = useToast();
 
   // Estado elegido por el usuario (la auto-asignación "solo en línea" lo usa).
@@ -116,14 +115,6 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
     }
   }
 
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   const user = session?.user ?? initialUser;
   if (!user) return null;
 
@@ -132,13 +123,12 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
   const seed = (session?.user as { id?: string } | undefined)?.id ?? email ?? name;
   const shortName = name.split(/\s+/).slice(0, 2).join(" ");
 
+  const ITEM = "flex w-full cursor-default select-none items-center gap-3 px-4 py-2.5 text-left text-sm outline-none transition-colors data-[highlighted]:bg-surface-light data-[disabled]:opacity-50";
+
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-surface-light transition-colors"
-        aria-haspopup="true"
-        aria-expanded={open}
+    <Menu.Root open={open} onOpenChange={(next) => setOpen(next)} modal={false}>
+      <Menu.Trigger
+        className="flex items-center gap-2 rounded-lg p-1.5 outline-none transition-colors hover:bg-surface-light focus-visible:ring-2 focus-visible:ring-accent-muted"
         aria-label={availability ? `Menú de usuario — ${AVAILABILITY_LABEL[availability]}` : "Menú de usuario"}
       >
         <span className="relative inline-flex shrink-0">
@@ -148,14 +138,14 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
         <span className="hidden md:block text-sm font-medium max-w-[130px] truncate">{shortName}</span>
         <ChevronDown
           size={14}
-          className={`hidden md:block text-muted transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          aria-hidden
+          className={`hidden md:block text-muted transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
         />
-      </button>
+      </Menu.Trigger>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-surface shadow-lg z-50 overflow-hidden">
+      <Menu.Portal>
+        <Menu.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={8} className="z-[70] outline-none">
+          <Menu.Popup className="w-64 max-w-[calc(100vw-16px)] overflow-hidden rounded-lg border border-border bg-surface shadow-lg outline-none origin-[var(--transform-origin)] transition-[scale,opacity] duration-fast ease-brand data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 motion-reduce:transition-none">
             <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center gap-3">
                 <EntityAvatar id={seed} name={name} size="md" figure seed={seed} />
@@ -167,61 +157,65 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
             </div>
 
             {availability && (
-              <div className="border-b border-border py-1" role="group" aria-label="Tu disponibilidad">
-                {AVAILABILITY_ORDER.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => changeAvailability(value)}
-                    aria-pressed={availability === value}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-surface-light transition-colors"
-                  >
-                    <StatusDot value={value} className="h-2.5 w-2.5 shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block">{AVAILABILITY_LABEL[value]}</span>
-                      <span className="block text-xs text-muted-darker">{AVAILABILITY_HINT[value]}</span>
-                    </span>
-                    {availability === value && <Check size={14} className="shrink-0 text-accent-ink" aria-hidden />}
-                  </button>
-                ))}
-                <p className="px-4 pb-1.5 pt-0.5 text-[11px] text-muted-darker">
+              <div className="border-b border-border py-1">
+                <Menu.RadioGroup
+                  value={availability}
+                  onValueChange={(value) => void changeAvailability(value as Availability)}
+                  aria-label="Tu disponibilidad"
+                >
+                  {AVAILABILITY_ORDER.map((value) => (
+                    <Menu.RadioItem key={value} value={value} closeOnClick={false} className={ITEM}>
+                      <StatusDot value={value} className="h-2.5 w-2.5 shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block">{AVAILABILITY_LABEL[value]}</span>
+                        <span className="block text-xs text-muted-darker">{AVAILABILITY_HINT[value]}</span>
+                      </span>
+                      <Menu.RadioItemIndicator className="shrink-0 text-accent-ink">
+                        <Check size={14} aria-hidden />
+                      </Menu.RadioItemIndicator>
+                    </Menu.RadioItem>
+                  ))}
+                </Menu.RadioGroup>
+                <p className="px-4 pb-1.5 pt-0.5 text-xs text-muted-darker">
                   La asignación automática respeta tu estado en las cuentas con &quot;Solo asignar a ejecutivos en línea&quot;.
                 </p>
               </div>
             )}
 
-            {(pushKey || iosHint) && (
-              <div className="border-b border-border px-4 py-2.5">
-                {pushKey ? (
-                  <div className="flex items-center gap-3">
-                    <BellRing size={15} className="shrink-0 text-muted" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm">Avisos en este navegador</span>
-                      <span className="block text-xs text-muted-darker">Mensajes y chats asignados, aunque la pestaña esté cerrada</span>
-                    </span>
-                    <Switch checked={pushOn} onCheckedChange={togglePush} disabled={pushBusy} label="Avisos en este navegador" />
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-darker">
-                    Para recibir avisos en iPhone, agrega la app a la pantalla de inicio (Compartir → Agregar a inicio) y ábrela desde ahí.
-                  </p>
-                )}
+            {pushKey ? (
+              <div className="border-b border-border py-1">
+                <Menu.CheckboxItem
+                  checked={pushOn}
+                  onCheckedChange={(next) => void togglePush(next)}
+                  disabled={pushBusy}
+                  closeOnClick={false}
+                  className={ITEM}
+                >
+                  <BellRing size={15} className="shrink-0 text-muted" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block">Avisos en este navegador</span>
+                    <span className="block text-xs text-muted-darker">Mensajes y chats asignados, aunque la pestaña esté cerrada</span>
+                  </span>
+                  <span aria-hidden className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${pushOn ? "bg-accent" : "bg-border"}`}>
+                    <span className={`absolute h-4 w-4 rounded-full bg-surface shadow-sm transition-transform motion-reduce:transition-none ${pushOn ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+                  </span>
+                </Menu.CheckboxItem>
               </div>
-            )}
+            ) : iosHint ? (
+              <p className="border-b border-border px-4 py-2.5 text-xs text-muted-darker">
+                Para recibir avisos en iPhone, agrega la app a la pantalla de inicio (Compartir → Agregar a inicio) y ábrela desde ahí.
+              </p>
+            ) : null}
 
             <div className="py-1">
-              <Link
-                href="/configuracion"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-surface-light transition-colors"
-              >
-                <Settings size={15} className="text-muted shrink-0" />
+              <Menu.LinkItem render={<Link href="/configuracion" />} closeOnClick className={ITEM}>
+                <Settings size={15} className="text-muted shrink-0" aria-hidden />
                 Configuración
-              </Link>
+              </Menu.LinkItem>
             </div>
 
             <div className="border-t border-border py-1">
-              <button
+              <Menu.Item
                 // redirect: false + navegación relativa — ver app-shell.tsx: la
                 // redirección del servidor usa el origen interno del contenedor.
                 onClick={async () => {
@@ -232,15 +226,15 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
                   // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                   window.location.href = "/login";
                 }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-surface-light hover:text-foreground transition-colors"
+                className={`${ITEM} text-muted data-[highlighted]:text-foreground`}
               >
-                <LogOut size={15} className="shrink-0" />
+                <LogOut size={15} className="shrink-0" aria-hidden />
                 Cerrar sesión
-              </button>
+              </Menu.Item>
             </div>
-          </div>
-        </>
-      )}
-    </div>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }

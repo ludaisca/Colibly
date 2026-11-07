@@ -116,6 +116,8 @@ export function ChatMessageActions(props: MessageActionProps) {
   return (
     <div className="mb-2 flex shrink-0 flex-col items-center opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
       <Dropdown
+        panel
+        panelLabel="Acciones del mensaje"
         portal
         align={message.direction === "OUTBOUND" ? "right" : "left"}
         open={open}

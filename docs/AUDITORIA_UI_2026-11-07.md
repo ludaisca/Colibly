@@ -59,6 +59,11 @@ Formato: `archivo:línea — problema → arreglo`.
 
 Lectura: la escala tipográfica real tiene un escalón de 10–13px que `DESIGN.md` no recoge (micro-etiquetas, insignias), y las tres superposiciones usan un violeta oscuro sin token. Las dos cosas se deciden en la nueva interfaz: o entran como tokens (`text-micro`, `--overlay`) o se quitan.
 
+## Estado
+
+- **Hecho (2026-11-07):** `dropdown`, `user-dropdown`, `notification-bell` (escritorio), `multi-select` y `searchable-select` pasan a Base UI (Menu / Popover / Combobox); `"..."` → `…` en los dos selectores; foco visible en sus campos. Verificado con teclado en el navegador (flechas, Fin, Escape y foco de regreso).
+- Pendiente: tooltips en lugar de `title=`, `transition-all` del shell, `motion-reduce` en `Button`, `tabular-nums` en tabla/paginación, `date-picker` y `filters-panel`.
+
 ## Prioridad sugerida
 
 1. Menús y popovers propios → Base UI (`dropdown`, `user-dropdown`, `notification-bell`, `multi-select`, `searchable-select`): concentra los fallos de teclado.

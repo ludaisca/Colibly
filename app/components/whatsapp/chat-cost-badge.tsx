@@ -54,6 +54,8 @@ export function ChatCostBadge({ chatId, showEmpty = false }: { chatId: string; s
 
   return (
     <Dropdown
+      panel
+      panelLabel="Costo de IA"
       open={open}
       onOpenChange={setOpen}
       align="right"

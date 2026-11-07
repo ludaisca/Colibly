@@ -72,6 +72,8 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
   const iconTone = { AI: "text-success", HUMAN: "text-warning", AUTOMATION: "text-accent-ink", HANDOFF: "text-warning", OFF: "text-muted-darker" }[data.mode];
   return (
     <Dropdown
+      panel
+      panelLabel="Modo del bot"
       open={open}
       onOpenChange={setOpen}
       align="right"

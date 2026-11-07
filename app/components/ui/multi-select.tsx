@@ -1,8 +1,14 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useMemo, useRef } from "react";
+import { Combobox } from "@base-ui/react/combobox";
 import { ChevronDown, X, Check } from "lucide-react";
 import { cn } from "./cn";
+
+// Selección múltiple con etiquetas, sobre Base UI `Combobox` (multiple) desde
+// 2026-11-07: listbox con flechas, Enter, Escape, `aria-activedescendant`,
+// quitar etiquetas con el teclado y escribir para filtrar. La API pública no
+// cambió (`options`, `value`, `onChange` con los `value` como strings).
 
 interface Option {
   value: string;
@@ -24,143 +30,93 @@ export function MultiSelect({
   options,
   value = [],
   onChange,
-  placeholder = "Seleccionar...",
+  placeholder = "Seleccionar…",
   error,
   disabled,
   id,
   className,
 }: MultiSelectProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const selectedSet = new Set(value);
-
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const toggle = useCallback(
-    (val: string) => {
-      const next = value.includes(val)
-        ? value.filter((v) => v !== val)
-        : [...value, val];
-      onChange?.(next);
-    },
-    [value, onChange]
-  );
-
-  const remove = useCallback(
-    (val: string) => {
-      onChange?.(value.filter((v) => v !== val));
-    },
-    [value, onChange]
-  );
-
-  const selectedLabels = options
-    .filter((o) => selectedSet.has(o.value))
-    .map((o) => o.label);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const selected = useMemo(() => {
+    const set = new Set(value);
+    return options.filter((o) => set.has(o.value));
+  }, [options, value]);
 
   return (
-    <div className={cn("relative", className)} ref={ref}>
-      {/* A real <button> can't contain the nested per-tag remove <button>s below
-          (invalid HTML — browsers reparent it out, causing a hydration mismatch),
-          so this trigger is a div with the same button semantics/keyboard support. */}
-      <div
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        id={id}
-        onClick={() => !disabled && setOpen(!open)}
-        onKeyDown={(e) => {
-          if (disabled) return;
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setOpen(!open);
-          }
-        }}
-        className={cn(
-          "w-full min-h-[38px] rounded-[9px] border bg-surface-light px-3 py-2 text-left text-sm transition-colors cursor-pointer",
-          "focus:outline-none focus:border-accent-strong focus:ring-1 focus:ring-accent-muted",
-          error ? "border-danger-border" : "border-border",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
+    <div className={cn("relative", className)}>
+      <Combobox.Root
+        multiple
+        items={options}
+        value={selected}
+        onValueChange={(next: Option[]) => onChange?.(next.map((o) => o.value))}
+        itemToStringLabel={(o: Option) => o.label}
+        isItemEqualToValue={(a: Option, b: Option) => a.value === b.value}
+        disabled={disabled}
       >
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {selectedLabels.length === 0 ? (
-            <span className="text-muted-darker">{placeholder}</span>
-          ) : (
-            selectedLabels.map((label, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-0.5 rounded-md bg-accent-subtle text-accent-ink px-2 py-0.5 text-xs font-medium"
-              >
-                {label}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const val = options.find((o) => o.label === label)?.value;
-                    if (val) remove(val);
-                  }}
-                  className="hover:text-foreground"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            ))
+        <Combobox.Chips
+          ref={chipsRef}
+          className={cn(
+            "flex w-full min-h-[38px] flex-wrap items-center gap-1.5 rounded-[9px] border bg-surface-light px-3 py-1.5 text-sm transition-colors",
+            "focus-within:border-accent-strong focus-within:ring-2 focus-within:ring-accent-muted",
+            error ? "border-danger-border" : "border-border",
+            disabled && "opacity-50 cursor-not-allowed"
           )}
-          <ChevronDown
-            size={14}
-            className={cn(
-              "ml-auto shrink-0 text-muted-darker transition-transform",
-              open && "rotate-180"
-            )}
-          />
-        </div>
-      </div>
-
-      {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
-
-      {open && (
-        <div className="absolute z-50 mt-1.5 w-full rounded-lg border border-border bg-surface shadow-lg py-1 max-h-56 overflow-y-auto animate-fade-in">
-          {options.map((opt) => {
-            const isSelected = selectedSet.has(opt.value);
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => toggle(opt.value)}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left transition-colors",
-                  isSelected
-                    ? "bg-accent-subtle text-accent-ink"
-                    : "text-foreground hover:bg-surface-light"
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                    isSelected
-                      ? "border-accent-strong bg-accent text-on-accent"
-                      : "border-border"
-                  )}
+        >
+          <Combobox.Value>
+            {(items: Option[]) =>
+              items.map((item) => (
+                <Combobox.Chip
+                  key={item.value}
+                  aria-label={item.label}
+                  className="inline-flex items-center gap-0.5 rounded-md bg-accent-subtle px-2 py-0.5 text-xs font-medium text-accent-ink outline-none data-[highlighted]:ring-2 data-[highlighted]:ring-accent-muted"
                 >
-                  {isSelected && <Check size={11} />}
-                </span>
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+                  {item.label}
+                  <Combobox.ChipRemove aria-label={`Quitar ${item.label}`} className="rounded hover:text-foreground">
+                    <X size={12} aria-hidden />
+                  </Combobox.ChipRemove>
+                </Combobox.Chip>
+              ))
+            }
+          </Combobox.Value>
+          <Combobox.Input
+            id={id}
+            aria-invalid={!!error}
+            placeholder={selected.length === 0 ? placeholder : ""}
+            className="min-w-12 flex-1 bg-transparent py-0.5 text-sm text-foreground outline-none placeholder:text-muted-darker"
+            // El anillo lo pinta el contenedor; la regla global de foco (sin capa) le gana a las utilidades.
+            style={{ outline: "none" }}
+          />
+          <Combobox.Trigger aria-label="Ver opciones" className="ml-auto shrink-0 rounded text-muted-darker outline-none">
+            <ChevronDown size={14} aria-hidden className="transition-transform data-[popup-open]:rotate-180" />
+          </Combobox.Trigger>
+        </Combobox.Chips>
+
+        <Combobox.Portal>
+          <Combobox.Positioner anchor={chipsRef} sideOffset={6} collisionPadding={8} className="z-[80] w-[var(--anchor-width)] outline-none">
+            <Combobox.Popup className="max-h-[min(14rem,var(--available-height))] overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg outline-none">
+              <Combobox.Empty className="px-3.5 py-2 text-sm text-muted-darker empty:hidden">Sin resultados</Combobox.Empty>
+              <Combobox.List>
+                {(opt: Option) => (
+                  <Combobox.Item
+                    key={opt.value}
+                    value={opt}
+                    className="group flex w-full cursor-default select-none items-center gap-2.5 px-3.5 py-2 text-sm text-left text-foreground outline-none data-[highlighted]:bg-surface-light data-[selected]:text-accent-ink"
+                  >
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border group-data-[selected]:border-accent-strong group-data-[selected]:bg-accent group-data-[selected]:text-on-accent">
+                      <Combobox.ItemIndicator>
+                        <Check size={11} aria-hidden />
+                      </Combobox.ItemIndicator>
+                    </span>
+                    {opt.label}
+                  </Combobox.Item>
+                )}
+              </Combobox.List>
+            </Combobox.Popup>
+          </Combobox.Positioner>
+        </Combobox.Portal>
+      </Combobox.Root>
+
+      {error && <p className="mt-1.5 text-xs text-danger" role="alert">{error}</p>}
     </div>
   );
 }

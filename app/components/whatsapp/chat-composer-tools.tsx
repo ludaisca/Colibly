@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { ArrowLeft, FileText, ListChecks, Loader2, PenLine, Plus, RefreshCw, Sparkles, Sticker } from "lucide-react";
-import { Dropdown } from "@/app/components/ui/dropdown";
+import { Dropdown, DropdownItem } from "@/app/components/ui/dropdown";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -119,6 +119,8 @@ export function ChatAiMenu({
 
   return (
     <Dropdown
+      panel
+      panelLabel="Herramientas de IA"
       open={open}
       onOpenChange={handleOpenChange}
       align="left"
@@ -242,24 +244,21 @@ export function ChatMoreMenu({
           </button>
         }
       >
-        <div className="w-60 p-1">
+        <div className="w-60">
           {supportsButtons && (
-            <button type="button" className={ITEM} disabled={buttonsDisabled} onClick={onToggleButtons}>
-              <ListChecks size={15} />
-              <span className="flex-1">{buttonsPanelOpen ? "Quitar botones de respuesta" : "Botones de respuesta"}</span>
-            </button>
+            <DropdownItem icon={ListChecks} disabled={buttonsDisabled} onClick={onToggleButtons}>
+              {buttonsPanelOpen ? "Quitar botones de respuesta" : "Botones de respuesta"}
+            </DropdownItem>
           )}
           {onOpenTemplates && (
-            <button type="button" className={ITEM} onClick={onOpenTemplates}>
-              <FileText size={15} />
-              <span className="flex-1">Enviar plantilla</span>
-            </button>
+            <DropdownItem icon={FileText} onClick={onOpenTemplates}>
+              Enviar plantilla
+            </DropdownItem>
           )}
           {hasStickers && (
-            <button type="button" className={ITEM} disabled={stickersDisabled} onClick={() => setStickersOpen(true)}>
-              <Sticker size={15} />
-              <span className="flex-1">Stickers</span>
-            </button>
+            <DropdownItem icon={Sticker} disabled={stickersDisabled} onClick={() => setStickersOpen(true)}>
+              Stickers
+            </DropdownItem>
           )}
         </div>
       </Dropdown>

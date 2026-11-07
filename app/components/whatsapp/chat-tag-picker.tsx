@@ -108,6 +108,8 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
         <Badge key={tag.id} tone="accent" size="sm">{tag.name}</Badge>
       ))}
       <Dropdown
+        panel
+        panelLabel="Etiquetas"
         open={open}
         onOpenChange={setOpen}
         align="right"

@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Combobox } from "@base-ui/react/combobox";
 import { ChevronDown, Search, Check } from "lucide-react";
 import { cn } from "./cn";
+
+// Selección única con búsqueda dentro del menú, sobre Base UI `Combobox`
+// (patrón "input dentro del popup") desde 2026-11-07: listbox con flechas,
+// Enter, Escape, `aria-activedescendant` y foco que vuelve al disparador. La
+// API pública no cambió.
 
 export interface SearchableSelectOption {
   value: string;
@@ -23,197 +29,97 @@ interface SearchableSelectProps {
   className?: string;
 }
 
-// Filtering only kicks in from 3 characters — below that a long option list
-// (e.g. dozens of WhatsApp templates) would match almost everything anyway,
-// so the full list stays visible and scrollable instead of flickering.
+// El filtro empieza a los 3 caracteres: con menos, una lista larga (docenas de
+// plantillas) coincidiría casi entera y la lista solo parpadearía.
 const MIN_SEARCH_LENGTH = 3;
+
+function matches(option: SearchableSelectOption, query: string) {
+  const q = query.trim().toLowerCase();
+  return q.length < MIN_SEARCH_LENGTH || option.label.toLowerCase().includes(q);
+}
 
 export function SearchableSelect({
   options,
   value,
   onChange,
-  placeholder = "Seleccionar...",
-  searchPlaceholder = "Buscar...",
+  placeholder = "Seleccionar…",
+  searchPlaceholder = "Buscar…",
   error,
   showErrorMessage = false,
   disabled,
   id,
   className,
 }: SearchableSelectProps) {
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  // Índice resaltado para navegación con ↑/↓ + Enter — -1 = ninguno.
-  const [highlight, setHighlight] = useState(-1);
-  const ref = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  const selected = options.find((o) => o.value === value) ?? null;
-
-  const visibleOptions = useMemo(() => {
-    if (query.trim().length < MIN_SEARCH_LENGTH) return options;
-    const q = query.trim().toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q));
-  }, [options, query]);
-
-  // Mueve el resaltado saltando opciones deshabilitadas, con wrap-around.
-  function moveHighlight(delta: 1 | -1) {
-    if (visibleOptions.length === 0) return;
-    setHighlight((current) => {
-      let i = current;
-      for (let step = 0; step < visibleOptions.length; step++) {
-        i = (i + delta + visibleOptions.length) % visibleOptions.length;
-        if (!visibleOptions[i]?.disabled) return i;
-      }
-      return current;
-    });
-  }
-
-  useEffect(() => {
-    if (highlight < 0) return;
-    listRef.current
-      ?.querySelector<HTMLElement>(`[data-index="${highlight}"]`)
-      ?.scrollIntoView({ block: "nearest" });
-  }, [highlight]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  useEffect(() => {
-    if (open) searchRef.current?.focus();
-  }, [open]);
-
-  function select(opt: SearchableSelectOption) {
-    if (opt.disabled) return;
-    onChange(opt.value);
-    setOpen(false);
-    setQuery("");
-    setHighlight(-1);
-  }
+  const selected = useMemo(() => options.find((o) => o.value === value) ?? null, [options, value]);
 
   return (
-    <div className={cn("relative", className)} ref={ref}>
-      <div
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        id={id}
-        onClick={() => !disabled && setOpen(!open)}
-        onKeyDown={(e) => {
-          if (disabled) return;
-          if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
-            e.preventDefault();
-            setOpen(!open || e.key === "ArrowDown");
-          } else if (e.key === "Escape") {
-            setOpen(false);
-            setQuery("");
-            setHighlight(-1);
-          }
+    <div className={cn("relative", className)}>
+      <Combobox.Root
+        items={options}
+        value={selected}
+        onValueChange={(next: SearchableSelectOption | null) => {
+          if (next && !next.disabled) onChange(next.value);
         }}
-        className={cn(
-          "w-full flex items-center gap-2 rounded-[9px] border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 text-sm text-left transition-colors cursor-pointer relative",
-          "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
-          error ? "border-danger-border" : "border-border",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
+        inputValue={query}
+        onInputValueChange={setQuery}
+        onOpenChange={(open) => { if (!open) setQuery(""); }}
+        filter={(item: SearchableSelectOption, q: string) => matches(item, q)}
+        itemToStringLabel={(o: SearchableSelectOption) => o.label}
+        isItemEqualToValue={(a: SearchableSelectOption, b: SearchableSelectOption) => a.value === b.value}
+        disabled={disabled}
       >
-        <span className={cn("truncate", !selected && "text-muted-darker")}>
-          {selected ? selected.label : placeholder}
-        </span>
-        <ChevronDown
-          size={16}
+        <Combobox.Trigger
+          id={id}
+          aria-invalid={!!error}
           className={cn(
-            "absolute right-3 top-1/2 -translate-y-1/2 text-muted-darker pointer-events-none transition-transform",
-            open && "rotate-180"
+            "relative flex w-full items-center gap-2 rounded-[9px] border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 text-sm text-left transition-colors outline-none",
+            "focus-visible:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted data-[popup-open]:border-accent-strong",
+            error ? "border-danger-border" : "border-border",
+            disabled && "opacity-50 cursor-not-allowed"
           )}
-        />
-      </div>
+        >
+          <span className={cn("truncate", !selected && "text-muted-darker")}>{selected ? selected.label : placeholder}</span>
+          <ChevronDown size={16} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-darker" />
+        </Combobox.Trigger>
+
+        <Combobox.Portal>
+          <Combobox.Positioner sideOffset={6} collisionPadding={8} className="z-[80] w-[var(--anchor-width)] outline-none">
+            <Combobox.Popup className="overflow-hidden rounded-lg border border-border bg-surface shadow-lg outline-none">
+              <div className="relative border-b border-border">
+                <Search size={14} aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker" />
+                <Combobox.Input
+                  placeholder={searchPlaceholder}
+                  className="w-full bg-transparent py-2.5 pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-darker"
+            // El anillo lo pinta el contenedor; la regla global de foco (sin capa) le gana a las utilidades.
+            style={{ outline: "none" }}
+                />
+              </div>
+              <Combobox.Empty className="px-3.5 py-2.5 text-sm text-muted-darker empty:hidden">Sin resultados</Combobox.Empty>
+              <Combobox.List className="max-h-[min(14rem,var(--available-height))] overflow-y-auto py-1 empty:py-0">
+                {(opt: SearchableSelectOption) => (
+                  <Combobox.Item
+                    key={opt.value}
+                    value={opt}
+                    disabled={opt.disabled}
+                    className="flex w-full cursor-default select-none items-center gap-2.5 px-3.5 py-2 text-left text-sm text-foreground outline-none data-[highlighted]:bg-surface-light data-[selected]:bg-accent-subtle data-[selected]:text-accent-ink data-[disabled]:cursor-not-allowed data-[disabled]:text-muted-darker"
+                  >
+                    <span className="flex-1 truncate">{opt.label}</span>
+                    <Combobox.ItemIndicator className="shrink-0">
+                      <Check size={14} aria-hidden />
+                    </Combobox.ItemIndicator>
+                  </Combobox.Item>
+                )}
+              </Combobox.List>
+            </Combobox.Popup>
+          </Combobox.Positioner>
+        </Combobox.Portal>
+      </Combobox.Root>
 
       {error && showErrorMessage && (
         <p className="mt-1.5 text-xs text-danger" role="alert">
           {error}
         </p>
-      )}
-
-      {open && (
-        <div className="absolute z-50 mt-1.5 w-full rounded-lg border border-border bg-surface shadow-lg animate-fade-in overflow-hidden">
-          <div className="relative border-b border-border">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker" />
-            <input
-              ref={searchRef}
-              type="text"
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); setHighlight(-1); }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.stopPropagation();
-                  setOpen(false);
-                  setQuery("");
-                  setHighlight(-1);
-                } else if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  moveHighlight(1);
-                } else if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  moveHighlight(-1);
-                } else if (e.key === "Enter") {
-                  e.preventDefault();
-                  const opt = visibleOptions[highlight];
-                  if (opt) select(opt);
-                }
-              }}
-              placeholder={searchPlaceholder}
-              className="w-full bg-transparent pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-darker focus:outline-none"
-            />
-          </div>
-          <div ref={listRef} role="listbox" className="max-h-56 overflow-y-auto py-1">
-            {visibleOptions.length === 0 ? (
-              <p className="px-3.5 py-2.5 text-sm text-muted-darker">Sin resultados</p>
-            ) : (
-              visibleOptions.map((opt, i) => {
-                const isSelected = opt.value === value;
-                const isHighlighted = i === highlight;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    aria-disabled={opt.disabled}
-                    data-index={i}
-                    disabled={opt.disabled}
-                    onClick={() => select(opt)}
-                    onMouseEnter={() => !opt.disabled && setHighlight(i)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left transition-colors",
-                      opt.disabled
-                        ? "text-muted-darker cursor-not-allowed"
-                        : isSelected
-                          ? "bg-accent-subtle text-accent-ink"
-                          : isHighlighted
-                            ? "bg-surface-light text-foreground"
-                            : "text-foreground hover:bg-surface-light"
-                    )}
-                  >
-                    <span className="flex-1 truncate">{opt.label}</span>
-                    {isSelected && <Check size={14} className="shrink-0" />}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
       )}
     </div>
   );

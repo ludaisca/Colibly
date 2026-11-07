@@ -353,7 +353,7 @@ export function NotificationBell() {
 
   if (isDesktop) {
     return (
-      <Dropdown open={open} onOpenChange={changeOpen} align="right" closeOnSelect={false} trigger={bell({})}>
+      <Dropdown panel panelLabel="Notificaciones" open={open} onOpenChange={changeOpen} align="right" closeOnSelect={false} trigger={bell({})}>
         <div className="flex max-h-[min(36rem,calc(100svh-6rem))] w-[26rem] max-w-[calc(100vw-1.5rem)] flex-col">
           {panel(false)}
         </div>

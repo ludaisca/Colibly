@@ -96,6 +96,8 @@ export function ChatViewsMenu({
   return (
     <>
       <Dropdown
+        panel
+        panelLabel="Vistas"
         align="right"
         portal
         trigger={

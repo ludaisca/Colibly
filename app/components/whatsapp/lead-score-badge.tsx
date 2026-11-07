@@ -134,6 +134,8 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
 
   return (
     <Dropdown
+      panel
+      panelLabel="Calificación del lead"
       open={open}
       onOpenChange={setOpen}
       align="right"
