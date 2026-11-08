@@ -541,7 +541,7 @@ export function ContactDrawer({
                       </label>
                       {def.type === "SELECT" ? (
                         <Select
-                          aria-label={def.name}
+                          aria-label={def.label}
                           value={value}
                           onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
                           placeholder="Sin seleccionar"
@@ -550,7 +550,7 @@ export function ContactDrawer({
                         </Select>
                       ) : def.type === "BOOLEAN" ? (
                         <Select
-                          aria-label={def.name}
+                          aria-label={def.label}
                           value={value}
                           onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
                         >
