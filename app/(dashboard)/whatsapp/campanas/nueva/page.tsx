@@ -12,6 +12,9 @@ import { SearchableSelect } from "@/app/components/ui/searchable-select";
 import { Badge } from "@/app/components/ui/badge";
 import { FormField } from "@/app/components/ui/form-field";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { TimeSelect } from "@/app/components/ui/time-select";
+import { Switch } from "@/app/components/ui/switch";
+import { localISODaysAgo } from "@/lib/format/calendar";
 import { Spinner } from "@/app/components/ui/spinner";
 import { Banner } from "@/app/components/ui/banner";
 import { Table, type TableColumn } from "@/app/components/ui/table";
@@ -366,7 +369,7 @@ export default function NewCampaignPage() {
           name: name.trim(),
           waAccountId,
           waTemplateId,
-          scheduledAt: sendNow ? null : scheduledAt || null,
+          scheduledAt: sendNow || !scheduledAt ? null : new Date(scheduledAt).toISOString(),
           headerParam: headerParam.trim() || undefined,
           buttonParam: buttonParam.trim() || undefined,
           recipients: allRecipients.map(r => ({
@@ -546,12 +549,31 @@ export default function NewCampaignPage() {
                     <p className="text-sm font-medium">Enviar ahora</p>
                     <p className="text-xs text-muted-darker">La campaña comenzará a enviarse inmediatamente</p>
                   </div>
-                  <input type="checkbox" aria-label="Enviar ahora" checked={sendNow} onChange={e => setSendNow(e.target.checked)} className="h-5 w-5 rounded border-border text-accent-ink focus:ring-accent-strong" />
+                  <Switch checked={sendNow} onCheckedChange={setSendNow} label="Enviar ahora" />
                 </div>
 
                 {!sendNow && (
                   <FormField label="Programar para" required hint="Fecha y hora de inicio" error={errors.scheduledAt}>
-                    {(id) => <DatePicker id={id} value={scheduledAt} onChange={setScheduledAt} placeholder="Seleccionar fecha" />}
+                    {(id) => (
+                      // `scheduledAt` = "AAAA-MM-DDTHH:MM" en hora local; al enviar se
+                      // convierte a ISO con zona. Antes solo había fecha y el servidor
+                      // la leía como medianoche UTC (18:00 del día anterior en México).
+                      <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-2">
+                        <DatePicker
+                          id={id}
+                          ariaLabel="Fecha de envío"
+                          value={scheduledAt.slice(0, 10)}
+                          min={localISODaysAgo()}
+                          placeholder="Seleccionar fecha"
+                          onChange={(date) => setScheduledAt(date ? `${date}T${scheduledAt.slice(11, 16) || "09:00"}` : "")}
+                        />
+                        <TimeSelect
+                          ariaLabel="Hora de envío"
+                          value={scheduledAt.slice(11, 16)}
+                          onChange={(time) => setScheduledAt(`${scheduledAt.slice(0, 10) || localISODaysAgo()}T${time}`)}
+                        />
+                      </div>
+                    )}
                   </FormField>
                 )}
 

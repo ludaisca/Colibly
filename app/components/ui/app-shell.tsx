@@ -276,13 +276,17 @@ export function AppShell({
             el header (y sus dropdowns z-50) en una capa atómica — sin elevar el
             header completo, el contenido de <main> (posterior en el DOM) pinta
             encima de los menús de usuario/notificaciones y les roba los clicks. */}
-        <header className="relative z-40 flex shrink-0 items-center gap-2 bg-background/80 px-3 py-1 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6">
+        {/* Dentro de una conversación, en el teléfono, la cabecera del chat (con
+            su flecha de volver) ocupa este lugar: como la barra inferior. */}
+        <header className={cn("relative z-40 flex shrink-0 items-center gap-2 bg-background/80 px-3 py-1 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6", inConversation && "max-md:hidden")}>
+          {/* 40 px de objetivo táctil (antes 22 px, el tamaño del ícono). */}
           <button
+            type="button"
             onClick={() => setDrawerOpen(true)}
-            className="md:hidden text-foreground hover:text-muted transition-colors"
+            className="-ml-2 grid h-10 w-10 shrink-0 place-items-center rounded-[9px] text-foreground transition-colors hover:bg-surface-light md:hidden"
             aria-label="Abrir menú"
           >
-            <Menu size={22} />
+            <Menu size={22} aria-hidden />
           </button>
 
           {collapsible && (

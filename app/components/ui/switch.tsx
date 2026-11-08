@@ -5,7 +5,8 @@ import { cn } from "./cn";
 interface SwitchProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-  label?: string;
+  /** Nombre accesible (obligatorio: el interruptor no tiene texto propio). */
+  label: string;
   disabled?: boolean;
   className?: string;
 }
@@ -21,7 +22,7 @@ export function Switch({ checked, onCheckedChange, label, disabled, className }:
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
-        "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",
         checked ? "bg-accent" : "bg-surface-light border border-border",
         className

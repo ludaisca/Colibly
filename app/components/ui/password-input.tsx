@@ -25,12 +25,13 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
         <input
           ref={ref}
           type={visible ? "text" : "password"}
+          data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
             "w-full rounded-[9px] border bg-surface-light py-2 text-sm text-foreground",
             "transition-colors placeholder:text-muted-darker",
             "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
-            showIcon ? "pl-9 pr-10" : "px-4 pr-10",
+            showIcon ? "pl-9 pr-10" : "pl-3 pr-10",
             error ? "border-danger-border" : "border-border"
           )}
           {...props}

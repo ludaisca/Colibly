@@ -52,7 +52,7 @@ function triggerProps(trigger: React.ReactNode, className?: string) {
   if (React.isValidElement(trigger) && (trigger.type === "button" || trigger.type === DropdownButton)) {
     return { render: trigger as React.ReactElement<Record<string, unknown>>, className };
   }
-  return { className: cn("inline-flex max-w-full cursor-pointer rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-accent-muted", className), children: trigger };
+  return { className: cn("inline-flex max-w-full cursor-pointer rounded-lg text-left", className), children: trigger };
 }
 
 export function Dropdown({
@@ -192,7 +192,7 @@ export const DropdownButton = React.forwardRef<HTMLButtonElement, DropdownButton
       type={type}
       {...props}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg transition-colors select-none outline-none focus-visible:ring-2 focus-visible:ring-accent-muted",
+        "inline-flex items-center gap-1.5 rounded-lg transition-colors select-none",
         size === "sm" ? "h-8 px-2.5 text-xs" : "h-9 px-3 text-sm",
         variant === "outline"
           ? "border border-border hover:bg-surface-light text-foreground data-[popup-open]:bg-surface-light"

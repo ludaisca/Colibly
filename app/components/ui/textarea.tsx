@@ -12,9 +12,10 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       <div className={cn("relative", className)}>
         <textarea
           ref={ref}
+          data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
-            "w-full rounded-[9px] border bg-surface-light px-3.5 py-2 text-sm text-foreground",
+            "w-full rounded-[9px] border bg-surface-light px-3 py-2 text-sm text-foreground",
             "transition-colors placeholder:text-muted-darker resize-y min-h-[80px]",
             "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
             error ? "border-danger-border" : "border-border"

@@ -277,7 +277,7 @@ function BotDetailPageContent() {
             {toggling ? <Spinner /> : bot.isActive ? "Pausar" : "Activar"}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>Editar</Button>
-          <Button variant="danger" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)} />
+          <Button variant="danger" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)} aria-label="Eliminar bot" />
         </>
       }
     >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { FileText } from "lucide-react";
 import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
@@ -28,6 +28,21 @@ export function useChatServiceWindow(chatId: string | null, enabled: boolean, re
     return () => { controller.abort(); clearInterval(timer); };
   }, [chatId, enabled, refreshKey]);
   return enabled && state?.chatId === chatId ? state.value : null;
+}
+
+// En el teléfono los dos avisos juntos ocupaban ~300 px y dejaban un tercio de
+// pantalla al hilo (revisión 2026-11-07): ahí se ve el título y la explicación
+// se abre con "Por qué"; desde md se ve completa.
+function WhyText({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <span className={open ? undefined : "max-md:hidden"}>{children}</span>
+      <Button type="button" variant="link" size="sm" className="md:hidden" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {open ? "Ocultar" : "Por qué"}
+      </Button>
+    </>
+  );
 }
 
 function displayNameDismissKey(accountId: string) {
@@ -60,7 +75,7 @@ export function ChatDisplayNameBanner({ accountId }: { accountId: string }) {
     // 2026-11-01). No se bloquea el compositor porque Meta sí deja pasar
     // algunos envíos; el aviso dice la verdad y el error de Meta llega tal cual.
     <Banner tone="warning" title="Nombre para mostrar en revisión" className="mx-3 mb-2" onClose={dismiss}>
-      WhatsApp todavía no aprueba el nombre de este número y mientras tanto puede rechazar tus mensajes, aunque no cites ni reacciones. Se resuelve cuando Meta lo apruebe en el Administrador de WhatsApp.
+      <WhyText>WhatsApp todavía no aprueba el nombre de este número y mientras tanto puede rechazar tus mensajes, aunque no cites ni reacciones. Se resuelve cuando Meta lo apruebe en el Administrador de WhatsApp.</WhyText>
     </Banner>
   );
 }
@@ -74,9 +89,11 @@ export function ChatWindowBanner({ window, onSendTemplate }: { window: ChatWindo
       className="mx-3 mb-2"
       action={<Button size="sm" icon={FileText} onClick={onSendTemplate}>Enviar plantilla</Button>}
     >
-      {window.lastInboundAt
-        ? "Pasaron más de 24 h desde el último mensaje del cliente. WhatsApp solo permite escribirle con una plantilla aprobada hasta que vuelva a responder."
-        : "Este cliente todavía no te ha escrito. WhatsApp solo permite iniciar la conversación con una plantilla aprobada."}
+      <WhyText>
+        {window.lastInboundAt
+          ? "Pasaron más de 24 h desde el último mensaje del cliente. WhatsApp solo permite escribirle con una plantilla aprobada hasta que vuelva a responder."
+          : "Este cliente todavía no te ha escrito. WhatsApp solo permite iniciar la conversación con una plantilla aprobada."}
+      </WhyText>
     </Banner>
   );
 }

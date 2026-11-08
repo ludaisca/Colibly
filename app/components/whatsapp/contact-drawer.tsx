@@ -12,6 +12,7 @@ import { Select } from "@/app/components/ui/select";
 import { MultiSelect } from "@/app/components/ui/multi-select";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Input } from "@/app/components/ui/input";
+import { DatePicker } from "@/app/components/ui/date-picker";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
@@ -396,7 +397,7 @@ export function ContactDrawer({
                 )}
               </FormField>
               <FormField label="Cierre estimado">
-                {(id) => <Input id={id} type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} />}
+                {(id) => <DatePicker id={id} ariaLabel="Cierre estimado" placeholder="Sin fecha" value={closeDate} onChange={setCloseDate} />}
               </FormField>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">

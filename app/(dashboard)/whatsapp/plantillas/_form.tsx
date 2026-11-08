@@ -359,7 +359,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
           <div className="border border-border rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Cabecera (opcional)</span>
-              <Switch checked={headerEnabled} onCheckedChange={setHeaderEnabled} />
+              <Switch checked={headerEnabled} onCheckedChange={setHeaderEnabled} label="Cabecera (opcional)" />
             </div>
             {headerEnabled && (
               <>

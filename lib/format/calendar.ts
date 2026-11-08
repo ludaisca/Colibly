@@ -22,6 +22,15 @@ export function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * Hoy (o hace `days` días) en ISO local. Nunca `toISOString()`: es UTC y,
+ * después de las 18:00 en México, ya devuelve el día siguiente.
+ */
+export function localISODaysAgo(days = 0, now: Date = new Date()): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days);
+  return toISO(d);
+}
+
 /** Primer día del mes de `d`. */
 export function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);

@@ -71,6 +71,7 @@ export function SearchableSelect({
       >
         <Combobox.Trigger
           id={id}
+          data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
             "relative flex w-full items-center gap-2 rounded-[9px] border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 text-sm text-left transition-colors outline-none",

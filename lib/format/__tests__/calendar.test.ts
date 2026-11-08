@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCalendarDate, fromISO, isOutOfBounds, monthGrid, moveByKey, pickInRange, toISO } from "../calendar";
+import { formatCalendarDate, fromISO, isOutOfBounds, localISODaysAgo, monthGrid, moveByKey, pickInRange, toISO } from "../calendar";
 
 describe("fromISO / toISO", () => {
   it("convierte ida y vuelta", () => {
@@ -65,5 +65,14 @@ describe("límites y formato", () => {
   it("formatea en español de México", () => {
     expect(formatCalendarDate("2026-10-14")).toMatch(/14 oct 2026/);
     expect(formatCalendarDate("x")).toBe("");
+  });
+});
+
+describe("localISODaysAgo", () => {
+  it("usa el día local, no el UTC", () => {
+    // 7 nov 2026, 18:30 hora local: en UTC ya podría ser 8 nov.
+    const evening = new Date(2026, 10, 7, 18, 30);
+    expect(localISODaysAgo(0, evening)).toBe("2026-11-07");
+    expect(localISODaysAgo(7, evening)).toBe("2026-10-31");
   });
 });

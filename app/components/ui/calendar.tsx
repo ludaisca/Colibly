@@ -204,7 +204,7 @@ export function Calendar(props: CalendarProps) {
                     onFocus={() => setFocusISO(iso)}
                     onPointerEnter={() => { if (range && start && !end) setHover(iso); }}
                     className={cn(
-                      "h-9 rounded-lg text-sm tabular-nums transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent-strong",
+                      "h-9 rounded-lg text-sm tabular-nums transition-colors",
                       "disabled:cursor-not-allowed disabled:opacity-35",
                       selected
                         ? "bg-foreground font-semibold text-background"

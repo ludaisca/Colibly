@@ -16,6 +16,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <div className={cn("relative", className)}>
         <select
           ref={ref}
+          data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
             "w-full appearance-none rounded-[9px] border bg-surface-light text-foreground",

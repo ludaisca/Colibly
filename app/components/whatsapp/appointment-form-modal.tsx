@@ -7,6 +7,9 @@ import { Search, X } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
+import { DatePicker } from "@/app/components/ui/date-picker";
+import { TimeSelect } from "@/app/components/ui/time-select";
+import { localISODaysAgo } from "@/lib/format/calendar";
 import { Select } from "@/app/components/ui/select";
 import { Textarea } from "@/app/components/ui/textarea";
 import { FormField } from "@/app/components/ui/form-field";
@@ -321,9 +324,24 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
         </FormField>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label="Fecha y hora" required>
+          <FormField label="Fecha y hora" required className="sm:col-span-2">
             {(id) => (
-              <Input id={id} type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+              // `scheduledAt` sigue siendo "AAAA-MM-DDTHH:MM" local: fecha y hora
+              // se eligen por separado con el calendario y la lista de horas.
+              <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-2">
+                <DatePicker
+                  id={id}
+                  ariaLabel="Fecha de la cita"
+                  value={scheduledAt.slice(0, 10)}
+                  min={localISODaysAgo()}
+                  onChange={(date) => setScheduledAt(date ? `${date}T${scheduledAt.slice(11, 16) || "09:00"}` : "")}
+                />
+                <TimeSelect
+                  ariaLabel="Hora de la cita"
+                  value={scheduledAt.slice(11, 16)}
+                  onChange={(time) => setScheduledAt(`${scheduledAt.slice(0, 10) || localISODaysAgo()}T${time}`)}
+                />
+              </div>
             )}
           </FormField>
           <FormField label="Duración (min)">

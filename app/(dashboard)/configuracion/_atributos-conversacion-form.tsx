@@ -147,7 +147,7 @@ export function ChatAttributeFormModal({
             <p className="text-sm font-medium text-foreground">Obligatorio</p>
             <p className="text-xs text-muted-darker">Se muestra como pendiente en el chat si falta</p>
           </div>
-          <Switch checked={required} onCheckedChange={setRequired} />
+          <Switch checked={required} onCheckedChange={setRequired} label="Obligatorio" />
         </div>
       </div>
     </Modal>

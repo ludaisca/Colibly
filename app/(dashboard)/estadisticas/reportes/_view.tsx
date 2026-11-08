@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { ChevronRight, Download, Users } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
+import { DateRangePicker } from "@/app/components/ui/date-picker";
+import { localISODaysAgo } from "@/lib/format/calendar";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { Modal } from "@/app/components/ui/modal";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -228,15 +229,14 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
 
       <Card className="animate-fade-in-up animation-delay-100 p-4">
         <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-darker" htmlFor="report-from">Desde</label>
-            <Input id="report-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="w-40" />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-darker" htmlFor="report-to">Hasta</label>
-            <Input id="report-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} className="w-40" />
-          </div>
-          <Button onClick={() => applyRange()}>Aplicar</Button>
+          {/* Elegir el último día aplica el periodo: no hace falta "Aplicar". */}
+          <DateRangePicker
+            label="Periodo del reporte"
+            value={{ start: from, end: to }}
+            max={localISODaysAgo()}
+            clearable={false}
+            onChange={(range) => { setFrom(range.start); setTo(range.end); applyRange(range.start, range.end); }}
+          />
           <Button variant="secondary" size="sm" icon={Download} onClick={exportSummary} className="ml-auto order-last">
             Exportar resumen
           </Button>

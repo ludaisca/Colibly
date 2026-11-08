@@ -131,7 +131,7 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
               placeholder="Nueva etiqueta…"
               className="flex-1"
             />
-            <Button size="sm" variant="secondary" icon={Plus} onClick={handleCreateTag} />
+            <Button size="sm" variant="secondary" icon={Plus} onClick={handleCreateTag} aria-label="Crear etiqueta" />
           </div>
         </div>
       </Dropdown>

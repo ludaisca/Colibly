@@ -179,7 +179,7 @@ export function CustomFieldFormModal({ open, onClose, accountId, channel, initia
             <p className="text-sm font-medium text-foreground">Obligatorio</p>
             <p className="text-xs text-muted-darker">Se marca como pendiente en la ficha del contacto si falta</p>
           </div>
-          <Switch checked={required} onCheckedChange={setRequired} />
+          <Switch checked={required} onCheckedChange={setRequired} label="Obligatorio" />
         </div>
       </div>
     </Modal>

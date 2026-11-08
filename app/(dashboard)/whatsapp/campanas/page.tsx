@@ -339,6 +339,7 @@ function AutomationTab() {
             />
             <span className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Switch
+                label={`Fuente ${s.name} activa`}
                 checked={s.enabled}
                 onCheckedChange={() => handleToggle(s)}
                 disabled={togglingId === s.id}

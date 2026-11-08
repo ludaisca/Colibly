@@ -78,6 +78,7 @@ export function OtpInput({
           autoComplete={index === 0 ? "one-time-code" : "off"}
           aria-label={`Dígito ${index + 1} de ${length}`}
           aria-invalid={invalid || undefined}
+          data-focus-ring=""
           onFocus={(e) => e.target.select()}
           onKeyDown={(e) => onKeyDown(index, e)}
           onPaste={(e) => onPaste(index, e)}

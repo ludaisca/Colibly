@@ -20,12 +20,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
         <input
           ref={ref}
+          data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
             "w-full rounded-[9px] border bg-surface-light py-2 text-sm text-foreground",
             "transition-colors placeholder:text-muted-darker",
             "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
-            Icon ? "pl-9 pr-4" : "px-4",
+            Icon ? "pl-9 pr-3" : "px-3",
             error
               ? "border-danger-border focus:border-danger"
               : "border-border",

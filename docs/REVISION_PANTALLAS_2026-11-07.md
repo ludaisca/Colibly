@@ -119,6 +119,19 @@ Formato: **qué pasa** — dónde → propuesta.
 31. **Nombre de sección distinto**: el menú dice «Monitores IA» y el título, «Monitores de temas».
 32. **Búsqueda (⌘K) en el teléfono**: muestra los atajos «↑ ↓ / Enter / Esc», que en táctil no aplican. Además, «Abrir automatizaciones» y «Ver plan» usan el mismo icono de engrane.
 
+## Estado
+
+- **Alta: hecho (2026-11-07).**
+  1. «Hoy» en hora local: `localISODaysAgo()`, con prueba.
+  2. Sin fechas nativas en el panel:
+     - Reportes usa `DateRangePicker`: al elegir el último día se aplica el periodo y ya no hace falta «Aplicar».
+     - El cierre estimado del contacto usa `DatePicker`.
+     - La cita usa `DatePicker` + `TimeSelect`. **Al hacerlo apareció un error peor:** «Programar para» de Nueva campaña solo pedía la fecha y la mandaba como `AAAA-MM-DD`, que el servidor lee como medianoche UTC, así que la campaña salía a las 18:00 del día anterior. Ahora pide fecha y hora y envía ISO con zona. «Enviar ahora» pasó de casilla nativa azul a `Switch`.
+  3. Un solo anillo de foco: `data-focus-ring` en campos e interruptores de campo; los disparadores de menú, el `Switch` y los días del calendario usan el contorno global. Al revisarlo apareció otro problema: la regla global forzaba un radio, y al enfocar píldoras o interruptores se volvían casi cuadrados. Ya no lo fuerza. `Input`, `Textarea` y `PasswordInput` quedaron con el mismo margen interior que `Select` (12 px).
+  4. Conversación en el teléfono: la barra de la app se oculta, igual que la inferior, y los avisos de Meta muestran el título con «Por qué» para abrir la explicación. Antes el hilo tenía ≈ 350 px visibles; ahora ≈ 520 px.
+  5. Nombres accesibles: eliminar bot, «Cabecera (opcional)», crear etiqueta y otros 11 interruptores que tampoco tenían nombre. `Switch.label` ahora es obligatorio en tipos, para que no vuelva a pasar.
+  6. Botón ☰ de 40 × 40 px.
+
 ## Siguiente paso
 
 Arreglarlos en orden (alta → media → baja), uno por uno, decidiendo cada uno contigo como hasta ahora. Los 7, 9 y 13 son decisiones de diseño o de arquitectura antes que arreglos mecánicos.

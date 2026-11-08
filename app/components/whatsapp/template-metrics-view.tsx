@@ -13,6 +13,7 @@ import { Button } from "@/app/components/ui/button";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { useHasMounted } from "@/app/hooks/use-has-mounted";
+import { localISODaysAgo } from "@/lib/format/calendar";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
   PENDING: { label: "Pendiente", tone: "warning" },
@@ -59,11 +60,7 @@ interface AnalyticsTotals {
   clicked: number;
 }
 
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
+const isoDaysAgo = localISODaysAgo;
 
 function niceCeil(value: number): number {
   if (value <= 0) return 1;

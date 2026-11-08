@@ -128,7 +128,7 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
   return (
     <Menu.Root open={open} onOpenChange={(next) => setOpen(next)} modal={false}>
       <Menu.Trigger
-        className="flex items-center gap-2 rounded-lg p-1.5 outline-none transition-colors hover:bg-surface-light focus-visible:ring-2 focus-visible:ring-accent-muted"
+        className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-surface-light"
         aria-label={availability ? `Menú de usuario — ${AVAILABILITY_LABEL[availability]}` : "Menú de usuario"}
       >
         <span className="relative inline-flex shrink-0">

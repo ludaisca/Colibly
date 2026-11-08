@@ -454,17 +454,24 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Sin border-radius: el contorno ya sigue el radio del elemento, y forzarlo
+   aquí (regla sin capa) le cambiaba la forma a píldoras e interruptores. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
+}
+
+/* Controles que dibujan su propio anillo de foco (campos, Switch, días del
+   calendario, disparadores de menú): sin esto la regla de arriba añade un
+   segundo contorno. Marcar con data-focus-ring. */
+[data-focus-ring]:focus-visible {
+  outline: none;
 }
 
 /* Filas activables de Table/EntityList (ui/row-activation.ts): el contenedor
    recorta con overflow-hidden, así que el anillo se dibuja por dentro. */
 [data-row]:focus-visible {
   outline-offset: -2px;
-  border-radius: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

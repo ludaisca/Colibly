@@ -22,6 +22,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { EXPORT_COLUMNS, labelText, type LeadScoreRow } from "@/lib/whatsapp/export-columns";
 import { LeadScorerFormModal } from "./_form";
+import { localISODaysAgo } from "@/lib/format/calendar";
 
 interface LeadScorerBot {
   id: string;
@@ -60,11 +61,7 @@ function labelTone(label: string) {
 
 const LEADS_PAGE_SIZE = 25;
 
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
+const isoDaysAgo = localISODaysAgo;
 
 const TABS = ["calificadores", "leads"] as const;
 type Tab = (typeof TABS)[number];
@@ -373,7 +370,7 @@ function LeadsTab() {
     const activeColumns = EXPORT_COLUMNS.filter((c) => exportColumns.has(c.key));
     const headers = activeColumns.map((c) => c.label);
     const csvRows = exportRows.map((r) => activeColumns.map((c) => c.get(r)));
-    downloadCsv(`leads-calificados-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(headers, csvRows));
+    downloadCsv(`leads-calificados-${localISODaysAgo()}.csv`, toCsv(headers, csvRows));
     setExportModalOpen(false);
   }
 

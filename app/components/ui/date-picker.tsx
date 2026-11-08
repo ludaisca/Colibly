@@ -67,6 +67,7 @@ export function DatePicker({
       <Popover.Root open={open} onOpenChange={setOpen}>
         <Popover.Trigger
           id={id}
+          data-focus-ring=""
           disabled={disabled}
           aria-invalid={!!error}
           aria-label={ariaLabel ? `${ariaLabel}${shown ? `: ${shown}` : ""}` : undefined}
@@ -89,17 +90,20 @@ export function DatePicker({
           </Popover.Positioner>
         </Popover.Portal>
       </Popover.Root>
-      {value && !disabled && <ClearButton label={`Borrar ${ariaLabel ?? "fecha"}`} onClear={() => onChange?.("")} />}
+      {value && !disabled && <ClearButton label={`Borrar ${ariaLabel ? ariaLabel.charAt(0).toLowerCase() + ariaLabel.slice(1) : "fecha"}`} onClear={() => onChange?.("")} />}
       {error && showErrorMessage && <p className="mt-1.5 text-xs text-danger" role="alert">{error}</p>}
     </div>
   );
 }
 
 /** Rango de fechas (antes `HeroDateRange`): dos meses en escritorio, uno en el celular. */
-export function DateRangePicker({ value, onChange, label = "Periodo", className }: {
+export function DateRangePicker({ value, onChange, label = "Periodo", max, clearable = true, className }: {
   value: IsoRange;
   onChange: (value: IsoRange) => void;
   label?: string;
+  max?: string;
+  /** Sin botón de borrar: para periodos que siempre tienen valor (reportes). */
+  clearable?: boolean;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -108,7 +112,7 @@ export function DateRangePicker({ value, onChange, label = "Periodo", className 
   return (
     <div className={cn("relative w-full sm:w-auto sm:min-w-64", className)}>
       <Popover.Root open={open} onOpenChange={setOpen}>
-        <Popover.Trigger aria-label={`${label}${shown ? `: ${shown}` : ""}`} className={cn(TRIGGER, "border-border")}>
+        <Popover.Trigger data-focus-ring="" aria-label={`${label}${shown ? `: ${shown}` : ""}`} className={cn(TRIGGER, "border-border")}>
           <CalendarDays size={16} aria-hidden className="shrink-0 text-muted" />
           <span className={cn("truncate tabular-nums", !shown && "text-muted")}>{shown || label}</span>
         </Popover.Trigger>
@@ -118,6 +122,7 @@ export function DateRangePicker({ value, onChange, label = "Periodo", className 
               <Calendar
                 mode="range"
                 value={value}
+                max={max}
                 months={wide ? 2 : 1}
                 autoFocus
                 onChange={(range) => { onChange(range); setOpen(false); }}
@@ -127,7 +132,7 @@ export function DateRangePicker({ value, onChange, label = "Periodo", className 
           </Popover.Positioner>
         </Popover.Portal>
       </Popover.Root>
-      {(value.start || value.end) && <ClearButton label="Quitar filtro de fechas" onClear={() => onChange({ start: "", end: "" })} />}
+      {clearable && (value.start || value.end) && <ClearButton label="Quitar filtro de fechas" onClear={() => onChange({ start: "", end: "" })} />}
     </div>
   );
 }
