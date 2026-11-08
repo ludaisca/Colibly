@@ -256,11 +256,13 @@ export function CitasView() {
 
       {!fetchError && <KpiStrip items={kpis} />}
 
-      {!fetchError && <div className="flex flex-wrap items-center gap-3">
-        <Select aria-label="Filtrar citas por estado" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-48">
+      {/* Teléfono: los dos filtros lado a lado y a todo el ancho (antes a media
+          anchura, uno sobre otro). */}
+      {!fetchError && <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
+        <Select aria-label="Filtrar citas por estado" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-w-0 sm:w-48">
           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </Select>
-        <Select aria-label="Filtrar citas por fecha" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)} className="w-48">
+        <Select aria-label="Filtrar citas por fecha" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)} className="min-w-0 sm:w-48">
           {SCOPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </Select>
         {contactIdParam && (

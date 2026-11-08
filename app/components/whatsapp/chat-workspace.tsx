@@ -49,6 +49,7 @@ import {
   type CampaignOption,
   type AccountOption,
 } from "@/app/components/whatsapp/chat-shared";
+import { plural } from "@/lib/format/plural";
 
 // Orquestador del inbox de chat: dueño de todo el estado (chats, mensajes,
 // filtros, polling, envío optimista) y de la composición de los 4 paneles en
@@ -1304,8 +1305,8 @@ export function ChatWorkspace({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al actualizar chats");
-      toastSuccess(`${data.updated ?? selectedChatIds.size} chat(s) actualizados`);
-      if (data.skipped) toastError(`${data.skipped} chat(s) no se resolvieron: les faltan atributos obligatorios`);
+      toastSuccess(`${plural(data.updated ?? selectedChatIds.size, "chat actualizado", "chats actualizados")}`);
+      if (data.skipped) toastError(`${plural(data.skipped, "chat")} sin resolver: ${data.skipped === 1 ? "le faltan" : "les faltan"} atributos obligatorios`);
       setSelectedChatIds(new Set());
       setSelectionMode(false);
       await refreshChats();

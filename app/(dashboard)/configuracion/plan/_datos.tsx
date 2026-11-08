@@ -66,7 +66,7 @@ export function DataSection({ organizationName, isOwner, isInternal }: { organiz
               <p className="mt-1 text-sm text-muted">
                 {isOwner
                   ? "Borra para siempre la organización, sus usuarios y todos sus datos, y cancela la suscripción. No se puede deshacer."
-                  : "Solo el dueño de la organización puede eliminarla."}
+                  : "Solo la persona titular de la organización puede eliminarla."}
               </p>
             </div>
             {isOwner && (

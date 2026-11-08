@@ -10,6 +10,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { Spinner } from "@/app/components/ui/spinner";
 import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/template-variables";
 import type { Message } from "@/app/components/whatsapp/chat-shared";
+import { templateLanguageLabel } from "@/lib/whatsapp/template-labels";
 
 interface TemplateRow {
   id: string;
@@ -150,7 +151,7 @@ export function TemplatePickerModal({
                 <button type="button" onClick={() => choose(t)} className="w-full rounded-xl border border-border bg-surface p-3 text-left hover:border-accent-strong hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-foreground">{t.name}</span>
-                    <span className="rounded-md bg-surface-light px-1.5 py-0.5 text-micro text-muted">{t.language}</span>
+                    <span className="rounded-md bg-surface-light px-1.5 py-0.5 text-micro text-muted">{templateLanguageLabel(t.language)}</span>
                     <span className="rounded-md bg-accent-subtle px-1.5 py-0.5 text-micro text-accent-ink">{CATEGORY_LABEL[t.category] ?? t.category}</span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-xs text-muted">{bodyText(t.components) || "Sin texto de cuerpo"}</p>

@@ -151,7 +151,8 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
                 <EntityAvatar id={seed} name={name} size="md" figure seed={seed} />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate">{name}</p>
-                  <p className="text-xs text-muted-darker truncate">{email}</p>
+                  {/* Sin nombre, `name` ya es el correo: no repetirlo. */}
+                  {email && email !== name && <p className="text-xs text-muted-darker truncate">{email}</p>}
                 </div>
               </div>
             </div>

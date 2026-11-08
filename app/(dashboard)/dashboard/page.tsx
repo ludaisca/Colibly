@@ -292,7 +292,7 @@ export default async function DashboardPage() {
                 href="/whatsapp/cuentas?nueva=1"
                 className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-light"
               >
-                <IconBox icon={Plus} size="sm" tone="accent-2" />
+                <IconBox icon={Plus} size="sm" tone="neutral" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Agregar número</p>
                   <p className="truncate text-xs text-muted-darker">Conectar cuenta WhatsApp Business</p>
@@ -303,7 +303,7 @@ export default async function DashboardPage() {
                 href="/whatsapp/chat"
                 className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-light"
               >
-                <IconBox icon={MessageCircle} size="sm" tone="accent-2" />
+                <IconBox icon={MessageCircle} size="sm" tone="neutral" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Bandeja de chats</p>
                   <p className="truncate text-xs text-muted-darker">Ver y responder conversaciones</p>
@@ -314,7 +314,7 @@ export default async function DashboardPage() {
                 href="/configuracion"
                 className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-light"
               >
-                <IconBox icon={Settings} size="sm" tone="accent-2" />
+                <IconBox icon={Settings} size="sm" tone="neutral" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Configuración</p>
                   <p className="truncate text-xs text-muted-darker">Administrar perfil y ajustes IA</p>

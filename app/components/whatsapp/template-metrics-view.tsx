@@ -1,19 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useTheme } from "next-themes";
 import { CalendarRange } from "lucide-react";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { Card, CardHeader, CardTitle, CardBody } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
 import { Banner } from "@/app/components/ui/banner";
-import { DatePicker } from "@/app/components/ui/date-picker";
+import { DateRangePicker } from "@/app/components/ui/date-picker";
 import { Button } from "@/app/components/ui/button";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
 import { Table, type TableColumn } from "@/app/components/ui/table";
-import { useHasMounted } from "@/app/hooks/use-has-mounted";
 import { localISODaysAgo } from "@/lib/format/calendar";
+import { templateCategoryLabel, templateLanguageLabel } from "@/lib/whatsapp/template-labels";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
   PENDING: { label: "Pendiente", tone: "warning" },
@@ -23,15 +22,15 @@ const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" 
   DISABLED: { label: "Deshabilitada", tone: "neutral" },
 };
 
-// Validated categorical slots 1-4 (blue/green/magenta/yellow) from the dataviz palette —
-// checked with scripts/validate_palette.js against this app's actual chart surfaces
-// (#f0f3ef light, #1a2420 dark): all pass. Not app semantic tokens (accent/success/etc.)
-// because those are reserved for status meaning, not series identity.
+// Series categóricas (azul/verde/magenta/violeta), no tokens de estado
+// (accent/success/…): identifican la serie, no un significado.
+// Colores en tokens `--chart-1…4` (globals.css, día y noche); antes eran hex
+// aquí y «Clics» iba en ámbar, el color de las lámparas de espera.
 const SERIES = [
-  { key: "sent", label: "Enviados", light: "#2a78d6", dark: "#3987e5" },
-  { key: "delivered", label: "Entregados", light: "#008300", dark: "#008300" },
-  { key: "read", label: "Leídos", light: "#e87ba4", dark: "#d55181" },
-  { key: "clicked", label: "Clics", light: "#eda100", dark: "#c98500" },
+  { key: "sent", label: "Enviados", color: "var(--chart-1)" },
+  { key: "delivered", label: "Entregados", color: "var(--chart-2)" },
+  { key: "read", label: "Leídos", color: "var(--chart-3)" },
+  { key: "clicked", label: "Clics", color: "var(--chart-4)" },
 ] as const;
 
 type SeriesKey = (typeof SERIES)[number]["key"];
@@ -83,9 +82,6 @@ function formatDayLabel(iso: string): string {
 }
 
 function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
-  const { theme } = useTheme();
-  const mounted = useHasMounted();
-  const isDark = mounted && theme === "dark";
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -139,7 +135,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
       <div className="flex flex-wrap gap-4 mb-3">
         {SERIES.map((s) => (
           <div key={s.key} className="flex items-center gap-1.5 text-xs text-muted">
-            <span className="inline-block w-3 h-0.5 rounded-full" style={{ backgroundColor: isDark ? s.dark : s.light }} />
+            <span className="inline-block w-3 h-0.5 rounded-full" style={{ backgroundColor: s.color }} />
             {s.label}
           </div>
         ))}
@@ -165,13 +161,13 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
             />
           ))}
           {yTicks.map((t) => (
-            <text key={`label-${t}`} x={padding.left - 6} y={yFor(t)} textAnchor="end" dominantBaseline="middle" fontSize={10} fill="var(--muted-darker)">
+            <text key={`label-${t}`} x={padding.left - 6} y={yFor(t)} textAnchor="end" dominantBaseline="middle" fontSize={11} fill="var(--muted-darker)">
               {Math.round(t)}
             </text>
           ))}
           {points.map((p, i) =>
             i % labelStep === 0 ? (
-              <text key={p.date} x={xFor(i)} y={height - 6} textAnchor="middle" fontSize={10} fill="var(--muted-darker)">
+              <text key={p.date} x={xFor(i)} y={height - 6} textAnchor="middle" fontSize={11} fill="var(--muted-darker)">
                 {formatDayLabel(p.date)}
               </text>
             ) : null
@@ -190,7 +186,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
           )}
 
           {SERIES.map((s) => (
-            <path key={s.key} d={pathFor(s.key)} fill="none" stroke={isDark ? s.dark : s.light} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <path key={s.key} d={pathFor(s.key)} fill="none" stroke={s.color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           ))}
 
           {/* end-dots with direct labels — endpoint only, not every point */}
@@ -198,7 +194,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
             const last = points[points.length - 1];
             return (
               <g key={`end-${s.key}`}>
-                <circle cx={xFor(points.length - 1)} cy={yFor(last[s.key])} r={4} fill={isDark ? s.dark : s.light} stroke="var(--surface)" strokeWidth={2} />
+                <circle cx={xFor(points.length - 1)} cy={yFor(last[s.key])} r={4} fill={s.color} stroke="var(--surface)" strokeWidth={2} />
               </g>
             );
           })}
@@ -211,7 +207,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
                 cx={xFor(hoverIndex)}
                 cy={yFor(hovered![s.key])}
                 r={4}
-                fill={isDark ? s.dark : s.light}
+                fill={s.color}
                 stroke="var(--surface)"
                 strokeWidth={2}
               />
@@ -227,7 +223,7 @@ function AnalyticsChart({ points }: { points: AnalyticsPoint[] }) {
             {SERIES.map((s) => (
               <div key={s.key} className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-1.5 text-muted">
-                  <span className="inline-block w-2.5 h-0.5 rounded-full" style={{ backgroundColor: isDark ? s.dark : s.light }} />
+                  <span className="inline-block w-2.5 h-0.5 rounded-full" style={{ backgroundColor: s.color }} />
                   {s.label}
                 </span>
                 <span className="font-semibold text-foreground tabular-nums">{hovered[s.key]}</span>
@@ -315,12 +311,13 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
 
   const statusBadge = template ? (STATUS_BADGE[template.status] ?? { label: template.status, tone: "neutral" as const }) : null;
 
+  const activeDays = points.filter((p) => p.sent || p.delivered || p.read || p.clicked);
   return (
     <DetailPage
       backHref="/whatsapp/plantillas"
       backLabel="Volver a plantillas"
       title={template?.name ?? "Métricas de plantilla"}
-      description={template ? `${template.waAccount.name} · ${template.language} · ${template.category}` : undefined}
+      description={template ? `${template.waAccount.name} · ${templateLanguageLabel(template.language)} · ${templateCategoryLabel(template.category)}` : undefined}
       maxWidth="max-w-5xl"
     >
       {loadError ? (
@@ -340,12 +337,13 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
               <Button variant="secondary" size="sm" onClick={() => applyPreset(30)}>30 días</Button>
               <Button variant="secondary" size="sm" onClick={() => applyPreset(90)}>90 días</Button>
             </div>
-            <div className="w-36">
-              <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="Desde" ariaLabel="Fecha desde" max={dateTo} />
-            </div>
-            <div className="w-36">
-              <DatePicker value={dateTo} onChange={setDateTo} placeholder="Hasta" ariaLabel="Fecha hasta" min={dateFrom} max={isoDaysAgo(0)} />
-            </div>
+            <DateRangePicker
+              label="Periodo"
+              value={{ start: dateFrom, end: dateTo }}
+              max={isoDaysAgo(0)}
+              clearable={false}
+              onChange={(range) => { setDateFrom(range.start); setDateTo(range.end); }}
+            />
           </div>
 
           {analyticsError && (
@@ -377,7 +375,7 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
             </CardBody>
           </Card>}
 
-          {points.length > 0 && (
+          {activeDays.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Detalle por día</CardTitle>
@@ -385,7 +383,9 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
               <CardBody>
                 <Table
                   columns={tableColumns}
-                  rows={points}
+                  // Solo los días con actividad: 30 filas en cero eran 5 pantallas
+                  // en el teléfono. La gráfica de arriba sí muestra todos los días.
+                  rows={activeDays}
                   rowKey={(p) => p.date}
                   emptyIcon={CalendarRange}
                   emptyTitle="Sin datos"

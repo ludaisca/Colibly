@@ -13,6 +13,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
+import { templateCategoryLabel, templateLanguageLabel } from "@/lib/whatsapp/template-labels";
 
 interface Account { id: string; name: string; channel: string; wabaId: string | null; status: string; }
 
@@ -205,7 +206,7 @@ function TemplatesContent() {
                 leading={<EntityAvatar id={t.waAccountId} name={t.name} size="sm" />}
                 title={t.name}
                 badges={<Badge tone={badge.tone} size="sm">{badge.label}</Badge>}
-                subtitle={<>{t.language} · {t.category}{t.statusReason ? <> · <span className={t.status === "APPROVED" || t.status === "PENDING" ? "" : "text-danger"}>{t.statusReason}</span></> : null}</>}
+                subtitle={<>{templateLanguageLabel(t.language)} · {templateCategoryLabel(t.category)}{t.statusReason ? <> · <span className={t.status === "APPROVED" || t.status === "PENDING" ? "" : "text-danger"}>{t.statusReason}</span></> : null}</>}
                 meta={
                   <>
                     <span className="font-mono">

@@ -18,6 +18,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { ContactImportModal } from "@/app/components/whatsapp/contact-import-modal";
 import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
+import { plural } from "@/lib/format/plural";
 
 const PAGE_SIZE = 25;
 
@@ -268,8 +269,8 @@ export default function ContactosPage() {
                     {contact.channel === "WHATSAPP"
                       ? <span className="tabular-nums">{phoneFromJid(contact.remoteJid)}</span>
                       : <span>{contact.channel === "WEBCHAT" ? "Chat web" : contact.channel.charAt(0) + contact.channel.slice(1).toLowerCase()}</span>}
-                    {accounts.length > 1 && account && <> · {account.name}</>}
-                    {contact._count.notes > 0 && <> · {contact._count.notes} nota(s)</>}
+                    {accounts.length > 1 && account && account.name.trim().toLowerCase() !== contact.channel.toLowerCase() && <> · {account.name}</>}
+                    {contact._count.notes > 0 && <> · {plural(contact._count.notes, "nota")}</>}
                   </>
                 }
                 meta={

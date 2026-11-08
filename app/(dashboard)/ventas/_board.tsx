@@ -21,6 +21,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
 
 export type BoardStage = StageOption & { outcome: StageOutcome; locked: boolean };
 
@@ -259,37 +260,39 @@ export function PipelineBoard({
             {pipelines.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </Select>
         </div>
-        <form
-          className="flex min-w-0 flex-1 gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void createPipeline();
-          }}
-        >
-          <input
-            value={newName}
-            onChange={(event) => setNewName(event.target.value)}
-            placeholder="Nuevo embudo"
-            aria-label="Nombre del embudo"
-            maxLength={60}
-            className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
-          />
-          <Button type="submit" size="sm" disabled={creating || !newName.trim()}>Crear</Button>
-        </form>
-        <Button type="button" size="sm" variant="secondary" onClick={() => setEditing((open) => !open)}>
-          {editing ? "Cerrar etapas" : "Editar etapas"}
+        {/* Crear embudos y editar etapas viven en el panel: arriba solo el
+            embudo y su botón (en el teléfono ocupaban media pantalla). */}
+        <Button type="button" variant="secondary" aria-expanded={editing} onClick={() => setEditing((open) => !open)}>
+          {editing ? "Cerrar" : "Editar embudo"}
         </Button>
       </div>
 
       {editing && (
         <div className="mb-4 space-y-3 rounded-xl border border-border bg-surface p-4">
-          <p className="text-sm text-muted-darker">
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void createPipeline();
+            }}
+          >
+            <Input
+              value={newName}
+              onChange={(event) => setNewName(event.target.value)}
+              placeholder="Nombre del nuevo embudo"
+              aria-label="Nombre del nuevo embudo"
+              maxLength={60}
+              className="min-w-0 flex-1"
+            />
+            <Button type="submit" disabled={creating || !newName.trim()}>Crear embudo</Button>
+          </form>
+          <p className="border-t border-border pt-3 text-sm text-muted-darker">
             {current?.name}. Las etapas del embudo principal que corresponden a un estado del lead se pueden renombrar.
           </p>
           <ul className="space-y-2">
             {stages.map((stage) => (
               <li key={stage.id} className="flex items-center gap-2">
-                <input
+                <Input
                   defaultValue={stage.name}
                   aria-label={`Nombre de ${stage.name}`}
                   maxLength={40}
@@ -297,7 +300,7 @@ export function PipelineBoard({
                     const name = event.target.value.trim();
                     if (name && name !== stage.name) void renameStage(stage.id, name);
                   }}
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                  className="min-w-0 flex-1"
                 />
                 {!stage.locked && (
                   <Button type="button" variant="link-danger" size="sm" onClick={() => void removeStage(stage.id)}>
@@ -314,15 +317,15 @@ export function PipelineBoard({
               void addStage();
             }}
           >
-            <input
+            <Input
               value={stageName}
               onChange={(event) => setStageName(event.target.value)}
               placeholder="Nueva etapa"
               aria-label="Nueva etapa"
               maxLength={40}
-              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+              className="min-w-0 flex-1"
             />
-            <Button type="submit" size="sm" variant="secondary" disabled={!stageName.trim()}>Agregar</Button>
+            <Button type="submit" variant="secondary" disabled={!stageName.trim()}>Agregar</Button>
           </form>
           {current && !current.isDefault && (
             <Button type="button" variant="link-danger" size="sm" className="self-start" onClick={() => void removePipeline()}>

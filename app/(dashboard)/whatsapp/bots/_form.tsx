@@ -197,7 +197,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
             </FormField>
           </div>
 
-          <FormField label="Prompt del sistema" required error={errors.systemPrompt} hint="Define cómo se comportará el bot. Incluye instrucciones, tono y límites.">
+          <FormField label="Instrucciones del bot" required error={errors.systemPrompt} hint="Define cómo se comportará el bot. Incluye instrucciones, tono y límites.">
             {(id) => (
               <Textarea id={id} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Eres un asistente virtual de soporte técnico…" rows={6} error={errors.systemPrompt} />
             )}
@@ -213,12 +213,12 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
                 Los valores por defecto funcionan bien para la mayoría de los casos — solo ajusta esto si sabes lo que buscas.
               </p>
               <div className="grid gap-5 sm:grid-cols-2">
-                <FormField label="Temperatura" hint="0-2 — más alto = respuestas más variadas. Algunos modelos, como Gemini 3.8, usan su ajuste automático.">
+                <FormField label="Creatividad (temperatura)" hint="0 a 2: más alto, respuestas más variadas. Algunos modelos, como Gemini 3.8, usan su ajuste automático.">
                   {(id) => (
                     <Input id={id} type="number" min="0" max="2" step="0.1" value={temperature} onChange={(e) => setTemperature(e.target.value)} />
                   )}
                 </FormField>
-                <FormField label="Max tokens" hint="1-8192 — largo máximo de cada respuesta">
+                <FormField label="Largo máximo de respuesta (tokens)" hint="1 a 8,192">
                   {(id) => (
                     <Input id={id} type="number" min="1" max="8192" value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} />
                   )}
@@ -244,7 +244,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
           <div className="space-y-4">
             <div className="flex items-center justify-between py-2">
               <div>
-                <p className="text-sm font-medium">Base de conocimiento (RAG)</p>
+                <p className="text-sm font-medium">Base de conocimiento</p>
                 <p className="text-xs text-muted-darker">El bot buscará en documentos antes de responder</p>
               </div>
               <Switch checked={ragEnabled} onCheckedChange={setRagEnabled} label="Base de conocimiento" />

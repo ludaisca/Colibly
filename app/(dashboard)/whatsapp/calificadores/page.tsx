@@ -23,6 +23,7 @@ import { toCsv, downloadCsv } from "@/lib/csv";
 import { EXPORT_COLUMNS, labelText, type LeadScoreRow } from "@/lib/whatsapp/export-columns";
 import { LeadScorerFormModal } from "./_form";
 import { localISODaysAgo } from "@/lib/format/calendar";
+import { plural } from "@/lib/format/plural";
 
 interface LeadScorerBot {
   id: string;
@@ -77,7 +78,7 @@ function CalificadoresPageContent() {
     <div className="space-y-5">
       <PageHeader
         title="Calificadores de Leads"
-        description="Crea agentes de IA que analizan una conversación y la califican con tu propio criterio — cada uno con su prompt libre, para el negocio que vendas."
+        description="Crea agentes de IA que analizan una conversación y la califican con tu propio criterio — cada uno con sus propias instrucciones, para el negocio que vendas."
       />
 
       {canManageScorers ? (
@@ -491,7 +492,7 @@ function LeadsTab() {
       </div>
 
       {selectedIds.size > 0 && (
-        <p className="text-xs text-muted-darker">{selectedIds.size} lead(s) seleccionado(s).</p>
+        <p className="text-xs text-muted-darker">{plural(selectedIds.size, "lead seleccionado", "leads seleccionados")}.</p>
       )}
 
       <Table
@@ -680,10 +681,10 @@ function LeadsTab() {
                 setExportScope(v as "current" | "selected");
               }}
               options={[
-                { value: "current", label: `Vista actual (${filtered.length} leads)`, description: "Todo lo que cumple los filtros y el rango de fechas activos." },
+                { value: "current", label: `Vista actual (${plural(filtered.length, "lead")})`, description: "Todo lo que cumple los filtros y el rango de fechas activos." },
                 {
                   value: "selected",
-                  label: `Seleccionados (${selectedIds.size} leads)`,
+                  label: `Seleccionados (${plural(selectedIds.size, "lead")})`,
                   description: selectedIds.size === 0 ? "Marca leads en la tabla con la casilla de la izquierda para habilitar esta opción." : undefined,
                 },
               ]}

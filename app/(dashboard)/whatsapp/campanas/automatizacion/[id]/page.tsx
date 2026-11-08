@@ -14,6 +14,7 @@ import { SectionHeader } from "@/app/components/ui/section-header";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { useToast } from "@/app/components/ui/toast";
+import { plural } from "@/lib/format/plural";
 
 interface SourceDetail {
   id: string;
@@ -117,7 +118,7 @@ export default function LeadSheetSourceDetailPage() {
       const res = await fetch(`/api/whatsapp/lead-sheet-sources/${id}/sync-now`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      success(`Sincronizado: ${data.imported} enviado(s), ${data.failed} fallido(s)`);
+      success(`Sincronizado: ${plural(data.imported, "enviado")}, ${plural(data.failed, "fallido")}`);
       fetchSource();
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al sincronizar");
@@ -133,7 +134,7 @@ export default function LeadSheetSourceDetailPage() {
       const res = await fetch(`/api/whatsapp/lead-sheet-sources/${id}/import-existing`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      success(`Histórico importado: ${data.imported} enviado(s), ${data.failed} fallido(s)`);
+      success(`Histórico importado: ${plural(data.imported, "enviado")}, ${plural(data.failed, "fallido")}`);
       fetchSource();
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al importar histórico");
@@ -295,7 +296,7 @@ export default function LeadSheetSourceDetailPage() {
         open={importConfirmOpen}
         onClose={() => setImportConfirmOpen(false)}
         title="Importar leads existentes"
-        description={`Se enviará la plantilla "${source.waTemplate.name}" a los ${seededCount} lead(s) que ya estaban en la hoja al conectar esta fuente y que aún no han recibido nada. Esta acción no se puede deshacer.`}
+        description={`Se enviará la plantilla "${source.waTemplate.name}" a ${seededCount === 1 ? "el lead" : `los ${seededCount} leads`} que ya estaban en la hoja al conectar esta fuente y que aún no han recibido nada. Esta acción no se puede deshacer.`}
         confirmLabel="Enviar a todos"
         tone="danger"
         onConfirm={handleImportExisting}

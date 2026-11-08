@@ -14,6 +14,7 @@ import { STEP_META, LEAD_STATUS_LABEL } from "@/lib/automations/labels";
 import { LIMITS, type AutomationChannel, type ValidationIssue } from "@/lib/automations/validate";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import type { ConditionRule, Option, Step, StepOf } from "@/lib/automations/types";
+import { templateLanguageLabel } from "@/lib/whatsapp/template-labels";
 
 export interface EditorOptions {
   tags: { id: string; name: string }[];
@@ -122,7 +123,7 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
                   <option value="">Ninguna (si la ventana está cerrada, la ejecución expira)</option>
                   {options.templates.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name} ({t.language})
+                      {t.name} ({templateLanguageLabel(t.language)})
                     </option>
                   ))}
                 </Select>
@@ -250,7 +251,7 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
           <FormField label="Avisar a">
             {(id) => (
               <Select id={id} value={step.config.target} onChange={(e) => set(step, { target: e.target.value as "assignee" | "user" })}>
-                <option value="assignee">A quien tenga asignado el chat (o al dueño)</option>
+                <option value="assignee">A quien tenga asignado el chat (o a la persona titular del canal)</option>
                 <option value="user">A una persona</option>
               </Select>
             )}
@@ -571,7 +572,7 @@ function TemplateEditor({ step, templates, onChange }: { step: StepOf<"send_temp
             <option value="">Elige una plantilla</option>
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.name} ({t.language})
+                {t.name} ({templateLanguageLabel(t.language)})
               </option>
             ))}
           </Select>

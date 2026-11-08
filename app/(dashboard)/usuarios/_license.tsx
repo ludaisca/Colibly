@@ -71,7 +71,7 @@ export function LicenseModal({ user, licenses, onClose, onChanged }: Props) {
       open={!!user}
       onClose={onClose}
       title={`Licencia de ${user?.name ?? user?.email ?? ""}`}
-      description="Define sus funciones, sus créditos de IA y el plan con el que funcionan los canales de los que es dueña."
+      description="Define sus funciones, sus créditos de IA y el plan con el que funcionan los canales de los que es titular."
       size="md"
       footer={
         <>

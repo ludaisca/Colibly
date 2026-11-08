@@ -15,6 +15,7 @@ import { triggerSummary } from "@/lib/automations/labels";
 import type { Trigger } from "@/lib/automations/types";
 import { NewAutomationModal } from "./_new-modal";
 import { CHANNEL_LABEL, type AutomationChannelName } from "./_shared";
+import { channelAndAccount } from "@/lib/chats/display-name";
 
 interface AutomationRow {
   id: string;
@@ -118,7 +119,7 @@ export default function AutomationsPage() {
           <EntityRow
             leading={<EntityAvatar id={r.account.id} name={r.account.name} />}
             title={r.name}
-            subtitle={`${triggerSummary(r.trigger)} · ${r.account.name} (${CHANNEL_LABEL[r.account.channel]})`}
+            subtitle={`${triggerSummary(r.trigger)} · ${channelAndAccount(CHANNEL_LABEL[r.account.channel], r.account.name)}`}
             badges={
               <>
                 <Badge size="sm" tone={STATUS[r.status].tone}>{STATUS[r.status].label}</Badge>

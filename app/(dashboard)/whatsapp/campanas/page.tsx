@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { useToast } from "@/app/components/ui/toast";
 import { Tabs, useUrlTab } from "@/app/components/ui/tabs";
+import { plural } from "@/lib/format/plural";
 
 interface Campaign {
   id: string;
@@ -332,7 +333,7 @@ function AutomationTab() {
               meta={
                 <span className="font-mono">
                   {s.lastRunAt
-                    ? `${new Date(s.lastRunAt).toLocaleString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} · ${s.lastImportedCount} enviado(s)`
+                    ? `${new Date(s.lastRunAt).toLocaleString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} · ${plural(s.lastImportedCount, "enviado")}`
                     : "Aún no ha corrido"}
                 </span>
               }

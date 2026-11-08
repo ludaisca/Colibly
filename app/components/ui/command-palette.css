@@ -125,3 +125,8 @@
   text-align: right;
   font-size: var(--text-micro);
 }
+
+/* En táctil no hay flechas ni Esc: los atajos solo estorban. */
+@media (hover: none) and (pointer: coarse) {
+  .colibly-command-hint { display: none; }
+}

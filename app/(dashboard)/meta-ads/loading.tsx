@@ -4,7 +4,7 @@ export default function MetaAdsLoading() {
   return (
     <ListPageSkeleton
       title="Meta Ads"
-      description="Cuentas para el feedback loop de calificación de leads hacia Meta."
+      description="Páginas que reciben leads de anuncios; le avisamos a Meta cuáles resultaron buenos."
       rows={3}
     />
   );

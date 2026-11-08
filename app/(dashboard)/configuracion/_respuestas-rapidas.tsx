@@ -49,7 +49,8 @@ export function RespuestasRapidasSection() {
           ...(Array.isArray(tg) ? tg.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "TELEGRAM" as const })) : []),
         ];
         setAccounts(merged);
-        if (merged.length === 1) setSelectedAccountId(merged[0].id);
+        // Como en Atributos: se preselecciona la primera cuenta (antes solo con una).
+        setSelectedAccountId((current) => current || merged[0]?.id || "");
       })
       .catch(() => toastError("Error al cargar cuentas"));
   }, [toastError]);

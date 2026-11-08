@@ -5,3 +5,9 @@
 .colibly-contact-popup[data-starting-style], .colibly-contact-popup[data-ending-style] { transform: translateX(100%); }
 .colibly-contact-popup[data-swiping] { transition-duration: 0ms; }
 @media (prefers-reduced-motion: reduce) { .colibly-contact-backdrop, .colibly-contact-popup { transition-duration: .01ms; } }
+/* Teléfono: a pantalla completa, como los demás cajones (antes quedaba una
+   franja de 8% a la izquierda y la cuarta pestaña salía cortada). */
+@media (max-width: 639px) {
+  .colibly-contact-viewport { width: 100vw; }
+  .colibly-contact-popup { border-left: 0; }
+}

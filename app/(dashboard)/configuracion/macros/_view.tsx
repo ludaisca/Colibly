@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ArrowLeft, Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
@@ -161,12 +162,15 @@ export function MacrosView() {
 
   return (
     <div className="space-y-5">
+      <Link href="/configuracion" className="-mb-2 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground">
+        <ArrowLeft size={14} aria-hidden />
+        Volver a configuración
+      </Link>
       <PageHeader
         title="Macros"
         description="Acciones manuales reutilizables para despachar chats en un clic."
         actions={
           <>
-            <Button variant="secondary" icon={ArrowLeft} href="/configuracion">Volver a configuración</Button>
             <Button icon={Plus} onClick={openCreate}>Nueva macro</Button>
           </>
         }

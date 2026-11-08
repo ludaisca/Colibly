@@ -16,6 +16,7 @@ import { WebchatCuentaFormModal } from "./_form";
 import { useSession } from "next-auth/react";
 import { ChannelAccountShareModal } from "@/app/components/channel-accounts/share-modal";
 import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
+import { plural } from "@/lib/format/plural";
 
 interface ChannelAccount {
   owner?: ChannelOwnerInfo | null;
@@ -152,7 +153,7 @@ export default function WebchatCuentasPage() {
               subtitle={a.status === "ERROR" && a.errorMessage ? a.errorMessage : "Widget de sitio web"}
               meta={
                 <>
-                  <span>{a._count.conversations} chats</span>
+                  <span>{plural(a._count.conversations, "chat")}</span>
                   <span className="tabular-nums">
                     {a.lastActivity
                       ? new Date(a.lastActivity).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })

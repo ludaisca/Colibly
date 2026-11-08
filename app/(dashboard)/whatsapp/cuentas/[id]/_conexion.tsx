@@ -5,6 +5,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Banner } from "@/app/components/ui/banner";
 import { DetailRow } from "@/app/components/ui/detail-page";
 import { SectionHeader } from "@/app/components/ui/section-header";
+import { plural } from "@/lib/format/plural";
 
 export interface ConexionInfo {
   id: string;
@@ -102,7 +103,7 @@ export function ConexionCard({ initial }: { initial: ConexionInfo }) {
       {info.syncError && info.syncStatus !== "COMPLETED" && <Banner tone="warning">{info.syncError}</Banner>}
       {daysToToken !== null && daysToToken <= TOKEN_WARNING_DAYS && (
         <Banner tone={daysToToken <= 0 ? "danger" : "warning"} title={daysToToken <= 0 ? "El acceso a WhatsApp venció" : "El acceso a WhatsApp vence pronto"}>
-          {daysToToken <= 0 ? "Vuelve a conectar el número para restablecerlo." : `Vence en ${daysToToken} día(s). Vuelve a conectar el número antes de esa fecha.`}
+          {daysToToken <= 0 ? "Vuelve a conectar el número para restablecerlo." : `Vence en ${plural(daysToToken, "día")}. Vuelve a conectar el número antes de esa fecha.`}
         </Banner>
       )}
       <dl className="space-y-4">

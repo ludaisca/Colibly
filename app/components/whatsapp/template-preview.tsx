@@ -3,6 +3,7 @@
 import { FileText, Video, AlertTriangle, CheckCircle2, CornerUpLeft } from "lucide-react";
 import { WhatsAppText } from "./whatsapp-text";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
+import { plural } from "@/lib/format/plural";
 
 interface MetaTemplateComponent {
   type: string;
@@ -135,7 +136,7 @@ export function TemplatePreview({ components, headerImagePreview }: Props) {
         <VariableRow
           label="Cuerpo"
           required={vars.bodyParamCount > 0}
-          detail={vars.bodyParamCount > 0 ? `${vars.bodyParamCount} variable(s)` : "Sin variables"}
+          detail={vars.bodyParamCount > 0 ? plural(vars.bodyParamCount, "variable") : "Sin variables"}
         />
         <VariableRow
           label="Botones"

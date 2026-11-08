@@ -16,6 +16,7 @@ import {
   type ColumnTarget,
   type FieldDefinition,
 } from "@/lib/contacts/import-mapping";
+import { plural } from "@/lib/format/plural";
 
 interface AccountOption {
   id: string;
@@ -132,8 +133,8 @@ export function ContactImportModal({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo importar");
-      const extra = data.issueCount ? ` · ${data.issueCount} aviso(s)` : "";
-      success(`${data.imported} contacto(s) importados, ${data.skipped} ya existían${extra}`);
+      const extra = data.issueCount ? ` · ${plural(data.issueCount, "aviso")}` : "";
+      success(`${plural(data.imported, "contacto importado", "contactos importados")}, ${data.skipped} ya ${data.skipped === 1 ? "existía" : "existían"}${extra}`);
       onImported();
       onClose();
       reset();
@@ -212,7 +213,7 @@ export function ContactImportModal({
 
             {fileName && (
               <p className="rounded-lg border border-border bg-surface-light p-3 text-xs text-foreground">
-                {fileName} · {table.rows.length} fila(s) · {table.headers.length} columna(s)
+                {fileName} · {plural(table.rows.length, "fila")} · {plural(table.headers.length, "columna")}
               </p>
             )}
           </>
@@ -243,7 +244,7 @@ export function ContactImportModal({
                           <option value="ignore">No importar</option>
                           <option value="phone">Teléfono</option>
                           <option value="name">Nombre</option>
-                          <option value="tag">Etiqueta(s)</option>
+                          <option value="tag">Etiquetas</option>
                           {definitions.map((def) => (
                             <option key={def.id} value={`field:${def.id}`}>Campo: {def.label}</option>
                           ))}
@@ -260,9 +261,9 @@ export function ContactImportModal({
             ) : plan && (
               <div className="space-y-2 rounded-lg border border-border bg-surface-light p-3 text-xs">
                 <p className="text-foreground">
-                  <span className="font-semibold">{plan.rows.length}</span> contacto(s) listos
-                  {plan.duplicatesInFile > 0 && ` · ${plan.duplicatesInFile} repetido(s) en el archivo`}
-                  {plan.tagNames.length > 0 && ` · ${plan.tagNames.length} etiqueta(s): ${plan.tagNames.slice(0, 5).join(", ")}${plan.tagNames.length > 5 ? "…" : ""}`}
+                  <span className="font-semibold">{plan.rows.length}</span> {plan.rows.length === 1 ? "contacto listo" : "contactos listos"}
+                  {plan.duplicatesInFile > 0 && ` · ${plural(plan.duplicatesInFile, "repetido")} en el archivo`}
+                  {plan.tagNames.length > 0 && ` · ${plural(plan.tagNames.length, "etiqueta")}: ${plan.tagNames.slice(0, 5).join(", ")}${plan.tagNames.length > 5 ? "…" : ""}`}
                 </p>
                 <p className="text-muted-darker">Los teléfonos que ya existen en la cuenta se omiten.</p>
                 {plan.tagNames.length > MAX_IMPORT_TAGS && (
@@ -270,7 +271,7 @@ export function ContactImportModal({
                 )}
                 {plan.issues.length > 0 && (
                   <div>
-                    <p className="font-medium text-warning">{plan.issues.length} aviso(s):</p>
+                    <p className="font-medium text-warning">{plural(plan.issues.length, "aviso")}:</p>
                     <ul className="mt-1 space-y-0.5 text-muted">
                       {plan.issues.slice(0, 6).map((issue, index) => (
                         <li key={index}>Fila {issue.line}: {issue.message}</li>

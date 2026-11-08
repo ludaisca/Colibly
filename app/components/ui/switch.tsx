@@ -21,10 +21,11 @@ export function Switch({ checked, onCheckedChange, label, disabled, className }:
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
+        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2",
         "transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",
-        checked ? "bg-accent" : "bg-surface-light border border-border",
+        // Apagado: pista con borde que llega a 3:1 sobre papel (antes casi invisible).
+        checked ? "border-transparent bg-accent" : "border-muted bg-border",
         className
       )}
     >

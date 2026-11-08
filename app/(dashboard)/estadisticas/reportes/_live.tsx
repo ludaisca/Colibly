@@ -7,6 +7,7 @@ import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { formatRelative } from "@/lib/format/dates";
 import { AVAILABILITY_LABEL, type Availability } from "@/lib/users/availability-rules";
 import type { LiveSnapshot } from "@/lib/estadisticas/live";
+import { plural } from "@/lib/format/plural";
 
 const REFRESH_MS = 30_000;
 
@@ -38,7 +39,7 @@ export function LivePanel() {
   const now = data ? Date.parse(data.at) : 0;
   const kpis: KpiItem[] = data
     ? [
-        { label: "Abiertos", value: String(data.open), hint: `${data.pending} pendientes` },
+        { label: "Abiertos", value: String(data.open), hint: plural(data.pending, "pendiente") },
         { label: "Sin asignar", value: String(data.unassigned) },
         {
           label: "Esperando respuesta",
@@ -51,7 +52,7 @@ export function LivePanel() {
         {
           label: "Equipo en línea",
           value: `${data.agents.filter((agent) => agent.availability === "ONLINE").length}/${data.agents.length}`,
-          hint: `${data.agents.filter((agent) => agent.availability === "BUSY").length} ocupados`,
+          hint: plural(data.agents.filter((agent) => agent.availability === "BUSY").length, "ocupado"),
         },
       ]
     : [];
@@ -79,7 +80,7 @@ export function LivePanel() {
                   <span className={`h-2 w-2 rounded-full ${DOT[agent.availability]}`} aria-hidden />
                   <span className="font-medium text-foreground">{agent.name}</span>
                   <span className="sr-only">{AVAILABILITY_LABEL[agent.availability]}</span>
-                  <span className="tabular-nums text-muted-darker">{agent.openChats} abiertos</span>
+                  <span className="tabular-nums text-muted-darker">{plural(agent.openChats, "abierto")}</span>
                 </li>
               ))}
             </ul>

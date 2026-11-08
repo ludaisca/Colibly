@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useRef } from "react";
-import { Plus, ChevronUp, ChevronDown, AlertTriangle, XCircle } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { Plus, ChevronUp, ChevronDown, AlertTriangle, XCircle, MoveHorizontal } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { IconBox } from "@/app/components/ui/icon-box";
 import { cn } from "@/app/components/ui/cn";
@@ -44,7 +44,27 @@ export function Builder(props: BuilderProps) {
     canvas.scrollTo({ left: Math.max(0, offset), behavior: "smooth" });
   }, [props.selectedId]);
 
+  // En el teléfono las ramas quedan fuera de la pantalla: se avisa que el
+  // lienzo se desplaza (revisión de pantallas 2026-11-07).
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const check = () => setOverflowing(canvas.scrollWidth > canvas.clientWidth + 8);
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(canvas);
+    if (canvas.firstElementChild) observer.observe(canvas.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
+
   return (
+    <div className="min-w-0 space-y-1.5">
+    {overflowing && (
+      <p className="flex items-center gap-1.5 text-xs text-muted-darker">
+        <MoveHorizontal size={14} aria-hidden /> Desliza el lienzo a los lados para ver todas las ramas.
+      </p>
+    )}
     <div ref={canvasRef} className="relative overflow-x-auto rounded-2xl border border-border bg-surface-light/40 p-4">
       <div className="mx-auto flex w-max min-w-full flex-col items-center">
         <button
@@ -52,7 +72,7 @@ export function Builder(props: BuilderProps) {
           data-node-id="trigger"
           onClick={() => props.onSelect("trigger")}
           className={cn(
-            "flex w-[280px] items-center gap-3 rounded-xl border bg-surface p-3 text-left shadow-sm transition-shadow hover:shadow-md",
+            "flex w-[280px] items-center gap-3 rounded-xl border bg-surface p-3 text-left transition-colors hover:bg-surface-light",
             props.selectedId === "trigger" ? "border-accent-strong ring-2 ring-accent-muted" : "border-border"
           )}
         >
@@ -66,6 +86,7 @@ export function Builder(props: BuilderProps) {
         </button>
         <StepList {...props} listId={ROOT} steps={props.graph.steps} />
       </div>
+    </div>
     </div>
   );
 }
@@ -233,7 +254,7 @@ function StepCard({
         data-node-id={step.id}
         onClick={onSelect}
         className={cn(
-          "flex w-[280px] items-start gap-3 rounded-xl border bg-surface p-3 text-left shadow-sm transition-shadow hover:shadow-md",
+          "flex w-[280px] items-start gap-3 rounded-xl border bg-surface p-3 text-left transition-colors hover:bg-surface-light",
           selected ? "border-accent-strong ring-2 ring-accent-muted" : issues.some((i) => i.level === "error") ? "border-danger-border" : "border-border"
         )}
       >

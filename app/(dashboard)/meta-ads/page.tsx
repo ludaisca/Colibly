@@ -13,6 +13,7 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { MetaAdsAccountFormModal, type MetaAdsAccountDetail } from "./_form";
+import { plural } from "@/lib/format/plural";
 
 interface MetaAdsAccountRow {
   id: string;
@@ -116,7 +117,7 @@ export default function MetaAdsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Meta Ads"
-        description="Cuentas de Página/Business para el feedback loop de calificación de leads (Instant Forms + click-to-WhatsApp)."
+        description="Páginas que reciben leads de anuncios (formularios instantáneos y clic a WhatsApp). Le avisamos a Meta cuáles resultaron buenos para que tus campañas mejoren."
         actions={
           <>
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>
@@ -190,7 +191,7 @@ export default function MetaAdsPage() {
                     {a.status === "ERROR" && a.errorMessage && <> · {a.errorMessage}</>}
                   </>
                 }
-                meta={<span>{a._count.contacts} leads</span>}
+                meta={<span>{plural(a._count.contacts, "lead")}</span>}
               />
             );
           }}

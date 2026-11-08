@@ -17,6 +17,8 @@ import {
   Legend,
 } from "recharts";
 import type { TooltipContentProps } from "recharts";
+import { cn } from "@/app/components/ui/cn";
+import { hueClassFor } from "@/app/components/ui/hue";
 import { CAMPAIGN_ORIGIN_LABEL } from "@/lib/whatsapp/export-columns";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
 
@@ -133,7 +135,7 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
               )}
             />
             <Area
-              type="monotone"
+              type="linear"
               dataKey="count"
               name="Mensajes"
               stroke="var(--accent-strong)"
@@ -154,6 +156,33 @@ export interface HBarDatum {
   label: string;
   value: number;
   sublabel?: string;
+}
+
+/**
+ * Barras por cuenta en el color de cada cuenta (`hueClassFor`), en HTML y no
+ * en recharts: las clases de tono no llegan a un `fill` de SVG, y con pocas
+ * cuentas una lista se lee mejor (revisión de pantallas 2026-11-07; antes
+ * todas iban en carmesí).
+ */
+export function EntityBars({ data, emptyLabel = "Sin datos todavía" }: { data: HBarDatum[]; emptyLabel?: string }) {
+  if (data.length === 0) return <p className="py-5 text-center text-sm text-muted">{emptyLabel}</p>;
+  const max = Math.max(1, ...data.map((d) => d.value));
+  return (
+    <ul className="space-y-2.5">
+      {data.map((d) => (
+        <li key={d.id} className={cn("grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_auto] items-center gap-3 text-sm", hueClassFor(d.id))}>
+          <span className="truncate text-muted-darker" title={d.label}>{d.label}</span>
+          <span className="h-2.5 overflow-hidden rounded-full bg-surface-light" aria-hidden>
+            <span className="block h-full rounded-full bg-entity" style={{ width: `${(d.value / max) * 100}%` }} />
+          </span>
+          <span className="tabular-nums text-foreground">
+            {d.value.toLocaleString("es-MX")}
+            <span className="sr-only"> en {d.label}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function HorizontalBarChart({

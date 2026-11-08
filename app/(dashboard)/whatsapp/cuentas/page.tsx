@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Tooltip } from "@/app/components/ui/tooltip";
 import { useSession } from "next-auth/react";
 import { Search, Plus, RefreshCw, Trash2, Settings2 } from "lucide-react";
 import { WhatsAppIcon } from "@/app/components/ui/channel-icons";
@@ -20,6 +21,7 @@ import { ChannelLimitBanner, useChannelLimit } from "@/app/components/billing/ch
 import { CuentaFormModal } from "./_form";
 import { ConectarWhatsAppModal } from "./_conectar-whatsapp";
 import { ChannelOwnerBadge, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
+import { plural } from "@/lib/format/plural";
 
 interface WaAccount {
   owner?: ChannelOwnerInfo | null;
@@ -128,11 +130,12 @@ function CuentasView() {
         description="Administra los números de WhatsApp Business conectados."
         actions={
           <>
-            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>
-              Actualizar
-            </Button>
-            <Button variant="secondary" icon={Plus} size="sm" disabled={channelLimit?.allowed === false} onClick={() => setFormOpen(true)}>Conexión manual</Button>
+            {/* En el teléfono los tres botones con texto se partían en dos líneas. */}
             <Button icon={Plus} size="sm" disabled={channelLimit?.allowed === false} onClick={() => setConnectOpen(true)}>Conectar WhatsApp</Button>
+            <Button variant="secondary" size="sm" disabled={channelLimit?.allowed === false} onClick={() => setFormOpen(true)}>Conexión manual</Button>
+            <Tooltip label="Actualizar">
+              <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts} aria-label="Actualizar" className="w-8 px-0" />
+            </Tooltip>
           </>
         }
       />
@@ -219,7 +222,7 @@ function CuentasView() {
                 }
                 meta={
                   <>
-                    <span>{a._count.chats} chats</span>
+                    <span>{plural(a._count.chats, "chat")}</span>
                     <span className="font-mono">
                       {a.lastActivity
                         ? new Date(a.lastActivity).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })

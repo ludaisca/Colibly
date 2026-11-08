@@ -210,16 +210,24 @@ export function Table<T>({
   );
 }
 
+// Tarjeta del teléfono: la primera columna como título y hasta 4 más como
+// pares «encabezado: valor». Antes salían los valores sueltos ("1", "0") sin
+// decir qué eran (revisión de pantallas 2026-11-07).
 function DefaultMobileCard<T>({ row, columns }: { row: T; columns: TableColumn<T>[] }) {
   const [first, ...rest] = columns;
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <div className="font-medium text-sm">{first.render(row)}</div>
-      {rest.slice(0, 2).map((col) => (
-        <div key={col.key} className="text-xs text-muted-darker">
-          {col.render(row)}
-        </div>
-      ))}
+      {rest.length > 0 && (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          {rest.slice(0, 4).map((col) => (
+            <div key={col.key} className="flex min-w-0 items-baseline gap-1.5">
+              <dt className="shrink-0 text-muted-darker">{col.header}:</dt>
+              <dd className="min-w-0 truncate tabular-nums text-foreground">{col.render(row)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </div>
   );
 }

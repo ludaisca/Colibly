@@ -115,7 +115,10 @@ export function ChatMessageActions(props: MessageActionProps) {
   if (!hasItems) return null;
 
   return (
-    <div className="mb-2 flex shrink-0 flex-col items-center opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
+    // En táctil (sin hover) el "…" junto a cada burbuja era ruido: ahí las mismas
+    // acciones salen con pulsación larga (MessageContextMenu, Base UI la
+    // soporta). Con mouse se revela al pasar el cursor o con el foco.
+    <div className="mb-2 flex shrink-0 flex-col items-center transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:none)]:hidden">
       <Dropdown
         panel
         panelLabel="Acciones del mensaje"

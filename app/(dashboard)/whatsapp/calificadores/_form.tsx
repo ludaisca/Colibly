@@ -175,10 +175,10 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
           </FormField>
 
           <FormField
-            label="Prompt de calificación"
+            label="Instrucciones de calificación"
             required
             error={errors.systemPrompt}
-            hint="Escribe libremente cómo debe analizar las conversaciones: qué buscar, qué cuenta como interés/urgencia/presupuesto para tu negocio. La app siempre exige la respuesta en un formato fijo (score, etiqueta, resumen y motivos), así que no necesitas especificar el formato de salida."
+            hint="Escribe libremente cómo debe analizar las conversaciones: qué buscar, qué cuenta como interés/urgencia/presupuesto para tu negocio. la IA siempre responde en un formato fijo (puntaje, etiqueta, resumen y motivos), así que no necesitas especificar el formato de salida."
           >
             {(id) => (
               <Textarea id={id} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Eres un analista de ventas de [tu negocio]. Evalúa qué tan calificado está el lead considerando…" rows={8} error={errors.systemPrompt} />

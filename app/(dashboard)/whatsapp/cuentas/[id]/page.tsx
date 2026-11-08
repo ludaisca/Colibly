@@ -466,6 +466,14 @@ export default function CuentaDetailPage() {
       backLabel="Volver a cuentas"
       title={account.name}
       badge={<Badge tone={badge.tone}>{badge.label}</Badge>}
+      // Arriba lo que se usa a diario; antes quedaban al final de 3 pantallas
+      // en el teléfono. Actualizar y Eliminar siguen abajo.
+      actions={
+        <>
+          <Button size="sm" href={`/whatsapp/chat?accountId=${account.id}`} icon={MessageCircle}>Abrir chats</Button>
+          <Button size="sm" href={`/whatsapp/plantillas?accountId=${account.id}`} variant="secondary" icon={FileText}>Plantillas</Button>
+        </>
+      }
     >
       {account.status === "ERROR" && account.errorMessage && (
         <Banner tone="danger" title="Error en la cuenta">
@@ -602,8 +610,8 @@ export default function CuentaDetailPage() {
               value={
                 account.lastActivity
                   ? new Date(account.lastActivity).toLocaleDateString("es-MX", {
-                      day: "2-digit", month: "long", year: "numeric",
-                      hour: "2-digit", minute: "2-digit",
+                      day: "numeric", month: "short", year: "numeric",
+                      hour: "numeric", minute: "2-digit",
                     })
                   : "—"
               }
@@ -757,14 +765,14 @@ export default function CuentaDetailPage() {
 
         {isAdmin && (
           <section className="space-y-4">
-            <SectionHeader title="Dueño y licencia" />
+            <SectionHeader title="Titular y licencia" />
             <p className="text-sm text-muted">
               El número funciona con la licencia de su dueño: bots, difusiones, automatizaciones y llamadas dependen de ese plan. Cada licencia incluye un número de WhatsApp.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <ChannelOwnerBadge owner={account.owner} />
               <Button size="sm" variant="secondary" onClick={() => setOwnerOpen(true)}>
-                Cambiar dueño
+                Cambiar titular
               </Button>
             </div>
             <ChannelOwnerModal open={ownerOpen} onClose={() => setOwnerOpen(false)} kind="whatsapp" account={account} onChanged={fetchAccount} />
@@ -816,8 +824,6 @@ export default function CuentaDetailPage() {
         )}
 
         <div className="flex flex-wrap gap-3">
-          <Button href={`/whatsapp/chat?accountId=${account.id}`} icon={MessageCircle}>Abrir chats</Button>
-          <Button href={`/whatsapp/plantillas?accountId=${account.id}`} variant="secondary" icon={FileText}>Gestionar plantillas</Button>
           <Button variant="secondary" icon={RefreshCw} onClick={fetchAccount}>
             Actualizar
           </Button>

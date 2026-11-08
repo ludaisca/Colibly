@@ -5,6 +5,7 @@ import { Card } from "@/app/components/ui/card";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { Segmented } from "@/app/components/ui/segmented";
 import { gridMax, heatIntensity, type HeatmapGrid } from "@/lib/estadisticas/heatmap-rules";
+import { timeZoneLabel } from "@/lib/format/time-zone";
 
 // Mapa de calor día × hora en la zona de la organización. El color mezcla el
 // acento sobre la superficie (tokens, sin literales) y el número exacto va en
@@ -44,7 +45,7 @@ export function ActivityHeatmap({ inbound, resolved, timeZone }: { inbound: Heat
         />
       </div>
       <p className="mt-1 text-xs text-muted">
-        Hora local ({timeZone.replace("_", " ")}). Úsalo para decidir horarios y turnos.
+        Hora de {timeZoneLabel(timeZone)}. Úsalo para decidir horarios y turnos.
       </p>
 
       {max === 0 ? (

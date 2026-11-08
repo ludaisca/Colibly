@@ -68,7 +68,7 @@ export default async function PlanPage() {
       })
     : [];
   const sumHint = (what: string) => `Suma de las licencias de las personas activas (${what} de cada licencia)`;
-  const channelHint = "Uno de cada tipo por licencia; cada canal funciona con la licencia de su dueño";
+  const channelHint = "Uno de cada tipo por licencia; cada canal funciona con la licencia de su titular";
 
   const data: PlanViewData = {
     organizationName: org.name,
@@ -121,7 +121,7 @@ export default async function PlanPage() {
           },
         ]
       : [
-      { key: "seats", label: "Usuarios (asientos)", hint: "Usuarios activos e invitaciones pendientes; dueño y admins cuentan", used: usage.seats, max: finite(limits.seats) },
+      { key: "seats", label: "Usuarios (asientos)", hint: "Usuarios activos e invitaciones pendientes; cuentan también la persona titular y quienes administran", used: usage.seats, max: finite(limits.seats) },
       { key: "whatsapp", label: "Números de WhatsApp", hint: "Según el plan: incluidos más uno por usuario adicional, o sin tope", used: usage.whatsapp, max: finite(limits.whatsapp) },
       ...SEAT_CHANNELS.map((ch) => ({
         key: ch,

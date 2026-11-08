@@ -136,7 +136,7 @@ export function UserFormModal({ open, onClose, onCreated }: Props) {
               />
             )}
           </FormField>
-          <FormField label="Email" required error={fieldErrors.email}>
+          <FormField label="Correo" required error={fieldErrors.email}>
             {(id) => (
               <Input
                 id={id}

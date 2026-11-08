@@ -132,6 +132,38 @@ Formato: **qué pasa** — dónde → propuesta.
   5. Nombres accesibles: eliminar bot, «Cabecera (opcional)», crear etiqueta y otros 11 interruptores que tampoco tenían nombre. `Switch.label` ahora es obligatorio en tipos, para que no vuelva a pasar.
   6. Botón ☰ de 40 × 40 px.
 
+- **Texto (25–32) y medios sin decisión: hecho (2026-11-07).**
+  - **Texto:**
+    - `plural()` (`lib/format/plural.ts`, con pruebas) en 25 archivos.
+    - «Titular» en lugar de «dueño/dueña» en todo lo que ve el cliente.
+    - Idioma y categoría de plantillas en español (`lib/whatsapp/template-labels.ts`).
+    - Zona horaria con nombre de ciudad (`lib/format/time-zone.ts`).
+    - Rol «Administrador» y «Correo».
+    - Meta Ads, Bots y Calificadores sin jerga: instrucciones, creatividad, largo máximo de respuesta, base de conocimiento, puntaje.
+    - `channelAndAccount()` para no repetir «Telegram · Telegram».
+    - El menú de usuario ya no repite el correo y se oculta «Miembro desde —».
+    - Comillas latinas.
+    - «Monitores IA» en el título.
+    - La búsqueda no muestra atajos en pantallas táctiles y ya no repite el ícono de engrane.
+  - **Error encontrado y corregido en el camino (31):** el aviso «la calidad del número bajó» también saltaba con `UNFLAGGED`, que significa lo contrario, porque `/flag/` coincidía. Ahora `isNegativeQualityEvent()` y un texto sin códigos de Meta (`qualityEventText()`), con pruebas, y el ícono es un escudo en vez de un teléfono.
+  - **Medios:**
+    - 8: el Acceso rápido del Panel usa íconos neutros. «Chats por cuenta» usa barras HTML del color de cada cuenta (`EntityBars`). Las series de las gráficas usan los tokens `--chart-1…4`, sin ámbar.
+    - 10: la paleta de tonos de cuenta queda repartida cada 45°. **Falta decidir**: las cuentas de prueba «Test» y «Colibly Web» caen en el mismo índice del hash, así que siguen del mismo color. Resolverlo pide asignar el tono por organización.
+    - 11: la tarjeta móvil de `Table` muestra «encabezado: valor».
+    - 12: línea recta en «Mensajes diarios» y ejes de 11 px.
+    - 14: «…» oculto en táctil; ahí las acciones salen con pulsación larga.
+    - 15: «Abrir chats» y «Plantillas» arriba; fecha corta.
+    - 16: índice de secciones, primera cuenta preseleccionada en las tres secciones y Google Sheets oculto si no está configurado.
+    - 17: Cuentas WhatsApp con «Actualizar» de solo ícono y botones sin partir; Macros con enlace «← Volver».
+    - 18: el interruptor apagado lleva borde visible.
+    - 19: tarjeta del Pipeline sin el id interno de Telegram y con la hora en una línea; crear embudo y etiquetas dentro de «Editar embudo», con `Input`.
+    - 20: métricas con `DateRangePicker` y solo los días con actividad.
+    - 21: aviso «Desliza el lienzo…» cuando las ramas no caben y sin sombra al pasar el cursor.
+    - 22: cajón de contacto a pantalla completa en el teléfono.
+    - 23: filtros de Citas lado a lado.
+    - 24: «Sin asignar» sale de los KPI del periodo (era un dato de ahora).
+- **Pendientes de decisión:** 7 (colores de estados y etapas), 9 (selección en teal), 10 (choque exacto de tonos) y 13 (sondeo de llamadas).
+
 ## Siguiente paso
 
 Arreglarlos en orden (alta → media → baja), uno por uno, decidiendo cada uno contigo como hasta ahora. Los 7, 9 y 13 son decisiones de diseño o de arquitectura antes que arreglos mecánicos.

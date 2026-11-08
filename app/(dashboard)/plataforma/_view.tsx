@@ -29,6 +29,7 @@ import { PlataformaSoporte } from "./_soporte";
 import { Tabs, useUrlTab } from "@/app/components/ui/tabs";
 import { PlataformaActivacion } from "./_activacion";
 import { formatInZone } from "@/lib/format/dates";
+import { plural } from "@/lib/format/plural";
 
 const TABS = ["organizaciones", "activacion", "soporte", "configuracion", "respaldos", "operacion"] as const;
 type Tab = (typeof TABS)[number];
@@ -179,7 +180,7 @@ export function PlatformView({
             items={[
               { label: "Ingreso mensual", value: `$${n(summary.mrrMxn)} MXN`, hint: "Suscripciones activas × asientos" },
               { label: "Pagando", value: n(summary.paying), delta: summary.pastDue ? `${n(summary.pastDue)} con pago pendiente` : undefined, deltaTone: "danger" },
-              { label: "En prueba", value: n(summary.trialing), delta: `${n(summary.signups7d)} altas en 7 días`, deltaTone: "neutral" },
+              { label: "En prueba", value: n(summary.trialing), delta: `${plural(summary.signups7d, "alta")} en 7 días`, deltaTone: "neutral" },
               {
                 label: "Sin actividad",
                 value: n(summary.inactive),
@@ -212,7 +213,7 @@ export function PlatformView({
               </Button>
             </form>
 
-            <p className="text-sm text-muted">{n(total)} organización(es)</p>
+            <p className="text-sm text-muted">{plural(total, "organización", "organizaciones")}</p>
             <Table
               className="rounded-lg border border-border bg-surface p-4 shadow-sm"
               columns={columns}
@@ -357,7 +358,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
                 className="space-y-2"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  act({ action: "extend_trial", days: Number(days) }, `Prueba extendida ${days} día(s)`);
+                  act({ action: "extend_trial", days: Number(days) }, `Prueba extendida ${plural(Number(days), "día")}`);
                 }}
               >
                 <FormField label="Extender la prueba (días)" hint={canTrial ? "Suma a la fecha de fin, o desde hoy si ya venció." : "Solo sin suscripción de pago vigente."}>

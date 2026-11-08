@@ -140,6 +140,13 @@
      interpolar "hue-N". */
   --entity: oklch(0.52 0.12 60); /* fallback si falta la clase hue-N */
 
+  /* Series de gráficas (identidad de serie, no estado): validadas contra el
+     fondo de las tarjetas. Sin ámbar ni rojo: esos son las lámparas. */
+  --chart-1: #2a78d6;
+  --chart-2: #008300;
+  --chart-3: #d0507f;
+  --chart-4: #7a5af5;
+
   /* Durations */
   --dur-fast: 120ms;
   --dur:      200ms;
@@ -210,6 +217,11 @@
   --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.03);
   --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 28px rgba(0, 0, 0, 0.9);
   --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 20px 48px rgba(0, 0, 0, 0.95);
+
+  --chart-1: #3987e5;
+  --chart-2: #2e9d3a;
+  --chart-3: #e07aa2;
+  --chart-4: #9b85ff;
 }
 
 /* ─────────────────────────────────────────────────
@@ -256,25 +268,26 @@ html.dark:has([data-world="anden"]) {
 @media (prefers-reduced-motion: reduce) { .animate-flap { animation: none; } }
 
 /* ─────────────────────────────────────────────────
-   HUE POR ENTIDAD — 8 clases; en .dark suben de luminosidad para leerse
-   sobre fondo oscuro
+   HUE POR ENTIDAD — 8 clases cada 45° (2026-11-07: antes 25/60/95 y
+   200/225/250 se confundían entre sí); en .dark suben de luminosidad para
+   leerse sobre fondo oscuro
    ───────────────────────────────────────────────── */
 .hue-0 { --entity: oklch(0.44 0.13 25);  }
-.hue-1 { --entity: oklch(0.44 0.12 60);  }
-.hue-2 { --entity: oklch(0.44 0.11 95);  }
-.hue-3 { --entity: oklch(0.44 0.10 200); }
-.hue-4 { --entity: oklch(0.44 0.10 225); }
-.hue-5 { --entity: oklch(0.44 0.11 250); }
-.hue-6 { --entity: oklch(0.44 0.10 150); }
+.hue-1 { --entity: oklch(0.44 0.11 70);  }
+.hue-2 { --entity: oklch(0.44 0.11 115); }
+.hue-3 { --entity: oklch(0.44 0.10 160); }
+.hue-4 { --entity: oklch(0.44 0.10 205); }
+.hue-5 { --entity: oklch(0.44 0.12 250); }
+.hue-6 { --entity: oklch(0.44 0.12 295); }
 .hue-7 { --entity: oklch(0.44 0.12 340); }
 
 .dark .hue-0 { --entity: oklch(0.84 0.11 25); --entity-bg: color-mix(in oklab, var(--entity) 16%, var(--surface)); }
-.dark .hue-1 { --entity: oklch(0.80 0.11 60);  }
-.dark .hue-2 { --entity: oklch(0.82 0.10 95);  }
-.dark .hue-3 { --entity: oklch(0.78 0.10 200); }
-.dark .hue-4 { --entity: oklch(0.77 0.10 225); }
+.dark .hue-1 { --entity: oklch(0.80 0.11 70);  }
+.dark .hue-2 { --entity: oklch(0.82 0.10 115); }
+.dark .hue-3 { --entity: oklch(0.78 0.10 160); }
+.dark .hue-4 { --entity: oklch(0.78 0.10 205); }
 .dark .hue-5 { --entity: oklch(0.76 0.11 250); }
-.dark .hue-6 { --entity: oklch(0.78 0.10 150); }
+.dark .hue-6 { --entity: oklch(0.78 0.11 295); }
 .dark .hue-7 { --entity: oklch(0.80 0.10 340); }
 
 /* Mezclado contra --surface (opaco), no "transparent": a 14% sobre

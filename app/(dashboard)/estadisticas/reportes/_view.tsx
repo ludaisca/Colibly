@@ -19,6 +19,7 @@ import { ActivityHeatmap } from "./_heatmap";
 import type { ActivityHeatmap as ActivityHeatmapData } from "@/lib/estadisticas/heatmap";
 import type { BotPerformance } from "@/lib/estadisticas/bot-performance-rules";
 import type { AgentReport, ChannelReport, RangeReport } from "@/lib/estadisticas/reports";
+import { plural } from "@/lib/format/plural";
 
 const CHANNEL_LABEL: Record<string, string> = {
   WHATSAPP: "WhatsApp",
@@ -138,7 +139,8 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
     { label: "Mensajes", value: data.totals.messages.toLocaleString("es-MX") },
     { label: "1ª respuesta", value: formatMinutes(data.totals.avgFirstResponseMinutes) },
     { label: "Resolución", value: formatMinutes(data.totals.avgResolutionMinutes) },
-    { label: "Sin asignar", value: String(data.totals.unassigned), hint: `${data.totals.open} abiertos` },
+    // Sin "Sin asignar": es un dato de ahora (ya está en el panel "Ahora"), no
+    // del periodo; además dejaba la tarjeta "Perdido" sola en su fila.
     {
       label: "CSAT",
       value: data.totals.csatAvg == null ? "—" : `${data.totals.csatAvg}/5`,
@@ -300,7 +302,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
           </p>
           <KpiStrip
             items={[
-              { label: "Chats con bot", value: String(bot.chats), hint: `${bot.botReplies} respuestas del bot` },
+              { label: "Chats con bot", value: String(bot.chats), hint: `${plural(bot.botReplies, "respuesta")} del bot` },
               { label: "Resueltos por el bot", value: bot.resolvedByBotPct === null ? "—" : `${bot.resolvedByBotPct}%`, hint: `${bot.resolvedByBot} chats` },
               { label: "Pasaron a una persona", value: bot.handedOffPct === null ? "—" : `${bot.handedOffPct}%`, hint: `${bot.handedOff} chats · ${bot.open} siguen abiertos` },
               {
@@ -321,7 +323,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
         open={!!agentModal}
         onClose={() => setAgentModal(null)}
         title={agentModal ? `Chats de ${agentModal.userName}` : "Chats del agente"}
-        description={agentModal ? `${agentModal.newChats} nuevos · ${agentModal.resolved} resueltos` : undefined}
+        description={agentModal ? `${plural(agentModal.newChats, "nuevo")} · ${plural(agentModal.resolved, "resuelto")}` : undefined}
         size="lg"
       >
         {agentModal && (

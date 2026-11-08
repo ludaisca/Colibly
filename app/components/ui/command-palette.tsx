@@ -21,7 +21,8 @@ import {
   MessageSquareText,
   Plus,
   Search,
-  Settings,
+  Zap,
+  CreditCard,
   UserCheck,
 } from "lucide-react";
 import type { NavGroup, NavItem } from "./app-shell";
@@ -238,14 +239,14 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
       list.push(
         { id: "create-campaign", label: "Nueva campaña", icon: Megaphone, run: () => router.push("/whatsapp/campanas/nueva") },
         { id: "create-template", label: "Nueva plantilla", icon: Plus, run: () => router.push("/whatsapp/plantillas/nueva") },
-        { id: "create-automation", label: "Abrir automatizaciones", icon: Settings, run: () => router.push("/whatsapp/automatizaciones") },
+        { id: "create-automation", label: "Abrir automatizaciones", icon: Zap, run: () => router.push("/whatsapp/automatizaciones") },
       );
     }
     if (role === "admin") {
       list.push(
         { id: "create-bot", label: "Abrir bots IA", icon: Bot, run: () => router.push("/whatsapp/bots") },
         { id: "connect-whatsapp", label: "Conectar WhatsApp", icon: MessageSquare, run: () => router.push("/whatsapp/cuentas?nueva=1") },
-        { id: "open-plan", label: "Ver plan y facturación", icon: Settings, run: () => router.push("/configuracion/plan") },
+        { id: "open-plan", label: "Ver plan y facturación", icon: CreditCard, run: () => router.push("/configuracion/plan") },
       );
     }
     list.push({ id: "create-appointment", label: "Abrir citas", icon: CalendarPlus, run: () => router.push("/whatsapp/citas") });

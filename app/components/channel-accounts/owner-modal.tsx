@@ -25,7 +25,7 @@ export function ChannelOwnerBadge({ owner }: { owner: ChannelOwnerInfo | null | 
   if (!owner || owner.disabledAt) {
     return (
       <Badge tone="warning" size="sm">
-        Sin dueño · Básico
+        Sin titular · Básico
       </Badge>
     );
   }
@@ -75,12 +75,12 @@ export function ChannelOwnerModal({
     try {
       const res = await fetch(`/api/canales/dueno?kind=${kind}&accountId=${encodeURIComponent(account.id)}`, { cache: "no-store" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "No se pudo cargar el dueño");
+      if (!res.ok) throw new Error(data.error ?? "No se pudo cargar la persona titular");
       setCandidates(data.candidates);
       setCurrentOwner(data.account.ownerId);
       setChosen(data.account.ownerId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo cargar el dueño");
+      setError(err instanceof Error ? err.message : "No se pudo cargar la persona titular");
     } finally {
       setLoading(false);
     }
@@ -102,12 +102,12 @@ export function ChannelOwnerModal({
         body: JSON.stringify({ kind, accountId: account.id, ownerId: chosen }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "No se pudo cambiar el dueño");
-      success(chosen ? "Dueño actualizado" : "El canal quedó sin dueño (funciona como Básico)");
+      if (!res.ok) throw new Error(data.error ?? "No se pudo cambiar la persona titular");
+      success(chosen ? "Titular actualizado" : "El canal quedó sin titular (funciona como Básico)");
       onChanged();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo cambiar el dueño");
+      setError(err instanceof Error ? err.message : "No se pudo cambiar la persona titular");
     } finally {
       setSaving(false);
     }
@@ -119,8 +119,8 @@ export function ChannelOwnerModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Dueño de ${account?.name ?? "el canal"}`}
-      description="El canal funciona con la licencia de su dueño: bots, difusiones, automatizaciones y lo demás dependen de ese plan. Cada licencia incluye un canal de cada tipo."
+      title={`Titular de ${account?.name ?? "el canal"}`}
+      description="El canal funciona con la licencia de su titular: bots, difusiones, automatizaciones y lo demás dependen de ese plan. Cada licencia incluye un canal de cada tipo."
       size="md"
       footer={
         <>
@@ -140,14 +140,14 @@ export function ChannelOwnerModal({
       ) : (
         <div className="space-y-4">
           {error && <Banner tone="danger">{error}</Banner>}
-          <FormField label="Dueño" hint="Sin dueño, el canal funciona como Básico (sin bots, difusiones ni automatizaciones).">
+          <FormField label="Titular" hint="Sin titular, el canal funciona como Básico (sin bots, difusiones ni automatizaciones).">
             {(id) => (
               <Select id={id} value={chosen ?? ""} onChange={(e) => setChosen(e.target.value || null)}>
-                <option value="">Sin dueño (Básico)</option>
+                <option value="">Sin titular (Básico)</option>
                 {candidates.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} · {PLANS[c.license].name}
-                    {c.ownsOtherOfType ? ` · ya es dueña de ${c.ownsOtherOfType}` : ""}
+                    {c.ownsOtherOfType ? ` · ya es titular de ${c.ownsOtherOfType}` : ""}
                   </option>
                 ))}
               </Select>
@@ -155,7 +155,7 @@ export function ChannelOwnerModal({
           </FormField>
           {selected?.ownsOtherOfType && (
             <Banner tone="warning">
-              {selected.name} ya es dueña de «{selected.ownsOtherOfType}», del mismo tipo. Cada licencia incluye uno de cada tipo: cambia o quita el dueño de ese canal primero.
+              {selected.name} ya es titular de «{selected.ownsOtherOfType}», del mismo tipo. Cada licencia incluye uno de cada tipo: cambia o quita el dueño de ese canal primero.
             </Banner>
           )}
         </div>

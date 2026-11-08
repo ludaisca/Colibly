@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSendLabel, messagingLimitLabel, nameStatusLabel, noticesFrom, qualityLabel, whatsappVerdict } from "../whatsapp-health-rules";
+import { canSendLabel, messagingLimitLabel, nameStatusLabel, noticesFrom, qualityLabel, whatsappVerdict, isNegativeQualityEvent, qualityEventText } from "../whatsapp-health-rules";
 
 describe("whatsappVerdict", () => {
   it("sin datos de Meta es unknown", () => {
@@ -69,5 +69,20 @@ describe("traducción de textos de Meta", () => {
     expect(messagingLimitLabel("TIER_250")).toBe("250 clientes / 24 h");
     expect(nameStatusLabel("NUEVO_ESTADO")).toBe("NUEVO_ESTADO");
     expect(canSendLabel(null)).toBe("—");
+  });
+});
+
+describe("isNegativeQualityEvent", () => {
+  it("UNFLAGGED no es una baja de calidad", () => {
+    expect(isNegativeQualityEvent("UNFLAGGED")).toBe(false);
+    expect(isNegativeQualityEvent("UPGRADE")).toBe(false);
+    expect(isNegativeQualityEvent(null)).toBe(false);
+  });
+  it("FLAGGED y DOWNGRADE sí", () => {
+    expect(isNegativeQualityEvent("FLAGGED")).toBe(true);
+    expect(isNegativeQualityEvent("DOWNGRADE")).toBe(true);
+  });
+  it("texto sin códigos de Meta", () => {
+    expect(qualityEventText("FLAGGED", "TIER_250")).toBe("Meta marcó el número por baja calidad: si sigue así, bajará su límite de envío. Límite actual: 250 clientes / 24 h.");
   });
 });

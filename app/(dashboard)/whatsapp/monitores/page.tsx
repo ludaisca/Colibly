@@ -17,6 +17,7 @@ import { SkeletonRow } from "@/app/components/ui/skeleton";
 import { RelativeTime } from "@/app/components/ui/relative-time";
 import { useToast } from "@/app/components/ui/toast";
 import { MonitorFormModal, type MonitorData } from "./_form";
+import { plural } from "@/lib/format/plural";
 
 interface MatchData {
   id: string;
@@ -86,7 +87,7 @@ export default function MonitoresPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Monitores de temas"
+        title="Monitores IA"
         description="La IA revisa tus conversaciones cada hora y te muestra en cuáles aparece cada tema: quejas, preguntas por un producto, intención de cancelar…"
         actions={
           <Button icon={Plus} onClick={() => setEditing("new")} disabled={!planIncluded || monitors.length >= max}>
@@ -130,11 +131,11 @@ export default function MonitoresPage() {
                   <button
                     type="button"
                     aria-pressed={filter === monitor.id}
-                    aria-label={`Ver solo las ${monitor.matchCount} conversaciones de este monitor`}
+                    aria-label={`Ver solo ${plural(monitor.matchCount, "conversación", "conversaciones")} de este monitor`}
                     onClick={() => setFilter(filter === monitor.id ? null : monitor.id)}
                     className="rounded-full"
                   >
-                    <Badge tone={monitor.matchCount ? "accent" : "neutral"} size="sm">{monitor.matchCount} conversaciones</Badge>
+                    <Badge tone={monitor.matchCount ? "accent" : "neutral"} size="sm">{plural(monitor.matchCount, "conversación", "conversaciones")}</Badge>
                   </button>
                   <span className="ml-auto flex gap-1">
                     <Button variant="ghost" size="sm" icon={Pencil} onClick={() => setEditing(monitor)}>Editar</Button>

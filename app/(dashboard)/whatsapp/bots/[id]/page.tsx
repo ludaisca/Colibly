@@ -290,11 +290,11 @@ function BotDetailPageContent() {
       {tab === "config" && (
         <section>
           <dl className="space-y-3">
-            <DetailRow label="Prompt del sistema" value={bot.systemPrompt} />
-            <DetailRow label="Temperatura" value={String(bot.temperature)} />
-            <DetailRow label="Max tokens" value={String(bot.maxTokens)} />
-            <DetailRow label="Memoria" value={bot.memoryType === "RECENT" ? `Reciente (${bot.memoryLimit} msgs)` : bot.memoryType === "SUMMARY" ? "Resumen acumulativo" : "Ninguna"} />
-            <DetailRow label="RAG" value={bot.ragEnabled ? "Activado" : "Desactivado"} />
+            <DetailRow label="Instrucciones" value={bot.systemPrompt} />
+            <DetailRow label="Creatividad" value={String(bot.temperature)} />
+            <DetailRow label="Largo máximo de respuesta" value={`${bot.maxTokens.toLocaleString("es-MX")} tokens`} />
+            <DetailRow label="Memoria" value={bot.memoryType === "RECENT" ? `Reciente (${bot.memoryLimit} mensajes)` : bot.memoryType === "SUMMARY" ? "Resumen acumulativo" : "Ninguna"} />
+            <DetailRow label="Base de conocimiento" value={bot.ragEnabled ? "Activado" : "Desactivado"} />
             <DetailRow label="Citas automáticas" value={bot.appointmentSchedulingEnabled ? "Activado" : "Desactivado"} />
             <DetailRow label="Creado" value={new Date(bot.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })} />
           </dl>

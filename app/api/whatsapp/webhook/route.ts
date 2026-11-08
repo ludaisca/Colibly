@@ -16,6 +16,7 @@ import { handleCallsWebhook } from "@/lib/whatsapp/calling/ingest";
 import { applyConnectionLifecycle } from "@/lib/whatsapp/coexistence/lifecycle";
 import { handleTemplateChange, TEMPLATE_FIELDS } from "@/lib/whatsapp/template-webhook";
 import { isMediaTooLargeStatus, recordMediaTooLarge } from "@/lib/whatsapp/media-too-large";
+import { isNegativeQualityEvent, qualityEventText } from "@/lib/platform/whatsapp-health-rules";
 
 // El contenido (texto, medios, ubicación, contactos, pedido, contexto…) tiene
 // la misma forma en `messages`, `smb_message_echoes` e `history`: vive en
@@ -366,13 +367,13 @@ async function applyPhoneNumberQualityUpdate(wabaId: string | undefined, value: 
 
   // Solo se notifica en señales negativas — un UPGRADE/GREEN no amerita alertar
   // al admin, solo se refleja en el badge de la cuenta.
-  if (rating && /flag|downgrade|red|yellow/i.test(rating)) {
+  if (isNegativeQualityEvent(rating)) {
     await prisma.notification.create({
       data: {
         userId: account.userId,
         type: "ACCOUNT_STATUS",
-        title: `Calidad del número "${account.name}" bajó`,
-        body: `Meta reportó: ${rating}${tier ? ` — límite de envío: ${tier}` : ""}`,
+        title: `Calidad del número «${account.name}»`,
+        body: qualityEventText(rating as string, tier),
         link: `/whatsapp/cuentas/${account.id}`,
       },
     });

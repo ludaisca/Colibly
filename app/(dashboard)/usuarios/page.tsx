@@ -22,6 +22,7 @@ import { InviteFormModal } from "./_invite";
 import { LicenseModal } from "./_license";
 import { useLicenseState } from "./_licenses";
 import { TeamsSection } from "./_teams";
+import { plural } from "@/lib/format/plural";
 
 interface UserData {
   id: string;
@@ -49,7 +50,7 @@ interface Invitation {
   invitedBy: { name: string | null; email: string } | null;
 }
 
-const ROLE_LABEL: Record<string, string> = { admin: "Admin", user: "Usuario", ejecutivo: "Ejecutivo" };
+const ROLE_LABEL: Record<string, string> = { admin: "Administrador", user: "Usuario", ejecutivo: "Ejecutivo" };
 const LICENSE_TONE: Record<PlanId, "neutral" | "info" | "accent"> = { ESSENTIAL: "neutral", BUSINESS: "info", PRO: "accent" };
 
 export default function UsersPage() {
@@ -146,7 +147,7 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      const labels: Record<string, string> = { admin: "Admin", user: "Usuario", ejecutivo: "Ejecutivo" };
+      const labels: Record<string, string> = { admin: "Administrador", user: "Usuario", ejecutivo: "Ejecutivo" };
       success(`Rol actualizado a ${labels[newRole]}`);
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
@@ -205,7 +206,7 @@ export default function UsersPage() {
   }, [success, toastError]);
 
   function nextRoleLabel(role: string): string {
-    const labels: Record<string, string> = { user: "Ejecutivo", ejecutivo: "Admin", admin: "Usuario" };
+    const labels: Record<string, string> = { user: "Ejecutivo", ejecutivo: "Administrador", admin: "Usuario" };
     return labels[role] ?? "Usuario";
   }
 
@@ -311,17 +312,17 @@ export default function UsersPage() {
               badges={
                 <>
                   <Badge tone={u.role === "admin" ? "warning" : u.role === "ejecutivo" ? "info" : "neutral"} size="sm">
-                    {u.role === "admin" ? "Admin" : u.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}
+                    {u.role === "admin" ? "Administrador" : u.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}
                   </Badge>
                   <Badge tone={LICENSE_TONE[u.license]} size="sm">{PLANS[u.license].name}</Badge>
-                  {u.isOwner && <Badge tone="accent" size="sm">Dueña</Badge>}
+                  {u.isOwner && <Badge tone="accent" size="sm">Titular</Badge>}
                   {u.disabledAt && <Badge tone="danger" size="sm">Desactivado</Badge>}
                   {u.twoFactorEnabled && <Badge tone="success" size="sm">2 pasos</Badge>}
                 </>
               }
               subtitle={
                 <>
-                  <span className="font-mono">{u.email}</span> · {u.ownedWaAccounts.length + u.ownedChannelAccounts.length === 0 ? "sin canales propios" : `dueña de ${u.ownedWaAccounts.length + u.ownedChannelAccounts.length} canal(es)`}
+                  <span className="font-mono">{u.email}</span> · {u.ownedWaAccounts.length + u.ownedChannelAccounts.length === 0 ? "sin canales propios" : `titular de ${plural(u.ownedWaAccounts.length + u.ownedChannelAccounts.length, "canal", "canales")}`}
                 </>
               }
               meta={

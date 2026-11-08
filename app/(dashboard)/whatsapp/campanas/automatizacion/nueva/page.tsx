@@ -15,6 +15,8 @@ import { Banner } from "@/app/components/ui/banner";
 import { useToast } from "@/app/components/ui/toast";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import type { SheetTab } from "@/lib/google/sheets-read";
+import { plural } from "@/lib/format/plural";
+import { templateLanguageLabel } from "@/lib/whatsapp/template-labels";
 
 interface Account { id: string; name: string; channel: string; }
 interface Template { id: string; name: string; language: string; category: string; status: string; components: unknown; }
@@ -203,7 +205,7 @@ export default function NewLeadSheetSourcePage() {
     if (!spreadsheetId || !sheetName) newErrors.sheet = "Carga una hoja y selecciona una pestaña";
     if (!phoneColumn) newErrors.phoneColumn = "Selecciona la columna de teléfono";
     if (bodyParamCount > 0 && bodyColumns.filter(Boolean).length !== bodyParamCount) {
-      newErrors.bodyColumns = `Selecciona las ${bodyParamCount} columna(s) que alimentan las variables del cuerpo`;
+      newErrors.bodyColumns = `Selecciona ${bodyParamCount === 1 ? "la columna" : `las ${bodyParamCount} columnas`} que alimentan las variables del cuerpo`;
     }
     if (templateVars?.header.required && !headerParam.trim()) {
       newErrors.headerParam = templateVars.header.format === "TEXT"
@@ -286,7 +288,7 @@ export default function NewLeadSheetSourcePage() {
                       disabled={!waAccountId || loadingTemplates}
                       options={templates.map((t) => ({
                         value: t.id,
-                        label: `${t.name} (${t.language}) — ${TEMPLATE_STATUS_LABEL[t.status] ?? t.status}`,
+                        label: `${t.name} (${templateLanguageLabel(t.language)}) — ${TEMPLATE_STATUS_LABEL[t.status] ?? t.status}`,
                         disabled: t.status !== "APPROVED",
                       }))}
                     />
@@ -368,7 +370,7 @@ export default function NewLeadSheetSourcePage() {
                 {header.length > 0 && !loadingTab && (
                   <div className="space-y-4">
                     <p className="text-xs text-muted-darker">
-                      {rowCount} fila(s) de datos encontradas — las que ya existen no dispararán envío, solo las que aparezcan después de conectar.
+                      {plural(rowCount, "fila")} de datos encontradas — las que ya existen no dispararán envío, solo las que aparezcan después de conectar.
                     </p>
 
                     <div className="overflow-x-auto rounded-lg border border-border">

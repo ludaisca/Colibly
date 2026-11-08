@@ -60,7 +60,8 @@ export function CamposPersonalizadosSection() {
           ...(Array.isArray(tg) ? tg.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name, channel: "TELEGRAM" as const })) : []),
         ];
         setAccounts(merged);
-        if (merged.length === 1) setSelectedAccountId(merged[0].id);
+        // Como en Atributos: se preselecciona la primera cuenta (antes solo con una).
+        setSelectedAccountId((current) => current || merged[0]?.id || "");
       })
       .catch(() => toastError("Error al cargar cuentas"));
   }, [toastError]);
@@ -181,7 +182,7 @@ export function CamposPersonalizadosSection() {
           onRetry={fetchItems}
           emptyIcon={ListPlus}
           emptyTitle="Sin campos personalizados"
-          emptyDescription="Crea campos como 'Fecha de nacimiento' o 'Talla preferida' para esta cuenta."
+          emptyDescription="Crea campos como «Fecha de nacimiento» o «Talla preferida» para esta cuenta."
           rowActions={(r) => (
             <>
               <DropdownItem icon={Pencil} onClick={() => { setEditing(r); setModalOpen(true); }}>

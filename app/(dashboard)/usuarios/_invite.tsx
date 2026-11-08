@@ -103,7 +103,7 @@ export function InviteFormModal({ open, onClose, onInvited }: Props) {
             )}
           </Banner>
         )}
-        <FormField label="Email" required error={emailError}>
+        <FormField label="Correo" required error={emailError}>
           {(id) => (
             <Input
               id={id}

@@ -13,7 +13,8 @@ import { Workbench, WorkbenchMain, WorkbenchAside } from "@/app/components/ui/wo
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
 import { CAMPAIGN_ORIGIN_LABEL, LABEL_TEXT } from "@/lib/whatsapp/export-columns";
-import { MessagesTrendChart, HorizontalBarChart, DeliveryComparisonChart, QualifiedLabelDonut } from "./_charts";
+import { MessagesTrendChart, HorizontalBarChart, EntityBars, DeliveryComparisonChart, QualifiedLabelDonut } from "./_charts";
+import { plural } from "@/lib/format/plural";
 
 const BOT_STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
   ACTIVE: { label: "Activo", tone: "success" },
@@ -219,7 +220,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                         {status.render(b)}
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs text-muted-darker">
-                        <span>{b.interactions} interacciones</span>
+                        <span>{plural(b.interactions, "interacción", "interacciones")}</span>
                         {cost.render(b)}
                       </div>
                     </div>
@@ -247,7 +248,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                     <div className="w-full min-w-0 space-y-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-medium">{a.userName ?? "Sin nombre"}</span>
-                        <span className="shrink-0 text-xs text-muted-darker">{a.resolvedCount} resueltos</span>
+                        <span className="shrink-0 text-xs text-muted-darker">{plural(a.resolvedCount, "resuelto")}</span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-darker">
                         <span>1ra: {firstResponse.render(a)}</span>
@@ -342,9 +343,8 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
           <Card as="section" className="animate-fade-in-up animation-delay-400">
             <SectionHeader eyebrow="Canales" title="Chats por cuenta" />
             <div className="mt-3">
-              <HorizontalBarChart
+              <EntityBars
                 data={stats.accountBreakdown.map((a) => ({ id: a.id, label: a.name, value: a.chats, sublabel: a.phoneNumber ?? undefined }))}
-                color="var(--accent-2)"
                 emptyLabel="Sin cuentas todavía"
               />
             </div>

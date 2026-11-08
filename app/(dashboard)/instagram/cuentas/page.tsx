@@ -20,6 +20,7 @@ import { useSession } from "next-auth/react";
 import { ChannelAccountShareModal } from "@/app/components/channel-accounts/share-modal";
 import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
 import { ChannelAvailabilityNotice, useChannelAvailability } from "@/app/components/channel-accounts/availability";
+import { plural } from "@/lib/format/plural";
 
 interface ChannelAccount {
   owner?: ChannelOwnerInfo | null;
@@ -215,7 +216,7 @@ function InstagramCuentasView() {
                 subtitle={a.status === "ERROR" && a.errorMessage ? a.errorMessage : "Cuenta de Instagram"}
                 meta={
                   <>
-                    <span>{a._count.conversations} chats</span>
+                    <span>{plural(a._count.conversations, "chat")}</span>
                     <span className="font-mono">
                       {a.lastActivity
                         ? new Date(a.lastActivity).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })

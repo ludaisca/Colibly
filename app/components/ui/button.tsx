@@ -60,7 +60,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const base = cn(
-      "inline-flex items-center justify-center cursor-pointer select-none",
+      "inline-flex items-center justify-center cursor-pointer select-none whitespace-nowrap",
       "transition-[background-color,color,border-color] duration-fast ease-brand motion-reduce:transition-none",
       "focus-visible:outline-2 focus-visible:outline-accent-strong focus-visible:outline-offset-2",
       // Andén: controles precisos y discretos, sin saltos al pasar el cursor.

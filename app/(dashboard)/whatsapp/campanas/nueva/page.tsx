@@ -23,6 +23,8 @@ import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import { parseCsv, type ParsedCsvRow } from "@/lib/whatsapp/parse-csv";
 import { phoneFromJid } from "@/lib/whatsapp/contact-name";
 import { TemplatePreview } from "@/app/components/whatsapp/template-preview";
+import { plural } from "@/lib/format/plural";
+import { templateLanguageLabel } from "@/lib/whatsapp/template-labels";
 
 interface Account { id: string; name: string; channel: string; }
 interface Template { id: string; name: string; language: string; category: string; status: string; components: unknown; }
@@ -216,7 +218,7 @@ export default function NewCampaignPage() {
       if (parsed.rows.length === 0) {
         toastError("No se encontraron destinatarios válidos en el archivo");
       } else if (bodyParamCount > 0 && parsed.paramColumnCount !== bodyParamCount) {
-        toastError(`El archivo trae ${parsed.paramColumnCount} columna(s) de variables, pero la plantilla requiere ${bodyParamCount}`);
+        toastError(`El archivo trae ${plural(parsed.paramColumnCount, "columna")} de variables, pero la plantilla requiere ${bodyParamCount}`);
       } else {
         success(`${parsed.rows.length} destinatarios importados`);
       }
@@ -263,7 +265,7 @@ export default function NewCampaignPage() {
       setCsvRows(rows);
       setCsvFileName(`Etiqueta: ${tags.find(t => t.id === selectedTagId)?.name ?? ""}`);
       setCsvPage(0);
-      success(`${rows.length} destinatario(s) cargados desde la etiqueta`);
+      success(`${plural(rows.length, "destinatario")} ${rows.length === 1 ? "cargado" : "cargados"} desde la etiqueta`);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al cargar contactos");
     } finally {
@@ -348,11 +350,11 @@ export default function NewCampaignPage() {
       // mejor señalarlo aquí que fallar con un mensaje genérico.
       const invalidPhones = allRecipients.filter(r => !/^\d{8,15}$/.test(r.phoneNumber.trim())).length;
       if (invalidPhones > 0) {
-        newErrors.recipients = `Hay ${invalidPhones} teléfono(s) inválido(s) — usa solo dígitos (8 a 15), con código de país y sin espacios ni "+"`;
+        newErrors.recipients = `Hay ${plural(invalidPhones, "teléfono inválido", "teléfonos inválidos")} — usa solo dígitos (8 a 15), con código de país y sin espacios ni "+"`;
       } else if (bodyParamCount > 0) {
         const incomplete = allRecipients.some(r => r.params.filter(Boolean).length !== bodyParamCount);
         if (incomplete) {
-          newErrors.recipients = `Todos los destinatarios deben tener los ${bodyParamCount} parámetro(s) del cuerpo`;
+          newErrors.recipients = `Todos los destinatarios deben tener ${bodyParamCount === 1 ? "el parámetro" : `los ${bodyParamCount} parámetros`} del cuerpo`;
         }
       }
     }
@@ -396,7 +398,7 @@ export default function NewCampaignPage() {
         }
       }
 
-      const dupNote = duplicateCount > 0 ? ` (${duplicateCount} duplicado(s) omitido(s))` : "";
+      const dupNote = duplicateCount > 0 ? ` (${plural(duplicateCount, "duplicado omitido", "duplicados omitidos")})` : "";
       success((sendNow ? "Campaña iniciada" : "Campaña programada") + dupNote);
       router.push("/whatsapp/campanas");
     } catch (err) {
@@ -453,7 +455,7 @@ export default function NewCampaignPage() {
                         disabled={!waAccountId || loadingTemplates}
                         options={templates.map(t => ({
                           value: t.id,
-                          label: `${t.name} (${t.language}) — ${TEMPLATE_STATUS_LABEL[t.status] ?? t.status}`,
+                          label: `${t.name} (${templateLanguageLabel(t.language)}) — ${TEMPLATE_STATUS_LABEL[t.status] ?? t.status}`,
                           disabled: t.status !== "APPROVED",
                         }))}
                       />
@@ -639,7 +641,7 @@ export default function NewCampaignPage() {
                       <span className="text-sm font-medium">O por etiqueta</span>
                       {bodyParamCount > 0 ? (
                         <p className="text-xs text-muted-darker">
-                          No disponible — esta plantilla requiere {bodyParamCount} variable(s) en el cuerpo y los contactos de una etiqueta no traen esos valores por destinatario. Usa números manuales o CSV para esta plantilla.
+                          No disponible — esta plantilla requiere {plural(bodyParamCount, "variable")} en el cuerpo y los contactos de una etiqueta no traen esos valores por destinatario. Usa números manuales o CSV para esta plantilla.
                         </p>
                       ) : (
                         <div className="flex flex-wrap gap-2 items-center">
@@ -674,7 +676,7 @@ export default function NewCampaignPage() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-darker">
-                            {csvFileName} — {csvRows.length} destinatario(s)
+                            {csvFileName} — {plural(csvRows.length, "destinatario")}
                           </span>
                           <Button type="button" variant="ghost" size="sm" icon={FileX} onClick={clearCsv}>
                             Quitar

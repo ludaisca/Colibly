@@ -219,7 +219,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
       open={open}
       onClose={handleClose}
       title={isEdit ? "Editar cuenta de Meta Ads" : "Conectar cuenta de Meta Ads"}
-      description="Config de la Página/Business para el feedback loop de calificación de leads."
+      description="Página que recibe leads de anuncios; le avisamos a Meta cuáles resultaron buenos."
       size="md"
       footer={
         <>
@@ -266,7 +266,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
           {(id) => <Input id={id} type="password" autoComplete="off" value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="abc123…" error={errors.appSecret} />}
         </FormField>
 
-        <FormField label="Número de WhatsApp de seguimiento" hint="Bajo qué WAAccount se crean los contactos de Instant Forms de esta página, antes de que exista conversación">
+        <FormField label="Número de WhatsApp de seguimiento" hint="Número en el que se crean los contactos que llegan por formulario instantáneo, antes de que escriban">
           {(id) => (
             <Select id={id} value={waAccountId} onChange={(e) => setWaAccountId(e.target.value)} placeholder="Sin vincular">
               <option value="">Sin vincular</option>

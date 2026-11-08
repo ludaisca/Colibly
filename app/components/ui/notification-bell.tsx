@@ -4,7 +4,7 @@ import { usePoll } from "@/app/components/ui/use-poll";
 import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bell, BellOff, CheckCheck, X, MessageSquare, Megaphone, Bot as BotIcon, DollarSign, Phone, PhoneCall,
+  Bell, BellOff, CheckCheck, X, MessageSquare, ShieldAlert, Megaphone, Bot as BotIcon, DollarSign, PhoneCall,
   CalendarClock, CalendarPlus, Plug, CreditCard, UserCheck, TimerOff,
 } from "lucide-react";
 import type { NotificationType } from "@prisma/client";
@@ -42,7 +42,7 @@ const TYPE: Record<NotificationType, { icon: React.ElementType; tone: Tone }> = 
   CAMPAIGN_FAILED: { icon: Megaphone, tone: "danger" },
   BOT_ERROR: { icon: BotIcon, tone: "danger" },
   BUDGET_EXCEEDED: { icon: DollarSign, tone: "warning" },
-  ACCOUNT_STATUS: { icon: Phone, tone: "warning" },
+  ACCOUNT_STATUS: { icon: ShieldAlert, tone: "warning" },
   APPOINTMENT_REMINDER: { icon: CalendarClock, tone: "info" },
   APPOINTMENT_PROPOSED: { icon: CalendarPlus, tone: "info" },
   INTEGRATION_ERROR: { icon: Plug, tone: "danger" },

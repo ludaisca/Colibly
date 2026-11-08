@@ -12,6 +12,8 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { useToast } from "@/app/components/ui/toast";
 import { BotFormModal } from "./_form";
+import { plural } from "@/lib/format/plural";
+import { channelAndAccount } from "@/lib/chats/display-name";
 
 interface WaBot {
   id: string;
@@ -139,8 +141,8 @@ export default function BotsPage() {
                       waAccount — sin este fallback se mostraba como "Sin
                       cuenta (solo pruebas)" aunque sí atiende mensajes reales. */}
                   {bot.waAccount?.name
-                    ?? (bot.channelAccount ? `${bot.channelAccount.name} · ${bot.channelAccount.channel === "WEBCHAT" ? "Chat web" : bot.channelAccount.channel.charAt(0) + bot.channelAccount.channel.slice(1).toLowerCase()}` : "Sin cuenta (solo pruebas)")} ·{" "}
-                  {bot._count.conversations} conversaciones · {bot._count.knowledgeBots} docs
+                    ?? (bot.channelAccount ? channelAndAccount(bot.channelAccount.channel === "WEBCHAT" ? "Chat web" : bot.channelAccount.channel.charAt(0) + bot.channelAccount.channel.slice(1).toLowerCase(), bot.channelAccount.name) : "Sin cuenta (solo pruebas)")} ·{" "}
+                  {plural(bot._count.conversations, "conversación", "conversaciones")} · {plural(bot._count.knowledgeBots, "documento")}
                 </>
               }
               meta={

@@ -143,12 +143,16 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
 
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-darker">
             <Mark size={12} className="shrink-0" />
-            <span className="truncate font-mono tabular-nums" title={data.remoteJid}>
-              {data.channel === "WHATSAPP" ? phoneShort : data.channel === "WEBCHAT" ? channelLabel : `${channelLabel} · ${data.remoteJid}`}
+            {/* El id de Telegram/Messenger es interno: solo se muestra el canal.
+                La hora no se parte en dos líneas; lo que se recorta es el canal. */}
+            <span className="min-w-0 truncate font-mono tabular-nums" title={data.channel === "WHATSAPP" ? data.remoteJid : undefined}>
+              {data.channel === "WHATSAPP" ? phoneShort : channelLabel}
             </span>
-            <span className="text-muted">·</span>
-            <Clock size={10} className="shrink-0" />
-            {data.lastMessageAt ? <RelativeTime value={data.lastMessageAt} /> : <span>—</span>}
+            <span className="text-muted" aria-hidden>·</span>
+            <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
+              <Clock size={10} className="shrink-0" aria-hidden />
+              {data.lastMessageAt ? <RelativeTime value={data.lastMessageAt} /> : <span>—</span>}
+            </span>
           </div>
 
           {(data.dealValueCents !== null || data.expectedCloseAt || data.assignee) && (

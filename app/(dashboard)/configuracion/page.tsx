@@ -66,6 +66,8 @@ export default function SettingsPage() {
   const [googleStatus, setGoogleStatus] = useState<GoogleSheetsStatus>({ connected: false });
   const [loadingGoogleStatus, setLoadingGoogleStatus] = useState(true);
   const [googleStatusError, setGoogleStatusError] = useState<string | null>(null);
+  // Se oculta solo cuando sabemos que la plataforma no la tiene configurada.
+  const showGoogleSheets = !(googleStatus.configured === false && !googleStatus.connected);
   const [syncingNow, setSyncingNow] = useState(false);
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -205,17 +207,34 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <PageHeader title="Configuración" description="Administra tu cuenta y preferencias." />
 
+      {/* Índice: en el teléfono la página son ~6 pantallas seguidas. */}
+      <nav aria-label="Secciones de la configuración" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-none">
+        {[
+          { href: "#mi-cuenta", label: "Mi cuenta" },
+          ...(isAdmin ? [{ href: "#empresa", label: "Empresa" }] : []),
+          { href: "#bandeja", label: "Bandeja" },
+          ...(showGoogleSheets ? [{ href: "#google-sheets", label: "Google Sheets" }] : []),
+        ].map((item) => (
+          <a key={item.href} href={item.href} className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-light">
+            {item.label}
+          </a>
+        ))}
+      </nav>
+
+      <div id="mi-cuenta" className="scroll-mt-4 space-y-6">
       <Card className="flex items-center gap-3">
         <EntityAvatar id={user?.id ?? email} name={name} size="lg" figure seed={user?.id ?? email} />
         <div>
           <h2 className="text-lg font-semibold">{name}</h2>
           <p className="text-sm text-muted-darker">{email}</p>
           <div className="mt-1.5 flex items-center gap-2">
-            <Badge tone="info" size="sm">{user?.role === "user" ? "Usuario" : user?.role}</Badge>
-            <span className="flex items-center gap-1 text-xs text-muted-darker">
-              <CalendarDays size={11} />
-              Miembro desde {createdAt ? new Date(createdAt).toLocaleDateString("es-MX", { year: "numeric", month: "long", timeZone: "America/Mexico_City" }) : "—"}
-            </span>
+            <Badge tone="info" size="sm">{user?.role === "admin" ? "Administrador" : user?.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}</Badge>
+            {createdAt && (
+              <span className="flex items-center gap-1 text-xs text-muted-darker">
+                <CalendarDays size={11} />
+                Miembro desde {new Date(createdAt).toLocaleDateString("es-MX", { year: "numeric", month: "long", timeZone: "America/Mexico_City" })}
+              </span>
+            )}
           </div>
         </div>
       </Card>
@@ -285,6 +304,9 @@ export default function SettingsPage() {
       <FirmaSection />
 
       <SeguridadSection />
+      </div>
+
+      <div id="empresa" className="scroll-mt-4 space-y-6 empty:hidden">
 
       {isAdmin && (
         <Card as="section" className="space-y-4">
@@ -327,6 +349,9 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      </div>
+
+      <div id="bandeja" className="scroll-mt-4 space-y-6">
       <RespuestasRapidasSection />
 
       <CamposPersonalizadosSection />
@@ -342,8 +367,12 @@ export default function SettingsPage() {
         </div>
         <Button variant="secondary" href="/configuracion/macros">Administrar macros</Button>
       </Card>
+      </div>
 
-      <Card as="section" className="space-y-4">
+      {/* Sin configurar en la plataforma no se muestra: una tarjeta que solo
+          dice "todavía no está disponible" no le sirve a nadie. */}
+      {showGoogleSheets && (
+      <Card as="section" id="google-sheets" className="scroll-mt-4 space-y-4">
         <div className="flex items-center gap-2.5">
           <GoogleSheetsIcon size={22} className="shrink-0" />
           <SectionHeader title="Google Sheets" className="min-w-0 flex-1" />
@@ -352,10 +381,6 @@ export default function SettingsPage() {
           Sincroniza automáticamente tus leads calificados y resultados de campaña a una hoja de Google, cada 15 minutos.
         </p>
         {googleStatusError && <Banner tone="danger" action={<Button type="button" variant="link" size="sm" onClick={fetchGoogleStatus}>Reintentar</Button>}>{googleStatusError}</Banner>}
-
-        {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && googleStatus.configured === false && (
-          <p className="text-sm text-muted">La conexión con Google Sheets todavía no está disponible.</p>
-        )}
 
         {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && googleStatus.configured !== false && (
           <Button
@@ -406,6 +431,7 @@ export default function SettingsPage() {
           </div>
         )}
       </Card>
+      )}
 
       <ConfirmDialog
         open={disconnectConfirmOpen}

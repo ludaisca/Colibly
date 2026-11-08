@@ -16,6 +16,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Card } from "@/app/components/ui/card";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Checkbox } from "@/app/components/ui/checkbox";
+import { timeZoneLabel } from "@/lib/format/time-zone";
 
 interface OrgAiSettings {
   aiCredits: { used: number; limit: number | null };
@@ -289,7 +290,7 @@ export default function IASettingsPage() {
           {(id) => (
             <Select id={id} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
               {timezones.map((tz) => (
-                <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>
+                <option key={tz} value={tz}>{timeZoneLabel(tz)}</option>
               ))}
             </Select>
           )}

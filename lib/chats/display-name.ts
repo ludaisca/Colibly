@@ -37,3 +37,13 @@ export function isAnonymousDisplayName(displayed: string | null | undefined): bo
   return value.startsWith(VISITOR_PREFIX) || /^\+?[\d\s().-]{6,}$/.test(value) || isWebchatVisitorId(value);
 }
 
+
+/**
+ * "Canal · Cuenta", sin repetir cuando la cuenta se llama como el canal
+ * ("Telegram · Telegram" se leía como un error). Revisión 2026-11-07.
+ */
+export function channelAndAccount(channelLabel: string, accountName: string | null | undefined): string {
+  const name = accountName?.trim();
+  if (!name || name.toLowerCase() === channelLabel.toLowerCase()) return channelLabel;
+  return `${channelLabel} · ${name}`;
+}

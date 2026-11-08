@@ -82,6 +82,29 @@ export const nameStatusLabel = (value: string | null | undefined) => labelOf(NAM
 export const qualityLabel = (value: string | null | undefined) => labelOf(QUALITY_LABEL, value);
 export const messagingLimitLabel = (value: string | null | undefined) => labelOf(LIMIT_LABEL, value);
 
+/**
+ * Evento `phone_number_quality_update` de Meta que amerita avisar. Antes era
+ * `/flag|downgrade|red|yellow/i`, que también coincidía con UNFLAGGED (la
+ * calidad se recuperó) y mandaba "la calidad bajó" justo al revés.
+ */
+export function isNegativeQualityEvent(event: string | null | undefined): boolean {
+  if (!event) return false;
+  return ["FLAGGED", "DOWNGRADE"].includes(event.toUpperCase()) || /^(RED|YELLOW)$/i.test(event);
+}
+
+const QUALITY_EVENT_TEXT: Record<string, string> = {
+  FLAGGED: "Meta marcó el número por baja calidad: si sigue así, bajará su límite de envío.",
+  DOWNGRADE: "Meta bajó el límite de envío del número por su calidad.",
+  RED: "La calidad del número es baja.",
+  YELLOW: "La calidad del número es media.",
+};
+
+/** Texto del aviso para la persona, sin códigos de Meta. */
+export function qualityEventText(event: string, tier: string | null | undefined): string {
+  const text = QUALITY_EVENT_TEXT[event.toUpperCase()] ?? "Meta reportó un cambio en la calidad del número.";
+  return tier ? `${text} Límite actual: ${messagingLimitLabel(tier)}.` : text;
+}
+
 function translateInfo(info: string): string {
   return INFO_TEXT.find(([pattern]) => pattern.test(info.trim()))?.[1] ?? info;
 }

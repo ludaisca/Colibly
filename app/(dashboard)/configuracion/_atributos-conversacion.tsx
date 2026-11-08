@@ -175,7 +175,7 @@ export function AtributosConversacionSection() {
           onRetry={load}
           emptyIcon={ListPlus}
           emptyTitle="Sin atributos de conversación"
-          emptyDescription="Crea campos como 'Motivo de contacto' u 'Objeción principal'."
+          emptyDescription="Crea campos como «Motivo de contacto» u «Objeción principal»."
           rowActions={(row) => (
             <>
               <DropdownItem icon={Pencil} onClick={() => { setEditing(row); setModalOpen(true); }}>Editar</DropdownItem>
