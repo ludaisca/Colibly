@@ -467,6 +467,24 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Burbuja saliente (teal): el texto secundario gris no llegaba a 4.5:1 de
+   noche (3.57, axe-core). Dentro de la burbuja los grises se tiñen desde la
+   tinta y el color de la burbuja, nunca gris neutro (Impeccable). */
+.chat-bubble-out {
+  --muted: color-mix(in oklab, var(--foreground) 74%, var(--bubble-out));
+  --muted-darker: color-mix(in oklab, var(--foreground) 78%, var(--bubble-out));
+  --muted-strong: color-mix(in oklab, var(--foreground) 88%, var(--bubble-out));
+  /* Las utilidades leen --color-*, que ya vienen resueltas desde :root. */
+  --color-muted: var(--muted);
+  --color-muted-darker: var(--muted-darker);
+  --color-muted-strong: var(--muted-strong);
+}
+
+/* Área táctil ≥ 24 px para enlaces de texto chicos sin mover el diseño
+   (WCAG 2.5.8; el panel se usa sobre todo en el teléfono). */
+.tap-target { position: relative; }
+.tap-target::after { content: ""; position: absolute; inset: -8px -6px; }
+
 /* Superficies del navegador con la paleta (Impeccable, piso de calidad):
    selección de texto y cursor de escritura, en lugar de los azules por defecto. */
 ::selection {

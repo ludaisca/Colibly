@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Upload, RefreshCw } from "lucide-react";
+import { Save, Upload, RefreshCw } from "lucide-react";
 import { Card, CardBody, CardFooter } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -17,6 +17,7 @@ import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 import type { SheetTab } from "@/lib/google/sheets-read";
 import { plural } from "@/lib/format/plural";
 import { templateLanguageLabel } from "@/lib/whatsapp/template-labels";
+import { BackLink } from "@/app/components/ui/back-link";
 
 interface Account { id: string; name: string; channel: string; }
 interface Template { id: string; name: string; language: string; category: string; status: string; components: unknown; }
@@ -251,9 +252,7 @@ export default function NewLeadSheetSourcePage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/whatsapp/campanas" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors mb-3">
-        <ArrowLeft size={14} /> Volver a campañas
-      </Link>
+      <BackLink href="/whatsapp/campanas" className="mb-3">Volver a campañas</BackLink>
       <h1 className="text-2xl font-bold tracking-tight">Nueva fuente de leads</h1>
 
       <Card>

@@ -261,7 +261,7 @@ export function ChatComposer({
         <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
           {replyThumb ? (
             // eslint-disable-next-line @next/next/no-img-element -- proxied media, runtime URL
-            <img src={replyThumb} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+            <img src={replyThumb} alt="" width={36} height={36} className="h-9 w-9 shrink-0 rounded-md object-cover" />
           ) : (
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface text-accent-ink">{replyIcon}</span>
           )}
@@ -295,7 +295,7 @@ export function ChatComposer({
         <div className="chat-disclosure-enter flex items-center gap-3 rounded-lg border border-border bg-background p-2">
           {attachmentPreview && isImageMime(attachment.type) ? (
             // eslint-disable-next-line @next/next/no-img-element -- local preview blob
-            <img src={attachmentPreview} alt={attachment.name} className="h-12 w-12 rounded object-cover animate-fade-in" />
+            <img src={attachmentPreview} alt={attachment.name} width={48} height={48} className="h-12 w-12 rounded object-cover animate-fade-in" />
           ) : isAudioMime(attachment.type) ? (
             attachmentPreview ? (
               <audio controls src={attachmentPreview} className="h-10 w-44 shrink-0" />

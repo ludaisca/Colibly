@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { cn } from "./cn";
 import { Tabs } from "./tabs";
+import { BackLink } from "./back-link";
 
 // Plantilla compartida de página de detalle (cuentas/[id], bots/[id], etc.):
 // back-link + título (+ badge) + tabs opcionales + contenido. Sustituye al
@@ -48,13 +47,7 @@ export function DetailPage({
   return (
     <div className={cn("mx-auto space-y-6", maxWidth, className)}>
       <div>
-        <Link
-          href={backHref}
-          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
-        >
-          <ArrowLeft size={14} />
-          {backLabel}
-        </Link>
+        <BackLink href={backHref} className="mb-3">{backLabel}</BackLink>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-3">

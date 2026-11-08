@@ -265,7 +265,7 @@ export default function IASettingsPage() {
             <p className="mt-2 text-xs text-muted-darker">
               1 crédito = 1 respuesta de bot, sugerencia, calificación, mensaje de recuperación o paso de IA. Al agotarse,
               los bots dejan de responder hasta el siguiente periodo.{" "}
-              <a href="/configuracion/plan" className="text-accent-ink underline underline-offset-2">Ver mi plan</a>
+              <a href="/configuracion/plan" className="tap-target text-accent-ink underline underline-offset-2">Ver mi plan</a>
             </p>
           </div>
         )}

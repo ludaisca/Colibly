@@ -48,7 +48,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       key: "name",
       header: "Bot",
       render: (b) => canManageBots
-        ? <Link href={`/whatsapp/bots/${b.id}`} className="font-medium hover:text-accent-ink transition-colors">{b.name}</Link>
+        ? <Link href={`/whatsapp/bots/${b.id}`} className="tap-target font-medium hover:text-accent-ink transition-colors">{b.name}</Link>
         : <span className="font-medium">{b.name}</span>,
     },
     {
@@ -215,7 +215,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                     <div className="w-full min-w-0 space-y-1">
                       <div className="flex items-center justify-between gap-2">
                         {canManageBots
-                          ? <Link href={`/whatsapp/bots/${b.id}`} className="truncate text-sm font-medium hover:text-accent-ink transition-colors">{b.name}</Link>
+                          ? <Link href={`/whatsapp/bots/${b.id}`} className="tap-target truncate text-sm font-medium hover:text-accent-ink transition-colors">{b.name}</Link>
                           : <span className="truncate text-sm font-medium">{b.name}</span>}
                         {status.render(b)}
                       </div>

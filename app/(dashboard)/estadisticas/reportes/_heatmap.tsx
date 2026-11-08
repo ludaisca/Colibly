@@ -51,7 +51,7 @@ export function ActivityHeatmap({ inbound, resolved, timeZone }: { inbound: Heat
       {max === 0 ? (
         <p className="py-8 text-center text-sm text-muted-darker">Sin {MODE_LABEL[mode].noun} en el periodo.</p>
       ) : (
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 overflow-x-auto" role="region" aria-label="Mapa de actividad por día y hora (se desplaza a los lados)" tabIndex={0}>
           <table className="w-full min-w-[640px] table-fixed border-separate border-spacing-[3px]">
             <caption className="sr-only">{MODE_LABEL[mode].tab} por día de la semana y hora</caption>
             <thead>

@@ -167,7 +167,7 @@ export default function MonitoresPage() {
                     </div>
                     <RelativeTime value={match.createdAt} className="shrink-0 text-micro text-muted-darker" />
                     {match.href && (
-                      <Link href={match.href} className="shrink-0 text-xs font-semibold text-accent-ink hover:underline">Abrir chat</Link>
+                      <Link href={match.href} className="tap-target shrink-0 text-xs font-semibold text-accent-ink hover:underline">Abrir chat</Link>
                     )}
                   </li>
                 ))}

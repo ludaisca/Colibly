@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Tooltip } from "@/app/components/ui/tooltip";
 import { useSession } from "next-auth/react";
 import { Search, Plus, RefreshCw, Trash2, Settings2 } from "lucide-react";
@@ -197,15 +196,10 @@ function CuentasView() {
             return (
               <EntityRow
                 leading={<EntityAvatar id={a.id} name={a.name} size="sm" />}
-                title={
-                  <Link
-                    href={`/whatsapp/cuentas/${a.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="hover:text-accent-ink transition-colors"
-                  >
-                    {a.name}
-                  </Link>
-                }
+                // Sin enlace propio: toda la fila navega (rowHref, con Ctrl/⌘+clic
+                // y clic central). El enlace del nombre era un objetivo de 17 px
+                // recortado por el `truncate` del título.
+                title={a.name}
                 badges={
                   <>
                     <Badge tone={badge.tone} size="sm">{badge.label}</Badge>

@@ -147,7 +147,7 @@ export function AtributosConversacionSection() {
       <div className="flex flex-wrap items-end gap-3">
         {accounts.length > 1 && (
           <div className="w-60">
-            <Select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)}>
+            <Select aria-label="Cuenta" value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)}>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name} · {CHANNEL_LABEL[account.channel] ?? account.channel}

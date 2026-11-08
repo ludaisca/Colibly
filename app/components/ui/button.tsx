@@ -20,7 +20,9 @@ const VARIANT: Record<Variant, string> = {
 
 const isLink = (variant: Variant) => variant === "link" || variant === "link-danger";
 
-// Los enlaces no tienen caja: el tamaño solo cambia la letra.
+// Los enlaces no tienen caja: el tamaño solo cambia la letra. El área táctil
+// crece con un pseudo-elemento (≥ 32 px de alto) sin mover el diseño.
+const LINK_HIT = "relative after:absolute after:-inset-x-1.5 after:-inset-y-2 after:content-['']";
 const LINK_SIZE: Record<Size, string> = { sm: "text-xs font-medium gap-1", md: "text-sm gap-1.5", lg: "text-sm gap-1.5", icon: "" };
 
 const SIZE: Record<Size, string> = {
@@ -64,7 +66,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       "transition-[background-color,color,border-color] duration-fast ease-brand motion-reduce:transition-none",
       "focus-visible:outline-2 focus-visible:outline-accent-strong focus-visible:outline-offset-2",
       // Andén: controles precisos y discretos, sin saltos al pasar el cursor.
-      isLink(variant) ? LINK_SIZE[size] : cn("rounded-[9px]", SIZE[size]),
+      isLink(variant) ? cn(LINK_HIT, LINK_SIZE[size]) : cn("rounded-[9px]", SIZE[size]),
       VARIANT[variant],
       fullWidth && "w-full",
       (disabled || loading) && "pointer-events-none",

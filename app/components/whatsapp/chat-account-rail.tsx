@@ -89,12 +89,12 @@ function RailButton({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "relative flex rounded-lg transition-opacity duration-fast ease-brand",
+        "relative flex rounded-lg",
         // ring-offset (no padding en el botón) para que el aro de selección
         // no pegue directo al borde del avatar y se note como un halo propio.
-        active
-          ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
-          : "opacity-80 hover:opacity-100"
+        // Sin atenuar las demás (opacity-80 bajaba las iniciales a 3.6:1, axe):
+        // la activa ya se distingue por el aro de tinta.
+        active && "ring-2 ring-foreground ring-offset-2 ring-offset-background"
       )}
     >
       {children}

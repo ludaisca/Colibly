@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, FlaskConical, History, Rocket, Save, Pencil, GitBranch, List } from "lucide-react";
+import { FlaskConical, History, Rocket, Save, Pencil, GitBranch, List } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Banner } from "@/app/components/ui/banner";
@@ -23,6 +22,7 @@ import { FlowBuilderPreview } from "./_flow-builder-preview";
 import { StepEditor, type EditorOptions } from "./_step-editor";
 import { TriggerEditor } from "./_trigger-editor";
 import { Simulator } from "./_simulator";
+import { BackLink } from "@/app/components/ui/back-link";
 
 interface AutomationDetail {
   id: string;
@@ -253,10 +253,7 @@ export default function AutomationEditorPage() {
   return (
     <div className="space-y-5">
       <div>
-        <Link href="/whatsapp/automatizaciones" className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground">
-          <ArrowLeft size={14} />
-          Automatizaciones
-        </Link>
+        <BackLink href="/whatsapp/automatizaciones" className="mb-3">Automatizaciones</BackLink>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">

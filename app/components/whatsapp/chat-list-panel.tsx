@@ -34,6 +34,7 @@ import {
   type ChatPriority,
   type ViewCounts,
 } from "./chat-shared";
+import { Checkbox } from "@/app/components/ui/checkbox";
 
 // Lista de conversaciones — buscador, filtros de campaña/respuesta, y las
 // filas agrupadas por cuenta. El selector de cuenta solo se muestra debajo de
@@ -266,7 +267,7 @@ export function ChatListPanel({
             onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
             <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-[9px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
               <Search size={16} className="shrink-0 text-muted-darker" />
-              <Combobox.Input data-inbox-search aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat…" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-darker" />
+              <Combobox.Input data-inbox-search data-focus-ring="" aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat…" className="h-full min-w-0 flex-1 self-stretch bg-transparent text-sm text-foreground placeholder:text-muted-darker" />
             </Combobox.InputGroup>
             <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
               <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">
@@ -369,14 +370,15 @@ export function ChatListPanel({
               const waiting = now > 0 && !!chat.waitingSince && chat.status !== "RESOLVED";
               const selected = selectedChatId === chat.id;
               return (
-                <li key={chat.id} className="relative">
+                // content-visibility: con "cargar más" la lista pasa de 50 filas;
+                // el navegador omite pintar las que están fuera de la vista.
+                <li key={chat.id} className="relative [contain-intrinsic-size:auto_68px] [content-visibility:auto]">
                   {selectionMode && (
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selectedChatIds.has(chat.id)}
                       onChange={() => onToggleSelect(chat.id)}
-                      aria-label={`Seleccionar ${name}`}
-                      className="absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 cursor-pointer rounded border-border accent-[var(--accent)]"
+                      ariaLabel={`Seleccionar ${name}`}
+                      className="absolute left-4 top-1/2 z-10 -translate-y-[60%]"
                     />
                   )}
                   <ChatRowMenu chat={chat} currentUserId={currentUserId} onAction={onRowAction} disabled={selectionMode}>

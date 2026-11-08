@@ -319,6 +319,8 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
                     <Input
                       type="number"
                       min={0}
+                      inputMode="numeric"
+                      aria-label={`Paso ${i + 1}: minutos después de ${i === 0 ? "inscribirse" : "el paso anterior"}`}
                       value={step.delayMinutes}
                       onChange={(e) => updateStep(i, { delayMinutes: e.target.value })}
                       className="w-28"
@@ -326,6 +328,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
                     <span className="text-sm text-muted-darker">minutos después de {i === 0 ? "inscribirse" : "el paso anterior"}</span>
                   </div>
                   <Textarea
+                    aria-label={`Paso ${i + 1}: mensaje`}
                     value={step.message}
                     onChange={(e) => updateStep(i, { message: e.target.value })}
                     placeholder="Mensaje a enviar — usa {{nombre}} para el nombre del contacto"

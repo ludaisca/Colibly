@@ -93,6 +93,8 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
         <img
           src={mediaSrc}
           alt={msg.caption ?? "imagen"}
+          decoding="async"
+          {...(msg.messageType === "sticker" ? { width: 176, height: 176 } : {})}
           className={msg.messageType === "sticker" ? "h-36 w-36 max-w-full object-contain sm:h-44 sm:w-44" : "max-h-[320px] max-w-full rounded-xl object-cover"}
           loading="lazy"
         />
@@ -338,7 +340,7 @@ function MessageBubble({
             ? "rounded-2xl border border-dashed border-warning-border bg-warning-bg text-foreground"
             : isInbound
             ? "rounded-2xl border border-border bg-bubble-in text-foreground shadow-sm"
-            : "rounded-2xl bg-bubble-out text-foreground shadow-sm"
+            : "chat-bubble-out rounded-2xl bg-bubble-out text-foreground shadow-sm"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
@@ -355,7 +357,7 @@ function MessageBubble({
           >
             {quotedThumb ? (
               // eslint-disable-next-line @next/next/no-img-element -- proxied media, runtime URL
-              <img src={quotedThumb} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+              <img src={quotedThumb} alt="" width={36} height={36} loading="lazy" decoding="async" className="h-9 w-9 shrink-0 rounded-md object-cover" />
             ) : quotedIcon ? (
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface text-muted-darker">{quotedIcon}</span>
             ) : null}
@@ -423,8 +425,8 @@ function MessageBubble({
               </span>
             )}
             {reactionFailed && (
-              <span className="rounded-full border border-danger-border bg-surface p-1 text-danger shadow-sm" title={latestReaction.error ?? "WhatsApp rechazó la reacción"} aria-label="No se pudo actualizar la reacción">
-                <AlertCircle size={12} />
+              <span role="img" className="rounded-full border border-danger-border bg-surface p-1 text-danger shadow-sm" title={latestReaction.error ?? "WhatsApp rechazó la reacción"} aria-label="No se pudo actualizar la reacción">
+                <AlertCircle size={12} aria-hidden />
               </span>
             )}
           </div>

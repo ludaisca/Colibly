@@ -235,7 +235,7 @@ export default async function DashboardPage() {
                   chatsTotal > 0 ? (
                     <Link
                       href="/whatsapp/chat"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-accent-ink hover:text-foreground"
+                      className="relative inline-flex items-center gap-1 text-xs font-semibold text-accent-ink hover:text-foreground after:absolute after:-inset-x-1.5 after:-inset-y-2 after:content-['']"
                     >
                       Ver bandeja <ArrowRight size={12} />
                     </Link>

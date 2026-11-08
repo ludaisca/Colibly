@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, History, MessageSquare, Pause, Play, Square, RefreshCw } from "lucide-react";
+import { History, MessageSquare, Pause, Play, Square, RefreshCw } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
@@ -12,6 +11,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { useToast } from "@/app/components/ui/toast";
 import { RUN_STATUS, formatWhen } from "../../_shared";
+import { BackLink } from "@/app/components/ui/back-link";
 
 interface RunRow {
   id: string;
@@ -109,10 +109,7 @@ export default function AutomationRunsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/whatsapp/automatizaciones/${id}`} className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground">
-          <ArrowLeft size={14} />
-          Volver al editor
-        </Link>
+        <BackLink href={`/whatsapp/automatizaciones/${id}`} className="mb-3">Volver al editor</BackLink>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h1 className="font-display text-page-title font-semibold tracking-tight">Ejecuciones</h1>
           <div className="flex gap-2">

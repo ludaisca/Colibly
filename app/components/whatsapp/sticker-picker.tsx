@@ -92,7 +92,7 @@ export function StickerPicker({ disabled, onSend, open: controlledOpen, onOpenCh
           <div className="grid max-h-[40dvh] grid-cols-3 gap-2 overflow-y-auto p-1 sm:grid-cols-4">
             {visible.map((item) => <button key={item.id} type="button" disabled={busy} aria-label={`Seleccionar ${item.name}`} aria-pressed={selectedId === item.id} onClick={() => { setSelectedId(item.id); setConfirmDelete(false); }} className={`relative rounded-xl border p-2 hover:bg-surface-light ${selectedId === item.id ? "border-foreground bg-background ring-1 ring-foreground" : "border-border bg-background"}`}>
               {/* eslint-disable-next-line @next/next/no-img-element -- authenticated media endpoint */}
-              <img src={`/api/whatsapp/stickers/${item.id}`} alt={item.name} className="aspect-square w-full object-contain" loading="lazy" />
+              <img src={`/api/whatsapp/stickers/${item.id}`} alt={item.name} width={512} height={512} className="aspect-square h-auto w-full object-contain" loading="lazy" decoding="async" />
               {item.favorite && <Star size={13} className="absolute right-1 top-1 fill-accent-ink text-accent-ink" />}
             </button>)}
           </div>

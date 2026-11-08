@@ -144,6 +144,7 @@ export function CamposPersonalizadosSection() {
         {accounts.length > 1 && (
           <div className="w-56">
             <Select
+              aria-label="Cuenta"
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
               placeholder="Seleccionar cuenta"

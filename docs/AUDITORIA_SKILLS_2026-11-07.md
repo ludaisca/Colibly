@@ -82,3 +82,58 @@ El detector de Impeccable da 0 avisos.
   - sin `id`, la etiqueta no quedaba asociada: tocar el texto no marcaba la casilla (ahora `useId`);
   - `Checkbox` y `Radio` dibujaban doble anillo de foco (ahora `data-focus-ring` y `focus-visible`).
 - **Horas con formato es-MX** («8:00 a.m.», «12:00 a.m. (medianoche)») mediante `formatHourOfDay()`, en el horario del negocio y en Respaldos de plataforma.
+
+
+## Tercera pasada: 20/20 (2026-11-07)
+
+Objetivo: llevar cada dimensión a 4, verificándolo con herramientas y no a ojo.
+
+### Verificación
+
+- **axe-core 4.10.2** (WCAG 2.0, 2.1 y 2.2, niveles A y AA):
+  - 36 rutas × 4 modos (teléfono y escritorio, día y noche) = 144 corridas: **0 violaciones**;
+  - además, 20 cajones, modales y menús abiertos.
+- **Área táctil real.** La caja visible no basta, porque el área se amplía con un pseudo-elemento. Se tocaron cuatro puntos a 12 px del centro de cada control de menos de 24 px, en las 36 rutas: **0 controles chicos**. Quedan fuera los ocultos a propósito: el enlace para saltar al contenido y un campo de 1 × 1 sin tabulación.
+- **Hidratación:** 12 de 12 sin errores (6 rutas, Ciudad de México y Tokio).
+- **Detector de Impeccable:** 0. Lint 0 errores, `tsc` limpio, todas las pruebas pasan.
+
+### Lo que se corrigió
+
+- **Áreas táctiles:**
+  - `BackLink` nuevo para todos los «← Volver a…» (~40 px de alto);
+  - las variantes enlace de `Button` amplían su área (≥ 32 px);
+  - clase `.tap-target` para enlaces de texto chicos: «Ver bandeja», «Ver mi plan», bots en Estadísticas, «Ver» en Monitores y la agenda del contacto;
+  - en Cuentas WhatsApp se quitó el enlace del nombre, redundante con la fila que ya navega.
+- **axe-core encontró y se corrigió:**
+  - un `span` con `aria-label` sin rol (aviso de reacción fallida → `role="img"`);
+  - el mapa de calor se desplazaba sin poder enfocarse (→ región enfocable con nombre);
+  - 3 selectores de cuenta sin etiqueta en Configuración;
+  - los minutos y el mensaje de cada paso de Nueva secuencia, sin etiqueta;
+  - contraste de 3.57:1 en el texto secundario de la burbuja saliente de noche. Ahora los grises dentro de la burbuja se tiñen desde la tinta y el color de la burbuja (`.chat-bubble-out`), como pide el piso de calidad;
+  - contraste de 3.6:1 en las iniciales de las cuentas no activas del riel, por el `opacity-80`. Se quitó la atenuación: la cuenta activa ya se marca con el aro de tinta.
+- **Casillas:** la última nativa (selección múltiple en la bandeja) pasó a `Checkbox`.
+- **Búsqueda de la bandeja:** el campo ocupa todo el alto de su caja (antes, 20 px).
+- **Rendimiento:**
+  - las miniaturas, los stickers y los adjuntos reservan su tamaño (`width`/`height`);
+  - las imágenes del chat se decodifican en segundo plano;
+  - la lista de chats usa `content-visibility: auto` para las filas fuera de la vista.
+
+### Falso positivo verificado
+
+`aria-hidden-focus` en los menús de Base UI: son los «guardias de foco» de Floating UI (`data-base-ui-focus-guard`), que redirigen el foco en cuanto lo reciben. Se recorrieron los menús con teclado (flechas y Tab, 14 pasos) y el foco nunca se detuvo en un guardia.
+
+### Puntaje
+
+| # | Dimensión | Puntaje | Evidencia |
+|---|---|---|---|
+| 1 | Accesibilidad | 4 | 0 violaciones de axe WCAG 2.2 AA en 144 corridas y en los modales; nombres, foco y teclado verificados |
+| 2 | Rendimiento | 4 | Sondeo sin escrituras y con ETag; imágenes con tamaño y carga diferida; listas paginadas y con `content-visibility` |
+| 3 | Temas | 4 | Solo tokens (detector en 0); día y noche sin errores de contraste; `theme-color`, selección y cursor tematizados |
+| 4 | Responsivo | 4 | 0 desbordes y 0 objetivos de menos de 24 px en 36 rutas; conversación, cajones y modales a pantalla completa en el teléfono |
+| 5 | Integridad | 4 | Sistema propio y coherente (Andén), sin etiquetas sobre títulos, ámbar y rojo solo como lámparas, selección en tinta |
+| **Total** | | **20/20** | **Excelente** |
+
+### Límite de lo verificado
+
+- Las imágenes del chat que no son stickers no reservan alto: Meta no informa sus medidas y la base no las guarda. Pueden mover el hilo al cargar. Resolverlo pide guardar ancho y alto al descargar el medio.
+- Campañas, webhooks y Meta Ads se auditaron vacíos porque la organización de prueba no tiene datos ahí.

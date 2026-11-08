@@ -380,8 +380,8 @@ export function ContactDrawer({
               {tab === "resumen" && (
                 <>
           <div>
-            <label className="block text-xs font-medium text-muted-darker mb-1.5">Estado de lead</label>
-            <Select value={contact.leadStatus} onChange={(e) => handleLeadStatusChange(e.target.value)}>
+            <label htmlFor="contact-lead-status" className="block text-xs font-medium text-muted-darker mb-1.5">Estado de lead</label>
+            <Select id="contact-lead-status" value={contact.leadStatus} onChange={(e) => handleLeadStatusChange(e.target.value)}>
               {LEAD_STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
@@ -494,7 +494,7 @@ export function ContactDrawer({
                     </p>
                   </div>
                 </div>
-                <Link href={`/whatsapp/citas?contactId=${contactId}`} className="mt-2 inline-block text-xs text-accent-ink hover:underline">
+                <Link href={`/whatsapp/citas?contactId=${contactId}`} className="tap-target mt-2 inline-block text-xs text-accent-ink hover:underline">
                   Ver todas las citas
                 </Link>
               </div>
@@ -541,6 +541,7 @@ export function ContactDrawer({
                       </label>
                       {def.type === "SELECT" ? (
                         <Select
+                          aria-label={def.name}
                           value={value}
                           onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
                           placeholder="Sin seleccionar"
@@ -549,6 +550,7 @@ export function ContactDrawer({
                         </Select>
                       ) : def.type === "BOOLEAN" ? (
                         <Select
+                          aria-label={def.name}
                           value={value}
                           onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))}
                         >

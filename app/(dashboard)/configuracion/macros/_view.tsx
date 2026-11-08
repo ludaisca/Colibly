@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Pencil, Plus, Trash2, Zap } from "lucide-react";
+import { Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
@@ -17,6 +16,7 @@ import { Textarea } from "@/app/components/ui/textarea";
 import { useToast } from "@/app/components/ui/toast";
 import { macroActionsSummary, type MacroAction } from "@/lib/macros/types";
 import { Checkbox } from "@/app/components/ui/checkbox";
+import { BackLink } from "@/app/components/ui/back-link";
 
 interface MacroRow {
   id: string;
@@ -163,10 +163,7 @@ export function MacrosView() {
 
   return (
     <div className="space-y-5">
-      <Link href="/configuracion" className="-mb-2 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground">
-        <ArrowLeft size={14} aria-hidden />
-        Volver a configuración
-      </Link>
+      <BackLink href="/configuracion" className="-mb-2">Volver a configuración</BackLink>
       <PageHeader
         title="Macros"
         description="Acciones manuales reutilizables para despachar chats en un clic."
