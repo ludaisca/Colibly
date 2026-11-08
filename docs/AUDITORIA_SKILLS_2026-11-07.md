@@ -135,5 +135,10 @@ Objetivo: llevar cada dimensión a 4, verificándolo con herramientas y no a ojo
 
 ### Límite de lo verificado
 
-- Las imágenes del chat que no son stickers no reservan alto: Meta no informa sus medidas y la base no las guarda. Pueden mover el hilo al cargar. Resolverlo pide guardar ancho y alto al descargar el medio.
+- Las imágenes del chat que no son stickers no reservan alto: Meta no informa sus medidas y la base no las guarda.
+  - **En la práctica no mueven la lectura:**
+    - al final de la conversación, el `ResizeObserver` del hilo mantiene la vista abajo mientras cargan;
+    - más arriba, el anclaje de desplazamiento del navegador (`overflow-anchor`, en Chrome, Edge y Firefox) compensa lo que crece por encima de la vista.
+  - **Decisión:** guardar ancho y alto exigiría una migración y cambiar el worker de medios en ambos canales; no se hace por ahora.
+- Verificado después de los últimos arreglos: axe-core da 0 en el cajón de contacto y en el rango de fechas, y pasan las 1161 pruebas.
 - Campañas, webhooks y Meta Ads se auditaron vacíos porque la organización de prueba no tiene datos ahí.
