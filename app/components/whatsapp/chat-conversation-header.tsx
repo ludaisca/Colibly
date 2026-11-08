@@ -69,7 +69,7 @@ function SalesRoute({ status, accountId }: { status: NonNullable<ChatItem["leadS
           );
         })}
       </ol>
-      {lost && <span className="shrink-0 rounded-full border border-danger-border bg-danger-bg px-2 py-0.5 text-micro font-bold uppercase tracking-wider text-danger">Perdido</span>}
+      {lost && <span className="shrink-0 rounded-full border border-border bg-surface-light px-2 py-0.5 text-micro font-bold uppercase tracking-wider text-muted">Perdido</span>}
     </div>
   );
 }

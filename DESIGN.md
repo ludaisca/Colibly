@@ -215,6 +215,7 @@ Celdas de 3px, controles de 9px, filas de 8px, tarjetas de 12px y píldoras para
 
 ### Ruta de la venta
 - Nuevo → Contactado → Calificado → Cliente en el color de la cuenta; la estación actual es un círculo de correspondencia; "Perdido" aparte.
+- **Estado del lead fuera de la ruta** (insignias, columnas del Pipeline): marca de estación (puntos recorridos, `StationMark` / `LeadStatusBadge`) en neutro; solo "Cliente" en éxito; "Perdido" apagado y sin puntos. Las columnas del Pipeline comparten fondo: el color de cada tarjeta es su cuenta.
 
 ### Cards / KPIs
 - Papel con filete, 12px, planas; hover en `concrete-raised`.
@@ -231,7 +232,7 @@ Celdas de 3px, controles de 9px, filas de 8px, tarjetas de 12px y píldoras para
 
 ### Don't:
 - **Don't** poner etiquetas sobre los títulos.
-- **Don't** usar ámbar o rojo fuera de espera/SLA/errores.
+- **Don't** usar ámbar o rojo fuera de espera/SLA/errores (ni en estados de lead, roles o íconos de adorno).
 - **Don't** agregar sombras o saltos a controles en reposo.
 - **Don't** usar referencias folclóricas o exclusivas de un país.
 - **Don't** usar Tailwind `dark:`; el tema lo controla la app.

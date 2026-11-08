@@ -14,7 +14,8 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { LeadCard, type LeadCardData, type StageOption } from "@/app/components/pipeline/lead-card";
-import { stageChrome, type StageOutcome } from "@/lib/pipeline/stages";
+import { STAGE_COLUMN_CLASS, stageStation, type StageOutcome } from "@/lib/pipeline/stages";
+import { StationMark } from "@/app/components/ui/lead-status";
 import { formatMxn } from "@/lib/money";
 import { cn } from "@/app/components/ui/cn";
 import { useToast } from "@/app/components/ui/toast";
@@ -36,6 +37,7 @@ interface PipelineOption {
 function Column({
   stage,
   index,
+  openCount,
   contacts,
   stages,
   visibleOnMobile,
@@ -43,7 +45,9 @@ function Column({
   onStageChange,
 }: {
   stage: BoardStage;
+  /** Posición entre las etapas abiertas (para la marca de estación). */
   index: number;
+  openCount: number;
   contacts: LeadCardData[];
   stages: StageOption[];
   visibleOnMobile: boolean;
@@ -53,13 +57,13 @@ function Column({
   const { setNodeRef, isOver } = useDroppable({ id: `column-${stage.id}` });
   const totalCents = contacts.reduce((sum, contact) => sum + (contact.dealValueCents ?? 0), 0);
   const withValue = contacts.filter((contact) => contact.dealValueCents !== null).length;
-  const chrome = stageChrome(stage.outcome, index);
+  const station = stageStation(stage.outcome, index, openCount);
 
   return (
     <div data-stage={stage.id} className={cn(visibleOnMobile ? "flex" : "hidden sm:flex", "min-w-full flex-col sm:min-w-[300px] sm:max-w-[360px] sm:flex-1")}>
       <div className="mb-3 flex items-center gap-2 px-1">
-        <span className={cn("h-2.5 w-2.5 rounded-full", chrome.dot)} />
-        <h3 className="text-sm font-semibold text-foreground">{stage.name}</h3>
+        <StationMark station={station} />
+        <h3 className={cn("text-sm font-semibold", station.tone === "lost" ? "text-muted" : station.tone === "won" ? "text-success" : "text-foreground")}>{stage.name}</h3>
         {/* Se recalcula de las tarjetas: al arrastrar, el total se mueve con ellas. */}
         {totalCents > 0 && (
           <span className="text-xs font-semibold tabular-nums text-muted" title={`Suma del valor de ${withValue} ${withValue === 1 ? "trato" : "tratos"}`}>
@@ -74,8 +78,7 @@ function Column({
         ref={setNodeRef}
         className={cn(
           "flex flex-1 flex-col gap-3 rounded-xl border p-3 transition-colors min-h-[200px]",
-          chrome.border,
-          chrome.bg,
+          STAGE_COLUMN_CLASS,
           isOver && "ring-2 ring-accent-muted border-accent-muted"
         )}
       >
@@ -342,11 +345,12 @@ export function PipelineBoard({
         </Select>
       </div>
       <div className="flex gap-3 overflow-hidden pb-4 sm:overflow-x-auto">
-        {stages.map((stage, index) => (
+        {stages.map((stage) => (
           <Column
             key={stage.id}
             stage={stage}
-            index={index}
+            index={stages.filter((s) => s.outcome === "OPEN").findIndex((s) => s.id === stage.id)}
+            openCount={stages.filter((s) => s.outcome === "OPEN").length}
             contacts={boardData[stage.id] ?? []}
             stages={options}
             visibleOnMobile={stage.id === stageInView}

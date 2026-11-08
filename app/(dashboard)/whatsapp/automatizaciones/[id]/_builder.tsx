@@ -76,7 +76,7 @@ export function Builder(props: BuilderProps) {
             props.selectedId === "trigger" ? "border-accent-strong ring-2 ring-accent-muted" : "border-border"
           )}
         >
-          <IconBox icon={TriggerIcon} size="sm" tone="warning" />
+          <IconBox icon={TriggerIcon} size="sm" tone="neutral" />
           <div className="min-w-0 flex-1">
             <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">Cuando</p>
             <p className="truncate text-sm font-medium text-foreground">{TRIGGER_META[props.graph.trigger.type].label}</p>

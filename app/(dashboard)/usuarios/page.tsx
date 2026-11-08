@@ -311,7 +311,7 @@ export default function UsersPage() {
               title={u.name ?? "—"}
               badges={
                 <>
-                  <Badge tone={u.role === "admin" ? "warning" : u.role === "ejecutivo" ? "info" : "neutral"} size="sm">
+                  <Badge tone="neutral" size="sm">
                     {u.role === "admin" ? "Administrador" : u.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}
                   </Badge>
                   <Badge tone={LICENSE_TONE[u.license]} size="sm">{PLANS[u.license].name}</Badge>

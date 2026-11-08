@@ -16,30 +16,6 @@ export const STAGE_LABEL: Record<LeadStatus, string> = {
   LOST: "Perdidos",
 };
 
-export const STAGE_COLOR_BORDER: Record<LeadStatus, string> = {
-  NEW: "border-info-border",
-  CONTACTED: "border-warning-border",
-  QUALIFIED: "border-accent-muted",
-  CUSTOMER: "border-success-border",
-  LOST: "border-muted/30",
-};
-
-export const STAGE_COLOR_BG: Record<LeadStatus, string> = {
-  NEW: "bg-info-bg/40",
-  CONTACTED: "bg-warning-bg/40",
-  QUALIFIED: "bg-accent-subtle",
-  CUSTOMER: "bg-success-bg/40",
-  LOST: "bg-surface-light",
-};
-
-export const STAGE_DOT_COLOR: Record<LeadStatus, string> = {
-  NEW: "bg-info",
-  CONTACTED: "bg-warning",
-  QUALIFIED: "bg-accent",
-  CUSTOMER: "bg-success",
-  LOST: "bg-muted",
-};
-
 export function scoreLabelToStage(label: string): LeadStatus | null {
   const map: Record<string, LeadStatus> = {
     frio: "NEW",
@@ -74,14 +50,36 @@ export function leadStatusForStage(
   return current;
 }
 
-export function stageChrome(outcome: StageOutcome, index: number): { border: string; bg: string; dot: string } {
-  if (outcome === "WON") return { border: "border-success-border", bg: "bg-success-bg/40", dot: "bg-success" };
-  if (outcome === "LOST") return { border: "border-muted/30", bg: "bg-surface-light", dot: "bg-muted" };
-  const open = [
-    { border: "border-info-border", bg: "bg-info-bg/40", dot: "bg-info" },
-    { border: "border-warning-border", bg: "bg-warning-bg/40", dot: "bg-warning" },
-    { border: "border-accent-muted", bg: "bg-accent-subtle", dot: "bg-accent" },
-  ];
-  return open[index % open.length];
+// Columnas del tablero: todas con el mismo fondo (Andén). La etapa se lee en
+// la marca de estación del encabezado; el color de cada tarjeta es su cuenta.
+export const STAGE_COLUMN_CLASS = "border-border bg-surface-light";
+
+
+// ── Marca de estación (Andén, 2026-11-07) ────────────────────────────────────
+// El estado de un lead es una estación de la ruta de la venta, no una alerta:
+// sin ámbar ni rojo (son las lámparas de espera/SLA). Etapas abiertas en
+// neutro con los puntos que llevan recorridos; solo "Cliente"/ganada lleva
+// color (éxito); "Perdido" va aparte, apagado y sin puntos.
+
+export type StationTone = "open" | "won" | "lost";
+export interface Station {
+  /** Puntos llenos (1…total); 0 para perdido. */
+  step: number;
+  total: number;
+  tone: StationTone;
 }
 
+const LEAD_STEP: Record<LeadStatus, number> = { NEW: 1, CONTACTED: 2, QUALIFIED: 3, CUSTOMER: 4, LOST: 0 };
+
+export function leadStation(status: LeadStatus): Station {
+  if (status === "LOST") return { step: 0, total: 4, tone: "lost" };
+  return { step: LEAD_STEP[status], total: 4, tone: status === "CUSTOMER" ? "won" : "open" };
+}
+
+/** Estación de una columna de embudo (también embudos con etapas propias). */
+export function stageStation(outcome: StageOutcome, openIndex: number, openCount: number): Station {
+  const total = Math.max(1, openCount) + 1;
+  if (outcome === "WON") return { step: total, total, tone: "won" };
+  if (outcome === "LOST") return { step: 0, total, tone: "lost" };
+  return { step: Math.min(openIndex + 1, total - 1), total, tone: "open" };
+}

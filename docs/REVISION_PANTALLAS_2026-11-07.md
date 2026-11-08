@@ -171,7 +171,13 @@ Formato: **qué pasa** — dónde → propuesta.
     - la escritura solo ocurre si hay una llamada vencida;
     - la respuesta lleva ETag (304 sin cambios).
   - **Medido:** en reposo, 4 peticiones en 16 s (antes 8). Una llamada entrante simulada apareció en 1.9 s y desapareció 3.4 s después de colgar.
-- **Pendientes de decisión:** 7 (colores de estados y etapas), 9 (selección en teal) y 10 (choque exacto de tonos).
+- **7, colores de estados y etapas: hecho (2026-11-07), con la propuesta aprobada.** Los estados son estaciones de la ruta:
+  - neutros, con puntos recorridos (●●○○);
+  - «Cliente» en verde;
+  - «Perdido» apagado y sin puntos.
+
+  Aplica a las insignias de Contactos, a los encabezados del Pipeline (las columnas comparten fondo) y al «Perdido» de la ruta del chat. La insignia de rol y el ícono del disparador pasan a neutros. Funciones puras con pruebas.
+- **Pendientes de decisión:** 9 (selección en teal) y 10 (choque exacto de tonos).
 
 ## Siguiente paso
 

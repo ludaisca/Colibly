@@ -19,6 +19,8 @@ import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { ContactImportModal } from "@/app/components/whatsapp/contact-import-modal";
 import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
 import { plural } from "@/lib/format/plural";
+import { LeadStatusBadge, LEAD_STATUS_LABEL } from "@/app/components/ui/lead-status";
+import type { LeadStatus } from "@prisma/client";
 
 const PAGE_SIZE = 25;
 
@@ -46,13 +48,7 @@ function phoneFromJid(remoteJid: string): string {
   return remoteJid.split("@")[0];
 }
 
-const LEAD_STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" | "info" | "accent" }> = {
-  NEW: { label: "Nuevo", tone: "info" },
-  CONTACTED: { label: "Contactado", tone: "warning" },
-  QUALIFIED: { label: "Calificado", tone: "accent" },
-  CUSTOMER: { label: "Cliente", tone: "success" },
-  LOST: { label: "Perdido", tone: "danger" },
-};
+// Estado del lead: LeadStatusBadge (estación de la ruta, sin colores de lámpara).
 
 export default function ContactosPage() {
   const { error: toastError } = useToast();
@@ -202,7 +198,7 @@ export default function ContactosPage() {
                 label: "Estado",
                 options: [
                   { value: "", label: "Todos los estados" },
-                  ...Object.entries(LEAD_STATUS_BADGE).map(([value, { label }]) => ({ value, label })),
+                  ...Object.entries(LEAD_STATUS_LABEL).map(([value, label]) => ({ value, label })),
                 ],
               },
             ]}
@@ -249,7 +245,6 @@ export default function ContactosPage() {
             }}>Limpiar búsqueda y filtros</Button>
           ) : undefined}
           renderRow={(contact) => {
-            const badge = LEAD_STATUS_BADGE[contact.leadStatus] ?? { label: contact.leadStatus, tone: "neutral" as const };
             const account = accounts.find((a) => a.id === contact.accountId);
             const name = displayName(contact.name, contact.remoteJid);
             return (
@@ -258,7 +253,7 @@ export default function ContactosPage() {
                 title={name}
                 badges={
                   <span className="flex shrink-0 items-center gap-1">
-                    <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
+                    <LeadStatusBadge status={contact.leadStatus as LeadStatus} />
                     {contact.tags.map(({ tag }) => (
                       <Badge key={tag.id} tone="accent" size="sm" className="hidden md:inline-flex">{tag.name}</Badge>
                     ))}
