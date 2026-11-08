@@ -16,6 +16,7 @@ import { Table, type TableColumn } from "@/app/components/ui/table";
 import { Textarea } from "@/app/components/ui/textarea";
 import { useToast } from "@/app/components/ui/toast";
 import { macroActionsSummary, type MacroAction } from "@/lib/macros/types";
+import { Checkbox } from "@/app/components/ui/checkbox";
 
 interface MacroRow {
   id: string;
@@ -232,10 +233,7 @@ export function MacrosView() {
               { checked: priorityHigh, set: setPriorityHigh, label: "Marcar prioridad alta" },
               { checked: snooze, set: setSnooze, label: "Posponer 1 hora" },
             ].map((item) => (
-              <label key={item.label} className="flex items-center gap-2 text-sm text-foreground">
-                <input type="checkbox" checked={item.checked} onChange={(event) => item.set(event.target.checked)} className="h-4 w-4 rounded border-border accent-[var(--accent)]" />
-                {item.label}
-              </label>
+              <Checkbox key={item.label} checked={item.checked} onChange={item.set} label={item.label} />
             ))}
           </div>
           <div>

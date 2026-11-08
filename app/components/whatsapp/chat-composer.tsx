@@ -10,6 +10,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { isImageMime, isAudioMime, isVideoMime, mediaEndpointFor } from "@/lib/whatsapp/media-shared";
 import { ChatAiMenu, ChatMoreMenu } from "./chat-composer-tools";
 import { messagePreview, type CannedResponseItem, type Channel, type Message } from "./chat-shared";
+import { Input } from "@/app/components/ui/input";
 
 // Input + adjuntos + respuestas rápidas — extraído de chat-workspace.tsx sin
 // tocar el envío optimista (vive en el orquestador, que sigue siendo dueño de
@@ -338,7 +339,7 @@ export function ChatComposer({
           <p className="text-xs text-muted-darker">Se enviarán con el mensaje. Hasta tres botones de 20 caracteres.</p>
           {interactiveButtons.map((title, i) => (
             <div key={i} className="flex items-center gap-2">
-              <input
+              <Input
                 value={title}
                 autoFocus={i === 0}
                 onChange={(e) => {
@@ -355,8 +356,8 @@ export function ChatComposer({
                   }
                 }}
                 placeholder={`Botón ${i + 1}`}
-                data-focus-ring=""
-                className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted"
+                className="min-w-0 flex-1"
+                inputClassName="py-1.5"
               />
               <button
                 type="button"

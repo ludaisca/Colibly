@@ -15,6 +15,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { Select } from "@/app/components/ui/select";
 import { PLATFORM_SCOPES, PLATFORM_SCOPE_LABELS, type PlatformScope } from "@/lib/platform/scopes";
+import { Checkbox } from "@/app/components/ui/checkbox";
 
 interface Check {
   id: string;
@@ -323,18 +324,14 @@ export function PlataformaOperacion() {
               <p className="text-sm font-medium">Permisos</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {PLATFORM_SCOPES.map((scope) => (
-                  <label key={scope} className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 accent-accent"
-                      checked={scopes.includes(scope)}
-                      onChange={() => toggleScope(scope)}
-                    />
-                    <span>
-                      <span className="block font-medium">{scope}</span>
-                      <span className="text-xs text-muted">{PLATFORM_SCOPE_LABELS[scope]}</span>
-                    </span>
-                  </label>
+                  <Checkbox
+                    key={scope}
+                    className="rounded-lg border border-border p-3"
+                    checked={scopes.includes(scope)}
+                    onChange={() => toggleScope(scope)}
+                    label={scope}
+                    description={PLATFORM_SCOPE_LABELS[scope]}
+                  />
                 ))}
               </div>
             </div>

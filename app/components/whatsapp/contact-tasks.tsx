@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { useToast } from "@/app/components/ui/toast";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { Input } from "@/app/components/ui/input";
 
 type Task = { id: string; title: string; done: boolean };
 
@@ -61,14 +63,15 @@ export function ContactTasks({ contactId, onChanged }: { contactId: string; onCh
 
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-medium text-muted-darker">Tareas</label>
+      <p className="mb-1.5 text-xs font-medium text-muted-darker">Tareas</p>
       <ul className="mb-2 space-y-1">
         {tasks.map((task) => (
           <li key={task.id}>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={task.done} onChange={() => void toggle(task)} className="mt-1" />
-              <span className={task.done ? "text-muted line-through" : "text-foreground"}>{task.title}</span>
-            </label>
+            <Checkbox
+              checked={task.done}
+              onChange={() => void toggle(task)}
+              label={<span className={task.done ? "font-normal text-muted line-through" : "font-normal text-foreground"}>{task.title}</span>}
+            />
           </li>
         ))}
       </ul>
@@ -79,15 +82,15 @@ export function ContactTasks({ contactId, onChanged }: { contactId: string; onCh
           if (title.trim()) void create(false);
         }}
       >
-        <input
+        <Input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="Nueva tarea"
+          placeholder="Nueva tarea…"
           aria-label="Nueva tarea"
           maxLength={200}
-          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+          className="min-w-0 flex-1"
         />
-        <Button type="submit" size="sm" variant="secondary" disabled={busy || !title.trim()}>Agregar</Button>
+        <Button type="submit" variant="secondary" disabled={busy || !title.trim()}>Agregar</Button>
       </form>
       <Button type="button" variant="link" size="sm" className="mt-2" disabled={busy} onClick={() => void create(true)}>
         Sugerir tarea con IA

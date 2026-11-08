@@ -48,10 +48,11 @@ export function RadioGroup({
                 checked={isChecked}
                 onChange={() => onChange?.(opt.value)}
                 disabled={disabled}
+                data-focus-ring=""
                 className={cn(
                   "peer h-4 w-4 shrink-0 rounded-full border border-border bg-surface-light",
                   "checked:border-accent-strong checked:bg-surface-light",
-                  "focus:outline-none focus:ring-2 focus:ring-accent-muted focus:ring-offset-1 focus:ring-offset-background",
+                  "focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-1 focus-visible:ring-offset-background",
                   "appearance-none cursor-pointer transition-colors"
                 )}
               />

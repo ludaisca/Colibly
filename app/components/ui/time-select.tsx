@@ -16,6 +16,13 @@ function label(value: string, fmt: Intl.DateTimeFormat) {
   return fmt.format(new Date(2000, 0, 1, h, m));
 }
 
+/** Hora en punto con formato es-MX: 8 → "8:00 a.m."; 24 → "12:00 a.m. (medianoche)". */
+export function formatHourOfDay(hour: number): string {
+  const fmt = new Intl.DateTimeFormat(LOCALE, { hour: "numeric", minute: "2-digit" });
+  const text = fmt.format(new Date(2000, 0, 1, hour % 24, 0));
+  return hour === 24 ? `${text} (medianoche)` : text;
+}
+
 export function TimeSelect({
   id,
   value,

@@ -17,6 +17,7 @@ import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { PageContainer } from "@/app/components/ui/page-container";
 import { useToast } from "@/app/components/ui/toast";
 import { SecretField } from "./_configuracion";
+import { formatHourOfDay } from "@/app/components/ui/time-select";
 
 interface BackupRun {
   id: string;
@@ -271,7 +272,7 @@ export function PlataformaRespaldos() {
           <div>
             <dt className="text-eyebrow uppercase text-muted">Programación</dt>
             <dd className="mt-1">
-              {data.config.enabled ? <Badge tone="success">Activo · {String(data.config.hour).padStart(2, "0")}:00 (Ciudad de México)</Badge> : <Badge tone="neutral">Desactivado</Badge>}
+              {data.config.enabled ? <Badge tone="success">Activo · {formatHourOfDay(data.config.hour)} (Ciudad de México)</Badge> : <Badge tone="neutral">Desactivado</Badge>}
             </dd>
           </div>
           <div>
@@ -354,7 +355,7 @@ export function PlataformaRespaldos() {
               <Select id={id} value={form.hour} onChange={(e) => change("hour", e.target.value)}>
                 {HOURS.map((h) => (
                   <option key={h} value={h}>
-                    {String(h).padStart(2, "0")}:00
+                    {formatHourOfDay(h)}
                   </option>
                 ))}
               </Select>

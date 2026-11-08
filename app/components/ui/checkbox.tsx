@@ -6,7 +6,7 @@ import { cn } from "./cn";
 interface CheckboxProps {
   checked?: boolean;
   onChange?: (checked: boolean) => void;
-  label?: string;
+  label?: React.ReactNode;
   ariaLabel?: string;
   description?: string;
   disabled?: boolean;
@@ -26,20 +26,25 @@ export function Checkbox({
   className,
   error,
 }: CheckboxProps) {
+  // Sin `id` la etiqueta quedaba sin asociar: tocar el texto no marcaba la
+  // casilla (revisión 2026-11-07).
+  const autoId = React.useId();
+  const inputId = id ?? autoId;
   return (
     <div className={cn("flex items-start gap-3", className)}>
       <div className="relative mt-0.5">
         <input
           type="checkbox"
           aria-label={ariaLabel}
-          id={id}
+          id={inputId}
+          data-focus-ring=""
           checked={checked}
           onChange={(e) => onChange?.(e.target.checked)}
           disabled={disabled}
           className={cn(
             "peer h-4 w-4 shrink-0 rounded border border-border bg-surface-light",
             "checked:bg-accent checked:border-accent-strong",
-            "focus:outline-none focus:ring-2 focus:ring-accent-muted focus:ring-offset-1 focus:ring-offset-background",
+            "focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-1 focus-visible:ring-offset-background",
             disabled && "opacity-50 cursor-not-allowed",
             error && "border-danger-border",
             "appearance-none cursor-pointer transition-colors"
@@ -62,7 +67,7 @@ export function Checkbox({
       {label && (
         <div className="min-w-0">
           <label
-            htmlFor={id}
+            htmlFor={inputId}
             className={cn(
               "text-sm font-medium select-none",
               disabled ? "text-muted-darker cursor-not-allowed" : "text-foreground cursor-pointer"

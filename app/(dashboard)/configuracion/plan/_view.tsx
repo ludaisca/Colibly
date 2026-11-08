@@ -34,6 +34,7 @@ import { DataSection } from "./_datos";
 import { LicensesSection, type LicensesViewData } from "./_licencias";
 import { OrgStatusBadge } from "@/app/components/billing/org-status-badge";
 import { formatInZone } from "@/lib/format/dates";
+import { Input } from "@/app/components/ui/input";
 
 export interface PlanViewData {
   organizationName: string;
@@ -342,13 +343,15 @@ export function PlanView({ data }: { data: PlanViewData }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="secondary" icon={Minus} disabled={!!busy || seats <= minSeats} onClick={() => setSeats((n) => clampSeats(n - 1))} aria-label="Quitar asiento" />
-                  <input
+                  <Input
                     type="number"
+                    inputMode="numeric"
                     min={minSeats}
                     max={planMaxSeats}
                     value={seats}
                     onChange={(e) => setSeats(clampSeats(Number(e.target.value) || minSeats))}
-                    className="w-16 rounded-lg border border-border bg-background px-2 py-1.5 text-center text-sm tabular-nums"
+                    className="w-16"
+                    inputClassName="h-8 px-1 text-center tabular-nums"
                     aria-label="Número de asientos"
                   />
                   <Button size="sm" variant="secondary" icon={Plus} disabled={!!busy || seats >= planMaxSeats} onClick={() => setSeats((n) => clampSeats(n + 1))} aria-label="Agregar asiento" />

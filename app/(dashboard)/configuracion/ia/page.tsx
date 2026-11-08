@@ -17,6 +17,7 @@ import { Card } from "@/app/components/ui/card";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { timeZoneLabel } from "@/lib/format/time-zone";
+import { formatHourOfDay } from "@/app/components/ui/time-select";
 
 interface OrgAiSettings {
   aiCredits: { used: number; limit: number | null };
@@ -300,7 +301,7 @@ export default function IASettingsPage() {
             {(id) => (
               <Select id={id} value={String(hourStart)} onChange={(e) => setHourStart(Number(e.target.value))}>
                 {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                  <option key={h} value={h}>{formatHourOfDay(h)}</option>
                 ))}
               </Select>
             )}
@@ -309,7 +310,7 @@ export default function IASettingsPage() {
             {(id) => (
               <Select id={id} value={String(hourEnd)} onChange={(e) => setHourEnd(Number(e.target.value))}>
                 {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => (
-                  <option key={h} value={h}>{String(h % 24).padStart(2, "0")}:00</option>
+                  <option key={h} value={h}>{formatHourOfDay(h)}</option>
                 ))}
               </Select>
             )}

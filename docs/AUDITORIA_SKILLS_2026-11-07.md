@@ -73,7 +73,12 @@ El detector de Impeccable da 0 avisos.
 - **«Conectar Página».** «Página» es el nombre del producto de Meta.
 - **Reducir movimiento (`0.01ms` global).** La guía de Impeccable lo marca como posible pérdida de información. En el panel no se pierde nada: la cifra de espera y los paneles cambian de estado igual, sin animación.
 
-## Pendiente (fuera de esta pasada)
+## Detalles menores: hecho (2026-11-07)
 
-- **Campos nativos con clases propias:** el contador de asientos del plan, la nueva tarea del contacto y los botones del compositor. Pasarlos a `Input` (P3).
-- **Horas del horario del negocio** (Configuración → IA): se muestran como «08:00». `TimeSelect` usa «8:00 a.m.» (P3).
+- **Campos nativos a componentes del sistema:**
+  - el contador de asientos del plan, la nueva tarea del contacto y los botones del compositor pasan a `Input`;
+  - las tareas del contacto, las acciones de Macros y los alcances de tokens de Plataforma pasan a `Checkbox`.
+- **Dos errores encontrados en `Checkbox` al hacerlo, ya corregidos:**
+  - sin `id`, la etiqueta no quedaba asociada: tocar el texto no marcaba la casilla (ahora `useId`);
+  - `Checkbox` y `Radio` dibujaban doble anillo de foco (ahora `data-focus-ring` y `focus-visible`).
+- **Horas con formato es-MX** («8:00 a.m.», «12:00 a.m. (medianoche)») mediante `formatHourOfDay()`, en el horario del negocio y en Respaldos de plataforma.
