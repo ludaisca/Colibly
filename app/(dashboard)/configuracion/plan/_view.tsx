@@ -303,9 +303,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
                   disabled={!canEdit}
                   onClick={() => canEdit && setSelectedPlan(p.id)}
                   className={cn(
-                    "flex flex-col rounded-xl border bg-surface p-4 text-left shadow-sm transition",
-                    selected ? "border-accent-strong ring-1 ring-accent-strong" : "border-border",
-                    canEdit ? "hover:border-accent-strong" : "opacity-90"
+                    "flex flex-col rounded-xl border bg-surface p-4 text-left transition-colors",
+                    selected ? "border-foreground ring-1 ring-foreground" : "border-border",
+                    canEdit ? "hover:border-muted" : "opacity-90"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">

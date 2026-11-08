@@ -195,7 +195,7 @@ function ConectarWhatsAppDialog({ onClose, onConnected }: { onClose: () => void;
         {config?.available && (
           <fieldset className="space-y-2" disabled={busy !== "idle"}>
             <legend className="mb-1 text-sm font-medium">¿Qué número quieres conectar?</legend>
-            <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-3 has-[:checked]:border-accent-strong has-[:checked]:bg-accent-subtle">
+            <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-3 has-[:checked]:border-foreground has-[:checked]:ring-1 has-[:checked]:ring-foreground">
               <input type="radio" name="mode" checked={mode === "new"} onChange={() => setMode("new")} className="mt-1" />
               <span className="text-sm">
                 <span className="block font-medium">Un número nuevo</span>
@@ -203,7 +203,7 @@ function ConectarWhatsAppDialog({ onClose, onConnected }: { onClose: () => void;
               </span>
             </label>
             {config.coexistenceAllowed && (
-              <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-3 has-[:checked]:border-accent-strong has-[:checked]:bg-accent-subtle">
+              <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-3 has-[:checked]:border-foreground has-[:checked]:ring-1 has-[:checked]:ring-foreground">
                 <input type="radio" name="mode" checked={mode === "coexistence"} onChange={() => setMode("coexistence")} className="mt-1" />
                 <span className="text-sm">
                   <span className="block font-medium">El número que ya uso en la app WhatsApp Business</span>

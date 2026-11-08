@@ -182,7 +182,23 @@ Formato: **qué pasa** — dónde → propuesta.
   - sin migración: el mapa se calcula en el layout y llega por contexto.
 
   «Test» y «Colibly Web» (que el hash ponía en el mismo tono) ahora son olivo y verde. Lleva pruebas.
-- **Pendiente de decisión:** 9 (selección en teal).
+- **9, selección en tinta: hecho (2026-11-07).** Lo elegido ahora se marca con contorno de tinta, o en tinta sólida si es una píldora.
+  - Elementos que cambiaron:
+    - chat abierto en la lista;
+    - cuenta activa del riel;
+    - plantilla en «Nueva automatización»;
+    - plan elegido;
+    - paso seleccionado en el constructor y en el mapa de flujo;
+    - opción de conexión de WhatsApp;
+    - reacción propia;
+    - sticker elegido;
+    - cita resaltada;
+    - filtro «Todas / Sin leer».
+  - Dos casos se resolvieron distinto:
+    - El ítem activo de la búsqueda (⌘K) usa fondo neutro, como el resaltado de los menús, porque es el cursor del teclado y no una selección.
+    - El día de hoy en Citas dejó de usar el acento con opacidad, que la regla del proyecto prohíbe.
+  - Las casillas, radios y opciones de selectores siguen con su estado de formulario.
+- **Revisión cerrada:** los 32 hallazgos están atendidos.
 
 ## Siguiente paso
 

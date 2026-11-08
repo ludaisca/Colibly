@@ -386,7 +386,8 @@ export function ChatListPanel({
                       aria-current={selected ? "true" : undefined}
                       className={cn(
                         "chat-list-row flex w-full items-stretch overflow-hidden rounded-lg text-left transition-colors",
-                        selected ? "bg-accent-subtle ring-1 ring-accent-muted" : "bg-surface hover:bg-surface-light",
+                        // Andén, regla de la tinta: el chat abierto se marca con contorno de tinta.
+                        selected ? "bg-surface ring-2 ring-inset ring-foreground" : "bg-surface hover:bg-surface-light",
                         hueClassFor(chat.accountId)
                       )}
                     >

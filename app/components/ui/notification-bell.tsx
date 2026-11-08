@@ -172,7 +172,7 @@ function Panel({
       </div>
 
       <div className="px-4 pb-3 md:px-5" role="group" aria-label="Filtrar notificaciones">
-        <div className="inline-flex rounded-lg bg-surface-light p-0.5">
+        <div className="inline-flex rounded-full bg-surface-light p-0.5">
           {tabs.map((t) => (
             <button
               key={t.value}
@@ -180,12 +180,13 @@ function Panel({
               aria-pressed={tab === t.value}
               onClick={() => setTab(t.value)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                tab === t.value ? "bg-surface text-foreground shadow-sm" : "text-muted-darker hover:text-foreground",
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                // Como Segmented: la opción activa en tinta.
+                tab === t.value ? "bg-foreground text-background" : "text-muted-darker hover:text-foreground",
               )}
             >
               {t.label}
-              <span className="tabular-nums text-muted-darker">{t.count}</span>
+              <span className={cn("tabular-nums", tab === t.value ? "text-background" : "text-muted-darker")}>{t.count}</span>
             </button>
           ))}
         </div>

@@ -157,7 +157,7 @@ export function ChatMessageActions(props: MessageActionProps) {
                     aria-label={`Reaccionar con ${emoji}`}
                     aria-pressed={current === emoji}
                     onClick={() => void react(current === emoji ? "" : emoji)}
-                    className={`h-8 w-8 rounded-lg text-xl hover:bg-accent-subtle disabled:opacity-50 ${current === emoji ? "bg-accent-subtle ring-1 ring-accent-strong" : ""}`}
+                    className={`h-8 w-8 rounded-lg text-xl hover:bg-surface-light disabled:opacity-50 ${current === emoji ? "bg-surface-light ring-1 ring-foreground" : ""}`}
                   >
                     {emoji}
                   </button>

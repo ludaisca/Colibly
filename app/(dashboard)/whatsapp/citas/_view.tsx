@@ -328,7 +328,7 @@ export function CitasView() {
                     className={cn(
                       "min-h-24 border-b border-r border-border p-1.5",
                       !inMonth && "bg-surface-light/40",
-                      key === todayKey && "bg-accent-subtle/40"
+                      key === todayKey && "bg-surface-light"
                     )}
                   >
                     <div className="flex items-center justify-between gap-1">
@@ -376,7 +376,7 @@ export function CitasView() {
                       onClick={() => { setEditing(a); setModalOpen(true); }}
                       className={cn(
                         "group relative flex flex-col items-stretch gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-surface-light/60 sm:flex-row sm:items-center",
-                        a.id === highlightId && "bg-accent-subtle"
+                        a.id === highlightId && "bg-surface-light ring-1 ring-inset ring-foreground"
                       )}
                     >
                       <EntityRow

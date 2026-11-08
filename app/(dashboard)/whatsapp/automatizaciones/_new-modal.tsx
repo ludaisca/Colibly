@@ -112,7 +112,7 @@ export function NewAutomationModal({ open, onClose }: { open: boolean; onClose: 
                 aria-pressed={templateId === t.id}
                 className={cn(
                   "rounded-xl border p-3 text-left transition-colors",
-                  templateId === t.id ? "border-accent-strong bg-accent-subtle" : "border-border hover:bg-surface-light"
+                  templateId === t.id ? "border-foreground ring-1 ring-foreground" : "border-border hover:bg-surface-light"
                 )}
               >
                 <p className="text-sm font-medium text-foreground">{t.name}</p>

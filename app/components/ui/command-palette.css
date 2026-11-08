@@ -87,9 +87,10 @@
   cursor: pointer;
   font-size: 0.875rem;
 }
+/* Ítem activo: como en los menús (fondo neutro), no en teal (Andén). */
 .colibly-command [cmdk-item][data-selected="true"] {
-  background: var(--accent-subtle);
-  color: var(--accent-ink);
+  background: var(--surface-light);
+  color: var(--foreground);
 }
 .colibly-command-result {
   display: flex;

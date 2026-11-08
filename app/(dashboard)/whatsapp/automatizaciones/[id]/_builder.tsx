@@ -73,7 +73,7 @@ export function Builder(props: BuilderProps) {
           onClick={() => props.onSelect("trigger")}
           className={cn(
             "flex w-[280px] items-center gap-3 rounded-xl border bg-surface p-3 text-left transition-colors hover:bg-surface-light",
-            props.selectedId === "trigger" ? "border-accent-strong ring-2 ring-accent-muted" : "border-border"
+            props.selectedId === "trigger" ? "border-foreground ring-1 ring-foreground" : "border-border"
           )}
         >
           <IconBox icon={TriggerIcon} size="sm" tone="neutral" />
@@ -255,7 +255,7 @@ function StepCard({
         onClick={onSelect}
         className={cn(
           "flex w-[280px] items-start gap-3 rounded-xl border bg-surface p-3 text-left transition-colors hover:bg-surface-light",
-          selected ? "border-accent-strong ring-2 ring-accent-muted" : issues.some((i) => i.level === "error") ? "border-danger-border" : "border-border"
+          selected ? "border-foreground ring-1 ring-foreground" : issues.some((i) => i.level === "error") ? "border-danger-border" : "border-border"
         )}
       >
         <IconBox icon={STEP_ICON[step.type]} size="sm" tone={stepTone(step.type)} />

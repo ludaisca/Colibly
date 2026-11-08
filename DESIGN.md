@@ -160,7 +160,7 @@ Neutros de concreto y tinta, colores de línea por cuenta y lámparas de estado;
 Los colores de cuenta salen de `hueClassFor(id)` (8 tonos OKLCH, más claros en oscuro), nunca escritos a mano.
 
 ### Named Rules
-**La regla de la tinta.** Lo seleccionado se marca en tinta; el teal es para actuar, no para señalar dónde estás.
+**La regla de la tinta.** Lo seleccionado se marca en tinta; el teal es para actuar, no para señalar dónde estás. En tarjetas y filas, contorno de tinta (`border-foreground ring-1 ring-foreground`; la fila del chat abierto, `ring-2 ring-inset`); en píldoras y pestañas, tinta sólida. El resaltado del teclado en menús y búsqueda es neutro (`surface-light`).
 
 **La regla de la lámpara.** Ámbar y rojo solo encienden por tiempo de espera o SLA; ningún adorno usa esos colores.
 
