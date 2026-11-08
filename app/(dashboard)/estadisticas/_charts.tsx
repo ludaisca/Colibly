@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { cn } from "@/app/components/ui/cn";
-import { hueClassFor } from "@/app/components/ui/hue";
+import { useHueClass } from "@/app/components/ui/account-hues";
 import { CAMPAIGN_ORIGIN_LABEL } from "@/lib/whatsapp/export-columns";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
 
@@ -165,6 +165,7 @@ export interface HBarDatum {
  * todas iban en carmesí).
  */
 export function EntityBars({ data, emptyLabel = "Sin datos todavía" }: { data: HBarDatum[]; emptyLabel?: string }) {
+  const hueClassFor = useHueClass();
   if (data.length === 0) return <p className="py-5 text-center text-sm text-muted">{emptyLabel}</p>;
   const max = Math.max(1, ...data.map((d) => d.value));
   return (

@@ -5,7 +5,7 @@ import { displayName } from "@/lib/chats/display-name";
 import { useId, useState } from "react";
 import { ArrowLeft, Check, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
-import { hueClassFor } from "@/app/components/ui/hue";
+import { useHueClass } from "@/app/components/ui/account-hues";
 import { cn } from "@/app/components/ui/cn";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown, DropdownItem } from "@/app/components/ui/dropdown";
@@ -41,6 +41,7 @@ const ROUTE: Array<{ status: NonNullable<ChatItem["leadStatus"]>; label: string 
 ];
 
 function SalesRoute({ status, accountId }: { status: NonNullable<ChatItem["leadStatus"]>; accountId: string }) {
+  const hueClassFor = useHueClass();
   const lost = status === "LOST";
   const current = ROUTE.findIndex((s) => s.status === status);
   const label = lost ? "Etapa del lead: perdido" : `Etapa del lead: ${ROUTE[current]?.label} (${current + 1} de ${ROUTE.length})`;

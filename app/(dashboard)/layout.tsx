@@ -8,6 +8,7 @@ import { getOrgBilling } from "@/lib/billing/gates";
 import { billingNotice } from "@/lib/billing/state";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import { getPlatformSettings } from "@/lib/platform-settings";
+import { getOrgAccountHues } from "@/lib/accounts/hues";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -45,13 +46,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   //   después no le esconde lo que ya tenía conectado — lib/channel-flags.ts);
   // - Calling API: el dock de llamadas solo sondea si alguna cuenta la tiene;
   // - estado del plan para el aviso.
-  const [channelCounts, callingAccounts, org] = user
+  const [channelCounts, callingAccounts, org, accountHues] = user
     ? await Promise.all([
         prisma.channelAccount.groupBy({ by: ["channel"], where: { organizationId: user.organizationId }, _count: true }),
         prisma.wAAccount.count({ where: { organizationId: user.organizationId, callingEnabled: true } }),
         getOrgBilling(user.organizationId),
+        getOrgAccountHues(user.organizationId),
       ])
-    : [[], 0, null];
+    : [[], 0, null, null];
   const callingEnabled = callingAccounts > 0;
   const hasAccount = (channel: string) => channelCounts.some((c) => c.channel === channel && c._count > 0);
   const channels = {
@@ -76,7 +78,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     </>
   );
   return (
-    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} platformAdmin={isPlatformAdminEmail(user?.email)} channels={channels} callingEnabled={callingEnabled}>
+    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} platformAdmin={isPlatformAdminEmail(user?.email)} channels={channels} callingEnabled={callingEnabled} accountHues={accountHues}>
       {children}
     </DashboardShell>
   );

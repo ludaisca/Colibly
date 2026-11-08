@@ -1,6 +1,8 @@
+"use client";
+
 import { blobatar } from "blobatar";
 import { cn } from "./cn";
-import { hueClassFor } from "./hue";
+import { useHueClass } from "./account-hues";
 
 // Figura determinista (blobatar, MIT, versión fija 2.7.0: otra versión podría
 // cambiar las caras) para las personas y los bots: contactos, usuarios y
@@ -50,6 +52,7 @@ interface EntityAvatarProps {
 }
 
 export function EntityAvatar({ id, name, size = "md", className, figure = false, seed }: EntityAvatarProps) {
+  const hueClassFor = useHueClass();
   return (
     <span
       aria-hidden="true"

@@ -23,7 +23,9 @@ import { IconBox } from "@/app/components/ui/icon-box";
 import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { cn } from "@/app/components/ui/cn";
-import { hueClassFor } from "@/app/components/ui/hue";
+import { hueClassIn } from "@/app/components/ui/hue";
+import { requireOrgId } from "@/lib/tenancy";
+import { getOrgAccountHues } from "@/lib/accounts/hues";
 import { WaitCells } from "@/app/components/whatsapp/waiting-badge";
 import { OnboardingChecklist } from "@/app/components/ui/onboarding-checklist";
 import { getOnboardingSteps } from "@/lib/onboarding";
@@ -47,8 +49,9 @@ export default async function DashboardPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const [accountIds, channelAccountIds] = await Promise.all([
+  const [accountIds, channelAccountIds, accountHues] = await Promise.all([
     getUserAccountIds(userId), getUserChannelAccountIds(userId),
+    requireOrgId(userId).then(getOrgAccountHues),
   ]);
 
   const [
@@ -254,7 +257,7 @@ export default async function DashboardPage() {
                   <Link
                     key={chat.id}
                     href={`/whatsapp/chat/${chat.accountId}/${chat.id}`}
-                    className={cn("relative grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-surface-light sm:flex sm:items-center sm:gap-3", hueClassFor(chat.accountId))}
+                    className={cn("relative grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-surface-light sm:flex sm:items-center sm:gap-3", hueClassIn(accountHues, chat.accountId))}
                   >
                     <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-entity" />
                     <div className="row-span-2 sm:row-span-1"><ChannelAvatar id={chat.accountId} name={chat.name} channel={chat.channel} size="sm" /></div>

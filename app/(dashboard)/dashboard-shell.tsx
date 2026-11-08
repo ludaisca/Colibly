@@ -25,6 +25,8 @@ import { AppShell, type NavItem, type NavGroup } from "@/app/components/ui/app-s
 import { NotificationBell } from "@/app/components/ui/notification-bell";
 import { CallDock } from "@/app/components/whatsapp/call-dock";
 import type { ShellUser } from "@/app/components/ui/user-dropdown";
+import { AccountHuesProvider } from "@/app/components/ui/account-hues";
+import type { AccountHues } from "@/app/components/ui/hue";
 
 export function DashboardShell({
   children,
@@ -35,12 +37,15 @@ export function DashboardShell({
   platformAdmin = false,
   channels,
   callingEnabled = false,
+  accountHues = null,
 }: {
   children: React.ReactNode;
   businessName?: string | null;
   role: string;
   initialUser: ShellUser;
   callingEnabled?: boolean;
+  /** Tono de cada cuenta en la organización, sin choques (lib/accounts/hues.ts). */
+  accountHues?: AccountHues | null;
   topBanner?: React.ReactNode;
   // Operador de la plataforma (PLATFORM_ADMIN_EMAILS): ve el grupo "Plataforma".
   platformAdmin?: boolean;
@@ -147,12 +152,14 @@ export function DashboardShell({
 
   return (
     <BusinessNameProvider name={businessName ?? null}>
+    <AccountHuesProvider hues={accountHues}>
     <AppShell nav={NAV} mobileTabs={mobileTabs} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
       {/* Activa el mundo visual "Andén" (tokens y fuentes) en globals.css. */}
       <span data-world="anden" hidden />
       {children}
       <CallDock pollIncoming={callingEnabled} />
     </AppShell>
+    </AccountHuesProvider>
     </BusinessNameProvider>
   );
 }

@@ -10,7 +10,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
-import { hueClassFor } from "@/app/components/ui/hue";
+import { useHueClass } from "@/app/components/ui/account-hues";
 import { RelativeTime, useMinuteNow } from "@/app/components/ui/relative-time";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
@@ -72,6 +72,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
   onOpen?: (id: string) => void;
   onStageChange?: (id: string, stageId: string) => void;
 }) {
+  const hueClassFor = useHueClass();
   const displayName = chatDisplayName(data.name, data.remoteJid);
   // "Atrasado" depende de la hora actual: solo después de hidratar.
   const now = useMinuteNow();

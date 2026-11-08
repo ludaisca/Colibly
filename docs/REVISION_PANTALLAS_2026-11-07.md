@@ -177,7 +177,12 @@ Formato: **qué pasa** — dónde → propuesta.
   - «Perdido» apagado y sin puntos.
 
   Aplica a las insignias de Contactos, a los encabezados del Pipeline (las columnas comparten fondo) y al «Perdido» de la ruta del chat. La insignia de rol y el ícono del disparador pasan a neutros. Funciones puras con pruebas.
-- **Pendientes de decisión:** 9 (selección en teal) y 10 (choque exacto de tonos).
+- **10, choque de tonos: hecho (2026-11-07).** Los tonos se asignan por organización, de la cuenta más antigua a la más nueva:
+  - cada cuenta conserva el tono de su hash si está libre; si no, toma el siguiente libre;
+  - sin migración: el mapa se calcula en el layout y llega por contexto.
+
+  «Test» y «Colibly Web» (que el hash ponía en el mismo tono) ahora son olivo y verde. Lleva pruebas.
+- **Pendiente de decisión:** 9 (selección en teal).
 
 ## Siguiente paso
 

@@ -12,7 +12,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
-import { hueClassFor } from "@/app/components/ui/hue";
+import { useHueClass } from "@/app/components/ui/account-hues";
 import { cn } from "@/app/components/ui/cn";
 import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./chat-filters-panel";
 import { ChatViewsMenu } from "./chat-views-menu";
@@ -169,6 +169,7 @@ export function ChatListPanel({
   onLoadMore,
   messageResults,
 }: ChatListPanelProps) {
+  const hueClassFor = useHueClass();
   const now = useNowMs();
   const hasResults = Object.keys(groupedChats).length > 0;
   // Las sugerencias salen de la misma lista autorizada y filtrada que se ve
