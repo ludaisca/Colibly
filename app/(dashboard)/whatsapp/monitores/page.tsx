@@ -129,8 +129,10 @@ export default function MonitoresPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    aria-pressed={filter === monitor.id}
+                    aria-label={`Ver solo las ${monitor.matchCount} conversaciones de este monitor`}
                     onClick={() => setFilter(filter === monitor.id ? null : monitor.id)}
-                    className="text-xs text-accent-ink hover:underline"
+                    className="rounded-full"
                   >
                     <Badge tone={monitor.matchCount ? "accent" : "neutral"} size="sm">{monitor.matchCount} conversaciones</Badge>
                   </button>

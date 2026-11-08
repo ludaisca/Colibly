@@ -351,7 +351,7 @@ export default function SettingsPage() {
         <p className="text-sm text-muted">
           Sincroniza automáticamente tus leads calificados y resultados de campaña a una hoja de Google, cada 15 minutos.
         </p>
-        {googleStatusError && <Banner tone="danger">{googleStatusError} <button type="button" onClick={fetchGoogleStatus} className="underline">Reintentar</button></Banner>}
+        {googleStatusError && <Banner tone="danger" action={<Button type="button" variant="link" size="sm" onClick={fetchGoogleStatus}>Reintentar</Button>}>{googleStatusError}</Banner>}
 
         {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && googleStatus.configured === false && (
           <p className="text-sm text-muted">La conexión con Google Sheets todavía no está disponible.</p>

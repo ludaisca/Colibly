@@ -2,8 +2,10 @@
 
 import { useState, type ReactElement } from "react";
 import { ContextMenu, type ContextMenuEntry } from "@/app/components/ui/context-menu";
-import { Smile, Reply, BookmarkPlus, Loader2, MoreHorizontal, Copy } from "lucide-react";
-import { Dropdown } from "@/app/components/ui/dropdown";
+import { Smile, Reply, BookmarkPlus, MoreHorizontal, Copy } from "lucide-react";
+import { Dropdown, DropdownItem } from "@/app/components/ui/dropdown";
+import { Button } from "@/app/components/ui/button";
+import { SpinningLoader } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { REACTION_OPTIONS, canReactToMessage } from "@/lib/whatsapp/reaction-options";
 import type { Message, AgentReaction } from "./chat-shared";
@@ -13,7 +15,6 @@ import type { Message, AgentReaction } from "./chat-shared";
 // sobre todo en móvil. Ahora es un botón que aparece al hover/focus (siempre
 // visible en táctil) y abre Responder / Copiar / Reaccionar / Guardar sticker.
 
-const ITEM = "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong disabled:opacity-50";
 
 function isCopyable(message: Message): boolean {
   if (message.messageType === "interactive" || message.messageType === "template") return false;
@@ -136,14 +137,10 @@ export function ChatMessageActions(props: MessageActionProps) {
       >
         <div className="w-56 p-1">
           {onReply && (
-            <button type="button" className={ITEM} onClick={() => { onReply(message); setOpen(false); }}>
-              <Reply size={15} /> Responder
-            </button>
+            <DropdownItem icon={Reply} onClick={() => { onReply(message); setOpen(false); }}>Responder</DropdownItem>
           )}
           {copyable && (
-            <button type="button" className={ITEM} onClick={() => void copyText()}>
-              <Copy size={15} /> {copied ? "Copiado" : "Copiar texto"}
-            </button>
+            <DropdownItem icon={Copy} onClick={() => void copyText()}>{copied ? "Copiado" : "Copiar texto"}</DropdownItem>
           )}
           {showReactions && (
             <div className="px-2 pb-1 pt-2">
@@ -165,16 +162,14 @@ export function ChatMessageActions(props: MessageActionProps) {
               </div>
               {busy && <p role="status" className="mt-2 text-xs text-muted-darker">Enviando a WhatsApp…</p>}
               {current && (
-                <button type="button" disabled={busy} onClick={() => void react("")} className="mt-2 w-full rounded-lg p-2 text-xs text-danger hover:bg-danger-bg disabled:opacity-50">
+                <Button type="button" variant="link-danger" size="sm" className="mt-2" disabled={busy} onClick={() => void react("")}>
                   Quitar nuestra reacción
-                </button>
+                </Button>
               )}
             </div>
           )}
           {canSaveSticker && (
-            <button type="button" className={ITEM} disabled={saving} onClick={() => void saveSticker()}>
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <BookmarkPlus size={15} />} Guardar sticker
-            </button>
+            <DropdownItem icon={saving ? SpinningLoader : BookmarkPlus} disabled={saving} onClick={() => void saveSticker()}>Guardar sticker</DropdownItem>
           )}
         </div>
       </Dropdown>

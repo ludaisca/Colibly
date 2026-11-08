@@ -300,9 +300,9 @@ export function PipelineBoard({
                   className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
                 />
                 {!stage.locked && (
-                  <button type="button" className="text-xs font-medium text-danger" onClick={() => void removeStage(stage.id)}>
+                  <Button type="button" variant="link-danger" size="sm" onClick={() => void removeStage(stage.id)}>
                     Quitar
-                  </button>
+                  </Button>
                 )}
               </li>
             ))}
@@ -325,9 +325,9 @@ export function PipelineBoard({
             <Button type="submit" size="sm" variant="secondary" disabled={!stageName.trim()}>Agregar</Button>
           </form>
           {current && !current.isDefault && (
-            <button type="button" className="text-xs font-medium text-danger" onClick={() => void removePipeline()}>
+            <Button type="button" variant="link-danger" size="sm" className="self-start" onClick={() => void removePipeline()}>
               Eliminar este embudo
-            </button>
+            </Button>
           )}
         </div>
       )}

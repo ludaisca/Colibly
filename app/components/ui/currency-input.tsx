@@ -100,7 +100,10 @@ export function CurrencyInput({
           onChange(next.text);
           requestAnimationFrame(() => el.setSelectionRange(next.caret, next.caret));
         }}
-        className="min-w-0 flex-1 bg-transparent py-2 pr-2 tabular-nums text-foreground outline-none placeholder:text-muted-darker"
+        // El foco lo marca el contenedor (anillo); la regla global de
+        // :focus-visible ganaría a `outline-none` y dibujaría un segundo anillo.
+        style={{ outline: "none" }}
+        className="min-w-0 flex-1 bg-transparent py-2 pr-2 tabular-nums text-foreground placeholder:text-muted-darker"
       />
       <span aria-hidden className="pr-3 text-xs text-muted-darker">MXN</span>
     </div>

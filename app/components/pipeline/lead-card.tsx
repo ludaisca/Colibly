@@ -12,6 +12,8 @@ import { Badge } from "@/app/components/ui/badge";
 import { cn } from "@/app/components/ui/cn";
 import { hueClassFor } from "@/app/components/ui/hue";
 import { RelativeTime, useMinuteNow } from "@/app/components/ui/relative-time";
+import { Button } from "@/app/components/ui/button";
+import { Select } from "@/app/components/ui/select";
 import type { LeadStatus } from "@prisma/client";
 import { formatMxn } from "@/lib/money";
 
@@ -204,7 +206,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
           <div className="h-1.5 flex-1 rounded-full bg-surface-light overflow-hidden">
             <div
               className={cn(
-                "h-full rounded-full transition-all",
+                "h-full rounded-full transition-[width]",
                 scoreTone(data.bestScore.score) === "danger" && "bg-danger",
                 scoreTone(data.bestScore.score) === "warning" && "bg-warning",
                 scoreTone(data.bestScore.score) === "success" && "bg-success"
@@ -224,18 +226,19 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
       )}
       {onOpen && (
         <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-          <button type="button" onClick={() => onOpen(data.id)} className="text-xs font-semibold text-accent-ink hover:underline">
+          <Button type="button" variant="link" size="sm" onClick={() => onOpen(data.id)}>
             Ver contacto
-          </button>
+          </Button>
           {onStageChange && stages && (
-            <select
+            <Select
+              compact
               aria-label={`Etapa de ${displayName}`}
               value={data.stageId}
               onChange={(event) => onStageChange(data.id, event.target.value)}
-              className="ml-auto max-w-36 rounded border border-border bg-surface px-2 py-1 text-xs text-foreground"
+              className="ml-auto max-w-36"
             >
               {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
-            </select>
+            </Select>
           )}
         </div>
       )}

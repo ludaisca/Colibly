@@ -169,7 +169,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
         emptyTitle="Sin webhooks"
         emptyDescription="Crea uno para enviar los eventos del CRM a tu ERP o a tu propio servidor."
         emptyAction={<Button size="sm" icon={Plus} onClick={openCreate}>Nuevo webhook</Button>}
-        onRowClick={(w) => router.push(`/configuracion/api/webhooks/${w.id}/entregas`)}
+        rowHref={(w) => `/configuracion/api/webhooks/${w.id}/entregas`}
         renderRow={(w) => {
           const state = webhookState(w);
           return (

@@ -1,11 +1,10 @@
 "use client";
 
-import { Tooltip } from "@/app/components/ui/tooltip";
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Workflow, Power, PowerOff, Trash2 } from "lucide-react";
+import { Plus, Workflow, Trash2 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
-import { Spinner } from "@/app/components/ui/spinner";
+import { Switch } from "@/app/components/ui/switch";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
@@ -143,17 +142,7 @@ export default function SequencesPage() {
               meta={<span className="tabular-nums">{seq._count.enrollments}</span>}
             />
             <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-              <Tooltip label={seq.active ? "Pausar" : "Activar"}><button aria-label={seq.active ? "Pausar" : "Activar"}
-                onClick={() => handleToggle(seq)}
-                disabled={togglingId === seq.id}
-                className={`p-1.5 rounded-md transition-colors ${
-                  seq.active
-                    ? "bg-success-bg text-success hover:bg-success-bg/80"
-                    : "bg-surface-light text-muted-darker hover:text-foreground"
-                }`}
-              >
-                {togglingId === seq.id ? <Spinner size="sm" /> : seq.active ? <Power size={14} /> : <PowerOff size={14} />}
-              </button></Tooltip>
+              <Switch checked={seq.active} onCheckedChange={() => handleToggle(seq)} disabled={togglingId === seq.id} label={`Secuencia ${seq.name} activa`} />
               <Button
                 variant="ghost"
                 size="sm"

@@ -188,7 +188,7 @@ export function blockStatus(checks: boolean[], optional = false): BlockStatus {
 // con `hidden`, así guardar envía todos los campos como siempre.
 function SettingsBlock({ id, active, eyebrow, title, status, children }: { id: string; active: boolean; eyebrow: string; title: string; status: BlockStatus; children: ReactNode }) {
   return (
-    <section id={`cfg-${id}`} role="tabpanel" aria-labelledby={`cfg-tab-${id}`} hidden={!active} className="min-w-0 rounded-lg border border-border bg-surface">
+    <section id={`cfg-${id}`} aria-labelledby={`cfg-tab-${id}`} hidden={!active} className="min-w-0 rounded-lg border border-border bg-surface">
       <header className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
         <div className="min-w-0">
           <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{eyebrow}</p>
@@ -494,7 +494,7 @@ export function PlataformaConfiguracion() {
 
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-6">
         <nav aria-label="Secciones de la configuración" className="min-w-0 lg:sticky lg:top-4 lg:self-start">
-          <div role="tablist" aria-orientation="vertical" className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-0 lg:pb-0">
+          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-0 lg:pb-0">
             {SECTIONS.map(({ id, label, Icon }) => {
               const st = statuses[id];
               const isActive = section === id;
@@ -503,12 +503,11 @@ export function PlataformaConfiguracion() {
                   key={id}
                   id={`cfg-tab-${id}`}
                   type="button"
-                  role="tab"
-                  aria-selected={isActive}
+                  aria-current={isActive ? "true" : undefined}
                   aria-controls={`cfg-${id}`}
                   onClick={() => selectSection(id)}
                   className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:w-full ${
-                    isActive ? "border-accent-strong bg-accent-subtle font-medium text-foreground" : "border-transparent text-muted hover:bg-surface-light hover:text-foreground"
+                    isActive ? "border-foreground bg-foreground font-medium text-background" : "border-transparent text-muted hover:bg-surface-light hover:text-foreground"
                   }`}
                 >
                   <Icon aria-hidden="true" size={16} className="shrink-0" />

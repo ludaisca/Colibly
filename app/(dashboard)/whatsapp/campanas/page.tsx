@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Megaphone, Trash2, Workflow, ExternalLink } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
@@ -72,7 +71,6 @@ function CampaignsPageContent() {
 }
 
 function CampaignsTab() {
-  const router = useRouter();
   const { success, error: toastError } = useToast();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +130,7 @@ function CampaignsTab() {
         emptyIcon={Megaphone}
         emptyTitle="Sin campañas"
         emptyDescription="Crea tu primera campaña de WhatsApp para enviar mensajes a múltiples destinatarios."
-        onRowClick={(c) => router.push(`/whatsapp/campanas/${c.id}`)}
+        rowHref={(c) => `/whatsapp/campanas/${c.id}`}
         renderRow={(c) => {
           const badge = STATUS_BADGE[c.status] ?? { label: c.status, tone: "neutral" as const };
           const progress = c.recipientCount > 0
@@ -168,7 +166,7 @@ function CampaignsTab() {
                     <span className="flex items-center gap-2">
                       <span className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-light">
                         <span
-                          className="block h-full rounded-full bg-accent transition-all"
+                          className="block h-full rounded-full bg-accent transition-[width]"
                           style={{ width: `${progress}%` }}
                         />
                       </span>
@@ -209,7 +207,6 @@ function CampaignsTab() {
 }
 
 function AutomationTab() {
-  const router = useRouter();
   const { success, error: toastError } = useToast();
   const [sources, setSources] = useState<LeadSheetSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -297,7 +294,7 @@ function AutomationTab() {
         emptyIcon={Workflow}
         emptyTitle="Sin fuentes de leads"
         emptyDescription="Conecta una hoja de Google Sheets para disparar plantillas automáticamente a leads nuevos."
-        onRowClick={(s) => router.push(`/whatsapp/campanas/automatizacion/${s.id}`)}
+        rowHref={(s) => `/whatsapp/campanas/automatizacion/${s.id}`}
         renderRow={(s) => (
           <>
             <EntityRow

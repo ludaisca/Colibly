@@ -695,17 +695,18 @@ function LeadsTab() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium">Columnas</p>
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 onClick={() => setExportColumns(
                   exportColumns.size === EXPORT_COLUMNS.length
                     ? new Set()
                     : new Set(EXPORT_COLUMNS.map((c) => c.key))
                 )}
-                className="text-xs text-accent-ink hover:underline"
               >
                 {exportColumns.size === EXPORT_COLUMNS.length ? "Ninguna" : "Todas"}
-              </button>
+              </Button>
             </div>
             <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
               {EXPORT_COLUMNS.map((c) => (

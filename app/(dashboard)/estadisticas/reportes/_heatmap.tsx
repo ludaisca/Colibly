@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/app/components/ui/card";
 import { SectionHeader } from "@/app/components/ui/section-header";
-import { cn } from "@/app/components/ui/cn";
+import { Segmented } from "@/app/components/ui/segmented";
 import { gridMax, heatIntensity, type HeatmapGrid } from "@/lib/estadisticas/heatmap-rules";
 
 // Mapa de calor día × hora en la zona de la organización. El color mezcla el
@@ -36,22 +36,12 @@ export function ActivityHeatmap({ inbound, resolved, timeZone }: { inbound: Heat
     <Card className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SectionHeader eyebrow="Actividad" title="Por día y hora" />
-        <div className="flex gap-1 rounded-[9px] border border-border p-0.5" role="group" aria-label="Qué mostrar">
-          {(Object.keys(MODE_LABEL) as Mode[]).map((value) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={mode === value}
-              onClick={() => setMode(value)}
-              className={cn(
-                "rounded-[7px] px-2.5 py-1 text-xs font-medium transition-colors",
-                mode === value ? "bg-accent-subtle text-accent-ink" : "text-muted hover:text-foreground"
-              )}
-            >
-              {MODE_LABEL[value].tab}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          label="Qué mostrar"
+          value={mode}
+          onChange={setMode}
+          options={(Object.keys(MODE_LABEL) as Mode[]).map((value) => ({ value, label: MODE_LABEL[value].tab }))}
+        />
       </div>
       <p className="mt-1 text-xs text-muted">
         Hora local ({timeZone.replace("_", " ")}). Úsalo para decidir horarios y turnos.

@@ -253,12 +253,12 @@ export default function CampaignDetailPage() {
             <div className="flex items-center gap-3">
               <div className="flex-1 bg-surface rounded-full h-2 overflow-hidden relative">
                 <div
-                  className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+                  className="h-full bg-accent rounded-full transition-[width] duration-700 ease-out"
                   style={{ width: `${progress}%` }}
                 />
                 {campaign.status === "SENDING" && (
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-transparent via-white/50 to-transparent bg-[length:200%_100%] animate-[shimmer_1.5s_linear_infinite] transition-all duration-700 ease-out"
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-transparent via-white/50 to-transparent bg-[length:200%_100%] animate-[shimmer_1.5s_linear_infinite] transition-[width] duration-700 ease-out"
                     style={{ width: `${progress}%` }}
                   />
                 )}

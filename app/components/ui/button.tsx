@@ -5,8 +5,9 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { cn } from "./cn";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "link";
-type Size = "sm" | "md" | "lg";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "link" | "link-danger";
+// `icon`: botón cuadrado de solo icono (32 px); exige `aria-label`.
+type Size = "sm" | "md" | "lg" | "icon";
 
 const VARIANT: Record<Variant, string> = {
   primary:   "bg-accent text-on-accent font-semibold hover:bg-accent-hover disabled:opacity-60",
@@ -14,12 +15,19 @@ const VARIANT: Record<Variant, string> = {
   ghost:     "text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-60",
   danger:    "bg-danger-bg text-danger border border-danger-border hover:bg-danger/20 disabled:opacity-60",
   link:      "text-accent-ink hover:underline underline-offset-4 p-0 h-auto disabled:opacity-60",
+  "link-danger": "text-danger hover:underline underline-offset-4 p-0 h-auto disabled:opacity-60",
 };
+
+const isLink = (variant: Variant) => variant === "link" || variant === "link-danger";
+
+// Los enlaces no tienen caja: el tamaño solo cambia la letra.
+const LINK_SIZE: Record<Size, string> = { sm: "text-xs font-medium gap-1", md: "text-sm gap-1.5", lg: "text-sm gap-1.5", icon: "" };
 
 const SIZE: Record<Size, string> = {
   sm: "h-8  px-3   text-xs  gap-1.5",
   md: "h-[38px] px-4 text-sm gap-2",
   lg: "h-11 px-6   text-sm  gap-2",
+  icon: "h-8 w-8 p-0 shrink-0",
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -56,8 +64,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       "transition-[background-color,color,border-color] duration-fast ease-brand motion-reduce:transition-none",
       "focus-visible:outline-2 focus-visible:outline-accent-strong focus-visible:outline-offset-2",
       // Andén: controles precisos y discretos, sin saltos al pasar el cursor.
-      variant !== "link" && "rounded-[9px]",
-      variant !== "link" && SIZE[size],
+      isLink(variant) ? LINK_SIZE[size] : cn("rounded-[9px]", SIZE[size]),
       VARIANT[variant],
       fullWidth && "w-full",
       (disabled || loading) && "pointer-events-none",

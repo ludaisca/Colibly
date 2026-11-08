@@ -13,6 +13,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { PageContainer } from "@/app/components/ui/page-container";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import { Select } from "@/app/components/ui/select";
 import { PLATFORM_SCOPES, PLATFORM_SCOPE_LABELS, type PlatformScope } from "@/lib/platform/scopes";
 
 interface Check {
@@ -313,10 +314,10 @@ export function PlataformaOperacion() {
               <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="MCP de producción" />
             )}</FormField>
             <FormField label="Entorno">{(id) => (
-              <select id={id} value={environment} onChange={(e) => setEnvironment(e.target.value as "dev" | "production")} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+              <Select id={id} value={environment} onChange={(e) => setEnvironment(e.target.value as "dev" | "production")}>
                 <option value="production">Producción</option>
                 <option value="dev">Desarrollo</option>
-              </select>
+              </Select>
             )}</FormField>
             <div className="space-y-2">
               <p className="text-sm font-medium">Permisos</p>

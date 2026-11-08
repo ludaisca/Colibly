@@ -81,7 +81,7 @@ export function WebhookDeliveriesView({ webhook }: { webhook: { id: string; name
       actions={<Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Actualizar</Button>}
     >
       <Card as="section" padding="lg">
-      {loadError && <Banner tone="danger">{loadError} <button type="button" onClick={load} className="underline">Reintentar</button></Banner>}
+      {loadError && <Banner tone="danger" action={<Button type="button" variant="link" size="sm" onClick={load}>Reintentar</Button>}>{loadError}</Banner>}
       {loading && items.length === 0 ? (
         <div className="flex justify-center py-10"><Spinner /></div>
       ) : items.length === 0 ? (

@@ -268,7 +268,7 @@ export function ChatComposer({
             <p className="font-semibold text-accent-ink">Respondiendo a {replyTo.direction === "OUTBOUND" ? "tu mensaje" : leadName}</p>
             <p className="truncate text-muted-darker">{messagePreview(replyTo)}</p>
           </div>
-          <button type="button" onClick={onCancelReply} className="rounded-lg p-1 text-muted-darker hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent" aria-label="Cancelar respuesta citada"><X size={16} /></button>
+          <Button type="button" variant="ghost" size="icon" icon={X} onClick={onCancelReply} aria-label="Cancelar respuesta citada" />
         </div>
       )}
       {cannedSuggestions.length > 0 && (

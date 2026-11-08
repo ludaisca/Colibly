@@ -460,6 +460,13 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* Filas activables de Table/EntityList (ui/row-activation.ts): el contenedor
+   recorta con overflow-hidden, así que el anillo se dibuja por dentro. */
+[data-row]:focus-visible {
+  outline-offset: -2px;
+  border-radius: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

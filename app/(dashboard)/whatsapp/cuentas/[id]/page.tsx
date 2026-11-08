@@ -510,9 +510,7 @@ export default function CuentaDetailPage() {
               ) : (
                 <dd className="flex items-center gap-2 font-mono text-sm">
                   {account.appId ?? "—"}
-                  {canManage && <button onClick={startEditAppId} className="text-muted-darker transition-colors hover:text-foreground" aria-label="Editar App ID">
-                    <Pencil size={13} />
-                  </button>}
+                  {canManage && <Button type="button" variant="ghost" size="icon" icon={Pencil} className="-my-1.5" onClick={startEditAppId} aria-label="Editar App ID" />}
                 </dd>
               )}
             </div>
@@ -545,13 +543,15 @@ export default function CuentaDetailPage() {
                   ) : (
                     <Badge tone="danger" size="sm">Falta</Badge>
                   )}
-                  {canManage && !account.usesPlatformApp && <button
+                  {canManage && !account.usesPlatformApp && <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    icon={account.hasAppSecret ? Pencil : KeyRound}
+                    className="-my-1.5"
                     onClick={() => setEditingAppSecret(true)}
-                    className="text-muted-darker transition-colors hover:text-foreground"
                     aria-label={account.hasAppSecret ? "Reemplazar App Secret" : "Agregar App Secret"}
-                  >
-                    {account.hasAppSecret ? <Pencil size={13} /> : <KeyRound size={13} />}
-                  </button>}
+                  />}
                 </dd>
               )}
             </div>
@@ -700,13 +700,7 @@ export default function CuentaDetailPage() {
                         <span className="text-muted-darker">{i + 1}.</span>{" "}
                         Si <strong>{CONDITION_TYPE_LABEL[r.conditionType]}</strong> = &quot;{r.conditionLabel}&quot; → {r.assignedTo.name ?? r.assignedTo.email}
                       </span>
-                      <button
-                        onClick={() => handleDeleteRule(r.id)}
-                        className="text-muted-darker transition-colors hover:text-danger"
-                        aria-label="Eliminar regla"
-                      >
-                        <X size={14} />
-                      </button>
+                      <Button type="button" variant="ghost" size="icon" icon={X} className="-my-1.5 hover:text-danger" onClick={() => handleDeleteRule(r.id)} aria-label="Eliminar regla" />
                     </li>
                   ))}
                 </ol>

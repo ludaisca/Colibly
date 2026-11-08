@@ -71,6 +71,13 @@ Lectura: la escala tipográfica real tiene un escalón de 10–13px que `DESIGN.
   - **Colores:** velo del cajón de contacto → `--overlay`; el verde de variables de la vista previa de plantillas va a la paleta `WA` del archivo (imita a WhatsApp a propósito).
   - **Franja de la cita:** se conserva (modelo de WhatsApp, PRODUCT.md) como excepción registrada en `.impeccable/config.json` con su motivo.
   - Resultado: `impeccable detect` sobre `app/(dashboard)` y `app/components` da **0 avisos** (sin contar `demo-componentes`).
+- **Cierre (2026-11-07), lo que quedaba de Web Design Guidelines:**
+  - **Filas clicables** (`table.tsx:187`, `entity-list.tsx`; 19 pantallas): se enfocan con Tab y se abren con Enter/Espacio (`ui/row-activation.ts`); las 7 que navegan usan `rowHref` y admiten Ctrl/⌘+clic y clic central; un clic en un control o en un menú de la fila ya no abre la fila. Anillo de foco por dentro (`[data-row]`). Verificado con teclado en Cuentas, Contactos y Bots.
+  - **Botones sueltos:** de 127 nativos fuera de `ui/`, se convirtieron los que tenían componente: 6 «Reintentar» → `action` de `Banner`; acciones de texto → `Button variant="link"`/`"link-danger"`; 10 botones de solo icono → `Button size="icon"` (32 px; los de subir/bajar paso eran de 20 px); ítems de los paneles del chat → `DropdownItem`; interruptores de vista/filtro (constructor de automatizaciones, mapa de calor, stickers) → `Segmented` nuevo, en tinta (estaban en acento); activar bot/secuencia → `Switch` (`role="switch"`). Navegación de Configuración de plataforma: tenía `role="tablist"` sin flechas → navegación con `aria-current`, activa en tinta.
+  - **Se quedan como botones propios** (documentado en `frontend.md`): bandeja (lista, chips de cuentas, cabecera del tablero), barra del compositor, burbujas, lienzo del editor de flujos, mosaicos de selectores, ✕ de chips, asas de arrastre, títulos que actúan como botón, y la landing (tiene su propia dirección).
+  - **Selects nativos:** 3 reales (los otros 2 hallazgos eran comentarios). Tarjeta del pipeline → `Select compact`; Operación de plataforma → `Select`; el del editor de flujos se queda (estilos propios del lienzo).
+  - **`transition-all`:** 11 barras de progreso → `transition-[width]`. **Campo de moneda:** el anillo lo pinta el contenedor y el campo interno ya no dibuja un segundo contorno.
+  - Queda fuera: campos `<input>` sueltos con clases propias (p. ej. etapas del pipeline, tareas del contacto) — no estaban en esta auditoría.
 
 ## Prioridad sugerida
 

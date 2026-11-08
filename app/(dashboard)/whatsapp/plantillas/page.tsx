@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
 import { Plus, RefreshCw, MessageSquareText } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
@@ -44,7 +43,6 @@ const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" 
 };
 
 function TemplatesContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedId = searchParams.get("accountId");
   const { success, error: toastError } = useToast();
@@ -199,7 +197,7 @@ function TemplatesContent() {
           emptyIcon={MessageSquareText}
           emptyTitle="Sin plantillas"
           emptyDescription="No hay plantillas en esta cuenta. Sincroniza desde Meta o crea una nueva."
-          onRowClick={(t) => router.push(`/whatsapp/plantillas/${t.id}`)}
+          rowHref={(t) => `/whatsapp/plantillas/${t.id}`}
           renderRow={(t) => {
             const badge = STATUS_BADGE[t.status] ?? { label: t.status, tone: "neutral" as const };
             return (

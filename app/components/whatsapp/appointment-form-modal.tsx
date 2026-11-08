@@ -280,14 +280,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
                 {selectedContact ? (
                   <div className="flex items-center justify-between rounded-lg border border-border bg-surface-light px-3.5 py-2.5 text-sm">
                     <span className="text-foreground font-medium">{contactLabelOf(selectedContact)}</span>
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedContact(null); setContactSearch(""); }}
-                      className="text-muted-darker hover:text-foreground"
-                      aria-label="Quitar contacto"
-                    >
-                      <X size={14} />
-                    </button>
+                    <Button type="button" variant="ghost" size="icon" icon={X} className="-my-1.5" onClick={() => { setSelectedContact(null); setContactSearch(""); }} aria-label="Quitar contacto" />
                   </div>
                 ) : (
                   <>

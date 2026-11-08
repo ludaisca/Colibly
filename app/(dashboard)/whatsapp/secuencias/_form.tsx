@@ -312,13 +312,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-darker">Paso {i + 1}</span>
                     {steps.length > 1 && (
-                      <Tooltip label="Quitar paso"><button aria-label="Quitar paso"
-                        type="button"
-                        onClick={() => removeStep(i)}
-                        className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
-                      >
-                        <Trash2 size={14} />
-                      </button></Tooltip>
+                      <Tooltip label="Quitar paso"><Button type="button" variant="ghost" size="icon" icon={Trash2} className="hover:text-danger" onClick={() => removeStep(i)} aria-label="Quitar paso" /></Tooltip>
                     )}
                   </div>
                   <div className="flex items-center gap-2">

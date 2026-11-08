@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Sticker, Upload, Star, Send, Trash2 } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
+import { Segmented } from "@/app/components/ui/segmented";
 import { useToast } from "@/app/components/ui/toast";
 
 interface Item { id: string; name: string; favorite: boolean; animated: boolean; lastUsedAt: string | null }
@@ -83,7 +84,7 @@ export function StickerPicker({ disabled, onSend, open: controlledOpen, onOpenCh
       <div className="space-y-4">
         <p className="text-xs text-muted-darker">Biblioteca compartida por tu organización · {items.length}/100. WebP de 512 × 512 px: hasta 100 KB estáticos o 500 KB animados.</p>
         <div className="flex flex-wrap items-center gap-2">
-          {[["all", "Todos"], ["recent", "Recientes"], ["favorites", "Favoritos"]].map(([key, label]) => <button key={key} type="button" disabled={busy} aria-pressed={filter === key} onClick={() => setFilter(key)} className={`rounded-xl px-3 py-2 text-xs ${filter === key ? "bg-accent-subtle text-accent-ink" : "bg-background text-muted-darker"}`}>{label}</button>)}
+          <Segmented label="Mostrar stickers" value={filter} onChange={setFilter} disabled={busy} options={[{ value: "all", label: "Todos" }, { value: "recent", label: "Recientes" }, { value: "favorites", label: "Favoritos" }]} />
           <Button type="button" size="sm" variant="secondary" icon={Upload} disabled={busy} onClick={() => fileRef.current?.click()}>Subir</Button>
           <input ref={fileRef} type="file" accept="image/webp,.webp" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) upload(file); }} />
         </div>

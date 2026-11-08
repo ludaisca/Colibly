@@ -10,6 +10,7 @@ import { STEP_META, TRIGGER_META, stepLabel, triggerSummary, formatDuration, typ
 import type { ValidationIssue } from "@/lib/automations/validate";
 import { isTerminal, isTerminalType, ROOT } from "../_graph-edit";
 import { STEP_ICON, stepTone, TriggerIcon } from "../_shared";
+import { Button } from "@/app/components/ui/button";
 
 // Constructor vertical: el disparador arriba, los pasos en columna y las
 // ramas abriéndose en columnas lado a lado (con scroll horizontal propio del
@@ -245,12 +246,8 @@ function StepCard({
       </button>
       {(canUp || canDown) && (
         <div className="absolute -right-8 top-1/2 flex -translate-y-1/2 flex-col opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-          <button type="button" disabled={!canUp} onClick={() => onMove(-1)} className="rounded p-0.5 text-muted hover:text-foreground disabled:opacity-30" aria-label="Subir paso">
-            <ChevronUp size={16} />
-          </button>
-          <button type="button" disabled={!canDown} onClick={() => onMove(1)} className="rounded p-0.5 text-muted hover:text-foreground disabled:opacity-30" aria-label="Bajar paso">
-            <ChevronDown size={16} />
-          </button>
+          <Button type="button" variant="ghost" size="icon" icon={ChevronUp} disabled={!canUp} onClick={() => onMove(-1)} aria-label="Subir paso" />
+          <Button type="button" variant="ghost" size="icon" icon={ChevronDown} disabled={!canDown} onClick={() => onMove(1)} aria-label="Bajar paso" />
         </div>
       )}
     </div>

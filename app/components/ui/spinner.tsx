@@ -19,3 +19,8 @@ export function Spinner({ size = "md", label = "Cargando…", className }: Spinn
     </span>
   );
 }
+
+/** Ícono giratorio para la prop `icon` de `Button`/`DropdownItem` mientras una acción corre. */
+export function SpinningLoader({ size, className, ...rest }: { size?: number; className?: string; "aria-hidden"?: boolean }) {
+  return <Loader2 size={size} className={cn("animate-spin motion-reduce:animate-none", className)} {...rest} />;
+}

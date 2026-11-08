@@ -110,7 +110,7 @@ export function ConexionCard({ initial }: { initial: ConexionInfo }) {
         {info.coexistence && <DetailRow label="Sincronización" value={<Badge tone={sync.tone} size="sm">{sync.label}</Badge>} />}
         {info.coexistence && syncing && info.syncProgress !== null && (
           <div className="h-2 w-full overflow-hidden rounded-full bg-accent-subtle" role="progressbar" aria-valuenow={info.syncProgress} aria-valuemin={0} aria-valuemax={100}>
-            <div className="h-full bg-accent transition-all" style={{ width: `${Math.min(100, Math.max(0, info.syncProgress))}%` }} />
+            <div className="h-full bg-accent transition-[width]" style={{ width: `${Math.min(100, Math.max(0, info.syncProgress))}%` }} />
           </div>
         )}
         {info.tokenExpiresAt && <DetailRow label="Acceso vigente hasta" value={formatDateTime(info.tokenExpiresAt)} />}

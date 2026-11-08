@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ArrowLeft, FileText, ListChecks, Loader2, PenLine, Plus, RefreshCw, Sparkles, Sticker } from "lucide-react";
+import { ArrowLeft, FileText, ListChecks, PenLine, Plus, RefreshCw, Sparkles, Sticker } from "lucide-react";
 import { Dropdown, DropdownItem } from "@/app/components/ui/dropdown";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
-import { Spinner } from "@/app/components/ui/spinner";
+import { Spinner, SpinningLoader } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { StickerPicker } from "./sticker-picker";
 import type { Channel } from "./chat-shared";
@@ -14,7 +14,6 @@ import type { Channel } from "./chat-shared";
 // de herramientas: un botón de IA (sugerir / reescribir) y un "+" con botones,
 // plantilla y stickers. Antes eran cinco iconos más el adjunto.
 
-const ITEM = "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong disabled:opacity-50";
 const TOOL = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 interface BotOption { id: string; name: string; isActive: boolean }
@@ -142,24 +141,16 @@ export function ChatAiMenu({
         {view === "menu" ? (
           <>
             {supportsSuggestions && (
-              <button type="button" className={ITEM} onClick={() => setView("suggest")}>
-                <Sparkles size={15} />
-                <span className="flex-1">Sugerir respuesta</span>
-              </button>
+              <DropdownItem icon={Sparkles} onClick={() => setView("suggest")}>Sugerir respuesta</DropdownItem>
             )}
-            <button type="button" className={ITEM} disabled={!draft.trim() || rewriting} onClick={() => void handleRewrite()}>
-              {rewriting ? <Loader2 size={15} className="animate-spin" /> : <PenLine size={15} />}
-              <span className="flex-1">Reescribir borrador</span>
-            </button>
+            <DropdownItem icon={rewriting ? SpinningLoader : PenLine} disabled={!draft.trim() || rewriting} onClick={() => void handleRewrite()}>Reescribir borrador</DropdownItem>
             {!draft.trim() && (
               <p className="px-2 pb-1 pt-1.5 text-xs text-muted-darker">Escribe algo para poder reescribirlo.</p>
             )}
           </>
         ) : (
           <div className="space-y-3 p-2">
-            <button type="button" className="flex items-center gap-1 text-xs text-muted-darker hover:text-foreground" onClick={() => setView("menu")}>
-              <ArrowLeft size={13} /> Herramientas de IA
-            </button>
+            <Button type="button" variant="link" size="sm" icon={ArrowLeft} onClick={() => setView("menu")}>Herramientas de IA</Button>
             {!botsLoaded ? (
               <div className="flex items-center gap-2 text-sm text-muted"><Spinner /> Cargando bots…</div>
             ) : loadError ? (

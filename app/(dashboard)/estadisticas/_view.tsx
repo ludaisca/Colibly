@@ -285,7 +285,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-surface">
                     <div
-                      className={`h-full rounded-full transition-all ${
+                      className={`h-full rounded-full transition-[width] ${
                         stats.aiCredits.used >= stats.aiCredits.limit ? "bg-danger" : creditsPct >= 80 ? "bg-warning" : "bg-accent"
                       }`}
                       style={{ width: `${creditsPct}%` }}

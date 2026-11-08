@@ -7,6 +7,7 @@ import { SkeletonRow } from "./skeleton";
 import { EmptyState } from "./empty-state";
 import { ListErrorState } from "./list-error-state";
 import { Dropdown } from "./dropdown";
+import { useRowActivation } from "./row-activation";
 
 export interface TableColumn<T> {
   key: string;
@@ -35,6 +36,8 @@ interface TableProps<T> {
   emptyDescription?: string;
   emptyAction?: React.ReactNode;
   onRowClick?: (row: T) => void;
+  /** La fila navega a esta ruta (admite Ctrl/⌘+clic y clic central). */
+  rowHref?: (row: T) => string;
   rowActions?: (row: T) => React.ReactNode;
   sort?: TableSort;
   onSortChange?: (key: string) => void;
@@ -60,6 +63,7 @@ export function Table<T>({
   emptyDescription,
   emptyAction,
   onRowClick,
+  rowHref,
   rowActions,
   sort,
   onSortChange,
@@ -67,6 +71,7 @@ export function Table<T>({
   skeletonRows = 5,
   className,
 }: TableProps<T>) {
+  const activation = useRowActivation(onRowClick, rowHref);
   if (loading) {
     return (
       <div className={cn("divide-y divide-border", className)} role="status" aria-label="Cargando datos">
@@ -132,8 +137,8 @@ export function Table<T>({
             {rows.map((row) => (
               <tr
                 key={rowKey(row)}
-                className={cn("hover:bg-surface-light/40 transition-colors", onRowClick && "cursor-pointer")}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={cn("hover:bg-surface-light/40 transition-colors", activation && "cursor-pointer")}
+                {...activation?.(row)}
               >
                 {columns.map((col) => (
                   <td
@@ -148,7 +153,7 @@ export function Table<T>({
                   </td>
                 ))}
                 {rowActions && (
-                  <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-3 py-2 text-right">
                     <Dropdown
                       align="right"
                       // El contenedor es overflow-x-auto (fuerza también overflow-y):
@@ -176,15 +181,15 @@ export function Table<T>({
             key={rowKey(row)}
             className={cn(
               "px-4 py-3 flex items-start justify-between gap-3 hover:bg-surface-light/20 transition-colors",
-              onRowClick && "cursor-pointer"
+              activation && "cursor-pointer"
             )}
-            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            {...activation?.(row)}
           >
             <div className="min-w-0 flex-1">
               {mobileCard ? mobileCard(row) : <DefaultMobileCard row={row} columns={columns} />}
             </div>
             {rowActions && (
-              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <div className="shrink-0">
                 <Dropdown
                   align="right"
                   portal

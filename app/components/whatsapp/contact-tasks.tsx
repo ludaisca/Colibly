@@ -89,9 +89,9 @@ export function ContactTasks({ contactId, onChanged }: { contactId: string; onCh
         />
         <Button type="submit" size="sm" variant="secondary" disabled={busy || !title.trim()}>Agregar</Button>
       </form>
-      <button type="button" className="mt-2 text-xs font-medium text-accent-ink hover:underline disabled:opacity-50" disabled={busy} onClick={() => void create(true)}>
+      <Button type="button" variant="link" size="sm" className="mt-2" disabled={busy} onClick={() => void create(true)}>
         Sugerir tarea con IA
-      </button>
+      </Button>
     </div>
   );
 }

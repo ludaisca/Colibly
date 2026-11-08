@@ -119,9 +119,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
   return (
     <header className="shrink-0 border-b border-border bg-surface">
       <div className="flex items-center gap-2.5 px-3 py-1">
-        <button type="button" onClick={onCloseChat} aria-label="Volver a la lista de chats" className="shrink-0 rounded-xl p-1.5 text-muted-darker hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong lg:hidden">
-          <ArrowLeft size={18} />
-        </button>
+        <Button type="button" variant="ghost" size="icon" icon={ArrowLeft} onClick={onCloseChat} aria-label="Volver a la lista de chats" className="lg:hidden" />
         <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
         <div className="min-w-0 flex-1">
           {chat.contactId ? (
@@ -182,9 +180,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
               <h2 id={`${detailsId}-title`} className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <SlidersHorizontal size={15} className="text-accent-ink" /> Detalles de la conversación
               </h2>
-              <button type="button" aria-label="Cerrar detalles de la conversación" onClick={() => setDetailsOpen(false)} className="shrink-0 rounded-xl p-2 text-muted-darker hover:bg-accent-subtle hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong">
-                <X size={16} />
-              </button>
+              <Button type="button" variant="ghost" size="icon" icon={X} aria-label="Cerrar detalles de la conversación" onClick={() => setDetailsOpen(false)} />
             </div>
             <div className="grid min-h-0 grid-cols-1 gap-5 overflow-y-auto p-4 @[460px]:grid-cols-2">
               <section className="min-w-0 space-y-2">

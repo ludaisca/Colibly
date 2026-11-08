@@ -1,13 +1,11 @@
 "use client";
 
-import { Tooltip } from "@/app/components/ui/tooltip";
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Bot, Power, PowerOff, Trash2 } from "lucide-react";
+import { Plus, Bot, Trash2 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
-import { Spinner } from "@/app/components/ui/spinner";
+import { Switch } from "@/app/components/ui/switch";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
@@ -32,7 +30,6 @@ interface WaBot {
 }
 
 export default function BotsPage() {
-  const router = useRouter();
   const { success, error: toastError } = useToast();
   const [bots, setBots] = useState<WaBot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +107,7 @@ export default function BotsPage() {
         emptyIcon={Bot}
         emptyTitle="Sin bots"
         emptyDescription="Crea tu primer bot de IA para automatizar conversaciones en tus canales."
-        onRowClick={(bot) => router.push(`/whatsapp/bots/${bot.id}`)}
+        rowHref={(bot) => `/whatsapp/bots/${bot.id}`}
         renderRow={(bot) => {
           return (
             <>
@@ -154,23 +151,7 @@ export default function BotsPage() {
               className="flex shrink-0 items-center gap-1"
               onClick={(e) => e.stopPropagation()}
             >
-              <Tooltip label={bot.isActive ? "Desactivar" : "Activar"}><button aria-label={bot.isActive ? "Desactivar" : "Activar"}
-                onClick={() => handleToggle(bot.id)}
-                disabled={togglingId === bot.id}
-                className={`p-1.5 rounded-md transition-colors ${
-                  bot.isActive
-                    ? "bg-success-bg text-success hover:bg-success-bg/80"
-                    : "bg-surface-light text-muted-darker hover:text-foreground"
-                }`}
-              >
-                {togglingId === bot.id ? (
-                  <Spinner size="sm" />
-                ) : bot.isActive ? (
-                  <Power size={14} />
-                ) : (
-                  <PowerOff size={14} />
-                )}
-              </button></Tooltip>
+              <Switch checked={bot.isActive} onCheckedChange={() => handleToggle(bot.id)} disabled={togglingId === bot.id} label={`Bot ${bot.name} activo`} />
               <Button
                 variant="ghost"
                 size="sm"

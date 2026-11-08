@@ -49,7 +49,7 @@ export function ContactUsageMeter({ usage }: { usage: ContactUsageData | null })
         <span className={`text-xs font-medium ${TEXT[usage.level]}`}>{pct} %</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-surface-light" role="progressbar" aria-label="Contactos usados" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-        <div className={`h-full ${BAR[usage.level]} transition-all`} style={{ width: `${Math.min(100, pct)}%` }} />
+        <div className={`h-full ${BAR[usage.level]} transition-[width]`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
     </div>
   );

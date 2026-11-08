@@ -253,7 +253,7 @@ export default function UsersPage() {
         </Banner>
       )}
 
-      {invitationLoadError && <Banner tone="danger">{invitationLoadError} <button type="button" onClick={fetchInvitations} className="underline">Reintentar</button></Banner>}
+      {invitationLoadError && <Banner tone="danger" action={<Button type="button" variant="link" size="sm" onClick={fetchInvitations}>Reintentar</Button>}>{invitationLoadError}</Banner>}
 
       {invitations.length > 0 && (
         <section className="space-y-3">

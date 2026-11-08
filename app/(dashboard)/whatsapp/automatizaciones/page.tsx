@@ -113,7 +113,7 @@ export default function AutomationsPage() {
         emptyTitle="Sin automatizaciones"
         emptyDescription="Empieza con un menú de bienvenida, una clasificación con IA o un seguimiento post-cita."
         emptyAction={<Button icon={Plus} onClick={() => setNewOpen(true)}>Nueva automatización</Button>}
-        onRowClick={(r) => router.push(`/whatsapp/automatizaciones/${r.id}`)}
+        rowHref={(r) => `/whatsapp/automatizaciones/${r.id}`}
         renderRow={(r) => (
           <EntityRow
             leading={<EntityAvatar id={r.account.id} name={r.account.name} />}

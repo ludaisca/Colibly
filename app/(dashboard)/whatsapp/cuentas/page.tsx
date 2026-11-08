@@ -169,7 +169,7 @@ function CuentasView() {
           loading={loading}
           error={fetchError}
           onRetry={fetchAccounts}
-          onRowClick={(a) => router.push(`/whatsapp/cuentas/${a.id}`)}
+          rowHref={(a) => `/whatsapp/cuentas/${a.id}`}
           emptyIcon={WhatsAppIcon}
           emptyTitle={accounts.length === 0 ? "Sin cuentas" : "Sin resultados"}
           emptyDescription={

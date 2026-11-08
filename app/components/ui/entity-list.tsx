@@ -7,12 +7,14 @@ import { SkeletonRow } from "./skeleton";
 import { EmptyState } from "./empty-state";
 import { ListErrorState } from "./list-error-state";
 import { Dropdown } from "./dropdown";
+import { useRowActivation } from "./row-activation";
 
 // Lista densa de entidades (sustituye a TileGrid): mismas props y ciclo
 // loading/error/empty, pero filas tipo database (Linear/Notion) en vez de
 // tiles — más información por pantalla y lectura vertical. renderTile pasa a
 // llamarse renderRow y desaparece `columns`. Las acciones por fila usan el
-// mismo Dropdown+stopPropagation, ahora reveladas al hover/focus.
+// mismo Dropdown, reveladas al hover/foco. Activación de la fila (teclado,
+// enlace): `row-activation.ts`.
 
 interface EntityListProps<T> {
   rows: T[];
@@ -26,6 +28,8 @@ interface EntityListProps<T> {
   emptyDescription?: string;
   emptyAction?: React.ReactNode;
   onRowClick?: (row: T) => void;
+  /** La fila navega a esta ruta (admite Ctrl/⌘+clic y clic central). */
+  rowHref?: (row: T) => string;
   rowActions?: (row: T) => React.ReactNode;
   skeletonCount?: number;
   className?: string;
@@ -44,11 +48,13 @@ export function EntityList<T>({
   emptyDescription,
   emptyAction,
   onRowClick,
+  rowHref,
   rowActions,
   skeletonCount = 8,
   className,
   rowClassName,
 }: EntityListProps<T>) {
+  const activation = useRowActivation(onRowClick, rowHref);
   if (loading) {
     return (
       <div className={cn("divide-y divide-border rounded-lg border border-border bg-surface px-3", className)} role="status" aria-label="Cargando datos">
@@ -80,11 +86,11 @@ export function EntityList<T>({
       {rows.map((row) => (
         <div
           key={rowKey(row)}
-          onClick={onRowClick ? () => onRowClick(row) : undefined}
+          {...activation?.(row)}
           className={cn(
             "group relative flex items-center gap-2.5 px-3 py-2 transition-colors",
             rowClassName,
-            onRowClick && "cursor-pointer hover:bg-surface-light/60"
+            activation && "cursor-pointer hover:bg-surface-light/60"
           )}
         >
           {renderRow(row)}
@@ -92,8 +98,7 @@ export function EntityList<T>({
             <div
               // md:opacity-0 y no opacity-0 a secas: en touch no hay hover que
               // revele las acciones — en móvil quedan siempre visibles.
-              className="shrink-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 md:opacity-0"
-              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100 md:opacity-0"
             >
               <Dropdown
                 align="right"

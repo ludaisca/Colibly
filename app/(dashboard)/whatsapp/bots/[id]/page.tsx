@@ -303,7 +303,7 @@ function BotDetailPageContent() {
 
       {tab === "knowledge" && (
         <div className="space-y-6">
-          {knowledgeError && <Banner tone="danger">{knowledgeError} <button onClick={fetchKnowledge} className="underline">Reintentar</button></Banner>}
+          {knowledgeError && <Banner tone="danger" action={<Button type="button" variant="link" size="sm" onClick={fetchKnowledge}>Reintentar</Button>}>{knowledgeError}</Banner>}
           <section className="space-y-4">
             <SectionHeader title="Subir documento" />
             <div className="space-y-3">

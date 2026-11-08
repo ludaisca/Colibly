@@ -11,6 +11,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { Drawer } from "@/app/components/ui/drawer";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Input } from "@/app/components/ui/input";
+import { Segmented } from "@/app/components/ui/segmented";
 import { useToast } from "@/app/components/ui/toast";
 import { validateGraph, hasErrors, type AutomationChannel, type ValidationIssue } from "@/lib/automations/validate";
 import type { AutomationSettings } from "@/lib/automations/settings";
@@ -324,10 +325,12 @@ export default function AutomationEditorPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted">Elige cómo explorar el mismo borrador.</p>
-        <div className="flex gap-1 rounded-[12px] border border-border bg-surface p-1" role="group" aria-label="Vista del constructor">
-          <button type="button" aria-pressed={builderView === "list"} onClick={() => setBuilderView("list")} className={builderView === "list" ? "flex items-center gap-1.5 rounded-[9px] bg-accent-subtle px-3 py-1.5 text-xs font-semibold text-accent-ink" : "flex items-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs text-muted hover:bg-surface-light"}><List size={14} /> Constructor</button>
-          <button type="button" aria-pressed={builderView === "flow"} onClick={() => setBuilderView("flow")} className={builderView === "flow" ? "flex items-center gap-1.5 rounded-[9px] bg-accent-subtle px-3 py-1.5 text-xs font-semibold text-accent-ink" : "flex items-center gap-1.5 rounded-[9px] px-3 py-1.5 text-xs text-muted hover:bg-surface-light"}><GitBranch size={14} /> Mapa de flujo</button>
-        </div>
+        <Segmented
+          label="Vista del constructor"
+          value={builderView}
+          onChange={setBuilderView}
+          options={[{ value: "list", label: "Constructor", icon: List }, { value: "flow", label: "Mapa de flujo", icon: GitBranch }]}
+        />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">

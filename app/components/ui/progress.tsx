@@ -32,7 +32,7 @@ export function Progress({ value, label, tone = "accent", className }: ProgressP
         aria-valuemax={100}
       >
         <div
-          className={cn("h-full rounded-full transition-all duration-300 ease-out", BAR[tone])}
+          className={cn("h-full rounded-full transition-[width] duration-300 ease-out", BAR[tone])}
           style={{ width: `${clamped}%` }}
         />
       </div>

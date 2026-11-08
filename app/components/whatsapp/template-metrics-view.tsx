@@ -327,7 +327,7 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
       maxWidth="max-w-5xl"
     >
       {loadError ? (
-        <Banner tone="danger">{loadError} <button type="button" onClick={() => loadTemplate(templateId)} className="underline">Reintentar</button></Banner>
+        <Banner tone="danger" action={<Button type="button" variant="link" size="sm" onClick={() => loadTemplate(templateId)}>Reintentar</Button>}>{loadError}</Banner>
       ) : loading || !template ? (
         <div className="flex items-center justify-center py-16"><Spinner /></div>
       ) : (
@@ -352,8 +352,8 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
           </div>
 
           {analyticsError && (
-            <Banner tone="danger" title="No se pudieron obtener las métricas de Meta">
-              {analyticsError} <button type="button" onClick={fetchAnalytics} className="underline">Reintentar</button>
+            <Banner tone="danger" title="No se pudieron obtener las métricas de Meta" action={<Button type="button" variant="link" size="sm" onClick={fetchAnalytics}>Reintentar</Button>}>
+              {analyticsError}
             </Banner>
           )}
 
