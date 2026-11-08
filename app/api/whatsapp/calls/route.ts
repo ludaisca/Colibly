@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
+import { jsonWithEtag } from "@/lib/http/etag";
 import { getUserAccountIds } from "@/lib/shared-accounts";
 import { callingErrorResponse, loadDirectChat, peerDigits, readSdp } from "@/lib/whatsapp/calling/access";
 import { connectCall, getCallPermission, isCallPermissionError } from "@/lib/whatsapp/calling/meta";
@@ -9,20 +10,20 @@ import { checkChannelFeature } from "@/lib/billing/entitlements";
 
 const OPEN = ["RINGING", "CONNECTING", "ACTIVE"] as const;
 
-export async function GET() {
+// GET lo consulta el CallDock de cada pestaña cada pocos segundos para el
+// timbre (revisión 2026-11-07). Antes cada consulta hacía además un
+// updateMany (marcar como perdidas las que timbraban hace más de 90 s): una
+// escritura por pestaña cada 2 s aunque no hubiera llamadas. Ahora solo se
+// escribe si hay alguna vencida, y la respuesta lleva ETag (304 sin cambios).
+export async function GET(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const accountIds = await getUserAccountIds(session.user.id);
-    if (accountIds.length === 0) return NextResponse.json([]);
+    if (accountIds.length === 0) return jsonWithEtag(req, []);
 
     const staleBefore = new Date(Date.now() - 90_000);
-    await prisma.wACall.updateMany({
-      where: { accountId: { in: accountIds }, status: "RINGING", createdAt: { lt: staleBefore } },
-      data: { status: "MISSED", endedAt: new Date(), sdpOffer: null, sdpAnswer: null },
-    });
-
-    const calls = await prisma.wACall.findMany({
+    const open = await prisma.wACall.findMany({
       where: { accountId: { in: accountIds }, status: { in: [...OPEN] } },
       orderBy: { createdAt: "asc" },
       select: {
@@ -38,7 +39,15 @@ export async function GET() {
         sdpAnswer: true,
       },
     });
-    return NextResponse.json(calls.map(({ sdpAnswer, ...call }) => ({ ...call, hasAnswer: !!sdpAnswer })));
+    const staleIds = open.filter((call) => call.status === "RINGING" && call.createdAt < staleBefore).map((call) => call.id);
+    if (staleIds.length > 0) {
+      await prisma.wACall.updateMany({
+        where: { id: { in: staleIds }, status: "RINGING" },
+        data: { status: "MISSED", endedAt: new Date(), sdpOffer: null, sdpAnswer: null },
+      });
+    }
+    const calls = open.filter((call) => !staleIds.includes(call.id));
+    return jsonWithEtag(req, calls.map(({ sdpAnswer, ...call }) => ({ ...call, hasAnswer: !!sdpAnswer })));
   } catch (error) {
     return callingErrorResponse(error, "No se pudieron cargar las llamadas");
   }

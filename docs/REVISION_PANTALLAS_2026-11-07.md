@@ -162,7 +162,16 @@ Formato: **qué pasa** — dónde → propuesta.
     - 22: cajón de contacto a pantalla completa en el teléfono.
     - 23: filtros de Citas lado a lado.
     - 24: «Sin asignar» sale de los KPI del periodo (era un dato de ahora).
-- **Pendientes de decisión:** 7 (colores de estados y etapas), 9 (selección en teal), 10 (choque exacto de tonos) y 13 (sondeo de llamadas).
+- **13, sondeo de llamadas: hecho (2026-11-07).** Era el más importante de los cuatro pendientes porque afectaba a todas las pestañas todo el tiempo.
+  - **Antes:** cada pestaña consultaba cada 2 s, y cada consulta escribía en la base (`updateMany` para marcar las llamadas vencidas) aunque no hubiera llamadas.
+  - **Ahora:**
+    - 4 s esperando el timbre, 12 s con la pestaña oculta y en el acto al volver a la pestaña;
+    - 2 s durante una llamada;
+    - sin consultas solapadas;
+    - la escritura solo ocurre si hay una llamada vencida;
+    - la respuesta lleva ETag (304 sin cambios).
+  - **Medido:** en reposo, 4 peticiones en 16 s (antes 8). Una llamada entrante simulada apareció en 1.9 s y desapareció 3.4 s después de colgar.
+- **Pendientes de decisión:** 7 (colores de estados y etapas), 9 (selección en teal) y 10 (choque exacto de tonos).
 
 ## Siguiente paso
 

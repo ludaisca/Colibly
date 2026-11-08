@@ -5,7 +5,12 @@ import { Mic, MicOff, Phone, PhoneOff } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 
 const ICE: RTCConfiguration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-const POLL_MS = 2000;
+// Ritmo del sondeo (revisión 2026-11-07; antes 2 s siempre): en llamada se
+// sigue su estado cada 2 s; esperando el timbre, cada 4 s con la pestaña
+// visible y cada 12 s oculta (el aviso push cubre el timbre ahí).
+const IN_CALL_MS = 2000;
+const RING_MS = 4000;
+const RING_HIDDEN_MS = 12_000;
 
 interface LiveCall {
   id: string;
@@ -337,19 +342,25 @@ export function CallDock({ pollIncoming = true }: { pollIncoming?: boolean } = {
 
   useEffect(() => {
     let stop = false;
-    let idleTicks = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Siguiente consulta según el momento: se programa al terminar la anterior
+    // (nunca se solapan, como usePoll).
+    function nextDelay() {
+      const current = phaseRef.current;
+      if (current === "active" || current === "connecting" || current === "incoming") return IN_CALL_MS;
+      return document.visibilityState === "hidden" ? RING_HIDDEN_MS : RING_MS;
+    }
+    function schedule() {
+      if (stop) return;
+      timer = setTimeout(now, nextDelay());
+    }
     async function tick() {
       if (stop) return;
       const current = phaseRef.current;
       const id = callIdRef.current;
       const inCall = (current === "active" || current === "connecting") && !!id;
-      if (!inCall && current !== "incoming") {
-        // Sin Calling API en la organización no hay llamadas que esperar. Con la
-        // pestaña oculta se consulta cada 10 s (el aviso push cubre el timbre).
-        if (!pollIncoming) return;
-        idleTicks++;
-        if (document.visibilityState === "hidden" && idleTicks % 5 !== 0) return;
-      }
+      // Sin Calling API en la organización no hay timbre que esperar.
+      if (!inCall && current !== "incoming" && !pollIncoming) return;
       try {
         if ((current === "active" || current === "connecting") && id) {
           const res = await fetch(`/api/whatsapp/calls/${id}`);
@@ -385,11 +396,21 @@ export function CallDock({ pollIncoming = true }: { pollIncoming?: boolean } = {
         // El siguiente ciclo vuelve a intentar.
       }
     }
-    const timer = setInterval(() => void tick(), POLL_MS);
-    void tick();
+    // Al volver a la pestaña se consulta en el acto (no se espera el ciclo de 12 s).
+    let running = false;
+    function now() {
+      if (stop || running) return;
+      if (timer) clearTimeout(timer);
+      running = true;
+      void tick().finally(() => { running = false; schedule(); });
+    }
+    const onVisible = () => { if (document.visibilityState === "visible") now(); };
+    document.addEventListener("visibilitychange", onVisible);
+    now();
     return () => {
       stop = true;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [pollIncoming]);
 
