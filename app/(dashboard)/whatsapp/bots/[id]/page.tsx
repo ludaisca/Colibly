@@ -344,6 +344,7 @@ function BotDetailPageContent() {
                       variant="ghost"
                       size="sm"
                       icon={deletingDocId === doc.id ? undefined : X}
+                      aria-label={`Quitar ${doc.title} de este bot`}
                       onClick={() => handleDeleteDoc(doc.id)}
                       disabled={deletingDocId === doc.id}
                     />

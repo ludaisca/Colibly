@@ -48,7 +48,7 @@ export function Drawer({
               ) : (
                 <BaseDrawer.Title className="sr-only">{srTitle ?? (side === "left" ? "Navegación" : "Panel de detalles")}</BaseDrawer.Title>
               )}
-              <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
             </BaseDrawer.Content>
           </BaseDrawer.Popup>
         </BaseDrawer.Viewport>

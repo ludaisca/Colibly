@@ -229,7 +229,7 @@ export default function CampaignDetailPage() {
             </Button>
           )}
           {campaign.status === "DRAFT" && (
-            <Button variant="danger" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)} />
+            <Button variant="danger" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)} aria-label="Eliminar borrador" />
           )}
         </>
       }

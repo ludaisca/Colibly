@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { useToast } from "@/app/components/ui/toast";
 import { SequenceFormModal } from "./_form";
+import { Tooltip } from "@/app/components/ui/tooltip";
 
 const TRIGGER_LABEL: Record<string, string> = {
   TAG_ADDED: "Etiqueta agregada",
@@ -143,14 +144,14 @@ export default function SequencesPage() {
             />
             <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <Switch checked={seq.active} onCheckedChange={() => handleToggle(seq)} disabled={togglingId === seq.id} label={`Secuencia ${seq.name} activa`} />
-              <Button
+              <Tooltip label="Eliminar secuencia"><Button
                 variant="ghost"
                 size="sm"
                 icon={Trash2}
                 onClick={() => setDeleteId(seq.id)}
                 className="text-muted-darker hover:text-danger"
-                title="Eliminar"
-              />
+                aria-label="Eliminar secuencia"
+              /></Tooltip>
             </span>
           </>
         )}

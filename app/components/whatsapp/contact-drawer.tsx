@@ -353,7 +353,7 @@ export function ContactDrawer({
                   <Drawer.Close aria-label="Cerrar ficha" className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"><X size={18} /></Drawer.Close>
                 </div>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Spinner />

@@ -13,6 +13,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { useToast } from "@/app/components/ui/toast";
 import { Tabs, useUrlTab } from "@/app/components/ui/tabs";
 import { plural } from "@/lib/format/plural";
+import { Tooltip } from "@/app/components/ui/tooltip";
 
 interface Campaign {
   id: string;
@@ -178,14 +179,14 @@ function CampaignsTab() {
               />
               {c.status === "DRAFT" && (
                 <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <Button
+                  <Tooltip label="Eliminar borrador"><Button
                     variant="ghost"
                     size="sm"
                     icon={Trash2}
                     onClick={() => setDeleteId(c.id)}
                     className="text-muted-darker hover:text-danger"
-                    title="Eliminar borrador"
-                  />
+                    aria-label="Eliminar borrador"
+                  /></Tooltip>
                 </span>
               )}
             </>
@@ -345,14 +346,14 @@ function AutomationTab() {
                 onCheckedChange={() => handleToggle(s)}
                 disabled={togglingId === s.id}
               />
-              <Button
+              <Tooltip label="Eliminar fuente"><Button
                 variant="ghost"
                 size="sm"
                 icon={Trash2}
                 onClick={() => setDeleteId(s.id)}
                 className="text-muted-darker hover:text-danger"
-                title="Eliminar fuente"
-              />
+                aria-label="Eliminar fuente"
+              /></Tooltip>
             </span>
           </>
         )}

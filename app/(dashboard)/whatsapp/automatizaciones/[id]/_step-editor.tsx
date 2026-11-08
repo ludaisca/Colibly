@@ -97,7 +97,6 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{STEP_META[step.type].group}</p>
           <h2 className="font-display text-lg font-semibold">{STEP_META[step.type].label}</h2>
           <p className="text-xs text-muted">{STEP_META[step.type].description}</p>
         </div>

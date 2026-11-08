@@ -49,7 +49,6 @@ export function TriggerEditor({
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">Disparador</p>
         <h2 className="font-display text-lg font-semibold">¿Cuándo empieza?</h2>
       </div>
       {issues.map((i, n) => (

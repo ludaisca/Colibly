@@ -43,10 +43,10 @@ export default async function CsatPage({ params }: { params: Promise<{ token: st
   return (
     <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10">
       <Card className="w-full max-w-md p-6">
-        <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{survey.account.name}</p>
-        <h1 className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">
           ¿Cómo calificarías la atención?
         </h1>
+        <p className="mt-1 text-sm text-muted-darker">{survey.account.name}</p>
         <p className="mt-1 text-sm text-muted">
           {survey.contact.name ?? survey.contact.remoteJid}, tu opinión nos ayuda a mejorar.
         </p>

@@ -517,6 +517,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
                       variant="ghost"
                       size="sm"
                       icon={X}
+                      aria-label={`Quitar botón ${idx + 1}`}
                       onClick={() => removeButton(idx)}
                     />
                     {btn.type === "URL" && btn.url?.includes("{{") && (

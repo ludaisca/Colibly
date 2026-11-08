@@ -191,8 +191,10 @@ function SettingsBlock({ id, active, eyebrow, title, status, children }: { id: s
     <section id={`cfg-${id}`} aria-labelledby={`cfg-tab-${id}`} hidden={!active} className="min-w-0 rounded-lg border border-border bg-surface">
       <header className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
         <div className="min-w-0">
-          <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{eyebrow}</p>
-          <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+          {/* Sin etiqueta sobre el título (Impeccable): la sección es el título
+              y el proveedor/detalle va debajo. */}
+          <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">{eyebrow}</h2>
+          <p className="text-sm text-muted-darker">{title}</p>
         </div>
         <Badge tone={status.tone} size="sm">{status.label}</Badge>
       </header>

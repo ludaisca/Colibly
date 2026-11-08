@@ -14,6 +14,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { BotFormModal } from "./_form";
 import { plural } from "@/lib/format/plural";
 import { channelAndAccount } from "@/lib/chats/display-name";
+import { Tooltip } from "@/app/components/ui/tooltip";
 
 interface WaBot {
   id: string;
@@ -154,14 +155,14 @@ export default function BotsPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <Switch checked={bot.isActive} onCheckedChange={() => handleToggle(bot.id)} disabled={togglingId === bot.id} label={`Bot ${bot.name} activo`} />
-              <Button
+              <Tooltip label="Eliminar bot"><Button
                 variant="ghost"
                 size="sm"
                 icon={Trash2}
                 onClick={() => setDeleteId(bot.id)}
                 className="text-muted-darker hover:text-danger"
-                title="Eliminar"
-              />
+                aria-label="Eliminar bot"
+              /></Tooltip>
             </span>
           </>
           );

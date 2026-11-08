@@ -269,8 +269,15 @@ function LeadsTab() {
   const [scorerFilter, setScorerFilter] = useState("all");
   const [labelFilter, setLabelFilter] = useState("all");
   const [accountFilter, setAccountFilter] = useState("all");
-  const [dateFrom, setDateFrom] = useState(() => isoDaysAgo(30));
-  const [dateTo, setDateTo] = useState(() => isoDaysAgo(0));
+  // Vacío al renderizar y el rango por defecto ya en el cliente: "hoy" depende
+  // de la zona del navegador y el servidor está en UTC (error de hidratación).
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- rango por defecto según la zona del navegador
+    setDateFrom((current) => current || isoDaysAgo(30));
+    setDateTo((current) => current || isoDaysAgo(0));
+  }, []);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

@@ -467,6 +467,16 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Superficies del navegador con la paleta (Impeccable, piso de calidad):
+   selección de texto y cursor de escritura, en lugar de los azules por defecto. */
+::selection {
+  background: var(--accent-muted);
+  color: var(--foreground);
+}
+input, textarea, [contenteditable="true"] {
+  caret-color: var(--accent-strong);
+}
+
 /* Sin border-radius: el contorno ya sigue el radio del elemento, y forzarlo
    aquí (regla sin capa) le cambiaba la forma a píldoras e interruptores. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {

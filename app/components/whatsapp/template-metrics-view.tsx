@@ -241,8 +241,11 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [points, setPoints] = useState<AnalyticsPoint[]>([]);
   const [totals, setTotals] = useState<AnalyticsTotals | null>(null);
-  const [dateFrom, setDateFrom] = useState(() => isoDaysAgo(29));
-  const [dateTo, setDateTo] = useState(() => isoDaysAgo(0));
+  // Vacío al renderizar: "hoy" depende de la zona del navegador y el servidor
+  // está en UTC (error de hidratación después de las 18:00 en México).
+  // loadTemplate pone el rango por defecto ya en el cliente.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -274,6 +277,7 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
   }, [templateId, loadTemplate]);
 
   const fetchAnalytics = useCallback(async () => {
+    if (!dateFrom || !dateTo) return;
     setAnalyticsLoading(true);
     setAnalyticsError(null);
     setPoints([]);
