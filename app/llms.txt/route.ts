@@ -2,6 +2,7 @@ import { appUrl, siteUrl } from "@/lib/app-url";
 import { BRAND_CONTACT_EMAIL, BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { LICENSES, TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/billing/licenses";
 import { PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
+import { GUIDES } from "@/app/(marketing)/_guides";
 
 // Dinámico: las URLs salen de SITE_URL/APP_URL en runtime.
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export function GET() {
 
 - [Inicio](${siteUrl("/")}): qué hace ${BRAND_NAME}, cómo empezar y preguntas frecuentes.
 - [Planes y precios](${siteUrl("/precios")}): licencias, cupos de contactos y créditos de IA.
+${GUIDES.map((g) => `- [${g.title}](${siteUrl("/" + g.slug)}): ${g.description}`).join("\n")}
 - [API y webhooks](${appUrl("/docs/api")}): documentación para desarrolladores.
 - [Contacto y soporte](${siteUrl("/contacto")})
 - [Aviso de privacidad](${siteUrl("/privacidad")})
