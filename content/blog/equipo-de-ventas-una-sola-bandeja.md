@@ -55,6 +55,10 @@ Así, si el responsable se ausenta, otra persona puede continuar sin empezar de 
 
 Reasigna sus chats abiertos y sus citas antes de desactivar su acceso. Una bandeja con responsables claros hace esto sencillo: filtras por persona y reasignas en bloque.
 
+## ¿Hospedar tu propia bandeja o usar un servicio?
+
+Existen bandejas de código abierto, como Chatwoot, que puedes instalar en tus propios servidores. Dan mucho control, pero alguien de tu equipo tiene que instalarlas, actualizarlas, respaldarlas y mantenerlas funcionando, y eso es trabajo técnico continuo. Un servicio hospedado, como Colibly, te ahorra operar servidores: pagas una licencia por persona y te dedicas a atender. La mejor opción depende de si tienes quien la mantenga.
+
 ## Cómo se ve con Colibly
 
 Colibly incluye bandeja compartida, asignación manual o automática entre quienes están en línea, equipos, tres roles, notas, etiquetas, tareas y avisos cuando un chat rebasa el tiempo de respuesta. Cada persona del equipo paga su propia licencia y puedes mezclarlas; revisa los [planes y precios](/precios) y prueba 14 días sin tarjeta.

@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { GUIDES } from "@/app/(marketing)/_guides";
+import { GUIDES, guidePath } from "@/app/(marketing)/_guides";
 
 // Guardas de las guías de búsqueda (SEO/GEO): una guía sin su page.tsx sería
 // una URL en el sitemap que da 404, y una descripción muy larga se corta en
@@ -11,14 +11,14 @@ const slugs = GUIDES.map((g) => g.slug);
 
 describe("guías de búsqueda", () => {
   it("cada guía tiene su ruta (page.tsx)", () => {
-    for (const slug of slugs) {
-      expect(existsSync(path.join(process.cwd(), "app/(marketing)", slug, "page.tsx")), slug).toBe(true);
+    for (const g of GUIDES) {
+      expect(existsSync(path.join(process.cwd(), "app/(marketing)", guidePath(g), "page.tsx")), g.slug).toBe(true);
     }
   });
 
   it("los slugs son únicos y no chocan con rutas del sitio", () => {
     expect(new Set(slugs).size).toBe(slugs.length);
-    for (const reserved of ["precios", "contacto", "terminos", "privacidad", "eliminar-datos", "docs", "guias", "producto"]) {
+    for (const reserved of ["precios", "contacto", "terminos", "privacidad", "eliminar-datos", "docs", "guias", "producto", "comparativas", "blog"]) {
       expect(slugs).not.toContain(reserved);
     }
   });

@@ -4,7 +4,7 @@ import { appUrl, siteUrl } from "@/lib/app-url";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { Button } from "@/app/components/ui/button";
 import { breadcrumbJson } from "@/lib/seo/site-schema";
-import { guideBySlug } from "./_guides";
+import { guideBySlug, guidePath } from "./_guides";
 import { InfoPage, LINK } from "./_page";
 
 export function guideMetadata(slug: string): Metadata {
@@ -12,8 +12,8 @@ export function guideMetadata(slug: string): Metadata {
   return {
     title: g.title,
     description: g.description,
-    alternates: { canonical: `/${g.slug}` },
-    openGraph: { type: "article", locale: "es_MX", siteName: BRAND_NAME, url: `/${g.slug}`, title: `${g.title} · ${BRAND_NAME}`, description: g.description },
+    alternates: { canonical: guidePath(g) },
+    openGraph: { type: "article", locale: "es_MX", siteName: BRAND_NAME, url: guidePath(g), title: `${g.title} · ${BRAND_NAME}`, description: g.description },
   };
 }
 
@@ -34,7 +34,7 @@ function articleJson(slug: string): string {
     headline: g.h1,
     description: g.description,
     inLanguage: "es-MX",
-    mainEntityOfPage: siteUrl(`/${g.slug}`),
+    mainEntityOfPage: siteUrl(guidePath(g)),
     dateModified: g.updated,
     author: { "@id": siteUrl("/#organization") },
     publisher: { "@id": siteUrl("/#organization") },
@@ -46,7 +46,7 @@ export function GuidePage({ slug }: { slug: string }) {
   const related = g.related.map((s) => guideBySlug(s));
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJson([{ name: g.title, path: `/${g.slug}` }]) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJson([{ name: g.title, path: guidePath(g) }]) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqJson(slug) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleJson(slug) }} />
       <InfoPage title={g.h1} intro={g.intro}>
@@ -56,6 +56,20 @@ export function GuidePage({ slug }: { slug: string }) {
             {s.paragraphs?.map((p) => (
               <p key={p} className="mt-3">{p}</p>
             ))}
+            {s.table && (
+              <div className="mt-4 overflow-x-auto rounded-xl border border-border">
+                <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+                  <thead className="bg-surface">
+                    <tr>{s.table.headers.map((h) => <th key={h} className="border-b border-border px-3 py-2 font-semibold">{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {s.table.rows.map((row) => (
+                      <tr key={row[0]}>{row.map((c, i) => <td key={i} className={`border-b border-border px-3 py-2 align-top ${i === 0 ? "font-medium" : ""}`}>{c}</td>)}</tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             {s.bullets && (
               <ul className="mt-3">
                 {s.bullets.map((b) => (
@@ -87,7 +101,7 @@ export function GuidePage({ slug }: { slug: string }) {
           <h2>Sigue leyendo</h2>
           <ul className="mt-3">
             {related.map((r) => (
-              <li key={r.slug}><a href={`/${r.slug}`} className={LINK}>{r.title}</a></li>
+              <li key={r.slug}><a href={guidePath(r)} className={LINK}>{r.title}</a></li>
             ))}
             <li><a href="/guias" className={LINK}>Todas las guías</a></li>
             <li><a href="/precios" className={LINK}>Planes y precios</a></li>

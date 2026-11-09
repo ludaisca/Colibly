@@ -6,7 +6,7 @@ import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { appUrl, siteUrl } from "@/lib/app-url";
 import { ChannelRow, DemoInbox, DemoRoute, WaitClock } from "./_demos";
 import { LandingFaq } from "./_faq";
-import { GUIDES } from "./_guides";
+import { GUIDES, guidePath } from "./_guides";
 import { LandingOffer } from "./_landing-offer";
 import { LANDING_PLANS, OFFER_FROM_MXN } from "./_landing-offer-data";
 import { QuickReply, Thread, type ThreadItem } from "./_thread";
@@ -301,9 +301,9 @@ export default function LandingPage() {
             <nav aria-label="Guías" className="mt-8">
               <p className="text-sm font-semibold text-foreground">Guías</p>
               <ul className="mt-2 space-y-1.5">
-                {GUIDES.slice(0, 5).map((g) => (
+                {GUIDES.filter((g) => !g.section).slice(0, 5).map((g) => (
                   <li key={g.slug}>
-                    <a href={`/${g.slug}`} className="inline-flex min-h-11 items-center font-medium text-accent-ink underline underline-offset-4 md:min-h-0">{g.title}</a>
+                    <a href={guidePath(g)} className="inline-flex min-h-11 items-center font-medium text-accent-ink underline underline-offset-4 md:min-h-0">{g.title}</a>
                   </li>
                 ))}
                 <li>

@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { GUIDES } from "@/app/(marketing)/_guides";
+import { GUIDES, guidePath } from "@/app/(marketing)/_guides";
 import { buildPost, extractHeadings, getAllPostsUnfiltered, parseFrontmatter, readingMinutes, slugifyHeading } from "../posts";
 
 const FRONT = `---
@@ -57,7 +57,7 @@ describe("posts de content/blog", async () => {
   const postSlugs = posts.map((p) => p.slug);
   const knownPaths = new Set<string>([
     "/", "/precios", "/contacto", "/guias", "/blog", "/privacidad", "/terminos",
-    ...guideSlugs.map((s) => `/${s}`),
+    ...GUIDES.map((g) => guidePath(g)),
     ...postSlugs.map((s) => `/blog/${s}`),
   ]);
 
@@ -89,7 +89,7 @@ describe("posts de content/blog", async () => {
       it("enlaza a una guía y a precios o a la prueba", () => {
         if (p.draft) return;
         const links = [...p.body.matchAll(/\]\((\/[^)\s#]*)/g)].map((m) => m[1]);
-        expect(links.some((l) => guideSlugs.includes(l.slice(1))), "sin enlace a una guía").toBe(true);
+        expect(links.some((l) => GUIDES.some((g) => guidePath(g) === l)), "sin enlace a una guía").toBe(true);
         expect(links.includes("/precios"), "sin enlace a /precios").toBe(true);
       });
 

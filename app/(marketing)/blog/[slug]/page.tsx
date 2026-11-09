@@ -8,7 +8,7 @@ import { Button } from "@/app/components/ui/button";
 import { BLOG_AUTHORS, BLOG_CATEGORIES, getPost, getPublishedPosts, type BlogPost } from "@/lib/blog/posts";
 import { formatPostDate } from "@/lib/blog/format";
 import { breadcrumbJson } from "@/lib/seo/site-schema";
-import { GUIDES } from "../../_guides";
+import { GUIDES, guidePath } from "../../_guides";
 import { PostCard } from "../_cards";
 import { PostBody } from "../_markdown";
 
@@ -110,7 +110,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
               <ul className="mt-3 list-disc space-y-1.5 pl-6">
                 {relatedGuides.map((g) => (
                   <li key={g.slug}>
-                    <a href={`/${g.slug}`} className="font-medium text-accent-ink underline underline-offset-2">{g.title}</a>
+                    <a href={guidePath(g)} className="font-medium text-accent-ink underline underline-offset-2">{g.title}</a>
                   </li>
                 ))}
               </ul>
