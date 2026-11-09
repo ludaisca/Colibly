@@ -6,6 +6,7 @@ import { LICENSES, TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/bill
 import { META_FEES_NOTE } from "@/lib/billing/plan-features";
 import { LINK } from "../_page";
 import { LandingOffer } from "../_landing-offer";
+import { breadcrumbJson } from "@/lib/seo/site-schema";
 
 const DESCRIPTION = `Planes y precios de ${BRAND_NAME}: Básico $59, Avanzado $89 y Pro $149 MXN por usuario al mes. Empresarial a la medida. Prueba ${TRIAL_DAYS} días gratis, sin tarjeta.`;
 const CTA = `Prueba ${TRIAL_DAYS} días de Pro`;
@@ -39,6 +40,7 @@ const NOTES = [
 export default function PricingPage() {
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJson([{ name: "Planes y precios", path: "/precios" }]) }} />
       <header className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:px-6 md:pt-16">
         <h1 className="text-balance font-display text-[2.75rem] font-bold leading-[0.98] tracking-[-0.015em] sm:text-6xl">
           Planes y precios.

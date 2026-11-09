@@ -11,6 +11,7 @@ import { LEGAL } from "./_legal";
 import { SiteMobileNav } from "@/app/components/ui/site-mobile-nav";
 import { appUrl } from "@/lib/app-url";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
+import { siteSchemaJson } from "@/lib/seo/site-schema";
 
 const MOBILE_LINKS = [
   { href: "/#producto", label: "Producto" },
@@ -52,6 +53,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: siteSchemaJson() }} />
       <a
         href="#contenido-principal"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100001] focus:rounded-[12px] focus:bg-surface focus:px-4 focus:py-3 focus:text-foreground focus:shadow-lg"
