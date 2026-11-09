@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import path from "path";
 import { describe, expect, it } from "vitest";
 import { GUIDES, guidePath } from "@/app/(marketing)/_guides";
 import { getPublishedPosts } from "@/lib/blog/posts";
@@ -50,6 +52,15 @@ describe("JSON-LD de la organización", () => {
     expect(org.sameAs).toEqual(SOCIAL_PROFILES);
     expect(SOCIAL_PROFILES).toContain("https://www.instagram.com/colibly.crm");
     expect(SOCIAL_PROFILES).toContain("https://www.facebook.com/profile.php?id=61596385561338");
-    expect(org.logo.url).toMatch(/\/icon\.svg$/);
+    expect(org.logo.url).toMatch(/\/logo-512\.png$/);
+    expect(org.image).toBe(org.logo.url);
+  });
+  it("el logo es un PNG cuadrado de al menos 512x512 en public/", () => {
+    const png = readFileSync(path.join(process.cwd(), "public", "logo-512.png"));
+    expect(png.subarray(1, 4).toString()).toBe("PNG");
+    const width = png.readUInt32BE(16);
+    const height = png.readUInt32BE(20);
+    expect(width).toBe(height);
+    expect(width).toBeGreaterThanOrEqual(512);
   });
 });
