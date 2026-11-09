@@ -6,6 +6,7 @@ import { processCampaignJob, processScheduledCampaignsTick } from "./campaign-wo
 import { processRagJob } from "./rag-worker";
 import { processMediaDownloadJob } from "./media-worker";
 import { processMediaCleanupJob } from "./media-cleanup-worker";
+import { processSeoJob } from "./seo-worker";
 import { processBotSendJob } from "./bot-send-worker";
 import { processLeadScoringTick } from "./lead-scoring-worker";
 import { processLeadRecoveryTick } from "./lead-recovery-worker";
@@ -27,7 +28,7 @@ import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processSta
 import { processBackupTick, runBackup, BackupAlreadyRunningError } from "@/lib/backups/runner";
 import { processPlatformHealthTick } from "./platform-health-worker";
 import { processInboxJob } from "./inbox-worker";
-import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue, platformHealthQueue, inboxQueue } from "@/lib/queue";
+import { mediaCleanupQueue, leadScoringQueue, leadRecoveryQueue, campaignQueue, campaignScheduleQueue, sheetsSyncQueue, leadSheetImportQueue, appointmentReminderQueue, sequenceQueue, automationTickQueue, billingTickQueue, coexistenceSyncQueue, coexistenceTickQueue, platformBackupQueue, platformHealthQueue, inboxQueue, seoQueue } from "@/lib/queue";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://redis:6379",
@@ -89,6 +90,10 @@ export function startWorkers() {
 
   const mediaCleanupWorker = new Worker("media-cleanup", async () => {
     await processMediaCleanupJob();
+  }, { connection, concurrency: 1 });
+
+  const seoWorker = new Worker("seo-indexnow", async () => {
+    await processSeoJob();
   }, { connection, concurrency: 1 });
 
   const botSendWorker = new Worker("bot-message-send", async (job) => {
@@ -205,7 +210,7 @@ export function startWorkers() {
     await processWebhookDelivery(job, token);
   }, { connection, concurrency: WEBHOOK_WORKER_CONCURRENCY });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker, platformHealthWorker, inboxWorker);
+  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker, platformHealthWorker, inboxWorker, seoWorker);
 
   mediaCleanupQueue
     .add(
@@ -214,6 +219,17 @@ export function startWorkers() {
       { jobId: "media-cleanup-daily", repeat: { pattern: "0 3 * * *" } }
     )
     .catch((err) => console.error("[workers] No se pudo programar media-cleanup:", err));
+
+  // IndexNow: cada deploy reinicia la app y puede traer páginas nuevas, y los
+  // posts programados salen solos en su fecha, así que además del aviso al
+  // arrancar (con retraso para que el contenedor ya sirva la clave) hay uno
+  // diario. Sin cambios de contenido no envía nada.
+  seoQueue
+    .add("submit", {}, { jobId: "seo-indexnow-daily", repeat: { pattern: "30 9 * * *" } })
+    .catch((err) => console.error("[workers] No se pudo programar seo-indexnow:", err));
+  seoQueue
+    .add("submit", {}, { delay: 120_000 })
+    .catch((err) => console.error("[workers] No se pudo encolar el aviso de IndexNow al arrancar:", err));
 
   // The shortest schedulable interval a scorer can pick is 15 minutes (see
   // LEAD_SCORER_SCHEDULE_INTERVALS) — ticking every 5 minutes gives enough

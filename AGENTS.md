@@ -13,7 +13,7 @@ Essential rules for working on Colibly. This file is loaded into every agent ses
 | [`plataforma.md`](docs/arquitectura/plataforma.md) | `/plataforma`, `PlatformSettings`, backups, platform API tokens, OAuth + MCP, doctor |
 | [`frontend.md`](docs/arquitectura/frontend.md) | Next 16 quirks, RSC pages + `_view.tsx`, design tokens, themes, workbench/`EntityList`, modal pattern |
 | [`base-de-datos.md`](docs/arquitectura/base-de-datos.md) | schema overview, migrations workflow, pgvector index, raw SQL, registration, encryption |
-| [`colas.md`](docs/arquitectura/colas.md) | the 24 BullMQ queues, humanized bot replies, bot reply rules (debounce, takeover, retries) |
+| [`colas.md`](docs/arquitectura/colas.md) | the 25 BullMQ queues, humanized bot replies, bot reply rules (debounce, takeover, retries) |
 | [`ia.md`](docs/arquitectura/ia.md) | providers, curated/operator-picked models, credits, multimodal, embeddings, pricing, prompt wrapping |
 | [`whatsapp.md`](docs/arquitectura/whatsapp.md) | template creation, Cloud API, multiple Meta apps, Calling API, webhook, media, Embedded Signup + coexistence |
 | [`canales.md`](docs/arquitectura/canales.md) | Telegram / Messenger / Instagram / web widget stack, comment-to-inbox, webchat security model |

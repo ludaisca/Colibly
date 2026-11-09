@@ -4,7 +4,16 @@ import { siteUrl } from "@/lib/app-url";
 // Entidad de la marca para buscadores y asistentes de IA (GEO): quién es,
 // cómo se llama el sitio y cómo contactarla. Se emite en todo el sitio
 // público desde (marketing)/layout.tsx. Solo datos que ya son públicos: no se
-// inventan redes sociales ni direcciones (sameAs se llena cuando existan).
+// inventan redes sociales ni direcciones.
+
+/**
+ * Perfiles oficiales de la marca (sameAs). Para sumar otro (LinkedIn, Google
+ * Business, YouTube…) basta con agregar su URL aquí: se refleja en todo el sitio.
+ */
+export const SOCIAL_PROFILES: string[] = [
+  "https://www.instagram.com/colibly.crm",
+  "https://www.facebook.com/profile.php?id=61596385561338",
+];
 
 export function siteSchemaJson(): string {
   const orgId = siteUrl("/#organization");
@@ -16,7 +25,9 @@ export function siteSchemaJson(): string {
       name: BRAND_NAME,
       legalName: "Colibly Inc.",
       url: siteUrl("/"),
-      logo: siteUrl("/icon.svg"),
+      logo: { "@type": "ImageObject", url: siteUrl("/icon.svg") },
+      image: siteUrl("/icon.svg"),
+      sameAs: SOCIAL_PROFILES,
       description: BRAND_TAGLINE,
       areaServed: { "@type": "Country", name: "México" },
       knowsLanguage: "es-MX",

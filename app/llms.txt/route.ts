@@ -1,43 +1,45 @@
 import { appUrl, siteUrl } from "@/lib/app-url";
-import { BRAND_CONTACT_EMAIL, BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
-import { LICENSES, TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/billing/licenses";
-import { PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
+import { BRAND_NAME } from "@/lib/brand";
 import { GUIDES, guidePath } from "@/app/(marketing)/_guides";
 import { getPublishedPosts } from "@/lib/blog/posts";
+import { keyFacts, siteIntro } from "@/lib/seo/site-facts";
 
-// Dinámico: las URLs salen de SITE_URL/APP_URL en runtime.
+// Dinámico: las URLs salen de SITE_URL/APP_URL en runtime y los posts
+// programados entran solos cuando llega su fecha.
 export const dynamic = "force-dynamic";
 
-// Resumen del sitio para asistentes de IA (convención llms.txt). Los precios y
-// cupos salen del mismo catálogo que cobra la app, así que no se desfasan.
+// Resumen del sitio para asistentes de IA (convención llms.txt). Las guías,
+// las comparativas y el blog salen de sus propias fuentes (_guides.ts y
+// content/blog/*.md): publicar una página nueva la agrega aquí sin tocar nada.
 export async function GET() {
-  const posts = (await getPublishedPosts()).slice(0, 15);
-  const n = (v: number) => v.toLocaleString("es-MX");
-  const body = `# ${BRAND_NAME}
-
-> ${BRAND_TAGLINE}. ${BRAND_NAME} reúne WhatsApp (API oficial de Meta, con Coexistencia), Instagram, Messenger, Telegram y chat web en una sola bandeja, con CRM, embudos de ventas, citas, automatizaciones y bots de IA que responden con la información del negocio. Está pensado para pymes de México que venden por chat.
-
-## Datos clave
-
-- Qué es: un CRM con bandeja unificada de mensajería, en español y pensado para negocios de México.
-- Para quién: dueños de negocio y equipos de ventas o atención que reciben clientes por WhatsApp y redes.
-- Modelo de precio: una licencia por persona al mes, en pesos mexicanos (MXN), y cada persona puede tener una licencia distinta. Básico $${PLANS.ESSENTIAL.pricePerSeatMxn}, Avanzado $${PLANS.BUSINESS.pricePerSeatMxn}, Pro $${PLANS.PRO.pricePerSeatMxn}. Empresarial es a la medida.
-- Prueba gratuita: ${TRIAL_DAYS} días con todas las funciones de Pro para hasta ${TRIAL_MAX_USERS} personas, sin tarjeta. Al terminar, sin pago la cuenta queda en solo lectura y los datos se conservan.
-- Créditos de IA: de cada persona. Avanzado ${n(LICENSES.BUSINESS.aiCreditsPerMonth)} al mes, Pro ${n(LICENSES.PRO.aiCreditsPerMonth)}, Básico sin IA; en la prueba, ${n(TRIAL_AI_CREDITS_PER_USER)} por persona.
-- Canales por licencia: 1 WhatsApp, 1 Instagram, 1 Messenger, 1 Telegram y 1 chat web.
-- Los costos de conversación de WhatsApp los cobra Meta aparte.
-- Integración: API REST y webhooks firmados (licencia Pro, administrador).
-- Contacto: ${BRAND_CONTACT_EMAIL}
-
-## Páginas
-
-- [Inicio](${siteUrl("/")}): qué hace ${BRAND_NAME}, cómo empezar y preguntas frecuentes.
-- [Planes y precios](${siteUrl("/precios")}): licencias, cupos de contactos y créditos de IA.
-${GUIDES.map((g) => `- [${g.title}](${siteUrl(guidePath(g))}): ${g.description}`).join("\n")}
-${posts.length ? `- [Blog](${siteUrl("/blog")}): artículos sobre WhatsApp Business, ventas por chat y automatización.\n${posts.map((p) => `  - [${p.title}](${siteUrl("/blog/" + p.slug)}): ${p.description}`).join("\n")}\n` : ""}- [API y webhooks](${appUrl("/docs/api")}): documentación para desarrolladores.
-- [Contacto y soporte](${siteUrl("/contacto")})
-- [Aviso de privacidad](${siteUrl("/privacidad")})
-- [Términos y condiciones](${siteUrl("/terminos")})
-`;
-  return new Response(body, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
+  const posts = await getPublishedPosts();
+  const link = (title: string, path: string, description: string, indent = "") => `${indent}- [${title}](${siteUrl(path)}): ${description}`;
+  const guides = GUIDES.filter((g) => g.section !== "comparativas");
+  const comparatives = GUIDES.filter((g) => g.section === "comparativas");
+  const sections = [
+    `# ${BRAND_NAME}\n\n${siteIntro()}`,
+    `## Datos clave\n\n${keyFacts()}`,
+    [
+      "## Páginas",
+      "",
+      link("Inicio", "/", `qué hace ${BRAND_NAME}, cómo empezar y preguntas frecuentes.`),
+      link("Planes y precios", "/precios", "licencias, cupos de contactos y créditos de IA."),
+      link("Guías", "/guias", "todas las guías y comparativas."),
+      `- [Contenido completo en un solo archivo](${siteUrl("/llms-full.txt")}): el texto de todas las páginas públicas en Markdown.`,
+    ].join("\n"),
+    ["## Guías", "", ...guides.map((g) => link(g.title, guidePath(g), g.description))].join("\n"),
+    comparatives.length ? ["## Comparativas", "", ...comparatives.map((g) => link(g.title, guidePath(g), g.description))].join("\n") : "",
+    posts.length
+      ? ["## Blog", "", `Artículos sobre WhatsApp Business, ventas por chat y automatización (${siteUrl("/blog")}).`, "", ...posts.map((p) => link(p.title, `/blog/${p.slug}`, p.description))].join("\n")
+      : "",
+    [
+      "## Para desarrolladores y legal",
+      "",
+      `- [API y webhooks](${appUrl("/docs/api")}): documentación para desarrolladores.`,
+      `- [Contacto y soporte](${siteUrl("/contacto")})`,
+      `- [Aviso de privacidad](${siteUrl("/privacidad")})`,
+      `- [Términos y condiciones](${siteUrl("/terminos")})`,
+    ].join("\n"),
+  ].filter(Boolean);
+  return new Response(sections.join("\n\n") + "\n", { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
 }

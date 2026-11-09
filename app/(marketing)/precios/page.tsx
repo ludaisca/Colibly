@@ -2,10 +2,11 @@ import { appUrl } from "@/lib/app-url";
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
-import { LICENSES, TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/billing/licenses";
+import { TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/billing/licenses";
 import { META_FEES_NOTE } from "@/lib/billing/plan-features";
 import { LINK } from "../_page";
 import { LandingOffer } from "../_landing-offer";
+import { NOTES } from "../_pricing-notes";
 import { breadcrumbJson } from "@/lib/seo/site-schema";
 
 const DESCRIPTION = `Planes y precios de ${BRAND_NAME}: Básico $59, Avanzado $89 y Pro $149 MXN por usuario al mes. Empresarial a la medida. Prueba ${TRIAL_DAYS} días gratis, sin tarjeta.`;
@@ -24,18 +25,6 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
   },
 };
-
-const num = (v: number) => v.toLocaleString("es-MX");
-const { ESSENTIAL: B, BUSINESS: A, PRO: P } = LICENSES;
-
-// Reglas de las licencias (docs/PLAN_LICENCIAS_2026-11-04.md); números del catálogo.
-const NOTES = [
-  "Cada persona de tu equipo, incluidos el dueño y los administradores, paga una licencia, y en un mismo equipo puedes mezclar Básico, Avanzado y Pro. Agregas o quitas licencias cuando quieras; el pago es mensual.",
-  "Cada licencia incluye un canal de cada tipo: un WhatsApp (con Coexistencia), un Instagram, un Messenger, un Telegram y un chat web. Cada canal funciona con la licencia de su dueño: por ejemplo, el bot solo responde en los canales de una persona con Avanzado o Pro.",
-  `Contactos y leads activos se suman en tu equipo: Básico aporta ${num(B.contacts)} contactos y ${num(B.activeLeads)} leads; Avanzado, ${num(A.contacts)} y ${num(A.activeLeads)}; Pro, ${num(P.contacts)} y ${num(P.activeLeads)}. Embudos y campos personalizados son los de la licencia más alta del equipo.`,
-  `Los créditos de IA son de cada persona: ${num(A.aiCreditsPerMonth)} al mes con Avanzado y ${num(P.aiCreditsPerMonth)} con Pro; Básico no incluye IA. Lo automático en un chat (bot, automatizaciones) usa los créditos del dueño del canal. Los que no usas no pasan al mes siguiente.`,
-  "La API, los webhooks y las conversiones de Meta Ads los configura un administrador con licencia Pro.",
-];
 
 export default function PricingPage() {
   return (
