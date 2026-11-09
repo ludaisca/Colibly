@@ -17,6 +17,7 @@ const MOBILE_LINKS = [
   { href: "/#producto", label: "Producto" },
   { href: "/#como-funciona", label: "Cómo funciona" },
   { href: "/precios", label: "Precios" },
+  { href: "/blog", label: "Blog" },
   { href: "/#preguntas", label: "Preguntas" },
 ];
 
@@ -24,7 +25,7 @@ const MOBILE_LINKS = [
 const FOOTER_LINK = "inline-flex min-h-11 items-center hover:text-foreground md:min-h-0";
 
 const FOOTER_COLUMNS = [
-  { title: "Producto", links: [{ href: "/", label: "Conocer Colibly" }, { href: "/precios", label: "Planes y precios" }, { href: "/guias", label: "Guías" }, { href: "/crm-whatsapp", label: "CRM para WhatsApp" }, { href: "/chatbot-whatsapp-ia", label: "Chatbot de IA" }, { href: "/whatsapp-business-app-vs-api", label: "WhatsApp Business: app o API" }, { href: "/#preguntas", label: "Preguntas frecuentes" }, { href: appUrl("/docs/api"), label: "API para desarrolladores" }] },
+  { title: "Producto", links: [{ href: "/", label: "Conocer Colibly" }, { href: "/precios", label: "Planes y precios" }, { href: "/blog", label: "Blog" }, { href: "/guias", label: "Guías" }, { href: "/crm-whatsapp", label: "CRM para WhatsApp" }, { href: "/chatbot-whatsapp-ia", label: "Chatbot de IA" }, { href: "/whatsapp-business-app-vs-api", label: "WhatsApp Business: app o API" }, { href: "/#preguntas", label: "Preguntas frecuentes" }, { href: appUrl("/docs/api"), label: "API para desarrolladores" }] },
   { title: "Soporte", links: [{ href: "/contacto", label: "Contacto y soporte" }, { href: "/eliminar-datos", label: "Eliminar mis datos" }] },
   { title: "Legal", links: [{ href: "/terminos", label: "Términos y condiciones" }, { href: "/privacidad", label: "Aviso de privacidad" }, { href: "/privacidad#cookies", label: "Cookies y medición" }] },
 ];
@@ -67,6 +68,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
             <Link href="/#producto" className="hover:text-foreground">Producto</Link>
             <Link href="/#como-funciona" className="whitespace-nowrap hover:text-foreground">Cómo funciona</Link>
             <Link href="/precios" className="hover:text-foreground">Precios</Link>
+            <Link href="/blog" className="hover:text-foreground">Blog</Link>
             <Link href="/#preguntas" className="hover:text-foreground">Preguntas</Link>
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-1.5 min-[400px]:gap-2 md:ml-0">

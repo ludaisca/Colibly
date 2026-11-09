@@ -40,6 +40,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Posts del blog (content/blog/*.md): se leen del disco en cada petición.
+COPY --from=builder --chown=nextjs:nodejs /app/content ./content
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./
 COPY --chown=nextjs:nodejs scripts/startup.sh ./startup.sh
 COPY --chown=nextjs:nodejs scripts/db-migrate.sh ./scripts/db-migrate.sh

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { BRAND_NAME } from "@/lib/brand";
+import { BRAND_DOMAIN, BRAND_NAME } from "@/lib/brand";
 import { BRAND_MARK_BG, BRAND_MARK_FG, BRAND_MARK_PATH } from "@/lib/brand-mark";
 import { BRAND_COLORS as C } from "@/lib/brand-colors";
 import { formatMxn, PLAN_LIST, TRIAL_DAYS } from "@/lib/billing/plans";
@@ -59,6 +59,41 @@ export async function renderShareImage() {
           <span style={{ ...bubble, background: C.andenBubbleOut, alignSelf: "flex-end" }}>Cuesta $850 y dura 60 min. ¿Te agendamos?</span>
           <span style={{ display: "flex", justifyContent: "center", background: C.accent, color: C.onAccent, borderRadius: 12, padding: "14px 20px", fontSize: 26, fontWeight: 600 }}>Prueba {TRIAL_DAYS} días de Pro</span>
         </div>
+      </div>
+    ),
+    {
+      ...SHARE_IMAGE_SIZE,
+      fonts: [
+        { name: "Barlow Condensed", data: condensed, weight: 700, style: "normal" },
+        { name: "Barlow", data: regular, weight: 400, style: "normal" },
+        { name: "Barlow", data: semibold, weight: 600, style: "normal" },
+      ],
+    }
+  );
+}
+
+// Imagen de un post del blog (blog/[slug]/opengraph-image.tsx): categoría y
+// título sobre el mismo concreto y tinta de la portada.
+export async function renderPostShareImage(title: string, category: string) {
+  const [condensed, regular, semibold] = await Promise.all([
+    font("BarlowCondensed-Bold.ttf"),
+    font("Barlow-Regular.ttf"),
+    font("Barlow-SemiBold.ttf"),
+  ]);
+  const size = title.length > 70 ? 64 : title.length > 45 ? 76 : 88;
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 72px", background: C.andenConcrete, color: C.andenInk, fontFamily: "Barlow" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <BrandMarkSvg size={56} />
+          <span style={{ fontFamily: "Barlow Condensed", fontSize: 44, fontWeight: 700 }}>{BRAND_NAME}</span>
+          <span style={{ display: "flex", marginLeft: 12, fontSize: 28, color: C.muted }}>Blog</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <span style={{ display: "flex", fontSize: 30, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: 2 }}>{category}</span>
+          <span style={{ display: "flex", fontFamily: "Barlow Condensed", fontSize: size, fontWeight: 700, lineHeight: 1, letterSpacing: -1 }}>{title}</span>
+        </div>
+        <span style={{ display: "flex", fontSize: 26, color: C.muted }}>{BRAND_DOMAIN}/blog</span>
       </div>
     ),
     {

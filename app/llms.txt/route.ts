@@ -3,13 +3,15 @@ import { BRAND_CONTACT_EMAIL, BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { LICENSES, TRIAL_AI_CREDITS_PER_USER, TRIAL_MAX_USERS } from "@/lib/billing/licenses";
 import { PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
 import { GUIDES } from "@/app/(marketing)/_guides";
+import { getPublishedPosts } from "@/lib/blog/posts";
 
 // Dinámico: las URLs salen de SITE_URL/APP_URL en runtime.
 export const dynamic = "force-dynamic";
 
 // Resumen del sitio para asistentes de IA (convención llms.txt). Los precios y
 // cupos salen del mismo catálogo que cobra la app, así que no se desfasan.
-export function GET() {
+export async function GET() {
+  const posts = (await getPublishedPosts()).slice(0, 15);
   const n = (v: number) => v.toLocaleString("es-MX");
   const body = `# ${BRAND_NAME}
 
@@ -32,7 +34,7 @@ export function GET() {
 - [Inicio](${siteUrl("/")}): qué hace ${BRAND_NAME}, cómo empezar y preguntas frecuentes.
 - [Planes y precios](${siteUrl("/precios")}): licencias, cupos de contactos y créditos de IA.
 ${GUIDES.map((g) => `- [${g.title}](${siteUrl("/" + g.slug)}): ${g.description}`).join("\n")}
-- [API y webhooks](${appUrl("/docs/api")}): documentación para desarrolladores.
+${posts.length ? `- [Blog](${siteUrl("/blog")}): artículos sobre WhatsApp Business, ventas por chat y automatización.\n${posts.map((p) => `  - [${p.title}](${siteUrl("/blog/" + p.slug)}): ${p.description}`).join("\n")}\n` : ""}- [API y webhooks](${appUrl("/docs/api")}): documentación para desarrolladores.
 - [Contacto y soporte](${siteUrl("/contacto")})
 - [Aviso de privacidad](${siteUrl("/privacidad")})
 - [Términos y condiciones](${siteUrl("/terminos")})
