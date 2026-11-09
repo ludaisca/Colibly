@@ -50,6 +50,7 @@ import {
   type AccountOption,
 } from "@/app/components/whatsapp/chat-shared";
 import { plural } from "@/lib/format/plural";
+import { handleMatches } from "@/lib/chats/search-terms";
 
 // Orquestador del inbox de chat: dueño de todo el estado (chats, mensajes,
 // filtros, polling, envío optimista) y de la composición de los 4 paneles en
@@ -98,6 +99,16 @@ interface ChatWorkspaceProps {
 // se pinta lo que había y se refresca detrás. Cerrar sesión recarga la página
 // (signOut redirige), así que no pasa de un usuario a otro.
 const threadCache = new Map<string, { messages: Message[]; hasOlder: boolean }>();
+
+
+// El chat abierto sobrevive a que la lista se reemplace (recarga, refresco,
+// cambio de filtros o de búsqueda): si ya no cabe en la página nueva se
+// conserva, porque el hilo se pinta desde esta lista y sin ella quedaba vacío.
+function keepOpenChat(previous: ChatItem[], items: ChatItem[], openId: string | null): ChatItem[] {
+  if (!openId || items.some((item) => item.id === openId)) return items;
+  const kept = previous.find((item) => item.id === openId);
+  return kept ? [kept, ...items] : items;
+}
 
 export function ChatWorkspace({
   initialAccounts,
@@ -353,7 +364,7 @@ export function ChatWorkspace({
     try {
       const pageSize = Math.min(Math.max(chats.length, CHATS_PAGE_SIZE), 100);
       const { items, total } = await fetchChatsPage(firstPagePerChannel, pageSize);
-      setChats(items);
+      setChats((previous) => keepOpenChat(previous, items, selectedChatIdRef.current));
       setChatsTotal(total);
       setChatsError(null);
     } catch (error) {
@@ -519,7 +530,10 @@ export function ChatWorkspace({
       try {
         const { items, total } = await fetchChatsPage(firstPagePerChannel, CHATS_PAGE_SIZE);
         if (generation !== chatsGenerationRef.current) return; // filtros cambiaron mientras tanto
-        setChats(items);
+        // El chat abierto sobrevive a la recarga: al elegirlo desde la búsqueda
+        // se limpia el texto y la lista vuelve a los más recientes, donde un
+        // chat antiguo ya no cabe; sin esto el hilo se quedaba vacío.
+        setChats((previous) => keepOpenChat(previous, items, selectedChatIdRef.current));
         setChatsTotal(total);
       } catch (error) {
         if (generation === chatsGenerationRef.current) {
@@ -1377,7 +1391,7 @@ export function ChatWorkspace({
     const q = search.toLowerCase();
     return (
       (c.name?.toLowerCase().includes(q)) ||
-      c.remoteJid.includes(q) ||
+      handleMatches(c.remoteJid, search.trim()) ||
       c.lastMessage?.toLowerCase().includes(q)
     );
   });

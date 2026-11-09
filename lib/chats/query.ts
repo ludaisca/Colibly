@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { phoneDigitsOf } from "./search-terms";
 import { CHAT_ATTRIBUTION_MESSAGE_QUERY, resolveChatAttribution } from "@/lib/whatsapp/chat-attribution";
 import { slaBreachFlags } from "@/lib/sla/rules";
 
@@ -75,6 +76,7 @@ export function buildWaChatWhere(filters: ChatListFilters, accountIds: string[])
     where.OR = [
       { name: { contains: filters.search, mode: "insensitive" } },
       { remoteJid: { contains: filters.search } },
+      ...(phoneDigitsOf(filters.search) ? [{ remoteJid: { contains: phoneDigitsOf(filters.search) as string } }] : []),
       { lastMessage: { contains: filters.search, mode: "insensitive" } },
     ];
   }
@@ -121,6 +123,7 @@ export function buildChannelChatWhere(
     where.OR = [
       { name: { contains: filters.search, mode: "insensitive" } },
       { externalId: { contains: filters.search } },
+      ...(phoneDigitsOf(filters.search) ? [{ externalId: { contains: phoneDigitsOf(filters.search) as string } }] : []),
       { lastMessage: { contains: filters.search, mode: "insensitive" } },
     ];
   }
