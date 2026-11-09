@@ -301,11 +301,14 @@ export default function LandingPage() {
             <nav aria-label="Guías" className="mt-8">
               <p className="text-sm font-semibold text-foreground">Guías</p>
               <ul className="mt-2 space-y-1.5">
-                {GUIDES.map((g) => (
+                {GUIDES.slice(0, 5).map((g) => (
                   <li key={g.slug}>
                     <a href={`/${g.slug}`} className="inline-flex min-h-11 items-center font-medium text-accent-ink underline underline-offset-4 md:min-h-0">{g.title}</a>
                   </li>
                 ))}
+                <li>
+                  <a href="/guias" className="inline-flex min-h-11 items-center font-medium text-accent-ink underline underline-offset-4 md:min-h-0">Todas las guías</a>
+                </li>
               </ul>
             </nav>
           </div>

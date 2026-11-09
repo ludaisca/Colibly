@@ -19,7 +19,12 @@ export type Guide = {
   sections: { heading: string; paragraphs?: string[]; bullets?: string[] }[];
   faq: { q: string; a: string }[];
   related: string[];
+  /** Última revisión del contenido (AAAA-MM-DD): sitemap y JSON-LD. Se actualiza al editar la guía. */
+  updated: string;
 };
+
+/** Fecha de revisión de las guías iniciales. */
+const REVIEWED = "2026-11-09";
 
 export const GUIDES: Guide[] = [
   {
@@ -66,6 +71,7 @@ export const GUIDES: Guide[] = [
       { q: "¿Cuánto cuesta?", a: `Desde $${OFFER_FROM_MXN} MXN por usuario al mes. Los primeros ${TRIAL_DAYS} días son gratis, sin tarjeta.` },
     ],
     related: ["chatbot-whatsapp-ia", "whatsapp-business-app-vs-api", "precio-whatsapp-business-api"],
+    updated: REVIEWED,
   },
   {
     slug: "chatbot-whatsapp-ia",
@@ -103,6 +109,7 @@ export const GUIDES: Guide[] = [
       { q: "¿Qué licencia necesito?", a: `El bot que responde solo viene con las licencias Avanzado y Pro. Puedes probarlo ${TRIAL_DAYS} días sin tarjeta.` },
     ],
     related: ["crm-whatsapp", "whatsapp-business-api-coexistencia"],
+    updated: REVIEWED,
   },
   {
     slug: "whatsapp-business-api-coexistencia",
@@ -139,6 +146,7 @@ export const GUIDES: Guide[] = [
       { q: "¿Cuántos números puedo conectar?", a: "Cada licencia incluye un número de WhatsApp (además de Instagram, Messenger, Telegram y chat web)." },
     ],
     related: ["crm-whatsapp", "chatbot-whatsapp-ia"],
+    updated: REVIEWED,
   },
   {
     slug: "whatsapp-business-app-vs-api",
@@ -179,6 +187,7 @@ export const GUIDES: Guide[] = [
       { q: "¿Puedo usar un bot con la app WhatsApp Business?", a: "La app solo permite mensajes automáticos sencillos (bienvenida y ausencia). Un bot que conteste preguntas requiere la API." },
     ],
     related: ["whatsapp-business-api-coexistencia", "precio-whatsapp-business-api"],
+    updated: REVIEWED,
   },
   {
     slug: "precio-whatsapp-business-api",
@@ -215,6 +224,176 @@ export const GUIDES: Guide[] = [
       { q: "¿Hay costo de instalación?", a: `No cobramos instalación. Creas tu cuenta, conectas tu número y pruebas ${TRIAL_DAYS} días sin tarjeta.` },
     ],
     related: ["whatsapp-business-app-vs-api", "crm-whatsapp"],
+    updated: REVIEWED,
+  },
+  {
+    slug: "respuestas-automaticas-whatsapp",
+    title: "Respuestas automáticas en WhatsApp",
+    h1: "Respuestas automáticas en WhatsApp: bienvenida, fuera de horario y seguimiento",
+    description: `Cómo automatizar respuestas en WhatsApp: mensaje de bienvenida, aviso fuera de horario, respuestas rápidas, bot de IA y seguimientos. Todo en ${BRAND_NAME}, ${TRIAL_DAYS} días gratis.`,
+    intro: "Contestar rápido es lo que más pesa en una venta por chat. Automatizar lo repetitivo te deja el tiempo para lo que sí necesita a una persona. Estas son las formas de hacerlo, de la más sencilla a la más completa.",
+    sections: [
+      {
+        heading: "Aviso fuera de horario",
+        paragraphs: [
+          "Defines tu horario de atención y un texto. Si alguien escribe fuera de ese horario, recibe tu aviso una vez, no en cada mensaje, y el chat queda esperando a tu equipo. Si tienes un bot activo, contesta el bot.",
+        ],
+      },
+      {
+        heading: "Respuestas rápidas",
+        paragraphs: [
+          "Guardas los textos que repites (precios, ubicación, formas de pago) y los insertas en un clic mientras atiendes. No son automáticas: ahorran tiempo a tu equipo y mantienen la misma redacción.",
+        ],
+      },
+      {
+        heading: "Automatizaciones y seguimientos",
+        bullets: [
+          "Respuestas que se disparan con una palabra clave o con el primer mensaje de un cliente.",
+          "Secuencias de seguimiento: una serie de mensajes con pausas entre ellos, que se detiene si el cliente responde.",
+          "Acciones al cambiar la etapa de una venta, al etiquetar un contacto o al completar una cita.",
+        ],
+      },
+      {
+        heading: "Bot de IA",
+        paragraphs: [
+          "Cuando las preguntas son variadas, un bot de IA contesta con la información de tu negocio y pasa el chat a una persona si hace falta. Las automatizaciones y el bot vienen con las licencias Avanzado y Pro.",
+        ],
+      },
+    ],
+    faq: [
+      { q: "¿WhatsApp permite mandar mensajes automáticos?", a: "Sí, con la API oficial. Los mensajes que inicias tú fuera de la ventana de 24 horas deben ser plantillas aprobadas por Meta." },
+      { q: "¿El aviso fuera de horario se manda en cada mensaje?", a: "No. Se envía una vez y respeta un tiempo de espera antes de repetirse." },
+      { q: "¿Puedo pausar la automatización si quiero contestar yo?", a: "Sí. Cuando una persona de tu equipo responde, el bot y las automatizaciones conversacionales se pausan en ese chat." },
+    ],
+    related: ["chatbot-whatsapp-ia", "crm-whatsapp"],
+    updated: REVIEWED,
+  },
+  {
+    slug: "agendar-citas-whatsapp",
+    title: "Agendar citas por WhatsApp",
+    h1: "Agendar citas por WhatsApp sin perder el hilo de la conversación",
+    description: `Lleva la agenda de citas junto al chat de cada cliente: quién tiene cita, con quién y en qué estado. Agenda, seguimiento y aviso al equipo con ${BRAND_NAME}.`,
+    intro: "Muchas citas se acuerdan por WhatsApp y se anotan en otra parte, donde se olvidan. Si la cita vive en la ficha del mismo contacto que te escribió, nada se pierde entre el chat y la agenda.",
+    sections: [
+      {
+        heading: "La cita junto al cliente",
+        bullets: [
+          "Agendas la cita desde la ficha del contacto, con fecha, duración y notas.",
+          "Cada cita se asigna a una persona del equipo.",
+          "Ves la agenda del día y lo que viene, con filtros por persona y estado.",
+          "Estados: programada, completada, cancelada o no asistió; las canceladas guardan el motivo.",
+        ],
+      },
+      {
+        heading: "Avisos y seguimiento",
+        paragraphs: [
+          "Antes de cada cita, la persona asignada recibe un aviso dentro del sistema con la anticipación que elijas. Al completar la cita puedes disparar un seguimiento automático, por ejemplo un mensaje para pedir una opinión o proponer la siguiente visita.",
+        ],
+      },
+      {
+        heading: "Para quién sirve",
+        paragraphs: [
+          "Consultorios, spas, salones, talleres, escuelas y cualquier negocio que atienda con cita. El calendario y las citas están incluidos desde la licencia Básica.",
+        ],
+      },
+    ],
+    faq: [
+      { q: "¿Los clientes reciben un recordatorio de su cita?", a: "El aviso previo llega a la persona del equipo asignada. Para escribirle al cliente puedes usar una secuencia de seguimiento al completar la cita." },
+      { q: "¿Puedo ver las citas de todo el equipo?", a: "Los administradores ven las citas de toda la organización y los ejecutivos, las que tienen asignadas." },
+      { q: "¿Hay que pagar aparte por el calendario?", a: "No. Las citas vienen en todas las licencias." },
+    ],
+    related: ["crm-whatsapp", "respuestas-automaticas-whatsapp"],
+    updated: REVIEWED,
+  },
+  {
+    slug: "crm-whatsapp-clinicas",
+    title: "CRM de WhatsApp para clínicas y consultorios",
+    h1: "CRM de WhatsApp para clínicas y consultorios",
+    description: `Atiende pacientes por WhatsApp, lleva citas y da seguimiento desde una bandeja compartida. ${BRAND_NAME}: para consultorios y clínicas, ${TRIAL_DAYS} días gratis.`,
+    intro: "En un consultorio, WhatsApp es la recepción: citas, dudas de precio, reprogramaciones y seguimiento. Un CRM ordena esos chats para que ninguno se quede sin respuesta y toda la recepción vea lo mismo.",
+    sections: [
+      {
+        heading: "Qué resuelve en una clínica",
+        bullets: [
+          "Una bandeja para toda la recepción, con chats asignados a una persona o a un equipo (por ejemplo, Recepción y Facturación).",
+          "Agenda de citas ligada al paciente, con estados y aviso previo al equipo.",
+          "Etiquetas para clasificar (primera vez, seguimiento, especialidad).",
+          "Seguimiento después de la consulta con mensajes programados.",
+          "Un bot que contesta horarios, ubicación y precios de consulta, y deja lo clínico a tu equipo.",
+        ],
+      },
+      {
+        heading: "Sobre los datos de tus pacientes",
+        paragraphs: [
+          `Cada empresa tiene su propio espacio aislado y las credenciales se guardan cifradas. Lo que tus pacientes te comparten por chat es información personal: usa un aviso de privacidad propio y evita pedir por WhatsApp datos clínicos que no necesites. ${BRAND_NAME} no sustituye tus obligaciones de protección de datos.`,
+        ],
+      },
+    ],
+    faq: [
+      { q: "¿Puede el bot dar diagnósticos?", a: "No es su función. Se configura para contestar información de tu consultorio (horarios, ubicación, precios) y pasar a una persona lo demás." },
+      { q: "¿Mi recepción puede trabajar en equipo?", a: "Sí. Varias personas atienden la misma bandeja y los chats se reparten por persona o por equipo." },
+      { q: "¿Sirve para un consultorio de una sola persona?", a: `Sí. Con una licencia atiendes tus chats y llevas tus citas. Pruébalo ${TRIAL_DAYS} días sin tarjeta.` },
+    ],
+    related: ["agendar-citas-whatsapp", "chatbot-whatsapp-ia"],
+    updated: REVIEWED,
+  },
+  {
+    slug: "crm-whatsapp-spas-y-belleza",
+    title: "CRM de WhatsApp para spas y salones de belleza",
+    h1: "CRM de WhatsApp para spas, salones y negocios de belleza",
+    description: `Responde precios, agenda citas y da seguimiento a tus clientas por WhatsApp desde una bandeja. ${BRAND_NAME} para spas y salones, ${TRIAL_DAYS} días gratis.`,
+    intro: "Un spa o un salón vive de la agenda llena. La mayoría de las clientas preguntan precio y horario por WhatsApp, a cualquier hora. Responder rápido y dar seguimiento es lo que convierte esa pregunta en una cita.",
+    sections: [
+      {
+        heading: "Cómo se usa en un spa o salón",
+        bullets: [
+          "El bot contesta precios, duración de los servicios y horarios con la información que le das, también fuera de horario.",
+          "La recepción toma el chat cuando la clienta quiere agendar, y la cita queda en su ficha.",
+          "Etiquetas por servicio de interés y por tipo de clienta.",
+          "Seguimiento automático después de la cita, y difusiones con plantillas aprobadas para avisar de promociones (licencias Avanzado y Pro).",
+          "Instagram y Messenger en la misma bandeja que WhatsApp, para no perder a quien escribe por ahí.",
+        ],
+      },
+    ],
+    faq: [
+      { q: "¿El bot puede decir los precios de mis servicios?", a: "Sí, siempre que se los des en su base de conocimiento. Contesta con lo que sabe de tu negocio." },
+      { q: "¿Puedo mandar promociones a mis clientas?", a: "Con las licencias Avanzado y Pro puedes hacer difusiones de WhatsApp con plantillas aprobadas por Meta. Meta cobra algunos de esos mensajes." },
+      { q: "¿Puedo atender también Instagram?", a: "Sí. Cada licencia incluye un Instagram y un Messenger además del WhatsApp." },
+    ],
+    related: ["agendar-citas-whatsapp", "chatbot-whatsapp-ia"],
+    updated: REVIEWED,
+  },
+  {
+    slug: "crm-whatsapp-tiendas",
+    title: "CRM de WhatsApp para tiendas y ventas en línea",
+    h1: "CRM de WhatsApp para tiendas y negocios que venden por chat",
+    description: `Atiende preguntas de producto, da seguimiento a cada venta y no pierdas pedidos por WhatsApp, Instagram y Messenger. ${BRAND_NAME} para tiendas, ${TRIAL_DAYS} días gratis.`,
+    intro: "Quien vende por chat recibe preguntas de producto, tallas, envíos y pagos en varios canales a la vez. Sin un sistema, los pedidos se enfrían entre mensajes. Con un CRM, cada cliente tiene su historial y cada venta, su etapa.",
+    sections: [
+      {
+        heading: "Cómo ayuda a una tienda",
+        bullets: [
+          "WhatsApp, Instagram, Messenger, Telegram y el chat de tu sitio llegan a una sola bandeja.",
+          "Embudo de ventas para ver qué pedidos están en conversación, por cerrar o cerrados.",
+          "Etiquetas y campos personalizados para guardar lo que importa (talla, ciudad, producto de interés).",
+          "El bot responde preguntas frecuentes (envíos, formas de pago, horarios) y tu equipo cierra la venta.",
+          "Seguimiento a quienes preguntaron y no compraron, y reportes de atención y de ventas.",
+        ],
+      },
+      {
+        heading: "Para quién conviene",
+        paragraphs: [
+          "Tiendas físicas con venta por chat, marcas que venden por Instagram y emprendimientos que atienden desde el celular y están por sumar a más personas al equipo.",
+        ],
+      },
+    ],
+    faq: [
+      { q: "¿Tiene carrito de compra o catálogo?", a: `No. ${BRAND_NAME} es un CRM y una bandeja para atender y dar seguimiento; el cobro y el inventario los llevas en tu sistema actual.` },
+      { q: "¿Se conecta con otros sistemas?", a: "Con las licencias Pro tienes API y webhooks para conectarlo con tu tienda u otras herramientas." },
+      { q: "¿Cuántos canales incluye cada licencia?", a: "Un WhatsApp, un Instagram, un Messenger, un Telegram y un chat web por persona." },
+    ],
+    related: ["crm-whatsapp", "respuestas-automaticas-whatsapp"],
+    updated: REVIEWED,
   },
 ];
 

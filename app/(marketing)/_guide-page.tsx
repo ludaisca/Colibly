@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BRAND_NAME } from "@/lib/brand";
-import { appUrl } from "@/lib/app-url";
+import { appUrl, siteUrl } from "@/lib/app-url";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { Button } from "@/app/components/ui/button";
 import { breadcrumbJson } from "@/lib/seo/site-schema";
@@ -26,6 +26,21 @@ function faqJson(slug: string): string {
   }).replace(/</g, "\\u003c");
 }
 
+function articleJson(slug: string): string {
+  const g = guideBySlug(slug);
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: g.h1,
+    description: g.description,
+    inLanguage: "es-MX",
+    mainEntityOfPage: siteUrl(`/${g.slug}`),
+    dateModified: g.updated,
+    author: { "@id": siteUrl("/#organization") },
+    publisher: { "@id": siteUrl("/#organization") },
+  }).replace(/</g, "\\u003c");
+}
+
 export function GuidePage({ slug }: { slug: string }) {
   const g = guideBySlug(slug);
   const related = g.related.map((s) => guideBySlug(s));
@@ -33,6 +48,7 @@ export function GuidePage({ slug }: { slug: string }) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJson([{ name: g.title, path: `/${g.slug}` }]) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqJson(slug) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleJson(slug) }} />
       <InfoPage title={g.h1} intro={g.intro}>
         {g.sections.map((s) => (
           <section key={s.heading}>
@@ -73,6 +89,7 @@ export function GuidePage({ slug }: { slug: string }) {
             {related.map((r) => (
               <li key={r.slug}><a href={`/${r.slug}`} className={LINK}>{r.title}</a></li>
             ))}
+            <li><a href="/guias" className={LINK}>Todas las guías</a></li>
             <li><a href="/precios" className={LINK}>Planes y precios</a></li>
           </ul>
         </section>
