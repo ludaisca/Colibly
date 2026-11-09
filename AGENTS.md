@@ -30,7 +30,7 @@ Plans, audits and launch status: [`docs/README.md`](docs/README.md).
 - **NextAuth v5** beta (Credentials + JWT only, no adapter)
 - **Prisma 5** (PostgreSQL 16 + pgvector)
 - **Redis 7** + **BullMQ** (job queues)
-- React 19, lucide-react, zod, bcryptjs, next-themes, openai, @google/generative-ai, ioredis, recharts, @dnd-kit/core
+- React 19, lucide-react, zod, bcryptjs, openai, @google/generative-ai, ioredis, recharts, @dnd-kit/core
 - Channels: WhatsApp Cloud API (multimodal in/out), Telegram, Messenger/Instagram (page-linked Graph API), own web widget.
 
 ## Development

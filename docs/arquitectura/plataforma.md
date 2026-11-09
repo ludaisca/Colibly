@@ -28,7 +28,7 @@ Daily full backup of the whole database (all organizations) to S3-compatible sto
 - **The image needs `pg_dump` 16** (`postgresql16-client` in the Dockerfile `base` stage, same major as `pgvector/pgvector:pg16`); upgrading PostgreSQL means upgrading the client too. In the dev stack, a recreated app container built from an old image needs `apk add postgresql16-client` until the image is rebuilt.
 - **External dead-man switch**: `GET /api/health/respaldos` (public, outside `/api/health` on purpose — that one is the container healthcheck and must never go 503 because of a late backup) answers 200 only when the last SUCCESS run is < 36 h old (`freshness.ts`), else 503 `stale`/`never`/`disabled`; it exposes no dates or sizes. Point an uptime monitor at it.
 - **Not in the backup: `ENCRYPTION_KEY`.** Every secret in the database is encrypted with it; keep it (and `AUTH_SECRET`) outside the server.
-- Tested end to end by `dev/coexistencia/pruebas/04-respaldos.cjs` against a local S3 (versitygw in the isolated dev stack): config/validation, encryption at rest, connection test, real `pg_restore` into an empty database with row-count comparison, overwrite semantics, mid-stream failure, media tar, bad credentials, tick/retry/alert.
+- Was tested end to end by `dev/coexistencia/pruebas/04-respaldos.cjs` (removed from the repo on 2026-11-08 with the other dev experiments; in git history) against a local S3 (versitygw in the isolated dev stack): config/validation, encryption at rest, connection test, real `pg_restore` into an empty database with row-count comparison, overwrite semantics, mid-stream failure, media tar, bad credentials, tick/retry/alert.
 
 #### Platform API and remote MCP (since 2026-10-30)
 

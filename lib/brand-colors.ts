@@ -17,6 +17,9 @@ export const BRAND_COLORS = {
   background: "#F3F6F8", // --ink-25: neutro frío (sin tinte cielo)
   andenConcrete: "#F3F4F2", // Andén (panel): fondo de día — copia de globals.css
   andenNight: "#0F1113", // Andén (panel): fondo de noche
+  andenInk: "#15171A", // Andén: tinta (texto y selección)
+  andenHairline: "#DCDFDB", // Andén: filete
+  andenBubbleOut: "#D5EEF4", // Andén: burbuja saliente (--bubble-out)
   surfaceLight: "#ECF0F3", // --ink-50
   border: "#D5DCE3", // --ink-100
   surface: "#FFFFFF",

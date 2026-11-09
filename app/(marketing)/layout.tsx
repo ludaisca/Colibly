@@ -8,9 +8,9 @@ import { Analytics, CookiePreferencesButton } from "@/app/components/analytics/a
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { LEGAL } from "./_legal";
-import { PromoPopup } from "./_promo-popup";
 import { SiteMobileNav } from "@/app/components/ui/site-mobile-nav";
 import { appUrl } from "@/lib/app-url";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 
 const MOBILE_LINKS = [
   { href: "/#producto", label: "Producto" },
@@ -40,8 +40,9 @@ function landingWebchatAccountId(): string | null {
 const contactEmail = LEGAL.email.startsWith("[") ? null : LEGAL.email;
 
 // Sitio público: landing, términos y privacidad. Sin sesión ni shell del panel.
-// Sigue el tema de next-themes (claro por defecto; toggle en el header).
-// Los hex de marca viven en los primitivos; .dark solo remapea semánticos.
+// Mundo Andén desde 2026-11-08 (el marcador vive en app/layout.tsx): lo que se
+// ve aquí es lo que se recibe al entrar.
+// Sigue el tema de la app (theme-provider.tsx) (claro por defecto; toggle en el header).
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   // Los ids de medición viven en PlatformSettings y se leen por petición.
   // Evita consultar PostgreSQL al prerenderizar el build aislado.
@@ -57,10 +58,10 @@ export default async function MarketingLayout({ children }: { children: React.Re
       >
         Saltar al contenido principal
       </a>
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-sm">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface">
         <div className="relative mx-auto flex max-w-6xl items-center gap-1.5 px-3 py-2 min-[400px]:gap-2 min-[400px]:px-4 md:gap-4 md:px-6">
           <Logo href="/" className="min-w-0 shrink max-[360px]:[&_span.font-display]:sr-only" />
-          <nav className="ml-auto hidden items-center gap-5 text-sm text-muted lg:gap-6 md:flex" aria-label="Secciones">
+          <nav className="ml-auto hidden items-center gap-5 text-[15px] font-medium text-muted-darker lg:gap-6 md:flex" aria-label="Secciones">
             <Link href="/#producto" className="hover:text-foreground">Producto</Link>
             <Link href="/#como-funciona" className="whitespace-nowrap hover:text-foreground">Cómo funciona</Link>
             <Link href="/precios" className="hover:text-foreground">Precios</Link>
@@ -77,19 +78,19 @@ export default async function MarketingLayout({ children }: { children: React.Re
               data-track-location="header"
               className="!h-9 !px-3 !text-xs min-[400px]:!h-10 min-[400px]:!px-4 min-[400px]:!text-sm"
             >
-              Probar 14 días
+              Probar {TRIAL_DAYS} días
             </Button>
             <span className="hidden sm:contents">
               <ThemeToggle />
             </span>
-            <SiteMobileNav links={MOBILE_LINKS} loginHref={appUrl("/login")} ctaHref="/register" ctaLabel="Prueba 14 días de Pro" trackLocation="menu" label="Menú principal" />
+            <SiteMobileNav links={MOBILE_LINKS} loginHref={appUrl("/login")} ctaHref="/register" ctaLabel={`Prueba ${TRIAL_DAYS} días de Pro`} trackLocation="menu" label="Menú principal" />
           </div>
         </div>
       </header>
 
       <main id="contenido-principal" tabIndex={-1} className="scroll-mt-20">{children}</main>
 
-      <footer className="border-t border-border/60">
+      <footer className="border-t border-border bg-surface">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted-strong sm:grid-cols-2 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))] lg:px-6 md:px-6">
           <div className="space-y-3 sm:col-span-2 lg:col-span-1">
             <Logo href="/" />
@@ -118,12 +119,11 @@ export default async function MarketingLayout({ children }: { children: React.Re
             <a href={appUrl("/login")} className={FOOTER_LINK}>Entrar al producto</a>
           </nav>
         </div>
-        <div className="border-t border-border/60">
+        <div className="border-t border-border">
           <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-muted-strong md:px-6">© {new Date().getFullYear()} {BRAND_NAME}</p>
         </div>
       </footer>
 
-      <PromoPopup />
       {analytics && <Analytics config={analytics} />}
       {webchatId && <Script src={`/api/webchat/${webchatId}/widget.js`} strategy="lazyOnload" />}
     </div>

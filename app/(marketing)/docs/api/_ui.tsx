@@ -15,10 +15,16 @@ export function SubHeading({ children }: { children: React.ReactNode }) {
 }
 
 // Bloque de código en grafito, con scroll propio para que una línea larga no
-// rompa el ancho en el celular. El botón de copiar deja aire arriba.
+// rompa el ancho en el celular. El botón de copiar deja aire arriba. Enfocable
+// (tabIndex) para poder desplazarlo con el teclado (WCAG 2.1.1, axe
+// scrollable-region-focusable). Monoespaciada real: en el mundo Andén
+// `font-mono` apunta a Barlow.
 export function Code({ children }: { children: string }) {
   return (
-    <pre className="relative mt-2 max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-code px-3 pb-3 pt-10 font-mono text-[12px] leading-relaxed text-code-foreground sm:px-4 sm:text-[13px]">
+    <pre
+      tabIndex={0}
+      aria-label="Ejemplo de código"
+      className="relative mt-2 max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-code px-3 pb-3 pt-10 font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] text-[12px] leading-relaxed text-code-foreground sm:px-4 sm:text-[13px]">
       <CopyButton text={children} />
       <code>{children}</code>
     </pre>
@@ -27,7 +33,7 @@ export function Code({ children }: { children: string }) {
 
 export function ParamTable({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   return (
-    <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-border">
+    <div tabIndex={0} role="region" aria-label="Tabla de parámetros" className="mt-3 max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-border">
       <table className="w-full min-w-[28rem] border-collapse text-left text-sm sm:min-w-[32rem]">
         <thead className="bg-surface-light text-muted-strong">
           <tr>{head.map((h) => <th key={h} scope="col" className="px-2.5 py-2 font-semibold sm:px-3">{h}</th>)}</tr>

@@ -43,11 +43,13 @@ export function CardHeader({ className, children }: { className?: string; childr
   );
 }
 
-export function CardTitle({ className, children }: { className?: string; children: React.ReactNode }) {
+// `as` cambia solo el nivel del encabezado (p. ej. "h1" cuando la tarjeta es
+// el contenido principal de la página, como en las de acceso); el aspecto no cambia.
+export function CardTitle({ className, children, as: Tag = "h3" }: { className?: string; children: React.ReactNode; as?: "h1" | "h2" | "h3" }) {
   return (
-    <h3 className={cn("text-base font-semibold tracking-tight text-foreground", className)}>
+    <Tag className={cn("text-base font-semibold tracking-tight text-foreground", className)}>
       {children}
-    </h3>
+    </Tag>
   );
 }
 

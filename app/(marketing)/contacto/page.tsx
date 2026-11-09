@@ -40,8 +40,8 @@ export default function ContactPage() {
         <li>Si el problema es con WhatsApp, el número que intentas conectar.</li>
       </ul>
 
-      <div className="flex gap-3 rounded-xl border border-accent-muted bg-accent-subtle p-4 text-sm">
-        <ShieldCheck size={18} className="mt-0.5 shrink-0 text-accent-ink" aria-hidden />
+      <div className="flex gap-3 rounded-xl border border-border bg-surface p-4 text-sm">
+        <ShieldCheck size={18} className="mt-0.5 shrink-0 text-foreground" aria-hidden />
         <p className="min-w-0 text-pretty">Nunca te pediremos tu contraseña, códigos de verificación ni tokens por correo o chat. Si alguien lo hace en nombre de {BRAND_NAME}, no lo compartas y avísanos.</p>
       </div>
 

@@ -80,7 +80,7 @@ function AcceptInvitation() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{invitation ? `Únete a ${invitation.organizationName}` : "Invitación"}</CardTitle>
+          <CardTitle as="h1">{invitation ? `Únete a ${invitation.organizationName}` : "Invitación"}</CardTitle>
         </CardHeader>
         <CardBody>
           {loadError ? (

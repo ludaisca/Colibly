@@ -3,7 +3,7 @@ import { BRAND_COLORS } from "./brand-colors";
 // Marca "Nexo" (C anular + triángulo al este) en colores fijos, para lo que no
 // lee los tokens CSS: favicon (app/icon.svg), ícono de iOS e imágenes para
 // compartir. El componente con tokens es BrandMark en app/components/ui/logo.tsx.
-// Master y variantes: tmp/logo-design/kit/
+// Este archivo es el maestro del logo (el kit de exportaciones viejo se quitó del repo el 2026-11-08; queda en el historial de git).
 export const BRAND_MARK_BG = BRAND_COLORS.accent;
 export const BRAND_MARK_FG = BRAND_COLORS.onAccent;
 /** Path relleno, viewBox 0 0 32 32 — usar con fillRule="evenodd". */

@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recuperar contraseña</CardTitle>
+          <CardTitle as="h1">Recuperar contraseña</CardTitle>
         </CardHeader>
         <CardBody>
           {sent ? (
@@ -70,14 +70,14 @@ export default function ForgotPasswordPage() {
                 Escribe el correo con el que entras y te mandaremos un enlace para restablecer tu contraseña.
               </p>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <FormField label="Email" required error={fieldError}>
+                <FormField label="Correo electrónico" required error={fieldError}>
                   {(id) => (
                     <Input
                       id={id}
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="tu@email.com"
+                      placeholder="tu@correo.com"
                       autoComplete="email"
                       error={fieldError}
                     />

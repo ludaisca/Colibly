@@ -1,8 +1,10 @@
 # Tipografía Colibly
 
-Decisión **2026-10-25** (laboratorio `/marca/tipografia`).
+Decisión **2026-10-25** (laboratorio `/marca/tipografia`, quitado el 2026-11-08).
 
 ## En producción
+
+> **2026-11-08:** toda la app usa **Barlow** (texto) y **Barlow Condensed** (títulos y cifras) del mundo Andén (`DESIGN.md`, `docs/arquitectura/frontend.md`). Newsreader + Figtree ya no se cargan; la tabla de abajo queda como historial.
 
 | Rol | Fuente | Token / clase |
 |---|---|---|
@@ -26,4 +28,4 @@ Nombre en el laboratorio: **Geométrica viva**. No está cargada en producción;
 
 ## Laboratorio
 
-`/marca/tipografia` — comparación de pares (no indexado). Ahí sigue el histórico y la reserva marcados.
+El laboratorio `/marca/tipografia` (comparación de pares) se quitó del repo el 2026-11-08; queda en el historial de git.

@@ -3,31 +3,17 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { appUrl, siteUrl } from "@/lib/app-url";
 import { requestHost } from "@/lib/request-host";
-import { Barlow, Barlow_Condensed, Figtree, Newsreader } from "next/font/google";
-import { ThemeProvider } from "next-themes";
+import { Barlow, Barlow_Condensed } from "next/font/google";
+import { THEME_INIT_SCRIPT } from "@/app/components/theme-provider";
 import "./globals.css";
 import { Providers } from "./providers";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { BRAND_COLORS } from "@/lib/brand-colors";
 
-// Tipografía de marca (2026-10-25): Newsreader (display) + Figtree (body).
-// Reserva documentada: Syne + DM Sans — ver docs/TIPOGRAFIA.md.
-const newsreader = Newsreader({
-  variable: "--font-display",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const figtree = Figtree({
-  variable: "--font-body",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-// Mundo "Andén" del panel (2026-11-07, docs/arquitectura/frontend.md):
-// Barlow para todo y Barlow Condensed para títulos y cifras del tablero. Solo
-// el panel lo activa (globals.css, `:root:has([data-world="anden"])`); la
-// landing sigue con Newsreader + Figtree.
+// Mundo "Andén" (2026-11-07, docs/arquitectura/frontend.md): Barlow para todo
+// y Barlow Condensed para títulos y cifras. Desde 2026-11-08 cubre toda la app
+// (panel, sitio público, autenticación, CSAT, 404) con el marcador de abajo;
+// Newsreader + Figtree ya no se cargan.
 const barlow = Barlow({
   variable: "--font-barlow",
   subsets: ["latin"],
@@ -42,12 +28,11 @@ const barlowCondensed = Barlow_Condensed({
   display: "swap",
 });
 
-// Color de la barra del navegador móvil (paleta "Laguna"); en modo oscuro,
-// el fondo noche del tema.
+// Color de la barra del navegador móvil: concreto de día, andén de noche.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: BRAND_COLORS.accent },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: BRAND_COLORS.andenConcrete },
+    { media: "(prefers-color-scheme: dark)", color: BRAND_COLORS.andenNight },
   ],
 };
 
@@ -76,13 +61,17 @@ export default function RootLayout({
     <html
       lang="es"
       data-scroll-behavior="smooth"
-      className={`${newsreader.variable} ${figtree.variable} ${barlow.variable} ${barlowCondensed.variable} antialiased`}
+      className={`${barlow.variable} ${barlowCondensed.variable} antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Aplica el tema guardado antes de pintar (app/components/theme-provider.tsx). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-dvh flex flex-col bg-background text-foreground">
-        <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange>
-          <Providers>{children}</Providers>
-        </ThemeProvider>
+        {/* Activa el mundo Andén en toda la app (globals.css, `:has([data-world="anden"])`). */}
+        <span data-world="anden" hidden />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

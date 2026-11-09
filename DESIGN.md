@@ -22,6 +22,8 @@ colors:
   lamp-red: "#B42318"
   success: "#17663F"
   info: "#1D5FBF"
+  bubble-out: "#D5EEF4"
+  night-bubble-out: "#0A3D4B"
 typography:
   display:
     fontFamily: "Barlow Condensed, system-ui, sans-serif"
@@ -62,6 +64,33 @@ typography:
     fontSize: "1rem"
     fontWeight: 700
     fontFeature: "\"tnum\""
+  site-hero:
+    fontFamily: "Barlow Condensed, system-ui, sans-serif"
+    fontSize: "5rem"
+    fontWeight: 700
+    lineHeight: 0.98
+    letterSpacing: "-0.015em"
+  site-headline:
+    fontFamily: "Barlow Condensed, system-ui, sans-serif"
+    fontSize: "3.5rem"
+    fontWeight: 700
+    lineHeight: 1.02
+    letterSpacing: "-0.01em"
+  site-title:
+    fontFamily: "Barlow Condensed, system-ui, sans-serif"
+    fontSize: "2.25rem"
+    fontWeight: 700
+    lineHeight: 1.05
+  site-lede:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "1.125rem"
+    fontWeight: 400
+    lineHeight: 1.6
+  bubble:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "0.9375rem"
+    fontWeight: 400
+    lineHeight: 1.375
 rounded:
   cell: "3px"
   control: "9px"
@@ -113,9 +142,33 @@ components:
     backgroundColor: "{colors.paper}"
     rounded: "{rounded.card}"
     padding: "16px"
+  thread-canvas:
+    backgroundColor: "{colors.concrete-raised}"
+    rounded: "{rounded.card}"
+    padding: "12px"
+  bubble-in:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    typography: "{typography.bubble}"
+    rounded: "{rounded.card}"
+  bubble-out:
+    backgroundColor: "{colors.bubble-out}"
+    textColor: "{colors.ink}"
+    typography: "{typography.bubble}"
+    rounded: "{rounded.card}"
+  quick-reply-primary:
+    backgroundColor: "{colors.laguna}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.control}"
+    height: "44px"
+  quick-reply:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.laguna-ink}"
+    rounded: "{rounded.control}"
+    height: "44px"
 ---
 
-<!-- Mundo "Andén" del panel, documentado desde lo construido en la rama feat/nueva-interfaz (2026-11-07). Fuente normativa de valores: app/globals.css (bloques :has([data-world="anden"])); contrato: .impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md. La landing (app/(marketing)) no usa este mundo: conserva Laguna + Newsreader/Figtree y tendrá su propia dirección. -->
+<!-- Mundo "Andén" del panel, documentado desde lo construido en la rama feat/nueva-interfaz (2026-11-07). Fuente normativa de valores: app/globals.css (bloques :has([data-world="anden"])); contrato: .impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md. Desde 2026-11-08 el sitio público (app/(marketing)) y la autenticación usan el mismo mundo en registro de venta; contrato: .impeccable/surfaces/app-marketing-page-tsx.md. -->
 
 # Design System: Colibly
 
@@ -135,6 +188,7 @@ Se rechazaron: la dirección editorial cálida (crema, serif, terracota, navegac
 - Selección en tinta (pestañas, chips, navegación activa); el teal Laguna solo para la acción principal y el foco.
 - Superficies blancas planas sobre concreto; la sombra queda para lo que flota.
 - Barra inferior en el celular: Chats, Contactos, Pipeline, Más.
+- En el sitio público, el mismo mundo en registro de venta: la página es una conversación (ver "El sitio público").
 
 ## Colors
 
@@ -220,6 +274,19 @@ Celdas de 3px, controles de 9px, filas de 8px, tarjetas de 12px y píldoras para
 ### Cards / KPIs
 - Papel con filete, 12px, planas; hover en `concrete-raised`.
 
+## El sitio público
+
+La landing, precios, contacto, legales y el registro llevan el mismo marcador `data-world="anden"` que el panel: lo que el visitante ve es lo que recibe al entrar. El registro cambia la escala y el ritmo, no el material.
+
+- **La página es una conversación.** Cada sección es un tramo del mismo hilo: lienzo de concreto alto (`thread-canvas`), burbujas del panel (`bubble-in` / `bubble-out`), separador de día en píldora («Hoy · 23:40»), notas de sistema centradas («Ana tomó el chat…») y respuestas rápidas a lo ancho. Texto a la izquierda, hilo a la derecha en escritorio; apilados en el teléfono.
+- **La acción es una respuesta rápida.** `quick-reply-primary` (Laguna, 44px) para la prueba; `quick-reply` (papel, filete, texto `laguna-ink`) para lo secundario y para las preguntas frecuentes, cuya respuesta abre como burbuja entrante.
+- **Escala de venta.** `site-hero` (2.75rem en el teléfono → 5rem), `site-headline` (2.25rem → 3.5rem), `site-title` (1.875rem → 2.25rem), `site-lede` (1rem → 1.125rem). Titulares en Barlow Condensed 700 con punto final; texto de burbuja a 15px.
+- **Un solo movimiento.** Los mensajes llegan en orden: el "escribiendo…" ocupa la celda de su burbuja (no mueve nada) y la burbuja aparece con desenfoque corto. La portada arranca con la página; los tramos de abajo, al entrar en vista. Sin JavaScript o con "reducir movimiento" todo está escrito. La acción principal nunca se anima.
+- **Datos de ejemplo, rotulados.** Toda conversación o lista es de ejemplo y lo dice («Conversación de ejemplo»). Nada de testimonios, logos ni cifras de uso.
+- **Destacado en tinta.** El plan recomendado lleva contorno de tinta y su insignia en tinta sólida; el selector de planes también. La lámpara ámbar aparece en el sitio solo donde hay espera (la bandeja de ejemplo y el cierre).
+
+**La regla del hilo.** Una sección nueva del sitio entra como tramo del hilo (mensajes, notas, respuestas rápidas) o como tabla de datos reales (precios); nunca como rejilla de tarjetas iguales ni banda con botón suelto.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -229,6 +296,7 @@ Celdas de 3px, controles de 9px, filas de 8px, tarjetas de 12px y píldoras para
 
 - **Do** conservar la barra de cita de WhatsApp (franja izquierda) dentro de la burbuja: es el modelo que la gente conoce. Es la única franja de color permitida dentro de un mensaje; está registrada como excepción del detector en `.impeccable/config.json`.
 - **Do** usar la escala de radios (3, 8, 9, 12 px y píldora) también en CSS a mano.
+- **Do** contar el sitio público como tramos del hilo, con la acción como respuesta rápida.
 
 ### Don't:
 - **Don't** poner etiquetas sobre los títulos.
@@ -236,3 +304,4 @@ Celdas de 3px, controles de 9px, filas de 8px, tarjetas de 12px y píldoras para
 - **Don't** agregar sombras o saltos a controles en reposo.
 - **Don't** usar referencias folclóricas o exclusivas de un país.
 - **Don't** usar Tailwind `dark:`; el tema lo controla la app.
+- **Don't** volver a halos, degradados, ventanas promocionales emergentes ni revelados por sección en el sitio.

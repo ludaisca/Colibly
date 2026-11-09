@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg fill="#0e7490" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 256" width="720" height="256" role="img" aria-labelledby="t"><title>Colibly</title>
-  <title id="t">Colibly lockup</title>
-  <g transform="translate(4,28) scale(0.78)" fill="#0e7490" fill-rule="evenodd">
-    <path d="M192.8 185.1A96 96 0 1 1 192.8 66.9L161.3 91.5A56 56 0 1 0 161.3 160.5ZM200.8 104.9L234.8 124.5L200.8 144.1Z"/>
-  </g>
-  <text x="230" y="168" fill="#0e7490" font-family="system-ui, sans-serif" font-size="92" font-weight="700" letter-spacing="-2">Colibly</text>
-</svg>

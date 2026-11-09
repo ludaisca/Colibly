@@ -39,11 +39,11 @@ const NOTES = [
 export default function PricingPage() {
   return (
     <div>
-      <header className="mx-auto max-w-3xl px-4 pt-10 text-center sm:pt-12 md:px-6 md:pt-16">
-        <h1 className="text-balance font-display text-page-title font-semibold tracking-tight sm:text-4xl">
-          Planes y precios
+      <header className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:px-6 md:pt-16">
+        <h1 className="text-balance font-display text-[2.75rem] font-bold leading-[0.98] tracking-[-0.015em] sm:text-6xl">
+          Planes y precios.
         </h1>
-        <p className="mt-4 text-pretty text-base leading-relaxed text-muted sm:text-lg">
+        <p className="mt-4 max-w-2xl text-pretty text-base leading-relaxed text-muted sm:text-lg">
           Cada persona de tu equipo paga una licencia, cada mes, en pesos: Básico $59, Avanzado $89 o Pro $149, y
           puedes mezclarlas. Empresarial es a la medida. Prueba {TRIAL_DAYS} días, sin tarjeta.
         </p>
@@ -53,20 +53,20 @@ export default function PricingPage() {
         <LandingOffer cta={CTA} compare />
       </div>
 
-      <section className="border-t border-border/60 bg-surface">
+      <section className="border-t border-border bg-surface">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:py-12 md:px-6 md:py-16">
-          <h2 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
+          <h2 className="font-display text-3xl font-bold leading-tight sm:text-4xl">
             Lo que conviene saber
           </h2>
           <ul className="mt-6 space-y-3 text-[15px] leading-relaxed text-foreground/90">
             {NOTES.map((note) => (
               <li key={note} className="flex gap-2.5">
-                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
+                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground" aria-hidden />
                 <span className="min-w-0 text-pretty">{note}</span>
               </li>
             ))}
             <li className="flex gap-2.5">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
+              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground" aria-hidden />
               <span className="min-w-0 text-pretty">
                 La prueba de {TRIAL_DAYS} días es para hasta {TRIAL_MAX_USERS} personas, todas con licencia Pro y{" "}
                 {TRIAL_AI_CREDITS_PER_USER.toLocaleString("es-MX")} créditos de IA cada una, sin tarjeta. La API (licencia Pro) está documentada en{" "}
@@ -77,7 +77,7 @@ export default function PricingPage() {
               </span>
             </li>
             <li className="flex gap-2.5">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent-strong" aria-hidden />
+              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground" aria-hidden />
               <span className="min-w-0 text-pretty">{META_FEES_NOTE}</span>
             </li>
           </ul>

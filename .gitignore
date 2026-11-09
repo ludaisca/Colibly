@@ -32,3 +32,8 @@ npm-debug.log*
 # Playwright MCP screenshots
 .playwright-mcp
 dev/qa/.state/
+
+# Impeccable: bocetos y capturas de trabajo (no van al repo)
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/build/

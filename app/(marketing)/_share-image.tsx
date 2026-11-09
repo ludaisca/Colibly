@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { BRAND_NAME } from "@/lib/brand";
 import { BRAND_MARK_BG, BRAND_MARK_FG, BRAND_MARK_PATH } from "@/lib/brand-mark";
@@ -20,28 +22,52 @@ export function BrandMarkSvg({ size }: { size: number }) {
   );
 }
 
-export function renderShareImage() {
+// Andén (2026-11-08): concreto, tinta y el mismo arranque de la portada (el
+// titular y un mensaje respondido). Sin etiqueta sobre el titular.
+// Barlow (OFL, public/fonts): la imagen no ve las fuentes de next/font. Vive en
+// public/ porque es lo que el Dockerfile copia a la imagen de producción.
+async function font(file: string) {
+  return readFile(join(process.cwd(), "public/fonts", file));
+}
+
+export async function renderShareImage() {
+  const [condensed, regular, semibold] = await Promise.all([
+    font("BarlowCondensed-Bold.ttf"),
+    font("Barlow-Regular.ttf"),
+    font("Barlow-SemiBold.ttf"),
+  ]);
   const minPrice = Math.min(...PLAN_LIST.map((p) => p.pricePerSeatMxn));
+  const bubble = { display: "flex", borderRadius: 18, padding: "14px 20px", fontSize: 26, lineHeight: 1.3, maxWidth: 360 } as const;
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "72px 80px", background: C.background, color: C.ink }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <BrandMarkSvg size={64} />
-          <span style={{ fontSize: 40, fontWeight: 700 }}>{BRAND_NAME}</span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <span style={{ fontSize: 30, fontWeight: 700, color: C.accentInk, textTransform: "uppercase", letterSpacing: 2 }}>CRM de WhatsApp con IA</span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 980 }}>
-            <span style={{ fontSize: 66, fontWeight: 700, lineHeight: 1.05 }}>Vende por WhatsApp</span>
-            <span style={{ fontSize: 66, fontWeight: 700, lineHeight: 1.05 }}>sin dejar a nadie en visto</span>
+      <div style={{ width: "100%", height: "100%", display: "flex", padding: "64px 72px", gap: 56, background: C.andenConcrete, color: C.andenInk, fontFamily: "Barlow" }}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <BrandMarkSvg size={56} />
+            <span style={{ fontFamily: "Barlow Condensed", fontSize: 44, fontWeight: 700 }}>{BRAND_NAME}</span>
           </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontFamily: "Barlow Condensed", fontSize: 76, fontWeight: 700, lineHeight: 0.98, letterSpacing: -1, whiteSpace: "nowrap" }}>Contesta cada chat,</span>
+            <span style={{ fontFamily: "Barlow Condensed", fontSize: 76, fontWeight: 700, lineHeight: 0.98, letterSpacing: -1, whiteSpace: "nowrap" }}>aunque estés ocupado.</span>
+          </div>
+          <span style={{ display: "flex", fontSize: 26, color: C.muted }}>
+            Desde {formatMxn(minPrice)} MXN por usuario · {TRIAL_DAYS} días gratis
+          </span>
         </div>
-        <div style={{ display: "flex", gap: 16 }}>
-          <span style={{ display: "flex", background: C.accent, color: C.onAccent, borderRadius: 16, padding: "12px 24px", fontSize: 28, fontWeight: 700 }}>Desde {formatMxn(minPrice)} MXN/ejecutivo al mes</span>
-          <span style={{ display: "flex", border: `2px solid ${C.border}`, background: C.surface, borderRadius: 16, padding: "12px 24px", fontSize: 28 }}>{TRIAL_DAYS} días gratis, sin tarjeta</span>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 14, width: 360 }}>
+          <span style={{ ...bubble, background: C.surface, border: `2px solid ${C.andenHairline}`, alignSelf: "flex-start" }}>¿Cuánto cuesta el facial?</span>
+          <span style={{ ...bubble, background: C.andenBubbleOut, alignSelf: "flex-end" }}>Cuesta $850 y dura 60 min. ¿Te agendamos?</span>
+          <span style={{ display: "flex", justifyContent: "center", background: C.accent, color: C.onAccent, borderRadius: 12, padding: "14px 20px", fontSize: 26, fontWeight: 600 }}>Prueba {TRIAL_DAYS} días de Pro</span>
         </div>
       </div>
     ),
-    SHARE_IMAGE_SIZE
+    {
+      ...SHARE_IMAGE_SIZE,
+      fonts: [
+        { name: "Barlow Condensed", data: condensed, weight: 700, style: "normal" },
+        { name: "Barlow", data: regular, weight: 400, style: "normal" },
+        { name: "Barlow", data: semibold, weight: 600, style: "normal" },
+      ],
+    }
   );
 }

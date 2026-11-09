@@ -15,7 +15,7 @@ Tema oscuro: `.dark` solo remapea semánticos (fondos/textos/tintes); los hex de
 
 ## Laboratorio
 
-`/marca/color` — cuatro direcciones conservadas como referencia (no indexado).
+El laboratorio `/marca/color` (cuatro direcciones) se quitó del repo el 2026-11-08 junto con los demás experimentos; queda en el historial de git.
 
 | Id | Nombre | Estado |
 |---|---|---|

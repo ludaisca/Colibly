@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-07T15:30:00-06:00",
+  "generatedAt": "2026-11-08T13:30:00-06:00",
   "title": "Design System: Colibly",
   "extensions": {
     "colorMeta": {
@@ -53,6 +53,11 @@
         "role": "tertiary",
         "displayName": "Lámpara roja",
         "canonical": "#B42318"
+      },
+      "bubble-out": {
+        "role": "neutral",
+        "displayName": "Burbuja saliente",
+        "canonical": "#D5EEF4"
       }
     },
     "typographyMeta": {
@@ -87,6 +92,26 @@
       "micro": {
         "displayName": "Micro",
         "purpose": "Metadatos, insignias y contadores; piso del panel (text-micro)."
+      },
+      "site-hero": {
+        "displayName": "Titular del sitio",
+        "purpose": "Titular de la portada y del cierre (2.75rem en el teléfono, 5rem en escritorio)."
+      },
+      "site-headline": {
+        "displayName": "Sección del sitio",
+        "purpose": "Títulos de sección del sitio público."
+      },
+      "site-title": {
+        "displayName": "Tramo del sitio",
+        "purpose": "Títulos de cada tramo del hilo."
+      },
+      "site-lede": {
+        "displayName": "Entrada del sitio",
+        "purpose": "Párrafo bajo los titulares del sitio."
+      },
+      "bubble": {
+        "displayName": "Burbuja",
+        "purpose": "Texto de las burbujas del hilo."
       }
     },
     "shadows": [
@@ -111,6 +136,11 @@
         "name": "dur-fast",
         "value": "120ms",
         "purpose": "Cambios de color de controles."
+      },
+      {
+        "name": "seq-in",
+        "value": "420ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Llegada de cada mensaje del hilo del sitio, en orden; sin animación con reducir movimiento."
       }
     ],
     "breakpoints": [
@@ -164,6 +194,22 @@
       "description": "Tarjeta plana con filete.",
       "html": "<div class=\"ds-card\"><span>CHATS ACTIVOS</span><strong>12</strong></div>",
       "css": ".ds-card{width:200px;background:#fff;border:1px solid #DCDFDB;border-radius:12px;padding:16px;font:400 13px Barlow,system-ui,sans-serif;color:#15171A}.ds-card span{font-size:11px;font-weight:600;letter-spacing:.08em;color:#5B6B7A}.ds-card strong{display:block;font:700 44px/1.05 'Barlow Condensed',system-ui}"
+    },
+    {
+      "name": "Quick Reply",
+      "kind": "button",
+      "refersTo": "quick-reply-primary",
+      "description": "Acción del sitio dentro del hilo: botón a lo ancho, 44px; la variante secundaria va en papel con texto laguna-ink.",
+      "html": "<a class=\"ds-qr\">Prueba 14 días de Pro, sin tarjeta</a>",
+      "css": ".ds-qr{display:flex;justify-content:center;min-height:44px;align-items:center;border-radius:9px;background:#0E7490;color:#fff;font:600 15px Barlow,system-ui,sans-serif}"
+    },
+    {
+      "name": "Thread Bubble",
+      "kind": "card",
+      "refersTo": "bubble-out",
+      "description": "Burbuja del hilo del sitio, igual que la del panel; hora y palomitas abajo a la derecha.",
+      "html": "<div class=\"ds-bubble\">Cuesta $850 y dura 60 minutos.</div>",
+      "css": ".ds-bubble{background:#D5EEF4;color:#15171A;border-radius:12px 3px 12px 12px;padding:8px 12px;font:400 15px/1.375 Barlow,system-ui,sans-serif;max-width:86%}"
     }
   ],
   "narrative": {

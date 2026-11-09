@@ -160,7 +160,7 @@
 }
 
 /* ─────────────────────────────────────────────────
-   TEMA OSCURO — solo remapea la capa semántica (next-themes pone .dark en
+   TEMA OSCURO — solo remapea la capa semántica (theme-provider.tsx pone .dark en
    <html>). Fondo "noche" azul casi negro; el acento de relleno conserva
    texto blanco encima; texto/borde se aclaran. Pares en contrast.test.ts.
    ───────────────────────────────────────────────── */
@@ -227,8 +227,8 @@
 /* ─────────────────────────────────────────────────
    MUNDO "ANDÉN" — el panel (2026-11-07; brief en
    .impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md). Lo activa
-   el marcador <span data-world="anden"> de dashboard-shell.tsx, así la
-   landing conserva su paleta y fuentes. Concreto de día, andén casi negro de
+   el marcador <span data-world="anden"> de app/layout.tsx (desde 2026-11-08
+   toda la app; antes solo el panel). Concreto de día, andén casi negro de
    noche; Barlow para todo y Barlow Condensed para títulos y cifras.
    :root:has() pesa más que .dark, por eso el bloque oscuro repite TODOS los
    tokens que cambia el claro. Pares en contrast.test.ts.
@@ -649,149 +649,46 @@ input, textarea, [contenteditable="true"] {
    sin soporte o con "reducir movimiento" el contenido se ve completo y quieto.
    ───────────────────────────────────────────────── */
 
-/* Puntos de "escribiendo…" de la demo del hero (_hero-demo.tsx). */
+/* Puntos de "escribiendo…" del hilo de la landing (_thread.tsx). */
 @keyframes typing-dot {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
   40%           { transform: translateY(-3px); opacity: 1; }
 }
 .typing-dot { animation: typing-dot 1s ease-in-out infinite; }
 
-/* ── Landing motion ─────────────────────────────────────────────
-   Tres familias: (1) entrada del hero escalonada, (2) revelado al scroll
-   vía .landing-reveal + IntersectionObserver, (3) micro-movimiento en mocks.
-   Todo bajo prefers-reduced-motion: no-preference. */
-
+/* ── Hilo de la landing (app/(marketing)/_thread.tsx) ───────────
+   Un solo movimiento en toda la página: los mensajes llegan en orden.
+   --d = cuándo aparece, --t = cuánto dura su "escribiendo…". La portada
+   (data-seq="auto") arranca con la página; los tramos de abajo esperan a
+   entrar en vista (data-seq="armed" → "play", _seq-play.tsx). Sin JS o con
+   "reducir movimiento" todo queda escrito. */
 @media (prefers-reduced-motion: no-preference) {
-  @keyframes landing-mock-enter {
-    from { opacity: 0; translate: 0 1.5rem; }
-    to { opacity: 1; translate: 0 0; }
+  @keyframes seq-in {
+    from { opacity: 0; translate: 0 0.5rem; filter: blur(2px); }
+    to   { opacity: 1; translate: 0 0; filter: none; }
   }
-  .landing-mock-enter {
-    animation: landing-mock-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+  @keyframes seq-typing {
+    0%   { opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { opacity: 0; }
   }
-
-  @keyframes landing-hero-in {
-    from { opacity: 0; translate: 0 1.1rem; }
-    to { opacity: 1; translate: 0 0; }
+  [data-seq="armed"] .seq-in { opacity: 0; }
+  [data-seq="auto"] .seq-in,
+  [data-seq="play"] .seq-in {
+    animation: seq-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--d, 0ms);
   }
-  .landing-hero-in {
-    animation: landing-hero-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-    animation-delay: var(--landing-delay, 0ms);
+  [data-seq="auto"] .seq-after-typing,
+  [data-seq="play"] .seq-after-typing {
+    animation-delay: calc(var(--d, 0ms) + var(--t, 0ms));
   }
-
-  @keyframes landing-glow {
-    0%, 100% { opacity: 0.55; scale: 1; }
-    50% { opacity: 0.9; scale: 1.04; }
-  }
-  .landing-hero-glow {
-    animation: landing-glow 10s ease-in-out infinite;
-  }
-
-  /* Revelado genérico (JS añade .is-in). */
-  .landing-reveal {
-    opacity: 0;
-    transition:
-      opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1) var(--landing-delay, 0ms),
-      transform 0.65s cubic-bezier(0.22, 1, 0.36, 1) var(--landing-delay, 0ms);
-  }
-  .landing-reveal--up { transform: translateY(1.25rem); }
-  .landing-reveal--left { transform: translateX(-1.1rem); }
-  .landing-reveal--right { transform: translateX(1.1rem); }
-  .landing-reveal.is-in {
-    opacity: 1;
-    transform: none;
-  }
-
-  /* Compat: clase .reveal antigua (Chromium con view-timeline). */
-  @supports ((animation-timeline: view()) and (animation-range: entry)) {
-    @keyframes reveal-up {
-      from { opacity: 0; translate: 0 1.5rem; }
-    }
-    .reveal:not(.landing-reveal) {
-      animation: reveal-up auto linear backwards;
-      animation-timeline: view();
-      animation-range: entry 0% entry 70%;
-    }
-  }
-
-  @keyframes landing-channel-in {
-    from { opacity: 0; translate: 0 0.4rem; }
-    to { opacity: 1; translate: 0 0; }
-  }
-  .landing-channel {
-    animation: landing-channel-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
-    animation-delay: var(--landing-delay, 0ms);
-  }
-
-  @keyframes landing-bubble-in {
-    from { opacity: 0; translate: 0 0.55rem; scale: 0.97; }
-    to { opacity: 1; translate: 0 0; scale: 1; }
-  }
-  .landing-bubble {
-    animation: landing-bubble-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-    animation-delay: var(--landing-delay, 0ms);
-  }
-
-  @keyframes landing-flow-pulse {
-    0%, 100% { opacity: 0.35; }
-    50% { opacity: 1; }
-  }
-  .landing-flow-line {
-    animation: landing-flow-pulse 2.4s ease-in-out infinite;
-  }
-
-  @keyframes landing-score-fill {
-    from { width: 0; }
-  }
-  .landing-score-fill {
-    animation: landing-score-fill 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  @keyframes landing-spark {
-    0%, 100% { transform: scale(1) rotate(0deg); }
-    40% { transform: scale(1.08) rotate(-6deg); }
-    70% { transform: scale(0.96) rotate(4deg); }
-  }
-  .landing-spark {
-    animation: landing-spark 3.2s ease-in-out infinite;
-  }
-
-  /* Hero: subrayado que dibuja bajo la palabra resaltada. */
-  @keyframes hero-highlight-draw {
-    from { transform: scaleX(0); }
-    to { transform: scaleX(1); }
-  }
-  .hero-highlight-bar {
-    transform-origin: left center;
-    animation: hero-highlight-draw 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+  [data-seq="auto"] .seq-typing,
+  [data-seq="play"] .seq-typing {
+    animation: seq-typing var(--t, 1s) linear both;
+    animation-delay: var(--d, 0ms);
   }
 }
-
-/* Barra del resalte (estática; la animación solo en no-preference arriba). */
-.hero-highlight-bar {
-  position: absolute;
-  left: 0.02em;
-  right: 0.02em;
-  bottom: 0.06em;
-  height: 0.16em;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--accent-2) 65%, var(--accent-muted));
-  opacity: 0.9;
-  pointer-events: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .landing-reveal,
-  .landing-reveal--up,
-  .landing-reveal--left,
-  .landing-reveal--right {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-
-  .hero-highlight-bar {
-    animation: none;
-    transform: none;
-  }
+  .typing-dot { animation: none; opacity: 0.7; }
 }

@@ -3,7 +3,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { GoogleSheetsIcon, MetaIcon } from "@/app/components/ui/brand-marks";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/app/components/ui/cn";
 import { META_FEES_NOTE } from "@/lib/billing/plan-features";
@@ -41,15 +40,15 @@ function PlanCard({ plan, cta }: { plan: LandingPlan; cta: string }) {
     <div
       className={cn(
         "flex h-full min-w-0 flex-col rounded-2xl border p-4 min-[400px]:p-5 sm:p-6",
-        plan.featured ? "border-accent-strong bg-accent-subtle/60 ring-1 ring-accent-strong" : "border-border bg-surface"
+        plan.featured ? "border-foreground bg-surface ring-1 ring-foreground" : "border-border bg-surface"
       )}
     >
       <div className="flex items-center justify-between gap-2">
         <h3 className="min-w-0 font-display text-xl font-semibold">{plan.name}</h3>
         {plan.featured ? (
-          <Badge tone="accent" size="sm" className="shrink-0">
+          <span className="shrink-0 rounded-full bg-foreground px-2 py-0.5 text-micro font-semibold text-background">
             Recomendado
-          </Badge>
+          </span>
         ) : null}
       </div>
       <p className="mt-1 text-pretty text-sm text-muted">{plan.tagline}</p>
@@ -169,23 +168,24 @@ function PlanCarousel({ cta }: { cta: string }) {
           ))}
         </div>
       </div>
-      <div className="mt-4 flex items-center justify-center gap-2" role="tablist" aria-label="Planes">
+      {/* Antes eran puntos de 8 px (objetivo táctil insuficiente): ahora el
+          nombre de cada plan, con la selección en tinta como en el panel. */}
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5" aria-label="Ir al plan">
         {LANDING_PLANS.map((plan, i) => (
           <button
             key={plan.id}
             type="button"
-            role="tab"
-            aria-selected={i === active}
-            aria-label={plan.name}
-            className={cn("h-2 rounded-full transition-all", i === active ? "w-6 bg-accent-strong" : "w-2 bg-border hover:bg-muted")}
+            aria-pressed={i === active}
+            className={cn(
+              "min-h-10 rounded-full px-3.5 text-sm font-medium transition-colors",
+              i === active ? "bg-foreground text-background" : "bg-surface-light text-muted-darker hover:text-foreground"
+            )}
             onClick={() => goTo(i)}
-          />
+          >
+            {plan.name}
+          </button>
         ))}
       </div>
-      <p className="mt-2 text-center text-xs text-muted-strong" aria-live="polite">
-        {LANDING_PLANS[active]?.name}
-        {active < LANDING_PLANS.length - 1 ? " · desliza para ver más" : null}
-      </p>
     </div>
   );
 }
@@ -211,7 +211,7 @@ function CompareTable() {
             aria-selected={i === planIndex}
             className={cn(
               "min-h-11 shrink-0 rounded-lg px-3 text-sm font-medium",
-              i === planIndex ? "bg-accent-subtle text-accent-ink" : "text-muted hover:text-foreground"
+              i === planIndex ? "bg-foreground text-background" : "text-muted-darker hover:text-foreground"
             )}
             onClick={() => setPlanIndex(i)}
           >
@@ -253,7 +253,7 @@ function CompareTable() {
                 Función
               </th>
               {LANDING_PLANS.map((item) => (
-                <th key={item.id} scope="col" className={cn("px-3 py-3 text-center font-display text-base", item.featured && "text-accent-ink")}>
+                <th key={item.id} scope="col" className={cn("px-3 py-3 text-center font-display text-base", item.featured && "underline decoration-2 underline-offset-4")}>
                   {item.name}
                   <span className="mt-1 block text-xs font-sans font-normal text-muted">
                     {item.priceMxn == null ? "A la medida" : `${formatMxn(item.priceMxn)} MXN`}

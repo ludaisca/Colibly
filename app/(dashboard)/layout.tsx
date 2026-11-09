@@ -1,5 +1,3 @@
-import type { Viewport } from "next";
-import { BRAND_COLORS } from "@/lib/brand-colors";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -11,15 +9,6 @@ import { billingNotice } from "@/lib/billing/state";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import { getOrgAccountHues } from "@/lib/accounts/hues";
-
-// Barra del navegador del color del fondo de Andén (concreto de día, andén de
-// noche); la raíz usa el teal de la marca, que es para la landing.
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: BRAND_COLORS.andenConcrete },
-    { media: "(prefers-color-scheme: dark)", color: BRAND_COLORS.andenNight },
-  ],
-};
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

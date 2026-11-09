@@ -124,12 +124,10 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
   const role = session?.user?.role;
   const router = useRouter();
   const pathname = usePathname();
-  const inDemo = pathname.startsWith("/demo-componentes");
   const term = query.trim();
   const inChat = chatContext(pathname);
 
   useEffect(() => {
-    if (inDemo) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() !== "k" || (!event.metaKey && !event.ctrlKey)) return;
       event.preventDefault();
@@ -137,7 +135,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [inDemo]);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga única desde localStorage al abrir
@@ -148,7 +146,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
   // cuenta/organización; si el rol no puede ver contactos (user), el 403 se
   // ignora y solo se muestran chats/secciones.
   useEffect(() => {
-    if (inDemo || !open || term.length < 2) return;
+    if (!open || term.length < 2) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true);
@@ -181,7 +179,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [inDemo, open, term]);
+  }, [open, term]);
 
   const pageGroups = useMemo(() => {
     const needle = term.toLowerCase();
@@ -260,7 +258,6 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
     return actions.filter((action) => action.label.toLowerCase().includes(needle));
   }, [actions, term]);
 
-  if (inDemo) return null;
 
   function selectChat(chat: ChatHit) {
     rememberRecent({

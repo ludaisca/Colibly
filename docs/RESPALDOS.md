@@ -2,7 +2,7 @@
 
 Respaldo diario de **toda la base de datos de Colibly** (todas las organizaciones) a un almacenamiento compatible con S3 (Cloudflare R2, AWS S3, Backblaze B2, MinIO…), configurable solo por el operador desde **`/plataforma` → Respaldos**. Cada respaldo **sobrescribe al anterior**.
 
-Implementación: `lib/backups/` · API `app/api/plataforma/respaldos/route.ts` · UI `app/(dashboard)/plataforma/_respaldos.tsx` · prueba de punta a punta `dev/coexistencia/pruebas/04-respaldos.cjs`.
+Implementación: `lib/backups/` · API `app/api/plataforma/respaldos/route.ts` · UI `app/(dashboard)/plataforma/_respaldos.tsx`. La prueba de punta a punta (`dev/coexistencia/pruebas/04-respaldos.cjs`) se quitó del repo el 2026-11-08; queda en el historial de git.
 
 ## Qué se respalda y dónde queda
 

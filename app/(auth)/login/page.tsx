@@ -129,7 +129,7 @@ function LoginForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Iniciar sesión</CardTitle>
+          <CardTitle as="h1">Iniciar sesión</CardTitle>
         </CardHeader>
         <CardBody>
           {serverError ? (
@@ -151,7 +151,7 @@ function LoginForm() {
           )}
           {needsCode ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex items-start gap-3 rounded-lg bg-accent-subtle p-3 text-sm text-accent-ink">
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-surface-light p-3 text-sm text-foreground">
                 <ShieldCheck size={18} className="mt-0.5 shrink-0" aria-hidden />
                 <p>Tu cuenta tiene verificación en dos pasos. Abre tu app autenticadora y escribe el código de 6 dígitos.</p>
               </div>
@@ -211,14 +211,14 @@ function LoginForm() {
             </form>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <FormField label="Email" required error={errors.email}>
+            <FormField label="Correo electrónico" required error={errors.email}>
               {(id) => (
                 <Input
                   id={id}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
+                  placeholder="tu@correo.com"
                   autoComplete="email"
                   error={errors.email}
                 />
@@ -246,7 +246,7 @@ function LoginForm() {
             </div>
 
             <Button type="submit" fullWidth loading={loading} icon={LogIn}>
-              Ingresar
+              Entrar
             </Button>
           </form>
           )}

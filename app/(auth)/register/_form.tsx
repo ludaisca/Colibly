@@ -117,7 +117,7 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
         </div>
         <Card>
           <CardHeader className="mb-2">
-            <CardTitle>Confirma tu correo</CardTitle>
+            <CardTitle as="h1">Confirma tu correo</CardTitle>
           </CardHeader>
           <CardBody className="space-y-4">
             <Banner tone="success">
@@ -152,7 +152,7 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
 
       <Card>
         <CardHeader className="mb-2">
-          <CardTitle>Crear cuenta</CardTitle>
+          <CardTitle as="h1">Crear cuenta</CardTitle>
         </CardHeader>
         <p className="mb-4 text-sm text-muted">14 días gratis con Pro, sin tarjeta.</p>
         <CardBody>

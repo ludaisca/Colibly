@@ -2,9 +2,6 @@ import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
-  // Herramientas y pruebas de desarrollo (scripts de Node en CommonJS), fuera
-  // del código del producto.
-  { ignores: ["dev/**"] },
   ...nextCoreWebVitals,
   ...nextTypescript,
   {

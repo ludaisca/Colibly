@@ -54,7 +54,7 @@ function ResetPasswordForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Nueva contraseña</CardTitle>
+          <CardTitle as="h1">Nueva contraseña</CardTitle>
         </CardHeader>
         <CardBody>
           {!token ? (

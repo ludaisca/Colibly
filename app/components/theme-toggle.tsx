@@ -1,7 +1,7 @@
 "use client";
 
 import { Tooltip } from "@/app/components/ui/tooltip";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/app/components/theme-provider";
 import { Sun, Moon } from "lucide-react";
 import { useHasMounted } from "@/app/hooks/use-has-mounted";
 import { cn } from "@/app/components/ui/cn";
