@@ -6,6 +6,7 @@ import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { appUrl, siteUrl } from "@/lib/app-url";
 import { ChannelRow, DemoInbox, DemoRoute, WaitClock } from "./_demos";
 import { LandingFaq } from "./_faq";
+import { GUIDES } from "./_guides";
 import { LandingOffer } from "./_landing-offer";
 import { LANDING_PLANS, OFFER_FROM_MXN } from "./_landing-offer-data";
 import { QuickReply, Thread, type ThreadItem } from "./_thread";
@@ -161,6 +162,7 @@ export default function LandingPage() {
       {/* ── Portada: el titular y el hilo que lo demuestra ── */}
       <section className="mx-auto grid max-w-6xl gap-6 px-4 pb-12 pt-6 sm:pt-10 md:px-6 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-center lg:gap-16 lg:pb-20 lg:pt-16">
         <div className="min-w-0">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-accent-ink">CRM de WhatsApp con IA para negocios de México</p>
           <h1 className="text-balance font-display text-[2.75rem] font-bold leading-[0.98] tracking-[-0.015em] sm:text-6xl lg:text-[5rem]">
             Contesta cada chat, aunque estés ocupado.
           </h1>
@@ -296,6 +298,16 @@ export default function LandingPage() {
               </a>
               .
             </p>
+            <nav aria-label="Guías" className="mt-8">
+              <p className="text-sm font-semibold text-foreground">Guías</p>
+              <ul className="mt-2 space-y-1.5">
+                {GUIDES.map((g) => (
+                  <li key={g.slug}>
+                    <a href={`/${g.slug}`} className="inline-flex min-h-11 items-center font-medium text-accent-ink underline underline-offset-4 md:min-h-0">{g.title}</a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
           </div>
           <LandingFaq items={FAQ} />
         </div>

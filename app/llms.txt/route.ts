@@ -17,7 +17,7 @@ export function GET() {
 
 ## Datos clave
 
-- Qué es: un CRM con bandeja unificada de mensajería, hecho en México, en español.
+- Qué es: un CRM con bandeja unificada de mensajería, en español y pensado para negocios de México.
 - Para quién: dueños de negocio y equipos de ventas o atención que reciben clientes por WhatsApp y redes.
 - Modelo de precio: una licencia por persona al mes, en pesos mexicanos (MXN), y cada persona puede tener una licencia distinta. Básico $${PLANS.ESSENTIAL.pricePerSeatMxn}, Avanzado $${PLANS.BUSINESS.pricePerSeatMxn}, Pro $${PLANS.PRO.pricePerSeatMxn}. Empresarial es a la medida.
 - Prueba gratuita: ${TRIAL_DAYS} días con todas las funciones de Pro para hasta ${TRIAL_MAX_USERS} personas, sin tarjeta. Al terminar, sin pago la cuenta queda en solo lectura y los datos se conservan.
