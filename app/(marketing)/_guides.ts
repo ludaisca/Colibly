@@ -65,7 +65,7 @@ export const GUIDES: Guide[] = [
       { q: "¿Sirve si soy una sola persona?", a: "Sí. Con una licencia atiendes tus chats, llevas tus contactos y puedes dejar que el bot conteste cuando estés ocupado." },
       { q: "¿Cuánto cuesta?", a: `Desde $${OFFER_FROM_MXN} MXN por usuario al mes. Los primeros ${TRIAL_DAYS} días son gratis, sin tarjeta.` },
     ],
-    related: ["chatbot-whatsapp-ia", "whatsapp-business-api-coexistencia"],
+    related: ["chatbot-whatsapp-ia", "whatsapp-business-app-vs-api", "precio-whatsapp-business-api"],
   },
   {
     slug: "chatbot-whatsapp-ia",
@@ -139,6 +139,82 @@ export const GUIDES: Guide[] = [
       { q: "¿Cuántos números puedo conectar?", a: "Cada licencia incluye un número de WhatsApp (además de Instagram, Messenger, Telegram y chat web)." },
     ],
     related: ["crm-whatsapp", "chatbot-whatsapp-ia"],
+  },
+  {
+    slug: "whatsapp-business-app-vs-api",
+    title: "WhatsApp Business app vs API: diferencias",
+    h1: "WhatsApp Business app o API: cuál te conviene y en qué se diferencian",
+    description: `Diferencias entre la app WhatsApp Business y la API oficial de Meta: equipo, automatización, bot, CRM y costos. Cuándo conviene cada una y cómo usar ambas con ${BRAND_NAME}.`,
+    intro: "La app WhatsApp Business es gratis y se usa desde el celular. La API oficial se conecta a un software, como un CRM, para atender con varias personas y automatizar. No son excluyentes: con la Coexistencia de Meta puedes usar las dos con el mismo número.",
+    sections: [
+      {
+        heading: "La app WhatsApp Business",
+        bullets: [
+          "Es gratis y se instala en el celular (y en WhatsApp Web y escritorio).",
+          "Sirve para empezar: catálogo, etiquetas, respuestas rápidas y mensaje de bienvenida o de ausencia.",
+          "Está pensada para una persona o un equipo muy pequeño, y no tiene CRM, reportes ni bot de IA propios.",
+        ],
+      },
+      {
+        heading: "La API oficial de WhatsApp Business",
+        bullets: [
+          "Se conecta a un software (un CRM, por ejemplo) y no tiene pantalla propia.",
+          "Permite que varias personas atiendan desde la misma bandeja, con asignación de chats y tiempos de respuesta.",
+          "Habilita bots, automatizaciones, difusiones con plantillas aprobadas por Meta y conexión con otros sistemas.",
+          "Meta cobra algunos mensajes según su categoría; la app no los cobra.",
+        ],
+      },
+      {
+        heading: "Cuál elegir",
+        paragraphs: [
+          "Si atiendes solo y recibes pocos chats, la app puede alcanzarte. Cuando el volumen crece, se suma más gente al equipo o quieres que un bot conteste fuera de horario, necesitas la API.",
+          `Con la Coexistencia no tienes que escoger. ${COEXISTENCE_PITCH}`,
+        ],
+      },
+    ],
+    faq: [
+      { q: "¿Pierdo la app si paso a la API?", a: "Con la Coexistencia, no: el mismo número funciona en la app y en la API, según los requisitos de Meta." },
+      { q: "¿La API de WhatsApp es gratis?", a: `${META_FEES_NOTE} El software que usas para conectarla tiene su propio precio.` },
+      { q: "¿Necesito programar para usar la API?", a: `No. ${BRAND_NAME} se conecta con la API y te guía paso a paso; no necesitas escribir código.` },
+      { q: "¿Puedo usar un bot con la app WhatsApp Business?", a: "La app solo permite mensajes automáticos sencillos (bienvenida y ausencia). Un bot que conteste preguntas requiere la API." },
+    ],
+    related: ["whatsapp-business-api-coexistencia", "precio-whatsapp-business-api"],
+  },
+  {
+    slug: "precio-whatsapp-business-api",
+    title: "Cuánto cuesta la API de WhatsApp Business",
+    h1: "Cuánto cuesta la API de WhatsApp Business en México",
+    description: `Qué pagas por usar la API de WhatsApp Business: el cobro de Meta por mensaje y el precio del software. Cómo calcularlo y cuánto cuesta ${BRAND_NAME} (desde $${OFFER_FROM_MXN} MXN por usuario).`,
+    intro: "Usar la API oficial de WhatsApp Business tiene dos costos distintos: lo que cobra Meta por algunos mensajes y lo que cobra el software con el que te conectas. Conviene separarlos para comparar bien.",
+    sections: [
+      {
+        heading: "1. Lo que cobra Meta",
+        paragraphs: [
+          "Meta cobra por mensaje, según su categoría (marketing, utilidad, autenticación o servicio) y el país del cliente. La tarifa vigente la publica Meta y puede cambiar, así que revísala en su lista de precios.",
+          META_FEES_NOTE,
+        ],
+      },
+      {
+        heading: "2. Lo que cobra el software",
+        paragraphs: [
+          `En ${BRAND_NAME} pagas una licencia por persona al mes, en pesos mexicanos: desde $${OFFER_FROM_MXN} MXN con Básico, y Avanzado o Pro si necesitas bot, automatizaciones o API. Puedes mezclar licencias en el mismo equipo.`,
+          `La prueba dura ${TRIAL_DAYS} días con todas las funciones, sin tarjeta.`,
+        ],
+      },
+      {
+        heading: "Cómo estimar tu gasto",
+        bullets: [
+          "Cuenta cuántas personas atenderán chats: eso define las licencias.",
+          "Estima cuántos mensajes de plantilla (avisos y campañas) enviarás al mes: eso define buena parte del cobro de Meta.",
+        ],
+      },
+    ],
+    faq: [
+      { q: "¿Cuánto cuesta la API de WhatsApp Business?", a: `Tiene dos partes: el cobro de Meta por ciertos mensajes y el precio del software. En ${BRAND_NAME}, el software parte de $${OFFER_FROM_MXN} MXN por usuario al mes.` },
+      { q: "¿Los costos de Meta están incluidos en Colibly?", a: META_FEES_NOTE },
+      { q: "¿Hay costo de instalación?", a: `No cobramos instalación. Creas tu cuenta, conectas tu número y pruebas ${TRIAL_DAYS} días sin tarjeta.` },
+    ],
+    related: ["whatsapp-business-app-vs-api", "crm-whatsapp"],
   },
 ];
 
