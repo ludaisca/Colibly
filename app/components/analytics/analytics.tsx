@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import type { AnalyticsConfig } from "@/lib/analytics/config";
-import { CONSENT_KEY, readConsent, track, type Consent } from "@/lib/analytics/client";
+import { consentCookieDomain, readConsent, track, withCampaignParams, writeConsent, type Consent } from "@/lib/analytics/client";
 
 declare global {
   interface Window {
@@ -26,11 +26,9 @@ function subscribeConsent(onChange: () => void) {
   };
 }
 
-function writeConsent(value: Consent | null) {
-  try {
-    if (value) localStorage.setItem(CONSENT_KEY, value);
-    else localStorage.removeItem(CONSENT_KEY);
-  } catch {}
+// Cambia la elección guardada y avisa a los componentes de esta pestaña.
+function saveConsent(value: Consent | null) {
+  writeConsent(value);
   window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT));
 }
 
@@ -77,7 +75,14 @@ function loadGoogleTag(config: AnalyticsConfig) {
   };
   injectScript(`https://www.googletagmanager.com/gtag/js?id=${primary}`);
   window.gtag("js", new Date());
-  if (config.gaMeasurementId) window.gtag("config", config.gaMeasurementId);
+  if (config.gaMeasurementId) {
+    // _ga en el dominio raíz para que web y app compartan el cliente; ?ga_debug=1 abre DebugView.
+    const cookieDomain = consentCookieDomain();
+    window.gtag("config", config.gaMeasurementId, {
+      ...(cookieDomain ? { cookie_domain: cookieDomain } : {}),
+      ...(new URLSearchParams(window.location.search).get("ga_debug") === "1" ? { debug_mode: true } : {}),
+    });
+  }
   if (config.googleAdsId) window.gtag("config", config.googleAdsId);
   if (config.googleAdsId && config.googleAdsSignupLabel) {
     window.__colibly_analytics = { googleAdsSignup: `${config.googleAdsId}/${config.googleAdsSignupLabel}` };
@@ -95,6 +100,31 @@ export function Analytics({ config }: { config: AnalyticsConfig }) {
   // aparece cuando ya se leyó localStorage, sin desajuste de hidratación.
   const consent = useSyncExternalStore<Consent | null | undefined>(subscribeConsent, readConsent, () => undefined);
   const pathname = usePathname();
+
+  // Los CTA a /register llevan la campaña (utm_*, gclid, fbclid…) de la página
+  // actual hasta el registro en app.colibly.com; el 308 de proxy.ts conserva la
+  // query. No depende del consentimiento: solo copia parámetros de la URL.
+  useEffect(() => {
+    const decorate = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest<HTMLAnchorElement>("a[href]");
+      if (!a || !window.location.search) return;
+      const next = withCampaignParams(a.getAttribute("href") ?? "", window.location.search, window.location.href);
+      if (!next) return;
+      a.href = next;
+      // Clic normal: navegamos nosotros para que Next/Link no use su href original.
+      if (e.type === "click" && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && (!a.target || a.target === "_self")) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.assign(next);
+      }
+    };
+    document.addEventListener("click", decorate, true);
+    document.addEventListener("auxclick", decorate, true);
+    return () => {
+      document.removeEventListener("click", decorate, true);
+      document.removeEventListener("auxclick", decorate, true);
+    };
+  }, []);
 
   useEffect(() => {
     if (consent !== "granted") return;
@@ -154,7 +184,7 @@ export function Analytics({ config }: { config: AnalyticsConfig }) {
     return () => observer.disconnect();
   }, [consent, pathname]);
 
-  const decide = (value: Consent) => writeConsent(value);
+  const decide = (value: Consent) => saveConsent(value);
 
   if (consent !== null) return null;
   return (
@@ -182,7 +212,7 @@ export function Analytics({ config }: { config: AnalyticsConfig }) {
 /** Botón del footer para volver a mostrar el aviso de cookies. */
 export function CookiePreferencesButton({ className }: { className?: string }) {
   return (
-    <button type="button" className={className} onClick={() => writeConsent(null)}>
+    <button type="button" className={className} onClick={() => saveConsent(null)}>
       Preferencias de cookies
     </button>
   );
