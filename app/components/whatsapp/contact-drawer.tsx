@@ -34,6 +34,7 @@ interface ContactDetail {
   optedOutMarketing: boolean;
   overLimit?: boolean;
   accountId: string | null;
+  channelAccountId?: string | null;
   chat?: { id: string } | null;
   dealValueCents: number | null;
   expectedCloseAt: string | null;
@@ -594,6 +595,13 @@ export function ContactDrawer({
                     >
                       <MessageSquare size={14} aria-hidden /> Abrir chat
                     </Link>
+                  )}
+                  {!inChat && !contact.accountId && !contact.channelAccountId && (
+                    <Tooltip label="Conecta WhatsApp para escribirle">
+                      <span className="ml-auto inline-flex">
+                        <Button size="sm" variant="ghost" icon={MessageSquare} disabled>Escribirle</Button>
+                      </span>
+                    </Tooltip>
                   )}
                 </div>
               )}

@@ -122,7 +122,7 @@ export function ContactImportModal({
   }
 
   async function submit() {
-    if (!effectiveAccountId || !csv || mapError) return;
+    if ((accounts.length > 0 && !effectiveAccountId) || !csv || mapError) return;
     setImporting(true);
     setError(null);
     try {
@@ -166,7 +166,7 @@ export function ContactImportModal({
                 setMapping(guessMapping(table.headers, definitions));
                 setStep("map");
               }}
-              disabled={!effectiveAccountId || !csv}
+              disabled={(accounts.length > 0 && !effectiveAccountId) || !csv}
             >
               Siguiente
             </Button>
@@ -188,15 +188,25 @@ export function ContactImportModal({
           <>
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-darker" htmlFor="import-account">Cuenta destino</label>
-              <Select id="import-account" value={effectiveAccountId} onChange={(event) => setAccountId(event.target.value)}>
-                {accounts.length === 0 && <option value="">No hay cuentas disponibles</option>}
-                {accounts.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}{item.channel ? ` · ${CHANNEL_LABEL[item.channel] ?? item.channel}` : ""}
-                  </option>
-                ))}
-              </Select>
-              <p className="mt-1 text-micro text-muted-darker">Las etiquetas y los campos personalizados son de esta cuenta.</p>
+              {accounts.length === 0 ? (
+                <>
+                  <Select id="import-account" value="" disabled onChange={() => {}}>
+                    <option value="">Sin canal (se vinculan al conectar WhatsApp)</option>
+                  </Select>
+                  <p className="mt-1 text-micro text-muted-darker">Aún no tienes un canal conectado. Los contactos se guardan en tu organización y pasan a tu WhatsApp cuando lo conectes. Los campos personalizados se podrán usar entonces.</p>
+                </>
+              ) : (
+                <>
+                  <Select id="import-account" value={effectiveAccountId} onChange={(event) => setAccountId(event.target.value)}>
+                    {accounts.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}{item.channel ? ` · ${CHANNEL_LABEL[item.channel] ?? item.channel}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="mt-1 text-micro text-muted-darker">Las etiquetas y los campos personalizados son de esta cuenta.</p>
+                </>
+              )}
             </div>
 
             <div>

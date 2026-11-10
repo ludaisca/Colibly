@@ -28,6 +28,8 @@ export async function GET(
       select: {
         id: true,
         accountId: true,
+        channelAccountId: true,
+        isSample: true,
         remoteJid: true,
         name: true,
         leadStatus: true,

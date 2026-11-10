@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { GettingStarted } from "@/app/components/ui/getting-started";
 import { formatMxn } from "@/lib/money";
 import Link from "next/link";
-import { Search, RefreshCw, Upload, Contact as ContactIcon } from "lucide-react";
+import { Search, RefreshCw, Upload, UserPlus, Contact as ContactIcon } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { FiltersPanel, type FilterFieldDef } from "@/app/components/ui/filters-panel";
 import { Badge } from "@/app/components/ui/badge";
@@ -16,6 +16,7 @@ import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
+import { ContactCreateModal } from "@/app/components/whatsapp/contact-create-modal";
 import { ContactImportModal } from "@/app/components/whatsapp/contact-import-modal";
 import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
 import { plural } from "@/lib/format/plural";
@@ -33,7 +34,9 @@ interface AccountOption {
 
 interface ContactRow {
   id: string;
-  accountId: string;
+  // null = contacto sin canal (creado antes de conectar WhatsApp).
+  accountId: string | null;
+  isSample?: boolean;
   remoteJid: string;
   name: string | null;
   leadStatus: string;
@@ -41,7 +44,7 @@ interface ContactRow {
   tags: Array<{ tag: { id: string; name: string; color: string } }>;
   chat: { id: string; unreadCount: number; lastMessageAt: string | null } | null;
   _count: { notes: number };
-  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | null;
 }
 
 function phoneFromJid(remoteJid: string): string {
@@ -63,6 +66,7 @@ export default function ContactosPage() {
   const [accountFilter, setAccountFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   // Pie de la tabla (F8): se pide con la página 1 (cada cambio de filtros
@@ -156,6 +160,9 @@ export default function ContactosPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <ContactUsageMeter usage={contactUsage} />
+            <Button size="md" icon={UserPlus} onClick={() => setCreateOpen(true)}>
+              Nuevo contacto
+            </Button>
             <Button variant="secondary" size="md" icon={Upload} onClick={() => setImportOpen(true)}>
               Importar CSV
             </Button>
@@ -214,12 +221,13 @@ export default function ContactosPage() {
           <div className="rounded-lg border border-border bg-surface">
             <GettingStarted
               title="Aún no tienes contactos"
-              description="Se crean solos cuando alguien te escribe por un canal conectado. También puedes importarlos de un CSV."
+              description="Agrégalos a mano, impórtalos de un CSV o se crearán solos cuando alguien te escriba por un canal conectado."
               memberHint="Los contactos aparecen cuando alguien escribe a una de tus cuentas. Si no ves ninguna, pide a un administrador que te comparta una cuenta."
               extraAction={
-                <Button variant="secondary" size="sm" icon={Upload} onClick={() => setImportOpen(true)}>
-                  Importar CSV
-                </Button>
+                <span className="flex flex-wrap justify-center gap-2">
+                  <Button size="sm" icon={UserPlus} onClick={() => setCreateOpen(true)}>Nuevo contacto</Button>
+                  <Button variant="secondary" size="sm" icon={Upload} onClick={() => setImportOpen(true)}>Importar CSV</Button>
+                </span>
               }
             />
           </div>
@@ -249,10 +257,11 @@ export default function ContactosPage() {
             const name = displayName(contact.name, contact.remoteJid);
             return (
               <EntityRow
-                leading={<ChannelAvatar id={contact.accountId} name={name} channel={contact.channel} size="sm" />}
+                leading={<ChannelAvatar id={contact.accountId ?? contact.id} name={name} channel={contact.channel ?? "WHATSAPP"} size="sm" />}
                 title={name}
                 badges={
                   <span className="flex shrink-0 items-center gap-1">
+                    {contact.isSample && <Badge tone="info" size="sm">Ejemplo</Badge>}
                     <LeadStatusBadge status={contact.leadStatus as LeadStatus} />
                     {contact.tags.map(({ tag }) => (
                       <Badge key={tag.id} tone="accent" size="sm" className="hidden md:inline-flex">{tag.name}</Badge>
@@ -261,10 +270,11 @@ export default function ContactosPage() {
                 }
                 subtitle={
                   <>
-                    {contact.channel === "WHATSAPP"
+                    {contact.channel === "WHATSAPP" || contact.channel === null
                       ? <span className="tabular-nums">{phoneFromJid(contact.remoteJid)}</span>
                       : <span>{contact.channel === "WEBCHAT" ? "Chat web" : contact.channel.charAt(0) + contact.channel.slice(1).toLowerCase()}</span>}
-                    {accounts.length > 1 && account && account.name.trim().toLowerCase() !== contact.channel.toLowerCase() && <> · {account.name}</>}
+                    {contact.channel === null && <> · Sin canal</>}
+                    {accounts.length > 1 && account && contact.channel && account.name.trim().toLowerCase() !== contact.channel.toLowerCase() && <> · {account.name}</>}
                     {contact._count.notes > 0 && <> · {plural(contact._count.notes, "nota")}</>}
                   </>
                 }
@@ -327,6 +337,12 @@ export default function ContactosPage() {
         onClose={() => setImportOpen(false)}
         accounts={accounts}
         onImported={fetchContacts}
+      />
+      <ContactCreateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        accounts={accounts}
+        onCreated={(id) => { fetchContacts(); setSelectedId(id); }}
       />
     </div>
   );
