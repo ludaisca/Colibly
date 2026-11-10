@@ -283,6 +283,12 @@ export function maxSeatsFor(plan: Plan): number {
 // Prueba gratis sin tarjeta, con el plan Pro y hasta TRIAL_MAX_SEATS usuarios.
 // Los límites son los de Pro multiplicados por esos usuarios.
 export const TRIAL_DAYS = 14;
+// Mensajes de IA de prueba por ORGANIZACIÓN mientras está en prueba y no tiene
+// ningún canal conectado (probar el bot, simular automatizaciones…). Va aquí,
+// junto a TRIAL_DAYS, porque es la misma perilla de "cuánto regalamos en la
+// prueba"; los créditos por persona de la prueba (TRIAL_AI_CREDITS_PER_USER)
+// aplican al conectar el primer canal y no se tocan.
+export const TRIAL_AI_TEST_CREDITS = 10;
 export const TRIAL_PLAN: PlanId = "PRO";
 export const TRIAL_MAX_SEATS = 3;
 export const TRIAL_POOL_TEXT = "los límites de ese plan, incluidos contactos, leads activos y créditos de IA";

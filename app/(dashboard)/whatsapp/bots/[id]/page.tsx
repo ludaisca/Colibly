@@ -4,7 +4,7 @@ import { useUrlTab } from "@/app/components/ui/tabs";
 
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Trash2, Power, PowerOff, Send, Upload, X, RotateCcw } from "lucide-react";
+import { Trash2, Power, PowerOff, Send, Upload, X, RotateCcw, MessageCircleOff } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Input } from "@/app/components/ui/input";
@@ -12,6 +12,8 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Spinner } from "@/app/components/ui/spinner";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Banner } from "@/app/components/ui/banner";
+import { Badge } from "@/app/components/ui/badge";
+import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SectionHeader } from "@/app/components/ui/section-header";
@@ -90,6 +92,8 @@ function BotDetailPageContent() {
   const [testMessage, setTestMessage] = useState("");
   const [testTurns, setTestTurns] = useState<TestTurn[]>([]);
   const [testing, setTesting] = useState(false);
+  // Mensajes de prueba de la organización (solo cuenta en prueba y sin canal).
+  const [testCredits, setTestCredits] = useState<{ used: number; max: number; remaining: number; mode: "channelless_trial" | "normal" } | null>(null);
   const testEndRef = useRef<HTMLDivElement>(null);
 
   const [usageData, setUsageData] = useState<UsageData | null>(null);
@@ -135,6 +139,10 @@ function BotDetailPageContent() {
   useEffect(() => { if (tab === "knowledge") fetchKnowledge(); }, [tab, fetchKnowledge]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-tab-switch
   useEffect(() => { if (tab === "uso") fetchUsage(); }, [tab, fetchUsage]);
+  useEffect(() => {
+    if (tab !== "test") return;
+    fetch(`/api/whatsapp/bots/${id}/test`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.testCredits) setTestCredits(d.testCredits); }).catch(() => {});
+  }, [tab, id]);
   useEffect(() => { if (tab === "test") testEndRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [tab, testTurns, testing]);
 
   async function handleToggle() {
@@ -217,6 +225,7 @@ function BotDetailPageContent() {
         body: JSON.stringify({ message, history: testTurns.slice(-100) }),
       });
       const data = await res.json();
+      if (data.testCredits) setTestCredits(data.testCredits);
       if (!res.ok) throw new Error(data.error);
       setTestTurns((prev) => [...prev, { role: "assistant", content: data.response }]);
     } catch (err) {
@@ -375,7 +384,27 @@ function BotDetailPageContent() {
               Actívalo para que responda a los mensajes de la cuenta vinculada.
             </Banner>
           )}
-          <p className="text-xs text-muted">Conversación de prueba con la memoria y el conocimiento configurados. No envía mensajes al canal ni comprueba el webhook. Cada respuesta usa un crédito de IA.</p>
+          <p className="text-xs text-muted">Conversación de prueba con la memoria y el conocimiento configurados. No envía mensajes al canal ni comprueba el webhook. {testCredits?.mode === "channelless_trial" ? `Mientras no conectes un canal tienes ${testCredits.max} mensajes de prueba.` : "Cada respuesta usa un crédito de IA."}</p>
+          {testCredits?.mode === "channelless_trial" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={testCredits.remaining <= 3 ? "warning" : "info"} size="sm">
+                {testCredits.remaining === 0 ? "Sin mensajes de prueba" : `Te quedan ${testCredits.remaining} de ${testCredits.max} mensajes de prueba`}
+              </Badge>
+            </div>
+          )}
+          {testCredits?.mode === "channelless_trial" && testCredits.remaining === 0 && (
+            <EmptyState
+              icon={MessageCircleOff}
+              title="Ya usaste tus mensajes de prueba"
+              description={`Ya usaste tus ${testCredits.max} mensajes de prueba. Conecta tu WhatsApp para seguir probando con tus clientes reales o elige un plan.`}
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button href="/whatsapp/cuentas">Conectar WhatsApp</Button>
+                  <Button href="/configuracion/plan" variant="secondary">Elegir plan</Button>
+                </div>
+              }
+            />
+          )}
           <div className="overflow-hidden rounded-xl border border-border bg-surface">
             <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
               <span className="text-sm font-medium">Conversación de prueba</span>
@@ -396,9 +425,9 @@ function BotDetailPageContent() {
             <form className="flex items-end gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); handleTest(); }}>
               <div className="min-w-0 flex-1">
                 <label htmlFor="bot-test-message" className="sr-only">Mensaje de prueba</label>
-                <Textarea id="bot-test-message" value={testMessage} maxLength={4000} onChange={(event) => setTestMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); handleTest(); } }} placeholder="Escribe un mensaje…" rows={2} className="min-h-16 resize-none" />
+                <Textarea id="bot-test-message" disabled={testCredits?.mode === "channelless_trial" && testCredits.remaining === 0} value={testMessage} maxLength={4000} onChange={(event) => setTestMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); handleTest(); } }} placeholder="Escribe un mensaje…" rows={2} className="min-h-16 resize-none" />
               </div>
-              <Button type="submit" icon={Send} size="sm" disabled={testing || !testMessage.trim()} aria-label="Enviar mensaje de prueba">Enviar</Button>
+              <Button type="submit" icon={Send} size="sm" disabled={testing || !testMessage.trim() || (testCredits?.mode === "channelless_trial" && testCredits.remaining === 0)} aria-label="Enviar mensaje de prueba">Enviar</Button>
             </form>
           </div>
         </section>

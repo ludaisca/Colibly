@@ -4,6 +4,7 @@ import { getOrgBilling, invalidateOrgBilling } from "@/lib/billing/gates";
 import { notifyOrgAdmins } from "@/lib/billing/notify";
 import { channelEntitlement, userEntitlement, type ChannelRef, type Entitlement } from "@/lib/billing/entitlements";
 import { catalogMode, userAiCreditLimit } from "@/lib/billing/licenses";
+import { isChannellessTrial, refundTrialTestCredit, reserveTrialTestCredit, type TrialTestMode } from "@/lib/billing/trial-test";
 import { appUrl, sendEmailSafely } from "@/lib/email/mailer";
 import { billingNoticeTemplate } from "@/lib/email/templates";
 
@@ -113,6 +114,28 @@ export async function reserveAiCredit(payer: AiPayer, now = new Date()): Promise
   if (count === 0) return false;
   await alertUserIfThreshold(userId, l.max);
   return true;
+}
+
+export type PersonCreditReservation =
+  | { ok: true; mode: TrialTestMode; refund: () => Promise<void> }
+  | { ok: false; reason: "trial_test_exhausted" | "ai_credits" };
+
+/**
+ * Reserva para lo que PIDE UNA PERSONA (probar el bot, simular una
+ * automatización, asistente de escritura). En una prueba sin canal sale de la
+ * bolsa de la organización (TRIAL_AI_TEST_CREDITS) y no toca los créditos
+ * personales; en cualquier otro caso es `reserveAiCredit({ userId })`.
+ * `refund()` devuelve el crédito de la bolsa de prueba si el proveedor falla.
+ * Los workers siguen con `reserveAiCredit` (nunca pasan por aquí).
+ */
+export async function reservePersonAiCredit(userId: string, organizationId?: string): Promise<PersonCreditReservation> {
+  const orgId = organizationId ?? (await prisma.user.findUnique({ where: { id: userId }, select: { organizationId: true } }))?.organizationId;
+  if (orgId && (await isChannellessTrial(orgId))) {
+    if (!(await reserveTrialTestCredit(orgId))) return { ok: false, reason: "trial_test_exhausted" };
+    return { ok: true, mode: "channelless_trial", refund: () => refundTrialTestCredit(orgId) };
+  }
+  if (!(await reserveAiCredit({ userId }))) return { ok: false, reason: "ai_credits" };
+  return { ok: true, mode: "normal", refund: async () => {} };
 }
 
 /** ¿Le queda al menos un crédito a `payer`? Para cortar un lote antes de empezar (ticks). */

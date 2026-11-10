@@ -1,6 +1,7 @@
 import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey, pickCuratedModel } from "@/lib/ai/platform";
-import { AI_CREDITS_EXHAUSTED_MESSAGE, reserveAiCredit } from "@/lib/ai/credits";
+import { AI_CREDITS_EXHAUSTED_MESSAGE, reservePersonAiCredit } from "@/lib/ai/credits";
+import { TRIAL_TEST_EXHAUSTED_MESSAGE } from "@/lib/billing/trial-test";
 import { recordAssistUsage } from "@/lib/ai/assist-usage";
 import type { AiAssistKind } from "@prisma/client";
 
@@ -19,17 +20,23 @@ async function complete(
   const apiKey = await getPlatformApiKey(picked.provider);
   if (!apiKey) throw new WritingAssistError("La IA no está disponible en este momento.");
   // Lo pide una persona: gasta sus créditos (regla 6 de las licencias).
-  if (!(await reserveAiCredit({ userId }))) throw new WritingAssistError(AI_CREDITS_EXHAUSTED_MESSAGE);
-  const client = getAIProvider(picked.provider, apiKey);
-  const result = await client.complete({
-    model: picked.model,
-    temperature: 0.4,
-    maxTokens,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-  });
+  const reservation = await reservePersonAiCredit(userId, organizationId);
+  if (!reservation.ok) throw new WritingAssistError(reservation.reason === "trial_test_exhausted" ? TRIAL_TEST_EXHAUSTED_MESSAGE : AI_CREDITS_EXHAUSTED_MESSAGE);
+  let result;
+  try {
+    result = await getAIProvider(picked.provider, apiKey).complete({
+      model: picked.model,
+      temperature: 0.4,
+      maxTokens,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    });
+  } catch (err) {
+    await reservation.refund().catch(() => {});
+    throw err;
+  }
   await recordAssistUsage({ organizationId, kind, userId, provider: picked.provider, model: picked.model, usage: result.usage });
   const text = result.content.trim();
   if (!text) throw new WritingAssistError("La IA no devolvió un texto.");

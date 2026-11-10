@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/factory";
 import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
-import { reserveAiCredit, type AiPayer } from "@/lib/ai/credits";
+import { reserveAiCredit, reservePersonAiCredit, type AiPayer } from "@/lib/ai/credits";
 import { SCOPE_GUARDRAIL, wrapUserPrompt } from "@/lib/ai/prompt-sanitizer";
 
 // IA de los pasos de automatización: OpenCode por defecto, y un crédito por
@@ -27,19 +27,32 @@ async function complete(ctx: AiCallContext, system: string, user: string, maxTok
   const { provider, model } = picked;
   const apiKey = await getPlatformApiKey(provider);
   if (!apiKey) return null;
-  if (!(await reserveAiCredit(ctx.payer))) return null;
+  // "Probar" (payer = persona) en una prueba sin canal sale de la bolsa de la
+  // organización; una ejecución real (payer = canal) siempre paga con créditos.
+  let refund: () => Promise<void> = async () => {};
+  if ("userId" in ctx.payer) {
+    const reservation = await reservePersonAiCredit(ctx.payer.userId, ctx.organizationId);
+    if (!reservation.ok) return null;
+    refund = reservation.refund;
+  } else if (!(await reserveAiCredit(ctx.payer))) return null;
 
-  const result = await getAIProvider(provider, apiKey).complete({
-    model,
-    temperature: 0,
-    maxTokens,
-    sessionId: ctx.conversationId ?? ctx.waChatId ?? ctx.runId ?? ctx.automationId,
-    messages: [
-      { role: "system", content: system },
-      { role: "system", content: SCOPE_GUARDRAIL },
-      { role: "user", content: user.slice(-4000) },
-    ],
-  });
+  let result;
+  try {
+    result = await getAIProvider(provider, apiKey).complete({
+      model,
+      temperature: 0,
+      maxTokens,
+      sessionId: ctx.conversationId ?? ctx.waChatId ?? ctx.runId ?? ctx.automationId,
+      messages: [
+        { role: "system", content: system },
+        { role: "system", content: SCOPE_GUARDRAIL },
+        { role: "user", content: user.slice(-4000) },
+      ],
+    });
+  } catch (err) {
+    await refund().catch(() => {});
+    throw err;
+  }
 
   if (result.usage) {
     const { promptTokens, completionTokens } = result.usage;
