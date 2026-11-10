@@ -141,12 +141,13 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-semibold">{displayName}</p>
-            {data.isSample && <Badge tone="info" size="sm" className="shrink-0">Ejemplo</Badge>}
             {data.unreadCount > 0 && (
               <span className="shrink-0 h-2 w-2 rounded-full bg-danger animate-pulse-live" />
             )}
           </div>
 
+          {/* En su propia línea: en columnas angostas no le quita espacio al nombre. */}
+          {data.isSample && <Badge tone="info" size="sm" className="mt-1">Ejemplo</Badge>}
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-darker">
             <Mark size={12} className="shrink-0" />
             {/* El id de Telegram/Messenger es interno: solo se muestra el canal.

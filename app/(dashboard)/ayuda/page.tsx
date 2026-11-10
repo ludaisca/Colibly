@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { Mail, MessageCircle } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { appUrl, siteUrl } from "@/lib/app-url";
@@ -82,9 +81,9 @@ export default async function AyudaPage() {
         <p className="text-sm text-muted">¿Algo no funciona o tienes una duda? Escríbenos y te ayudamos.</p>
         <div className="flex flex-wrap items-center gap-2">
           {whatsapp && (
-            <Button href={supportWhatsappUrl(whatsapp, user?.organization.name)} external icon={MessageCircle}>Escríbenos por WhatsApp</Button>
+            <Button href={supportWhatsappUrl(whatsapp, user?.organization.name)} external>Escríbenos por WhatsApp</Button>
           )}
-          <Button href={`mailto:${BRAND_CONTACT_EMAIL}`} variant="secondary" icon={Mail}>Correo: {BRAND_CONTACT_EMAIL}</Button>
+          <Button href={`mailto:${BRAND_CONTACT_EMAIL}`} variant="secondary">Correo: {BRAND_CONTACT_EMAIL}</Button>
         </div>
       </Card>
     </div>
