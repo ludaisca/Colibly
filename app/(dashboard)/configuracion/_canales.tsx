@@ -44,8 +44,8 @@ export function CanalesSection() {
         {CHANNELS.map(([key, label]) => (
           <div key={key} className="flex items-center justify-between gap-3 py-3 text-sm">
             <span>{label}</span>
-            <Badge tone={flags?.[key] ? "success" : "neutral"} size="sm">
-              {flags ? flags[key] ? "Disponible" : "Desactivado" : "Cargando…"}
+            <Badge tone={flags?.[key] ? "success" : error ? "warning" : "neutral"} size="sm">
+              {flags ? (flags[key] ? "Disponible" : "Desactivado") : error ? "No se pudo cargar" : "Cargando…"}
             </Badge>
           </div>
         ))}

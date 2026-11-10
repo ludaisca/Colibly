@@ -23,6 +23,7 @@ import { RespuestasRapidasSection } from "./_respuestas-rapidas";
 import { CamposPersonalizadosSection } from "./_campos-personalizados";
 import { AtributosConversacionSection } from "./_atributos-conversacion";
 import { CanalesSection } from "./_canales";
+import { HorarioNegocioCard } from "./_horario";
 
 interface GoogleSheetsStatus {
   connected: boolean;
@@ -213,7 +214,8 @@ export default function SettingsPage() {
           { href: "#mi-cuenta", label: "Mi cuenta" },
           ...(isAdmin ? [{ href: "#empresa", label: "Empresa" }] : []),
           { href: "#bandeja", label: "Bandeja" },
-          ...(showGoogleSheets ? [{ href: "#google-sheets", label: "Google Sheets" }] : []),
+          ...(isAdmin || showGoogleSheets ? [{ href: "#integraciones", label: "Integraciones" }] : []),
+          { href: "#seguridad", label: "Seguridad" },
         ].map((item) => (
           <a key={item.href} href={item.href} className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-light">
             {item.label}
@@ -253,57 +255,6 @@ export default function SettingsPage() {
         <Button size="sm" icon={User} onClick={handleSaveName} loading={savingName}>Guardar nombre</Button>
       </Card>
 
-      <Card as="section" className="space-y-4">
-        <SectionHeader title="Cambiar contraseña" />
-        {passwordError && <Banner tone="danger">{passwordError}</Banner>}
-
-        <FormField label="Contraseña actual" required>
-          {(id) => (
-            <PasswordInput
-              id={id}
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-          )}
-        </FormField>
-
-        <FormField label="Nueva contraseña" required>
-          {(id) => (
-            <>
-              <PasswordInput
-                id={id}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
-                autoComplete="new-password"
-              />
-              <PasswordStrength password={newPassword} />
-            </>
-          )}
-        </FormField>
-
-        <FormField label="Confirmar nueva contraseña" required>
-          {(id) => (
-            <PasswordInput
-              id={id}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Repite la contraseña"
-              autoComplete="new-password"
-            />
-          )}
-        </FormField>
-
-        <Button size="sm" icon={Lock} onClick={handleSavePassword} loading={saving}>
-          Cambiar contraseña
-        </Button>
-      </Card>
-
-      <FirmaSection />
-
-      <SeguridadSection />
       </div>
 
       <div id="empresa" className="scroll-mt-4 space-y-6 empty:hidden">
@@ -325,6 +276,8 @@ export default function SettingsPage() {
 
       {isAdmin && <CanalesSection />}
 
+      {isAdmin && <HorarioNegocioCard />}
+
       {isAdmin && (
         <Card as="section" className="space-y-4">
           <SectionHeader title="IA y operación" />
@@ -333,18 +286,6 @@ export default function SettingsPage() {
           </p>
           <Button href="/configuracion/ia" variant="secondary" size="sm" icon={Brain}>
             Configurar
-          </Button>
-        </Card>
-      )}
-
-      {isAdmin && (
-        <Card as="section" className="space-y-4">
-          <SectionHeader title="API e integraciones" />
-          <p className="text-sm text-muted">
-            API keys, webhooks salientes y documentación para conectar el CRM con tu ERP, tienda o Zapier/Make.
-          </p>
-          <Button href="/configuracion/api" variant="secondary" size="sm" icon={Plug}>
-            Configurar API
           </Button>
         </Card>
       )}
@@ -368,6 +309,20 @@ export default function SettingsPage() {
         <Button variant="secondary" href="/configuracion/macros">Administrar macros</Button>
       </Card>
       </div>
+
+      <div id="integraciones" className="scroll-mt-4 space-y-6 empty:hidden">
+      {isAdmin && (
+        <Card as="section" className="space-y-4">
+          <SectionHeader title="API e integraciones" />
+          <p className="text-sm text-muted">
+            API keys, webhooks salientes y documentación para conectar el CRM con tu ERP, tienda o Zapier/Make.
+          </p>
+          <Button href="/configuracion/api" variant="secondary" size="sm" icon={Plug}>
+            Configurar API
+          </Button>
+        </Card>
+      )}
+
 
       {/* Sin configurar en la plataforma no se muestra: una tarjeta que solo
           dice "todavía no está disponible" no le sirve a nadie. */}
@@ -432,6 +387,63 @@ export default function SettingsPage() {
         )}
       </Card>
       )}
+
+      </div>
+
+      <div id="seguridad" className="scroll-mt-4 space-y-6">
+      <Card as="section" className="space-y-4">
+        <SectionHeader title="Cambiar contraseña" />
+        {passwordError && <Banner tone="danger">{passwordError}</Banner>}
+
+        <FormField label="Contraseña actual" required>
+          {(id) => (
+            <PasswordInput
+              id={id}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
+          )}
+        </FormField>
+
+        <FormField label="Nueva contraseña" required>
+          {(id) => (
+            <>
+              <PasswordInput
+                id={id}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                autoComplete="new-password"
+              />
+              <PasswordStrength password={newPassword} />
+            </>
+          )}
+        </FormField>
+
+        <FormField label="Confirmar nueva contraseña" required>
+          {(id) => (
+            <PasswordInput
+              id={id}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repite la contraseña"
+              autoComplete="new-password"
+            />
+          )}
+        </FormField>
+
+        <Button size="sm" icon={Lock} onClick={handleSavePassword} loading={saving}>
+          Cambiar contraseña
+        </Button>
+      </Card>
+
+      <FirmaSection />
+
+
+      <SeguridadSection />
+      </div>
 
       <ConfirmDialog
         open={disconnectConfirmOpen}

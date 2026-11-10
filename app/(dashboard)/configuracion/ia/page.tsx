@@ -281,7 +281,7 @@ export default function IASettingsPage() {
         </div>
       </Card>
 
-      <Card as="section" className="space-y-5">
+      <Card as="section" id="horario" className="scroll-mt-4 space-y-5">
         <SectionHeader title="Horario del negocio" />
         <p className="text-sm text-muted">
           Se usa para no mandar mensajes automáticos de madrugada (recuperación de leads, leads de Facebook), para la
