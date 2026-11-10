@@ -46,7 +46,8 @@ export async function* exportOrganizationData(organizationId: string): AsyncGene
   let first = true;
   for (let cursor: string | undefined; ; ) {
     const page = await prisma.contact.findMany({
-      where: { OR: [{ accountId: { in: waIds } }, { channelAccountId: { in: channelIds } }] },
+      // Incluye los contactos sin canal reales; nunca los de ejemplo.
+      where: { isSample: false, OR: [{ accountId: { in: waIds } }, { channelAccountId: { in: channelIds } }, { accountId: null, channelAccountId: null, organizationId }] },
       orderBy: { id: "asc" },
       take: PAGE,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),

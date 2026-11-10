@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgId } from "@/lib/tenancy";
 import { contactScopeWhere } from "@/lib/contacts/scope";
 import { ensureDefaultPipeline } from "@/lib/pipeline/ensure";
+import { SampleDataControls } from "@/app/components/ui/sample-data-controls";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { PipelineBoard, type BoardData, type BoardStage } from "./_board";
@@ -48,6 +49,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
       expectedCloseAt: true,
       accountId: true,
       channelAccountId: true,
+      isSample: true,
       channelAccount: { select: { channel: true } },
       tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
       chat: {
@@ -82,8 +84,9 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
       leadStatus: contact.leadStatus,
       stageId,
       accountId: contact.accountId,
+      isSample: contact.isSample,
       lineAccountId: contact.accountId ?? contact.channelAccountId,
-      channel: contact.accountId ? "WHATSAPP" : contact.channelAccount?.channel ?? "WEBCHAT",
+      channel: contact.accountId ? "WHATSAPP" : contact.channelAccount?.channel ?? "WHATSAPP",
       tags: contact.tags,
       bestScore: contact.chat?.leadScores?.[0] ?? null,
       lastMessageAt: contact.chat?.lastMessageAt?.toISOString() ?? contact.conversation?.lastMessageAt?.toISOString() ?? null,
@@ -130,6 +133,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
       <PageHeader
         title="Pipeline"
         description={`${pipelines.length} ${pipelines.length === 1 ? "embudo" : "embudos"} · ${conversionPct}% en etapas ganadas`}
+        actions={<SampleDataControls />}
       />
       <KpiStrip items={kpis} size="hero" />
       <PipelineBoard

@@ -27,6 +27,7 @@ import { hueClassIn } from "@/app/components/ui/hue";
 import { requireOrgId } from "@/lib/tenancy";
 import { getOrgAccountHues } from "@/lib/accounts/hues";
 import { WaitCells } from "@/app/components/whatsapp/waiting-badge";
+import { SampleDataControls } from "@/app/components/ui/sample-data-controls";
 import { OnboardingChecklist } from "@/app/components/ui/onboarding-checklist";
 import { getOnboardingSteps } from "@/lib/onboarding";
 import { formatInZone } from "@/lib/format/dates";
@@ -179,7 +180,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="animate-fade-in-up">
-        <PageHeader title="Panel" description="Resumen de la actividad de tus canales" />
+        <PageHeader title="Panel" description="Resumen de la actividad de tus canales" actions={<SampleDataControls />} />
       </div>
 
       <ContactLimitNotice />

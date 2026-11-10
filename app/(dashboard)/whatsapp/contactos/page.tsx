@@ -2,6 +2,7 @@
 
 import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { SampleDataControls } from "@/app/components/ui/sample-data-controls";
 import { GettingStarted } from "@/app/components/ui/getting-started";
 import { formatMxn } from "@/lib/money";
 import Link from "next/link";
@@ -163,6 +164,7 @@ export default function ContactosPage() {
             <Button size="md" icon={UserPlus} onClick={() => setCreateOpen(true)}>
               Nuevo contacto
             </Button>
+            <SampleDataControls />
             <Button variant="secondary" size="md" icon={Upload} onClick={() => setImportOpen(true)}>
               Importar CSV
             </Button>
@@ -227,6 +229,7 @@ export default function ContactosPage() {
                 <span className="flex flex-wrap justify-center gap-2">
                   <Button size="sm" icon={UserPlus} onClick={() => setCreateOpen(true)}>Nuevo contacto</Button>
                   <Button variant="secondary" size="sm" icon={Upload} onClick={() => setImportOpen(true)}>Importar CSV</Button>
+                  <SampleDataControls size="sm" />
                 </span>
               }
             />

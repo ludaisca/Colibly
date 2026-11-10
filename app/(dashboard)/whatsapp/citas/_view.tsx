@@ -11,6 +11,7 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Select } from "@/app/components/ui/select";
 import { Spinner } from "@/app/components/ui/spinner";
+import { SampleDataControls } from "@/app/components/ui/sample-data-controls";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { SectionHeader } from "@/app/components/ui/section-header";
@@ -290,7 +291,7 @@ export function CitasView() {
           icon={CalendarClock}
           title="Sin citas"
           description="Agenda una cita desde aquí o desde la ficha de un contacto."
-          action={<Button size="sm" icon={Plus} onClick={() => { setEditing(null); setModalOpen(true); }}>Nueva cita</Button>}
+          action={<span className="flex flex-wrap justify-center gap-2"><Button size="sm" icon={Plus} onClick={() => { setEditing(null); setModalOpen(true); }}>Nueva cita</Button><SampleDataControls size="sm" /></span>}
         />
       ) : viewMode === "calendar" ? (
         <div className="space-y-3">

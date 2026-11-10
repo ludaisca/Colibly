@@ -24,6 +24,8 @@ export interface LeadCardData {
   leadStatus: LeadStatus;
   stageId: string;
   accountId: string | null;
+  /** Dato de ejemplo (Spa Aurora). */
+  isSample?: boolean;
   /** Cuenta (WhatsApp o canal) para la línea de color de la tarjeta. */
   lineAccountId?: string | null;
   channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
@@ -137,6 +139,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-semibold">{displayName}</p>
+            {data.isSample && <Badge tone="info" size="sm" className="shrink-0">Ejemplo</Badge>}
             {data.unreadCount > 0 && (
               <span className="shrink-0 h-2 w-2 rounded-full bg-danger animate-pulse-live" />
             )}

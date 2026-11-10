@@ -9,6 +9,7 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSession } from "next-auth/react";
 import { MessageSquare } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { SampleConversationButton } from "@/app/components/whatsapp/sample-conversation";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
@@ -1525,6 +1526,7 @@ export function ChatWorkspace({
               icon={MessageSquare}
               title="Selecciona un chat"
               description={chats.length === 0 ? "Conecta un canal para empezar a recibir mensajes." : "Elige una conversación de la lista para ver los mensajes."}
+              action={chats.length === 0 ? <SampleConversationButton /> : undefined}
             />
           </div>
         ) : selectedChat ? (

@@ -41,7 +41,7 @@ export async function afterLeadStatusChanged(
 
   const fromOutcome = from === "CUSTOMER" ? "WON" : from === "LOST" ? "LOST" : "OPEN";
   const toOutcome = to === "CUSTOMER" ? "WON" : to === "LOST" ? "LOST" : "OPEN";
-  if (fromOutcome !== toOutcome && organizationId) {
+  if (fromOutcome !== toOutcome && organizationId && !placed?.isSample) {
     await prisma.leadOutcomeEvent
       .create({ data: { organizationId, contactId: contact.id, outcome: toOutcome, valueCents: placed?.dealValueCents ?? null } })
       .catch((err) => console.error("[contacts] lead outcome event failed:", err));
