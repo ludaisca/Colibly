@@ -2,6 +2,8 @@ import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
+  // Paquetes aparte (nodo de n8n…): tienen su propio lint.
+  { ignores: ["integrations/**"] },
   ...nextCoreWebVitals,
   ...nextTypescript,
   {

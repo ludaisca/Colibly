@@ -7,3 +7,5 @@ node_modules
 .env.production
 .env.production.local
 .env.example
+# Paquetes aparte (nodo de n8n): no van en la imagen de la app.
+integrations
