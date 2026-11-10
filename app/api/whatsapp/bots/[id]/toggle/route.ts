@@ -5,6 +5,7 @@ import { findOtherActiveBot } from "@/lib/bots/guards";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { orgWhere } from "@/lib/tenancy";
 import { checkChannelFeature } from "@/lib/billing/entitlements";
+import { isTestOnlyBot, TEST_ONLY_ACTIVATE_MESSAGE } from "@/lib/bots/feature-gate";
 
 export async function POST(
   _req: Request,
@@ -34,6 +35,8 @@ export async function POST(
     // Un bot activo por cuenta: con dos, cada uno encolaba su propia respuesta
     // al mismo mensaje y el cliente recibía varias.
     if (nextActive) {
+      // Sin cuenta ni canal el bot solo sirve en "Probar": activarlo no tendría efecto.
+      if (isTestOnlyBot(bot)) return NextResponse.json({ error: TEST_ONLY_ACTIVATE_MESSAGE }, { status: 400 });
       // Activarlo depende de la licencia del dueño del canal (regla 7).
       const notInLicense = await checkChannelFeature({ waAccountId: bot.waAccountId, channelAccountId: bot.channelAccountId }, "aiAgent");
       if (notInLicense) return notInLicense;

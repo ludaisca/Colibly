@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkPlanLimit } from "@/lib/billing/gates";
-import { checkChannelFeature } from "@/lib/billing/entitlements";
+import { checkBotFeature } from "@/lib/bots/feature-gate";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { botSchema } from "@/lib/validations";
@@ -74,8 +74,9 @@ export async function POST(req: Request) {
     }
 
     // El agente depende de la licencia del dueño del canal, no de quien lo
-    // configura (regla 7 de las licencias).
-    const notInLicense = await checkChannelFeature({ waAccountId, channelAccountId }, "aiAgent");
+    // configura (regla 7 de las licencias). Sin canal ("solo pruebas") no hay
+    // dueño de canal: cuenta la licencia de quien lo crea.
+    const notInLicense = await checkBotFeature(session.user.id, { waAccountId, channelAccountId });
     if (notInLicense) return notInLicense;
 
     const bot = await prisma.wABot.create({

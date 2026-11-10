@@ -272,7 +272,7 @@ function BotDetailPageContent() {
             variant={bot.isActive ? "secondary" : "primary"}
             size="sm"
             onClick={handleToggle}
-            disabled={toggling}
+            disabled={toggling || (!bot.isActive && !bot.waAccount && !bot.channelAccount)}
           >
             {toggling ? <Spinner /> : bot.isActive ? "Pausar" : "Activar"}
           </Button>
@@ -281,6 +281,12 @@ function BotDetailPageContent() {
         </>
       }
     >
+      {!bot.waAccount && !bot.channelAccount && (
+        <Banner tone="info" title="Solo pruebas">
+          Este bot no tiene cuenta, así que no responde mensajes reales: puedes chatear con él en la pestaña Probar. Conecta una cuenta para activarlo.
+        </Banner>
+      )}
+
       {bot.status === "ERROR" && (
         <Banner tone="danger" title="Este bot dejó de responder por un error">
           Quedó marcado en estado de error tras un fallo (error del proveedor de IA, etc.) y no procesará mensajes nuevos aunque esté &quot;Activo&quot;. Pausa y vuelve a activarlo para reintentar.

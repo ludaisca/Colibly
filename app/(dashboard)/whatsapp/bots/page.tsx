@@ -128,9 +128,13 @@ export default function BotsPage() {
               badges={
                 <span className="flex shrink-0 items-center gap-1">
                   {bot.ragEnabled && <Badge tone="success" size="sm" className="hidden md:inline-flex">RAG</Badge>}
-                  <Badge tone={bot.isActive ? "success" : "neutral"} size="sm">
-                    {bot.isActive ? "Activo" : "Inactivo"}
-                  </Badge>
+                  {!bot.waAccountId && !bot.channelAccountId ? (
+                    <Badge tone="info" size="sm">Solo pruebas</Badge>
+                  ) : (
+                    <Badge tone={bot.isActive ? "success" : "neutral"} size="sm">
+                      {bot.isActive ? "Activo" : "Inactivo"}
+                    </Badge>
+                  )}
                   {bot.status === "ERROR" && (
                     <Badge tone="danger" size="sm">Error — reactivar para reintentar</Badge>
                   )}
@@ -154,7 +158,7 @@ export default function BotsPage() {
               className="flex shrink-0 items-center gap-1"
               onClick={(e) => e.stopPropagation()}
             >
-              <Switch checked={bot.isActive} onCheckedChange={() => handleToggle(bot.id)} disabled={togglingId === bot.id} label={`Bot ${bot.name} activo`} />
+              <Switch checked={bot.isActive} onCheckedChange={() => handleToggle(bot.id)} disabled={togglingId === bot.id || (!bot.isActive && !bot.waAccountId && !bot.channelAccountId)} label={`Bot ${bot.name} activo`} />
               <Tooltip label="Eliminar bot"><Button
                 variant="ghost"
                 size="sm"
