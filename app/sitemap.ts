@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/app-url";
 import { GUIDES, guidePath } from "@/app/(marketing)/_guides";
+import { comparativasUpdated } from "@/lib/seo/public-pages";
 import { BLOG_CATEGORIES, getPublishedPosts, MIN_POSTS_TO_INDEX, type BlogCategory } from "@/lib/blog/posts";
 
 // Solo el sitio público; el panel requiere sesión. Dinámico por SITE_URL.
@@ -13,6 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: siteUrl("/"), changeFrequency: "weekly", priority: 1 },
     { url: siteUrl("/precios"), changeFrequency: "monthly", priority: 0.8 },
     { url: siteUrl("/guias"), changeFrequency: "weekly", priority: 0.7 },
+    { url: siteUrl("/comparativas"), lastModified: comparativasUpdated(), changeFrequency: "monthly", priority: 0.7 },
     ...GUIDES.map((g) => ({ url: siteUrl(guidePath(g)), lastModified: g.updated, changeFrequency: "monthly" as const, priority: 0.7 })),
     ...(posts.length
       ? [

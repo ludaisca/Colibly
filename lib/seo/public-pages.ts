@@ -3,7 +3,8 @@ import { siteUrl } from "@/lib/app-url";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { META_FEES_NOTE, COEXISTENCE_PITCH } from "@/lib/billing/plan-features";
-import { GUIDES, guidePath, type Guide } from "@/app/(marketing)/_guides";
+import { GUIDES, guidePath, monthYearEs, type Guide } from "@/app/(marketing)/_guides";
+import { HUB } from "@/app/(marketing)/_comparativas-data";
 import { FAQ } from "@/app/(marketing)/_landing-faq";
 import { CHANNELS_PER_USER_LINE, LANDING_PLANS, OFFER_GROUPS, type OfferCell } from "@/app/(marketing)/_landing-offer-data";
 import { NOTES } from "@/app/(marketing)/_pricing-notes";
@@ -16,7 +17,7 @@ import { keyFacts, siteIntro } from "./site-facts";
 // Salen de los mismos datos que renderizan las páginas: guías (_guides.ts),
 // oferta (_landing-offer-data.ts), preguntas (_landing-faq.ts) y los .md del blog.
 
-export type PublicPageKind = "inicio" | "precios" | "guia" | "comparativa" | "blog";
+export type PublicPageKind = "inicio" | "precios" | "guia" | "comparativa" | "indice" | "blog";
 
 export interface PublicPage {
   /** Ruta canónica ("/", "/precios", "/crm-whatsapp", "/comparativas/…", "/blog/…"). */
@@ -33,24 +34,63 @@ export function absolutizeLinks(markdown: string): string {
 
 const cell = (c: OfferCell): string => (c === true ? "Sí" : c === false ? "No" : c);
 
+function tableToMarkdown(t: { headers: string[]; rows: string[][] }): string[] {
+  return [`| ${t.headers.join(" | ")} |`, `| ${t.headers.map(() => "---").join(" | ")} |`, ...t.rows.map((row) => `| ${row.join(" | ")} |`)];
+}
+
 export function guideToMarkdown(g: Guide): string {
   const out: string[] = [`# ${g.h1}`, "", `> ${g.description}`, "", g.intro, ""];
   for (const s of g.sections) {
     out.push(`## ${s.heading}`, "");
     for (const p of s.paragraphs ?? []) out.push(p, "");
     if (s.bullets?.length) out.push(...s.bullets.map((b) => `- ${b}`), "");
-    if (s.table) {
-      out.push(`| ${s.table.headers.join(" | ")} |`, `| ${s.table.headers.map(() => "---").join(" | ")} |`);
-      for (const row of s.table.rows) out.push(`| ${row.join(" | ")} |`);
-      out.push("");
-    }
+    if (s.table) out.push(...tableToMarkdown(s.table), "");
+    for (const n of s.notes ?? []) out.push(n, "");
   }
   if (g.faq.length) {
     out.push("## Preguntas frecuentes", "");
     for (const f of g.faq) out.push(`### ${f.q}`, "", f.a, "");
   }
+  if (g.sources?.length) {
+    out.push("## Fuentes", "", `Última actualización: ${monthYearEs(g.updated)}. Precios de terceros revisados en sus sitios oficiales; pueden cambiar.`, "");
+    for (const src of g.sources) out.push(`- [${src.label}](${src.url})`);
+    out.push("");
+  }
   out.push(`Última revisión: ${g.updated}`);
   return out.join("\n");
+}
+
+/** Fecha de la comparativa revisada más recientemente (para el hub y el sitemap). */
+export function comparativasUpdated(): string {
+  return GUIDES.filter((g) => g.section === "comparativas").map((g) => g.updated).sort().at(-1) ?? "";
+}
+
+/** Markdown del hub /comparativas: mismas tablas y lista que la página. */
+export function comparativasHubMarkdown(): string {
+  const list = GUIDES.filter((g) => g.section === "comparativas");
+  return [
+    `# ${HUB.h1}`,
+    "",
+    `> ${HUB.description}`,
+    "",
+    HUB.intro,
+    "",
+    `## ${HUB.equivalence.heading}`,
+    "",
+    ...tableToMarkdown(HUB.equivalence.table),
+    "",
+    `## ${HUB.billing.heading}`,
+    "",
+    ...tableToMarkdown(HUB.billing.table),
+    "",
+    `## ${HUB.listHeading}`,
+    "",
+    ...list.map((g) => `- [${g.title}](${siteUrl(guidePath(g))}): ${g.description}`),
+    "",
+    HUB.closing,
+    "",
+    `Última actualización: ${monthYearEs(comparativasUpdated())}`,
+  ].join("\n");
 }
 
 export function postToMarkdown(p: BlogPost): string {
@@ -107,6 +147,7 @@ export async function getPublicPages(): Promise<PublicPage[]> {
     { path: "/precios", title: "Planes y precios", kind: "precios", markdown: pricingMarkdown() },
   ];
   for (const g of GUIDES.filter((x) => x.section !== "comparativas")) pages.push({ path: guidePath(g), title: g.h1, kind: "guia", markdown: guideToMarkdown(g) });
+  pages.push({ path: "/comparativas", title: HUB.h1, kind: "indice", markdown: comparativasHubMarkdown() });
   for (const g of GUIDES.filter((x) => x.section === "comparativas")) pages.push({ path: guidePath(g), title: g.h1, kind: "comparativa", markdown: guideToMarkdown(g) });
   for (const p of await getPublishedPosts()) pages.push({ path: `/blog/${p.slug}`, title: p.title, kind: "blog", markdown: postToMarkdown(p) });
   return pages;

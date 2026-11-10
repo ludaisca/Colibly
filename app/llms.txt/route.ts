@@ -25,6 +25,7 @@ export async function GET() {
       link("Inicio", "/", `qué hace ${BRAND_NAME}, cómo empezar y preguntas frecuentes.`),
       link("Planes y precios", "/precios", "licencias, cupos de contactos y créditos de IA."),
       link("Guías", "/guias", "todas las guías y comparativas."),
+      link("Comparativas", "/comparativas", `${BRAND_NAME} frente a Kommo, Leadsales y ManyChat, plan por plan.`),
       `- [Contenido completo en un solo archivo](${siteUrl("/llms-full.txt")}): el texto de todas las páginas públicas en Markdown.`,
     ].join("\n"),
     ["## Guías", "", ...guides.map((g) => link(g.title, guidePath(g), g.description))].join("\n"),

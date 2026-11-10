@@ -4,7 +4,7 @@ import { appUrl, siteUrl } from "@/lib/app-url";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { Button } from "@/app/components/ui/button";
 import { breadcrumbJson } from "@/lib/seo/site-schema";
-import { guideBySlug, guidePath } from "./_guides";
+import { guideBySlug, guidePath, monthYearEs } from "./_guides";
 import { InfoPage, LINK } from "./_page";
 
 export function guideMetadata(slug: string): Metadata {
@@ -41,12 +41,36 @@ function articleJson(slug: string): string {
   }).replace(/</g, "\\u003c");
 }
 
+// Convierte en enlaces las URL del texto (y la forma sin esquina "host/docs/api"
+// de las tablas), sin que cada guía tenga que llevar marcado.
+const URL_RE = /(https?:\/\/[^\s)]*[^\s).,;]|[\w.:-]+\/docs\/api)/g;
+
+export function Rich({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <a key={i} href={part.startsWith("http") ? part : appUrl("/docs/api")} className={LINK}>
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 export function GuidePage({ slug }: { slug: string }) {
   const g = guideBySlug(slug);
   const related = g.related.map((s) => guideBySlug(s));
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJson([{ name: g.title, path: guidePath(g) }]) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: breadcrumbJson([...(g.section === "comparativas" ? [{ name: "Comparativas", path: "/comparativas" }] : []), { name: g.title, path: guidePath(g) }]) }}
+      />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqJson(slug) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: articleJson(slug) }} />
       <InfoPage title={g.h1} intro={g.intro}>
@@ -54,17 +78,17 @@ export function GuidePage({ slug }: { slug: string }) {
           <section key={s.heading}>
             <h2>{s.heading}</h2>
             {s.paragraphs?.map((p) => (
-              <p key={p} className="mt-3">{p}</p>
+              <p key={p} className="mt-3"><Rich text={p} /></p>
             ))}
             {s.table && (
               <div className="mt-4 overflow-x-auto rounded-xl border border-border">
-                <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+                <table className={`w-full ${s.table.headers.length > 4 ? "min-w-[48rem]" : "min-w-[34rem]"} border-collapse text-left text-sm`}>
                   <thead className="bg-surface">
                     <tr>{s.table.headers.map((h) => <th key={h} className="border-b border-border px-3 py-2 font-semibold">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {s.table.rows.map((row) => (
-                      <tr key={row[0]}>{row.map((c, i) => <td key={i} className={`border-b border-border px-3 py-2 align-top ${i === 0 ? "font-medium" : ""}`}>{c}</td>)}</tr>
+                      <tr key={row[0]}>{row.map((c, i) => <td key={i} className={`border-b border-border px-3 py-2 align-top ${i === 0 ? "font-medium" : ""}`}><Rich text={c} /></td>)}</tr>
                     ))}
                   </tbody>
                 </table>
@@ -73,10 +97,13 @@ export function GuidePage({ slug }: { slug: string }) {
             {s.bullets && (
               <ul className="mt-3">
                 {s.bullets.map((b) => (
-                  <li key={b}>{b}</li>
+                  <li key={b}><Rich text={b} /></li>
                 ))}
               </ul>
             )}
+            {s.notes?.map((n) => (
+              <p key={n} className="mt-4"><Rich text={n} /></p>
+            ))}
           </section>
         ))}
 
@@ -93,9 +120,23 @@ export function GuidePage({ slug }: { slug: string }) {
         </section>
 
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-5">
-          <p className="min-w-0 flex-1 text-pretty font-medium">Prueba {BRAND_NAME} {TRIAL_DAYS} días, sin tarjeta.</p>
+          <p className="min-w-0 flex-1 text-pretty font-medium">{g.cta ?? `Prueba ${BRAND_NAME} ${TRIAL_DAYS} días, sin tarjeta.`}</p>
           <Button href={appUrl("/register")}>Crear mi cuenta</Button>
         </div>
+
+        {g.sources && g.sources.length > 0 && (
+          <section>
+            <h2>Fuentes de los datos de otras marcas</h2>
+            <p className="mt-3">Última actualización: {monthYearEs(g.updated)}. Precios de terceros revisados en sus sitios oficiales; pueden cambiar.</p>
+            <ul className="mt-3">
+              {g.sources.map((src) => (
+                <li key={src.url}>
+                  <a href={src.url} className={LINK} rel="nofollow noopener" target="_blank">{src.label}</a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section>
           <h2>Sigue leyendo</h2>
@@ -103,6 +144,7 @@ export function GuidePage({ slug }: { slug: string }) {
             {related.map((r) => (
               <li key={r.slug}><a href={guidePath(r)} className={LINK}>{r.title}</a></li>
             ))}
+            {g.section === "comparativas" && <li><a href="/comparativas" className={LINK}>Todas las comparativas</a></li>}
             <li><a href="/guias" className={LINK}>Todas las guías</a></li>
             <li><a href="/precios" className={LINK}>Planes y precios</a></li>
           </ul>

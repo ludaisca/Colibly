@@ -21,6 +21,8 @@ async function currentHashes(): Promise<Record<string, string>> {
   // Los índices no tienen texto propio: su hash es la lista de lo que enlazan.
   const posts = await getPublishedPosts();
   hashes[siteUrl("/blog")] = pageHash(posts.map((p) => `${p.slug}:${p.updated}`).join("|"));
+  // /comparativas ya entra arriba por getPublicPages() (hash de su Markdown, que
+  // lleva las tablas y la lista de comparativas).
   hashes[siteUrl("/guias")] = pageHash(GUIDES.map((g) => `${guidePath(g)}:${g.updated}`).join("|"));
   return hashes;
 }

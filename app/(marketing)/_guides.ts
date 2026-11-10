@@ -1,6 +1,7 @@
 import { BRAND_NAME } from "@/lib/brand";
-import { PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { COEXISTENCE_PITCH, META_FEES_NOTE } from "@/lib/billing/plan-features";
+import { KOMMO_GUIDE, LEADSALES_GUIDE, MANYCHAT_GUIDE } from "./_comparativas-data";
 import { OFFER_FROM_MXN } from "./_landing-offer-data";
 
 // Guías públicas pensadas para búsquedas concretas (SEO) y para que los
@@ -16,9 +17,20 @@ export type Guide = {
   h1: string;
   description: string;
   intro: string;
-  sections: { heading: string; paragraphs?: string[]; bullets?: string[]; table?: { headers: string[]; rows: string[][] } }[];
+  sections: {
+    heading: string;
+    paragraphs?: string[];
+    bullets?: string[];
+    table?: { headers: string[]; rows: string[][] };
+    /** Párrafos que se muestran DESPUÉS de la tabla y de los bullets. */
+    notes?: string[];
+  }[];
   faq: { q: string; a: string }[];
   related: string[];
+  /** Texto del bloque de prueba gratis; sin valor, el genérico. */
+  cta?: string;
+  /** Fuentes de datos de otras marcas (comparativas): se listan antes de "Sigue leyendo". */
+  sources?: { label: string; url: string }[];
   /** "comparativas" cuelga de /comparativas/<slug>; sin valor, de la raíz (/<slug>). */
   section?: "comparativas";
   /** Última revisión del contenido (AAAA-MM-DD): sitemap y JSON-LD. Se actualiza al editar la guía. */
@@ -28,7 +40,6 @@ export type Guide = {
 /** Fecha de revisión de las guías iniciales. */
 const REVIEWED = "2026-11-09";
 
-const PLANS_PRICE = { ESSENTIAL: PLANS.ESSENTIAL.pricePerSeatMxn, BUSINESS: PLANS.BUSINESS.pricePerSeatMxn, PRO: PLANS.PRO.pricePerSeatMxn };
 
 export const GUIDES: Guide[] = [
   {
@@ -468,159 +479,19 @@ export const GUIDES: Guide[] = [
     related: ["crm-whatsapp", "agendar-citas-whatsapp", "whatsapp-business-api-coexistencia"],
     updated: REVIEWED,
   },
-  {
-    slug: "alternativa-a-leadsales",
-    section: "comparativas",
-    title: "Alternativa a Leadsales para WhatsApp",
-    h1: "Alternativa a Leadsales: cuándo conviene mirar Colibly",
-    description: `Cómo comparar un CRM de WhatsApp con Leadsales: qué preguntar, qué ofrece ${BRAND_NAME} y cuándo conviene cada uno. Desde $${OFFER_FROM_MXN} MXN por usuario, ${TRIAL_DAYS} días gratis.`,
-    intro: `Leadsales es un CRM conocido en México para vender por WhatsApp. Si estás evaluando opciones, esta página explica qué ofrece ${BRAND_NAME} y qué conviene preguntar a cualquier proveedor. No hablamos por Leadsales: sus planes, precios y funciones cámbialos a su sitio oficial, porque pueden cambiar.`,
-    sections: [
-      {
-        heading: "Qué ofrece Colibly",
-        table: {
-          headers: ["Tema", `${BRAND_NAME}`, "Qué confirmar con Leadsales"],
-          rows: [
-            ["Precio", `Básico $${PLANS_PRICE.ESSENTIAL}, Avanzado $${PLANS_PRICE.BUSINESS} y Pro $${PLANS_PRICE.PRO} MXN por usuario al mes`, "Su precio vigente y cómo se cobra"],
-            ["Prueba", `${TRIAL_DAYS} días con Pro, hasta 3 personas, sin tarjeta`, "Si hay prueba y si pide tarjeta"],
-            ["WhatsApp", "API oficial de Meta, con Coexistencia", "Cómo se conecta el número"],
-            ["Otros canales", "Instagram, Messenger, Telegram y chat web", "Qué canales incluye"],
-            ["IA", "Créditos por persona (Avanzado y Pro); Básico sin IA", "Si la IA va incluida o aparte"],
-            ["Licencias", "Se pueden mezclar en un mismo equipo", "Si todos pagan el mismo plan"],
-            ["Costos de Meta", "Aparte: los paga el cliente directo a Meta", "Cómo trata ese cargo"],
-          ],
-        },
-      },
-      {
-        heading: "Qué preguntar a cualquier CRM de WhatsApp",
-        bullets: [
-          "¿El plan de entrada usa la API oficial de WhatsApp?",
-          "¿Puedo seguir usando el número en mi celular (Coexistencia)?",
-          "¿La IA está incluida o se paga aparte, y con qué tope?",
-          "¿Cuánto cuesta en total sumando licencias y cargos de Meta?",
-          "¿Puedo probarlo sin tarjeta y cancelar cuando quiera?",
-        ],
-      },
-      {
-        heading: "Cuándo conviene Colibly y cuándo no",
-        paragraphs: [
-          `Conviene si vendes por chat, quieres presupuestar en pesos por persona, mezclar licencias y tener bandeja, embudo, citas y bot en un mismo producto. Si tu equipo ya trabaja a gusto con otra herramienta y no te falta nada, cambiar tiene un costo de aprendizaje que quizá no compense. Prueba ${BRAND_NAME} con un caso real antes de decidir.`,
-        ],
-      },
-    ],
-    faq: [
-      { q: "¿Colibly es mejor que Leadsales?", a: "Depende de lo que necesites. Esta página no compara datos de Leadsales porque cambian; te dice qué ofrece Colibly y qué preguntar para decidir con información actual." },
-      { q: "¿Puedo probar Colibly sin tarjeta?", a: `Sí, ${TRIAL_DAYS} días con licencia Pro, hasta 3 personas.` },
-      { q: "¿Los costos de Meta están incluidos?", a: META_FEES_NOTE },
-    ],
-    related: ["crm-whatsapp", "precio-whatsapp-business-api", "alternativa-a-kommo"],
-    updated: REVIEWED,
-  },
-  {
-    slug: "alternativa-a-manychat",
-    section: "comparativas",
-    title: "Alternativa a ManyChat para WhatsApp",
-    h1: "Alternativa a ManyChat para vender por WhatsApp en México",
-    description: `ManyChat y ${BRAND_NAME} resuelven problemas distintos. Cuándo conviene un CRM de WhatsApp para equipos y cuándo quedarte con la automatización de Instagram. Prueba ${TRIAL_DAYS} días.`,
-    intro: `ManyChat es conocido por automatizar conversaciones en Instagram, Messenger y WhatsApp. Muchos negocios que venden sobre todo por WhatsApp buscan, además, un lugar donde su equipo atienda y dé seguimiento. Esta página explica en qué se enfoca ${BRAND_NAME}; los planes y funciones de ManyChat, confírmalos en su sitio oficial.`,
-    sections: [
-      {
-        heading: "Dos enfoques distintos",
-        table: {
-          headers: ["Necesidad", "Enfoque de Colibly", "Qué confirmar con ManyChat"],
-          rows: [
-            ["Atender y dar seguimiento en WhatsApp", "El centro del producto: bandeja compartida, embudo, tareas y citas", "Cómo maneja el equipo y el seguimiento"],
-            ["Automatizar Instagram", "Instagram es un canal de la bandeja, con automatizaciones y bot", "Qué flujos ofrece en Instagram"],
-            ["Precio", `Pesos mexicanos por persona: $${PLANS_PRICE.ESSENTIAL}, $${PLANS_PRICE.BUSINESS} o $${PLANS_PRICE.PRO} al mes`, "Moneda y cómo cobra"],
-            ["IA", "Créditos por persona en Avanzado y Pro", "Si la IA va incluida o aparte"],
-            ["Prueba", `${TRIAL_DAYS} días con Pro, sin tarjeta`, "Condiciones de su prueba"],
-          ],
-        },
-      },
-      {
-        heading: "Cuándo conviene Colibly",
-        bullets: [
-          "Tu canal principal de venta es WhatsApp.",
-          "Quieres que un equipo atienda con orden: asignación, tiempos de respuesta y roles.",
-          "Prefieres presupuestar en pesos y por persona.",
-          "Quieres un bot que responda con lo que sabe tu negocio y se pause cuando una persona toma el chat.",
-        ],
-      },
-      {
-        heading: "Cuándo quedarte en ManyChat, o usar ambos",
-        bullets: [
-          "Tu crecimiento depende de flujos de comentarios, historias y captación en Instagram.",
-          "Ya tienes automatizaciones complejas ahí.",
-          "Tu equipo de marketing trabaja en flujos y no en un embudo de ventas.",
-        ],
-      },
-      {
-        heading: "Cómo cambiar sin perder ventas",
-        bullets: [
-          "Mantén tu herramienta actual mientras conectas Colibly.",
-          "Conecta WhatsApp con la API oficial (y la Coexistencia si usas la app en el celular).",
-          "Carga tus respuestas frecuentes en la información del bot.",
-          "Pasa al equipo a la bandeja y apaga al final lo que se duplique.",
-          "Revisa que tus plantillas de WhatsApp sigan aprobadas.",
-        ],
-      },
-    ],
-    faq: [
-      { q: "¿Colibly sustituye a ManyChat?", a: "Depende de para qué lo uses. Colibly es un CRM y una bandeja para atender y dar seguimiento; si tu valor está en flujos de Instagram, puedes usar ambos." },
-      { q: "¿Colibly automatiza Instagram?", a: "Instagram es un canal de la bandeja con automatizaciones y bot; revisa en la prueba si cubre los flujos que necesitas." },
-    ],
-    related: ["crm-whatsapp", "chatbot-whatsapp-ia", "alternativa-a-leadsales"],
-    updated: REVIEWED,
-  },
-  {
-    slug: "alternativa-a-kommo",
-    section: "comparativas",
-    title: "Alternativa a Kommo para WhatsApp en México",
-    h1: "Alternativa a Kommo para vender por WhatsApp",
-    description: `Qué comparar entre Kommo y ${BRAND_NAME}: moneda, IA, WhatsApp oficial y licencias. ${BRAND_NAME} cobra en MXN por persona y se prueba ${TRIAL_DAYS} días sin tarjeta.`,
-    intro: `Kommo (antes amoCRM) es un CRM de mensajería con un tablero visual de ventas. Si lo estás comparando con ${BRAND_NAME}, esta página te da las preguntas que conviene hacer. Sus planes, precios y condiciones, confírmalos en su sitio oficial: aquí no los damos por ciertos.`,
-    sections: [
-      {
-        heading: "Preguntas para comparar",
-        table: {
-          headers: ["Pregunta", `${BRAND_NAME}`],
-          rows: [
-            ["¿En qué moneda se cobra?", "Pesos mexicanos"],
-            ["¿Hay plazo mínimo?", "No: el pago es mensual y cancelas cuando quieras"],
-            ["¿La IA está incluida?", "Créditos por persona en Avanzado (1,000) y Pro (2,500)"],
-            ["¿Puedo mezclar licencias?", "Sí, cada persona puede tener una distinta"],
-            ["¿WhatsApp oficial desde el inicio?", "Sí, con la API oficial de Meta y Coexistencia"],
-            ["¿Hay prueba sin tarjeta?", `Sí, ${TRIAL_DAYS} días con Pro, hasta 3 personas`],
-          ],
-        },
-      },
-      {
-        heading: "Cuándo conviene Colibly",
-        bullets: [
-          "Necesitas presupuestar en pesos y por persona.",
-          "Te basta con no perder chats y cerrar ventas por WhatsApp.",
-          "Quieres bandeja, embudo, citas y bot de IA en el mismo producto.",
-        ],
-      },
-      {
-        heading: "Cuándo evaluar otra opción",
-        paragraphs: [
-          "Si tu equipo ya vive en embudos visuales muy elaborados, o necesitas un ecosistema grande de integraciones empresariales, compara con calma antes de cambiar. No afirmamos que Colibly supere a Kommo en todas sus funciones; la forma segura de decidir es probar ambos con un flujo real y medir el tiempo a la primera respuesta, qué tan fácil es asignar y si tu equipo entiende el embudo en un día.",
-        ],
-      },
-    ],
-    faq: [
-      { q: "¿Colibly es una alternativa a Kommo?", a: "Para equipos que venden por WhatsApp y quieren presupuestar en pesos, puede serlo. Para decidir, prueba ambos con un caso real." },
-      { q: "¿Tiene plazo mínimo?", a: "No. El pago es mensual y puedes cancelar cuando quieras." },
-    ],
-    related: ["crm-whatsapp", "alternativa-a-leadsales", "precio-whatsapp-business-api"],
-    updated: REVIEWED,
-  },
+  KOMMO_GUIDE,
+  LEADSALES_GUIDE,
+  MANYCHAT_GUIDE,
 ];
 
 /** Ruta pública de una guía o comparativa. */
 export function guidePath(g: Pick<Guide, "slug" | "section">): string {
   return g.section ? `/${g.section}/${g.slug}` : `/${g.slug}`;
+}
+
+/** "noviembre de 2026" a partir de AAAA-MM-DD. */
+export function monthYearEs(iso: string): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-MX", { month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 export function guideBySlug(slug: string): Guide {
