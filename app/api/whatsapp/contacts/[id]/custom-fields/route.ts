@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { contactCustomFieldValuesSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { recordContactActivity } from "@/lib/contacts/activity";
 
 async function getOwnedContact(userId: string, contactId: string) {
-  const [accountIds, channelAccountIds] = await Promise.all([getUserAccountIds(userId), getUserChannelAccountIds(userId)]);
+  const scope = await contactScopeWhere(userId);
   return prisma.contact.findFirst({
-    where: { id: contactId, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+    where: { id: contactId, ...scope },
     select: { id: true, accountId: true, channelAccountId: true },
   });
 }
@@ -32,6 +32,9 @@ export async function GET(
     if (!contact) {
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
     }
+
+    // Sin canal no hay definiciones: los campos son por cuenta.
+    if (!contact.accountId && !contact.channelAccountId) return NextResponse.json({ definitions: [], values: {} });
 
     const [definitions, values] = await Promise.all([
       prisma.contactCustomFieldDefinition.findMany({
@@ -82,7 +85,7 @@ export async function PUT(
     }
 
     const definitionIds = Object.keys(parsed.data.values);
-    if (definitionIds.length === 0) {
+    if (definitionIds.length === 0 || (!contact.accountId && !contact.channelAccountId)) {
       return NextResponse.json({ success: true });
     }
 

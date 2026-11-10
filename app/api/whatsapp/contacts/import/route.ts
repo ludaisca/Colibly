@@ -8,6 +8,8 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { parseCsvTable } from "@/lib/whatsapp/parse-csv";
 import { MAX_IMPORT_ROWS, MAX_IMPORT_TAGS, buildImportPlan, guessMapping, mappingError, type ColumnTarget, type FieldDefinition } from "@/lib/contacts/import-mapping";
 import { findOrCreateTag } from "@/lib/tags";
+import { normalizeManualPhone, phoneLookupJids } from "@/lib/contacts/manual-phone";
+import { requireOrgId } from "@/lib/tenancy";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { forbidRoles } from "@/lib/roles";
 import { rateLimit } from "@/lib/rate-limit";
@@ -55,8 +57,8 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     const accountId = typeof body?.accountId === "string" ? body.accountId : "";
     const csv = typeof body?.csv === "string" ? body.csv : "";
-    if (!accountId || !csv) {
-      return NextResponse.json({ error: "Falta la cuenta o el CSV" }, { status: 400 });
+    if (!csv) {
+      return NextResponse.json({ error: "Falta el CSV" }, { status: 400 });
     }
     if (csv.length > MAX_CSV_BYTES) {
       return NextResponse.json({ error: "El CSV supera 2 MB" }, { status: 413 });
@@ -67,16 +69,24 @@ export async function POST(req: Request) {
       getUserChannelAccountIds(session.user.id),
     ]);
 
+    // Sin cuenta: contactos "sin canal" de la organización (solo admin); se
+    // vinculan al conectar el primer WhatsApp. Los campos personalizados son por
+    // cuenta, así que aquí no aplican.
+    const channelless = !accountId;
+    if (channelless && session.user.role !== "admin") {
+      return NextResponse.json({ error: "Elige la cuenta destino o pide a un administrador que importe sin canal" }, { status: 403 });
+    }
+
     const waAccount = waAccountIds.includes(accountId)
       ? await prisma.wAAccount.findUnique({ where: { id: accountId }, select: { id: true, organizationId: true } })
       : null;
     const channelAccount = !waAccount && channelAccountIds.includes(accountId)
       ? await prisma.channelAccount.findUnique({ where: { id: accountId }, select: { id: true, organizationId: true, channel: true } })
       : null;
-    if (!waAccount && !channelAccount) {
+    if (!channelless && !waAccount && !channelAccount) {
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
-    const organizationId = waAccount?.organizationId ?? channelAccount!.organizationId;
+    const organizationId = channelless ? await requireOrgId(session.user.id) : (waAccount?.organizationId ?? channelAccount!.organizationId);
 
     const table = parseCsvTable(csv);
     if (table.rows.length > MAX_ROWS) {
@@ -85,7 +95,7 @@ export async function POST(req: Request) {
 
     // Definiciones de campos de ESTA cuenta: un definitionId ajeno no existe aquí.
     const definitions: FieldDefinition[] = await prisma.contactCustomFieldDefinition.findMany({
-      where: waAccount ? { waAccountId: waAccount.id } : { channelAccountId: channelAccount!.id },
+      where: waAccount ? { waAccountId: waAccount.id } : { channelAccountId: channelAccount?.id ?? "__none__" },
       select: { id: true, key: true, label: true, type: true, options: true },
     });
     let mapping: ColumnTarget[];
@@ -110,17 +120,23 @@ export async function POST(req: Request) {
     if (plan.tagNames.length > MAX_IMPORT_TAGS) {
       return NextResponse.json({ error: `Máximo ${MAX_IMPORT_TAGS} etiquetas distintas por importación` }, { status: 400 });
     }
-    const rows = plan.rows;
+    // Sin canal el teléfono se normaliza como en el alta manual (México por defecto).
+    const rows = channelless
+      ? [...new Map(plan.rows.flatMap((row) => { const jid = normalizeManualPhone(row.phone); return jid ? [[jid, { ...row, phone: jid }] as const] : []; })).values()]
+      : plan.rows;
     if (rows.length === 0) {
       return NextResponse.json({ error: "El CSV no contiene teléfonos válidos" }, { status: 400 });
     }
 
-    const accountField = waAccount ? { accountId } : { channelAccountId: channelAccount!.id };
+    const accountField = channelless
+      ? { accountId: null, channelAccountId: null, organizationId }
+      : waAccount ? { accountId } : { channelAccountId: channelAccount!.id };
+    const lookupJids = channelless ? rows.flatMap((row) => phoneLookupJids(row.phone)) : rows.map((row) => row.phone);
     const existing = await prisma.contact.findMany({
-      where: { ...accountField, remoteJid: { in: rows.map((row) => row.phone) } },
+      where: { ...accountField, remoteJid: { in: lookupJids } },
       select: { remoteJid: true },
     });
-    const existingPhones = new Set(existing.map((contact) => contact.remoteJid));
+    const existingPhones = new Set(existing.flatMap((contact) => (channelless ? phoneLookupJids(contact.remoteJid) : [contact.remoteJid])));
     const newRows = rows.filter((row) => !existingPhones.has(row.phone));
 
     const exceeded = await evaluatePlanLimit(organizationId, "contacts", newRows.length);
@@ -144,7 +160,7 @@ export async function POST(req: Request) {
     if (newRows.length > 0) {
       const created = await prisma.contact.createManyAndReturn({
         data: newRows.map((row) => ({
-          ...(waAccount ? { accountId } : { channelAccountId: channelAccount!.id }),
+          ...(channelless ? { organizationId } : waAccount ? { accountId } : { channelAccountId: channelAccount!.id }),
           remoteJid: row.phone,
           name: row.name,
           nameSource: row.name ? "user" : null,
@@ -157,7 +173,9 @@ export async function POST(req: Request) {
       imported = created.length;
 
       // Etiquetas y campos de los contactos recién creados.
-      const owner = waAccount ? { accountId, channelAccountId: null } : { accountId: null, channelAccountId: channelAccount!.id };
+      const owner = channelless
+        ? { accountId: null, channelAccountId: null, organizationId }
+        : waAccount ? { accountId, channelAccountId: null } : { accountId: null, channelAccountId: channelAccount!.id };
       const rowByPhone = new Map(newRows.map((row) => [row.phone, row]));
       const tagIdByName = new Map<string, { id: string; name: string }>();
       for (const name of plan.tagNames) tagIdByName.set(name, await findOrCreateTag(owner, name));
@@ -180,10 +198,11 @@ export async function POST(req: Request) {
         });
       }
 
-      const account: AccountRef = waAccount
+      // Sin canal no hay a quién avisar: ni eventos ni webhooks hasta vincularlos.
+      const account: AccountRef | null = channelless ? null : waAccount
         ? { kind: "whatsapp", id: waAccount.id }
         : { kind: "channel", id: channelAccount!.id, channel: channelAccount!.channel };
-      await Promise.all(created.map((contact, index) =>
+      if (account) await Promise.all(created.map((contact, index) =>
         emitDomainEvent(
           { type: "contact.created", account, chat: null, contactId: contact.id, data: { origin: "ORGANIC", source: "import" } },
           new Date(),

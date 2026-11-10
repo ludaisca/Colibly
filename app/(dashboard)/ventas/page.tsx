@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireOrgId } from "@/lib/tenancy";
-import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { ensureDefaultPipeline } from "@/lib/pipeline/ensure";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
@@ -26,18 +26,17 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
   const selected = pipelines.find((item) => item.id === requestedId) ?? pipelines.find((item) => item.isDefault) ?? pipelines[0];
   if (!selected) redirect("/ventas");
 
-  const accountIds = await getUserAccountIds(session.user.id);
-  const channelAccountIds = await getUserChannelAccountIds(session.user.id);
+  const scope = await contactScopeWhere(session.user.id);
   const stageIds = selected.stages.map((stage) => stage.id);
   const contacts = await prisma.contact.findMany({
     where: {
       OR: [
         { pipelineStageId: { in: stageIds } },
         ...(selected.isDefault
-          ? [{ pipelineStageId: null, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] }]
+          ? [{ pipelineStageId: null, ...scope }]
           : []),
       ],
-      AND: [{ OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] }],
+      AND: [scope],
     },
     select: {
       id: true,

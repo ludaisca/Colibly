@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { recordContactActivity } from "@/lib/contacts/activity";
 
@@ -16,12 +16,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const { id, taskId } = await params;
-    const [accountIds, channelAccountIds] = await Promise.all([
-      getUserAccountIds(session.user.id),
-      getUserChannelAccountIds(session.user.id),
-    ]);
+    const scope = await contactScopeWhere(session.user.id);
     const task = await prisma.contactTask.findFirst({
-      where: { id: taskId, contactId: id, contact: { OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] } },
+      where: { id: taskId, contactId: id, contact: { ...scope } },
     });
     if (!task) return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     const parsed = patchSchema.safeParse(await req.json().catch(() => null));
@@ -51,12 +48,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const { id, taskId } = await params;
-    const [accountIds, channelAccountIds] = await Promise.all([
-      getUserAccountIds(session.user.id),
-      getUserChannelAccountIds(session.user.id),
-    ]);
+    const scope = await contactScopeWhere(session.user.id);
     const task = await prisma.contactTask.findFirst({
-      where: { id: taskId, contactId: id, contact: { OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] } },
+      where: { id: taskId, contactId: id, contact: { ...scope } },
     });
     if (!task) return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     await prisma.contactTask.delete({ where: { id: taskId } });

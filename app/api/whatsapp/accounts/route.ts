@@ -12,6 +12,7 @@ import { requireOrgId } from "@/lib/tenancy";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
 import { getUserAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
+import { linkChannellessContactsSafely } from "@/lib/contacts/link-orphans";
 import { claimChannelOwner } from "@/lib/billing/user-license";
 import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 
@@ -54,10 +55,11 @@ export async function POST(req: Request) {
     const resolvedVerifyToken = verifyToken || randomBytes(24).toString("hex");
     const verifyHash = hashToken(resolvedVerifyToken);
 
+    const organizationId = await requireOrgId(session.user.id);
     const account = await prisma.wAAccount.create({
       data: {
         userId: session.user.id,
-        organizationId: await requireOrgId(session.user.id),
+        organizationId,
         name,
         phoneNumberId,
         accessToken: encryptedToken,
@@ -82,6 +84,7 @@ export async function POST(req: Request) {
     });
     invalidateAccountScopes();
     await claimChannelOwner("whatsapp", account.id, session.user.id);
+    await linkChannellessContactsSafely(organizationId, account.id);
 
     // verifyToken is only ever stored hashed — this is the one response where the
     // caller can see the plaintext value, since it must be copied into Meta's webhook config.

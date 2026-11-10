@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { tagBelongsTo } from "@/lib/tags";
 import { publicErrorMessage } from "@/lib/api-errors";
 
 async function getOwnedContact(userId: string, contactId: string) {
-  const [accountIds, channelAccountIds] = await Promise.all([getUserAccountIds(userId), getUserChannelAccountIds(userId)]);
+  const scope = await contactScopeWhere(userId);
   return prisma.contact.findFirst({
-    where: { id: contactId, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+    where: { id: contactId, ...scope },
   });
 }
 
@@ -37,7 +37,7 @@ export async function POST(
 
     const tag = await prisma.tag.findUnique({ where: { id: tagId } });
     // La etiqueta debe ser de la misma cuenta que el contacto.
-    if (!tag || !tagBelongsTo(tag, { waAccountId: contact.accountId, channelAccountId: contact.channelAccountId })) {
+    if (!tag || !tagBelongsTo(tag, { waAccountId: contact.accountId, channelAccountId: contact.channelAccountId, organizationId: contact.organizationId })) {
       return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
     }
 

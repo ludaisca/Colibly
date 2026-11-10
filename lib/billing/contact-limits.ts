@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { orgContactsWhere } from "@/lib/contacts/org-where";
 import { effectiveOrgLimits, getOrgBilling, getOrgUsage, orgIdForAccount } from "./gates";
 import { notifyOrgAdmins } from "./notify";
 
@@ -57,7 +58,7 @@ export async function getContactUsage(organizationId: string): Promise<ContactUs
   const org = await getOrgBilling(organizationId);
   const [{ contacts }, overLimitCount] = await Promise.all([
     getOrgUsage(organizationId),
-    prisma.contact.count({ where: { overLimit: true, OR: [{ account: { organizationId } }, { channelAccount: { organizationId } }] } }),
+    prisma.contact.count({ where: { ...orgContactsWhere(organizationId), overLimit: true } }),
   ]);
   const rawMax = org ? (await effectiveOrgLimits(org)).contacts : Infinity;
   const max = rawMax === Infinity ? null : rawMax;
@@ -130,7 +131,7 @@ export async function reconcileOverLimit(organizationId: string): Promise<Contac
   if (usage.graceCap === null || usage.count <= usage.graceCap) {
     if (usage.overLimitCount > 0) {
       await prisma.contact.updateMany({
-        where: { overLimit: true, OR: [{ account: { organizationId } }, { channelAccount: { organizationId } }] },
+        where: { ...orgContactsWhere(organizationId), overLimit: true },
         data: { overLimit: false },
       });
     }
@@ -142,7 +143,9 @@ export async function reconcileOverLimit(organizationId: string): Promise<Contac
       FROM contacts c
       LEFT JOIN wa_accounts a ON a.id = c."accountId"
       LEFT JOIN channel_accounts ch ON ch.id = c."channelAccountId"
-      WHERE a.organization_id = ${organizationId} OR ch.organization_id = ${organizationId}
+      WHERE NOT c.is_sample
+        AND (a.organization_id = ${organizationId} OR ch.organization_id = ${organizationId}
+             OR (c."accountId" IS NULL AND c."channelAccountId" IS NULL AND c.organization_id = ${organizationId}))
     )
     UPDATE contacts SET over_limit = ranked.over
     FROM ranked WHERE contacts.id = ranked.id AND contacts.over_limit <> ranked.over`;

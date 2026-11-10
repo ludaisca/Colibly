@@ -6,7 +6,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 import { resolveTagScope } from "@/lib/tags";
 import { publicErrorMessage } from "@/lib/api-errors";
 
-const TAG_SELECT = { id: true, name: true, color: true, waAccountId: true, channelAccountId: true } as const;
+const TAG_SELECT = { id: true, name: true, color: true, waAccountId: true, channelAccountId: true, organizationId: true } as const;
 
 // Etiquetas por cuenta. Con ?waAccountId= / ?channelAccountId= / ?contactId= /
 // ?chatId= devuelve el catálogo de ESA cuenta (lo que usan los selectores); sin
@@ -24,6 +24,7 @@ export async function GET(req: Request) {
       channelAccountId: searchParams.get("channelAccountId"),
       contactId: searchParams.get("contactId"),
       chatId: searchParams.get("chatId"),
+      organization: searchParams.get("organization") === "1",
     };
 
     if (Object.values(scopeInput).some(Boolean)) {
@@ -39,8 +40,9 @@ export async function GET(req: Request) {
       getUserAccountIds(session.user.id),
       getUserChannelAccountIds(session.user.id),
     ]);
+    const orgTagScope = await resolveTagScope(session.user.id, { organization: true });
     const tags = await prisma.tag.findMany({
-      where: { OR: [{ waAccountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+      where: { OR: [{ waAccountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }, ...(orgTagScope ? [orgTagScope] : [])] },
       orderBy: { name: "asc" },
       select: TAG_SELECT,
     });

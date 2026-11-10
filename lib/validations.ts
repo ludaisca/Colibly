@@ -386,6 +386,14 @@ export const templateCreateSchema = z.object({
 
 export type TemplateCreateInput = z.infer<typeof templateCreateSchema>;
 
+export const contactCreateSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es requerido").max(120),
+  phone: z.string().trim().min(1, "El teléfono es requerido").max(40),
+  // Sin cuenta, el contacto se crea "sin canal" y se vincula al conectar WhatsApp.
+  accountId: z.string().min(1).optional().nullable(),
+  tagIds: z.array(z.string().min(1)).max(20).optional(),
+});
+
 export const contactUpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   leadStatus: z.enum(["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"]).optional(),
@@ -443,6 +451,8 @@ export const tagSchema = z.object({
   channelAccountId: z.string().min(1).optional(),
   contactId: z.string().min(1).optional(),
   chatId: z.string().min(1).optional(),
+  // Etiquetas de contactos "sin canal" (antes de conectar WhatsApp): de la organización.
+  organization: z.boolean().optional(),
 });
 
 export const cannedResponseSchema = z.object({

@@ -1333,6 +1333,14 @@ model Contact {
   account           WAAccount?      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   channelAccountId  String?
   channelAccount    ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  // Solo para contactos "sin canal" (accountId y channelAccountId null): los
+  // que se crean a mano o por CSV antes de conectar WhatsApp. Al conectar el
+  // primer canal se mueven a esa cuenta (lib/contacts/link-orphans.ts). Único
+  // (organizationId, remoteJid) solo entre los sin canal: índice parcial en SQL.
+  organizationId    String?         @map("organization_id")
+  organization      Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Datos de ejemplo ("Spa Aurora"): nunca se envían, cuentan ni exportan.
+  isSample          Boolean         @default(false) @map("is_sample")
   remoteJid         String
   name              String?
   // Nombre aprendido por un calificador de IA durante la conversación (campo
@@ -1417,6 +1425,7 @@ model Contact {
   @@index([accountId, leadStatus])
   @@index([accountId, metaUserId])
   @@index([pipelineStageId])
+  @@index([organizationId, isSample])
   // Un Contact de Instant Form nace sin `chat` (no ha escrito por WhatsApp
   // todavía) bajo el `waAccountId` vinculado en su MetaAdsAccount — este
   // índice soporta el reporte de "leads de Instant Form sin conversación
@@ -1637,6 +1646,10 @@ model Tag {
   waAccount        WAAccount?      @relation(fields: [waAccountId], references: [id], onDelete: Cascade)
   channelAccountId String?
   channelAccount   ChannelAccount? @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
+  // Etiquetas de contactos "sin canal": cuelgan de la organización hasta que
+  // se conecta una cuenta. Único (organizationId, name) en SQL (índice parcial).
+  organizationId   String?         @map("organization_id")
+  organization     Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name             String
   color            String          @default("accent")
   createdAt        DateTime        @default(now()) @map("created_at")
@@ -2297,6 +2310,8 @@ model Organization {
   aiCreditsAlertLevel  Int                @default(0) @map("ai_credits_alert_level")
   // Mensajes de IA de prueba gastados antes de conectar un canal (TRIAL_AI_TEST_CREDITS, lib/billing/trial-test.ts).
   trialTestAiUsed      Int                @default(0) @map("trial_test_ai_used")
+  contacts             Contact[]
+  tags                 Tag[]
   // Último umbral de contactos avisado (0, 80, 100, 120) y periodo en que se
   // avisó: se reinicia con el periodo y baja si el uso baja.
   contactAlertLevel    Int                @default(0) @map("contact_alert_level")

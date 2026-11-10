@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getContactScopeIds, canAssignToContact } from "@/lib/appointments";
+import { canAssignToContact } from "@/lib/appointments";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { appointmentSchema } from "@/lib/validations";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { emitDomainEvent } from "@/lib/events/emit";
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const { accountIds, channelAccountIds } = await getContactScopeIds(session.user.id);
+    const scope = await contactScopeWhere(session.user.id);
 
     const { searchParams } = new URL(req.url);
     const contactId = searchParams.get("contactId");
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
       session.user.role === "ejecutivo" ? session.user.id : searchParams.get("assignedToId");
 
     const andFilters: Record<string, unknown>[] = [
-      { contact: { OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] } },
+      { contact: { ...scope } },
     ];
     if (contactId) andFilters.push({ contactId });
     if (assignedToId) andFilters.push({ assignedToId });
@@ -100,13 +101,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const { accountIds, channelAccountIds } = await getContactScopeIds(session.user.id);
+    const scope = await contactScopeWhere(session.user.id);
     const contact = await prisma.contact.findFirst({
       where: {
         id: parsed.data.contactId,
-        OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }],
+        ...scope,
       },
-      select: { id: true, accountId: true, channelAccountId: true },
+      select: { id: true, accountId: true, channelAccountId: true, organizationId: true },
     });
     if (!contact) {
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });

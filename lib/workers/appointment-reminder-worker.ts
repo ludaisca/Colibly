@@ -21,6 +21,8 @@ export async function processAppointmentReminderTick() {
     where: {
       status: "SCHEDULED",
       remindedAt: null,
+      // Los datos de ejemplo nunca avisan.
+      contact: { isSample: false },
       scheduledAt: { lte: new Date(now.getTime() + LOOKAHEAD_HOURS * 3_600_000) },
     },
     select: {

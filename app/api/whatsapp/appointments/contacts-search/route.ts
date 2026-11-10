@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getContactScopeIds } from "@/lib/appointments";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { publicErrorMessage } from "@/lib/api-errors";
 
 // Búsqueda de contacto acotada para el picker del formulario de Citas —
@@ -22,12 +22,12 @@ export async function GET(req: Request) {
     const q = (searchParams.get("q") ?? "").trim();
     if (q.length < 1) return NextResponse.json([]);
 
-    const { accountIds, channelAccountIds } = await getContactScopeIds(session.user.id);
+    const scope = await contactScopeWhere(session.user.id);
 
     const contacts = await prisma.contact.findMany({
       where: {
         AND: [
-          { OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+          scope,
           {
             OR: [
               { name: { contains: q, mode: "insensitive" } },

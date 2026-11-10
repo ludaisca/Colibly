@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getContactScopeIds, canAssignToContact } from "@/lib/appointments";
+import { canAssignToContact } from "@/lib/appointments";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { appointmentUpdateSchema } from "@/lib/validations";
 import { enrollContactInTrigger } from "@/lib/sequences";
 import { publicErrorMessage } from "@/lib/api-errors";
@@ -34,11 +35,11 @@ const APPOINTMENT_SELECT = {
 } as const;
 
 async function getOwnedAppointment(userId: string, role: string, appointmentId: string) {
-  const { accountIds, channelAccountIds } = await getContactScopeIds(userId);
+  const scope = await contactScopeWhere(userId);
   const appointment = await prisma.wAAppointment.findFirst({
     where: {
       id: appointmentId,
-      contact: { OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+      contact: { ...scope },
     },
     select: { ...APPOINTMENT_SELECT, assignedToId: true, contactId: true },
   });

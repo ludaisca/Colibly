@@ -1,3 +1,4 @@
+import { linkChannellessContactsSafely } from "@/lib/contacts/link-orphans";
 import { Prisma } from "@prisma/client";
 import { claimChannelOwner } from "@/lib/billing/user-license";
 import { prisma } from "@/lib/prisma";
@@ -72,6 +73,7 @@ export function realEmbeddedSignupDeps(app: PlatformApp): EmbeddedSignupDeps {
         });
         invalidateAccountScopes();
         await claimChannelOwner("whatsapp", account.id, data.userId);
+        await linkChannellessContactsSafely(data.organizationId, account.id);
         return account;
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {

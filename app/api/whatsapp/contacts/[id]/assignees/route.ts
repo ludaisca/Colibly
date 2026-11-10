@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { getEligibleAssigneesForContact } from "@/lib/chat-assignees";
 import { publicErrorMessage } from "@/lib/api-errors";
 
@@ -21,13 +21,10 @@ export async function GET(
     }
 
     const { id } = await params;
-    const [accountIds, channelAccountIds] = await Promise.all([
-      getUserAccountIds(session.user.id),
-      getUserChannelAccountIds(session.user.id),
-    ]);
+    const scope = await contactScopeWhere(session.user.id);
     const contact = await prisma.contact.findFirst({
-      where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
-      select: { accountId: true, channelAccountId: true },
+      where: { id, ...scope },
+      select: { accountId: true, channelAccountId: true, organizationId: true },
     });
     if (!contact) {
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });

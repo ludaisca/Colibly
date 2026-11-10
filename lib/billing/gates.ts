@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Organization } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { orgContactsWhere } from "@/lib/contacts/org-where";
 import { invalidateOrgApiAccess } from "@/lib/api/auth-cache";
 import { limitsForSeats, PLANS, SEAT_CHANNEL_LABELS, SEAT_CHANNELS, type PlanLimits, type SeatChannel } from "./plans";
 import { catalogMode, countLicenses, orgLicenseLimits, type LicenseCounts } from "./licenses";
@@ -179,12 +180,9 @@ export async function getOrgUsage(organizationId: string): Promise<OrgUsage> {
     prisma.channelAccount.count({ where: { organizationId, channel: "MESSENGER" } }),
     prisma.channelAccount.count({ where: { organizationId, channel: "INSTAGRAM" } }),
     prisma.channelAccount.count({ where: { organizationId, channel: "WEBCHAT" } }),
-    prisma.contact.count({ where: { OR: [{ account: { organizationId } }, { channelAccount: { organizationId } }] } }),
+    prisma.contact.count({ where: orgContactsWhere(organizationId) }),
     prisma.contact.count({
-      where: {
-        leadStatus: { notIn: ["CUSTOMER", "LOST"] },
-        OR: [{ account: { organizationId } }, { channelAccount: { organizationId } }],
-      },
+      where: { ...orgContactsWhere(organizationId), leadStatus: { notIn: ["CUSTOMER", "LOST"] } },
     }),
     prisma.automation.count({ where: { organizationId, status: "ACTIVE" } }),
     prisma.pipeline.count({ where: { organizationId } }),

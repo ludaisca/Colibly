@@ -2,19 +2,16 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { contactScopeWhere } from "@/lib/contacts/scope";
 import { checkUserFeature } from "@/lib/billing/entitlements";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { suggestTaskTitle, WritingAssistError } from "@/lib/ai/writing-assist";
 import { recordContactActivity } from "@/lib/contacts/activity";
 
 async function ownedContact(userId: string, id: string) {
-  const [accountIds, channelAccountIds] = await Promise.all([
-    getUserAccountIds(userId),
-    getUserChannelAccountIds(userId),
-  ]);
+  const scope = await contactScopeWhere(userId);
   return prisma.contact.findFirst({
-    where: { id, OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+    where: { id, ...scope },
     select: {
       id: true,
       account: { select: { organizationId: true } },

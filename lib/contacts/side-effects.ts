@@ -21,11 +21,13 @@ export async function afterLeadStatusChanged(
       pipelineStageId: true,
       dealValueCents: true,
       pipelineStage: { select: { pipeline: { select: { isDefault: true } } } },
+      organizationId: true,
+      isSample: true,
       account: { select: { organizationId: true } },
       channelAccount: { select: { organizationId: true } },
     },
   });
-  const organizationId = placed?.account?.organizationId ?? placed?.channelAccount?.organizationId;
+  const organizationId = placed?.account?.organizationId ?? placed?.channelAccount?.organizationId ?? placed?.organizationId ?? undefined;
   const onCustomFunnel = !!placed?.pipelineStage && !placed.pipelineStage.pipeline.isDefault;
   if (organizationId && !onCustomFunnel) {
     const stage = await prisma.pipelineStage.findFirst({
@@ -44,6 +46,10 @@ export async function afterLeadStatusChanged(
       .create({ data: { organizationId, contactId: contact.id, outcome: toOutcome, valueCents: placed?.dealValueCents ?? null } })
       .catch((err) => console.error("[contacts] lead outcome event failed:", err));
   }
+
+  // Un contacto sin canal (o de ejemplo) no dispara nada hacia afuera: ni Meta
+  // Ads, ni secuencias, ni eventos/webhooks. Solo cuenta su etapa y su resultado.
+  if (!placed?.account && !placed?.channelAccount) return;
 
   // Feedback loop hacia Meta Ads: solo leads que vinieron de un anuncio. La
   // resolución de la MetaAdsAccount vive en sendLeadConversionEvent; el jobId
@@ -65,6 +71,9 @@ export async function afterLeadStatusChanged(
 
 // Efectos de agregar una etiqueta a un contacto (la fila ContactTag ya existe).
 export async function afterContactTagAdded(contactId: string, tag: { id: string; name: string }): Promise<void> {
+  // Contacto sin canal: no hay secuencias ni cuenta a la que avisar.
+  const owner = await prisma.contact.findUnique({ where: { id: contactId }, select: { accountId: true, channelAccountId: true } });
+  if (owner && !owner.accountId && !owner.channelAccountId) return;
   await enrollContactInTrigger("TAG_ADDED", tag.id, contactId).catch((err) =>
     console.error("[contacts/tags] enrollContactInTrigger falló:", err)
   );

@@ -50,10 +50,14 @@ export async function getEligibleAssignees(accountId: string): Promise<Assignee[
 export async function getEligibleAssigneesForContact(contact: {
   accountId: string | null;
   channelAccountId: string | null;
+  organizationId?: string | null;
 }): Promise<Assignee[]> {
   if (contact.accountId) return getEligibleAssignees(contact.accountId);
 
   if (contact.channelAccountId) return getEligibleChannelAssignees(contact.channelAccountId);
+
+  // Contacto sin canal: lo atienden los admins de su organización.
+  if (contact.organizationId) return toActiveAssignees(await orgAdmins(contact.organizationId));
 
   return [];
 }
