@@ -151,7 +151,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       <div className="animate-fade-in-up">
         <PageHeader
           title="Estadísticas"
-          description="Métricas globales de uso de la plataforma."
+          description="Cómo va tu negocio: chats, respuestas, campañas y equipo."
           actions={<Button variant="secondary" href="/estadisticas/reportes">Reportes por periodo</Button>}
         />
       </div>

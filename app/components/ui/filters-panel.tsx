@@ -8,7 +8,7 @@ import { cn } from "./cn";
 
 // Botón "Filtros" + panel de condiciones (campo → valor, agregar/quitar,
 // aplicar/limpiar) — patrón compartido por cualquier lista con 2+ filtros
-// opcionales de selección única (hoy: Bandeja de Chats, Contactos). Sin
+// opcionales de selección única (hoy: Chats, Contactos). Sin
 // selector de "operador": todos los campos que alimenta son de selección
 // única, así que un dropdown con una sola opción posible ("Igual a") sería
 // decorativo, no funcional — si algún día se suma un campo que sí lo

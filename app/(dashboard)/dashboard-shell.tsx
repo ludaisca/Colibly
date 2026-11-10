@@ -83,10 +83,10 @@ export function DashboardShell({
           title: "Principal",
           items: [
             { href: "/dashboard",               label: "Panel",            icon: LayoutDashboard, exact: true },
-            { href: "/whatsapp/chat",           label: "Bandeja de Chats", icon: MessageSquare },
+            { href: "/whatsapp/chat",           label: "Chats",            icon: MessageSquare },
             ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
             { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
-            { href: "/ventas",                  label: "Pipeline",         icon: KanbanSquare, exact: true },
+            { href: "/ventas",                  label: "Embudo de ventas", icon: KanbanSquare, exact: true },
             { href: "/whatsapp/citas",          label: "Citas",            icon: CalendarClock },
           ],
         },
@@ -106,7 +106,7 @@ export function DashboardShell({
           title: "Difusión WhatsApp",
           items: [
             { href: "/whatsapp/plantillas",     label: "Plantillas",       icon: FileText },
-            { href: "/whatsapp/campanas",       label: "Campañas Masivas", icon: Megaphone },
+            { href: "/whatsapp/campanas",       label: "Campañas",         icon: Megaphone },
           ],
         },
         {
@@ -148,7 +148,7 @@ export function DashboardShell({
     .map((href) => navItems.find((item) => item.href === href))
     .filter((item): item is NavItem => !!item)
     .slice(0, 3)
-    .map((item) => (item.href === "/whatsapp/chat" ? { ...item, label: "Chats" } : item));
+    .map((item) => (item.href === "/whatsapp/chat" ? { ...item, label: "Chats" } : item.href === "/ventas" ? { ...item, label: "Embudo" } : item));
 
   return (
     <BusinessNameProvider name={businessName ?? null}>
