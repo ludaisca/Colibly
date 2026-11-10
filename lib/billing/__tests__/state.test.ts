@@ -185,3 +185,28 @@ describe("prueba de 14 días", () => {
   it("al vencer pasa a solo lectura sin gracia aunque haya graceEndsAt", () =>
     expect(accessMode(org({ trialEndsAt: days(-1), graceEndsAt: days(5) }), NOW)).toBe("read_only"));
 });
+
+import { bannerCta, bannerDismissKey, bannerDismissible, bannerMessage } from "../banner-copy";
+
+describe("textos del aviso del plan", () => {
+  const info = { kind: "trial_ending" as const, tone: "info" as const, daysLeft: 10 };
+  it("prueba vigente: cuántos días quedan, y mañana cuando es el último", () => {
+    expect(bannerMessage(info)).toBe("Te quedan 10 días de prueba de Pro.");
+    expect(bannerMessage({ ...info, daysLeft: 1 })).toBe("Tu prueba de Pro termina mañana.");
+  });
+  it("a 3 días o menos pide elegir plan", () => {
+    const warn = { kind: "trial_ending" as const, tone: "warning" as const, daysLeft: 2 };
+    expect(bannerMessage(warn)).toBe("Quedan 2 días: elige un plan para no perder el acceso a tus chats y bots.");
+    expect(bannerMessage({ ...warn, daysLeft: 1 })).toContain("Queda 1 día");
+  });
+  it("vencida: datos conservados y botón Elegir plan, sin poder cerrarse", () => {
+    const expired = { kind: "trial_expired" as const, tone: "danger" as const };
+    expect(bannerMessage(expired)).toContain("Tus datos se conservan: elige un plan y sigues donde te quedaste.");
+    expect(bannerCta(expired)).toBe("Elegir plan");
+    expect(bannerDismissible(expired)).toBe(false);
+    expect(bannerDismissible(info)).toBe(true);
+  });
+  it("la clave de cierre lleva la fecha de hoy", () => {
+    expect(bannerDismissKey(new Date("2026-11-10T15:00:00Z"))).toBe("colibly:trial-banner-dismissed:2026-11-10");
+  });
+});

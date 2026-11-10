@@ -63,13 +63,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     webchat: !!user?.organization.channelWebchatEnabled || hasAccount("WEBCHAT"),
   };
 
-  // Aviso del plan: los admins ven también "prueba por vencer" y "pago
-  // pendiente" (pueden resolverlo); el resto, solo cuando la cuenta ya no
-  // funciona. El aviso informativo de prueba vigente no se muestra: la
-  // pantalla del plan ya lo dice.
+  // Aviso del plan: los admins ven también los días de prueba que quedan, la
+  // prueba por vencer y el pago pendiente (pueden resolverlo); el resto, solo
+  // cuando la cuenta ya no funciona. Info y warning se pueden cerrar.
   const isAdmin = session.user.role === "admin";
   const notice = org ? billingNotice(org, new Date()) : null;
-  const showNotice = notice && notice.tone !== "info" && (isAdmin || notice.tone === "danger");
+  const showNotice = notice && (isAdmin || notice.tone === "danger");
 
   const topBanner = (
     <>
