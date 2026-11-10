@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Save, X, Plus, Upload, FileX, Tag as TagIcon } from "lucide-react";
+import { Save, Send, X, Plus, Upload, FileX, Tag as TagIcon } from "lucide-react";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Card, CardBody, CardFooter } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -61,7 +62,10 @@ export default function NewCampaignPage() {
   const [waAccountId, setWaAccountId] = useState("");
   const [waTemplateId, setWaTemplateId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [sendNow, setSendNow] = useState(true);
+  // Por defecto la campaña se guarda como borrador: enviar siempre es una acción aparte y con confirmación.
+  const [schedule, setSchedule] = useState(false);
+  const [confirm, setConfirm] = useState<null | "send" | "schedule">(null);
+  const [pending, setPending] = useState<{ allRecipients: RecipientRow[]; duplicateCount: number } | null>(null);
   const [headerParam, setHeaderParam] = useState("");
   const [headerFileName, setHeaderFileName] = useState<string | null>(null);
   const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string | null>(null);
@@ -308,8 +312,8 @@ export default function NewCampaignPage() {
     },
   ], [bodyParamCount]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  // Valida el formulario y devuelve los destinatarios ya depurados (o null si hay errores).
+  function validateForm(): { allRecipients: RecipientRow[]; duplicateCount: number } | null {
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = "Requerido";
     if (!waAccountId) newErrors.waAccountId = "Selecciona una cuenta";
@@ -324,7 +328,7 @@ export default function NewCampaignPage() {
       newErrors.buttonParam = "El botón de esta plantilla requiere un valor";
     }
 
-    if (!sendNow) {
+    if (schedule) {
       if (!scheduledAt) {
         newErrors.scheduledAt = "Selecciona la fecha y hora de envío";
       } else if (new Date(scheduledAt).getTime() < Date.now() - 60_000) {
@@ -361,8 +365,29 @@ export default function NewCampaignPage() {
     }
 
     setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
+    if (Object.keys(newErrors).length > 0) return null;
+    return { allRecipients, duplicateCount };
+  }
 
+  // Guardar borrador / programar: submit del formulario. Programar y enviar piden confirmación.
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const valid = validateForm();
+    if (!valid) return;
+    setPending(valid);
+    if (schedule) setConfirm("schedule");
+    else void persist("draft", valid);
+  }
+
+  function handleSendClick() {
+    const valid = validateForm();
+    if (!valid) return;
+    setPending(valid);
+    setConfirm("send");
+  }
+
+  async function persist(mode: "draft" | "schedule" | "send", valid: { allRecipients: RecipientRow[]; duplicateCount: number }) {
+    const { allRecipients, duplicateCount } = valid;
     setSaving(true);
     try {
       const res = await fetch("/api/whatsapp/campaigns", {
@@ -372,7 +397,7 @@ export default function NewCampaignPage() {
           name: name.trim(),
           waAccountId,
           waTemplateId,
-          scheduledAt: sendNow || !scheduledAt ? null : new Date(scheduledAt).toISOString(),
+          scheduledAt: mode !== "schedule" || !scheduledAt ? null : new Date(scheduledAt).toISOString(),
           headerParam: headerParam.trim() || undefined,
           buttonParam: buttonParam.trim() || undefined,
           recipients: allRecipients.map(r => ({
@@ -387,7 +412,7 @@ export default function NewCampaignPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
 
-      if (sendNow) {
+      if (mode === "send") {
         const sendRes = await fetch(`/api/whatsapp/campaigns/${data.id}/send`, { method: "POST" });
         if (!sendRes.ok) {
           // La campaña ya existe — no relanzar el submit (duplicaría la
@@ -400,7 +425,7 @@ export default function NewCampaignPage() {
       }
 
       const dupNote = duplicateCount > 0 ? ` (${plural(duplicateCount, "duplicado omitido", "duplicados omitidos")})` : "";
-      success((sendNow ? "Campaña iniciada" : "Campaña programada") + dupNote);
+      success((mode === "send" ? "Campaña iniciada" : mode === "schedule" ? "Campaña programada" : "Borrador guardado") + dupNote);
       router.push("/whatsapp/campanas");
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error");
@@ -547,13 +572,13 @@ export default function NewCampaignPage() {
 
                 <div className="flex items-center justify-between py-2">
                   <div>
-                    <p className="text-sm font-medium">Enviar ahora</p>
-                    <p className="text-xs text-muted-darker">La campaña comenzará a enviarse inmediatamente</p>
+                    <p className="text-sm font-medium">Programar envío</p>
+                    <p className="text-xs text-muted-darker">Si no la programas, se guarda como borrador y la envías cuando quieras</p>
                   </div>
-                  <Switch checked={sendNow} onCheckedChange={setSendNow} label="Enviar ahora" />
+                  <Switch checked={schedule} onCheckedChange={setSchedule} label="Programar envío" />
                 </div>
 
-                {!sendNow && (
+                {schedule && (
                   <FormField label="Programar para" required hint="Fecha y hora de inicio" error={errors.scheduledAt}>
                     {(id) => (
                       // `scheduledAt` = "AAAA-MM-DDTHH:MM" en hora local; al enviar se
@@ -726,12 +751,33 @@ export default function NewCampaignPage() {
             </CardBody>
             <CardFooter>
               <Button type="submit" icon={saving ? undefined : Save} disabled={saving}>
-                {saving ? <Spinner /> : sendNow ? "Crear y enviar" : "Programar campaña"}
+                {saving ? <Spinner /> : schedule ? "Programar campaña" : "Guardar borrador"}
               </Button>
+              {!schedule && (
+                <Button type="button" variant="secondary" icon={Send} disabled={saving} onClick={handleSendClick}>Enviar…</Button>
+              )}
               <Button href="/whatsapp/campanas" type="button" variant="secondary">Cancelar</Button>
             </CardFooter>
           </form>
         </Card>
+
+        <ConfirmDialog
+          open={confirm !== null}
+          onClose={() => setConfirm(null)}
+          tone="warning"
+          title={confirm === "schedule" ? "¿Programar la campaña?" : "¿Enviar la campaña ahora?"}
+          description={
+            confirm === "schedule"
+              ? `¿Programar el envío a ${plural(pending?.allRecipients.length ?? 0, "contacto", "contactos")} para el ${scheduledAt ? new Date(scheduledAt).toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" }) : "—"}? Meta cobra cada mensaje de plantilla de marketing o utilidad.`
+              : `¿Enviar a ${plural(pending?.allRecipients.length ?? 0, "contacto", "contactos")} ahora? Meta cobra cada mensaje de plantilla de marketing o utilidad.`
+          }
+          confirmLabel={confirm === "schedule" ? "Sí, programar" : "Sí, enviar"}
+          onConfirm={async () => {
+            const mode = confirm;
+            setConfirm(null);
+            if (mode && pending) await persist(mode, pending);
+          }}
+        />
 
         <div className="lg:sticky lg:top-6">
           {selectedTemplate ? (

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { Plus, Megaphone, Trash2, Workflow, ExternalLink } from "lucide-react";
+import { Plus, Megaphone, Trash2, Send, Workflow, ExternalLink } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Switch } from "@/app/components/ui/switch";
@@ -79,6 +79,7 @@ function CampaignsTab() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sendTarget, setSendTarget] = useState<{ id: string; name: string; recipientCount: number } | null>(null);
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
@@ -97,6 +98,17 @@ function CampaignsTab() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchCampaigns also used for manual refresh
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+
+  // Un borrador se envía solo con confirmación y el número real de destinatarios.
+  async function handleSend() {
+    if (!sendTarget) return;
+    const res = await fetch(`/api/whatsapp/campaigns/${sendTarget.id}/send`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? "No se pudo enviar la campaña");
+    success("Campaña encolada para envío");
+    setSendTarget(null);
+    fetchCampaigns();
+  }
 
   async function handleDelete() {
     if (!deleteId) return;
@@ -178,7 +190,8 @@ function CampaignsTab() {
                 }
               />
               {c.status === "DRAFT" && (
-                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="secondary" size="sm" icon={Send} onClick={() => setSendTarget({ id: c.id, name: c.name, recipientCount: c.recipientCount })}>Enviar</Button>
                   <Tooltip label="Eliminar borrador"><Button
                     variant="ghost"
                     size="sm"
@@ -192,6 +205,16 @@ function CampaignsTab() {
             </>
           );
         }}
+      />
+
+      <ConfirmDialog
+        open={!!sendTarget}
+        onClose={() => setSendTarget(null)}
+        tone="warning"
+        title="¿Enviar la campaña?"
+        description={sendTarget ? `¿Enviar «${sendTarget.name}» a ${sendTarget.recipientCount} ${sendTarget.recipientCount === 1 ? "contacto" : "contactos"} ahora? Meta cobra cada mensaje de plantilla de marketing o utilidad.` : undefined}
+        confirmLabel="Sí, enviar"
+        onConfirm={handleSend}
       />
 
       <ConfirmDialog

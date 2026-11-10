@@ -78,6 +78,7 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -224,8 +225,8 @@ export default function CampaignDetailPage() {
       actions={
         <>
           {(campaign.status === "DRAFT" || campaign.status === "SCHEDULED") && (
-            <Button icon={Send} size="sm" onClick={handleSend} disabled={sending}>
-              {sending ? <Spinner /> : "Enviar ahora"}
+            <Button icon={Send} size="sm" onClick={() => setSendOpen(true)} disabled={sending}>
+              {sending ? <Spinner /> : "Enviar"}
             </Button>
           )}
           {campaign.status === "DRAFT" && (
@@ -329,6 +330,17 @@ export default function CampaignDetailPage() {
           )}
         </section>
       </div>
+
+      <ConfirmDialog
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        loading={sending}
+        tone="warning"
+        title="¿Enviar la campaña?"
+        description={`¿Enviar a ${campaign.recipientCount} ${campaign.recipientCount === 1 ? "contacto" : "contactos"} ahora? Meta cobra cada mensaje de plantilla de marketing o utilidad.`}
+        confirmLabel="Sí, enviar"
+        onConfirm={async () => { await handleSend(); setSendOpen(false); }}
+      />
 
       <ConfirmDialog
         open={deleteOpen}
