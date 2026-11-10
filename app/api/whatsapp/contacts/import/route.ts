@@ -8,7 +8,7 @@ import { publicErrorMessage } from "@/lib/api-errors";
 import { parseCsvTable } from "@/lib/whatsapp/parse-csv";
 import { MAX_IMPORT_ROWS, MAX_IMPORT_TAGS, buildImportPlan, guessMapping, mappingError, type ColumnTarget, type FieldDefinition } from "@/lib/contacts/import-mapping";
 import { findOrCreateTag } from "@/lib/tags";
-import { normalizeManualPhone, phoneLookupJids } from "@/lib/contacts/manual-phone";
+import { normalizeChannellessRows, phoneLookupJids } from "@/lib/contacts/manual-phone";
 import { requireOrgId } from "@/lib/tenancy";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { forbidRoles } from "@/lib/roles";
@@ -121,9 +121,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Máximo ${MAX_IMPORT_TAGS} etiquetas distintas por importación` }, { status: 400 });
     }
     // Sin canal el teléfono se normaliza como en el alta manual (México por defecto).
-    const rows = channelless
-      ? [...new Map(plan.rows.flatMap((row) => { const jid = normalizeManualPhone(row.phone); return jid ? [[jid, { ...row, phone: jid }] as const] : []; })).values()]
-      : plan.rows;
+    const rows = channelless ? normalizeChannellessRows(plan.rows) : plan.rows;
     if (rows.length === 0) {
       return NextResponse.json({ error: "El CSV no contiene teléfonos válidos" }, { status: 400 });
     }

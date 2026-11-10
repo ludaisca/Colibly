@@ -17,6 +17,7 @@ const CONTACT_SELECT = {
   remoteJid: true,
   accountId: true,
   channelAccountId: true,
+  isSample: true,
 } as const;
 
 // Recurso plano (no anidado bajo /contacts/[id]/), a diferencia de notas: la

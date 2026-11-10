@@ -387,6 +387,7 @@ export function CitasView() {
                           <span className="flex shrink-0 items-center gap-1">
                             <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
                             {a.source === "AI_BOT" && <Badge tone="accent" size="sm">Propuesta por IA</Badge>}
+                            {a.contact.isSample && <Badge tone="info" size="sm">Ejemplo</Badge>}
                           </span>
                         }
                         subtitle={

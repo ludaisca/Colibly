@@ -16,6 +16,7 @@ const CONTACT_SELECT = {
   remoteJid: true,
   accountId: true,
   channelAccountId: true,
+  isSample: true,
 } as const;
 
 const APPOINTMENT_SELECT = {

@@ -37,3 +37,15 @@ describe("orgContactsWhere", () => {
     expect(w.OR).toHaveLength(3);
   });
 });
+
+describe("los datos de ejemplo no llegan a estadísticas ni límites", () => {
+  it("el alcance por cuentas (estadísticas, API v1) nunca incluye contactos sin cuenta", () => {
+    // Estadísticas y la API v1 filtran por accountId/channelAccountId de la persona:
+    // un contacto de ejemplo (sin cuenta) no puede coincidir con un `in: [...]`.
+    const { OR } = buildContactScope({ accountIds: ["wa1"], channelAccountIds: [], organizationId: "org1", isAdmin: false });
+    expect(OR.every((c) => !("organizationId" in c))).toBe(true);
+  });
+  it("los conteos del plan excluyen isSample", () => {
+    expect(orgContactsWhere("org1")).toMatchObject({ isSample: false });
+  });
+});

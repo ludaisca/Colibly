@@ -82,7 +82,9 @@ export function NewAutomationModal({ open, onClose }: { open: boolean; onClose: 
       <form id="new-automation-form" onSubmit={handleSubmit} className="space-y-5">
         {error && <Banner tone="danger">{error}</Banner>}
         {accounts.length === 0 && !error && (
-          <Banner tone="info">Conecta una cuenta antes de crear una automatización. Puedes empezar desde <Link href="/whatsapp/cuentas" className="underline">Cuentas WhatsApp</Link> o desde otro canal del menú.</Banner>
+          <Banner tone="info" action={<Button href="/whatsapp/cuentas" size="sm">Conectar WhatsApp</Button>}>
+            Las automatizaciones responden en un número conectado. Conecta tu WhatsApp (u otro canal del menú) y crea la primera en un minuto. Mientras tanto puedes probar tu bot en <Link href="/whatsapp/bots" className="underline">Bots IA</Link>.
+          </Banner>
         )}
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Nombre" required>

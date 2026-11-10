@@ -99,8 +99,10 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
     boardData[stageId].push(card);
   }
 
-  const total = Object.values(boardData).reduce((sum, cards) => sum + cards.length, 0);
-  const wonOnBoard = selected.stages.filter((stage) => stage.outcome === "WON").reduce((sum, stage) => sum + boardData[stage.id].length, 0);
+  // Los KPIs cuentan solo lo real: las tarjetas de ejemplo se ven en el tablero pero no suman.
+  const realCards = (stageId: string) => boardData[stageId].filter((card) => !card.isSample);
+  const total = Object.values(boardData).reduce((sum, cards) => sum + cards.filter((card) => !card.isSample).length, 0);
+  const wonOnBoard = selected.stages.filter((stage) => stage.outcome === "WON").reduce((sum, stage) => sum + realCards(stage.id).length, 0);
   const since = new Date();
   since.setDate(since.getDate() - 30);
   const outcomes = await prisma.leadOutcomeEvent.groupBy({
@@ -118,7 +120,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
   // Valor abierto: tratos con monto en etapas que no son ganadas ni perdidas.
   const openValue = selected.stages
     .filter((stage) => stage.outcome === "OPEN")
-    .reduce((sum, stage) => sum + boardData[stage.id].reduce((acc, card) => acc + (card.dealValueCents ?? 0), 0), 0);
+    .reduce((sum, stage) => sum + realCards(stage.id).reduce((acc, card) => acc + (card.dealValueCents ?? 0), 0), 0);
   const conversionPct = total > 0 ? Math.round((wonOnBoard / total) * 100) : 0;
 
   const kpis: KpiItem[] = [

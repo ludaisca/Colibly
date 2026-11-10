@@ -20,3 +20,20 @@ describe("phoneLookupJids", () => {
     expect(phoneLookupJids("525512345678").sort()).toEqual(["5215512345678", "525512345678"]);
   });
 });
+
+import { normalizeChannellessRows } from "../manual-phone";
+
+describe("normalizeChannellessRows (import CSV sin canal)", () => {
+  it("normaliza, descarta lo que no es teléfono y deja un contacto por número", () => {
+    const rows = [
+      { phone: "5512345678", name: "Ana" },
+      { phone: "+52 55 1234 5678", name: "Ana otra vez" },
+      { phone: "5215587654321", name: "Beto" },
+      { phone: "123", name: "Basura" },
+    ];
+    expect(normalizeChannellessRows(rows)).toEqual([
+      { phone: "525512345678", name: "Ana" },
+      { phone: "525587654321", name: "Beto" },
+    ]);
+  });
+});

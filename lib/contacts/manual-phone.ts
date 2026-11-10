@@ -19,3 +19,17 @@ export function normalizeManualPhone(raw: string | null | undefined): string | n
 export function phoneLookupJids(jid: string): string[] {
   return jidCandidates(jid);
 }
+
+/**
+ * Filas de un CSV importado SIN canal: normaliza cada teléfono como el alta
+ * manual, descarta los que no son teléfono y deja la primera aparición de cada
+ * número (52… y 521… y 10 dígitos cuentan como el mismo).
+ */
+export function normalizeChannellessRows<T extends { phone: string }>(rows: T[]): T[] {
+  const byJid = new Map<string, T>();
+  for (const row of rows) {
+    const jid = normalizeManualPhone(row.phone);
+    if (jid && !byJid.has(jid)) byJid.set(jid, { ...row, phone: jid });
+  }
+  return [...byJid.values()];
+}
