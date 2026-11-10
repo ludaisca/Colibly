@@ -68,3 +68,30 @@ export async function getOnboardingSteps(userId: string): Promise<OnboardingStep
   }
   return steps;
 }
+
+/** Botón de la tarjeta "Siguiente paso" del panel, por paso. */
+const NEXT_STEP_CTA: Record<OnboardingStep["key"], string> = {
+  email: "Revisar mi correo",
+  channel: "Conectar WhatsApp",
+  automation: "Crear mi bot",
+  team: "Invitar a mi equipo",
+  plan: "Elegir plan",
+};
+
+export interface NextStep {
+  step: OnboardingStep;
+  cta: string;
+  /** Mientras no hay canal: probar el bot sin conectar nada. */
+  secondary: { label: string; href: string } | null;
+}
+
+/** El primer paso pendiente que tenga enlace (null si no queda ninguno: la tarjeta se oculta). */
+export function nextOnboardingStep(steps: OnboardingStep[]): NextStep | null {
+  const step = steps.find((s) => !s.done && s.href);
+  if (!step) return null;
+  return {
+    step,
+    cta: NEXT_STEP_CTA[step.key],
+    secondary: step.key === "channel" ? { label: "Mientras tanto, prueba tu bot", href: "/whatsapp/bots" } : null,
+  };
+}

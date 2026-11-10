@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
-import type { OnboardingStep } from "@/lib/onboarding";
+import { nextOnboardingStep, type OnboardingStep } from "@/lib/onboarding";
+import { Button } from "./button";
 import { SectionHeader } from "./section-header";
 import { Progress } from "./progress";
 import { cn } from "./cn";
@@ -9,8 +10,21 @@ import { cn } from "./cn";
 // mientras quede algún paso pendiente.
 export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
   const done = steps.filter((s) => s.done).length;
+  const next = nextOnboardingStep(steps);
   return (
     <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+      {/* Siguiente paso destacado: una sola acción clara arriba de la lista. */}
+      {next && (
+        <div className="mb-5 rounded-xl border border-accent-strong bg-accent-subtle p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent-ink">Siguiente paso</p>
+          <p className="mt-1 font-display text-lg font-semibold text-foreground">{next.step.title}</p>
+          <p className="mt-0.5 text-sm text-muted-strong">{next.step.description}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button href={next.step.href!}>{next.cta}</Button>
+            {next.secondary && <Button href={next.secondary.href} variant="secondary">{next.secondary.label}</Button>}
+          </div>
+        </div>
+      )}
       <SectionHeader
         eyebrow="Primeros pasos"
         title="Deja lista tu cuenta"
