@@ -6,7 +6,7 @@ import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Menu, LogOut, PanelLeftClose, PanelLeftOpen, MoreHorizontal } from "lucide-react";
+import { Menu, LogOut, PanelLeftClose, PanelLeftOpen, MoreHorizontal, ChevronDown } from "lucide-react";
 import { Drawer } from "./drawer";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
@@ -27,7 +27,13 @@ export interface NavItem {
 export interface NavGroup {
   title?: string;
   items: NavItem[];
+  /** Grupo plegable (p. ej. "Más herramientas"): el estado se recuerda en localStorage y se abre solo si la ruta actual está dentro. */
+  collapsible?: boolean;
+  /** Abierto la primera vez, antes de que la persona elija. */
+  defaultOpen?: boolean;
 }
+
+const NAV_MORE_KEY = "colibly:nav-more-open";
 
 export interface AppShellProps {
   nav: (NavItem | NavGroup)[];
@@ -70,6 +76,27 @@ function SidebarContent({
   onClose?: () => void;
 }) {
   const pathname = usePathname();
+  // Grupos plegables: abiertos si la persona los abrió (localStorage) o si la
+  // página actual es de uno de sus items (así nunca se pierde dónde estás).
+  const [moreOpen, setMoreOpen] = useState<boolean | null>(null);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(NAV_MORE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage no existe en el servidor
+      setMoreOpen(stored === null ? null : stored === "true");
+    } catch {
+      setMoreOpen(null);
+    }
+  }, []);
+  const toggleMore = (current: boolean) => {
+    setMoreOpen(!current);
+    try {
+      localStorage.setItem(NAV_MORE_KEY, String(!current));
+    } catch {
+      /* sin localStorage: solo vale en esta pestaña */
+    }
+  };
+  const isActiveItem = (item: NavItem) => (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/"));
 
   const renderLink = (item: NavItem) => {
     const Icon = item.icon;
@@ -127,6 +154,44 @@ function SidebarContent({
             if (isGroup) {
               const group = groupOrItem as NavGroup;
               if (group.items.length === 0) return null;
+              if (group.collapsible) {
+                const hasActive = group.items.some(isActiveItem);
+                const open = hasActive || (moreOpen ?? group.defaultOpen ?? false);
+                const regionId = `nav-group-${index}`;
+                const label = group.title ?? "Más";
+                return (
+                  <div key={group.title || index} className="flex flex-col gap-1 w-full">
+                    {collapsed ? (
+                      <div className="mx-auto my-1 h-px w-8 bg-border/70" aria-hidden="true" />
+                    ) : null}
+                    {(() => { const toggle = (
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        aria-controls={regionId}
+                        aria-label={collapsed ? label : undefined}
+                        // Con una página del grupo abierta no se puede plegar: sería esconder dónde estás.
+                        onClick={() => { if (!hasActive) toggleMore(open); }}
+                        className={cn(
+                          "flex items-center text-sm font-medium text-muted transition-colors hover:bg-surface-light hover:text-foreground rounded-[9px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
+                          collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2 w-full"
+                        )}
+                      >
+                        <MoreHorizontal size={18} className="shrink-0" aria-hidden />
+                        {!collapsed && (
+                          <>
+                            <span className="flex-1 text-left">{label}</span>
+                            <ChevronDown size={14} aria-hidden className={cn("shrink-0 transition-transform", open && "rotate-180")} />
+                          </>
+                        )}
+                      </button>
+                    ); return collapsed ? <Tooltip label={label} side="right">{toggle}</Tooltip> : toggle; })()}
+                    <ul id={regionId} hidden={!open} className="flex flex-col gap-0.5 w-full">
+                      {group.items.map(renderLink)}
+                    </ul>
+                  </div>
+                );
+              }
               return (
                 <div key={group.title || index} className="flex flex-col gap-1 w-full">
                   {collapsed && index > 0 && (

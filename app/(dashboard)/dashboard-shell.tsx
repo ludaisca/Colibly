@@ -18,6 +18,7 @@ import {
   Workflow,
   Zap,
   Building2,
+  LifeBuoy,
 } from "lucide-react";
 import { InstagramIcon, MessengerIcon, TelegramIcon, WebchatIcon, WhatsAppIcon } from "@/app/components/ui/channel-icons";
 import { MetaIcon } from "@/app/components/ui/brand-marks";
@@ -37,6 +38,7 @@ export function DashboardShell({
   platformAdmin = false,
   channels,
   callingEnabled = false,
+  hasWhatsapp = true,
   accountHues = null,
 }: {
   children: React.ReactNode;
@@ -44,6 +46,8 @@ export function DashboardShell({
   role: string;
   initialUser: ShellUser;
   callingEnabled?: boolean;
+  /** La organización ya tiene un número de WhatsApp conectado. */
+  hasWhatsapp?: boolean;
   /** Tono de cada cuenta en la organización, sin choques (lib/accounts/hues.ts). */
   accountHues?: AccountHues | null;
   topBanner?: React.ReactNode;
@@ -72,20 +76,22 @@ export function DashboardShell({
           title: "Ajustes",
           items: [
             { href: "/configuracion",      label: "Configuración",   icon: Settings, exact: true },
+            { href: "/ayuda",              label: "Ayuda",           icon: LifeBuoy, exact: true },
           ],
         },
       ]
     : [
-        // "Principal" agrupa el trabajo diario y abre con Panel porque es la
-        // pantalla de aterrizaje tras iniciar sesión — antes vivía en el
-        // segundo grupo, así que el primer ítem del menú no era donde caías.
+        // Principal: el trabajo diario y las pocas herramientas que importan el
+        // primer día (~8). Todo lo demás está a un clic en "Más herramientas";
+        // ninguna función ni ruta se quitó. Sin WhatsApp conectado, "Conectar
+        // WhatsApp" va arriba como entrada principal.
         {
           title: "Principal",
           items: [
             { href: "/dashboard",               label: "Panel",            icon: LayoutDashboard, exact: true },
+            ...(isAdmin && !hasWhatsapp ? [{ href: "/whatsapp/cuentas" as const, label: "Conectar WhatsApp", icon: WhatsAppIcon as React.ElementType }] : []),
             { href: "/whatsapp/chat",           label: "Chats",            icon: MessageSquare },
             ...(isAdmin ? [{ href: "/whatsapp/contactos" as const, label: "Contactos", icon: Contact as React.ElementType }] : []),
-            { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
             { href: "/ventas",                  label: "Embudo de ventas", icon: KanbanSquare, exact: true },
             { href: "/whatsapp/citas",          label: "Citas",            icon: CalendarClock },
           ],
@@ -94,24 +100,20 @@ export function DashboardShell({
           title: "Automatización",
           items: [
             ...(isAdmin ? [{ href: "/whatsapp/bots" as const, label: "Bots IA", icon: Bot as React.ElementType }] : []),
-            { href: "/whatsapp/calificadores",  label: "Calificadores de Leads", icon: Target },
-            ...(isAdmin ? [{ href: "/whatsapp/monitores" as const, label: "Monitores IA", icon: Radar as React.ElementType }] : []),
-            { href: "/whatsapp/automatizaciones", label: "Automatizaciones",    icon: Zap },
-            { href: "/whatsapp/secuencias",     label: "Secuencias",            icon: Workflow },
-          ],
-        },
-        // El alcance va en el título del grupo: plantillas y campañas son
-        // features de la API de WhatsApp y no aplican a los demás canales.
-        {
-          title: "Difusión WhatsApp",
-          items: [
-            { href: "/whatsapp/plantillas",     label: "Plantillas",       icon: FileText },
+            { href: "/whatsapp/automatizaciones", label: "Automatizaciones", icon: Zap },
             { href: "/whatsapp/campanas",       label: "Campañas",         icon: Megaphone },
           ],
         },
         {
-          title: "Canales",
+          title: "Más herramientas",
+          collapsible: true,
           items: [
+            { href: "/estadisticas",            label: "Estadísticas",     icon: BarChart3, exact: true },
+            { href: "/whatsapp/calificadores",  label: "Calificadores de Leads", icon: Target },
+            ...(isAdmin ? [{ href: "/whatsapp/monitores" as const, label: "Monitores IA", icon: Radar as React.ElementType }] : []),
+            { href: "/whatsapp/secuencias",     label: "Secuencias",       icon: Workflow },
+            // Plantillas y campañas son de la API de WhatsApp: el alcance va en la etiqueta.
+            { href: "/whatsapp/plantillas",     label: "Plantillas",       icon: FileText },
             { href: "/whatsapp/cuentas",        label: "Cuentas WhatsApp", icon: WhatsAppIcon },
             // Los demás canales están disponibles por defecto; el operador
             // puede desactivarlos por organización desde /plataforma. Si están
@@ -124,15 +126,14 @@ export function DashboardShell({
             // reales al ad account en producción), sin equivalente de
             // WAAccountShare — mismo criterio que Bots IA/Usuarios.
             ...(isAdmin ? [{ href: "/meta-ads" as const, label: "Meta Ads", icon: MetaIcon as React.ElementType }] : []),
+            ...(isAdmin ? [{ href: "/usuarios" as const, label: "Usuarios", icon: Users as React.ElementType, exact: true }] : []),
           ],
         },
         {
           title: "Ajustes",
           items: [
-            ...(isAdmin
-              ? [{ href: "/usuarios" as const,  label: "Usuarios",         icon: Users as React.ElementType, exact: true }]
-              : []),
             { href: "/configuracion",           label: "Configuración",    icon: Settings, exact: true },
+            { href: "/ayuda",                   label: "Ayuda",            icon: LifeBuoy, exact: true },
           ],
         },
       ];

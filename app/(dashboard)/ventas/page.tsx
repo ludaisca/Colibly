@@ -132,6 +132,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
     <div className="space-y-5">
       <PageHeader
         title="Embudo de ventas"
+        hint="funnel"
         description={`${pipelines.length} ${pipelines.length === 1 ? "embudo" : "embudos"} · ${conversionPct}% en etapas ganadas`}
         actions={<SampleDataControls />}
       />

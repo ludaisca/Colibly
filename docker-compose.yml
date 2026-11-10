@@ -93,6 +93,8 @@ services:
       # Operadores de la plataforma (panel /plataforma): perímetro de acceso,
       # deliberadamente fuera de la base de datos — ver lib/platform-admin.ts.
       PLATFORM_ADMIN_EMAILS: "${PLATFORM_ADMIN_EMAILS:-}"
+      # Número de soporte por WhatsApp de /ayuda (vacío = sin botón).
+      SUPPORT_WHATSAPP: "${SUPPORT_WHATSAPP:-}"
       # Pool de Postgres por proceso (vacío = default de Prisma). Ver lib/prisma.ts.
       DB_CONNECTION_LIMIT: "${DB_CONNECTION_LIMIT:-}"
       DB_POOL_TIMEOUT: "${DB_POOL_TIMEOUT:-}"

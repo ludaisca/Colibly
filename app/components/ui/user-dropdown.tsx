@@ -6,7 +6,7 @@ import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { Settings, LogOut, ChevronDown, Check, BellRing } from "lucide-react";
+import { Settings, LifeBuoy, LogOut, ChevronDown, Check, BellRing } from "lucide-react";
 import { enablePush, needsHomeScreenInstall, pushSupported, syncPush } from "@/lib/notifications/push-client";
 import { AVAILABILITY_LABEL, type Availability } from "@/lib/users/availability-rules";
 import { useToast } from "./toast";
@@ -212,6 +212,10 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
               <Menu.LinkItem render={<Link href="/configuracion" />} closeOnClick className={ITEM}>
                 <Settings size={15} className="text-muted shrink-0" aria-hidden />
                 Configuración
+              </Menu.LinkItem>
+              <Menu.LinkItem render={<Link href="/ayuda" />} closeOnClick className={ITEM}>
+                <LifeBuoy size={15} className="text-muted shrink-0" aria-hidden />
+                Ayuda
               </Menu.LinkItem>
             </div>
 

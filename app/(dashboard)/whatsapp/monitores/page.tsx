@@ -87,6 +87,7 @@ export default function MonitoresPage() {
   return (
     <div className="space-y-5">
       <PageHeader
+        hint="monitors"
         title="Monitores IA"
         description="La IA revisa tus conversaciones cada hora y te muestra en cuáles aparece cada tema: quejas, preguntas por un producto, intención de cancelar…"
         actions={

@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { FileText } from "lucide-react";
 import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
+import { HelpHint } from "@/app/components/ui/help-hint";
 
 export interface ChatWindowState {
   open: boolean;
@@ -89,6 +90,7 @@ export function ChatWindowBanner({ window, onSendTemplate }: { window: ChatWindo
       className="mx-3 mb-2"
       action={<Button size="sm" icon={FileText} onClick={onSendTemplate}>Enviar plantilla</Button>}
     >
+      <span className="mr-1 inline-flex align-middle"><HelpHint term="window24h" /></span>
       <WhyText>
         {window.lastInboundAt
           ? "Pasaron más de 24 h desde el último mensaje del cliente. WhatsApp solo permite escribirle con una plantilla aprobada hasta que vuelva a responder."

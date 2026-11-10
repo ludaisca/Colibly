@@ -98,6 +98,7 @@ export default function SequencesPage() {
   return (
     <div className="space-y-5">
       <PageHeader
+        hint="sequences"
         title="Secuencias"
         description="Un evento inscribe al contacto y envía mensajes programados en orden. Disponible para WhatsApp y Telegram."
         actions={
