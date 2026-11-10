@@ -151,3 +151,11 @@ Tesela (`/data/Proyectos/Tesela`, biblioteca propia de Custom Elements) **no se 
 - Sin fondo propio (`background: false`): va sobre el recuadro con el hue de la cuenta (`hueClassFor`), así se conserva la señal de cuenta y funciona en ambos temas. Sus colores son de su propia paleta, la misma excepción que los logos de canal.
 - Se pinta como `<img>` con data URI (el SVG sale solo de un hash; no contiene el nombre ni se inserta markup) y se cachea por semilla. Funciona en Server Components (panel) sin desajuste de hidratación.
 
+
+## Menú, ayuda y primeros pasos (2026-11-10)
+
+- **Menú.** `dashboard-shell.tsx` deja ~8 entradas a la vista (Panel, Chats, Contactos, Embudo de ventas, Citas, Bots IA, Automatizaciones, Campañas) más Configuración y Ayuda; el resto va en el grupo plegable "Más herramientas" (`NavGroup.collapsible`, estado en `localStorage` `colibly:nav-more-open`, se abre solo si la ruta actual está dentro). Sin WhatsApp conectado, "Conectar WhatsApp" va arriba (`hasWhatsapp` del layout). Nombres iguales en menú y página: Chats, Embudo de ventas (ruta `/ventas`), Campañas. La paleta de comandos lee `nav` completo: lo plegado también se encuentra.
+- **Ayuda.** `/ayuda` (en `PROTECTED`, todos los roles; pasos de configuración solo admin) y la entrada en el menú de usuario. Soporte por WhatsApp con `SUPPORT_WHATSAPP` (env opcional, en `.env.example` y `docker-compose.yml`): sin ella no hay botón.
+- **Tooltips "¿Qué es esto?".** `HelpHint` (ícono (i) sobre `Tooltip`) con los textos centralizados en `lib/help/glossary.ts`; `PageHeader` acepta `hint="<término>"`.
+- **Estados "sin canal".** Lo que vive por número (respuestas rápidas, campos, atributos, plantillas) muestra `NeedsChannelEmpty` con "Conectar WhatsApp" cuando no hay cuentas.
+- **Panel.** `OnboardingChecklist` destaca el primer paso pendiente con enlace (`nextOnboardingStep`), con "Mientras tanto, prueba tu bot" mientras no haya canal.

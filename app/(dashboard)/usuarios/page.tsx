@@ -221,15 +221,18 @@ export default function UsersPage() {
         description="Tu equipo y sus roles en este espacio."
         actions={
           <>
+            <Button icon={Mail} size="sm" onClick={() => setShowInvite(true)}>
+              Invitar por correo
+            </Button>
             <Button icon={UserPlus} size="sm" variant="secondary" onClick={() => setShowCreate(true)}>
               Crear con contraseña
-            </Button>
-            <Button icon={Mail} size="sm" onClick={() => setShowInvite(true)}>
-              Invitar
             </Button>
           </>
         }
       />
+      <p className="-mt-2 text-xs text-muted-darker">
+        Lo recomendado es invitar por correo: cada persona crea su propia contraseña. «Crear con contraseña» es para cuando tú das el acceso y le compartes la contraseña.
+      </p>
 
       {licenses && licenses.mode === "license" && !licenses.isInternal && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-border bg-surface px-4 py-3 text-sm">

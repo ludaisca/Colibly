@@ -93,3 +93,14 @@ Roadmap P3-a — drip campaigns simples: un trigger inscribe un `Contact`, y un 
 
 `GET /api/whatsapp/contacts?summary=1` agrega `summary` (sin etiquetas, sin conversación —contactos importados que nunca escribieron—, con valor de trato y su suma) calculado con **el mismo `where`** que la lista (alcance + búsqueda + filtros, todo bajo `AND`). La página lo pide solo con la página 1 (cada cambio de filtros vuelve a ella) y lo conserva al paginar.
 
+
+## Contactos sin canal y datos de ejemplo (2026-11-10)
+
+Una organización nueva puede trabajar antes de conectar WhatsApp: crear contactos a mano o por CSV, etiquetarlos, moverlos en el embudo y agendar citas.
+
+- **Modelo.** `Contact.organizationId` (solo para los "sin canal": `accountId` y `channelAccountId` nulos) y `Tag.organizationId` (etiquetas de esos contactos). Únicos parciales en SQL (`contacts_org_remote_jid_orphan_key`, `tags_org_name_orphan_key`; Prisma no los modela). `Contact.isSample` marca los datos de ejemplo.
+- **Alcance.** Todo lugar que arma el alcance de contactos usa `lib/contacts/scope.ts:contactScopeWhere(userId)`: las cuentas de la persona y, **solo para el admin**, los sin canal de su organización. Los conteos del plan (límites, `overLimit`) usan `lib/contacts/org-where.ts:orgContactsWhere(orgId)`: incluyen los sin canal y **excluyen los de ejemplo**.
+- **Alta.** `POST /api/whatsapp/contacts` (nombre, teléfono, cuenta opcional) y el import CSV con `accountId` vacío. El teléfono pasa por `lib/contacts/manual-phone.ts` (México por defecto; `52…` y `521…` son el mismo número) y se deduplica con `phoneLookupJids()`. Sin cuenta solo crea un admin.
+- **Sin efectos hacia afuera.** Un contacto sin canal no dispara secuencias, Meta Ads, eventos de dominio ni webhooks (`afterLeadStatusChanged`/`afterContactTagAdded` salen antes). La API v1 y sus webhooks siguen siendo por cuenta: no los exponen. **No se emite `contact.created` al crear a mano** (cambiaría el contrato de la API; pendiente si se quiere).
+- **Vinculación.** Al crear el PRIMER `WAAccount` de la organización (`app/api/whatsapp/accounts/route.ts` y `embedded-signup/service.ts`), `lib/contacts/link-orphans.ts` mueve los sin canal a esa cuenta en una transacción; si el número ya existe en la cuenta se **fusiona** en él (etiquetas, notas, citas, tareas, actividad y etapa) y se borra el duplicado. Las etiquetas de la organización pasan a la cuenta o se reutiliza la del mismo nombre. Idempotente.
+- **Ejemplo ("Spa Aurora").** `lib/sample-data/spa-aurora.ts`, `POST/DELETE /api/onboarding/sample-data` (admin): 5 contactos sin canal con `isSample`, 3 etiquetas, tarjetas en el embudo por defecto y una cita para mañana a las 11:00 (México). Fuera de límites, exportaciones (`org-data/export.ts`), recordatorios de citas y resultados del embudo. Las conversaciones de ejemplo son un fixture estático (`lib/sample-data/sample-conversations.ts`), no filas: un `WAChat` exige cuenta.

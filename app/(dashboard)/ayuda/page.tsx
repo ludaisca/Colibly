@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { LifeBuoy, Mail, MessageCircle } from "lucide-react";
+import { Mail, MessageCircle } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { appUrl, siteUrl } from "@/lib/app-url";

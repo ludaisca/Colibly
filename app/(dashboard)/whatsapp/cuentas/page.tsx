@@ -13,6 +13,7 @@ import { Button } from "@/app/components/ui/button";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { DropdownItem } from "@/app/components/ui/dropdown";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { HelpHint } from "@/app/components/ui/help-hint";
 import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
@@ -70,6 +71,15 @@ function CuentasView() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(searchParams.get("nueva") === "1");
   const [connectOpen, setConnectOpen] = useState(false);
+  // ¿Está configurado "Continuar con Facebook" (Embedded Signup)? Si no, la conexión
+  // manual es la única vía y se muestra tal cual; si sí, queda en "Opciones avanzadas".
+  const [signupAvailable, setSignupAvailable] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch("/api/whatsapp/embedded-signup/config")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => setSignupAvailable(d ? d.available !== false : false))
+      .catch(() => setSignupAvailable(false));
+  }, []);
 
   // 1 conexión por ejecutivo (mismo cálculo que el candado del servidor).
   const { limit: channelLimit, refresh: refreshLimit } = useChannelLimit("whatsapp");
@@ -131,7 +141,9 @@ function CuentasView() {
           <>
             {/* En el teléfono los tres botones con texto se partían en dos líneas. */}
             <Button icon={Plus} size="sm" disabled={channelLimit?.allowed === false} onClick={() => setConnectOpen(true)}>Conectar WhatsApp</Button>
-            <Button variant="secondary" size="sm" disabled={channelLimit?.allowed === false} onClick={() => setFormOpen(true)}>Conexión manual</Button>
+            {signupAvailable === false && (
+              <Button variant="secondary" size="sm" disabled={channelLimit?.allowed === false} onClick={() => setFormOpen(true)}>Conexión manual</Button>
+            )}
             <Tooltip label="Actualizar">
               <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts} aria-label="Actualizar" className="w-8 px-0" />
             </Tooltip>
@@ -140,6 +152,19 @@ function CuentasView() {
       />
 
       <ChannelLimitBanner limit={channelLimit} />
+
+      {/* "Conectar WhatsApp" es la acción principal; la conexión manual (Phone Number ID, token, WABA, App Secret) es para equipos técnicos. */}
+      {signupAvailable === true && (
+        <details className="group text-sm" open={formOpen || undefined}>
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-muted hover:text-foreground">
+            <span aria-hidden className="transition-transform group-open:rotate-90">▸</span> Opciones avanzadas
+          </summary>
+          <div className="mt-2 flex items-center gap-1 pl-4">
+            <Button variant="link" size="sm" disabled={channelLimit?.allowed === false} onClick={() => setFormOpen(true)}>Conexión manual (para equipos técnicos)</Button>
+            <HelpHint term="manualConnection" />
+          </div>
+        </details>
+      )}
 
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row">
