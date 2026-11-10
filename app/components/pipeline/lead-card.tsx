@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPhoneShort } from "@/lib/format/phone";
 import { displayName as chatDisplayName } from "@/lib/chats/display-name";
 import { useDraggable } from "@dnd-kit/core";
 import { labelText } from "@/lib/whatsapp/export-columns";
@@ -79,8 +80,9 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
   // "Atrasado" depende de la hora actual: solo después de hidratar.
   const now = useMinuteNow();
   const overdue = now !== null && !data.closed && !!data.expectedCloseAt && Date.parse(data.expectedCloseAt) < now - 86_400_000;
-  const phoneShort =
-    data.remoteJid?.replace(/@.*$/, "").slice(-10) ?? "";
+  // "+52 55 6862 3317"; el número completo va en el título (tooltip).
+  const phoneFull = data.remoteJid?.replace(/@.*$/, "") ?? "";
+  const phoneShort = formatPhoneShort(data.remoteJid) ?? phoneFull.slice(-10);
   const channelLabel = data.channel === "WEBCHAT"
     ? "Chat web"
     : data.channel.charAt(0) + data.channel.slice(1).toLowerCase();
@@ -149,7 +151,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
             <Mark size={12} className="shrink-0" />
             {/* El id de Telegram/Messenger es interno: solo se muestra el canal.
                 La hora no se parte en dos líneas; lo que se recorta es el canal. */}
-            <span className="min-w-0 truncate font-mono tabular-nums" title={data.channel === "WHATSAPP" ? data.remoteJid : undefined}>
+            <span className="min-w-0 truncate font-mono tabular-nums" title={data.channel === "WHATSAPP" ? (phoneShort ? `+${phoneFull}` : data.remoteJid) : undefined}>
               {data.channel === "WHATSAPP" ? phoneShort : channelLabel}
             </span>
             <span className="text-muted" aria-hidden>·</span>

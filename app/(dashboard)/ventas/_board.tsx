@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -22,6 +22,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 
 export type BoardStage = StageOption & { outcome: StageOutcome; locked: boolean };
@@ -60,7 +61,7 @@ function Column({
   const station = stageStation(stage.outcome, index, openCount);
 
   return (
-    <div data-stage={stage.id} className={cn(visibleOnMobile ? "flex" : "hidden sm:flex", "min-w-full flex-col sm:min-w-[300px] sm:max-w-[360px] sm:flex-1")}>
+    <div data-stage={stage.id} className={cn(visibleOnMobile ? "flex" : "hidden sm:flex", "min-w-full flex-col sm:min-w-[260px] sm:max-w-[360px] sm:flex-1 lg:min-w-[200px] xl:min-w-[176px]")}>
       <div className="mb-3 flex items-center gap-2 px-1">
         <StationMark station={station} />
         <h3 className={cn("text-sm font-semibold", station.tone === "lost" ? "text-muted" : station.tone === "won" ? "text-success" : "text-foreground")}>{stage.name}</h3>
@@ -108,6 +109,28 @@ export function PipelineBoard({
 }) {
   const router = useRouter();
   const { error: toastError, success } = useToast();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState({ left: false, right: false });
+
+  // ¿Hay etapas fuera de la vista? Se recalcula al desplazar y al cambiar de tamaño.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => setOverflow({ left: el.scrollLeft > 4, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [stages.length]);
+
+  function scrollByColumns(direction: 1 | -1) {
+    const el = scrollRef.current;
+    if (el) el.scrollBy({ left: direction * Math.max(220, el.clientWidth * 0.8), behavior: "smooth" });
+  }
   const [boardData, setBoardData] = useState<BoardData>(initialData);
   const [activeCard, setActiveCard] = useState<LeadCardData | null>(null);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
@@ -344,7 +367,8 @@ export function PipelineBoard({
           {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name} ({boardData[stage.id]?.length ?? 0})</option>)}
         </Select>
       </div>
-      <div className="flex gap-3 overflow-hidden pb-4 sm:overflow-x-auto">
+      <div className="relative">
+      <div ref={scrollRef} className="flex gap-3 overflow-hidden pb-4 sm:overflow-x-auto">
         {stages.map((stage) => (
           <Column
             key={stage.id}
@@ -358,6 +382,17 @@ export function PipelineBoard({
             onStageChange={(id, target) => void moveCard(id, target)}
           />
         ))}
+      </div>
+      {/* Con más etapas de las que caben: degradado en el borde, flechas y una pista de que se desliza. */}
+      {overflow.right && <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 hidden w-12 bg-gradient-to-l from-background to-transparent sm:block" />}
+      {overflow.left && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 hidden w-12 bg-gradient-to-r from-background to-transparent sm:block" />}
+      {(overflow.left || overflow.right) && (
+        <div className="hidden items-center justify-end gap-2 pb-1 text-xs text-muted sm:flex">
+          {overflow.right && <span>Desliza para ver más etapas</span>}
+          <Button type="button" variant="secondary" size="sm" icon={ChevronLeft} aria-label="Etapas anteriores" disabled={!overflow.left} onClick={() => scrollByColumns(-1)} />
+          <Button type="button" variant="secondary" size="sm" icon={ChevronRight} aria-label="Más etapas" disabled={!overflow.right} onClick={() => scrollByColumns(1)} />
+        </div>
+      )}
       </div>
 
       <DragOverlay dropAnimation={null}>
