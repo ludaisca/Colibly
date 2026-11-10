@@ -1,5 +1,6 @@
 "use client";
 
+import { NeedsChannelEmpty } from "@/app/components/ui/needs-channel";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, RefreshCw, MessageSquareText } from "lucide-react";
@@ -182,6 +183,8 @@ function TemplatesContent() {
         <div className="flex items-center justify-center py-16"><Spinner /></div>
       ) : accountsError ? (
         <ListErrorState message={accountsError} onRetry={fetchAccounts} />
+      ) : accounts.length === 0 ? (
+        <NeedsChannelEmpty icon={MessageSquareText} description="Las plantillas de WhatsApp se crean y aprueban por número. Conecta tu número para gestionarlas." />
       ) : !selectedAccountId ? (
         <EmptyState
           icon={MessageSquareText}

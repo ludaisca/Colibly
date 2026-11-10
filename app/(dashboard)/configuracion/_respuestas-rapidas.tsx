@@ -1,5 +1,6 @@
 "use client";
 
+import { NeedsChannelEmpty } from "@/app/components/ui/needs-channel";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, MessageSquareDashed, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -30,6 +31,7 @@ export function RespuestasRapidasSection() {
   const { success, error: toastError } = useToast();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [items, setItems] = useState<CannedResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,7 +54,8 @@ export function RespuestasRapidasSection() {
         // Como en Atributos: se preselecciona la primera cuenta (antes solo con una).
         setSelectedAccountId((current) => current || merged[0]?.id || "");
       })
-      .catch(() => toastError("Error al cargar cuentas"));
+      .catch(() => toastError("Error al cargar cuentas"))
+      .finally(() => setAccountsLoaded(true));
   }, [toastError]);
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId) ?? null;
@@ -136,22 +139,22 @@ export function RespuestasRapidasSection() {
             </Select>
           </div>
         )}
-        <Button
-          size="sm"
-          icon={Plus}
-          onClick={() => { setEditing(null); setModalOpen(true); }}
-          disabled={!selectedAccountId}
-        >
-          Nueva respuesta
-        </Button>
+        {(!accountsLoaded || accounts.length > 0) && (
+          <Button
+            size="sm"
+            icon={Plus}
+            onClick={() => { setEditing(null); setModalOpen(true); }}
+            disabled={!selectedAccountId}
+          >
+            Nueva respuesta
+          </Button>
+        )}
       </div>
 
-      {!selectedAccountId ? (
-        <p className="py-2 text-sm text-muted">
-          {accounts.length === 0
-            ? "Conecta una cuenta de WhatsApp o Telegram para crear respuestas rápidas."
-            : "Selecciona una cuenta para ver sus respuestas rápidas."}
-        </p>
+      {accountsLoaded && accounts.length === 0 ? (
+        <NeedsChannelEmpty description="Las respuestas rápidas se guardan por número de WhatsApp. Conecta tu número y créalas en un minuto." />
+      ) : !selectedAccountId ? (
+        <p className="py-2 text-sm text-muted">{accountsLoaded ? "Selecciona una cuenta para ver sus respuestas rápidas." : "Cargando cuentas…"}</p>
       ) : (
         <Table
           columns={columns}

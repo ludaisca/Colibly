@@ -1,5 +1,6 @@
 "use client";
 
+import { NeedsChannelEmpty } from "@/app/components/ui/needs-channel";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, ListPlus, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -41,6 +42,7 @@ export function CamposPersonalizadosSection() {
   const { success, error: toastError } = useToast();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [items, setItems] = useState<CustomFieldDefinition[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,7 +65,8 @@ export function CamposPersonalizadosSection() {
         // Como en Atributos: se preselecciona la primera cuenta (antes solo con una).
         setSelectedAccountId((current) => current || merged[0]?.id || "");
       })
-      .catch(() => toastError("Error al cargar cuentas"));
+      .catch(() => toastError("Error al cargar cuentas"))
+      .finally(() => setAccountsLoaded(true));
   }, [toastError]);
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId) ?? null;
@@ -167,12 +170,10 @@ export function CamposPersonalizadosSection() {
         </Button>
       </div>
 
-      {!selectedAccountId ? (
-        <p className="py-2 text-sm text-muted">
-          {accounts.length === 0
-            ? "Conecta una cuenta de WhatsApp o Telegram para crear campos personalizados."
-            : "Selecciona una cuenta para ver sus campos personalizados."}
-        </p>
+      {accountsLoaded && accounts.length === 0 ? (
+        <NeedsChannelEmpty description="Los campos personalizados se guardan por número de WhatsApp. Conecta tu número y créalos en un minuto." />
+      ) : !selectedAccountId ? (
+        <p className="py-2 text-sm text-muted">{accountsLoaded ? "Selecciona una cuenta para ver sus campos personalizados." : "Cargando cuentas…"}</p>
       ) : (
         <Table
           columns={columns}

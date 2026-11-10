@@ -1,5 +1,6 @@
 "use client";
 
+import { NeedsChannelEmpty } from "@/app/components/ui/needs-channel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
@@ -40,6 +41,7 @@ export function AtributosConversacionSection() {
   const { data: session } = useSession();
   const { success, error: toastError } = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [items, setItems] = useState<ChatAttribute[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,7 +51,8 @@ export function AtributosConversacionSection() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (session?.user?.role === "ejecutivo") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sin cuentas que cargar para este rol
+    if (session?.user?.role === "ejecutivo") { setAccountsLoaded(true); return; }
     const endpoints = ["whatsapp", "telegram", "messenger", "instagram", "webchat"];
     const channels = ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"];
     Promise.all(endpoints.map(async (endpoint) => {
@@ -67,7 +70,8 @@ export function AtributosConversacionSection() {
         setAccounts(merged);
         setSelectedAccountId((current) => current || merged[0]?.id || "");
       })
-      .catch(() => toastError("Error al cargar cuentas"));
+      .catch(() => toastError("Error al cargar cuentas"))
+      .finally(() => setAccountsLoaded(true));
   }, [session?.user?.role, toastError]);
 
   const selectedAccount = accounts.find((account) => account.id === selectedAccountId) ?? null;
@@ -161,10 +165,10 @@ export function AtributosConversacionSection() {
         </Button>
       </div>
 
-      {!selectedAccountId ? (
-        <p className="py-2 text-sm text-muted">
-          {accounts.length === 0 ? "Conecta una cuenta para crear atributos." : "Selecciona una cuenta para ver sus atributos."}
-        </p>
+      {accountsLoaded && accounts.length === 0 ? (
+        <NeedsChannelEmpty description="Los atributos de conversación se guardan por número de WhatsApp. Conecta tu número y créalos en un minuto." />
+      ) : !selectedAccountId ? (
+        <p className="py-2 text-sm text-muted">{accountsLoaded ? "Selecciona una cuenta para ver sus atributos." : "Cargando cuentas…"}</p>
       ) : (
         <Table
           columns={columns}
