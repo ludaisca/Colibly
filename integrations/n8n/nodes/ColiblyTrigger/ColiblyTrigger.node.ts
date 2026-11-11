@@ -6,7 +6,7 @@ import type {
 	IWebhookFunctions,
 	IWebhookResponseData,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import { coliblyApiRequest, getAccounts } from '../Colibly/GenericFunctions';
 import { verifySignature } from '../Colibly/signature';
 
@@ -63,7 +63,7 @@ export class ColiblyTrigger implements INodeType {
 				type: 'multiOptions',
 				typeOptions: { loadOptionsMethod: 'getAccounts' },
 				default: [],
-				description: 'Solo eventos de estas cuentas (vacío = todas las de la API key). Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description: 'Solo eventos de estas cuentas (vacío = todas). La lista muestra solo las cuentas a las que tiene acceso la API key. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 		],
 	};
@@ -96,8 +96,21 @@ export class ColiblyTrigger implements INodeType {
 				if (selected.length) {
 					const res = (await coliblyApiRequest.call(this, 'GET', '/accounts')) as { data?: IDataObject[] };
 					const channelById = new Map((res.data ?? []).map((a) => [a.id as string, a.channel as string]));
+					// Una cuenta que la API key no ve no se puede filtrar: antes se descartaba en
+					// silencio y el webhook quedaba escuchando TODAS las cuentas.
+					const unknown = selected.filter((id) => !channelById.has(id));
+					if (unknown.length) {
+						throw new NodeOperationError(
+							this.getNode(),
+							`La API key no tiene acceso a ${unknown.length === 1 ? 'la cuenta' : 'las cuentas'} ${unknown.join(', ')}`,
+							{
+								description:
+									'Quítala del campo «Account Names or IDs» o, en Colibly → Configuración → API, edita la key para incluir esa cuenta (o déjala sin restricción de cuentas). Solo aparecen en la lista las cuentas a las que la key tiene acceso.',
+							},
+						);
+					}
 					accountIds = selected.filter((id) => channelById.get(id) === 'WHATSAPP');
-					channelAccountIds = selected.filter((id) => channelById.has(id) && channelById.get(id) !== 'WHATSAPP');
+					channelAccountIds = selected.filter((id) => channelById.get(id) !== 'WHATSAPP');
 				}
 
 				const workflowName = (this.getWorkflow().name ?? 'flujo').toString();
