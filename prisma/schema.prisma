@@ -1402,6 +1402,11 @@ model Contact {
   // cliente) y fecha estimada de cierre. Ver lib/money.ts.
   dealValueCents    Int?            @map("deal_value_cents")
   expectedCloseAt   DateTime?       @map("expected_close_at")
+  // Desde cuándo está en su etapa actual. Lo mueve un trigger de Postgres
+  // (contacts_stage_entered_at) cuando cambia lead_status o pipeline_stage_id,
+  // así ningún camino que cambie la etapa (UI, API, bots, automatizaciones)
+  // tiene que acordarse. Lo usa el aviso de leads detenidos del embudo.
+  stageEnteredAt    DateTime        @default(now()) @map("stage_entered_at")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -1424,7 +1429,8 @@ model Contact {
   @@unique([channelAccountId, remoteJid])
   @@index([accountId, leadStatus])
   @@index([accountId, metaUserId])
-  @@index([pipelineStageId])
+  @@index([pipelineStageId, updatedAt])
+  @@index([pipelineStageId, stageEnteredAt])
   @@index([organizationId, isSample])
   // Un Contact de Instant Form nace sin `chat` (no ha escrito por WhatsApp
   // todavía) bajo el `waAccountId` vinculado en su MetaAdsAccount — este

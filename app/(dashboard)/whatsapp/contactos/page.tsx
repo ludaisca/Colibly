@@ -19,6 +19,8 @@ import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { ContactCreateModal } from "@/app/components/whatsapp/contact-create-modal";
 import { ContactImportModal } from "@/app/components/whatsapp/contact-import-modal";
+import { DismissibleNudge } from "@/app/components/ui/dismissible-nudge";
+import { shouldNudgeUntagged } from "@/lib/pipeline/nudge";
 import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
 import { plural } from "@/lib/format/plural";
 import { LeadStatusBadge, LEAD_STATUS_LABEL } from "@/app/components/ui/lead-status";
@@ -176,6 +178,17 @@ export default function ContactosPage() {
       />
 
       <ContactLimitBanner usage={contactUsage} />
+
+      {/* Solo sin filtros: el resumen describe entonces a todos los contactos. */}
+      {summary && !search && !leadStatusFilter && !accountFilter && shouldNudgeUntagged({ total, withoutTags: summary.withoutTags }) && (
+        <DismissibleNudge
+          id="contactos-sin-etiquetas"
+          title="La mayoría de tus contactos no tiene etiquetas"
+          action={<Button href="/whatsapp/automatizaciones?plantilla=ai_triage" size="sm" variant="secondary">Etiquetar con IA</Button>}
+        >
+          Etiquétalos para segmentar campañas y automatizaciones. Puedes agregarlas desde la ficha de cada contacto o el chat, o dejar que la automatización «Clasificar con IA» las ponga sola.
+        </DismissibleNudge>
+      )}
 
       <div className="space-y-4">
         <div className="flex items-center gap-2">

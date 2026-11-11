@@ -8,21 +8,21 @@ import { ensureDefaultPipeline } from "@/lib/pipeline/ensure";
 import { SampleDataControls } from "@/app/components/ui/sample-data-controls";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
-import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
-import { shouldNudgeFunnel, shouldNudgeTags } from "@/lib/pipeline/nudge";
+import { DismissibleNudge } from "@/app/components/ui/dismissible-nudge";
+import { staleCutoff } from "@/lib/pipeline/nudge";
 import { PipelineBoard, type BoardData, type BoardStage } from "./_board";
 import type { LeadCardData } from "@/app/components/pipeline/lead-card";
 import { formatMxn } from "@/lib/money";
 
-export default async function VentasPage({ searchParams }: { searchParams: Promise<{ pipeline?: string }> }) {
+export default async function VentasPage({ searchParams }: { searchParams: Promise<{ pipeline?: string; detenidos?: string }> }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (session.user.role === "ejecutivo") redirect("/whatsapp/chat");
 
   const organizationId = await requireOrgId(session.user.id);
   await ensureDefaultPipeline(organizationId);
-  const { pipeline: requestedId } = await searchParams;
+  const { pipeline: requestedId, detenidos } = await searchParams;
   const pipelines = await prisma.pipeline.findMany({
     where: { organizationId },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
@@ -51,6 +51,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
       pipelineStageId: true,
       dealValueCents: true,
       expectedCloseAt: true,
+      stageEnteredAt: true,
       accountId: true,
       channelAccountId: true,
       isSample: true,
@@ -78,9 +79,19 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
   for (const stage of stages) boardData[stage.id] = [];
 
   const outcomeByStage = new Map(selected.stages.map((stage) => [stage.id, stage.outcome]));
+  // Leads detenidos: más de un día en la primera etapa abierta sin moverse
+  // (stageEnteredAt lo mantiene un trigger de la base). Con ?detenidos=1 esa
+  // columna muestra solo esos.
+  const firstStage = selected.stages.find((stage) => stage.outcome === "OPEN");
+  const cutoff = staleCutoff(new Date());
+  const onlyStale = detenidos === "1" && !!firstStage;
+  let staleCount = 0;
   for (const contact of contacts) {
     const stageId = contact.pipelineStageId ?? selected.stages.find((stage) => stage.leadStatus === contact.leadStatus)?.id;
     if (!stageId || !boardData[stageId]) continue;
+    const stale = stageId === firstStage?.id && contact.stageEnteredAt < cutoff;
+    if (stale && !contact.isSample) staleCount++;
+    if (onlyStale && stageId === firstStage?.id && !stale) continue;
     const card: LeadCardData = {
       id: contact.id,
       name: contact.name,
@@ -127,17 +138,6 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
     .reduce((sum, stage) => sum + realCards(stage.id).reduce((acc, card) => acc + (card.dealValueCents ?? 0), 0), 0);
   const conversionPct = total > 0 ? Math.round((wonOnBoard / total) * 100) : 0;
 
-  // Empujones suaves: con casi todo en la primera etapa, o sin etiquetas, se
-  // explica el siguiente paso y se enlaza la herramienta que ayuda. Nada se
-  // mueve ni se etiqueta solo.
-  const openStages = selected.stages.filter((stage) => stage.outcome === "OPEN");
-  const openCount = openStages.reduce((sum, stage) => sum + realCards(stage.id).length, 0);
-  const funnelNudge = selected.isDefault && shouldNudgeFunnel({ openCount, firstStageCount: openStages[0] ? realCards(openStages[0].id).length : 0, openValueCents: openValue });
-  const realTags = funnelNudge || total >= 10
-    ? await prisma.tag.count({ where: { OR: [{ waAccount: { organizationId } }, { channelAccount: { organizationId } }] } })
-    : 1;
-  const tagNudge = shouldNudgeTags({ realContacts: total, realTags });
-
   const kpis: KpiItem[] = [
     { label: "Leads en este embudo", value: String(total), hint: selected.name },
     { label: "Valor abierto", value: formatMxn(openValue, { compact: true }), hint: "tratos en curso" },
@@ -154,19 +154,20 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
         actions={<SampleDataControls />}
       />
       <KpiStrip items={kpis} size="hero" />
-      {(funnelNudge || tagNudge) && (
-        <Banner
-          tone="info"
-          title={funnelNudge ? `Casi todos tus leads siguen en «${openStages[0]?.name ?? "Nuevos"}»` : "Tus contactos no tienen etiquetas"}
-          action={<Button href="/whatsapp/automatizaciones?plantilla=ai_triage" size="sm" variant="secondary">Usar «Clasificar con IA»</Button>}
+      {onlyStale ? (
+        <p className="text-sm text-muted-darker">
+          «{firstStage?.name}» muestra solo los leads con más de un día sin moverse.{" "}
+          <Link href={`/ventas?pipeline=${selected.id}`} className="font-medium text-accent-ink underline underline-offset-2">Ver todos</Link>
+        </p>
+      ) : staleCount > 0 && firstStage ? (
+        <DismissibleNudge
+          id={`embudo-detenidos:${selected.id}`}
+          title={`Tienes ${staleCount.toLocaleString("es-MX")} ${staleCount === 1 ? "lead" : "leads"} en ${firstStage.name} desde hace más de un día`}
+          action={<Button href={`/ventas?pipeline=${selected.id}&detenidos=1`} size="sm" variant="secondary">Ver esos leads</Button>}
         >
-          {funnelNudge
-            ? "Arrastra cada tarjeta a la etapa en la que va (o ponle el valor del trato): así ves qué está por cerrarse y cuánto vale tu embudo. Un bot o una automatización pueden moverlos y etiquetarlos por ti."
-            : "Crea 2 o 3 etiquetas (por ejemplo Interesado, Cliente y Queja) para filtrar y dar seguimiento. La automatización «Clasificar con IA» las pone sola."}
-          {" "}
-          <Link href="/whatsapp/bots" className="font-medium text-accent-ink underline underline-offset-2">Ver bots</Link>
-        </Banner>
-      )}
+          Muévelos a la siguiente etapa para no perderlos.
+        </DismissibleNudge>
+      ) : null}
       <PipelineBoard
         pipelines={pipelines.map((item) => ({ id: item.id, name: item.name, isDefault: item.isDefault }))}
         pipelineId={selected.id}
