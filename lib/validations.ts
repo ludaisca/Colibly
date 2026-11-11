@@ -311,7 +311,8 @@ export const campaignSchema = z.object({
   headerParam: z.string().optional(),
   buttonParam: z.string().optional(),
   recipients: z.array(z.object({
-    phoneNumber: z.string().min(1, "El número es requerido").regex(/^\d+$/, "Debe ser numérico"),
+    // Se normaliza en el servidor (lib/campaigns/recipients.ts): México por defecto, sin duplicados.
+    phoneNumber: z.string().trim().min(1, "El número es requerido").max(40),
     contactName: z.string().optional(),
     parameters: z.record(z.string(), z.string()).optional(),
   })).min(1, "Al menos un destinatario es requerido"),

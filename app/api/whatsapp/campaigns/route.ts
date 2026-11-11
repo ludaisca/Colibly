@@ -1,3 +1,5 @@
+import { normalizeCampaignRecipients } from "@/lib/campaigns/recipients";
+import { phoneLookupJids } from "@/lib/contacts/manual-phone";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -28,8 +30,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const { name, waAccountId, waTemplateId, scheduledAt, headerParam, buttonParam, recipients } =
-      parsed.data;
+    const { name, waAccountId, waTemplateId, scheduledAt, headerParam, buttonParam } = parsed.data;
+    // Teléfonos con el mismo criterio que el alta de contactos; un número
+    // inválido detiene todo con la fila exacta (la campaña nunca se crea a medias).
+    const normalized = normalizeCampaignRecipients(parsed.data.recipients);
+    if (!normalized.ok) return NextResponse.json({ error: normalized.error, row: normalized.row }, { status: 400 });
+    const recipients = normalized.recipients;
 
     // Tolerancia de 1 min para no rechazar un "programar para ahora mismo"
     // que cruzó el minuto mientras el usuario llenaba el formulario.
@@ -72,8 +78,9 @@ export async function POST(req: Request) {
     // en la de su dueño: el envío corre con la del canal (reglas 3 y 4).
     const noCampaigns = (await checkUserFeature(session.user.id, "campaigns")) ?? (await checkChannelFeature({ waAccountId }, "campaigns"));
     if (noCampaigns) return noCampaigns;
-    const phones = [...new Set(recipients.map((r) => r.phoneNumber))];
-    const known = await prisma.contact.count({ where: { accountId: waAccountId, remoteJid: { in: phones } } });
+    const phones = recipients.map((r) => r.phoneNumber);
+    // 52… y 521… son el mismo contacto: se cuentan como conocidos con cualquiera de las dos formas.
+    const known = await prisma.contact.count({ where: { accountId: waAccountId, remoteJid: { in: phones.flatMap(phoneLookupJids) } } });
     const adding = phones.length - known;
     const overContacts = await checkPlanLimit(organizationId, "contacts", adding);
     if (overContacts) return overContacts;

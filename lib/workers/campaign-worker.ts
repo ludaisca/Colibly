@@ -1,3 +1,4 @@
+import { normalizeManualPhone, phoneLookupJids } from "@/lib/contacts/manual-phone";
 import { prisma } from "@/lib/prisma";
 import { BACKGROUND_EVENT_PRIORITY } from "@/lib/events/emit";
 import { emitMessageSent } from "@/lib/events/message-sent";
@@ -159,7 +160,18 @@ export async function processCampaignJob(job: CampaignJob) {
   const optedOutSet = new Set(optedOutContacts.map((c) => c.remoteJid));
 
   for (const recipient of campaign.recipients) {
-    if (optedOutSet.has(recipient.phoneNumber)) {
+    // Destinatarios viejos (antes de normalizar al crear) pueden traer un
+    // teléfono imposible: se marca la fila con un motivo claro en vez de un
+    // error opaco de Meta.
+    const normalizedPhone = normalizeManualPhone(recipient.phoneNumber);
+    if (!normalizedPhone) {
+      await prisma.wACampaignRecipient.update({
+        where: { id: recipient.id },
+        data: { status: "FAILED", errorMessage: `Teléfono inválido: “${recipient.phoneNumber}”. Usa 10 dígitos de México o el número con lada.` },
+      });
+      continue;
+    }
+    if (phoneLookupJids(normalizedPhone).some((jid) => optedOutSet.has(jid))) {
       await prisma.wACampaignRecipient.update({
         where: { id: recipient.id },
         data: { status: "FAILED", errorMessage: "El contacto optó por no recibir mensajes de marketing" },
@@ -177,7 +189,7 @@ export async function processCampaignJob(job: CampaignJob) {
         : [];
 
       const { wamid } = await sendTemplateMessage(campaign.waAccount, {
-        to: recipient.phoneNumber,
+        to: normalizedPhone,
         templateName,
         language,
         bodyParams,
@@ -198,7 +210,16 @@ export async function processCampaignJob(job: CampaignJob) {
       // Only attribute Contact/WAChat/WAMessage on an actual successful
       // send — a recipient that never got a message shouldn't leave a
       // phantom contact behind.
-      const remoteJid = recipient.phoneNumber;
+      // Si el chat o el contacto ya existen con la otra forma (52… / 521…), se
+      // reutilizan: sin esto la campaña duplicaba chats de clientes de México.
+      const existingJid = await prisma.wAChat.findFirst({
+        where: { accountId: campaign.waAccountId, remoteJid: { in: phoneLookupJids(normalizedPhone) } },
+        select: { remoteJid: true },
+      }) ?? await prisma.contact.findFirst({
+        where: { accountId: campaign.waAccountId, remoteJid: { in: phoneLookupJids(normalizedPhone) } },
+        select: { remoteJid: true },
+      });
+      const remoteJid = existingJid?.remoteJid ?? normalizedPhone;
       const contactName = recipient.contactName ?? recipient.phoneNumber;
       const messageBody = renderTemplateText(campaign.waTemplate.components, {
         bodyParams,

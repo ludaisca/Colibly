@@ -1,5 +1,3 @@
-import { jidCandidates } from "@/lib/whatsapp/coexistence/normalize";
-
 // Teléfonos escritos a mano o traídos de un CSV → el `remoteJid` con el que se
 // guardan los contactos creados en Colibly (solo dígitos, como el wa_id de
 // Meta). México por defecto: un número de 10 dígitos es +52; el "521" antiguo
@@ -16,8 +14,15 @@ export function normalizeManualPhone(raw: string | null | undefined): string | n
 }
 
 /** Formas equivalentes del mismo número para buscar duplicados (52… y 521…). */
+// Misma equivalencia que jidCandidates() (lib/whatsapp/coexistence/normalize.ts),
+// copiada aquí para que este módulo sea puro y se pueda usar en el navegador.
 export function phoneLookupJids(jid: string): string[] {
-  return jidCandidates(jid);
+  const d = jid.replace(/\D/g, "");
+  if (!d) return [];
+  const out = new Set<string>([d]);
+  if (/^521\d{10}$/.test(d)) out.add("52" + d.slice(3));
+  else if (/^52\d{10}$/.test(d)) out.add("521" + d.slice(2));
+  return [...out];
 }
 
 /**

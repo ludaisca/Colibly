@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Save, Send, X, Plus, Upload, FileX, Tag as TagIcon } from "lucide-react";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { normalizeCampaignRecipients } from "@/lib/campaigns/recipients";
 import { Card, CardBody, CardFooter } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -337,30 +338,21 @@ export default function NewCampaignPage() {
     }
 
     const manualRecipients = recipients.filter(r => r.phoneNumber.trim());
-    // Duplicados (manual + CSV) se colapsan a la primera aparición — sin esto
-    // el mismo lead recibía la plantilla dos veces.
-    const seenPhones = new Set<string>();
-    const allRecipients = [...manualRecipients, ...csvRows].filter(r => {
-      const phone = r.phoneNumber.trim();
-      if (seenPhones.has(phone)) return false;
-      seenPhones.add(phone);
-      return true;
-    });
-    const duplicateCount = manualRecipients.length + csvRows.length - allRecipients.length;
+    // Mismo criterio que el servidor (lib/campaigns/recipients.ts): teléfono de
+    // México por defecto y sin duplicados por número equivalente (52… / 521…),
+    // así el mismo lead nunca recibe la plantilla dos veces.
+    const normalized = normalizeCampaignRecipients([...manualRecipients, ...csvRows]);
+    const allRecipients = normalized.ok ? normalized.recipients : [];
+    const duplicateCount = normalized.ok ? normalized.duplicates : 0;
 
-    if (allRecipients.length === 0) {
+    if (manualRecipients.length + csvRows.length === 0) {
       newErrors.recipients = "Al menos un destinatario es requerido";
-    } else {
-      // El backend rechaza TODA la campaña si un solo teléfono no es numérico —
-      // mejor señalarlo aquí que fallar con un mensaje genérico.
-      const invalidPhones = allRecipients.filter(r => !/^\d{8,15}$/.test(r.phoneNumber.trim())).length;
-      if (invalidPhones > 0) {
-        newErrors.recipients = `Hay ${plural(invalidPhones, "teléfono inválido", "teléfonos inválidos")} — usa solo dígitos (8 a 15), con código de país y sin espacios ni "+"`;
-      } else if (bodyParamCount > 0) {
-        const incomplete = allRecipients.some(r => r.params.filter(Boolean).length !== bodyParamCount);
-        if (incomplete) {
-          newErrors.recipients = `Todos los destinatarios deben tener ${bodyParamCount === 1 ? "el parámetro" : `los ${bodyParamCount} parámetros`} del cuerpo`;
-        }
+    } else if (!normalized.ok) {
+      newErrors.recipients = normalized.error;
+    } else if (bodyParamCount > 0) {
+      const incomplete = allRecipients.some(r => r.params.filter(Boolean).length !== bodyParamCount);
+      if (incomplete) {
+        newErrors.recipients = `Todos los destinatarios deben tener ${bodyParamCount === 1 ? "el parámetro" : `los ${bodyParamCount} parámetros`} del cuerpo`;
       }
     }
 
