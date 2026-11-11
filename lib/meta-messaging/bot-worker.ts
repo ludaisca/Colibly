@@ -1,3 +1,4 @@
+import { markdownToWhatsApp } from "@/lib/whatsapp/markdown-to-whatsapp";
 import { promises as fs } from "fs";
 import { emitMessageSent } from "@/lib/events/message-sent";
 import { prisma } from "@/lib/prisma";
@@ -254,7 +255,8 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
   });
   if (!conversation) return;
 
-  const replyText = result.content.trim();
+  // Markdown del modelo (**negrita**, ## títulos) → formato de chat, sin asteriscos crudos.
+  const replyText = markdownToWhatsApp(result.content.trim());
   if (!replyText) {
     console.warn(`[meta-messaging bot-worker] El modelo devolvió una respuesta vacía — no se envía nada (conversación ${conversationId})`);
     return;

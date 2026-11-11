@@ -1,3 +1,4 @@
+import { markdownToWhatsApp } from "@/lib/whatsapp/markdown-to-whatsapp";
 import { getAIProvider } from "@/lib/ai/factory";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import type { AIProvider, AIMessage } from "@/lib/ai/types";
@@ -56,5 +57,6 @@ export async function generateRecoveryReply(params: {
     maxTokens: params.maxTokens,
   });
 
-  return { content: result.content, usage: result.usage };
+  // Va directo al cliente: Markdown del modelo → formato de WhatsApp.
+  return { content: markdownToWhatsApp(result.content), usage: result.usage };
 }

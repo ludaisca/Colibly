@@ -1,3 +1,4 @@
+import { markdownToWhatsApp } from "@/lib/whatsapp/markdown-to-whatsapp";
 import { promises as fs } from "fs";
 import { emitMessageSent } from "@/lib/events/message-sent";
 import { prisma } from "@/lib/prisma";
@@ -380,7 +381,8 @@ async function handleBotMessage(job: BotMessageJob) {
   // Si el modelo respondió SOLO con el bloque de cita, cleanText queda vacío —
   // mandar un texto vacío falla en Meta, BullMQ reintenta (con costo de IA) y
   // el bot termina en ERROR: composeAppointmentReply pone un texto fijo.
-  const replyText = composeAppointmentReply({ cleanText: parsed.cleanText, hadMarker: parsed.hadMarker, proposed: !!proposal, booked });
+  // Markdown del modelo (**negrita**, ## títulos) → formato de WhatsApp: el cliente no ve asteriscos crudos.
+  const replyText = markdownToWhatsApp(composeAppointmentReply({ cleanText: parsed.cleanText, hadMarker: parsed.hadMarker, proposed: !!proposal, booked }));
   if (!replyText) {
     console.warn(`[bot-worker] El modelo devolvió una respuesta vacía — no se envía nada (chat ${waChatId})`);
     return;

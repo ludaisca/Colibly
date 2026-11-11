@@ -1,3 +1,4 @@
+import { markdownToWhatsApp } from "@/lib/whatsapp/markdown-to-whatsapp";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -115,7 +116,8 @@ export async function POST(
     );
 
     return NextResponse.json({
-      response: result.content,
+      // Igual que en el canal: Markdown → formato de WhatsApp.
+      response: markdownToWhatsApp(result.content),
       usage: result.usage,
       testCredits: await trialTestStatus(bot.organizationId),
     });
