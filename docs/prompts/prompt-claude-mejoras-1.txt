@@ -1,0 +1,141 @@
+PROMPT PARA CLAUDE CODE: MEJORAS DE PRODUCTO EN COLIBLY, PARTE 1 DE 2 (estadísticas, Organizaciones, datos de ejemplo y bugs de QA)
+
+== CONTEXTO ==
+Colibly (este repo, Next.js 16 + Prisma 5 + Postgres + BullMQ + Redis, deploy en Coolify al hacer push a main) es un CRM conversacional de WhatsApp, Instagram, Messenger, Telegram y webchat, con bots de IA, campañas y cobro con Stripe, pensado para pymes mexicanas. La UI va en español de México, con tuteo.
+
+Revisamos una cuenta real de un cliente (workspace con 4 números de WhatsApp, 1,354 chats, 384 sin leer y 104 esperando respuesta). Todos los leads del embudo están en «Nuevos», ningún contacto tiene etiqueta, y no hay bots, automatizaciones, secuencias, campañas ni citas. Pagan Pro y usan Colibly casi solo como bandeja compartida. No cites nombres de clientes ni datos personales en código, commits ni comentarios; si hace falta un ejemplo, usa cifras anónimas («un workspace con ~1,350 chats»).
+
+Antes de empezar lee CLAUDE.md y AGENTS.md y respeta sus convenciones. Lo de abajo está ubicado en main (HEAD reciente: 07d09431). Si algo cambió, adáptalo y dilo en tu resumen.
+
+Esta es la parte 1 de 2. Cubre los ítems 1, 2, 3 y 6. La parte 2 (prioridad de la bandeja y estados vacíos con plantillas) va en otro mensaje: no la hagas ahora.
+
+== OBJETIVO ==
+Que Estadísticas cargue de verdad en un workspace grande; que «Organizaciones» no aparezca (ni dé 404) a quien no es operador de la plataforma; que «Cargar datos de ejemplo» no se ofrezca en una cuenta con datos reales; y que se corrijan tres bugs de QA: el bot confirma una cita que no se crea, las respuestas del bot llegan a WhatsApp con `**` crudos, y las campañas no validan bien los teléfonos. Además, el botón de soporte no debe apuntar a ningún lado si SUPPORT_WHATSAPP no está configurado.
+
+== REGLAS (OBLIGATORIAS) ==
+1. Texto de la UI en español de México, tuteo, tono amable, igual que el resto de la app.
+2. Usa el sistema de diseño existente (app/components/ui/*: Button, Card, EmptyState, ListErrorState, Modal, ConfirmDialog, Banner, Badge, PageHeader, etc.). No agregues librerías de UI.
+3. Nada de servicios o dependencias de pago nuevos. No agregues dependencias salvo que sean indispensables y gratuitas; justifícalas.
+4. Autorización en el servidor en cada ruta nueva o modificada: auth(), rol, orgWhere / requireOrgId / getUserAccountIds. Nunca confíes en el cliente para el alcance.
+5. Migraciones de Prisma, si hacen falta, aditivas y seguras: solo columnas nullables o con default, e índices nuevos. Nada de borrar ni renombrar columnas. Nombra las migraciones con claridad.
+6. NO cambies precios, planes, créditos (0 / 1,000 / 2,500), TRIAL_DAYS, ni lógica de Stripe.
+7. NO toques el sitio de marketing ni sus páginas SEO (app/(marketing)/*, sitemap, llms.txt, robots).
+8. No rompas la API pública v1 (/api/v1/*, openapi.json) ni los webhooks salientes.
+9. Cambios mínimos y consistentes con el estilo del repo. Reutiliza helpers que ya existen (no los reimplementes).
+10. Pruebas con vitest en lib/**/__tests__, junto a las que ya hay. Corre: npm run lint, npx tsc --noEmit, npm test y npm run build.
+11. Commits pequeños y lógicos, uno por ítem (fix(estadisticas): …, fix(plataforma): …, fix(onboarding): …, fix(bots): …, fix(campanas): …). No mezcles ítems en un solo commit.
+
+──────────────────────────────────────────
+1. Estadísticas se queda en skeletons y nunca muestra datos
+──────────────────────────────────────────
+Problema observado: en «Más herramientas → Estadísticas» (/estadisticas) la página se queda para siempre en los skeletons de app/(dashboard)/estadisticas/loading.tsx y no llega a renderizar EstadisticasView. Ocurre en un workspace real con miles de chats. No hay app/(dashboard)/estadisticas/error.tsx (solo app/error.tsx y app/global-error.tsx).
+
+Cómo está armado:
+- app/(dashboard)/estadisticas/page.tsx es un Server Component: auth(), bloquea al rol «ejecutivo», y llama getEstadisticas(session.user.id) de lib/estadisticas/get-stats.ts. Hasta que esa promesa termina, Next muestra loading.tsx.
+- getEstadisticas hace un Promise.all enorme. Las consultas que más pueden colgar o agotar memoria/tiempo en un workspace grande:
+  - prisma.wAMessage.findMany (y channelMessage.findMany) de los últimos 14 días, trayendo TODOS los mensajes solo para contar por día (select: { createdAt: true }). Con miles de chats esto puede ser decenas o cientos de miles de filas.
+  - prisma.wAChat.findMany de TODOS los chats asignados (y conversation.findMany equivalente) para armar agentPerformance en memoria.
+  - prisma.wALeadScore.findMany con chat.messages (CHAT_ATTRIBUTION_MESSAGE_QUERY) de todos los scores, más un findMany de todos los conversation.id y luego más scores de Telegram.
+  - countMessages() en lib/estadisticas/global-counts.ts cuenta TODOS los mensajes históricos (join por cuenta), no solo el periodo del gráfico.
+- Hay un Map en memoria (STATS_TTL_MS = 60_000) por userId: no evita el primer load, no se comparte entre procesos y no ayuda si la query nunca termina.
+- Bug aparte (arréglalo en el mismo ítem): dailyMap usa dateKeyInTz(..., America/Mexico_City), pero el arreglo dailyMessages arma las fechas con Date.UTC(...).toISOString().slice(0, 10). En la tarde de México el gráfico puede desfasar el día. Usa la misma zona para agrupar y para etiquetar (el archivo ya documenta por qué no debe ser UTC crudo).
+- Revisa también /estadisticas/reportes (lib/estadisticas/reports.ts:getRangeReport): hace findMany de todos los chats creados y resueltos del periodo, no solo agregados. Si el mismo patrón puede colgar Reportes, corrígelo con el mismo criterio, sin rediseñar la pantalla.
+
+Cambio:
+- Deja de traer todos los mensajes o chats a Node para contar. Agrega en la base (groupBy, query raw o count por día) los totales del gráfico de 14 días, los conteos de agentes y lo que se pueda agregar. Para attribution de leads calificados, no cargues el historial completo de cada chat si puedes resolverlo con un subconjunto o una consulta más barata; si hace falta un recorte, documéntalo.
+- Pon un tope de tiempo razonable a getEstadisticas. Si falla o se agota, no dejes la página en skeleton: muestra un estado de error con reintento (ListErrorState o error.tsx de la ruta con reset). No tragues el error en silencio.
+- El caché puede quedarse, pero no es la corrección: la query tiene que ser barata en un workspace de miles de chats.
+- Si acelerar el TTFB pide maxDuration o sacar la parte pesada a una ruta API + vista cliente con error visible, está bien, siempre que los KPIs principales (cuentas, chats, mensajes, bots, campañas) aparezcan y un fallo no deje la pantalla en blanco.
+
+Aceptación: en un workspace con miles de chats, /estadisticas termina de cargar y muestra KPIs (aunque algunos desgloses vayan vacíos). Si una consulta falla, se ve un error con reintento, no skeletons eternos. El gráfico de 14 días respeta America/Mexico_City. Un workspace chico se ve igual que hoy.
+
+Pruebas: unitarias del bucket de fechas (México vs UTC) y, en lo posible, de que el agregado diario no recorre filas sueltas (lib/estadisticas/__tests__/ — hoy no hay tests de get-stats.ts).
+
+──────────────────────────────────────────
+2. El enlace «Organizaciones» (/plataforma) da 404 a un dueño de workspace
+──────────────────────────────────────────
+Problema observado: en el menú lateral aparece «Organizaciones» (/plataforma) y, para un dueño normal de un workspace, termina en 404.
+
+Cómo está armado (el diseño ya quiere ocultarlo):
+- app/(dashboard)/dashboard-shell.tsx solo agrega el grupo «Plataforma» → «Organizaciones» si platformAdmin es true.
+- app/(dashboard)/layout.tsx calcula platformAdmin={isPlatformAdminEmail(user?.email)} con el email de Prisma (prisma.user.findUnique).
+- app/(dashboard)/plataforma/layout.tsx y page.tsx llaman notFound() si !isPlatformAdminEmail(session.user.email) — el email de la sesión, no el de Prisma. Comentario en page.tsx: la página no se anuncia a quien no es operador.
+- lib/platform-admin.ts / lib/platform-admin-emails.ts: operadores = PLATFORM_ADMIN_EMAILS (lista explícita, case-insensitive). Lista vacía = nadie es operador. El parseo no debería hacer match amplio.
+
+Causa más probable del 404 con el enlace a la vista: el layout del shell y la página de /plataforma no usan la misma fuente de email. Si el email en Prisma está en PLATFORM_ADMIN_EMAILS y el de la sesión no (o al revés, no se vería el enlace), el menú muestra «Organizaciones» y la ruta responde 404. La paleta de comandos (app/components/ui/command-palette.tsx) reutiliza el mismo nav, así que hereda el mismo flag.
+
+Cambio:
+- Unifica el chequeo (misma función, misma fuente de email, o exige que sesión y Prisma coincidan). El enlace, la paleta y la ruta deben estar de acuerdo: o se entra, o no se muestra.
+- Busca otros href a /plataforma o la etiqueta «Organizaciones» (ayuda, atajos, docs internas en la app) y ocúltarlos con el mismo criterio.
+- No conviertas el 404 en 403 «para ser más claro»: el repo ya eligió 404 para no anunciar la ruta. Lo que hay que evitar es mostrarla a quien no es operador.
+- No agregues a PLATFORM_ADMIN_EMAILS correos de clientes.
+
+Aceptación: un dueño o admin de un workspace que no está en PLATFORM_ADMIN_EMAILS no ve «Organizaciones» en el menú ni en la paleta; si entra a /plataforma a mano, sigue recibiendo 404. Un operador de la plataforma (correo en la variable) sí ve el panel y entra.
+
+──────────────────────────────────────────
+3. «Cargar datos de ejemplo» aparece en un workspace con datos reales
+──────────────────────────────────────────
+Problema observado: en el Panel de una cuenta con 1,354 chats reales y números conectados sigue saliendo el botón «Cargar datos de ejemplo». Pulsarlo en ese contexto es peligroso (mezcla el Spa Aurora de ejemplo con clientes de verdad).
+
+Cómo está armado:
+- app/components/ui/sample-data-controls.tsx se renderiza en el PageHeader de app/(dashboard)/dashboard/page.tsx. Solo lo ve un admin. GET /api/onboarding/sample-data (lib/sample-data/spa-aurora.ts:sampleDataStatus) devuelve { loaded, count } según contactos con isSample: true. Si loaded === false, muestra «Cargar datos de ejemplo» sin más confirmación. «Borrar datos de ejemplo» sí pide ConfirmDialog y solo borra isSample.
+- El seed (seedSampleData) marca Contact.isSample = true y no debería tocar contactos reales, pero el botón no debería ofrecerse cuando ya hay operación real.
+
+Cambio:
+- Extiende el GET / sampleDataStatus con algo como hasRealData: hay contactos no de ejemplo, chats/conversaciones, o al menos un canal conectado (WAAccount o ChannelAccount).
+- Si hasRealData y aún no hay datos de ejemplo, no muestres «Cargar datos de ejemplo».
+- Si ya hay datos de ejemplo, deja «Borrar datos de ejemplo» con su confirmación actual (no toca lo real).
+- En una org nueva o casi vacía (sin canal y sin contactos reales), el botón puede seguir igual.
+- Si por algún caso residual dejas una salida para cargar ejemplo con datos reales, exige ConfirmDialog fuerte («Esto agrega contactos de ejemplo del Spa Aurora; no borra tus datos, pero aparecerán junto a tus contactos reales»). La preferencia es ocultar el botón.
+
+Aceptación: en un workspace con canales o contactos/chats reales y sin muestra cargada, el botón de cargar no aparece. En una org vacía, sí. Borrar ejemplo sigue funcionando y no borra contactos reales. Pruebas en lib/sample-data/__tests__/spa-aurora.test.ts para hasRealData.
+
+──────────────────────────────────────────
+6. Bugs de QA anteriores
+──────────────────────────────────────────
+
+6a. El bot dice que agendó la cita y en Citas no se crea nada
+No es function-calling real: es un bloque ```appointment al final de la respuesta (lib/ai/appointment-marker.ts), parseado en lib/workers/bot-worker.ts (handleBotMessage). El contrato (buildAppointmentMarkerContract) pide confirmar la cita en lenguaje natural Y además poner el bloque. El texto visible se envía primero (o se encola si humanizeEnabled); createAiProposedAppointment solo corre después, y únicamente si hay proposal && chat.contactId. Si no hay contactId, el bloque se descarta, el parse rechaza fecha/JSON, o el create falla (el catch solo hace console.error), el cliente ya recibió «quedó agendada» y en /whatsapp/citas no hay nada. El propio comentario de reject() lo documenta. appointmentSchedulingEnabled tiene que estar activo para inyectar el contrato; hoy solo aplica al pipeline de WhatsApp (botSchema lo dice). lib/telegram/bot-worker.ts y lib/meta-messaging/bot-worker.ts no agendan.
+
+Cambio:
+- Crea la WAAppointment (source: AI_BOT, como ahora) ANTES de confirmar al cliente, o no envíes una confirmación de «ya quedó» hasta que el create haya sido exitoso. Si falla o no hay contacto, no digas que se agendó: pide un dato que falte o di que un asesor lo confirma, y deja traza en logs.
+- Si el chat no tiene contactId, créalo o vincúlalo con el mismo criterio que el resto de la app (no dejes un hueco silencioso).
+- Ajusta el contrato del modelo: no confirme la reserva como hecho consumado hasta que el sistema la haya creado. El fallback APPOINTMENT_ONLY_REPLY («¡Listo! Tu cita quedó agendada…») solo se usa si la cita existe.
+- Conserva la idempotencia por originMessageId que ya tiene createAiProposedAppointment.
+- Notificación APPOINTMENT_PROPOSED y evento appointment.created, como ahora.
+- No hace falta llevar esto a Telegram/Messenger en este ítem, salvo que el cambio se extraiga fácil a un helper compartido.
+
+Aceptación: si el bot le dice al cliente que la cita quedó, existe una fila en Citas (source AI_BOT, fecha/hora correctas en la zona del negocio). Si no se pudo crear, el mensaje no afirma que quedó agendada. Pruebas del marcador y del flujo «sin contactId / create falla / create ok» (lib/ai y, si puedes extraer la creación, un test del helper).
+
+6b. Las respuestas del bot llegan a WhatsApp con `**` crudos
+lib/whatsapp/format.ts parsea el formato de WhatsApp (*negrita*, _cursiva_, ~tachado~, ```) para pintarlo en la UI (whatsapp-text.tsx). No convierte Markdown de modelo (`**negrita**`, `__negrita__`, encabezados, listas) antes de enviar. El texto se manda tal cual en bot-worker, telegram/bot-worker, meta-messaging/bot-worker, y en trozos de humanize (splitReply). WhatsApp no interpreta `**`, así que el cliente ve los asteriscos.
+
+Cambio:
+- Agrega un helper puro (p. ej. markdownToWhatsApp en lib/whatsapp/format.ts o un módulo hermano) que convierta ** y __ a *…*, respete _cursiva_ de WhatsApp, y quite o baje a texto plano lo que WhatsApp no tiene (##, enlaces [txt](url) → txt (url), etc.). No conviertas dos veces un texto que ya va en formato WhatsApp.
+- Aplícalo a todo texto de bot/IA que salga a un canal: los tres bot-workers, lib/automations/ai.ts (ai_reply), y la pestaña Probar (lib/bots/test-conversation.ts) para que la prueba se vea igual.
+- Pruebas en lib/whatsapp/__tests__/format.test.ts: **hola** → *hola*, no tocar *hola*, casos mixtos y texto sin formato.
+
+Aceptación: un bot que responde en Markdown se lee con negritas/cursivas correctas en WhatsApp, sin `**` visibles.
+
+6c. Las campañas no validan bien los teléfonos
+campaignSchema en lib/validations.ts exige phoneNumber con /^\d+$/ («Debe ser numérico»): no hay largo mínimo/máximo, ni normalización México (10 dígitos → 52…, 521 + 10 → 52 + 10). lib/whatsapp/parse-csv.ts solo le quita no dígitos y descarta filas vacías; «123» o un número corto pasan. El alta de contactos ya tiene normalizeManualPhone / phoneLookupJids en lib/contacts/manual-phone.ts y toE164 en lib/phone/e164.ts. Úsalos, no inventes otra normalización.
+
+Cambio:
+- Al crear o editar destinatarios (POST app/api/whatsapp/campaigns/route.ts, y el form de app/(dashboard)/whatsapp/campanas/nueva/page.tsx, incluido el CSV), normaliza con normalizeManualPhone. Rechaza inválidos con un error claro en español, indicando la fila o el número («El teléfono “55 12” de la fila 3 no es un número válido. Usa 10 dígitos de México o el número con lada, p. ej. 5512345678 o +52 55 1234 5678»).
+- Dedup por equivalentes (52… y 521…), igual que el import de contactos.
+- El número se guarda en el mismo formato de dígitos que usa el resto de la app (remoteJid / wa_id), no con espacios ni «+».
+- Revisa también el envío (app/api/whatsapp/campaigns/[id]/send/route.ts y lib/workers/campaign-worker.ts) por si aún puede colarse un destinatario viejo mal formado: error por fila, no un fallo opaco de Meta.
+
+Aceptación: un CSV o un alta con «5512345678», «+52 55 1234 5678» y «5215512345678» se normaliza al mismo destinatario válido; un valor corto o con letras se rechaza con el mensaje claro, y la campaña no se crea a medias sin avisar. Pruebas de normalización/rechazo (puedes extender lib/contacts/__tests__/manual-phone.test.ts o agregar tests del schema/parseo).
+
+6d. SUPPORT_WHATSAPP vacío
+lib/help/support.ts ya trata la variable como opcional (solo dígitos, 8–15) y, si no es un número, no hay botón. app/(dashboard)/ayuda/page.tsx ya oculta «Escríbenos por WhatsApp» y deja el mailto de BRAND_CONTACT_EMAIL. Eso está bien.
+
+Cambio: audita todos los usos de SUPPORT_WHATSAPP, supportWhatsappNumber / supportWhatsappUrl y textos tipo «Escríbenos» / wa.me. Donde el número no esté configurado, oculta el botón o deja solo el correo; nunca un enlace vacío o a wa.me/ sin número. No pongas un número inventado en el código ni en .env.example con un valor real.
+
+Nota para el resumen (no lo implementes tú): Luis tiene que definir SUPPORT_WHATSAPP en Coolify (dígitos con lada, p. ej. 5215512345678) para que el botón de WhatsApp aparezca.
+
+Aceptación: con la variable vacía o inválida no hay botón de WhatsApp roto; con un número válido, el wa.me funciona. Las pruebas de lib/help/__tests__/support.test.ts siguen pasando; agrégales cualquier caso nuevo que encuentres.
+
+== CIERRE ==
+Al terminar esta parte 1: npm run lint, npx tsc --noEmit, npm test, npm run build. Commits por ítem. En el resumen: qué archivos tocaste, causas reales que confirmaste (sobre todo en Estadísticas y en el 404 de Organizaciones), y qué queda pendiente para la parte 2.

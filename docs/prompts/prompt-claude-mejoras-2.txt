@@ -1,0 +1,102 @@
+PROMPT PARA CLAUDE CODE: MEJORAS DE PRODUCTO EN COLIBLY, PARTE 2 DE 2 (prioridad en la bandeja y estados vacíos con plantillas)
+
+== CONTEXTO ==
+Colibly (este repo, Next.js 16 + Prisma 5 + Postgres + BullMQ + Redis, deploy en Coolify al hacer push a main) es un CRM conversacional de WhatsApp, Instagram, Messenger, Telegram y webchat, con bots de IA, campañas y cobro con Stripe, pensado para pymes mexicanas. La UI va en español de México, con tuteo.
+
+Revisamos una cuenta real de un cliente (workspace con 4 números de WhatsApp, 1,354 chats, 384 sin leer y 104 esperando respuesta). Todos los 1,354 leads del embudo están en «Nuevos», ningún contacto tiene etiqueta, y no hay bots, automatizaciones, secuencias, campañas ni citas. Pagan Pro y casi no usan la IA ni el embudo. No cites nombres de clientes ni datos personales en código, commits ni comentarios; si hace falta un ejemplo, usa cifras anónimas.
+
+Antes de empezar lee CLAUDE.md y AGENTS.md y respeta sus convenciones. Lo de abajo está ubicado en main (HEAD reciente: 07d09431). Si algo cambió, adáptalo y dilo en tu resumen.
+
+Esta es la parte 2 de 2. La parte 1 (Estadísticas, enlace Organizaciones, datos de ejemplo, cita del bot, Markdown hacia WhatsApp, teléfonos de campañas y SUPPORT_WHATSAPP) va en otro mensaje y puede estar hecha o en progreso: no la reabras salvo que te bloquee. Aquí solo haces los ítems 4 y 5.
+
+== OBJETIVO ==
+Que un equipo con cientos de chats sin leer pueda priorizar lo que espera respuesta y lo más antiguo, con el tiempo de espera visible. Y que las pantallas vacías de Bots IA, Automatizaciones, Monitores IA y Secuencias enseñen plantillas listas (relevantes para pymes mexicanas), en lugar de un solo botón «Crear». También, empujar con suavidad a mover leads de «Nuevo» y a etiquetar contactos.
+
+== REGLAS (OBLIGATORIAS) ==
+1. Texto de la UI en español de México, tuteo, tono amable, igual que el resto de la app.
+2. Usa el sistema de diseño existente (app/components/ui/*: Button, Card, EmptyState, ListErrorState, Modal, ConfirmDialog, Banner, Badge, PageHeader, EntityList, etc.). No agregues librerías de UI.
+3. Nada de servicios o dependencias de pago nuevos. No agregues dependencias salvo que sean indispensables y gratuitas; justifícalas.
+4. Autorización en el servidor en cada ruta nueva o modificada.
+5. Migraciones, si hacen falta, solo aditivas y seguras.
+6. NO cambies precios, planes, créditos, TRIAL_DAYS ni lógica de Stripe.
+7. NO toques el sitio de marketing (app/(marketing)/*, sitemap, llms.txt, robots).
+8. No rompas la API pública v1 ni los webhooks salientes.
+9. Cambios mínimos. Reutiliza la infraestructura que YA existe (filtros, vistas, waitingSince, plantillas de automatización, EmptyState). No reconstruyas la bandeja ni el embudo.
+10. Pruebas con vitest en lib/**/__tests__. Corre: npm run lint, npx tsc --noEmit, npm test y npm run build.
+11. Commits pequeños y lógicos, uno por ítem (feat(inbox): …, feat(onboarding): …).
+
+──────────────────────────────────────────
+4. Prioridad en la bandeja: «esperando respuesta» y «más antiguos primero»
+──────────────────────────────────────────
+Problema observado: 384 chats sin leer y 104 esperando respuesta. La bandeja no ayuda a decidir qué atender primero: lo viejo se pierde debajo de lo reciente.
+
+Importante: gran parte de esto YA existe. No lo reimplementes. Complétalo para que funcione de verdad con miles de chats y paginación.
+
+Ya está:
+- waitingSince en WAChat y Conversation; markWaiting / markReplied en lib/chats/waiting.ts (los avisos automáticos no limpian la espera).
+- Umbrales y texto puro en lib/chats/waiting-shared.ts: waitingLabel («espera 3 h»), waitingTone (ámbar desde 15 min, rojo desde 60), waitingClock («1:12»). Tests en lib/chats/__tests__/waiting*.test.ts.
+- Filtro awaiting=1 en lib/chats/query.ts (parseChatListFilters, buildWaChatWhere, buildChannelChatWhere).
+- UI: interruptor «Esperando / Todos» y «Ordenado por espera» en app/components/whatsapp/chat-list-panel.tsx; filtro «Esperando respuesta» en chat-filters-panel.tsx; vista rápida en chat-views-menu.tsx; WaitCells (reloj tipo tablero) y WaitingBadge (texto «espera 3 h») en waiting-badge.tsx. La lista usa WaitCells, no WaitingBadge.
+- compareByWaiting en app/components/whatsapp/chat-shared.ts: en la vista «Esperando», primero quien lleva más rato. El comentario del helper ya avisa el hueco: «Ordena solo lo cargado: cada canal pagina por último mensaje».
+
+Huecos a corregir:
+- GET /api/whatsapp/chats (app/api/whatsapp/chats/route.ts) y listChannelChats (lib/channel-chats.ts) siempre hacen orderBy lastMessageAt desc. fetchChatsPage e inbox sync en chat-workspace.tsx también mezclan y ordenan por lastMessageAt desc. Con pageSize 30, los 104 que esperan y llevan más tiempo pueden no entrar nunca en la primera página, y el sort cliente no los ve.
+- En la vista «Todos» no hay un criterio «más antiguos primero» (por lastMessageAt o por espera). Lo viejo sin contestar se entierra.
+- El reloj WaitCells («1:12», «2d») es fácil de no entender. Ya existe waitingLabel («espera 3 h»). Haz que el tiempo de espera se lea de un vistazo, con color por antigüedad (los umbrales de 15/60 min ya están). Puedes complementar o sustituir el reloj en la fila compacta por WaitingBadge / «espera 3 h»; si dejas WaitCells en la vista «Esperando», que no sea la única pista. title/aria ya ayudan; el texto visible también debe decirlo.
+
+Cambio:
+- En el servidor, si awaiting=1, ordena por waitingSince asc (quien lleva más esperando primero), con un desempate estable. Aplica lo mismo en WhatsApp, canales e /api/inbox/sync cuando la lista va filtrada así.
+- Agrega un orden «más antiguos primero» reutilizando la infra de vistas/filtros/query string (p. ej. sort=oldest o una vista rápida), que pida al API orderBy lastMessageAt asc (o waitingSince si también está el filtro de espera) y que la paginación respete ese orden. En chat-list-panel, que se entienda el criterio activo (hoy ya dice «Por último mensaje» / «Ordenado por espera»).
+- Alinea fetchChatsPage, el merge del sync y visibleChats con el mismo orden, para no deshacer el sort del servidor.
+- Indicador de espera visible en cada fila que tenga waitingSince y no esté resuelta, también en la vista «Todos».
+
+Aceptación: al elegir «Esperando», la primera página son los que más rato llevan esperando (no los de último mensaje más reciente). «Más antiguos primero» funciona en «Todos» y al cargar más. Se lee algo como «espera 3 h» (o equivalente claro) con color por antigüedad. Los filtros y vistas actuales siguen funcionando. Pruebas del order en lib/chats/__tests__/query.test.ts (y del helper de sort si lo tocas).
+
+──────────────────────────────────────────
+5. Estados vacíos con plantillas, y un empujón al embudo y a las etiquetas
+──────────────────────────────────────────
+Problema observado: Bots IA, Automatizaciones, Monitores IA y Secuencias, en una cuenta que no los usa, no enseñan el valor: se ve sobre todo un botón «Crear». En Bots, lo primero que se ve son filas skeleton (placeholders de carga) en lugar de un estado vacío útil. El embudo tiene los 1,354 leads en «Nuevos» y el 100 % de contactos sin etiqueta, y la app no sugiere qué hacer.
+
+Cómo está armado (reutiliza, no tires):
+- Bots: app/(dashboard)/whatsapp/bots/page.tsx es un Client Component con loading=true al montar; EntityList (app/components/ui/entity-list.tsx, skeletonCount=8) pinta skeletons mientras carga. Además app/(dashboard)/whatsapp/bots/loading.tsx muestra ListPageSkeleton. El emptyTitle/emptyDescription ya existen («Sin bots» / «Crea tu primer bot…») pero no hay emptyAction ni plantillas, y si el fetch tarda o se cuelga la pantalla se queda en placeholders. El alta es BotFormModal en _form.tsx, desde cero.
+- Automatizaciones: app/(dashboard)/whatsapp/automatizaciones/page.tsx ya tiene EmptyState + «Nueva automatización». Las plantillas YA existen en lib/automations/templates.ts (AUTOMATION_TEMPLATES: en blanco, menú de bienvenida, clasificar con IA y enrutar — ya etiqueta y mueve lead status —, lead de anuncio, seguimiento post-cita) y se eligen en _new-modal.tsx, no en el estado vacío.
+- Monitores: app/(dashboard)/whatsapp/monitores/page.tsx ya tiene EmptyState («Crea uno describiendo un tema…») y skeletons de 3 filas mientras carga. El alta es MonitorFormModal. No hay plantillas.
+- Secuencias: app/(dashboard)/whatsapp/secuencias/page.tsx usa EntityList con emptyTitle/emptyDescription y SequenceFormModal, sin plantillas.
+- Embudo: app/(dashboard)/ventas/_board.tsx y page.tsx. Etiquetas: lib/tags.ts, chat-tag-picker, API /api/whatsapp/tags y /api/whatsapp/contacts/[id]/tags. EmptyState genérico en app/components/ui/empty-state.tsx.
+
+Cambio — estados vacíos y carga:
+- Cuando no hay ítems, muestra un estado vacío de verdad (icono, título, una frase de para qué sirve, y 2–3 plantillas como tarjetas o acciones), no solo «Crear». El botón de crear desde cero se queda.
+- En Bots (y, si aplica, las otras listas cliente), no dejes skeletons eternos: error con reintento si el fetch falla; al terminar con 0 filas, el empty state (no placeholders). Si puedes hidratar la lista desde el servidor para evitar el doble skeleton (loading.tsx + loading=true), mejor.
+- En Automatizaciones, muestra las plantillas ya existentes en el estado vacío (abrir el modal con esa plantilla preelegida, o crear el borrador directo). Completa o ajusta si falta alguna de las de abajo, sin duplicar las que ya sirven.
+
+Plantillas sugeridas (2–3 por pantalla, copiables/editables, texto en español de México, pensadas para un spa, clínica, inmobiliaria o tienda). Son punto de partida, no magia cerrada:
+
+Bots IA (prellenan systemPrompt, nombre y, si encaja, appointmentSchedulingEnabled; el usuario elige cuenta y puede editar antes de guardar):
+- Bot de citas: saluda, ofrece horarios, pide confirmación explícita de fecha y hora, y agenda con el mecanismo de citas que ya tiene el bot (no inventes otro).
+- Bot de FAQ / precios: responde qué venden, precios y horarios con la base de conocimiento; si no sabe, pasa a un humano.
+- Bot que califica y organiza: etiqueta al contacto (p. ej. Interesado, Cita, Queja) y, cuando aplique, lo mueve de «Nuevo» a una etapa siguiente del embudo. Si es más limpio como automatización, usa la plantilla «Clasificar con IA y enrutar» que ya existe y enlázala desde aquí.
+
+Automatizaciones (reusa AUTOMATION_TEMPLATES; agrega solo lo que falte):
+- Bienvenida / menú del primer mensaje (ya está «Menú de bienvenida»).
+- Fuera de horario: si no hay una plantilla de flujo, agrégala (aviso + recoger motivo +, si aplica, avisar al equipo). No confundas esto con el aviso global de lib/inbox/away-message.ts; si el horario del negocio ya cubre el caso, explícalo en el copy y ofrece la plantilla solo si aporta (p. ej. ramificar según la respuesta).
+- Clasificar con IA (ya está) o seguimiento post-cita (ya está).
+
+Monitores IA (prellenan name + description; 1 crédito de IA por conversación revisada, dilo en el copy):
+- Quejas o clientes molestos.
+- Intención de compra / pregunta por precio o disponibilidad.
+- Intención de cancelar o no continuar.
+
+Secuencias (pasos de mensaje + delay + trigger; WhatsApp/Telegram):
+- Seguimiento a leads que se quedaron en «Nuevo» o sin responder (trigger de estado o de etiqueta).
+- Post-cita: agradece y pide calificar (complementa la automatización post-cita; no hace falta que sean idénticas).
+- Reenganche suave a quien no contestó (con exitOnReply si ya existe).
+
+Cambio — embudo y etiquetas (suave, no un wizard largo):
+- En /ventas, si casi todos los leads abiertos están en la primera etapa o el valor del embudo es $0 con muchos leads, muestra un Banner o un hint en el tablero: que arrastrar a la siguiente etapa es lo que da visibilidad, y que un bot o una automatización pueden moverlos y etiquetarlos. Enlace a Automatizaciones (plantilla de clasificar) o a Bots.
+- En /whatsapp/contactos o en el embudo, si no hay etiquetas de verdad (ignora las de ejemplo isSample), un hint corto para crear 2–3 (p. ej. Interesado, Cliente, Queja) y un enlace a la plantilla que etiqueta.
+- No migres ni recategorices leads en silencio. Solo guía y plantillas.
+
+Aceptación: una org sin bots/automatizaciones/monitores/secuencias ve, en cada pantalla, un empty state con 2–3 plantillas accionables y deja de verse «solo un Crear» o una lista de skeletons cuando ya se sabe que está vacía. Elegir una plantilla abre el form/editor con esos valores (o crea el borrador) y se puede editar. En un embudo con todos los leads en «Nuevo» y sin etiquetas, se entiende el siguiente paso y hay un enlace a la herramienta que ayuda. Las plantillas de automatización que ya existían siguen funcionando.
+
+== CIERRE ==
+Al terminar esta parte 2: npm run lint, npx tsc --noEmit, npm test, npm run build. Commits por ítem. En el resumen: qué reutilizaste, qué faltaba de verdad en la bandeja (sobre todo el order del servidor), y las plantillas que quedaron en cada pantalla.
