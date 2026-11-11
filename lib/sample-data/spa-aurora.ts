@@ -1,6 +1,7 @@
 import type { LeadStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ensureDefaultPipeline } from "@/lib/pipeline/ensure";
+import { orgContactsWhere } from "@/lib/contacts/org-where";
 
 // Datos de ejemplo del Spa Aurora (CDMX) para que una cuenta nueva vea el valor
 // en dos minutos: contactos sin canal con etiquetas, tarjetas en el embudo y una
@@ -46,9 +47,29 @@ export function tomorrowAt(hour: number, now = new Date()): Date {
   return new Date(Date.UTC(get("year"), get("month") - 1, get("day") + 1, hour + 6, 0, 0));
 }
 
-export async function sampleDataStatus(organizationId: string): Promise<{ loaded: boolean; count: number }> {
-  const count = await prisma.contact.count({ where: { organizationId, isSample: true } });
-  return { loaded: count > 0, count };
+/**
+ * ¿La organización ya opera de verdad? Con un canal conectado o con contactos
+ * reales, "Cargar datos de ejemplo" no se ofrece: mezclaría el Spa Aurora con
+ * clientes reales. (Pura, para pruebas.)
+ */
+export function hasRealDataFrom(counts: { waAccounts: number; channelAccounts: number; realContacts: number }): boolean {
+  return counts.waAccounts > 0 || counts.channelAccounts > 0 || counts.realContacts > 0;
+}
+
+/** Los ejemplos se pueden cargar solo sin datos reales; borrarlos, siempre que existan. */
+export function canLoadSampleData(status: { loaded: boolean; hasRealData: boolean }): boolean {
+  return !status.loaded && !status.hasRealData;
+}
+
+export async function sampleDataStatus(organizationId: string): Promise<{ loaded: boolean; count: number; hasRealData: boolean }> {
+  const [count, waAccounts, channelAccounts, realContact] = await Promise.all([
+    prisma.contact.count({ where: { organizationId, isSample: true } }),
+    prisma.wAAccount.count({ where: { organizationId } }),
+    prisma.channelAccount.count({ where: { organizationId } }),
+    // Un contacto real basta (chats y conversaciones siempre tienen contacto en una cuenta de la org).
+    prisma.contact.findFirst({ where: orgContactsWhere(organizationId), select: { id: true } }),
+  ]);
+  return { loaded: count > 0, count, hasRealData: hasRealDataFrom({ waAccounts, channelAccounts, realContacts: realContact ? 1 : 0 }) };
 }
 
 /** Idempotente: llamarlo dos veces deja los mismos 5 contactos. */

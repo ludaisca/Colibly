@@ -17,13 +17,19 @@ export function SampleDataControls({ size = "md", variant = "secondary" }: { siz
   const { success, error: toastError } = useToast();
   const isAdmin = session?.user?.role === "admin";
   const [loaded, setLoaded] = useState<boolean | null>(null);
+  // Cuenta con canales o contactos reales: no se ofrece cargar ejemplos.
+  const [hasRealData, setHasRealData] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/onboarding/sample-data");
-      if (res.ok) setLoaded(Boolean((await res.json()).loaded));
+      if (res.ok) {
+        const data = await res.json();
+        setLoaded(Boolean(data.loaded));
+        setHasRealData(Boolean(data.hasRealData));
+      }
     } catch {
       /* sin estado: no se muestra el botón */
     }
@@ -32,6 +38,7 @@ export function SampleDataControls({ size = "md", variant = "secondary" }: { siz
   useEffect(() => { if (isAdmin) void refreshStatus(); }, [isAdmin, refreshStatus]);
 
   if (!isAdmin || loaded === null) return null;
+  if (!loaded && hasRealData) return null;
 
   async function load() {
     setBusy(true);

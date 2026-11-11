@@ -72,3 +72,19 @@ describe("tomorrowAt", () => {
     expect(lib.tomorrowAt(11, new Date("2026-11-10T02:00:00Z")).toISOString()).toBe("2026-11-10T17:00:00.000Z");
   });
 });
+
+describe("hasRealData: cuándo se ofrece cargar ejemplos", () => {
+  it("una org vacía puede cargar ejemplos", () => {
+    expect(lib.hasRealDataFrom({ waAccounts: 0, channelAccounts: 0, realContacts: 0 })).toBe(false);
+    expect(lib.canLoadSampleData({ loaded: false, hasRealData: false })).toBe(true);
+  });
+  it("con un canal conectado o contactos reales ya no se ofrece", () => {
+    expect(lib.hasRealDataFrom({ waAccounts: 4, channelAccounts: 0, realContacts: 1350 })).toBe(true);
+    expect(lib.hasRealDataFrom({ waAccounts: 0, channelAccounts: 1, realContacts: 0 })).toBe(true);
+    expect(lib.hasRealDataFrom({ waAccounts: 0, channelAccounts: 0, realContacts: 2 })).toBe(true);
+    expect(lib.canLoadSampleData({ loaded: false, hasRealData: true })).toBe(false);
+  });
+  it("si ya hay ejemplos cargados no se vuelven a ofrecer (se ofrece borrarlos)", () => {
+    expect(lib.canLoadSampleData({ loaded: true, hasRealData: false })).toBe(false);
+  });
+});

@@ -32,6 +32,11 @@ export async function POST() {
     if ("error" in a) return a.error;
     const { allowed } = await rateLimit(`sample-data:${a.organizationId}`, 10, 60 * 60);
     if (!allowed) return NextResponse.json({ error: "Demasiados intentos, espera un momento" }, { status: 429 });
+    // Con datos reales no se siembra (el botón ya no se ofrece; esto cierra la API).
+    const status = await sampleDataStatus(a.organizationId);
+    if (!status.loaded && status.hasRealData) {
+      return NextResponse.json({ error: "Tu cuenta ya tiene canales o contactos reales: los datos de ejemplo solo se pueden cargar en una cuenta nueva." }, { status: 409 });
+    }
     const result = await seedSampleData(a.organizationId, a.userId);
     invalidateOrgBilling(a.organizationId);
     return NextResponse.json(result, { status: 201 });
