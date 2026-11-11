@@ -14,6 +14,11 @@ import { useToast } from "@/app/components/ui/toast";
 import { triggerSummary } from "@/lib/automations/labels";
 import type { Trigger } from "@/lib/automations/types";
 import { NewAutomationModal } from "./_new-modal";
+import { StarterTemplates } from "@/app/components/ui/starter-templates";
+import { AUTOMATION_TEMPLATES } from "@/lib/automations/templates";
+
+// Plantillas que se ofrecen en el estado vacío (las demás siguen en el alta).
+const STARTER_AUTOMATIONS = ["welcome_menu", "ai_triage", "post_appointment"];
 import { CHANNEL_LABEL, type AutomationChannelName } from "./_shared";
 import { channelAndAccount } from "@/lib/chats/display-name";
 
@@ -41,6 +46,18 @@ export default function AutomationsPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+
+  // ?plantilla=ai_triage (enlaces desde Bots, el embudo o Contactos): abre el
+  // alta con esa plantilla. Se lee de window para no envolver la página en Suspense.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("plantilla");
+    if (!wanted || !AUTOMATION_TEMPLATES.some((t) => t.id === wanted)) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- abre el alta pedida por la URL al montar
+    setTemplateId(wanted);
+    setNewOpen(true);
+  }, []);
+  const openWithTemplate = (id: string | null) => { setTemplateId(id); setNewOpen(true); };
   const [deleting, setDeleting] = useState<AutomationRow | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -101,7 +118,7 @@ export default function AutomationsPage() {
       <PageHeader
         title="Automatizaciones"
         description="Chatbots con botones, respuestas por palabra clave, seguimientos y reglas — en todos tus canales."
-        actions={<Button icon={Plus} onClick={() => setNewOpen(true)}>Nueva automatización</Button>}
+        actions={<Button icon={Plus} onClick={() => openWithTemplate(null)}>Nueva automatización</Button>}
       />
 
       <EntityList
@@ -111,9 +128,17 @@ export default function AutomationsPage() {
         error={fetchError}
         onRetry={load}
         emptyIcon={Workflow}
-        emptyTitle="Sin automatizaciones"
-        emptyDescription="Empieza con un menú de bienvenida, una clasificación con IA o un seguimiento post-cita."
-        emptyAction={<Button icon={Plus} onClick={() => setNewOpen(true)}>Nueva automatización</Button>}
+        emptyTitle="Tu primera automatización"
+        emptyDescription="Responde, etiqueta y mueve leads sin hacerlo a mano. Elige una plantilla y ajústala en el editor:"
+        emptyAction={
+          <div className="space-y-3">
+            <StarterTemplates
+              cards={STARTER_AUTOMATIONS.map((id) => AUTOMATION_TEMPLATES.find((t) => t.id === id)!).map((t) => ({ id: t.id, title: t.name, description: t.description, onSelect: () => openWithTemplate(t.id) }))}
+            />
+            <p className="text-xs text-muted">Para contestar fuera de horario no hace falta un flujo: activa el mensaje fuera de horario en Configuración → IA y operación.</p>
+            <Button variant="ghost" size="sm" icon={Plus} onClick={() => openWithTemplate("blank")}>O empezar en blanco</Button>
+          </div>
+        }
         rowHref={(r) => `/whatsapp/automatizaciones/${r.id}`}
         renderRow={(r) => (
           <EntityRow
@@ -141,7 +166,7 @@ export default function AutomationsPage() {
         )}
       />
 
-      <NewAutomationModal open={newOpen} onClose={() => setNewOpen(false)} />
+      <NewAutomationModal open={newOpen} onClose={() => setNewOpen(false)} initialTemplateId={templateId} />
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}

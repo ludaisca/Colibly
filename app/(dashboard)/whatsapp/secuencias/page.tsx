@@ -11,6 +11,8 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { useToast } from "@/app/components/ui/toast";
 import { SequenceFormModal } from "./_form";
+import { StarterTemplates } from "@/app/components/ui/starter-templates";
+import { SEQUENCE_TEMPLATES, type SequencePreset } from "@/lib/onboarding/starter-templates";
 import { Tooltip } from "@/app/components/ui/tooltip";
 
 const TRIGGER_LABEL: Record<string, string> = {
@@ -43,6 +45,7 @@ export default function SequencesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [preset, setPreset] = useState<SequencePreset | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
 
   const fetchSequences = useCallback(async () => {
@@ -102,7 +105,7 @@ export default function SequencesPage() {
         title="Secuencias"
         description="Un evento inscribe al contacto y envía mensajes programados en orden. Disponible para WhatsApp y Telegram."
         actions={
-          <Button icon={Plus} size="sm" onClick={() => { setEditId(null); setFormOpen(true); }}>
+          <Button icon={Plus} size="sm" onClick={() => { setEditId(null); setPreset(null); setFormOpen(true); }}>
             Crear secuencia
           </Button>
         }
@@ -115,9 +118,15 @@ export default function SequencesPage() {
         error={fetchError}
         onRetry={fetchSequences}
         emptyIcon={Workflow}
-        emptyTitle="Sin secuencias"
-        emptyDescription="Crea tu primera secuencia para dar seguimiento tras una etiqueta, un cambio de estado o una cita completada."
-        onRowClick={(seq) => { setEditId(seq.id); setFormOpen(true); }}
+        emptyTitle="Tu primera secuencia"
+        emptyDescription="Mensajes de seguimiento que salen solos tras una etiqueta, un cambio de etapa o una cita completada. Empieza con una plantilla:"
+        emptyAction={
+          <div className="space-y-3">
+            <StarterTemplates cards={SEQUENCE_TEMPLATES.map((t) => ({ id: t.id, title: t.title, description: t.description, onSelect: () => { setEditId(null); setPreset(t.preset); setFormOpen(true); } }))} />
+            <Button variant="ghost" size="sm" icon={Plus} onClick={() => { setEditId(null); setPreset(null); setFormOpen(true); }}>O crear una desde cero</Button>
+          </div>
+        }
+        onRowClick={(seq) => { setEditId(seq.id); setPreset(null); setFormOpen(true); }}
         renderRow={(seq) => (
           <>
             <EntityRow
@@ -170,7 +179,8 @@ export default function SequencesPage() {
 
       <SequenceFormModal
         open={formOpen}
-        onClose={() => { setFormOpen(false); setEditId(null); }}
+        onClose={() => { setFormOpen(false); setEditId(null); setPreset(null); }}
+        preset={preset}
         editId={editId}
         onSaved={fetchSequences}
       />

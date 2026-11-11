@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireOrgId } from "@/lib/tenancy";
@@ -7,6 +8,9 @@ import { ensureDefaultPipeline } from "@/lib/pipeline/ensure";
 import { SampleDataControls } from "@/app/components/ui/sample-data-controls";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
+import { Banner } from "@/app/components/ui/banner";
+import { Button } from "@/app/components/ui/button";
+import { shouldNudgeFunnel, shouldNudgeTags } from "@/lib/pipeline/nudge";
 import { PipelineBoard, type BoardData, type BoardStage } from "./_board";
 import type { LeadCardData } from "@/app/components/pipeline/lead-card";
 import { formatMxn } from "@/lib/money";
@@ -123,6 +127,17 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
     .reduce((sum, stage) => sum + realCards(stage.id).reduce((acc, card) => acc + (card.dealValueCents ?? 0), 0), 0);
   const conversionPct = total > 0 ? Math.round((wonOnBoard / total) * 100) : 0;
 
+  // Empujones suaves: con casi todo en la primera etapa, o sin etiquetas, se
+  // explica el siguiente paso y se enlaza la herramienta que ayuda. Nada se
+  // mueve ni se etiqueta solo.
+  const openStages = selected.stages.filter((stage) => stage.outcome === "OPEN");
+  const openCount = openStages.reduce((sum, stage) => sum + realCards(stage.id).length, 0);
+  const funnelNudge = selected.isDefault && shouldNudgeFunnel({ openCount, firstStageCount: openStages[0] ? realCards(openStages[0].id).length : 0, openValueCents: openValue });
+  const realTags = funnelNudge || total >= 10
+    ? await prisma.tag.count({ where: { OR: [{ waAccount: { organizationId } }, { channelAccount: { organizationId } }] } })
+    : 1;
+  const tagNudge = shouldNudgeTags({ realContacts: total, realTags });
+
   const kpis: KpiItem[] = [
     { label: "Leads en este embudo", value: String(total), hint: selected.name },
     { label: "Valor abierto", value: formatMxn(openValue, { compact: true }), hint: "tratos en curso" },
@@ -139,6 +154,19 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
         actions={<SampleDataControls />}
       />
       <KpiStrip items={kpis} size="hero" />
+      {(funnelNudge || tagNudge) && (
+        <Banner
+          tone="info"
+          title={funnelNudge ? `Casi todos tus leads siguen en «${openStages[0]?.name ?? "Nuevos"}»` : "Tus contactos no tienen etiquetas"}
+          action={<Button href="/whatsapp/automatizaciones?plantilla=ai_triage" size="sm" variant="secondary">Usar «Clasificar con IA»</Button>}
+        >
+          {funnelNudge
+            ? "Arrastra cada tarjeta a la etapa en la que va (o ponle el valor del trato): así ves qué está por cerrarse y cuánto vale tu embudo. Un bot o una automatización pueden moverlos y etiquetarlos por ti."
+            : "Crea 2 o 3 etiquetas (por ejemplo Interesado, Cliente y Queja) para filtrar y dar seguimiento. La automatización «Clasificar con IA» las pone sola."}
+          {" "}
+          <Link href="/whatsapp/bots" className="font-medium text-accent-ink underline underline-offset-2">Ver bots</Link>
+        </Banner>
+      )}
       <PipelineBoard
         pipelines={pipelines.map((item) => ({ id: item.id, name: item.name, isDefault: item.isDefault }))}
         pipelineId={selected.id}

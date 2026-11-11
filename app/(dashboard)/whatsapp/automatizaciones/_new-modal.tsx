@@ -15,12 +15,17 @@ import { CHANNEL_LABEL, type AutomationAccount } from "./_shared";
 
 // Nueva automatización: nombre + cuenta + plantilla de la galería. Crea el
 // borrador y abre el editor.
-export function NewAutomationModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function NewAutomationModal({ open, onClose, initialTemplateId }: { open: boolean; onClose: () => void; initialTemplateId?: string | null }) {
   const router = useRouter();
   const [accounts, setAccounts] = useState<AutomationAccount[]>([]);
   const [name, setName] = useState("");
   const [accountId, setAccountId] = useState("");
-  const [templateId, setTemplateId] = useState("welcome_menu");
+  const [templateId, setTemplateId] = useState(initialTemplateId ?? "welcome_menu");
+  // Elegida desde una tarjeta del estado vacío (o ?plantilla= en la URL).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza la plantilla preelegida al abrir
+    if (open && initialTemplateId) setTemplateId(initialTemplateId);
+  }, [open, initialTemplateId]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 

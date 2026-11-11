@@ -17,6 +17,8 @@ import { SkeletonRow } from "@/app/components/ui/skeleton";
 import { RelativeTime } from "@/app/components/ui/relative-time";
 import { useToast } from "@/app/components/ui/toast";
 import { MonitorFormModal, type MonitorData } from "./_form";
+import { StarterTemplates } from "@/app/components/ui/starter-templates";
+import { MONITOR_TEMPLATES, type MonitorPreset } from "@/lib/onboarding/starter-templates";
 import { plural } from "@/lib/format/plural";
 
 interface MatchData {
@@ -39,6 +41,7 @@ export default function MonitoresPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState<MonitorData | "new" | null>(null);
+  const [monitorPreset, setMonitorPreset] = useState<MonitorPreset | null>(null);
   const [deleting, setDeleting] = useState<MonitorData | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
 
@@ -91,7 +94,7 @@ export default function MonitoresPage() {
         title="Monitores IA"
         description="La IA revisa tus conversaciones cada hora y te muestra en cuáles aparece cada tema: quejas, preguntas por un producto, intención de cancelar…"
         actions={
-          <Button icon={Plus} onClick={() => setEditing("new")} disabled={!planIncluded || monitors.length >= max}>
+          <Button icon={Plus} onClick={() => { setMonitorPreset(null); setEditing("new"); }} disabled={!planIncluded || monitors.length >= max}>
             Nuevo monitor
           </Button>
         }
@@ -112,9 +115,14 @@ export default function MonitoresPage() {
       ) : monitors.length === 0 ? (
         <EmptyState
           icon={Radar}
-          title="Sin monitores"
-          description="Crea uno describiendo un tema. Cada conversación revisada usa 1 crédito de IA."
-          action={planIncluded ? <Button size="sm" icon={Plus} onClick={() => setEditing("new")}>Nuevo monitor</Button> : undefined}
+          title="Tu primer monitor"
+          description="La IA lee tus chats cada hora y te avisa cuando aparece un tema que te importa. Cada conversación revisada usa 1 crédito de IA. Empieza con una plantilla:"
+          action={planIncluded ? (
+            <div className="space-y-3">
+              <StarterTemplates cards={MONITOR_TEMPLATES.map((t) => ({ id: t.id, title: t.title, description: t.description, onSelect: () => { setMonitorPreset(t.preset); setEditing("new"); } }))} />
+              <Button variant="ghost" size="sm" icon={Plus} onClick={() => { setMonitorPreset(null); setEditing("new"); }}>O describir otro tema</Button>
+            </div>
+          ) : undefined}
         />
       ) : (
         <>
@@ -182,6 +190,7 @@ export default function MonitoresPage() {
         <MonitorFormModal
           key={editing === "new" ? "new" : editing.id}
           initial={editing === "new" ? null : editing}
+          preset={editing === "new" ? monitorPreset : null}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);

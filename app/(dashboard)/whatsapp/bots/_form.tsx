@@ -12,12 +12,15 @@ import { Switch } from "@/app/components/ui/switch";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import type { BotPreset } from "@/lib/onboarding/starter-templates";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   editId?: string | null;
   onSaved: () => void;
+  /** Plantilla de arranque (lib/onboarding/starter-templates.ts): prellena un bot nuevo. */
+  preset?: BotPreset | null;
 }
 
 type BotChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
@@ -26,7 +29,7 @@ const CHANNEL_LABEL: Record<BotChannel, string> = {
   INSTAGRAM: "Instagram", WEBCHAT: "Chat web",
 };
 
-export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
+export function BotFormModal({ open, onClose, editId = null, onSaved, preset = null }: Props) {
   const isEditing = !!editId;
   const { success, error: toastError } = useToast();
 
@@ -75,6 +78,16 @@ export function BotFormModal({ open, onClose, editId = null, onSaved }: Props) {
       .then((lists) => setAccounts(lists.flat()))
       .catch(() => toastError("Error al cargar cuentas"));
   }, [open, toastError]);
+
+  // Plantilla: al abrir un bot nuevo con plantilla, se prellena (todo se puede editar).
+  useEffect(() => {
+    if (!open || editId || !preset) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- prellenado al abrir con plantilla
+    setName(preset.name);
+    setSystemPrompt(preset.systemPrompt);
+    setAppointmentSchedulingEnabled(preset.appointmentSchedulingEnabled ?? false);
+    setRagEnabled(preset.ragEnabled ?? false);
+  }, [open, editId, preset]);
 
   useEffect(() => {
     if (!open || !editId) return;

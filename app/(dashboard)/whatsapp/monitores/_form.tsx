@@ -1,5 +1,6 @@
 "use client";
 
+import type { MonitorPreset } from "@/lib/onboarding/starter-templates";
 import { useState } from "react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
@@ -18,9 +19,10 @@ export interface MonitorData {
 }
 
 // Crear / editar un monitor. Se monta con `key` para reiniciar el estado.
-export function MonitorFormModal({ initial, onClose, onSaved }: { initial: MonitorData | null; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
+export function MonitorFormModal({ initial, preset = null, onClose, onSaved }: { initial: MonitorData | null; preset?: MonitorPreset | null; onClose: () => void; onSaved: () => void }) {
+  // Con plantilla (estado vacío) se prellena un monitor nuevo; todo se puede editar.
+  const [name, setName] = useState(initial?.name ?? preset?.name ?? "");
+  const [description, setDescription] = useState(initial?.description ?? preset?.description ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 

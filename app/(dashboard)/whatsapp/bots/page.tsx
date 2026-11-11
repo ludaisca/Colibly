@@ -15,6 +15,8 @@ import { BotFormModal } from "./_form";
 import { plural } from "@/lib/format/plural";
 import { channelAndAccount } from "@/lib/chats/display-name";
 import { Tooltip } from "@/app/components/ui/tooltip";
+import { StarterTemplates } from "@/app/components/ui/starter-templates";
+import { BOT_TEMPLATES, CLASSIFY_AUTOMATION_HREF, type BotPreset } from "@/lib/onboarding/starter-templates";
 
 interface WaBot {
   id: string;
@@ -40,17 +42,19 @@ export default function BotsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [preset, setPreset] = useState<BotPreset | null>(null);
 
   const fetchBots = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch("/api/whatsapp/bots");
+      // Con tope: si la API no responde se ve el error con reintento, no skeletons para siempre.
+      const res = await fetch("/api/whatsapp/bots", { signal: AbortSignal.timeout(15_000) });
       const data = await res.json();
       if (!res.ok || !Array.isArray(data)) throw new Error(data.error ?? "Error al cargar bots");
       setBots(data);
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : "Error al cargar bots");
+      setFetchError(err instanceof DOMException && err.name === "TimeoutError" ? "Los bots tardaron demasiado en cargar. Intenta de nuevo." : err instanceof Error ? err.message : "Error al cargar bots");
     } finally {
       setLoading(false);
     }
@@ -95,7 +99,7 @@ export default function BotsPage() {
         title="Bots IA"
         description="Configura bots con IA para responder automáticamente en tus canales."
         actions={
-          <Button icon={Plus} size="sm" onClick={() => setFormOpen(true)}>
+          <Button icon={Plus} size="sm" onClick={() => { setPreset(null); setFormOpen(true); }}>
             Crear bot
           </Button>
         }
@@ -108,8 +112,19 @@ export default function BotsPage() {
         error={fetchError}
         onRetry={fetchBots}
         emptyIcon={Bot}
-        emptyTitle="Sin bots"
-        emptyDescription="Crea tu primer bot de IA para automatizar conversaciones en tus canales."
+        emptyTitle="Tu primer bot de IA"
+        emptyDescription="Un bot contesta solo, a cualquier hora, con lo que sabe tu negocio, y pasa el chat a una persona cuando hace falta. Empieza con una plantilla:"
+        emptyAction={
+          <div className="space-y-3">
+            <StarterTemplates
+              cards={[
+                ...BOT_TEMPLATES.map((t) => ({ id: t.id, title: t.title, description: t.description, onSelect: () => { setPreset(t.preset); setFormOpen(true); } })),
+                { id: "clasifica", title: "Calificar y organizar", description: "La IA entiende qué quiere el cliente, lo etiqueta (Interesado, Cita, Queja) y lo mueve en el embudo.", href: CLASSIFY_AUTOMATION_HREF },
+              ]}
+            />
+            <Button variant="ghost" size="sm" icon={Plus} onClick={() => { setPreset(null); setFormOpen(true); }}>O crear uno desde cero</Button>
+          </div>
+        }
         rowHref={(bot) => `/whatsapp/bots/${bot.id}`}
         renderRow={(bot) => {
           return (
@@ -185,8 +200,9 @@ export default function BotsPage() {
 
       <BotFormModal
         open={formOpen}
-        onClose={() => setFormOpen(false)}
+        onClose={() => { setFormOpen(false); setPreset(null); }}
         onSaved={fetchBots}
+        preset={preset}
       />
     </div>
   );

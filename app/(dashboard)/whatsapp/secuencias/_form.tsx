@@ -13,6 +13,7 @@ import { Switch } from "@/app/components/ui/switch";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import type { SequencePreset } from "@/lib/onboarding/starter-templates";
 import Link from "next/link";
 import { STAGE_LABEL, PIPELINE_STAGES } from "@/lib/pipeline/stages";
 
@@ -21,6 +22,8 @@ interface Props {
   onClose: () => void;
   editId?: string | null;
   onSaved: () => void;
+  /** Plantilla de arranque (lib/onboarding/starter-templates.ts) para una secuencia nueva. */
+  preset?: SequencePreset | null;
 }
 
 interface StepDraft { delayMinutes: string; message: string }
@@ -34,7 +37,7 @@ const TRIGGER_LABEL: Record<string, string> = {
   APPOINTMENT_COMPLETED: "Se completa una cita",
 };
 
-export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Props) {
+export function SequenceFormModal({ open, onClose, editId = null, onSaved, preset = null }: Props) {
   const isEditing = !!editId;
   const { success, error: toastError } = useToast();
 
@@ -96,6 +99,17 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved }: Pro
       .then((d) => { if (Array.isArray(d)) setTags(d); })
       .catch(() => toastError("Error al cargar etiquetas"));
   }, [open, accountId, accounts, toastError]);
+
+  // Plantilla: prellena una secuencia nueva (la etiqueta del disparador, si aplica, se elige aquí).
+  useEffect(() => {
+    if (!open || editId || !preset) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- prellenado al abrir con plantilla
+    setName(preset.name);
+    setTriggerType(preset.triggerType);
+    setTriggerValue(preset.triggerValue ?? "");
+    setExitOnReply(preset.exitOnReply);
+    setSteps(preset.steps.map((step) => ({ delayMinutes: String(step.delayMinutes), message: step.message })));
+  }, [open, editId, preset]);
 
   useEffect(() => {
     if (!open || !editId) return;
