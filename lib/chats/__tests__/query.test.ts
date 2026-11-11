@@ -58,3 +58,33 @@ describe("alcance por cuenta", () => {
     expect(buildWaChatWhere(filters, ["acc-1"]).accountId).toBe("acc-1");
   });
 });
+
+import { chatListOrderBy, parseChatListFilters as parseFilters } from "../query";
+import { chatRowComparator } from "../sort";
+
+describe("orden de la lista de chats", () => {
+  it("Esperando: quien lleva más rato esperando primero, con desempate estable", () => {
+    expect(chatListOrderBy({ awaiting: true })).toEqual([
+      { waitingSince: { sort: "asc", nulls: "last" } },
+      { lastMessageAt: { sort: "asc", nulls: "last" } },
+      { id: "asc" },
+    ]);
+  });
+  it("sort=oldest: último mensaje más viejo arriba; por defecto, el más reciente", () => {
+    expect(chatListOrderBy({ sort: "oldest" })[0]).toEqual({ lastMessageAt: { sort: "asc", nulls: "last" } });
+    expect(chatListOrderBy({})[0]).toEqual({ lastMessageAt: { sort: "desc", nulls: "last" } });
+    expect(parseFilters(new URLSearchParams("sort=oldest"), "u").sort).toBe("oldest");
+    expect(parseFilters(new URLSearchParams("sort=raro"), "u").sort).toBeUndefined();
+  });
+  it("el comparador del cliente da el mismo orden que la base", () => {
+    const rows = [
+      { id: "a", waitingSince: "2026-11-10T10:00:00Z", lastMessageAt: "2026-11-10T10:00:00Z" },
+      { id: "b", waitingSince: null, lastMessageAt: "2026-11-11T09:00:00Z" },
+      { id: "c", waitingSince: "2026-11-09T08:00:00Z", lastMessageAt: "2026-11-09T08:00:00Z" },
+      { id: "d", waitingSince: null, lastMessageAt: null },
+    ];
+    expect([...rows].sort(chatRowComparator({ awaiting: true })).map((r) => r.id)).toEqual(["c", "a", "b", "d"]);
+    expect([...rows].sort(chatRowComparator({ sort: "oldest" })).map((r) => r.id)).toEqual(["c", "a", "b", "d"]);
+    expect([...rows].sort(chatRowComparator({})).map((r) => r.id)).toEqual(["b", "a", "c", "d"]);
+  });
+});

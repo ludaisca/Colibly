@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { phoneDigitsOf } from "./search-terms";
 import { CHAT_ATTRIBUTION_MESSAGE_QUERY, resolveChatAttribution } from "@/lib/whatsapp/chat-attribution";
 import { slaBreachFlags } from "@/lib/sla/rules";
+export { chatRowComparator } from "./sort";
 
 // Capa compartida por GET /api/whatsapp/chats y lib/channel-chats.ts. No
 // intenta ser un endpoint único: WhatsApp y Conversation viven en tablas
@@ -25,6 +26,27 @@ export interface ChatListFilters {
   slaBreached?: boolean;
   /** Equipos: ids concretos (un equipo o "mis equipos", ya resueltos por el caller). */
   teamIds?: string[];
+  /** "oldest" = más antiguos primero (último mensaje más viejo arriba). */
+  sort?: ChatSort;
+}
+
+export type ChatSort = "recent" | "oldest";
+
+type SortInput = { sort: "asc" | "desc"; nulls: "first" | "last" };
+export type ChatListOrderBy = Array<{ waitingSince?: SortInput; lastMessageAt?: SortInput; id?: "asc" | "desc" }>;
+
+/**
+ * Orden de la lista, el MISMO en la base que en el cliente (chatComparator en
+ * chat-shared.ts), para que la paginación no esconda lo importante:
+ *  - "Esperando": quien lleva más rato esperando primero (waitingSince asc);
+ *  - "Más antiguos primero": último mensaje más viejo arriba;
+ *  - por defecto: último mensaje más reciente arriba.
+ * El id desempata para que "Cargar más" no repita ni salte filas.
+ */
+export function chatListOrderBy(filters: Pick<ChatListFilters, "awaiting" | "sort">): ChatListOrderBy {
+  if (filters.awaiting) return [{ waitingSince: { sort: "asc", nulls: "last" } }, { lastMessageAt: { sort: "asc", nulls: "last" } }, { id: "asc" }];
+  if (filters.sort === "oldest") return [{ lastMessageAt: { sort: "asc", nulls: "last" } }, { id: "asc" }];
+  return [{ lastMessageAt: { sort: "desc", nulls: "last" } }, { id: "desc" }];
 }
 
 const STATUSES = ["OPEN", "PENDING", "RESOLVED"];
@@ -59,6 +81,7 @@ export function parseChatListFilters(searchParams: URLSearchParams, userId: stri
     hasReplied: repliedParam === "yes" || repliedParam === "no" ? repliedParam : undefined,
     awaiting: searchParams.get("awaiting") === "1" || undefined,
     slaBreached: searchParams.get("sla") === "1" || undefined,
+    sort: searchParams.get("sort") === "oldest" ? "oldest" : undefined,
   };
 }
 
@@ -252,3 +275,4 @@ export function mapChannelChatRow(row: ChannelChatRow) {
     channel: row.channelAccount.channel,
   };
 }
+

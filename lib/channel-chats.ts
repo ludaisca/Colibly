@@ -2,7 +2,7 @@ import type { Channel } from "@prisma/client";
 import { teamFilterIds } from "@/lib/teams/teams";
 import { prisma } from "@/lib/prisma";
 import { getUserChannelAccountIds } from "@/lib/shared-accounts";
-import { buildChannelChatWhere, CHANNEL_CHAT_SELECT, mapChannelChatRow, parseChatListFilters } from "@/lib/chats/query";
+import { buildChannelChatWhere, CHANNEL_CHAT_SELECT, mapChannelChatRow, parseChatListFilters, chatListOrderBy } from "@/lib/chats/query";
 
 // Lógica compartida por GET /api/{telegram,messenger,instagram}/chats —
 // mismo shape de respuesta que GET /api/whatsapp/chats (paginado, {items,
@@ -47,7 +47,7 @@ export async function listChannelChats(userId: string, channel: Channel, searchP
     prisma.conversation.findMany({
       where,
       select: CHANNEL_CHAT_SELECT,
-      orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
+      orderBy: chatListOrderBy(filters),
       ...(paginate ? { skip: (page - 1) * pageSize, take: pageSize } : {}),
     }),
     paginate ? prisma.conversation.count({ where }) : Promise.resolve(null),

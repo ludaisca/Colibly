@@ -30,6 +30,7 @@ export function ChatPageView({
       initialPriority={priority === "LOW" || priority === "NORMAL" || priority === "HIGH" || priority === "URGENT" ? priority : ""}
       initialSnoozed={snoozed === "only" || snoozed === "all" ? snoozed : ""}
       initialAwaiting={searchParams.get("awaiting") === "1"}
+      initialSort={searchParams.get("sort") === "oldest" ? "oldest" : undefined}
       initialSla={searchParams.get("sla") === "1"}
       initialTeam={searchParams.get("team") ?? undefined}
       initialSearch={searchParams.get("search") ?? undefined}

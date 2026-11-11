@@ -4,7 +4,7 @@ import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName, isWebchatVisitorId } from "@/lib/chats/display-name";
 import type { ElementType, ReactNode } from "react";
 import { GettingStarted } from "@/app/components/ui/getting-started";
-import { Search, MessageSquare, Flag, Clock, ListChecks, UserCheck, Check, X } from "lucide-react";
+import { Search, MessageSquare, Flag, Clock, ListChecks, UserCheck, Check, X, ArrowUpDown } from "lucide-react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
@@ -17,7 +17,7 @@ import { cn } from "@/app/components/ui/cn";
 import { ChatFiltersPanel, type AssignedFilter, type SnoozedFilter } from "./chat-filters-panel";
 import { ChatViewsMenu } from "./chat-views-menu";
 import { useNowMs } from "./use-now";
-import { SlaBadge, WaitCells } from "./waiting-badge";
+import { SlaBadge, WaitCells, WaitingBadge } from "./waiting-badge";
 import { ChatRowMenu } from "./chat-row-menu";
 import {
   displayMessageText,
@@ -97,6 +97,9 @@ interface ChatListPanelProps {
   onSnoozedFilterChange: (value: SnoozedFilter) => void;
   awaitingFilter: boolean;
   onAwaitingFilterChange: (value: boolean) => void;
+  /** Vista Todos: más antiguos primero (sort=oldest). */
+  sortOldest: boolean;
+  onSortOldestChange: (value: boolean) => void;
   /** Vista rápida "Fuera de SLA" activa (no tiene control propio en el panel de filtros). */
   slaFilter?: boolean;
 
@@ -148,6 +151,8 @@ export function ChatListPanel({
   onSnoozedFilterChange,
   awaitingFilter,
   onAwaitingFilterChange,
+  sortOldest,
+  onSortOldestChange,
   slaFilter = false,
   selectionMode,
   onToggleSelectionMode,
@@ -189,7 +194,7 @@ export function ChatListPanel({
         <div className="flex items-center gap-1">
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-display text-2xl font-bold leading-none">Chats</h1>
-            <p className="mt-1 truncate text-micro text-muted">{awaitingFilter ? "Ordenado por espera" : "Por último mensaje"}</p>
+            <p className="mt-1 truncate text-micro text-muted">{awaitingFilter ? "Quien lleva más esperando, arriba" : sortOldest ? "Más antiguos primero" : "Por último mensaje"}</p>
           </div>
           <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} counts={viewCounts} />
 
@@ -325,7 +330,20 @@ export function ChatListPanel({
             Todos
           </button>
         </div>
-        <span className="text-micro font-semibold uppercase tracking-[0.12em] text-muted">{awaitingFilter ? "Espera" : "Último"}</span>
+        {awaitingFilter ? (
+          <span className="text-micro font-semibold uppercase tracking-[0.12em] text-muted">Más espera</span>
+        ) : (
+          // Orden de la vista Todos: lo viejo sin contestar no se pierde debajo de lo reciente.
+          <button
+            type="button"
+            onClick={() => onSortOldestChange(!sortOldest)}
+            aria-label={sortOldest ? "Ordenar por más recientes" : "Ordenar por más antiguos"}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-micro font-semibold uppercase tracking-[0.12em] text-muted hover:bg-surface-light hover:text-foreground"
+          >
+            {sortOldest ? "Antiguos" : "Recientes"}
+            <ArrowUpDown size={11} aria-hidden />
+          </button>
+        )}
       </div>
       <div className="scrollbar-thin flex-1 overflow-y-auto">
         {loadingChats ? (
@@ -423,6 +441,8 @@ export function ChatListPanel({
                               {formatTime(chat.lastMessageAt)}
                             </span>
                           ) : null}
+                          {/* Texto claro ("espera 3 h", con color por antigüedad) en las dos vistas: el reloj solo no se entiende de un vistazo. */}
+                          {chat.waitingSince && chat.status !== "RESOLVED" && <WaitingBadge since={chat.waitingSince} now={now} />}
                           <span className="flex items-center gap-1">
                             {chat.priority !== "NORMAL" && (
                               <span title={`Prioridad ${PRIORITY_META[chat.priority].label.toLowerCase()}`} className={PRIORITY_META[chat.priority].text}>

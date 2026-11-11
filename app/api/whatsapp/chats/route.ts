@@ -3,7 +3,7 @@ import { teamFilterIds } from "@/lib/teams/teams";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds } from "@/lib/shared-accounts";
-import { buildWaChatWhere, mapWaChatRow, parseChatListFilters, WA_CHAT_SELECT } from "@/lib/chats/query";
+import { buildWaChatWhere, mapWaChatRow, parseChatListFilters, chatListOrderBy, WA_CHAT_SELECT } from "@/lib/chats/query";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { jsonWithEtag } from "@/lib/http/etag";
 
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       prisma.wAChat.findMany({
         where,
         select: WA_CHAT_SELECT,
-        orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
+        orderBy: chatListOrderBy(filters),
         ...(paginate ? { skip: (page - 1) * pageSize, take: pageSize } : {}),
       }),
       paginate ? prisma.wAChat.count({ where }) : Promise.resolve(null),

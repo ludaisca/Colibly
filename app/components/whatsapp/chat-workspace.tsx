@@ -35,7 +35,6 @@ import {
   THREAD_CACHE_MAX,
   latestUpdatedAt,
   oldestLastMessageAt,
-  compareByWaiting,
   type InboxSyncResponse,
   type ViewCounts,
   type Channel,
@@ -52,6 +51,7 @@ import {
 } from "@/app/components/whatsapp/chat-shared";
 import { plural } from "@/lib/format/plural";
 import { handleMatches } from "@/lib/chats/search-terms";
+import { chatRowComparator } from "@/lib/chats/sort";
 
 // Orquestador del inbox de chat: dueño de todo el estado (chats, mensajes,
 // filtros, polling, envío optimista) y de la composición de los 4 paneles en
@@ -85,6 +85,7 @@ interface ChatWorkspaceProps {
   initialPriority?: ChatPriority | "";
   initialSnoozed?: "" | "only" | "all";
   initialAwaiting?: boolean;
+  initialSort?: "oldest";
   /** ?sla=1: solo chats fuera de SLA (vista rápida). */
   initialSla?: boolean;
   /** ?team=mine|<id>: chats de mis equipos o de un equipo. */
@@ -122,6 +123,7 @@ export function ChatWorkspace({
   initialPriority,
   initialSnoozed,
   initialAwaiting,
+  initialSort,
   initialSla,
   initialTeam,
   initialSearch,
@@ -204,6 +206,10 @@ export function ChatWorkspace({
   const [snoozedFilter, setSnoozedFilter] = useState<"" | "only" | "all">(initialSnoozed || "");
   // "Esperando respuesta": el último mensaje es del cliente y nadie contestó.
   const [awaitingFilter, setAwaitingFilter] = useState<boolean>(initialAwaiting ?? false);
+  // "Más antiguos primero" en la vista Todos (sort=oldest): lo viejo sin contestar no se entierra.
+  const [sortOldest, setSortOldest] = useState<boolean>(initialSort === "oldest");
+  // Mismo orden que la base (lib/chats/sort.ts): la mezcla de canales y el sync no lo deshacen.
+  const chatOrder = useMemo(() => chatRowComparator({ awaiting: awaitingFilter, sort: sortOldest ? "oldest" : "recent" }), [awaitingFilter, sortOldest]);
   // "Fuera de SLA" (lib/sla/): solo desde las vistas rápidas.
   const [slaFilter, setSlaFilter] = useState<boolean>(initialSla ?? false);
   // Equipo (lib/teams/): "mine" o un id; solo desde las vistas rápidas o guardadas.
@@ -307,12 +313,13 @@ export function ChatWorkspace({
     if (priorityFilter) params.set("priority", priorityFilter);
     if (snoozedFilter) params.set("snoozed", snoozedFilter);
     if (awaitingFilter) params.set("awaiting", "1");
+    if (sortOldest && !awaitingFilter) params.set("sort", "oldest");
     if (slaFilter) params.set("sla", "1");
     if (teamFilter) params.set("team", teamFilter);
     if (accountFilter) params.set("accountId", accountFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
-  }, [campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, awaitingFilter, slaFilter, teamFilter, accountFilter, debouncedSearch]);
+  }, [campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, awaitingFilter, sortOldest, slaFilter, teamFilter, accountFilter, debouncedSearch]);
 
   // Mezcla las 4 fuentes en una sola página ordenada por lastMessageAt. No es
   // paginación combinada real a nivel de DB (cada fuente pagina por su cuenta
@@ -347,14 +354,10 @@ export function ChatWorkspace({
       })
     );
 
-    const items = results.flatMap((r) => r.items).sort((a, b) => {
-      const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-      const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-      return bt - at;
-    });
+    const items = results.flatMap((r) => r.items).sort(chatOrder);
     const total = results.reduce((sum, r) => sum + r.total, 0);
     return { items, total };
-  }, [CHANNEL_SOURCES, accountFilter, accounts, campaignFilter, buildChannelParams, channelsWithAccounts]);
+  }, [CHANNEL_SOURCES, accountFilter, accounts, campaignFilter, buildChannelParams, channelsWithAccounts, chatOrder]);
 
   const firstPagePerChannel = useMemo(
     () => Object.fromEntries(CHANNEL_SOURCES.map((s) => [s.channel, 1])) as Record<(typeof CHANNEL_SOURCES)[number]["channel"], number>,
@@ -485,11 +488,12 @@ export function ChatWorkspace({
     if (priorityFilter) params.set("priority", priorityFilter);
     if (snoozedFilter) params.set("snoozed", snoozedFilter);
     if (awaitingFilter) params.set("awaiting", "1");
+    if (sortOldest && !awaitingFilter) params.set("sort", "oldest");
     if (slaFilter) params.set("sla", "1");
     if (teamFilter) params.set("team", teamFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     return params;
-  }, [accountFilter, campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, awaitingFilter, slaFilter, teamFilter, debouncedSearch]);
+  }, [accountFilter, campaignFilter, hasRepliedFilter, assignedFilter, priorityFilter, snoozedFilter, awaitingFilter, sortOldest, slaFilter, teamFilter, debouncedSearch]);
 
   // Sincroniza la URL sin navegar. `router.replace()` volvía a renderizar el
   // árbol del servidor y recargaba la conversación (por eso se había quitado y
@@ -838,11 +842,7 @@ export function ChatWorkspace({
         if (data.chats.length > 0) {
           setChats((prev) => {
             const freshIds = new Set(data.chats.map((c) => c.id));
-            return [...data.chats, ...prev.filter((c) => !freshIds.has(c.id))].sort((a, b) => {
-              const at = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-              const bt = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-              return bt - at;
-            });
+            return [...data.chats, ...prev.filter((c) => !freshIds.has(c.id))].sort(chatOrder);
           });
         }
         if (typeof data.total === "number") setChatsTotal(data.total);
@@ -855,7 +855,7 @@ export function ChatWorkspace({
       // Un blip de red no merece un toast: el siguiente tick reintenta.
       console.warn("Falló la sincronización de la bandeja, se reintenta en el próximo tick", err);
     }
-  }, [buildChannelParams, mergePolledMessages]);
+  }, [buildChannelParams, chatOrder, mergePolledMessages]);
 
   // La lista y el hilo ya se cargan al montar; el primer tick inmediato trae
   // los contadores (y lo que haya cambiado en ese lapso). usePoll no consulta
@@ -1345,6 +1345,7 @@ export function ChatWorkspace({
     const snoozed = params.get("snoozed");
     setSnoozedFilter(snoozed === "only" || snoozed === "all" ? snoozed : "");
     setAwaitingFilter(params.get("awaiting") === "1");
+    setSortOldest(params.get("sort") === "oldest");
     setSlaFilter(params.get("sla") === "1");
     setTeamFilter(params.get("team") ?? "");
     const q = params.get("search") ?? "";
@@ -1399,7 +1400,7 @@ export function ChatWorkspace({
 
   // Andén: una sola lista (la cuenta se ve en la franja de color de cada fila).
   // En "Esperando" manda el tiempo de espera: primero quien lleva más.
-  const visibleChats = awaitingFilter ? [...filteredChats].sort(compareByWaiting) : filteredChats;
+  const visibleChats = [...filteredChats].sort(chatOrder);
   const groupedChats: Record<string, ChatItem[]> = visibleChats.length > 0 ? { all: visibleChats } : {};
 
   async function runShortcut(action: InboxShortcutAction) {
@@ -1493,6 +1494,8 @@ export function ChatWorkspace({
         snoozedFilter={snoozedFilter}
         onSnoozedFilterChange={setSnoozedFilter}
         awaitingFilter={awaitingFilter}
+        sortOldest={sortOldest}
+        onSortOldestChange={setSortOldest}
         onAwaitingFilterChange={setAwaitingFilter}
         slaFilter={slaFilter || !!teamFilter}
         selectionMode={selectionMode}

@@ -9,7 +9,7 @@ import {
   CHANNEL_CHAT_SELECT,
   mapChannelChatRow,
   mapWaChatRow,
-  parseChatListFilters,
+  parseChatListFilters, chatListOrderBy, chatRowComparator,
   WA_CHAT_SELECT,
 } from "@/lib/chats/query";
 import { loadLatestMessages, type ChatChannel } from "@/lib/chats/messages";
@@ -93,14 +93,15 @@ export async function GET(req: Request) {
       ? { updatedAt: { gt: new Date(since.getTime() - OVERLAP_MS) }, ...(floor ? { lastMessageAt: { gte: floor } } : {}) }
       : {};
     const take = since ? DELTA_MAX : pageSize;
-    const orderBy = { lastMessageAt: { sort: "desc", nulls: "last" } } as const;
+    // Mismo orden que la lista (espera / más antiguos / recientes).
+    const orderBy = chatListOrderBy(filters);
 
     const [waRows, channelRows] = await Promise.all([
       waWhere ? prisma.wAChat.findMany({ where: { AND: [waWhere, window] }, select: WA_CHAT_SELECT, orderBy, take }) : [],
       channelWhere ? prisma.conversation.findMany({ where: { AND: [channelWhere, window] }, select: CHANNEL_CHAT_SELECT, orderBy, take }) : [],
     ]);
     const chats = [...waRows.map(mapWaChatRow), ...channelRows.map(mapChannelChatRow)].sort(
-      (a, b) => (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)
+      chatRowComparator(filters)
     );
 
     // El total (para "Cargar más") solo se recalcula si algo cambió de verdad,
