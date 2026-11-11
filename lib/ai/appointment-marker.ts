@@ -34,7 +34,7 @@ Reglas:
 - Si el lead solo pregunta disponibilidad, propone una fecha sin que tú la hayas confirmado, o la conversación es ambigua, NO agregues el bloque — responde normal y pide la confirmación que falte.
 - Nunca menciones el bloque ni su contenido al cliente; es una instrucción interna, no algo que él deba ver.
 - Nunca agregues el bloque más de una vez por respuesta.
-- Tu respuesta visible al cliente debe confirmar la cita en lenguaje natural igual — el bloque es además de eso, no en lugar de eso.`;
+- Cuando agregues el bloque, tu respuesta visible NO debe afirmar que la cita ya quedó agendada: repite brevemente el día y la hora que entendiste (ej. "Perfecto, el sábado 15 a las 11:00."). El sistema crea la cita y, solo si se creó, agrega él mismo la confirmación al cliente.`;
 }
 
 // Se admite tanto una fecha/hora al inicio de una línea como en medio de la
@@ -52,10 +52,10 @@ const MARKER_RE_ALL = /```appointment\s*[\s\S]*?```/g;
 export function parseAppointmentMarker(
   raw: string,
   timeZone: string
-): { cleanText: string; proposal: AppointmentProposal | null } {
+): { cleanText: string; proposal: AppointmentProposal | null; hadMarker: boolean } {
   const match = raw.match(MARKER_RE);
   const cleanText = raw.replace(MARKER_RE_ALL, "").trim();
-  if (!match) return { cleanText, proposal: null };
+  if (!match) return { cleanText, proposal: null, hadMarker: false };
 
   // Cualquier retorno null de aquí en adelante significa "había un bloque,
   // pero se descartó" — a diferencia de "no había bloque" (el caso normal en
@@ -65,7 +65,7 @@ export function parseAppointmentMarker(
   // reclamando que "no le llegó" una cita que el bot le dijo que sí agendó.
   const reject = (reason: string) => {
     console.warn(`[appointment-marker] Bloque appointment descartado (${reason}):`, match![1]?.slice(0, 500));
-    return { cleanText, proposal: null };
+    return { cleanText, proposal: null, hadMarker: true };
   };
 
   try {
@@ -85,7 +85,7 @@ export function parseAppointmentMarker(
     const durationMinutes = Number.isFinite(duration) && duration >= 5 && duration <= 480 ? Math.round(duration) : 30;
     const notes = typeof data.notes === "string" && data.notes.trim() ? data.notes.trim().slice(0, 2000) : null;
 
-    return { cleanText, proposal: { title, scheduledAt, durationMinutes, notes } };
+    return { cleanText, proposal: { title, scheduledAt, durationMinutes, notes }, hadMarker: true };
   } catch {
     return reject("JSON inválido");
   }

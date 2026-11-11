@@ -8,6 +8,7 @@ import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { wrapUserPrompt, SCOPE_GUARDRAIL } from "@/lib/ai/prompt-sanitizer";
 import { buildAppointmentMarkerContract, parseAppointmentMarker } from "@/lib/ai/appointment-marker";
 import type { AppointmentProposal } from "@/lib/ai/appointment-marker";
+import { composeAppointmentReply } from "@/lib/ai/appointment-reply";
 import { reserveAiCredit } from "@/lib/ai/credits";
 import { channelHasFeature } from "@/lib/billing/entitlements";
 import { transcribeForBot, voiceNoteForBot } from "@/lib/ai/transcribe";
@@ -95,8 +96,7 @@ async function failBotAndNotify(botId: string, waChatId: string, errorMessage: s
 }
 
 // Confirmación cuando el modelo agendó una cita pero no escribió texto visible
-// (solo el bloque ```appointment) — ver handleBotMessage.
-const APPOINTMENT_ONLY_REPLY = "¡Listo! Tu cita quedó agendada. Si necesitas cambiarla, escríbenos por aquí.";
+// Ver lib/ai/appointment-reply.ts: la confirmación de una cita solo sale si la cita se creó.
 
 const FALLBACK_REPLY =
   "Gracias por tu mensaje. Estamos teniendo un inconveniente técnico en este momento — un miembro de nuestro equipo te contactará en breve para continuar la conversación.";
@@ -353,13 +353,34 @@ async function handleBotMessage(job: BotMessageJob) {
   // crear después de enviar, o null si no se detectó ninguna.
   const parsed = appointmentTimeZone
     ? parseAppointmentMarker(result.content, appointmentTimeZone)
-    : { cleanText: result.content.trim(), proposal: null };
+    : { cleanText: result.content.trim(), proposal: null, hadMarker: false };
   const proposal = parsed.proposal;
+
+  // La cita se crea ANTES de responder: el cliente solo lee "quedó agendada"
+  // si la fila existe en Citas (antes se confirmaba primero y, si el create
+  // fallaba o no había contacto, el cliente quedaba con una cita fantasma).
+  let booked = false;
+  if (proposal) {
+    const contactId = chat.contactId ?? (await ensureChatContact(waChatId, bot.waAccount.id, chat.remoteJid));
+    if (!contactId) {
+      console.warn(`[bot-worker] Cita propuesta sin contacto en el chat ${waChatId}: no se agenda`);
+    } else {
+      booked = await createAiProposedAppointment({
+        contactId,
+        assignedToId: chat.assignedToId,
+        botOwnerId: bot.userId,
+        proposal,
+        originMessageId: job.messageId ?? null,
+        // Solo hay propuesta si la zona se resolvió (appointmentTimeZone).
+        timeZone: appointmentTimeZone ?? DEFAULT_TIME_ZONE,
+      });
+    }
+  }
+
   // Si el modelo respondió SOLO con el bloque de cita, cleanText queda vacío —
   // mandar un texto vacío falla en Meta, BullMQ reintenta (con costo de IA) y
-  // el bot termina en ERROR. Con cita válida se confirma con un texto fijo;
-  // sin ella no hay nada que enviar.
-  const replyText = parsed.cleanText || (proposal ? APPOINTMENT_ONLY_REPLY : "");
+  // el bot termina en ERROR: composeAppointmentReply pone un texto fijo.
+  const replyText = composeAppointmentReply({ cleanText: parsed.cleanText, hadMarker: parsed.hadMarker, proposed: !!proposal, booked });
   if (!replyText) {
     console.warn(`[bot-worker] El modelo devolvió una respuesta vacía — no se envía nada (chat ${waChatId})`);
     return;
@@ -417,18 +438,6 @@ async function handleBotMessage(job: BotMessageJob) {
         }),
       ]);
       await emitMessageSent("whatsapp", botMessage.id, "bot");
-    }
-
-    if (proposal && chat.contactId) {
-      await createAiProposedAppointment({
-        contactId: chat.contactId,
-        assignedToId: chat.assignedToId,
-        botOwnerId: bot.userId,
-        proposal,
-        originMessageId: job.messageId ?? null,
-        // Solo hay propuesta si la zona se resolvió (appointmentTimeZone).
-        timeZone: appointmentTimeZone ?? DEFAULT_TIME_ZONE,
-      });
     }
 
     await Promise.all([
@@ -529,7 +538,7 @@ async function createAiProposedAppointment(params: {
   proposal: AppointmentProposal;
   originMessageId: string | null;
   timeZone: string;
-}) {
+}): Promise<boolean> {
   const { contactId, assignedToId, botOwnerId, proposal, originMessageId, timeZone } = params;
   try {
     // Idempotencia ante reintentos: si este mismo job falla DESPUÉS de que la IA
@@ -545,7 +554,7 @@ async function createAiProposedAppointment(params: {
         where: { originMessageId, source: "AI_BOT" },
         select: { id: true },
       });
-      if (existing) return;
+      if (existing) return true;
     }
 
     const notifyUserId = assignedToId ?? botOwnerId;
@@ -580,12 +589,32 @@ async function createAiProposedAppointment(params: {
         body: `${proposal.title} — ${formatInZone(proposal.scheduledAt, { dateStyle: "medium", timeStyle: "short" }, timeZone)}`,
         link: `/whatsapp/citas?id=${appointment.id}`,
       },
-    });
+    }).catch((err) => console.error("[bot-worker] Cita creada, pero no se pudo avisar al agente:", err));
+    return true;
   } catch (err) {
-    // Best-effort — un fallo al agendar no debe tirar todo el turno del bot
-    // (el mensaje al cliente ya se envió). Queda sin registro en el CRM y sin
-    // notificación; sería recuperable manualmente si el lead insiste.
+    // Un fallo al agendar no tira el turno del bot: la respuesta al cliente
+    // dirá que un asesor confirma (composeAppointmentReply), no que quedó.
     console.error("[bot-worker] No se pudo crear la cita propuesta por IA:", err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
+// Un chat de WhatsApp siempre debería tener contacto (lo crea el ingest); si
+// falta, se vincula o crea con la misma clave única (cuenta + remoteJid) antes
+// de agendar, en vez de descartar la cita en silencio.
+async function ensureChatContact(waChatId: string, accountId: string, remoteJid: string): Promise<string | null> {
+  try {
+    const contact = await prisma.contact.upsert({
+      where: { accountId_remoteJid: { accountId, remoteJid } },
+      create: { accountId, remoteJid, source: "whatsapp_inbound" },
+      update: {},
+      select: { id: true },
+    });
+    await prisma.wAChat.update({ where: { id: waChatId }, data: { contactId: contact.id } });
+    return contact.id;
+  } catch (err) {
+    console.error(`[bot-worker] No se pudo vincular un contacto al chat ${waChatId}:`, err instanceof Error ? err.message : err);
+    return null;
   }
 }
 
