@@ -68,6 +68,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // prueba por vencer y el pago pendiente (pueden resolverlo); el resto, solo
   // cuando la cuenta ya no funciona. Info y warning se pueden cerrar.
   const isAdmin = session.user.role === "admin";
+  // Mismo criterio que /plataforma (layout, página y requirePlatformAdmin), que
+  // miran el correo de la SESIÓN: si el menú mirara solo el de la base, una
+  // sesión con otro correo vería «Organizaciones» y la ruta le daría 404. Se
+  // exige que los dos sean de un operador.
+  const platformAdmin = isPlatformAdminEmail(session.user.email) && isPlatformAdminEmail(user?.email);
   const notice = org ? billingNotice(org, new Date()) : null;
   const showNotice = notice && (isAdmin || notice.tone === "danger");
 
@@ -78,7 +83,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     </>
   );
   return (
-    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} platformAdmin={isPlatformAdminEmail(user?.email)} channels={channels} callingEnabled={callingEnabled} hasWhatsapp={whatsappAccounts > 0} accountHues={accountHues}>
+    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} platformAdmin={platformAdmin} channels={channels} callingEnabled={callingEnabled} hasWhatsapp={whatsappAccounts > 0} accountHues={accountHues}>
       {children}
     </DashboardShell>
   );
