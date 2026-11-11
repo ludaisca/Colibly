@@ -24,3 +24,14 @@ describe("glosario", () => {
     for (const text of Object.values(GLOSSARY)) expect(text.endsWith(".")).toBe(true);
   });
 });
+
+describe("SUPPORT_WHATSAPP vacío o a medias", () => {
+  it("espacios, solo lada o más de 15 dígitos: sin botón (nunca un wa.me/ vacío)", () => {
+    expect(supportWhatsappNumber("   ")).toBeNull();
+    expect(supportWhatsappNumber("+52")).toBeNull();
+    expect(supportWhatsappNumber("1234567890123456")).toBeNull();
+  });
+  it("con un número válido el enlace siempre lleva el número", () => {
+    expect(supportWhatsappUrl("5215512345678", null)).toMatch(/^https:\/\/wa\.me\/5215512345678\?text=/);
+  });
+});
