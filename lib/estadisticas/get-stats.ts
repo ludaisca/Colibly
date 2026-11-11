@@ -12,7 +12,8 @@ import {
   countMessages,
   countTotalAccounts,
 } from "@/lib/estadisticas/global-counts";
-import { CHAT_ATTRIBUTION_MESSAGE_QUERY, resolveChatAttribution } from "@/lib/whatsapp/chat-attribution";
+import { agentAggregates, dailyMessageCounts, qualifiedChatRows } from "@/lib/estadisticas/aggregates";
+import { chartDayKeys, withTimeout } from "@/lib/estadisticas/aggregate-rules";
 
 // Mismo orden que VALID_LABELS en lib/whatsapp/lead-scoring.ts, invertido para
 // mostrar primero lo más urgente/accionable.
@@ -130,7 +131,15 @@ interface CampaignBreakdownRow extends CampaignOriginStats {
   name: string;
 }
 
+// Tope de la carga completa: un error con reintento (error.tsx) es mejor que
+// dejar la página en los skeletons de loading.tsx para siempre.
+const STATS_TIMEOUT_MS = 25_000;
+
 export async function getEstadisticas(userId: string): Promise<Estadisticas> {
+  return withTimeout(computeEstadisticas(userId), STATS_TIMEOUT_MS);
+}
+
+async function computeEstadisticas(userId: string): Promise<Estadisticas> {
   const cached = statsCache.get(userId);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.data;
@@ -157,8 +166,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     usage,
     scorerUsage,
     recoveryUsage,
-    recentMessages,
-    recentChannelMessages,
+    dailyMap,
     activeBots,
     campaignsCompleted,
     botsList,
@@ -168,12 +176,11 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     chatCountsByAccount,
     monthlyCost,
     aiCreditSummary,
-    assignedChats,
-    assignedChannelChats,
+    agentPerformance,
     campaignsForMessageStats,
     leadSheetSources,
     leadSheetStatusGroups,
-    leadScoresWA,
+    qualifiedRows,
   ] = await Promise.all([
     countTotalAccounts(accountIds, userId),
     countChats(accountIds, userId),
@@ -192,21 +199,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
       where: { chat: { account: org } },
       _sum: { totalTokens: true, estimatedCost: true },
     }),
-    prisma.wAMessage.findMany({
-      where: {
-        createdAt: { gte: chartStart },
-        chat: { accountId: { in: accountIds } },
-      },
-      select: { createdAt: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.channelMessage.findMany({
-      where: {
-        createdAt: { gte: chartStart },
-        conversation: { channelAccountId: { in: channelAccountIds } },
-      },
-      select: { createdAt: true },
-    }),
+    dailyMessageCounts(accountIds, channelAccountIds, chartStart, STATS_TZ),
     countActiveBots(userId),
     countCompletedCampaigns(userId),
     prisma.wABot.findMany({
@@ -238,27 +231,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     // pausar el gasto — así el % de presupuesto mostrado nunca diverge del real.
     getOrgAiCost(org.organizationId, monthStart),
     orgAiCreditSummary(org.organizationId),
-    prisma.wAChat.findMany({
-      where: {
-        assignedToId: { not: null },
-        accountId: { in: accountIds },
-      },
-      select: {
-        assignedToId: true,
-        assignedTo: { select: { name: true } },
-        status: true,
-        createdAt: true,
-        firstResponseAt: true,
-        resolvedAt: true,
-      },
-    }),
-    prisma.conversation.findMany({
-      where: { assignedToId: { not: null }, channelAccountId: { in: channelAccountIds } },
-      select: {
-        assignedToId: true, assignedTo: { select: { name: true } },
-        status: true, createdAt: true, firstResponseAt: true, resolvedAt: true,
-      },
-    }),
+    agentAggregates(accountIds, channelAccountIds),
     // Contadores ya vienen agregados en WACampaign (sentCount/deliveredCount/...),
     // actualizados por el webhook de Meta — no hace falta un groupBy sobre
     // WACampaignRecipient. Visibilidad por cuenta, no por creador (mismo criterio
@@ -278,43 +251,10 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
       where: { source: { waAccountId: { in: accountIds } }, status: { not: "seeded" } },
       _count: { _all: true },
     }),
-    prisma.wALeadScore.findMany({
-      where: { chatId: { not: null }, chat: { accountId: { in: accountIds } } },
-      select: {
-        chatId: true,
-        score: true,
-        label: true,
-        chat: { select: { messages: CHAT_ATTRIBUTION_MESSAGE_QUERY } },
-      },
-    }),
+    qualifiedChatRows(accountIds, channelAccountIds),
   ]);
 
-  // Telegram no tiene relación real hacia WALeadScore (referencia blanda,
-  // ver schema) ni conceptos de campaña/automatización — el score se resuelve
-  // en dos pasos y su "campaign" siempre es null.
-  const tgConversationIds = channelAccountIds.length > 0
-    ? (await prisma.conversation.findMany({
-        where: { channelAccountId: { in: channelAccountIds } },
-        select: { id: true },
-      })).map((c) => c.id)
-    : [];
-  const leadScoresTG = tgConversationIds.length > 0
-    ? await prisma.wALeadScore.findMany({
-        where: { conversationId: { in: tgConversationIds } },
-        select: { conversationId: true, score: true, label: true },
-      })
-    : [];
-
-  const dailyMap: Record<string, number> = {};
-  for (const m of [...recentMessages, ...recentChannelMessages]) {
-    const date = dateKeyInTz(m.createdAt);
-    dailyMap[date] = (dailyMap[date] || 0) + 1;
-  }
-
-  const dailyMessages = Array.from({ length: 14 }, (_, index) => {
-    const date = new Date(Date.UTC(chartYear, chartMonth - 1, chartDay - 13 + index)).toISOString().slice(0, 10);
-    return { date, count: dailyMap[date] ?? 0 };
-  });
+  const dailyMessages = chartDayKeys(now, STATS_TZ).map((date) => ({ date, count: dailyMap[date] ?? 0 }));
 
   const botBreakdown = botsList
     .map((b) => {
@@ -347,35 +287,6 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     })),
   ].sort((a, b) => b.chats - a.chats);
 
-  const agentMap = new Map<string, {
-    userName: string | null;
-    resolvedCount: number;
-    responseTimes: number[];
-    resolutionTimes: number[];
-  }>();
-  for (const c of [...assignedChats, ...assignedChannelChats]) {
-    const id = c.assignedToId!;
-    if (!agentMap.has(id)) {
-      agentMap.set(id, { userName: c.assignedTo?.name ?? null, resolvedCount: 0, responseTimes: [], resolutionTimes: [] });
-    }
-    const entry = agentMap.get(id)!;
-    if (c.status === "RESOLVED") entry.resolvedCount++;
-    if (c.firstResponseAt) entry.responseTimes.push((c.firstResponseAt.getTime() - c.createdAt.getTime()) / 60000);
-    if (c.resolvedAt) entry.resolutionTimes.push((c.resolvedAt.getTime() - c.createdAt.getTime()) / 60000);
-  }
-
-  const avg = (values: number[]): number | null =>
-    values.length === 0 ? null : Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
-
-  const agentPerformance = Array.from(agentMap.entries())
-    .map(([userId, entry]) => ({
-      userId,
-      userName: entry.userName,
-      resolvedCount: entry.resolvedCount,
-      avgFirstResponseMinutes: avg(entry.responseTimes),
-      avgResolutionMinutes: avg(entry.resolutionTimes),
-    }))
-    .sort((a, b) => b.resolvedCount - a.resolvedCount);
 
   function rate(numerator: number, denominator: number): number | null {
     return denominator > 0 ? Math.round((numerator / denominator) * 1000) / 10 : null;
@@ -442,23 +353,7 @@ export async function getEstadisticas(userId: string): Promise<Estadisticas> {
     { ...toStats(automationTotals), origin: "automatizacion" },
   ];
 
-  const bestScorePerChat = new Map<string, { score: number; label: string; campaign: ReturnType<typeof resolveChatAttribution> }>();
-  for (const s of leadScoresWA) {
-    if (!s.chatId) continue;
-    const key = `wa:${s.chatId}`;
-    const existing = bestScorePerChat.get(key);
-    if (!existing || s.score > existing.score) {
-      bestScorePerChat.set(key, { score: s.score, label: s.label, campaign: resolveChatAttribution(s.chat!.messages) });
-    }
-  }
-  for (const s of leadScoresTG) {
-    if (!s.conversationId) continue;
-    const key = `tg:${s.conversationId}`;
-    const existing = bestScorePerChat.get(key);
-    if (!existing || s.score > existing.score) {
-      bestScorePerChat.set(key, { score: s.score, label: s.label, campaign: null });
-    }
-  }
+  const bestScorePerChat = new Map(qualifiedRows.map((r) => [r.key, r]));
 
   const labelCounts = new Map<string, number>();
   const campaignCounts = new Map<string, { id: string | null; name: string; origin: "manual" | "automatizacion" | null; count: number }>();
