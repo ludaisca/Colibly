@@ -21,6 +21,7 @@ import { cn } from "@/app/components/ui/cn";
 import { useHueClass } from "@/app/components/ui/account-hues";
 import { CAMPAIGN_ORIGIN_LABEL } from "@/lib/whatsapp/export-columns";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
+import { compactCount, yAxisWidth } from "@/lib/format/compact-number";
 
 // Gráficas del módulo Estadísticas — Recharts (SVG, React-nativo, se integra
 // con los tokens de color vía var(--...) directo en fill/stroke, así que no
@@ -110,7 +111,9 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
         aria-label={`Gráfica de mensajes diarios de los últimos ${data.length} días, total ${total} ${total === 1 ? "mensaje" : "mensajes"}`}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+          {/* Margen izquierdo en 0 y eje con el ancho de su etiqueta más larga en
+              formato corto ("8k"): con -16 y 40 px fijos, "8,000" se veía "000". */}
+          <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="messagesFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.35} />
@@ -127,7 +130,14 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
               interval="preserveStartEnd"
               minTickGap={24}
             />
-            <YAxis allowDecimals={false} tick={TICK_STYLE} axisLine={false} tickLine={false} width={40} />
+            <YAxis
+              allowDecimals={false}
+              tick={TICK_STYLE}
+              axisLine={false}
+              tickLine={false}
+              width={yAxisWidth(Math.max(0, ...data.map((d) => d.count)))}
+              tickFormatter={(value: number) => compactCount(value)}
+            />
             <Tooltip
               cursor={{ stroke: "var(--accent-strong)", strokeWidth: 1, strokeDasharray: "3 3" }}
               content={(props) => (
@@ -260,10 +270,17 @@ export function DeliveryComparisonChart({ data }: { data: Estadisticas["campaign
       aria-label="Comparación de mensajes enviados, entregados, leídos y fallidos por origen de campaña"
     >
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }} barGap={4}>
+        <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={4}>
           <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
           <XAxis dataKey="origin" tick={TICK_STYLE} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
-          <YAxis allowDecimals={false} tick={TICK_STYLE} axisLine={false} tickLine={false} width={40} />
+          <YAxis
+            allowDecimals={false}
+            tick={TICK_STYLE}
+            axisLine={false}
+            tickLine={false}
+            width={yAxisWidth(Math.max(0, ...chartData.flatMap((d) => [d.Enviados, d.Entregados, d.Leídos, d.Fallidos])))}
+            tickFormatter={(value: number) => compactCount(value)}
+          />
           <Tooltip cursor={{ fill: "var(--surface-light)" }} content={(props) => <ChartTooltip {...props} />} />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "var(--muted-darker)" }} />
           <Bar dataKey="Enviados" fill="var(--muted-darker)" radius={[4, 4, 0, 0]} isAnimationActive={!reducedMotion} maxBarSize={28} />
