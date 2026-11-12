@@ -10,5 +10,11 @@ export const BRAND_TAGLINE = "El CRM de WhatsApp con IA para negocios que venden
 export const BRAND_DOMAIN = "colibly.com";
 // Contacto y soporte (enlaces, textos y Reply-To de los correos).
 export const BRAND_CONTACT_EMAIL = `contacto@${BRAND_DOMAIN}`;
+// WhatsApp de soporte del sitio público (/contacto, pie, JSON-LD). Es el mismo
+// número que SUPPORT_WHATSAPP usa en /ayuda, pero fijo: el sitio no depende
+// de esa variable. Dígitos para wa.me y schema.org; el texto es para mostrar.
+export const BRAND_SUPPORT_WHATSAPP = "5215644165153";
+export const BRAND_SUPPORT_WHATSAPP_DISPLAY = "+52 1 56 4416 5153";
+export const BRAND_SUPPORT_WHATSAPP_URL = `https://wa.me/${BRAND_SUPPORT_WHATSAPP}`;
 // Remitente por defecto del correo transaccional (si /plataforma no define otro).
 export const BRAND_NOREPLY_EMAIL = `noreply@${BRAND_DOMAIN}`;

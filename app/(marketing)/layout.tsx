@@ -5,7 +5,7 @@ import { Logo } from "@/app/components/ui/logo";
 import { Button } from "@/app/components/ui/button";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { Analytics, CookiePreferencesButton } from "@/app/components/analytics/analytics";
-import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { BRAND_NAME, BRAND_SUPPORT_WHATSAPP_DISPLAY, BRAND_SUPPORT_WHATSAPP_URL, BRAND_TAGLINE } from "@/lib/brand";
 import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { LEGAL } from "./_legal";
 import { SiteMobileNav } from "@/app/components/ui/site-mobile-nav";
@@ -104,6 +104,9 @@ export default async function MarketingLayout({ children }: { children: React.Re
                 Escríbenos: <a href={`mailto:${contactEmail}`} className="font-medium text-foreground hover:underline">{contactEmail}</a>
               </p>
             )}
+            <p className="break-words">
+              WhatsApp: <a href={BRAND_SUPPORT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground hover:underline">{BRAND_SUPPORT_WHATSAPP_DISPLAY}</a>
+            </p>
           </div>
           {FOOTER_COLUMNS.map((col) => (
             <nav key={col.title} aria-label={col.title} className="min-w-0">

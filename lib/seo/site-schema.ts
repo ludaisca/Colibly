@@ -1,4 +1,4 @@
-import { BRAND_CONTACT_EMAIL, BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { BRAND_CONTACT_EMAIL, BRAND_NAME, BRAND_SUPPORT_WHATSAPP, BRAND_TAGLINE } from "@/lib/brand";
 import { siteUrl } from "@/lib/app-url";
 
 // Entidad de la marca para buscadores y asistentes de IA (GEO): quién es,
@@ -32,7 +32,7 @@ export function siteSchemaJson(): string {
       description: BRAND_TAGLINE,
       areaServed: { "@type": "Country", name: "México" },
       knowsLanguage: "es-MX",
-      contactPoint: [{ "@type": "ContactPoint", contactType: "customer support", email: BRAND_CONTACT_EMAIL, availableLanguage: "es" }],
+      contactPoint: [{ "@type": "ContactPoint", contactType: "customer support", email: BRAND_CONTACT_EMAIL, telephone: `+${BRAND_SUPPORT_WHATSAPP}`, availableLanguage: "es" }],
     },
     {
       "@context": "https://schema.org",

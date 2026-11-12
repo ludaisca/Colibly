@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Mail, Clock, ShieldCheck } from "lucide-react";
-import { BRAND_CONTACT_EMAIL, BRAND_NAME } from "@/lib/brand";
+import { Mail, MessageCircle, Clock, ShieldCheck } from "lucide-react";
+import { BRAND_CONTACT_EMAIL, BRAND_NAME, BRAND_SUPPORT_WHATSAPP_DISPLAY, BRAND_SUPPORT_WHATSAPP_URL } from "@/lib/brand";
 import { appUrl } from "@/lib/app-url";
 import { InfoPage, LINK } from "../_page";
 
-const DESCRIPTION = `Contacto y soporte de ${BRAND_NAME}: escríbenos por correo para resolver dudas sobre tu cuenta, la conexión de WhatsApp, los planes o tus datos.`;
+const DESCRIPTION = `Contacto y soporte de ${BRAND_NAME}: escríbenos por WhatsApp o por correo para resolver dudas sobre tu cuenta, la conexión de WhatsApp, los planes o tus datos.`;
 
 export const metadata: Metadata = {
   title: "Contacto y soporte",
@@ -24,6 +24,14 @@ export default function ContactPage() {
             <a href={`mailto:${BRAND_CONTACT_EMAIL}`} className={`${LINK} font-medium`}>{BRAND_CONTACT_EMAIL}</a>
           </p>
           <p className="mt-1 text-sm text-muted-strong">Es el canal para soporte, ventas, facturación y solicitudes sobre tus datos personales.</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <MessageCircle size={20} className="text-accent-ink" aria-hidden />
+          <h2 className="!mt-3 !text-base">WhatsApp</h2>
+          <p className="mt-1">
+            <a href={BRAND_SUPPORT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className={`${LINK} font-medium`}>{BRAND_SUPPORT_WHATSAPP_DISPLAY}</a>
+          </p>
+          <p className="mt-1 text-sm text-muted-strong">Es el canal para hablar con una persona del equipo sobre tu cuenta o la conexión de WhatsApp.</p>
         </div>
         <div className="rounded-xl border border-border bg-surface p-5">
           <Clock size={20} className="text-accent-ink" aria-hidden />
