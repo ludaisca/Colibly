@@ -11,8 +11,8 @@ import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { Button } from "@/app/components/ui/button";
 import { DismissibleNudge } from "@/app/components/ui/dismissible-nudge";
 import { staleCutoff } from "@/lib/pipeline/nudge";
-import { PipelineBoard, type BoardData, type BoardStage } from "./_board";
-import type { LeadCardData } from "@/app/components/pipeline/lead-card";
+import { PipelineBoard, type BoardData, type BoardStage, type StageTotals } from "./_board";
+import { countStaleCards, loadStageCards, stageSummaries } from "@/lib/pipeline/board";
 import { formatMxn } from "@/lib/money";
 
 export default async function VentasPage({ searchParams }: { searchParams: Promise<{ pipeline?: string; detenidos?: string }> }) {
@@ -32,92 +32,49 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
   if (!selected) redirect("/ventas");
 
   const scope = await contactScopeWhere(session.user.id);
-  const stageIds = selected.stages.map((stage) => stage.id);
-  const contacts = await prisma.contact.findMany({
-    where: {
-      OR: [
-        { pipelineStageId: { in: stageIds } },
-        ...(selected.isDefault
-          ? [{ pipelineStageId: null, ...scope }]
-          : []),
-      ],
-      AND: [scope],
-    },
-    select: {
-      id: true,
-      name: true,
-      remoteJid: true,
-      leadStatus: true,
-      pipelineStageId: true,
-      dealValueCents: true,
-      expectedCloseAt: true,
-      stageEnteredAt: true,
-      accountId: true,
-      channelAccountId: true,
-      isSample: true,
-      channelAccount: { select: { channel: true } },
-      tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
-      chat: {
-        select: {
-          lastMessageAt: true,
-          unreadCount: true,
-          assignedTo: { select: { id: true, name: true } },
-          leadScores: { orderBy: { score: "desc" }, take: 1, select: { score: true, label: true } },
-        },
-      },
-      conversation: { select: { lastMessageAt: true, unreadCount: true, assignedTo: { select: { id: true, name: true } } } },
-    },
-  });
-
   const stages: BoardStage[] = selected.stages.map((stage) => ({
     id: stage.id,
     name: stage.name,
     outcome: stage.outcome,
     locked: stage.leadStatus !== null,
   }));
-  const boardData: BoardData = {};
-  for (const stage of stages) boardData[stage.id] = [];
 
-  const outcomeByStage = new Map(selected.stages.map((stage) => [stage.id, stage.outcome]));
   // Leads detenidos: más de un día en la primera etapa abierta sin moverse
   // (stageEnteredAt lo mantiene un trigger de la base). Con ?detenidos=1 esa
   // columna muestra solo esos.
   const firstStage = selected.stages.find((stage) => stage.outcome === "OPEN");
   const cutoff = staleCutoff(new Date());
   const onlyStale = detenidos === "1" && !!firstStage;
-  let staleCount = 0;
-  for (const contact of contacts) {
-    const stageId = contact.pipelineStageId ?? selected.stages.find((stage) => stage.leadStatus === contact.leadStatus)?.id;
-    if (!stageId || !boardData[stageId]) continue;
-    const stale = stageId === firstStage?.id && contact.stageEnteredAt < cutoff;
-    if (stale && !contact.isSample) staleCount++;
-    if (onlyStale && stageId === firstStage?.id && !stale) continue;
-    const card: LeadCardData = {
-      id: contact.id,
-      name: contact.name,
-      remoteJid: contact.remoteJid,
-      leadStatus: contact.leadStatus,
-      stageId,
-      accountId: contact.accountId,
-      isSample: contact.isSample,
-      lineAccountId: contact.accountId ?? contact.channelAccountId,
-      channel: contact.accountId ? "WHATSAPP" : contact.channelAccount?.channel ?? "WHATSAPP",
-      tags: contact.tags,
-      bestScore: contact.chat?.leadScores?.[0] ?? null,
-      lastMessageAt: contact.chat?.lastMessageAt?.toISOString() ?? contact.conversation?.lastMessageAt?.toISOString() ?? null,
-      unreadCount: (contact.chat?.unreadCount ?? 0) + (contact.conversation?.unreadCount ?? 0),
-      dealValueCents: contact.dealValueCents,
-      expectedCloseAt: contact.expectedCloseAt?.toISOString() ?? null,
-      assignee: contact.chat?.assignedTo ?? contact.conversation?.assignedTo ?? null,
-      closed: outcomeByStage.get(stageId) !== "OPEN",
-    };
-    boardData[stageId].push(card);
-  }
+
+  // Cada columna trae su primera página; conteos y sumas salen de la base
+  // (lib/pipeline/board.ts). Todo en paralelo.
+  const [summaries, staleCount, columns] = await Promise.all([
+    stageSummaries(scope, selected.stages, selected.isDefault),
+    firstStage ? countStaleCards(scope, firstStage, selected.isDefault, cutoff) : Promise.resolve(0),
+    Promise.all(
+      selected.stages.map((stage) =>
+        loadStageCards({
+          scope,
+          stage,
+          isDefault: selected.isDefault,
+          staleBefore: onlyStale && stage.id === firstStage?.id ? cutoff : undefined,
+        })
+      )
+    ),
+  ]);
+  const boardData: BoardData = {};
+  const stageTotals: StageTotals = {};
+  selected.stages.forEach((stage, index) => {
+    boardData[stage.id] = columns[index];
+    const filtered = onlyStale && stage.id === firstStage?.id;
+    stageTotals[stage.id] = filtered
+      ? { count: staleCount, valueCents: columns[index].reduce((sum, card) => sum + (card.dealValueCents ?? 0), 0), partialValue: true }
+      : { count: summaries[stage.id].count, valueCents: summaries[stage.id].valueCents };
+  });
 
   // Los KPIs cuentan solo lo real: las tarjetas de ejemplo se ven en el tablero pero no suman.
-  const realCards = (stageId: string) => boardData[stageId].filter((card) => !card.isSample);
-  const total = Object.values(boardData).reduce((sum, cards) => sum + cards.filter((card) => !card.isSample).length, 0);
-  const wonOnBoard = selected.stages.filter((stage) => stage.outcome === "WON").reduce((sum, stage) => sum + realCards(stage.id).length, 0);
+  const total = selected.stages.reduce((sum, stage) => sum + summaries[stage.id].realCount, 0);
+  const wonOnBoard = selected.stages.filter((stage) => stage.outcome === "WON").reduce((sum, stage) => sum + summaries[stage.id].realCount, 0);
   const since = new Date();
   since.setDate(since.getDate() - 30);
   const outcomes = await prisma.leadOutcomeEvent.groupBy({
@@ -135,7 +92,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
   // Valor abierto: tratos con monto en etapas que no son ganadas ni perdidas.
   const openValue = selected.stages
     .filter((stage) => stage.outcome === "OPEN")
-    .reduce((sum, stage) => sum + realCards(stage.id).reduce((acc, card) => acc + (card.dealValueCents ?? 0), 0), 0);
+    .reduce((sum, stage) => sum + summaries[stage.id].realValueCents, 0);
   const conversionPct = total > 0 ? Math.round((wonOnBoard / total) * 100) : 0;
 
   const kpis: KpiItem[] = [
@@ -173,6 +130,8 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
         pipelineId={selected.id}
         stages={stages}
         initialData={boardData}
+        initialTotals={stageTotals}
+        onlyStaleStageId={onlyStale ? firstStage?.id ?? null : null}
       />
     </div>
   );

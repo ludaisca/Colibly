@@ -29,6 +29,9 @@ export type BoardStage = StageOption & { outcome: StageOutcome; locked: boolean 
 
 export type BoardData = Record<string, LeadCardData[]>;
 
+/** Total de cada columna (de la base): la columna solo trae una página de tarjetas. */
+export type StageTotals = Record<string, { count: number; valueCents: number; partialValue?: boolean }>;
+
 interface PipelineOption {
   id: string;
   name: string;
@@ -40,12 +43,18 @@ function Column({
   index,
   openCount,
   contacts,
+  total,
+  loadingMore,
+  onLoadMore,
   stages,
   visibleOnMobile,
   onOpen,
   onStageChange,
 }: {
   stage: BoardStage;
+  total: { count: number; valueCents: number; partialValue?: boolean };
+  loadingMore: boolean;
+  onLoadMore: () => void;
   /** Posición entre las etapas abiertas (para la marca de estación). */
   index: number;
   openCount: number;
@@ -56,8 +65,8 @@ function Column({
   onStageChange: (id: string, stageId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `column-${stage.id}` });
-  const totalCents = contacts.reduce((sum, contact) => sum + (contact.dealValueCents ?? 0), 0);
-  const withValue = contacts.filter((contact) => contact.dealValueCents !== null).length;
+  const totalCents = total.valueCents;
+  const remaining = Math.max(total.count - contacts.length, 0);
   const station = stageStation(stage.outcome, index, openCount);
 
   return (
@@ -65,14 +74,14 @@ function Column({
       <div className="mb-3 flex items-center gap-2 px-1">
         <StationMark station={station} />
         <h3 className={cn("text-sm font-semibold", station.tone === "lost" ? "text-muted" : station.tone === "won" ? "text-success" : "text-foreground")}>{stage.name}</h3>
-        {/* Se recalcula de las tarjetas: al arrastrar, el total se mueve con ellas. */}
+        {/* Total de la base; al arrastrar, el tablero lo ajusta con la tarjeta. */}
         {totalCents > 0 && (
-          <span className="text-xs font-semibold tabular-nums text-muted" title={`Suma del valor de ${withValue} ${withValue === 1 ? "trato" : "tratos"}`}>
+          <span className="text-xs font-semibold tabular-nums text-muted" title={total.partialValue ? "Suma del valor de los tratos mostrados" : "Suma del valor de los tratos de esta etapa"}>
             {formatMxn(totalCents, { compact: true })}
           </span>
         )}
         <span className="ml-auto rounded-full bg-surface-light px-2 py-0.5 text-xs font-mono tabular-nums text-muted">
-          {contacts.length}
+          {total.count.toLocaleString("es-MX")}
         </span>
       </div>
       <div
@@ -83,7 +92,7 @@ function Column({
           isOver && "ring-2 ring-accent-muted border-accent-muted"
         )}
       >
-        {contacts.length === 0 && (
+        {contacts.length === 0 && remaining === 0 && (
           <div className="flex flex-1 items-center justify-center py-6">
             <p className="text-xs text-muted">Sin leads</p>
           </div>
@@ -91,6 +100,11 @@ function Column({
         {contacts.map((contact) => (
           <LeadCard key={contact.id} data={contact} stages={stages} onOpen={onOpen} onStageChange={onStageChange} />
         ))}
+        {remaining > 0 && (
+          <Button type="button" variant="secondary" size="sm" className="w-full" disabled={loadingMore} onClick={onLoadMore}>
+            {loadingMore ? "Cargando…" : `Cargar más (${remaining.toLocaleString("es-MX")})`}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -101,11 +115,16 @@ export function PipelineBoard({
   pipelineId,
   stages,
   initialData,
+  initialTotals,
+  onlyStaleStageId,
 }: {
   pipelines: PipelineOption[];
   pipelineId: string;
   stages: BoardStage[];
   initialData: BoardData;
+  initialTotals: StageTotals;
+  /** Columna filtrada a los leads detenidos (?detenidos=1). */
+  onlyStaleStageId: string | null;
 }) {
   const router = useRouter();
   const { error: toastError, success } = useToast();
@@ -136,6 +155,8 @@ export function PipelineBoard({
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [stageInView, setStageInView] = useState(stages.find((stage) => initialData[stage.id]?.length)?.id ?? stages[0]?.id ?? "");
   const [prevInitialData, setPrevInitialData] = useState(initialData);
+  const [totals, setTotals] = useState<StageTotals>(initialTotals);
+  const [loadingStage, setLoadingStage] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -143,6 +164,7 @@ export function PipelineBoard({
   if (initialData !== prevInitialData) {
     setPrevInitialData(initialData);
     setBoardData(initialData);
+    setTotals(initialTotals);
   }
 
   const sensors = useSensors(
@@ -156,6 +178,13 @@ export function PipelineBoard({
     const sourceStageId = stages.find((stage) => boardData[stage.id]?.some((card) => card.id === id))?.id;
     if (!sourceStageId || sourceStageId === targetStageId) return;
     const card = boardData[sourceStageId].find((item) => item.id === id)!;
+    const shiftTotals = (from: string, to: string) =>
+      setTotals((current) => ({
+        ...current,
+        [from]: { ...current[from], count: Math.max((current[from]?.count ?? 1) - 1, 0), valueCents: (current[from]?.valueCents ?? 0) - (card.dealValueCents ?? 0) },
+        [to]: { ...current[to], count: (current[to]?.count ?? 0) + 1, valueCents: (current[to]?.valueCents ?? 0) + (card.dealValueCents ?? 0) },
+      }));
+    shiftTotals(sourceStageId, targetStageId);
     setBoardData((currentBoard) => ({
       ...currentBoard,
       [sourceStageId]: currentBoard[sourceStageId].filter((item) => item.id !== id),
@@ -176,10 +205,32 @@ export function PipelineBoard({
         [targetStageId]: (currentBoard[targetStageId] ?? []).filter((item) => item.id !== id),
         [sourceStageId]: [...(currentBoard[sourceStageId] ?? []), card],
       }));
+      shiftTotals(targetStageId, sourceStageId);
       setStageInView(sourceStageId);
       toastError("No se pudo guardar la nueva etapa");
     }
   }, [boardData, router, stages, toastError]);
+
+  // «Cargar más»: la siguiente página de la columna (lo ya cargado es el skip).
+  const loadMore = useCallback(async (stageId: string) => {
+    setLoadingStage(stageId);
+    try {
+      const params = new URLSearchParams({ skip: String(boardData[stageId]?.length ?? 0) });
+      if (stageId === onlyStaleStageId) params.set("detenidos", "1");
+      const response = await fetch(`/api/pipelines/${pipelineId}/stages/${stageId}/cards?${params}`);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(body.cards)) throw new Error(typeof body.error === "string" ? body.error : "No se pudieron cargar más leads");
+      setBoardData((currentBoard) => {
+        const loaded = currentBoard[stageId] ?? [];
+        const seen = new Set(loaded.map((card) => card.id));
+        return { ...currentBoard, [stageId]: [...loaded, ...(body.cards as LeadCardData[]).filter((card) => !seen.has(card.id))] };
+      });
+    } catch (error) {
+      toastError(error instanceof Error ? error.message : "No se pudieron cargar más leads");
+    } finally {
+      setLoadingStage(null);
+    }
+  }, [boardData, onlyStaleStageId, pipelineId, toastError]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const stageId = event.active.data.current?.stageId as string | undefined;
@@ -364,7 +415,7 @@ export function PipelineBoard({
       <div className="mb-3 flex items-center gap-3 sm:hidden">
         <label htmlFor="pipeline-stage" className="text-sm font-medium">Ir a etapa</label>
         <Select id="pipeline-stage" value={stageInView} onChange={(event) => setStageInView(event.target.value)} className="min-w-0 flex-1">
-          {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name} ({boardData[stage.id]?.length ?? 0})</option>)}
+          {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name} ({(totals[stage.id]?.count ?? boardData[stage.id]?.length ?? 0).toLocaleString("es-MX")})</option>)}
         </Select>
       </div>
       <div className="relative">
@@ -376,6 +427,9 @@ export function PipelineBoard({
             index={stages.filter((s) => s.outcome === "OPEN").findIndex((s) => s.id === stage.id)}
             openCount={stages.filter((s) => s.outcome === "OPEN").length}
             contacts={boardData[stage.id] ?? []}
+            total={totals[stage.id] ?? { count: boardData[stage.id]?.length ?? 0, valueCents: 0 }}
+            loadingMore={loadingStage === stage.id}
+            onLoadMore={() => void loadMore(stage.id)}
             stages={options}
             visibleOnMobile={stage.id === stageInView}
             onOpen={setSelectedContactId}
