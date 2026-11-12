@@ -15,7 +15,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     return { rules: { userAgent: "*", allow: ["/docs/"], disallow: "/" } };
   }
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/eliminacion-de-datos/"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/api/"] },
     sitemap: siteUrl("/sitemap.xml"),
   };
 }

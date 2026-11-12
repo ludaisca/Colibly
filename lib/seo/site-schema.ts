@@ -13,6 +13,7 @@ import { siteUrl } from "@/lib/app-url";
 export const SOCIAL_PROFILES: string[] = [
   "https://www.instagram.com/colibly.crm",
   "https://www.facebook.com/profile.php?id=61596385561338",
+  "https://www.trustpilot.com/review/colibly.com",
 ];
 
 export function siteSchemaJson(): string {

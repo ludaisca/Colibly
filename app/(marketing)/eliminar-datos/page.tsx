@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: "Eliminación de datos",
   description: DESCRIPTION,
   alternates: { canonical: "/eliminar-datos" },
+  // Accesible desde el pie, pero fuera de los resultados de marca. Sin
+  // Disallow en robots.txt: Google tiene que rastrearla para ver el noindex.
+  robots: { index: false, follow: true },
   openGraph: { type: "website", locale: "es_MX", siteName: BRAND_NAME, url: "/eliminar-datos", title: `Eliminación de datos · ${BRAND_NAME}`, description: DESCRIPTION },
 };
 

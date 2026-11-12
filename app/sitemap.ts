@@ -24,7 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ]
       : []),
     { url: siteUrl("/contacto"), changeFrequency: "yearly", priority: 0.5 },
-    { url: siteUrl("/eliminar-datos"), changeFrequency: "yearly", priority: 0.3 },
+    // /eliminar-datos queda fuera a propósito (noindex): competía en las búsquedas de marca.
     { url: siteUrl("/terminos"), changeFrequency: "yearly", priority: 0.3 },
     { url: siteUrl("/privacidad"), changeFrequency: "yearly", priority: 0.3 },
   ];

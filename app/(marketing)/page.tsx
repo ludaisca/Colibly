@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { COEXISTENCE_PITCH } from "@/lib/billing/plan-features";
-import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { BRAND_NAME } from "@/lib/brand";
 import { appUrl, siteUrl } from "@/lib/app-url";
 import { ChannelRow, DemoInbox, DemoRoute, WaitClock } from "./_demos";
 import { LandingFaq } from "./_faq";
@@ -16,7 +16,9 @@ import { QuickReply, Thread, type ThreadItem } from "./_thread";
 // Le habla primero al dueño que atiende solo; los equipos van más abajo.
 // Todos los chats son de ejemplo y se rotulan así.
 
-const TITLE = `${BRAND_NAME} — ${BRAND_TAGLINE}`;
+// Título corto para buscadores (el largo, con BRAND_TAGLINE, se cortaba en
+// Google). El copy visible de la portada no cambia.
+const TITLE = `${BRAND_NAME} — CRM de WhatsApp con IA en México`;
 const DESCRIPTION = `Atiende WhatsApp, Instagram, Messenger y más desde una bandeja, con un bot de IA que responde con lo que sabe tu negocio. Desde $${OFFER_FROM_MXN} MXN por usuario al mes. ${TRIAL_DAYS} días gratis.`;
 const CTA = `Prueba ${TRIAL_DAYS} días de Pro`;
 
