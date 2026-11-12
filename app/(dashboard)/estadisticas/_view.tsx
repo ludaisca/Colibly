@@ -14,6 +14,7 @@ import { Table, type TableColumn } from "@/app/components/ui/table";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
 import { CAMPAIGN_ORIGIN_LABEL, LABEL_TEXT } from "@/lib/whatsapp/export-columns";
 import { MessagesTrendChart, HorizontalBarChart, EntityBars, DeliveryComparisonChart, QualifiedLabelDonut } from "./_charts";
+import { formatDuration } from "@/lib/format/duration";
 import { plural } from "@/lib/format/plural";
 
 const BOT_STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
@@ -85,18 +86,22 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       render: (a) => a.resolvedCount,
     },
     {
-      key: "avgFirstResponseMinutes",
-      header: "1ra respuesta (prom.)",
+      key: "medianFirstResponseMinutes",
+      header: "1ra respuesta (mediana)",
       headerClassName: "text-right",
       cellClassName: "text-right font-mono text-xs",
-      render: (a) => (a.avgFirstResponseMinutes != null ? `${a.avgFirstResponseMinutes} min` : "—"),
+      render: (a) => (
+        <span title={a.avgFirstResponseMinutes == null ? undefined : `Promedio: ${formatDuration(a.avgFirstResponseMinutes)} · ${a.respondedCount} conversaciones`}>
+          {formatDuration(a.medianFirstResponseMinutes)}
+        </span>
+      ),
     },
     {
       key: "avgResolutionMinutes",
       header: "Resolución (prom.)",
       headerClassName: "text-right",
       cellClassName: "text-right font-mono text-xs",
-      render: (a) => (a.avgResolutionMinutes != null ? `${a.avgResolutionMinutes} min` : "—"),
+      render: (a) => formatDuration(a.avgResolutionMinutes),
     },
   ], []);
 
@@ -232,6 +237,11 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
 
           <Card as="section" className="animate-fade-in-up animation-delay-400">
             <SectionHeader eyebrow="Equipo" title="Rendimiento por agente" />
+            {stats.firstResponse.count > 0 && (
+              <p className="mt-2 text-sm text-muted-darker" title="Desde el primer mensaje de cada conversación que inició el cliente hasta la primera respuesta (persona, bot o app). No cuentan campañas, avisos automáticos, historial importado ni conversaciones sin respuesta.">
+                Primera respuesta en 14 días: <span className="font-semibold text-foreground">{formatDuration(stats.firstResponse.medianMinutes)}</span> de mediana · promedio {formatDuration(stats.firstResponse.avgMinutes)} · {stats.firstResponse.count.toLocaleString("es-MX")} conversaciones
+              </p>
+            )}
             <div className="mt-4">
               <Table
                 className="px-5 sm:px-0"
@@ -242,7 +252,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 emptyTitle="Sin datos todavía"
                 emptyDescription="Aparecerán agentes aquí una vez que se asignen y respondan chats."
                 mobileCard={(a) => {
-                  const firstResponse = agentColumns.find((c) => c.key === "avgFirstResponseMinutes")!;
+                  const firstResponse = agentColumns.find((c) => c.key === "medianFirstResponseMinutes")!;
                   const resolution = agentColumns.find((c) => c.key === "avgResolutionMinutes")!;
                   return (
                     <div className="w-full min-w-0 space-y-1">

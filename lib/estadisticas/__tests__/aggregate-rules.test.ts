@@ -20,14 +20,19 @@ describe("fechas del gráfico", () => {
 });
 
 describe("mergeAgentRows", () => {
-  it("suma WhatsApp y canales por agente y promedia con los conteos totales", () => {
-    const out = mergeAgentRows([
-      { userId: "a", resolved: 2, responseSum: 30, responseCount: 3, resolutionSum: 100, resolutionCount: 2 },
-      { userId: "a", resolved: 1, responseSum: 10, responseCount: 1, resolutionSum: 0, resolutionCount: 0 },
-      { userId: "b", resolved: 5, responseSum: 0, responseCount: 0, resolutionSum: 50, resolutionCount: 5 },
-    ]);
-    expect(out[0]).toEqual({ userId: "b", resolvedCount: 5, avgFirstResponseMinutes: null, avgResolutionMinutes: 10 });
-    expect(out[1]).toEqual({ userId: "a", resolvedCount: 3, avgFirstResponseMinutes: 10, avgResolutionMinutes: 50 });
+  it("suma WhatsApp y canales por agente y agrega su primera respuesta (mediana y promedio)", () => {
+    const out = mergeAgentRows(
+      [
+        { userId: "a", resolved: 2, resolutionSum: 100, resolutionCount: 2 },
+        { userId: "a", resolved: 1, resolutionSum: 0, resolutionCount: 0 },
+        { userId: "b", resolved: 5, resolutionSum: 50, resolutionCount: 5 },
+      ],
+      new Map([["a", [2, 4, 300]], ["c", [1]]])
+    );
+    expect(out[0]).toEqual({ userId: "b", resolvedCount: 5, medianFirstResponseMinutes: null, avgFirstResponseMinutes: null, respondedCount: 0, avgResolutionMinutes: 10 });
+    expect(out[1]).toEqual({ userId: "a", resolvedCount: 3, medianFirstResponseMinutes: 4, avgFirstResponseMinutes: 102, respondedCount: 3, avgResolutionMinutes: 50 });
+    // Respondió sin chats asignados: también aparece.
+    expect(out[2]).toMatchObject({ userId: "c", resolvedCount: 0, medianFirstResponseMinutes: 1 });
   });
 });
 

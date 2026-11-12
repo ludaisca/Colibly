@@ -2,6 +2,8 @@ import { displayName } from "@/lib/chats/display-name";
 import type { Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { firstResponseRows, minutesByResponder } from "./response-times";
+import { summarizeResponses } from "./response-rules";
 import { addDaysKey, safeTimeZone, zonedDayKey, zonedDayStart } from "@/lib/dates/zoned";
 
 const DEFAULT_TZ = "America/Mexico_City";
@@ -29,6 +31,8 @@ export interface AgentReport {
   email: string | null;
   newChats: number;
   resolved: number;
+  /** Primera respuesta de las conversaciones que esta persona respondió primero. */
+  medianFirstResponseMinutes: number | null;
   avgFirstResponseMinutes: number | null;
   avgResolutionMinutes: number | null;
   chats: ReportChat[];
@@ -49,7 +53,10 @@ export interface RangeReport {
     open: number;
     unassigned: number;
     messages: number;
+    /** Primera respuesta (response-rules.ts): mediana como valor principal, promedio y cuántas conversaciones entraron. */
+    medianFirstResponseMinutes: number | null;
     avgFirstResponseMinutes: number | null;
+    respondedConversations: number;
     avgResolutionMinutes: number | null;
     csatSent: number;
     csatResponses: number;
@@ -120,7 +127,6 @@ const WA_SELECT = {
   assignedToId: true,
   assignedTo: { select: { name: true, email: true } },
   createdAt: true,
-  firstResponseAt: true,
   resolvedAt: true,
   contact: { select: { name: true } },
   account: { select: { name: true } },
@@ -133,7 +139,6 @@ const CHANNEL_SELECT = {
   assignedToId: true,
   assignedTo: { select: { name: true, email: true } },
   createdAt: true,
-  firstResponseAt: true,
   resolvedAt: true,
   contact: { select: { name: true } },
   channelAccount: { select: { name: true, channel: true } },
@@ -161,6 +166,7 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
     messagesChannel,
     csat,
     outcomes,
+    responses,
   ] = await Promise.all([
     prisma.wAChat.findMany({
       where: { accountId: { in: accountIds }, ...createdWhere },
@@ -205,6 +211,8 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       _count: { _all: true },
       _sum: { valueCents: true },
     }),
+    // Conversaciones que el cliente inició en el periodo y su primera respuesta.
+    firstResponseRows(accountIds, channelAccountIds, range.from, range.to),
   ]);
   const won = outcomes.find((row) => row.outcome === "WON");
   const lost = outcomes.find((row) => row.outcome === "LOST");
@@ -232,7 +240,6 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
     email: string | null;
     newChats: number;
     resolved: number;
-    responseTimes: number[];
     resolutionTimes: number[];
     chats: Map<string, ReportChat>;
   }
@@ -248,7 +255,6 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
         email: chat.assignedTo?.email ?? null,
         newChats: 0,
         resolved: 0,
-        responseTimes: [],
         resolutionTimes: [],
         chats: new Map(),
       };
@@ -257,7 +263,6 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
     return acc;
   }
 
-  const responseTimes: number[] = [];
   const resolutionTimes: number[] = [];
   const channelTotals = new Map<ReportChannel, ChannelReport>();
 
@@ -276,7 +281,6 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       const reportChat = toReportChat(chat, "WHATSAPP");
       acc.chats.set(reportChat.id, reportChat);
     }
-    if (chat.firstResponseAt) responseTimes.push(minutesBetween(chat.createdAt, chat.firstResponseAt));
   }
   for (const chat of createdChannel) {
     addToChannel(chat.channelAccount.channel, "created");
@@ -286,7 +290,6 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       const reportChat = toReportChat(chat, chat.channelAccount.channel);
       acc.chats.set(reportChat.id, reportChat);
     }
-    if (chat.firstResponseAt) responseTimes.push(minutesBetween(chat.createdAt, chat.firstResponseAt));
   }
   for (const chat of resolvedWA) {
     addToChannel("WHATSAPP", "resolved");
@@ -309,6 +312,8 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
     if (chat.resolvedAt) resolutionTimes.push(minutesBetween(chat.createdAt, chat.resolvedAt));
   }
 
+  const responseByUser = minutesByResponder(responses);
+  const firstResponse = summarizeResponses(responses.map((row) => row.minutes));
   const agentReports: AgentReport[] = Array.from(agents.values())
     .map((acc) => ({
       userId: acc.userId,
@@ -316,7 +321,10 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       email: acc.email,
       newChats: acc.newChats,
       resolved: acc.resolved,
-      avgFirstResponseMinutes: avg(acc.responseTimes),
+      ...(() => {
+        const summary = summarizeResponses(responseByUser.get(acc.userId) ?? []);
+        return { medianFirstResponseMinutes: summary.medianMinutes, avgFirstResponseMinutes: summary.avgMinutes };
+      })(),
       avgResolutionMinutes: avg(acc.resolutionTimes),
       chats: Array.from(acc.chats.values())
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -338,7 +346,9 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       open: openWA + openChannel,
       unassigned: unassignedWA + unassignedChannel,
       messages: messagesWA + messagesChannel,
-      avgFirstResponseMinutes: avg(responseTimes),
+      medianFirstResponseMinutes: firstResponse.medianMinutes,
+      avgFirstResponseMinutes: firstResponse.avgMinutes,
+      respondedConversations: firstResponse.count,
       avgResolutionMinutes: avg(resolutionTimes),
       csatSent: csat._count._all,
       csatResponses: csat._count.rating,

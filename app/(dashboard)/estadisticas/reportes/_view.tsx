@@ -18,6 +18,7 @@ import { LivePanel } from "./_live";
 import { ActivityHeatmap } from "./_heatmap";
 import type { ActivityHeatmap as ActivityHeatmapData } from "@/lib/estadisticas/heatmap";
 import type { BotPerformance } from "@/lib/estadisticas/bot-performance-rules";
+import { formatDuration } from "@/lib/format/duration";
 import type { AgentReport, ChannelReport, RangeReport } from "@/lib/estadisticas/reports";
 import { plural } from "@/lib/format/plural";
 
@@ -35,13 +36,6 @@ const STATUS_LABEL: Record<string, string> = {
   RESOLVED: "Resuelto",
 };
 
-function formatMinutes(value: number | null): string {
-  if (value == null) return "—";
-  if (value < 60) return `${Math.round(value)} min`;
-  const hours = Math.floor(value / 60);
-  const minutes = Math.round(value % 60);
-  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
-}
 
 function shiftKey(key: string, days: number): string {
   const date = new Date(`${key}T12:00:00Z`);
@@ -88,11 +82,15 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
     },
     {
       key: "frt",
-      header: "1ª respuesta",
+      header: "1ª respuesta (mediana)",
       headerClassName: "text-right",
       cellClassName: "text-right tabular-nums",
       hideBelow: "md",
-      render: (row) => formatMinutes(row.avgFirstResponseMinutes),
+      render: (row) => (
+        <span title={row.avgFirstResponseMinutes == null ? undefined : `Promedio: ${formatDuration(row.avgFirstResponseMinutes)}`}>
+          {formatDuration(row.medianFirstResponseMinutes)}
+        </span>
+      ),
     },
     {
       key: "resolution",
@@ -100,7 +98,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
       headerClassName: "text-right",
       cellClassName: "text-right tabular-nums",
       hideBelow: "md",
-      render: (row) => formatMinutes(row.avgResolutionMinutes),
+      render: (row) => formatDuration(row.avgResolutionMinutes),
     },
     {
       key: "open",
@@ -137,8 +135,16 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
     { label: "Chats nuevos", value: String(data.totals.newChats) },
     { label: "Resueltos", value: String(data.totals.resolved) },
     { label: "Mensajes", value: data.totals.messages.toLocaleString("es-MX") },
-    { label: "1ª respuesta", value: formatMinutes(data.totals.avgFirstResponseMinutes) },
-    { label: "Resolución", value: formatMinutes(data.totals.avgResolutionMinutes) },
+    // Mediana como valor principal: el promedio se dispara con pocos casos
+    // extremos. Qué se mide: lib/estadisticas/response-rules.ts.
+    {
+      label: "1ª respuesta (mediana)",
+      value: formatDuration(data.totals.medianFirstResponseMinutes),
+      hint: data.totals.respondedConversations > 0
+        ? `promedio ${formatDuration(data.totals.avgFirstResponseMinutes)} · ${data.totals.respondedConversations.toLocaleString("es-MX")} conversaciones`
+        : "sin conversaciones respondidas",
+    },
+    { label: "Resolución", value: formatDuration(data.totals.avgResolutionMinutes) },
     // Sin "Sin asignar": es un dato de ahora (ya está en el panel "Ahora"), no
     // del periodo; además dejaba la tarjeta "Perdido" sola en su fila.
     {
@@ -163,13 +169,14 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
   function exportSummary() {
     const t = data.totals;
     const csv = toCsv(
-      ["Desde", "Hasta", "Chats nuevos", "Resueltos", "Mensajes", "1a respuesta (min)", "Resolucion (min)", "Abiertos", "Sin asignar", "CSAT", "Ganados", "Ganado (MXN)", "Perdidos", "Perdido (MXN)"],
+      ["Desde", "Hasta", "Chats nuevos", "Resueltos", "Mensajes", "1a respuesta mediana (min)", "1a respuesta promedio (min)", "Resolucion (min)", "Abiertos", "Sin asignar", "CSAT", "Ganados", "Ganado (MXN)", "Perdidos", "Perdido (MXN)"],
       [[
         fromKey,
         toKey,
         String(t.newChats),
         String(t.resolved),
         String(t.messages),
+        t.medianFirstResponseMinutes == null ? "" : String(t.medianFirstResponseMinutes),
         t.avgFirstResponseMinutes == null ? "" : String(t.avgFirstResponseMinutes),
         t.avgResolutionMinutes == null ? "" : String(t.avgResolutionMinutes),
         String(t.open),
@@ -186,12 +193,13 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
 
   function exportAgents() {
     const csv = toCsv(
-      ["Agente", "Email", "Nuevos", "Resueltos", "1a respuesta (min)", "Resolucion (min)"],
+      ["Agente", "Email", "Nuevos", "Resueltos", "1a respuesta mediana (min)", "1a respuesta promedio (min)", "Resolucion (min)"],
       data.agents.map((agent) => [
         agent.userName,
         agent.email ?? "",
         String(agent.newChats),
         String(agent.resolved),
+        agent.medianFirstResponseMinutes == null ? "" : String(agent.medianFirstResponseMinutes),
         agent.avgFirstResponseMinutes == null ? "" : String(agent.avgFirstResponseMinutes),
         agent.avgResolutionMinutes == null ? "" : String(agent.avgResolutionMinutes),
       ])

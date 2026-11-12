@@ -39,14 +39,16 @@ export async function dailyMessageCounts(
   return out;
 }
 
-/** Desempeño por agente: resueltos y promedios de primera respuesta/resolución (minutos). */
-export async function agentAggregates(accountIds: string[], channelAccountIds: string[]) {
+/**
+ * Desempeño por agente: resueltos y resolución promedio (minutos) de sus
+ * chats asignados, más su primera respuesta (`responseMinutesByUser`, de
+ * response-times.ts: medida en mensajes, no desde que se creó el chat).
+ */
+export async function agentAggregates(accountIds: string[], channelAccountIds: string[], responseMinutesByUser: Map<string, number[]> = new Map()) {
   const query = (table: "wa_chats" | "conversations", column: "accountId" | "channelAccountId", ids: string[]) =>
     prisma.$queryRaw<AgentAggregateRow[]>(Prisma.sql`
       SELECT "assignedToId" AS "userId",
         count(*) FILTER (WHERE status = 'RESOLVED')::int AS resolved,
-        coalesce(sum(extract(epoch FROM ("firstResponseAt" - created_at)) / 60) FILTER (WHERE "firstResponseAt" IS NOT NULL), 0)::float AS "responseSum",
-        count("firstResponseAt")::int AS "responseCount",
         coalesce(sum(extract(epoch FROM ("resolvedAt" - created_at)) / 60) FILTER (WHERE "resolvedAt" IS NOT NULL), 0)::float AS "resolutionSum",
         count("resolvedAt")::int AS "resolutionCount"
       FROM ${Prisma.raw(table)}
@@ -56,12 +58,13 @@ export async function agentAggregates(accountIds: string[], channelAccountIds: s
     ...(accountIds.length ? await query("wa_chats", "accountId", accountIds) : []),
     ...(channelAccountIds.length ? await query("conversations", "channelAccountId", channelAccountIds) : []),
   ];
-  const merged = mergeAgentRows(rows);
+  const merged = mergeAgentRows(rows, responseMinutesByUser);
   const users = merged.length
     ? await prisma.user.findMany({ where: { id: { in: merged.map((m) => m.userId) } }, select: { id: true, name: true } })
     : [];
   const nameById = new Map(users.map((u) => [u.id, u.name]));
-  return merged.map((m) => ({ ...m, userName: nameById.get(m.userId) ?? null }));
+  // Una persona que ya no existe (respuesta de alguien borrado) no se lista.
+  return merged.filter((m) => nameById.has(m.userId)).map((m) => ({ ...m, userName: nameById.get(m.userId) ?? null }));
 }
 
 export interface QualifiedChatRow {

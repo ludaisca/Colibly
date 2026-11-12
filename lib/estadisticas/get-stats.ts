@@ -13,6 +13,8 @@ import {
   countTotalAccounts,
 } from "@/lib/estadisticas/global-counts";
 import { agentAggregates, dailyMessageCounts, qualifiedChatRows } from "@/lib/estadisticas/aggregates";
+import { firstResponseRows, minutesByResponder } from "@/lib/estadisticas/response-times";
+import { summarizeResponses, type ResponseSummary } from "@/lib/estadisticas/response-rules";
 import { chartDayKeys, withTimeout } from "@/lib/estadisticas/aggregate-rules";
 
 // Mismo orden que VALID_LABELS en lib/whatsapp/lead-scoring.ts, invertido para
@@ -84,9 +86,15 @@ export interface Estadisticas {
     userId: string;
     userName: string | null;
     resolvedCount: number;
+    /** Primera respuesta en los 14 días del gráfico: mediana (valor principal) y promedio. */
+    medianFirstResponseMinutes: number | null;
     avgFirstResponseMinutes: number | null;
+    /** Conversaciones que esta persona respondió primero. */
+    respondedCount: number;
     avgResolutionMinutes: number | null;
   }>;
+  /** Primera respuesta de todo el equipo (personas, bot y app) en los 14 días del gráfico. */
+  firstResponse: ResponseSummary;
   monthlyCost: number;
   // Créditos de IA del periodo (lib/ai/credits.ts); limit null = sin límite.
   aiCredits: { used: number; limit: number | null };
@@ -176,7 +184,7 @@ async function computeEstadisticas(userId: string): Promise<Estadisticas> {
     chatCountsByAccount,
     monthlyCost,
     aiCreditSummary,
-    agentPerformance,
+    responseStats,
     campaignsForMessageStats,
     leadSheetSources,
     leadSheetStatusGroups,
@@ -231,7 +239,10 @@ async function computeEstadisticas(userId: string): Promise<Estadisticas> {
     // pausar el gasto — así el % de presupuesto mostrado nunca diverge del real.
     getOrgAiCost(org.organizationId, monthStart),
     orgAiCreditSummary(org.organizationId),
-    agentAggregates(accountIds, channelAccountIds),
+    firstResponseRows(accountIds, channelAccountIds, chartStart).then(async (responses) => ({
+      responses,
+      agents: await agentAggregates(accountIds, channelAccountIds, minutesByResponder(responses)),
+    })),
     // Contadores ya vienen agregados en WACampaign (sentCount/deliveredCount/...),
     // actualizados por el webhook de Meta — no hace falta un groupBy sobre
     // WACampaignRecipient. Visibilidad por cuenta, no por creador (mismo criterio
@@ -397,7 +408,8 @@ async function computeEstadisticas(userId: string): Promise<Estadisticas> {
     dailyMessages,
     botBreakdown,
     accountBreakdown,
-    agentPerformance,
+    agentPerformance: responseStats.agents,
+    firstResponse: summarizeResponses(responseStats.responses.map((row) => row.minutes)),
     monthlyCost: Math.round(monthlyCost * 10000) / 10000,
     aiCredits: {
       used: aiCreditSummary?.used ?? 0,
