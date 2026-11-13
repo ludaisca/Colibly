@@ -41,13 +41,34 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.7.0";
+export const API_VERSION = "1.8.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.7.0",
+    version: "1.8.0",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-13",
+    changes: [
+      "GET /accounts/{id}/analytics: mensajes cobrables y su costo según Meta, por día o por mes, con país, categoría y tipo de precio (permiso `whatsapp:manage`).",
+      "GET /templates/{id}/analytics: enviados, entregados, leídos y clics de una plantilla por día.",
+      "GET y PATCH /accounts/{id}/conversational-automation: sugerencias de inicio y comandos \"/\" del número.",
+      "Códigos QR con mensaje prellenado: GET y POST /accounts/{id}/qr-codes, PATCH y DELETE /accounts/{id}/qr-codes/{code}.",
+      "Evento nuevo `contact.marketing_preference_changed`: el cliente pidió dejar de recibir marketing (o volver a recibirlo) con el botón de WhatsApp.",
+    ],
+  },
+  {
+    version: "1.7.1",
+    schemaVersion: "2026-11-13.3",
+    date: "2026-11-13",
+    changes: [
+      "Teléfonos de la API (`to` en POST /messages, `phone` en POST /contacts, bloqueos): 10 dígitos sin `+` se toman como un número de México (5512345678 → 525512345678). Antes se tomaban como un número sin código de país y no encontraban al contacto.",
+      "`interactive.buttons[].description` en los mensajes de lista: la descripción de cada opción, si la tiene.",
+    ],
+  },
+  {
+    version: "1.7.0",
+    schemaVersion: "2026-11-13.2",
     date: "2026-11-13",
     changes: [
       "Permiso nuevo `whatsapp:manage` para administrar la cuenta en Meta. Las keys existentes no lo tienen: se agrega editando la key en Configuración → API.",
@@ -286,6 +307,7 @@ const EX = {
     bodyText: "Hola {{1}}, tu pedido {{2}} va en camino.",
     syncedAt: "2026-10-18T12:00:00.000Z",
   },
+  qr: { code: "4O4YGZEG3RIVE1", prefilledMessage: "Hola, quiero información de la promoción", deepLinkUrl: "https://wa.me/message/4O4YGZEG3RIVE1", qrImageUrl: "https://scontent.whatsapp.net/v/qr-ejemplo.png" },
   profile: {
     accountId: "cmacc_wa_01",
     about: "Respondemos de 9 a 19 h",
@@ -376,6 +398,13 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
     data: obj({ from: ref("LeadStatus"), to: ref("LeadStatus") }),
     example: { from: "NEW", to: "QUALIFIED" },
   },
+  "contact.marketing_preference_changed": {
+    data: obj({
+      optedOut: { type: "boolean", description: "true = pidió no recibir marketing (Contact.optedOutMarketing); false = volvió a aceptarlo" },
+      source: { type: "string", enum: ["whatsapp"], description: "Botón nativo de WhatsApp" },
+    }),
+    example: { optedOut: true, source: "whatsapp" },
+  },
   "tag.added": {
     data: obj({ tagId: str, tagName: str, target: { type: "string", enum: ["contact", "conversation"] } }),
     example: { tagId: "cmtag_01", tagName: "Mayoreo", target: "contact" },
@@ -444,6 +473,7 @@ export function exampleEvent(type: string, data: Record<string, unknown>) {
   const test = type === "webhook.test";
   // Eventos de la cuenta: sin contacto ni conversación.
   const accountOnly = type.startsWith("template.") || type.startsWith("account.");
+  const noConversation = type === "contact.created" || type === "contact.marketing_preference_changed";
   return {
     id: "7d1f2c9e-3b4a-4f0e-9a51-0c2b8e6d4f10",
     type,
@@ -452,7 +482,7 @@ export function exampleEvent(type: string, data: Record<string, unknown>) {
     contact: test || accountOnly
       ? null
       : { id: EX.contact.id, name: EX.contact.name, realName: null, tags: EX.contact.tags, phone: EX.contact.phone, phoneE164: EX.contact.phoneE164, externalId: null, leadStatus: EX.contact.leadStatus, leadOrigin: "ORGANIC" },
-    conversation: test || accountOnly || type === "contact.created" ? null : { id: EX.conversation.id, channel: "WHATSAPP", status: "OPEN", assignedToId: "cmusr_02" },
+    conversation: test || accountOnly || noConversation ? null : { id: EX.conversation.id, channel: "WHATSAPP", status: "OPEN", assignedToId: "cmusr_02" },
     data,
     ...(type.startsWith("message.") ? { message: EX.message } : {}),
   };
@@ -629,7 +659,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             `${scopeNote("whatsapp:manage")} Un bloqueado no puede escribir al número ni recibir mensajes de él. Regla de Meta: solo a quien escribió en las últimas 24 h. ` +
             "Hasta 100 teléfonos por llamada; responde 200 con el resultado de cada uno (`blocked` y `failed`).",
           parameters: [idParam],
-          requestBody: { required: true, content: json({ type: "object", required: ["phones"], additionalProperties: false, properties: { phones: { type: "array", minItems: 1, maxItems: 100, items: str, description: "Con código de país" } } }, { phones: ["+5215512345678"] }) },
+          requestBody: { required: true, content: json({ type: "object", required: ["phones"], additionalProperties: false, properties: { phones: { type: "array", minItems: 1, maxItems: 100, items: str, description: "Con código de país; 10 dígitos = México" } } }, { phones: ["+5215512345678"] }) },
           responses: {
             "200": ok(
               { type: "object", properties: { blocked: { type: "array", items: obj({ phone: str }) }, failed: { type: "array", items: obj({ phone: str, error: str }) } } },
@@ -645,8 +675,113 @@ export function buildOpenApiSpec(serverUrl: string) {
           tags: ["WhatsApp"],
           summary: "Desbloquear un usuario",
           description: `${scopeNote("whatsapp:manage")}`,
-          parameters: [idParam, { name: "phone", in: "path", required: true, schema: str, description: "Con código de país" }],
+          parameters: [idParam, { name: "phone", in: "path", required: true, schema: str, description: "Con código de país; 10 dígitos = México" }],
           responses: { "200": ok(obj({ phone: str, blocked: { type: "boolean" } }), { phone: "5215512345678", blocked: false }), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/analytics": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Costos y volumen de mensajes",
+          description:
+            `${scopeNote("whatsapp:manage")} Mensajes cobrables y su costo según Meta (modelo por mensaje) del número de la cuenta, por día o por mes, desglosados por país, categoría (MARKETING, UTILITY, AUTHENTICATION, SERVICE) y tipo de precio (REGULAR, FREE_CUSTOMER_SERVICE, FREE_ENTRY_POINT…). ` +
+            "El costo está en la moneda de la cuenta de WhatsApp Business en Meta. Por omisión, los últimos 30 días; máximo 365.",
+          parameters: [
+            idParam,
+            { name: "since", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "until", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "granularity", in: "query", schema: { type: "string", enum: ["DAILY", "MONTHLY"], default: "DAILY" } },
+          ],
+          responses: {
+            "200": ok(
+              obj({
+                accountId: str,
+                since: { type: "string", format: "date-time" },
+                until: { type: "string", format: "date-time" },
+                granularity: str,
+                totals: obj({ volume: { type: "integer" }, cost: { type: "number" } }),
+                data: { type: "array", items: obj({ start: str, end: str, phone: strNull, country: strNull, category: strNull, pricingType: strNull, volume: { type: "integer" }, cost: { type: "number" } }) },
+              }),
+              {
+                accountId: "cmacc_wa_01", since: "2026-10-14T00:00:00.000Z", until: "2026-11-13T00:00:00.000Z", granularity: "DAILY",
+                totals: { volume: 120, cost: 61.2 },
+                data: [{ start: "2026-11-12T00:00:00.000Z", end: "2026-11-13T00:00:00.000Z", phone: "525512345678", country: "MX", category: "MARKETING", pricingType: "REGULAR", volume: 120, cost: 61.2 }],
+              }
+            ),
+            "502": err("UpstreamError"),
+            ...errors,
+          },
+        },
+      },
+      "/accounts/{id}/conversational-automation": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Sugerencias de inicio y comandos",
+          description: "Sin permiso especial. `prompts` son los botones que ve el cliente al abrir el chat; `commands`, lo que aparece al escribir \"/\". Al tocarlos, el cliente manda ese texto como un mensaje normal. `welcomeMessageEnabled` solo se informa.",
+          parameters: [idParam],
+          responses: {
+            "200": ok(
+              obj({ accountId: str, welcomeMessageEnabled: { type: "boolean" }, prompts: { type: "array", items: str }, commands: { type: "array", items: obj({ name: str, description: str }) } }),
+              { accountId: "cmacc_wa_01", welcomeMessageEnabled: false, prompts: ["Quiero una cotización", "¿Dónde están?"], commands: [{ name: "horarios", description: "Horario de atención" }] }
+            ),
+            "502": err("UpstreamError"),
+            ...errors,
+          },
+        },
+        patch: {
+          tags: ["WhatsApp"],
+          summary: "Cambiar sugerencias y comandos",
+          description: `${scopeNote("whatsapp:manage")} Solo cambia lo enviado; \`[]\` borra la lista. Hasta 4 sugerencias de 80 caracteres y 30 comandos (nombre de 32, sin "/" ni espacios; descripción de 256). WhatsApp puede tardar en mostrarlos.`,
+          parameters: [idParam],
+          requestBody: {
+            required: true,
+            content: json(
+              { type: "object", additionalProperties: false, minProperties: 1, properties: { prompts: { type: "array", maxItems: 4, items: str }, commands: { type: "array", maxItems: 30, items: obj({ name: str, description: str }) } } },
+              { prompts: ["Quiero una cotización", "¿Dónde están?"], commands: [{ name: "horarios", description: "Horario de atención" }] }
+            ),
+          },
+          responses: {
+            "200": ok(
+              obj({ accountId: str, welcomeMessageEnabled: { type: "boolean" }, prompts: { type: "array", items: str }, commands: { type: "array", items: obj({ name: str, description: str }) } }),
+              { accountId: "cmacc_wa_01", welcomeMessageEnabled: false, prompts: ["Quiero una cotización", "¿Dónde están?"], commands: [{ name: "horarios", description: "Horario de atención" }] }
+            ),
+            "502": err("UpstreamError"),
+            ...writeErrors,
+          },
+        },
+      },
+      "/accounts/{id}/qr-codes": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Códigos QR",
+          description: "Sin permiso especial. Códigos QR y enlaces (`deepLinkUrl`) que abren el chat con un mensaje ya escrito.",
+          parameters: [idParam],
+          responses: { "200": ok({ type: "object", properties: { data: { type: "array", items: ref("QrCode") } } }, { data: [EX.qr] }), "502": err("UpstreamError"), ...errors },
+        },
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Crear un código QR",
+          description: `${scopeNote("whatsapp:manage")} \`prefilledMessage\` hasta 140 caracteres; \`format\` de la imagen PNG (por omisión) o SVG. \`qrImageUrl\` es temporal: descárgala si la vas a imprimir.`,
+          parameters: [idParam],
+          requestBody: { required: true, content: json({ type: "object", required: ["prefilledMessage"], additionalProperties: false, properties: { prefilledMessage: str, format: { type: "string", enum: ["PNG", "SVG"] } } }, { prefilledMessage: "Hola, quiero información de la promoción" }) },
+          responses: { "201": ok(ref("QrCode"), EX.qr, "Creado"), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/qr-codes/{code}": {
+        patch: {
+          tags: ["WhatsApp"],
+          summary: "Cambiar el mensaje de un código QR",
+          description: `${scopeNote("whatsapp:manage")} El QR y el enlace siguen siendo los mismos.`,
+          parameters: [idParam, { name: "code", in: "path", required: true, schema: str }],
+          requestBody: { required: true, content: json({ type: "object", required: ["prefilledMessage"], additionalProperties: false, properties: { prefilledMessage: str } }, { prefilledMessage: "Hola, quiero agendar una cita" }) },
+          responses: { "200": ok(ref("QrCode"), EX.qr), "502": err("UpstreamError"), ...writeErrors },
+        },
+        delete: {
+          tags: ["WhatsApp"],
+          summary: "Borrar un código QR",
+          description: `${scopeNote("whatsapp:manage")} El QR impreso y su enlace dejan de funcionar.`,
+          parameters: [idParam, { name: "code", in: "path", required: true, schema: str }],
+          responses: { "200": ok(obj({ code: str, deleted: { type: "boolean" } }), { code: "4O4YGZEG3RIVE1", deleted: true }), "502": err("UpstreamError"), ...writeErrors },
         },
       },
       "/contacts": {
@@ -929,6 +1064,22 @@ export function buildOpenApiSpec(serverUrl: string) {
             }),
           },
           responses: { "201": ok(ref("TemplateDetail"), { ...EX.template, status: "PENDING" }, "Enviada a revisión"), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/templates/{id}/analytics": {
+        get: {
+          tags: ["Catálogos"],
+          summary: "Métricas de una plantilla",
+          description: `${scopeNote("messages:send")} Enviados, entregados, leídos y clics por día según Meta, con \`totals\`. Por omisión, los últimos 30 días; Meta conserva hasta 90.`,
+          parameters: [idParam, { name: "since", in: "query", schema: { type: "string", format: "date-time" } }, { name: "until", in: "query", schema: { type: "string", format: "date-time" } }],
+          responses: {
+            "200": ok(
+              obj({ templateId: str, since: str, until: str, totals: obj({ sent: { type: "integer" }, delivered: { type: "integer" }, read: { type: "integer" }, clicked: { type: "integer" } }), data: { type: "array", items: obj({ date: str, sent: { type: "integer" }, delivered: { type: "integer" }, read: { type: "integer" }, clicked: { type: "integer" } }) } }),
+              { templateId: "cmtpl_01", since: "2026-10-14T00:00:00.000Z", until: "2026-11-13T00:00:00.000Z", totals: { sent: 40, delivered: 38, read: 30, clicked: 6 }, data: [{ date: "2026-11-12T00:00:00.000Z", sent: 40, delivered: 38, read: 30, clicked: 6 }] }
+            ),
+            "502": err("UpstreamError"),
+            ...errors,
+          },
         },
       },
       "/templates/{id}": {
@@ -1345,6 +1496,15 @@ export function buildOpenApiSpec(serverUrl: string) {
             },
           },
         },
+        QrCode: {
+          type: "object",
+          properties: {
+            code: str,
+            prefilledMessage: str,
+            deepLinkUrl: { ...strNull, description: "Enlace wa.me/message/… que abre el chat con el mensaje" },
+            qrImageUrl: { ...strNull, description: "Imagen del QR (URL temporal de Meta)" },
+          },
+        },
         TemplateDetail: {
           allOf: [ref("Template"), { type: "object", properties: { components: { type: "array", items: { type: "object" }, description: "Componentes tal como los guarda Meta" } } }],
         },
@@ -1379,7 +1539,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           required: ["accountId", "phone"],
           properties: {
             accountId: { type: "string", description: "Cuenta de WhatsApp" },
-            phone: { type: "string", description: "Con código de país, p. ej. 5215512345678 o +52 55 1234 5678 (8 a 15 dígitos). En México 52… y 521… son el mismo contacto" },
+            phone: { type: "string", description: "Con código de país, p. ej. 5215512345678 o +52 55 1234 5678 (8 a 15 dígitos); 10 dígitos sin `+` se toman como México. En México 52… y 521… son el mismo contacto" },
             name: { type: "string", maxLength: 200 },
             leadStatus: ref("LeadStatus"),
             tags: { type: "array", maxItems: 20, items: { type: "string", maxLength: 60 }, description: "Nombres; se crean si no existen" },
@@ -1433,7 +1593,7 @@ export function buildOpenApiSpec(serverUrl: string) {
               type: ["object", "null"],
               description: "Botones o lista que mandó el negocio, si aplica",
               properties: {
-                buttons: { type: "array", items: { type: "object", properties: { id: str, title: str } } },
+                buttons: { type: "array", items: { type: "object", properties: { id: str, title: str, description: { type: "string", description: "Solo filas de una lista que la tienen" } } } },
                 style: { type: "string", enum: ["list", "cta_url", "location_request"], description: "Ausente = botones de respuesta" },
                 buttonLabel: { type: "string", description: "list: texto del botón que abre la lista" },
                 url: { type: "string", description: "cta_url: a dónde lleva el botón" },
@@ -1488,7 +1648,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             conversationId: str,
             contactId: str,
             accountId: { type: "string", description: "Cuenta de WhatsApp que envía (con `to`)" },
-            to: { type: "string", description: "Teléfono con código de país (con `accountId`); se toman solo los dígitos" },
+            to: { type: "string", description: "Teléfono con código de país (con `accountId`); se toman solo los dígitos; 10 dígitos sin `+` se toman como México (+52)" },
             type: { type: "string", enum: [...API_SEND_TYPES] },
             text: { type: "string", maxLength: 4096, description: "Requerido para text, buttons, list, cta_url y location_request" },
             buttons: {

@@ -205,7 +205,7 @@ export interface Message {
   localPreviewUrl?: string;
   /** Botones enviados (outbound, messageType "interactive") o id de la
    *  respuesta recibida (inbound) — ver lib/whatsapp/send-interactive.ts. */
-  interactivePayload?: { buttons?: { id: string; title: string }[]; replyId?: string } | null;
+  interactivePayload?: { buttons?: { id: string; title: string; description?: string }[]; replyId?: string } | null;
   /** Roadmap P3-c — true si este INBOUND vino de un comentario de Facebook
    *  Page, no de un mensaje directo. Solo aplica a Messenger. */
   isFromComment?: boolean;

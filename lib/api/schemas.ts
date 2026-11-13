@@ -2,6 +2,7 @@ import { z } from "zod";
 import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
 import { OUTBOUND_MEDIA_TYPES } from "@/lib/messaging/outbound-media";
 import { templateCreateSchema } from "@/lib/validations";
+import { apiPhoneDigits } from "@/lib/phone/e164";
 
 // Validación de entrada de la API pública (/api/v1). Mensajes en español,
 // igual que lib/validations.ts; los `code` de error viven en respond.ts.
@@ -12,8 +13,8 @@ export const apiContactCreateSchema = z.object({
   accountId: z.string().min(1, "accountId es requerido"),
   phone: z
     .string()
-    .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v.length >= 8 && v.length <= 15, "phone debe tener entre 8 y 15 dígitos, con código de país"),
+    .transform(apiPhoneDigits)
+    .refine((v) => v.length >= 8 && v.length <= 15, "phone debe tener entre 8 y 15 dígitos, con código de país (10 dígitos = México)"),
   name: z.string().trim().min(1).max(200).optional(),
   leadStatus: leadStatus.optional(),
   tags: z.array(z.string().trim().min(1).max(60)).max(20).optional(),
@@ -56,12 +57,12 @@ const buttonSchema = z.object({
   title: z.string().trim().min(1).max(20, "El título de un botón admite máximo 20 caracteres"),
 });
 
-// Teléfono con código de país (solo dígitos tras limpiar). Mismo criterio que
-// POST /contacts.
+// Teléfono con código de país (solo dígitos tras limpiar); 10 dígitos sin `+`
+// se toman como México (apiPhoneDigits). Mismo criterio que POST /contacts.
 const phoneSchema = z
   .string()
-  .transform((v) => v.replace(/\D/g, ""))
-  .refine((v) => v.length >= 8 && v.length <= 15, "debe tener entre 8 y 15 dígitos, con código de país");
+  .transform(apiPhoneDigits)
+  .refine((v) => v.length >= 8 && v.length <= 15, "debe tener entre 8 y 15 dígitos, con código de país (10 dígitos = México)");
 
 const httpsUrl = (field: string) =>
   z.string().trim().url(`${field} debe ser una URL`).max(2048).refine((v) => v.startsWith("https://"), `${field} debe usar https://`);
@@ -244,3 +245,29 @@ export const apiTemplateCreateSchema = z
   .strict();
 
 export type ApiTemplateCreateInput = z.infer<typeof apiTemplateCreateSchema>;
+
+// PATCH /accounts/{id}/conversational-automation — topes de Meta: hasta 4
+// sugerencias de 80 caracteres y 30 comandos (nombre de 32, descripción de 256).
+export const apiConversationalAutomationSchema = z
+  .object({
+    prompts: z.array(z.string().trim().min(1).max(80, "Cada sugerencia admite máximo 80 caracteres")).max(4, "Meta admite hasta 4 sugerencias").optional(),
+    commands: z
+      .array(
+        z
+          .object({
+            // Sin la "/": la pone WhatsApp.
+            name: z.string().trim().transform((v) => v.replace(/^\//, "")).pipe(z.string().min(1).max(32, "El nombre de un comando admite máximo 32 caracteres").regex(/^\S+$/, "El nombre de un comando no lleva espacios")),
+            description: z.string().trim().min(1).max(256, "La descripción de un comando admite máximo 256 caracteres"),
+          })
+          .strict()
+      )
+      .max(30, "Meta admite hasta 30 comandos")
+      .optional(),
+  })
+  .strict()
+  .refine((d) => d.prompts !== undefined || d.commands !== undefined, "Envía prompts, commands o ambos");
+
+// POST /accounts/{id}/qr-codes y PATCH …/{code}.
+const prefilledMessage = z.string().trim().min(1, "prefilledMessage es requerido").max(140, "El mensaje prellenado admite máximo 140 caracteres");
+export const apiQrCreateSchema = z.object({ prefilledMessage, format: z.enum(["PNG", "SVG"]).optional() }).strict();
+export const apiQrUpdateSchema = z.object({ prefilledMessage }).strict();

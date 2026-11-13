@@ -2,6 +2,7 @@ import { authenticateApiKey } from "@/lib/api/auth";
 import { ApiError, apiOk, methodNotAllowed, withApiErrors } from "@/lib/api/respond";
 import { enforceWhatsAppAdminLimit, loadApiWhatsAppAccount, toWhatsAppAdminApiError } from "@/lib/api/whatsapp-admin";
 import { unblockUsers } from "@/lib/whatsapp/account-admin";
+import { apiPhoneDigits } from "@/lib/phone/e164";
 
 type Params = { params: Promise<{ id: string; phone: string }> };
 
@@ -9,7 +10,7 @@ type Params = { params: Promise<{ id: string; phone: string }> };
 export const DELETE = withApiErrors(async (req: Request, { params }: Params) => {
   const ctx = await authenticateApiKey(req, "whatsapp:manage");
   const { id, phone: raw } = await params;
-  const phone = decodeURIComponent(raw).replace(/\D/g, "");
+  const phone = apiPhoneDigits(decodeURIComponent(raw));
   if (phone.length < 8 || phone.length > 15) throw new ApiError(400, "invalid_request", "phone debe tener entre 8 y 15 dígitos, con código de país");
   const account = await loadApiWhatsAppAccount(ctx, id);
   await enforceWhatsAppAdminLimit(req, ctx);

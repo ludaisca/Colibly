@@ -245,3 +245,188 @@ export async function deleteMetaTemplate(account: AdminAccount, template: { name
     fallback: "Meta no borró la plantilla",
   });
 }
+
+// ── Componentes conversacionales ───────────────────────────────────────────
+// Sugerencias de inicio (ice breakers) y comandos ("/") del número. El mensaje
+// de bienvenida (enable_welcome_message) solo se lee: al activarlo, Meta manda
+// un mensaje `request_welcome` que la ingesta de Colibly todavía no interpreta.
+
+export interface ConversationalAutomation {
+  welcomeMessageEnabled: boolean;
+  prompts: string[];
+  commands: Array<{ name: string; description: string }>;
+}
+
+interface MetaConversationalAutomation {
+  conversational_automation?: {
+    enable_welcome_message?: boolean;
+    prompts?: string[];
+    commands?: Array<{ command_name?: string; command_description?: string }>;
+  };
+}
+
+/** Pura. */
+export function parseConversationalAutomation(body: MetaConversationalAutomation | null): ConversationalAutomation {
+  const ca = body?.conversational_automation ?? {};
+  return {
+    welcomeMessageEnabled: ca.enable_welcome_message === true,
+    prompts: (ca.prompts ?? []).filter((p): p is string => typeof p === "string" && !!p),
+    commands: (ca.commands ?? [])
+      .filter((c) => c.command_name)
+      .map((c) => ({ name: c.command_name!, description: c.command_description ?? "" })),
+  };
+}
+
+/** Solo los campos dados; `[]` borra la lista. Pura. */
+export function buildConversationalAutomationPayload(input: { prompts?: string[]; commands?: Array<{ name: string; description: string }> }): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+  if (input.prompts !== undefined) payload.prompts = input.prompts;
+  if (input.commands !== undefined) payload.commands = input.commands.map((c) => ({ command_name: c.name, command_description: c.description }));
+  return payload;
+}
+
+export async function getConversationalAutomation(account: AdminAccount): Promise<ConversationalAutomation> {
+  const body = await graph<MetaConversationalAutomation>(account, "GET", requirePhone(account), {
+    query: { fields: "conversational_automation" },
+    fallback: "Meta no devolvió las sugerencias y comandos",
+  });
+  return parseConversationalAutomation(body);
+}
+
+export async function updateConversationalAutomation(account: AdminAccount, input: { prompts?: string[]; commands?: Array<{ name: string; description: string }> }): Promise<void> {
+  await graph(account, "POST", `${requirePhone(account)}/conversational_automation`, {
+    body: buildConversationalAutomationPayload(input),
+    fallback: "Meta no aceptó las sugerencias y comandos",
+  });
+}
+
+// ── Códigos QR con mensaje prellenado ──────────────────────────────────────
+
+export interface QrCode {
+  code: string;
+  prefilledMessage: string;
+  deepLinkUrl: string | null;
+  qrImageUrl: string | null;
+}
+
+interface MetaQr {
+  code?: string;
+  prefilled_message?: string;
+  deep_link_url?: string;
+  qr_image_url?: string;
+}
+
+/** Pura. */
+export function parseQr(q: MetaQr): QrCode {
+  return { code: q.code ?? "", prefilledMessage: q.prefilled_message ?? "", deepLinkUrl: q.deep_link_url ?? null, qrImageUrl: q.qr_image_url ?? null };
+}
+
+export async function listQrCodes(account: AdminAccount): Promise<QrCode[]> {
+  const body = await graph<{ data?: MetaQr[] }>(account, "GET", `${requirePhone(account)}/message_qrdls`, {
+    query: { fields: "code,prefilled_message,deep_link_url,qr_image_url.format(PNG)" },
+    fallback: "Meta no devolvió los códigos QR",
+  });
+  return (body.data ?? []).map(parseQr).filter((q) => q.code);
+}
+
+/** Crea (sin `code`) o cambia el mensaje de un QR existente (con `code`). */
+export async function saveQrCode(account: AdminAccount, input: { code?: string; prefilledMessage: string; format?: "PNG" | "SVG" }): Promise<QrCode> {
+  const body = await graph<MetaQr>(account, "POST", `${requirePhone(account)}/message_qrdls`, {
+    body: {
+      prefilled_message: input.prefilledMessage,
+      ...(input.code ? { code: input.code } : { generate_qr_image: input.format ?? "PNG" }),
+    },
+    fallback: input.code ? "Meta no actualizó el código QR" : "Meta no creó el código QR",
+  });
+  return parseQr(body);
+}
+
+export async function deleteQrCode(account: AdminAccount, code: string): Promise<void> {
+  await graph(account, "DELETE", `${requirePhone(account)}/message_qrdls/${encodeURIComponent(code)}`, {
+    fallback: "Meta no borró el código QR",
+  });
+}
+
+// ── Costos (pricing_analytics de la WABA, modelo por mensaje) ─────────────
+
+export interface PricingPoint {
+  start: string;
+  end: string;
+  phone: string | null;
+  country: string | null;
+  category: string | null; // MARKETING, UTILITY, AUTHENTICATION, SERVICE…
+  pricingType: string | null; // REGULAR, FREE_CUSTOMER_SERVICE, FREE_ENTRY_POINT…
+  volume: number;
+  cost: number;
+}
+
+interface MetaPricingPoint {
+  start?: number;
+  end?: number;
+  phone_number?: string;
+  country?: string;
+  pricing_category?: string;
+  pricing_type?: string;
+  volume?: number;
+  cost?: number;
+}
+
+interface MetaPricingContainer {
+  data?: Array<{ data_points?: MetaPricingPoint[] }>;
+  paging?: { next?: string };
+}
+
+const MAX_ANALYTICS_PAGES = 20;
+
+/** Puntos de Meta → forma pública; solo los del número de la cuenta. Pura. */
+export function parsePricingPoints(points: MetaPricingPoint[], phoneDigits: string | null): PricingPoint[] {
+  const same = (p?: string) => {
+    if (!phoneDigits || !p) return true;
+    const d = p.replace(/\D/g, "");
+    // México: 52… y 521… son el mismo número.
+    const norm = (x: string) => (/^521\d{10}$/.test(x) ? `52${x.slice(3)}` : x);
+    return norm(d) === norm(phoneDigits);
+  };
+  return points
+    .filter((p) => same(p.phone_number))
+    .map((p) => ({
+      start: new Date((p.start ?? 0) * 1000).toISOString(),
+      end: new Date((p.end ?? 0) * 1000).toISOString(),
+      phone: p.phone_number ?? null,
+      country: p.country ?? null,
+      category: p.pricing_category ?? null,
+      pricingType: p.pricing_type ?? null,
+      volume: p.volume ?? 0,
+      cost: p.cost ?? 0,
+    }))
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+
+export async function getPricingAnalytics(
+  account: AdminAccount & { phoneNumber: string | null },
+  opts: { start: Date; end: Date; granularity: "DAILY" | "MONTHLY" }
+): Promise<PricingPoint[]> {
+  if (!account.wabaId) throw new MetaAdminError("La cuenta no tiene WABA ID", 422, null);
+  const fields =
+    `pricing_analytics.start(${Math.floor(opts.start.getTime() / 1000)}).end(${Math.floor(opts.end.getTime() / 1000)})` +
+    `.granularity(${opts.granularity}).dimensions(["PHONE","COUNTRY","PRICING_CATEGORY","PRICING_TYPE"])`;
+  // La primera página es una expansión de campo de la WABA (anidada en
+  // pricing_analytics); las siguientes (paging.next) vienen sin ese envoltorio.
+  const first = await graph<{ pricing_analytics?: MetaPricingContainer }>(account, "GET", encodeURIComponent(account.wabaId), {
+    query: { fields },
+    fallback: "Meta no devolvió los costos",
+  });
+  const points: MetaPricingPoint[] = [];
+  let container: MetaPricingContainer | undefined = first.pricing_analytics;
+  for (let page = 0; container && page < MAX_ANALYTICS_PAGES; page++) {
+    for (const d of container.data ?? []) points.push(...(d.data_points ?? []));
+    const next: string | undefined = container.paging?.next;
+    if (!next) break;
+    const res = await fetch(next, { headers: { Authorization: `Bearer ${decrypt(account.accessToken!)}` }, signal: httpTimeout() });
+    const body = (await res.json().catch(() => null)) as (MetaPricingContainer & MetaErrorBody) | null;
+    if (!res.ok) throw new MetaAdminError(metaMessage(body, "Meta no devolvió los costos"), res.status, body?.error?.code ?? null);
+    container = body ?? undefined;
+  }
+  const digits = account.phoneNumber ? account.phoneNumber.replace(/\D/g, "") : null;
+  return parsePricingPoints(points, digits);
+}

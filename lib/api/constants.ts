@@ -47,7 +47,7 @@ export const API_BAD_KEY_ATTEMPTS_PER_MINUTE = 30;
  * los cambios son aditivos (campos nuevos), nunca se quita ni renombra uno.
  */
 // Fecha del contrato; un segundo cambio el mismo día lleva sufijo (.2).
-export const API_SCHEMA_VERSION = "2026-11-13.2";
+export const API_SCHEMA_VERSION = "2026-11-13.4";
 export const API_SCHEMA_VERSION_HEADER = "X-Colibly-Schema-Version";
 /** Página de listados. */
 export const API_PAGE_DEFAULT = 25;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { apiBlockUsersSchema, apiBusinessProfileSchema, apiTemplateCreateSchema } from "@/lib/api/schemas";
+import { apiBlockUsersSchema, apiBusinessProfileSchema, apiConversationalAutomationSchema, apiQrCreateSchema, apiTemplateCreateSchema } from "@/lib/api/schemas";
 
 describe("apiBusinessProfileSchema", () => {
   it("acepta un cambio parcial y \"\" para borrar", () => {
@@ -20,6 +20,10 @@ describe("apiBusinessProfileSchema", () => {
 describe("apiBlockUsersSchema", () => {
   it("limpia los teléfonos a dígitos", () => {
     expect(apiBlockUsersSchema.parse({ phones: ["+52 1 55 1234 5678"] })).toEqual({ phones: ["5215512345678"] });
+  });
+
+  it("10 dígitos sin código de país se toman como México", () => {
+    expect(apiBlockUsersSchema.parse({ phones: ["5568623317"] })).toEqual({ phones: ["525568623317"] });
   });
 
   it("pide entre 1 y 100 teléfonos válidos", () => {
@@ -45,5 +49,28 @@ describe("apiTemplateCreateSchema", () => {
   it("rechaza nombres que Meta no acepta y la categoría AUTHENTICATION", () => {
     expect(apiTemplateCreateSchema.safeParse({ ...base, name: "Promo Nov" }).success).toBe(false);
     expect(apiTemplateCreateSchema.safeParse({ ...base, category: "AUTHENTICATION" }).success).toBe(false);
+  });
+});
+
+describe("apiConversationalAutomationSchema", () => {
+  it("quita la / del comando y acepta [] para borrar", () => {
+    expect(apiConversationalAutomationSchema.parse({ commands: [{ name: "/horarios", description: "Horario" }], prompts: [] }))
+      .toEqual({ commands: [{ name: "horarios", description: "Horario" }], prompts: [] });
+  });
+
+  it("aplica los topes de Meta", () => {
+    expect(apiConversationalAutomationSchema.safeParse({}).success).toBe(false);
+    expect(apiConversationalAutomationSchema.safeParse({ prompts: ["a", "b", "c", "d", "e"] }).success).toBe(false);
+    expect(apiConversationalAutomationSchema.safeParse({ prompts: ["x".repeat(81)] }).success).toBe(false);
+    expect(apiConversationalAutomationSchema.safeParse({ commands: [{ name: "dos palabras", description: "x" }] }).success).toBe(false);
+  });
+});
+
+describe("apiQrCreateSchema", () => {
+  it("pide el mensaje prellenado de hasta 140 caracteres", () => {
+    expect(apiQrCreateSchema.safeParse({ prefilledMessage: "Hola" }).success).toBe(true);
+    expect(apiQrCreateSchema.safeParse({ prefilledMessage: "" }).success).toBe(false);
+    expect(apiQrCreateSchema.safeParse({ prefilledMessage: "x".repeat(141) }).success).toBe(false);
+    expect(apiQrCreateSchema.safeParse({ prefilledMessage: "Hola", format: "JPG" }).success).toBe(false);
   });
 });

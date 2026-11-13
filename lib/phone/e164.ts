@@ -18,3 +18,15 @@ export function toE164(raw: string | null | undefined): string | null {
   if (/^521\d{10}$/.test(d)) return `+52${d.slice(3)}`;
   return `+${d}`;
 }
+
+/**
+ * Teléfono que llega por la API pública → solo dígitos con código de país.
+ * Colibly opera en México: 10 dígitos sin `+` son un número nacional
+ * mexicano (55 1234 5678 → 525512345678). Con `+` se respeta lo escrito.
+ * La validación de largo (8 a 15) la hace quien llama.
+ */
+export function apiPhoneDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!raw.trim().startsWith("+") && digits.length === 10) return `52${digits}`;
+  return digits;
+}

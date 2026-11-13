@@ -66,3 +66,24 @@ export async function uploadRemoteFileToMeta(
     throw new MetaAdminError(err instanceof Error ? err.message : "No se pudo subir el archivo a Meta", 502, null);
   }
 }
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Rango de las analíticas (`since` y `until`, fechas ISO). Por omisión, los
+ * últimos 30 días; como máximo `maxDays` (lo que Meta conserva y responde a tiempo).
+ */
+export function readAnalyticsRange(url: URL, maxDays = 365): { start: Date; end: Date } {
+  const parse = (name: string) => {
+    const raw = url.searchParams.get(name);
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) throw new ApiError(400, "invalid_request", `${name} debe ser una fecha ISO 8601`);
+    return d;
+  };
+  const end = parse("until") ?? new Date();
+  const start = parse("since") ?? new Date(end.getTime() - 30 * DAY_MS);
+  if (start >= end) throw new ApiError(400, "invalid_request", "since debe ser anterior a until");
+  if (end.getTime() - start.getTime() > maxDays * DAY_MS) throw new ApiError(400, "invalid_request", `El rango admite máximo ${maxDays} días`);
+  return { start, end };
+}

@@ -67,17 +67,22 @@ interface StoredMediaColumns {
 // Forma de interactivePayload en WAMessage y ChannelMessage — la burbuja del
 // chat (chat-thread-panel.tsx) dibuja `buttons` igual para botones y listas.
 export interface InteractivePayload {
-  buttons: { id: string; title: string }[];
+  /** `description`: solo filas de una lista que la traen. */
+  buttons: { id: string; title: string; description?: string }[];
   style?: "list" | "cta_url" | "location_request";
   buttonLabel?: string;
   /** cta_url: a dónde lleva el botón. */
   url?: string;
 }
 
-function payloadFor(content: Extract<OutboundContent, { type: "buttons" | "list" }>): InteractivePayload {
+export function payloadFor(content: Extract<OutboundContent, { type: "buttons" | "list" }>): InteractivePayload {
   return content.type === "buttons"
     ? { buttons: content.buttons.map(({ id, title }) => ({ id, title })) }
-    : { buttons: content.rows.map(({ id, title }) => ({ id, title })), style: "list", buttonLabel: content.buttonLabel };
+    : {
+        buttons: content.rows.map(({ id, title, description }) => ({ id, title, ...(description ? { description } : {}) })),
+        style: "list",
+        buttonLabel: content.buttonLabel,
+      };
 }
 
 export class OutboundError extends Error {

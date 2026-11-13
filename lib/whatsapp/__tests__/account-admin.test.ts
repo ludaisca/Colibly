@@ -4,6 +4,11 @@ vi.mock("@/lib/crypto", () => ({ decrypt: (s: string) => `dec:${s}` }));
 
 import {
   blockUsers,
+  buildConversationalAutomationPayload,
+  getPricingAnalytics,
+  parseConversationalAutomation,
+  parsePricingPoints,
+  saveQrCode,
   buildBusinessProfilePayload,
   deleteMetaTemplate,
   getBusinessProfile,
@@ -118,5 +123,60 @@ describe("deleteMetaTemplate", () => {
     expect(parsed.searchParams.get("name")).toBe("promo");
     expect(parsed.searchParams.get("hsm_id")).toBe("123");
     expect(init.method).toBe("DELETE");
+  });
+});
+
+describe("sugerencias y comandos", () => {
+  it("lee la forma de Meta", () => {
+    expect(parseConversationalAutomation({ conversational_automation: { enable_welcome_message: true, prompts: ["Hola"], commands: [{ command_name: "horarios", command_description: "Horario" }] } }))
+      .toEqual({ welcomeMessageEnabled: true, prompts: ["Hola"], commands: [{ name: "horarios", description: "Horario" }] });
+    expect(parseConversationalAutomation(null)).toEqual({ welcomeMessageEnabled: false, prompts: [], commands: [] });
+  });
+
+  it("solo manda lo dado y nunca el mensaje de bienvenida", () => {
+    expect(buildConversationalAutomationPayload({ commands: [{ name: "a", description: "b" }] })).toEqual({ commands: [{ command_name: "a", command_description: "b" }] });
+    expect(buildConversationalAutomationPayload({ prompts: [] })).toEqual({ prompts: [] });
+  });
+});
+
+describe("códigos QR", () => {
+  it("crear pide la imagen; actualizar manda el code", async () => {
+    const fn = mockFetch(200, { code: "ABC", prefilled_message: "Hola", deep_link_url: "https://wa.me/message/ABC", qr_image_url: "https://x/qr.png" });
+    expect(await saveQrCode(account, { prefilledMessage: "Hola" })).toEqual({ code: "ABC", prefilledMessage: "Hola", deepLinkUrl: "https://wa.me/message/ABC", qrImageUrl: "https://x/qr.png" });
+    expect(JSON.parse(String((fn.mock.calls[0][1] as RequestInit).body))).toEqual({ prefilled_message: "Hola", generate_qr_image: "PNG" });
+    await saveQrCode(account, { code: "ABC", prefilledMessage: "Otro" });
+    expect(JSON.parse(String((fn.mock.calls[1][1] as RequestInit).body))).toEqual({ prefilled_message: "Otro", code: "ABC" });
+    expect(new URL(String(fn.mock.calls[0][0])).pathname).toMatch(/\/pn1\/message_qrdls$/);
+  });
+});
+
+describe("costos", () => {
+  it("se queda con el número de la cuenta (52 y 521 son el mismo) y ordena por fecha", () => {
+    const points = parsePricingPoints(
+      [
+        { start: 200, end: 300, phone_number: "525512345678", country: "MX", pricing_category: "MARKETING", pricing_type: "REGULAR", volume: 2, cost: 1.5 },
+        { start: 100, end: 200, phone_number: "5215512345678", volume: 1, cost: 0 },
+        { start: 100, end: 200, phone_number: "525599999999", volume: 9, cost: 9 },
+      ],
+      "5215512345678"
+    );
+    expect(points.map((p) => p.volume)).toEqual([1, 2]);
+    expect(points[1]).toMatchObject({ country: "MX", category: "MARKETING", pricingType: "REGULAR", cost: 1.5, start: new Date(200_000).toISOString() });
+  });
+
+  it("pide la expansión pricing_analytics de la WABA y sigue paging.next", async () => {
+    const fn = vi.fn(async (url: unknown) => {
+      const first = String(url).includes("fields=");
+      return new Response(JSON.stringify(first
+        ? { pricing_analytics: { data: [{ data_points: [{ start: 1, end: 2, phone_number: "525512345678", volume: 1, cost: 1 }] }], paging: { next: "https://graph.facebook.com/next" } } }
+        : { data: [{ data_points: [{ start: 2, end: 3, phone_number: "525512345678", volume: 2, cost: 2 }] }] }), { status: 200 });
+    });
+    globalThis.fetch = fn as unknown as typeof fetch;
+    const points = await getPricingAnalytics({ ...account, phoneNumber: "+52 1 55 1234 5678" }, { start: new Date(0), end: new Date(86_400_000), granularity: "DAILY" });
+    const fields = new URL(String(fn.mock.calls[0][0])).searchParams.get("fields")!;
+    expect(fields).toContain("pricing_analytics.start(0).end(86400)");
+    expect(fields).toContain(".granularity(DAILY)");
+    expect(fields).toContain("PRICING_CATEGORY");
+    expect(points.map((p) => p.volume)).toEqual([1, 2]);
   });
 });

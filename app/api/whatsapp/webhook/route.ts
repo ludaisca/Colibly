@@ -5,6 +5,7 @@ import { applyReactionStatus } from "@/lib/whatsapp/reactions";
 import { createHash } from "crypto";
 import type { Prisma, RecipientStatus } from "@prisma/client";
 import { emitDomainEvent } from "@/lib/events/emit";
+import { jidCandidates } from "@/lib/whatsapp/coexistence/normalize";
 import { prisma } from "@/lib/prisma";
 import { ingestInboundMessage } from "@/lib/whatsapp/ingest-message";
 import { rateLimit } from "@/lib/rate-limit";
@@ -429,10 +430,25 @@ async function applyUserPreferences(value: UserPreferencesValue) {
   for (const pref of value.user_preferences ?? []) {
     if (pref.category !== "marketing_messages" || !pref.wa_id) continue;
     const optedOut = pref.value === "stop";
-    await prisma.contact.updateMany({
-      where: { accountId: account.id, remoteJid: pref.wa_id },
-      data: { optedOutMarketing: optedOut, optedOutAt: optedOut ? new Date() : null },
+    const contacts = await prisma.contact.findMany({
+      where: { accountId: account.id, remoteJid: { in: jidCandidates(pref.wa_id) } },
+      select: { id: true },
     });
+    for (const contact of contacts) {
+      // Condicionado al valor anterior: Meta reintenta y solo el cambio real avisa.
+      const changed = await prisma.contact.updateMany({
+        where: { id: contact.id, optedOutMarketing: !optedOut },
+        data: { optedOutMarketing: optedOut, optedOutAt: optedOut ? new Date() : null },
+      });
+      if (changed.count === 0) continue;
+      await emitDomainEvent({
+        type: "contact.marketing_preference_changed",
+        account: { kind: "whatsapp", id: account.id },
+        contactId: contact.id,
+        chat: null,
+        data: { optedOut, source: "whatsapp" },
+      });
+    }
   }
 }
 

@@ -19,14 +19,14 @@ describe("getMessageBody", () => {
         body: { text: "Elige un horario" },
         action: {
           button: "Ver horarios",
-          sections: [{ rows: [{ id: "am", title: "Mañana" }, { id: "pm", title: "Tarde" }] }],
+          sections: [{ rows: [{ id: "am", title: "Mañana", description: "  9 a 13 h " }, { id: "pm", title: "Tarde" }] }],
         },
       },
     };
     expect(getMessageBody(msg)).toBe("Elige un horario");
     expect(interactivePayloadOf(msg)).toEqual({
       buttons: [
-        { id: "am", title: "Mañana" },
+        { id: "am", title: "Mañana", description: "9 a 13 h" },
         { id: "pm", title: "Tarde" },
       ],
       style: "list",

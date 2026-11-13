@@ -25,7 +25,7 @@ export interface WhatsAppMessageContent {
     action?: {
       button?: string;
       buttons?: { reply?: { id?: string; title?: string } }[];
-      sections?: { rows?: { id?: string; title?: string }[] }[];
+      sections?: { rows?: { id?: string; title?: string; description?: string }[] }[];
     };
   };
   button?: { payload: string; text: string };
@@ -44,7 +44,7 @@ export interface MetaSharedContact {
 }
 
 export interface StoredInteractivePayload {
-  buttons: { id: string; title: string }[];
+  buttons: { id: string; title: string; description?: string }[];
   style?: "list";
   buttonLabel?: string;
 }
@@ -89,7 +89,7 @@ export function interactivePayloadOf(msg: WhatsAppMessageContent): StoredInterac
   if (replyButtons.length > 0) return { buttons: replyButtons.slice(0, 3) };
   const rows = (action.sections ?? [])
     .flatMap((section) => section.rows ?? [])
-    .map((row, i) => ({ id: row.id || `row_${i + 1}`, title: row.title?.trim() ?? "" }))
+    .map((row, i) => ({ id: row.id || `row_${i + 1}`, title: row.title?.trim() ?? "", ...(row.description?.trim() ? { description: row.description.trim() } : {}) }))
     .filter((row) => row.title);
   if (rows.length === 0) return null;
   return {

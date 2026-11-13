@@ -404,7 +404,11 @@ function MessageBubble({
             {buttons.map((b) => (
               <div key={b.id} className="flex items-center justify-center gap-1.5 text-xs py-1">
                 <CornerUpLeft size={12} />
-                <span>{b.title}</span>
+                <span>
+                  {b.title}
+                  {/* Filas de una lista: su descripción, como la ve el cliente al abrirla. */}
+                  {b.description && <span className="text-muted-strong"> · {b.description}</span>}
+                </span>
               </div>
             ))}
           </div>

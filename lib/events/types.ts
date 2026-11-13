@@ -46,6 +46,9 @@ interface EventDataMap {
   // (coexistencia); echo = el negocio escribió primero desde esa app.
   "contact.created": { origin: LeadOrigin; source: "inbound" | "api" | "lead_ads" | "history" | "echo" | "import" };
   "contact.lead_status_changed": { from: LeadStatus; to: LeadStatus };
+  // El cliente pidió dejar de recibir (o volver a recibir) marketing desde
+  // WhatsApp (botón nativo de Meta, campo user_preferences).
+  "contact.marketing_preference_changed": { optedOut: boolean; source: "whatsapp" };
   "tag.added": { tagId: string; tagName: string; target: "contact" | "conversation" };
   "conversation.assigned": { assignedToId: string | null; auto: boolean };
   "conversation.resolved": Record<string, never>;
@@ -93,6 +96,7 @@ export const DOMAIN_EVENT_CATALOG: Record<DomainEventType, string> = {
   "message.updated": "Un mensaje ya guardado cambió: su medio quedó listo o llegó el contenido de un media_placeholder",
   "contact.created": "Contacto nuevo",
   "contact.lead_status_changed": "Cambio de etapa del lead",
+  "contact.marketing_preference_changed": "El contacto pidió dejar de recibir marketing, o volver a recibirlo, desde WhatsApp",
   "tag.added": "Etiqueta agregada a un contacto o conversación",
   "conversation.assigned": "Conversación asignada",
   "conversation.resolved": "Conversación resuelta",
