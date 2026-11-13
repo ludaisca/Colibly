@@ -20,3 +20,11 @@ describe("messagePreview", () => {
     expect(messagePreview({ messageType: "text", body: "Hola" })).toBe("Hola");
   });
 });
+
+describe("media_placeholder del historial", () => {
+  it("se lee como texto, no como el tipo interno", async () => {
+    const { messagePreview, displayMessageText } = await import("@/app/components/whatsapp/chat-shared");
+    expect(messagePreview({ messageType: "media_placeholder", body: "[media_placeholder]" })).toBe("Archivo del historial");
+    expect(displayMessageText("[media_placeholder]")).toBe("Archivo del historial");
+  });
+});

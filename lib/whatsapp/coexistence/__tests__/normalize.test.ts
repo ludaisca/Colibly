@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  normalizeHistoryMedia,
   digitsOnly,
   historyIsComplete,
   jidCandidates,
@@ -165,5 +166,30 @@ describe("progreso del historial", () => {
     expect(mapHistoryStatus("ERROR")).toBe("failed");
     expect(mapHistoryStatus("PENDING")).toBeNull();
     expect(mapHistoryStatus(null)).toBeNull();
+  });
+});
+
+describe("normalizeHistoryMedia", () => {
+  // Forma del webhook de Meta con el medio de un placeholder del historial:
+  // `value.messages[]` directo, sin `history[].threads[]`.
+  const value = {
+    messaging_product: "whatsapp",
+    metadata: { display_phone_number: "15550783881", phone_number_id: "1" },
+    messages: [
+      { from: "16505551234", id: "wamid.MEDIA", timestamp: "1738796200", type: "image", image: { caption: "foto", mime_type: "image/jpeg", sha256: "x", id: "MEDIA_ID" } },
+      { from: "16505551234", id: "wamid.SIGUE", timestamp: "1738796300", type: "media_placeholder" },
+    ],
+  };
+
+  it("lee el medio con su id y se salta un placeholder repetido", () => {
+    expect(normalizeHistoryMedia(value)).toEqual([
+      { wamid: "wamid.MEDIA", type: "image", body: expect.any(String), mediaId: "MEDIA_ID", mimeType: "image/jpeg", filename: null, caption: "foto" },
+    ]);
+  });
+
+  it("el lote normal del historial no produce medios (y al revés)", () => {
+    const batch = { metadata: {}, history: [{ metadata: {}, threads: [{ id: "1", messages: [{ from: "1", id: "w", timestamp: "1", type: "image", image: { id: "M" } }] }] }] };
+    expect(normalizeHistoryMedia(batch)).toEqual([]);
+    expect(normalizeHistory(value)).toEqual([]);
   });
 });

@@ -22,6 +22,7 @@ import {
   ArrowDown,
   Eye,
   FileWarning,
+  ImageOff,
 } from "lucide-react";
 import { ChatMessageActions, MessageContextMenu } from "./chat-message-actions";
 import { WhatsAppText } from "./whatsapp-text";
@@ -66,6 +67,20 @@ function MediaTooLargeNotice({ msg }: { msg: Message }) {
       <div className="min-w-0">
         <p className="font-semibold">Archivo demasiado grande</p>
         <p className="mt-0.5 break-words text-muted-strong">{msg.body}</p>
+      </div>
+    </div>
+  );
+}
+
+// Medio del historial importado que Meta nunca mandó (solo los de los últimos
+// 14 días llegan después; el resto se queda así). Antes se veía el tipo crudo.
+function HistoryMediaNotice() {
+  return (
+    <div className="flex items-start gap-2 text-muted-strong" role="note">
+      <ImageOff size={16} className="mt-0.5 shrink-0" aria-hidden />
+      <div className="min-w-0">
+        <p>Archivo del historial</p>
+        <p className="mt-0.5 text-xs text-muted-darker">WhatsApp no lo compartió al importar el historial.</p>
       </div>
     </div>
   );
@@ -375,7 +390,8 @@ function MessageBubble({
         )}
         {msg.messageType === "location" && <LocationContent msg={msg} />}
         {msg.messageType === "media_too_large" && <MediaTooLargeNotice msg={msg} />}
-        {!hasMedia && msg.messageType !== "location" && msg.messageType !== "media_too_large" && msg.body && msg.body !== "[interactive]" && (
+        {msg.messageType === "media_placeholder" && <HistoryMediaNotice />}
+        {!hasMedia && msg.messageType !== "location" && msg.messageType !== "media_too_large" && msg.messageType !== "media_placeholder" && msg.body && msg.body !== "[interactive]" && (
           <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={msg.body} /> : msg.body}</p>
         )}
         {!hasMedia && msg.body === "[interactive]" && !(buttons && buttons.length > 0) && "Mensaje con botones"}

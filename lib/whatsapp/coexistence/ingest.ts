@@ -8,7 +8,7 @@ import { contactsRemaining, notifyContactLimitOnce } from "@/lib/billing/contact
 import { pauseConversationalRuns } from "@/lib/automations/dispatch";
 import { BACKGROUND_EVENT_PRIORITY, emitDomainEvent } from "@/lib/events/emit";
 import { emitMessageSent, emitMessageUpdated } from "@/lib/events/message-sent";
-import { jidCandidates, mapHistoryStatus, type NormalizedBusinessMessage, type NormalizedStateSyncContact } from "./normalize";
+import { jidCandidates, mapHistoryStatus, type NormalizedBusinessMessage, type NormalizedHistoryMedia, type NormalizedStateSyncContact } from "./normalize";
 
 // Ingesta de lo que viene de la app WhatsApp Business del cliente (coexistencia).
 // A diferencia de ingestInboundMessage() es SILENCIOSA: no notifica, no dispara
@@ -162,12 +162,7 @@ export async function ingestBusinessAppMessages(
         // El historial manda los medios en un webhook aparte: el mensaje ya existe
         // como `media_placeholder` y ahora llega con su contenido.
         if (prev.messageType === "media_placeholder" && msg.type !== "media_placeholder") {
-          await prisma.wAMessage.update({
-            where: { id: prev.id },
-            data: { messageType: msg.type, body: msg.body, caption: msg.caption, mediaId: msg.mediaId, mimeType: msg.mimeType, filename: msg.filename },
-          });
-          if (msg.mediaId) await enqueueMediaDownload(prev.id, accountId, msg.mediaId);
-          await emitMessageUpdated("whatsapp", prev.id, "history_media");
+          await fillPlaceholder(prev.id, accountId, msg);
           result.updated++;
         } else {
           result.skipped++;
@@ -281,6 +276,51 @@ export async function ingestBusinessAppMessages(
     }
   }
   return result;
+}
+
+export interface HistoryMediaResult {
+  updated: number;
+  /** Ya tenían su contenido (reentrega de Meta o reintento del job). */
+  alreadyDone: number;
+  /** wamids sin mensaje guardado todavía (el lote del historial aún no se procesa). */
+  missing: string[];
+}
+
+// Medios del historial que llegan en su webhook aparte (normalizeHistoryMedia):
+// completan el `media_placeholder` con el mismo wamid. Se busca por wamid en
+// la cuenta, sin teléfono: este webhook no trae el hilo, y en los salientes
+// `from` es el número del negocio.
+export async function applyHistoryMedia(accountId: string, items: NormalizedHistoryMedia[]): Promise<HistoryMediaResult> {
+  const result: HistoryMediaResult = { updated: 0, alreadyDone: 0, missing: [] };
+  if (items.length === 0) return result;
+  const rows = await prisma.wAMessage.findMany({
+    where: { wamid: { in: items.map((i) => i.wamid) }, chat: { accountId } },
+    select: { id: true, wamid: true, messageType: true },
+  });
+  const byWamid = new Map(rows.map((r) => [r.wamid as string, r]));
+  for (const item of items) {
+    const row = byWamid.get(item.wamid);
+    if (!row) {
+      result.missing.push(item.wamid);
+      continue;
+    }
+    if (row.messageType !== "media_placeholder") {
+      result.alreadyDone++;
+      continue;
+    }
+    await fillPlaceholder(row.id, accountId, item);
+    result.updated++;
+  }
+  return result;
+}
+
+async function fillPlaceholder(messageId: string, accountId: string, item: Pick<NormalizedHistoryMedia, "type" | "body" | "caption" | "mediaId" | "mimeType" | "filename">) {
+  await prisma.wAMessage.update({
+    where: { id: messageId },
+    data: { messageType: item.type, body: item.body, caption: item.caption, mediaId: item.mediaId, mimeType: item.mimeType, filename: item.filename },
+  });
+  if (item.mediaId) await enqueueMediaDownload(messageId, accountId, item.mediaId);
+  await emitMessageUpdated("whatsapp", messageId, "history_media");
 }
 
 async function enqueueMediaDownload(messageId: string, accountId: string, mediaId: string): Promise<void> {

@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { coexistenceSyncQueue } from "@/lib/queue";
 import { validateWhatsAppWebhookSignature } from "@/lib/meta/platform-app";
 import { ingestBusinessAppMessages } from "./ingest";
-import { normalizeEchoes, normalizeHistory, normalizeStateSync } from "./normalize";
-import { serializeContacts, serializeMessages, type HistoryChunkJob } from "./sync";
+import { normalizeEchoes, normalizeHistory, normalizeHistoryMedia, normalizeStateSync } from "./normalize";
+import { serializeContacts, serializeMessages, type HistoryChunkJob, type HistoryMediaJob } from "./sync";
 
 // Webhooks propios de la coexistencia: smb_message_echoes, history y
 // smb_app_state_sync. El historial y los contactos pueden llegar en lotes de
@@ -55,6 +55,13 @@ export async function handleCoexistenceChange(opts: {
       await coexistenceSyncQueue.add("state-sync", { accountId: account.id, contacts: serializeContacts(contacts) });
     }
     return;
+  }
+
+  // Medios del historial: mismo field `history`, pero con `value.messages[]`
+  // en lugar de `value.history[]` (normalizeHistoryMedia).
+  const media = normalizeHistoryMedia(opts.value);
+  if (media.length > 0) {
+    await coexistenceSyncQueue.add("history-media", { accountId: account.id, items: media } satisfies HistoryMediaJob);
   }
 
   for (const env of normalizeHistory(opts.value)) {

@@ -2,9 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { requestSmbAppData } from "@/lib/whatsapp/embedded-signup/meta";
 import { notifyAccountAdmins } from "./notify";
-import { applyStateSyncContacts, ingestBusinessAppMessages } from "./ingest";
+import { applyHistoryMedia, applyStateSyncContacts, ingestBusinessAppMessages } from "./ingest";
 import { nextSyncAction, syncAfterHistory, tokenAlertFor, TOKEN_WARNING_DAYS } from "./state";
-import type { HistoryEnvelope, NormalizedBusinessMessage, NormalizedStateSyncContact } from "./normalize";
+import type { HistoryEnvelope, NormalizedBusinessMessage, NormalizedHistoryMedia, NormalizedStateSyncContact } from "./normalize";
 
 // Orquestación (con base de datos) de la sincronización de coexistencia. Las
 // reglas de decisión viven en ./state.ts y están probadas sin base de datos.
@@ -116,6 +116,20 @@ export async function processHistoryChunk(job: HistoryChunkJob): Promise<void> {
     where: { id: job.accountId },
     data: { syncStatus: next.status, syncProgress: next.progress, ...(next.error ? { syncError: next.error.slice(0, 300) } : {}) },
   });
+}
+
+export type HistoryMediaJob = { accountId: string; items: NormalizedHistoryMedia[] };
+
+export class HistoryMediaPendingError extends Error {}
+
+// El medio puede llegar antes de que la cola guarde el lote con su placeholder
+// (misma cola, concurrencia 1: normalmente llega después). Si falta alguno, el
+// job falla y BullMQ lo reintenta con backoff; lo ya aplicado se salta solo.
+export async function processHistoryMedia(job: HistoryMediaJob): Promise<void> {
+  const res = await applyHistoryMedia(job.accountId, job.items);
+  if (res.missing.length > 0) {
+    throw new HistoryMediaPendingError(`${res.missing.length} medio(s) del historial sin su mensaje todavía: ${res.missing.slice(0, 3).join(", ")}`);
+  }
 }
 
 export async function processStateSyncChunk(accountId: string, contacts: SerializedContact[]): Promise<void> {

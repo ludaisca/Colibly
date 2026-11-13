@@ -150,6 +150,35 @@ export function normalizeHistory(value: unknown): HistoryEnvelope[] {
   return out;
 }
 
+// Contenido de un medio del historial. Meta lo manda DESPUÉS del lote, en otro
+// webhook `history` con forma distinta: `value.messages[]` directo (sin
+// `history[].threads[]`), con el mismo wamid del `media_placeholder` que ya se
+// guardó. Solo para medios de los últimos 14 días. Hasta 2026-11-13 esta forma
+// se ignoraba (normalizeHistory solo lee `value.history`) y los medios del
+// historial se quedaban como placeholder para siempre.
+export interface NormalizedHistoryMedia {
+  wamid: string;
+  type: string;
+  body: string;
+  mediaId: string | null;
+  mimeType: string | null;
+  filename: string | null;
+  caption: string | null;
+}
+
+export function normalizeHistoryMedia(value: unknown): NormalizedHistoryMedia[] {
+  const messages = (value as { messages?: RawMessage[] } | null)?.messages;
+  if (!Array.isArray(messages)) return [];
+  const out: NormalizedHistoryMedia[] = [];
+  for (const raw of messages) {
+    if (!raw.id || raw.type === "media_placeholder") continue;
+    const c = contentOf(raw);
+    if (c.editOf) continue;
+    out.push({ wamid: raw.id, type: c.type, body: c.body, mediaId: c.mediaId, mimeType: c.mimeType, filename: c.filename, caption: c.caption });
+  }
+  return out;
+}
+
 export interface NormalizedStateSyncContact {
   phone: string;
   fullName: string | null;

@@ -218,11 +218,16 @@ export interface PreviewMedia {
   mimeType: string | null;
 }
 
+// Medio del historial de Coexistencia que nunca llegó (messageType
+// `media_placeholder`, body `[media_placeholder]`).
+export const HISTORY_MEDIA_LABEL = "Archivo del historial";
+
 // `[interactive]` es la etiqueta interna cuando el aviso de WhatsApp no trajo
 // el texto del mensaje con botones. En la interfaz se lee así.
 export function displayMessageText(body: string | null | undefined): string | null {
   if (!body) return null;
   if (body === "[interactive]") return "Mensaje con botones";
+  if (body === "[media_placeholder]") return HISTORY_MEDIA_LABEL;
   return body;
 }
 
@@ -247,6 +252,7 @@ export function messagePreview(message: {
     case "document": return message.filename ?? "Documento";
     case "interactive": return "Mensaje con botones";
     case "template": return "Plantilla";
+    case "media_placeholder": return HISTORY_MEDIA_LABEL;
     default: return `[${message.messageType}]`;
   }
 }

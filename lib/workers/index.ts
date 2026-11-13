@@ -24,7 +24,7 @@ import { recordContactActivityFromEvent } from "@/lib/contacts/activity";
 import { processAutomationTick, wakeRun } from "@/lib/automations/runner";
 import { processBillingTick } from "@/lib/billing/tick";
 import { processActivationTick } from "@/lib/activation/tick";
-import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
+import { markSyncFailed, processCoexistenceTick, processHistoryChunk, processHistoryMedia, processStateSyncChunk, runCoexistenceSync, type HistoryChunkJob, type HistoryMediaJob, type SerializedContact } from "@/lib/whatsapp/coexistence/sync";
 import { processBackupTick, runBackup, BackupAlreadyRunningError } from "@/lib/backups/runner";
 import { processPlatformHealthTick } from "./platform-health-worker";
 import { processInboxJob } from "./inbox-worker";
@@ -162,6 +162,8 @@ export function startWorkers() {
       await runCoexistenceSync(job.data.accountId as string);
     } else if (job.name === "history-chunk") {
       await processHistoryChunk(job.data as HistoryChunkJob);
+    } else if (job.name === "history-media") {
+      await processHistoryMedia(job.data as HistoryMediaJob);
     } else if (job.name === "state-sync") {
       await processStateSyncChunk(job.data.accountId as string, job.data.contacts as SerializedContact[]);
     }
@@ -171,6 +173,10 @@ export function startWorkers() {
     // hasta el límite de 24 h de Meta.
     if (job?.name === "sync" && job.attemptsMade >= (job.opts.attempts ?? 1)) {
       markSyncFailed(job.data.accountId as string, err.message).catch(() => {});
+    }
+    // Agotó reintentos y el placeholder nunca apareció: se registra y se deja.
+    if (job?.name === "history-media" && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      console.warn(`[coexistence] medios del historial sin aplicar en ${job.data.accountId as string}: ${err.message}`);
     }
   });
 
