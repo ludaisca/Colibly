@@ -41,13 +41,24 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.8.0";
+export const API_VERSION = "1.9.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.8.0",
+    version: "1.9.0",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-13",
+    changes: [
+      "Mensaje de bienvenida: `welcomeMessage` en PATCH /accounts/{id}/conversational-automation (y en la ficha de la cuenta). Quien abre el chat por primera vez deja un mensaje `type: \"request_welcome\"`, el evento nuevo `conversation.welcome_requested` y, si hay texto, recibe el saludo.",
+      "Catálogo: tipos `product`, `product_list` y `catalog` en POST /messages; GET y PATCH /accounts/{id}/catalog (catálogos conectados, carrito y catálogo visible); evento `order.received` con productos y total.",
+      "WhatsApp Flows: GET /accounts/{id}/flows, tipo `flow` en POST /messages, `content.flowResponse` en la respuesta del cliente y evento `flow.completed`.",
+      "`interactive.style` admite `product`, `product_list`, `catalog` y `flow`, con `catalogId`, `flowId` y `flowToken`.",
+    ],
+  },
+  {
+    version: "1.8.0",
+    schemaVersion: "2026-11-13.4",
     date: "2026-11-13",
     changes: [
       "GET /accounts/{id}/analytics: mensajes cobrables y su costo según Meta, por día o por mes, con país, categoría y tipo de precio (permiso `whatsapp:manage`).",
@@ -307,6 +318,7 @@ const EX = {
     bodyText: "Hola {{1}}, tu pedido {{2}} va en camino.",
     syncedAt: "2026-10-18T12:00:00.000Z",
   },
+  commerce: { accountId: "cmacc_wa_01", catalogs: [{ id: "1234567890", name: "Catálogo Tienda Centro" }], cartEnabled: true, catalogVisible: true },
   qr: { code: "4O4YGZEG3RIVE1", prefilledMessage: "Hola, quiero información de la promoción", deepLinkUrl: "https://wa.me/message/4O4YGZEG3RIVE1", qrImageUrl: "https://scontent.whatsapp.net/v/qr-ejemplo.png" },
   profile: {
     accountId: "cmacc_wa_01",
@@ -414,6 +426,10 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
     example: { assignedToId: "cmusr_02", auto: true },
   },
   "conversation.resolved": { data: obj({}), example: {} },
+  "conversation.welcome_requested": {
+    data: obj({ messageId: { ...str, description: "El aviso guardado en la conversación (type request_welcome)" } }),
+    example: { messageId: "cmmsg_09" },
+  },
   "appointment.created": {
     data: obj({ appointmentId: str, title: str, scheduledAt: { type: "string", format: "date-time" }, source: { type: "string", enum: ["MANUAL", "AI_BOT", "API"] } }),
     example: { appointmentId: "cmapt_01", title: "Visita a showroom", scheduledAt: "2026-10-22T17:00:00.000Z", source: "AI_BOT" },
@@ -429,6 +445,25 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
   "lead.ad_captured": {
     data: obj({ origin: { type: "string", enum: ["INSTANT_FORM", "CTWA"] }, adId: strNull }),
     example: { origin: "CTWA", adId: "120210000000000000" },
+  },
+  "flow.completed": {
+    data: obj({
+      messageId: str,
+      flowToken: { ...strNull, description: "El flow.token del envío (o el que generó Colibly): crúzalo con tu sistema" },
+      response: { type: "object", description: "Lo que llenó el cliente, con los nombres de campo del Flow" },
+    }),
+    example: { messageId: "cmmsg_11", flowToken: "cita-A-1043", response: { sucursal: "centro", fecha: "2026-11-20", hora: "10:00" } },
+  },
+  "order.received": {
+    data: obj({
+      messageId: str,
+      catalogId: strNull,
+      text: { ...strNull, description: "Nota que escribió el cliente con el pedido" },
+      items: { type: "array", items: obj({ productId: { ...strNull, description: "product_retailer_id" }, quantity: { type: ["number", "null"] }, price: { type: ["number", "null"], description: "Precio unitario" }, currency: strNull }) },
+      total: { type: ["number", "null"], description: "Suma de precio × cantidad; null si falta un dato o hay varias monedas" },
+      currency: strNull,
+    }),
+    example: { messageId: "cmmsg_10", catalogId: "1234567890", text: "Para entrega el sábado", items: [{ productId: "SKU-1043", quantity: 2, price: 1499, currency: "MXN" }], total: 2998, currency: "MXN" },
   },
   "template.status_changed": {
     data: obj({
@@ -717,12 +752,12 @@ export function buildOpenApiSpec(serverUrl: string) {
         get: {
           tags: ["WhatsApp"],
           summary: "Sugerencias de inicio y comandos",
-          description: "Sin permiso especial. `prompts` son los botones que ve el cliente al abrir el chat; `commands`, lo que aparece al escribir \"/\". Al tocarlos, el cliente manda ese texto como un mensaje normal. `welcomeMessageEnabled` solo se informa.",
+          description: "Sin permiso especial. `prompts` son los botones que ve el cliente al abrir el chat; `commands`, lo que aparece al escribir \"/\". Al tocarlos, el cliente manda ese texto como un mensaje normal. `welcomeMessageEnabled` (Meta) y `welcomeMessageText` (Colibly): el saludo a quien abre el chat por primera vez.",
           parameters: [idParam],
           responses: {
             "200": ok(
-              obj({ accountId: str, welcomeMessageEnabled: { type: "boolean" }, prompts: { type: "array", items: str }, commands: { type: "array", items: obj({ name: str, description: str }) } }),
-              { accountId: "cmacc_wa_01", welcomeMessageEnabled: false, prompts: ["Quiero una cotización", "¿Dónde están?"], commands: [{ name: "horarios", description: "Horario de atención" }] }
+              ref("ConversationalAutomation"),
+              { accountId: "cmacc_wa_01", welcomeMessageEnabled: true, welcomeMessageText: "¡Hola! Gracias por escribirnos. ¿En qué te ayudamos?", prompts: ["Quiero una cotización", "¿Dónde están?"], commands: [{ name: "horarios", description: "Horario de atención" }] }
             ),
             "502": err("UpstreamError"),
             ...errors,
@@ -731,23 +766,71 @@ export function buildOpenApiSpec(serverUrl: string) {
         patch: {
           tags: ["WhatsApp"],
           summary: "Cambiar sugerencias y comandos",
-          description: `${scopeNote("whatsapp:manage")} Solo cambia lo enviado; \`[]\` borra la lista. Hasta 4 sugerencias de 80 caracteres y 30 comandos (nombre de 32, sin "/" ni espacios; descripción de 256). WhatsApp puede tardar en mostrarlos.`,
+          description:
+            `${scopeNote("whatsapp:manage")} Solo cambia lo enviado; \`[]\` borra la lista. Hasta 4 sugerencias de 80 caracteres y 30 comandos (nombre de 32, sin "/" ni espacios; descripción de 256). WhatsApp puede tardar en mostrarlos. ` +
+            "`welcomeMessage`: con `enabled: true` WhatsApp avisa cuando alguien abre el chat por primera vez sin escribir; Colibly guarda un aviso (`type: \"request_welcome\"`), emite `conversation.welcome_requested` y, si hay `text`, lo contesta (una vez, y nunca si alguien ya le escribió). Sin `text`, el saludo queda en tus manos con el evento. `text: null` lo borra.",
           parameters: [idParam],
           requestBody: {
             required: true,
             content: json(
-              { type: "object", additionalProperties: false, minProperties: 1, properties: { prompts: { type: "array", maxItems: 4, items: str }, commands: { type: "array", maxItems: 30, items: obj({ name: str, description: str }) } } },
-              { prompts: ["Quiero una cotización", "¿Dónde están?"], commands: [{ name: "horarios", description: "Horario de atención" }] }
+              {
+                type: "object",
+                additionalProperties: false,
+                minProperties: 1,
+                properties: {
+                  prompts: { type: "array", maxItems: 4, items: str },
+                  commands: { type: "array", maxItems: 30, items: obj({ name: str, description: str }) },
+                  welcomeMessage: { type: "object", required: ["enabled"], additionalProperties: false, properties: { enabled: { type: "boolean" }, text: { type: ["string", "null"], maxLength: 1024 } } },
+                },
+              },
+              { prompts: ["Quiero una cotización", "¿Dónde están?"], welcomeMessage: { enabled: true, text: "¡Hola! Gracias por escribirnos. ¿En qué te ayudamos?" } }
             ),
           },
           responses: {
             "200": ok(
-              obj({ accountId: str, welcomeMessageEnabled: { type: "boolean" }, prompts: { type: "array", items: str }, commands: { type: "array", items: obj({ name: str, description: str }) } }),
-              { accountId: "cmacc_wa_01", welcomeMessageEnabled: false, prompts: ["Quiero una cotización", "¿Dónde están?"], commands: [{ name: "horarios", description: "Horario de atención" }] }
+              ref("ConversationalAutomation"),
+              { accountId: "cmacc_wa_01", welcomeMessageEnabled: true, welcomeMessageText: "¡Hola! Gracias por escribirnos. ¿En qué te ayudamos?", prompts: ["Quiero una cotización", "¿Dónde están?"], commands: [{ name: "horarios", description: "Horario de atención" }] }
             ),
             "502": err("UpstreamError"),
             ...writeErrors,
           },
+        },
+      },
+      "/accounts/{id}/flows": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "WhatsApp Flows",
+          description:
+            `${scopeNote("messages:send")} Los Flows (formularios dentro de WhatsApp) de la cuenta. Se diseñan y publican en el constructor de Flows del Administrador de WhatsApp; ` +
+            "se mandan con POST /messages `type: \"flow\"`: los PUBLISHED, o un DRAFT con `flow.draft: true` para probarlo.",
+          parameters: [idParam],
+          responses: {
+            "200": ok(
+              { type: "object", properties: { data: { type: "array", items: obj({ id: str, name: str, status: { type: "string", description: "DRAFT, PUBLISHED, DEPRECATED, BLOCKED, THROTTLED" }, categories: { type: "array", items: str } }) } } },
+              { data: [{ id: "1234567890123456", name: "Agendar visita", status: "PUBLISHED", categories: ["APPOINTMENT_BOOKING"] }] }
+            ),
+            "502": err("UpstreamError"),
+            ...errors,
+          },
+        },
+      },
+      "/accounts/{id}/catalog": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Catálogo y ajustes de comercio",
+          description:
+            "Sin permiso especial. `catalogs`: los catálogos de Meta conectados a la cuenta (se conectan en el Administrador de WhatsApp; con uno solo, los envíos `product` y `product_list` no necesitan `catalogId`). " +
+            "`cartEnabled`: el cliente puede armar un pedido en el chat (llega como mensaje `order` y evento `order.received`). `catalogVisible`: el botón de tienda aparece en el perfil y el chat.",
+          parameters: [idParam],
+          responses: { "200": ok(ref("CommerceSettings"), EX.commerce), "502": err("UpstreamError"), ...errors },
+        },
+        patch: {
+          tags: ["WhatsApp"],
+          summary: "Cambiar los ajustes de comercio",
+          description: `${scopeNote("whatsapp:manage")} Activa o apaga el carrito y la visibilidad del catálogo.`,
+          parameters: [idParam],
+          requestBody: { required: true, content: json({ type: "object", additionalProperties: false, minProperties: 1, properties: { cartEnabled: { type: "boolean" }, catalogVisible: { type: "boolean" } } }, { cartEnabled: true, catalogVisible: true }) },
+          responses: { "200": ok(ref("CommerceSettings"), EX.commerce), "502": err("UpstreamError"), ...writeErrors },
         },
       },
       "/accounts/{id}/qr-codes": {
@@ -969,7 +1052,9 @@ export function buildOpenApiSpec(serverUrl: string) {
           description:
             `${scopeNote("messages:send")} Destino (uno): \`conversationId\`, \`contactId\` o \`accountId\` + \`to\` (WhatsApp: el teléfono con código de país; si el contacto no existe se crea, solo con una plantilla). ` +
             "En WhatsApp todo salvo las plantillas va solo dentro de la ventana de 24 h (fuera de ella: 422 window_closed → usa una plantilla aprobada). Una plantilla a un contacto sin chat abre el chat. " +
-            "**Tipos:** `text`, `buttons` (hasta 3), `list` (hasta 10 opciones), `template`, archivos (abajo) y, solo en WhatsApp, `sticker` (WebP 512×512 por `media.url`), `location`, `location_request` (botón \"Enviar ubicación\"; la respuesta llega como mensaje entrante `location`) y `cta_url` (botón que abre una URL). " +
+            "**Tipos:** `text`, `buttons` (hasta 3), `list` (hasta 10 opciones), `template`, archivos (abajo) y, solo en WhatsApp, `sticker` (WebP 512×512 por `media.url`), `location`, `location_request` (botón \"Enviar ubicación\"; la respuesta llega como mensaje entrante `location`), `cta_url` (botón que abre una URL) `flow` (abre un WhatsApp Flow: formulario dentro del chat) y del catálogo de Meta `product` (un producto), `product_list` (hasta 30 productos en 10 secciones) y `catalog` (botón \"Ver catálogo\"). " +
+            "Sin `catalogId` se usa el único catálogo conectado a la cuenta (GET /accounts/{id}/catalog); los productos se identifican por su `product_retailer_id` (\"ID de contenido\" en Commerce Manager). Un pedido del carrito llega como mensaje `order` y como evento `order.received`. " +
+            "**Flows:** `flow.id` de GET /accounts/{id}/flows, `flow.cta` (texto del botón) y `flow.screen` (primera pantalla; sin ella el Flow pide datos a su endpoint). La respuesta del cliente llega como mensaje con `content.flowResponse` y como evento `flow.completed`, con el `flow.token` que mandaste. " +
             "La opción que elige el cliente en `buttons` o `list` llega en `message.received` con `interactive.reply.id`. " +
             "**`replyTo`** (WhatsApp): id de un mensaje de la misma conversación para citarlo. " +
             "**Manda siempre `Idempotency-Key`**: si reintentas por un timeout, el mensaje no sale dos veces.\n\n" +
@@ -998,6 +1083,16 @@ export function buildOpenApiSpec(serverUrl: string) {
                   botonUrl: { summary: "Botón con URL", value: { conversationId: "cmchat_01", type: "cta_url", text: "Tu pedido A-1043 va en camino.", cta: { label: "Rastrear", url: "https://tienda.ejemplo.mx/pedidos/A-1043" } } },
                   ubicacion: { summary: "Ubicación", value: { conversationId: "cmchat_01", type: "location", location: { latitude: 19.4326, longitude: -99.1332, name: "Sucursal Centro", address: "Av. Juárez 10, CDMX" } } },
                   pedirUbicacion: { summary: "Pedir ubicación", value: { conversationId: "cmchat_01", type: "location_request", text: "¿Nos compartes tu ubicación para calcular el envío?" } },
+                  producto: { summary: "Un producto del catálogo", value: { conversationId: "cmchat_01", type: "product", text: "Este es el modelo que buscabas", product: { id: "SKU-1043" } } },
+                  listaProductos: {
+                    summary: "Lista de productos",
+                    value: { conversationId: "cmchat_01", type: "product_list", text: "Lo más vendido de la semana", productList: { header: "Ofertas", sections: [{ title: "Sillas", productIds: ["SKU-1043", "SKU-1044"] }, { title: "Mesas", productIds: ["SKU-2001"] }] } },
+                  },
+                  flow: {
+                    summary: "WhatsApp Flow",
+                    value: { conversationId: "cmchat_01", type: "flow", text: "Agenda tu visita en un minuto", flow: { id: "1234567890123456", cta: "Agendar", screen: "CITA", token: "cita-A-1043" } },
+                  },
+                  catalogo: { summary: "Botón \"Ver catálogo\"", value: { conversationId: "cmchat_01", type: "catalog", text: "Mira todo nuestro catálogo", catalog: { thumbnailProductId: "SKU-1043" } } },
                   citando: { summary: "Respuesta citando un mensaje", value: { conversationId: "cmchat_01", type: "text", text: "Sí, ese modelo tiene garantía de 1 año.", replyTo: "cmmsg_01" } },
                 },
               },
@@ -1496,6 +1591,25 @@ export function buildOpenApiSpec(serverUrl: string) {
             },
           },
         },
+        ConversationalAutomation: {
+          type: "object",
+          properties: {
+            accountId: str,
+            welcomeMessageEnabled: { type: "boolean", description: "Activo en Meta" },
+            welcomeMessageText: { ...strNull, description: "Lo que contesta Colibly; null = solo aviso y evento" },
+            prompts: { type: "array", items: str },
+            commands: { type: "array", items: obj({ name: str, description: str }) },
+          },
+        },
+        CommerceSettings: {
+          type: "object",
+          properties: {
+            accountId: str,
+            catalogs: { type: "array", items: obj({ id: str, name: strNull }) },
+            cartEnabled: { type: "boolean" },
+            catalogVisible: { type: "boolean" },
+          },
+        },
         QrCode: {
           type: "object",
           properties: {
@@ -1582,7 +1696,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             id: str,
             conversationId: str,
             direction: { type: "string", enum: ["INBOUND", "OUTBOUND"] },
-            type: { type: "string", description: "text, image, video, audio, document, sticker, location, contacts, interactive, template, order, system… y `media_too_large`: aviso de un archivo del cliente de más de 100 MB que Meta no entrega (su `text` explica y `content` trae {kind, maxMb, sizeMb, onPhone}; no tiene `media`)" },
+            type: { type: "string", description: "text, image, video, audio, document, sticker, location, contacts, interactive, template, order, system… y `media_too_large`: aviso de un archivo del cliente de más de 100 MB que Meta no entrega (su `text` explica y `content` trae {kind, maxMb, sizeMb, onPhone}; no tiene `media`); `request_welcome`: el cliente abrió el chat por primera vez sin escribir (mensaje de bienvenida)" },
             text: strNull,
             caption: strNull,
             mimeType: strNull,
@@ -1594,7 +1708,10 @@ export function buildOpenApiSpec(serverUrl: string) {
               description: "Botones o lista que mandó el negocio, si aplica",
               properties: {
                 buttons: { type: "array", items: { type: "object", properties: { id: str, title: str, description: { type: "string", description: "Solo filas de una lista que la tienen" } } } },
-                style: { type: "string", enum: ["list", "cta_url", "location_request"], description: "Ausente = botones de respuesta" },
+                style: { type: "string", enum: ["list", "cta_url", "location_request", "product", "product_list", "catalog", "flow"], description: "Ausente = botones de respuesta. product/product_list: `buttons` son los productos (id = product_retailer_id; en una lista, `description` es la sección)" },
+                catalogId: { type: "string", description: "product/product_list: catálogo de Meta" },
+                flowId: { type: "string", description: "flow: el Flow enviado" },
+                flowToken: { type: "string", description: "flow: el token que volverá en flow.completed" },
                 buttonLabel: { type: "string", description: "list: texto del botón que abre la lista" },
                 url: { type: "string", description: "cta_url: a dónde lleva el botón" },
               },
@@ -1603,7 +1720,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             externalId: { ...strNull, description: "Id del mensaje en el canal (wamid en WhatsApp)" },
             content: {
               type: ["object", "null"],
-              description: "Lo que no cabe en text/caption/media. Según el tipo: location {latitude, longitude, name, address, url}; contacts [{name, phones[{phone, waId, type}], emails, company}]; order {catalogId, text, items[{productId, quantity, price, currency}]}; system {type, body, newWaId}; errors [{code, title, detail}]; media {sha256, voice, animated}; forwarded; frequentlyForwarded; referredProduct; replyToFrom; placeholder {reason: \"history_media\"} en un media_placeholder del historial (el medio llega después al mismo mensaje)",
+              description: "Lo que no cabe en text/caption/media. Según el tipo: location {latitude, longitude, name, address, url}; flowResponse {flowToken, data} en la respuesta a un Flow; contacts [{name, phones[{phone, waId, type}], emails, company}]; order {catalogId, text, items[{productId, quantity, price, currency}]}; system {type, body, newWaId}; errors [{code, title, detail}]; media {sha256, voice, animated}; forwarded; frequentlyForwarded; referredProduct; replyToFrom; placeholder {reason: \"history_media\"} en un media_placeholder del historial (el medio llega después al mismo mensaje)",
             },
             media: {
               type: ["object", "null"],
@@ -1709,6 +1826,41 @@ export function buildOpenApiSpec(serverUrl: string) {
               properties: { latitude: { type: "number", minimum: -90, maximum: 90 }, longitude: { type: "number", minimum: -180, maximum: 180 }, name: str, address: str },
             },
             replyTo: { type: "string", description: "Id de un mensaje de la misma conversación para citarlo (WhatsApp)" },
+            product: {
+              type: "object",
+              required: ["id"],
+              additionalProperties: false,
+              description: "type product (WhatsApp). `text` es opcional",
+              properties: { id: { type: "string", description: "product_retailer_id" }, catalogId: { type: "string", description: "Por omisión, el único conectado a la cuenta" } },
+            },
+            productList: {
+              type: "object",
+              required: ["header", "sections"],
+              additionalProperties: false,
+              description: "type product_list (WhatsApp), con `text`. Hasta 10 secciones y 30 productos",
+              properties: {
+                header: { type: "string", maxLength: 60 },
+                sections: { type: "array", minItems: 1, maxItems: 10, items: { type: "object", required: ["title", "productIds"], properties: { title: { type: "string", maxLength: 24 }, productIds: { type: "array", minItems: 1, items: str } } } },
+                catalogId: str,
+              },
+            },
+            catalog: { type: "object", additionalProperties: false, description: "type catalog (WhatsApp), con `text`", properties: { thumbnailProductId: { type: "string", description: "Producto cuya foto ilustra el mensaje" } } },
+            flow: {
+              type: "object",
+              required: ["id", "cta"],
+              additionalProperties: false,
+              description: "type flow (WhatsApp), con `text`",
+              properties: {
+                id: { type: "string", description: "Id del Flow (GET /accounts/{id}/flows)" },
+                cta: { type: "string", maxLength: 20, description: "Texto del botón" },
+                header: { type: "string", maxLength: 60 },
+                screen: { type: "string", description: "Primera pantalla (Flows sin endpoint)" },
+                data: { type: "object", description: "Datos iniciales de esa pantalla (requiere screen)" },
+                token: { type: "string", maxLength: 200, description: "Vuelve en flow.completed; por omisión Colibly genera uno" },
+                draft: { type: "boolean", description: "Mandar el borrador del Flow (para probarlo)" },
+              },
+            },
+            footer: { type: "string", maxLength: 60, description: "Pie de product, product_list, catalog o flow" },
           },
         },
         ConversationUpdate: {

@@ -198,6 +198,11 @@ model WAAccount {
   // Encuesta de satisfacción al resolver un chat (solo si la ventana de 24 h
   // sigue abierta). Apagada por defecto: es un mensaje al cliente final.
   csatEnabled       Boolean         @default(false) @map("csat_enabled")
+  // Mensaje de bienvenida (lib/whatsapp/welcome.ts): al abrir el chat por
+  // primera vez, Meta manda `request_welcome` y Colibly contesta con este
+  // texto. El interruptor también se activa en Meta (enable_welcome_message).
+  welcomeMessageEnabled Boolean   @default(false) @map("welcome_message_enabled")
+  welcomeMessageText    String?   @map("welcome_message_text")
   // Salud del número según Graph (lib/whatsapp/phone-health.ts): se lee de
   // la API al abrir la ficha (caché de 10 min) y tras cada webhook
   // `phone_number_quality_update`. qualityRating = quality_rating

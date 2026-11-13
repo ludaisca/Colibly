@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey, type ApiContext } from "@/lib/api/auth";
 import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPageParams, withApiErrors, type ApiErrorCode, readJsonBody, methodNotAllowed } from "@/lib/api/respond";
@@ -159,6 +160,33 @@ function toContent(input: ApiSendMessageInput, file: OutboundMediaFile | null): 
       return { type: "location_request", text: input.text! };
     case "sticker":
       return { type: "sticker", file: file! };
+    case "product":
+      return { type: "product", productId: input.product!.id, catalogId: input.product!.catalogId ?? null, text: input.text ?? null, footer: input.footer ?? null };
+    case "product_list":
+      return {
+        type: "product_list",
+        header: input.productList!.header,
+        text: input.text!,
+        footer: input.footer ?? null,
+        sections: input.productList!.sections,
+        catalogId: input.productList!.catalogId ?? null,
+      };
+    case "catalog":
+      return { type: "catalog", text: input.text!, footer: input.footer ?? null, thumbnailProductId: input.catalog?.thumbnailProductId ?? null };
+    case "flow":
+      return {
+        type: "flow",
+        flowId: input.flow!.id,
+        cta: input.flow!.cta,
+        text: input.text!,
+        header: input.flow!.header ?? null,
+        footer: input.footer ?? null,
+        // El token vuelve en flow.completed: sirve para cruzar la respuesta.
+        flowToken: input.flow!.token ?? `colibly_${randomUUID()}`,
+        screen: input.flow!.screen ?? null,
+        data: input.flow!.data ?? null,
+        draft: input.flow!.draft ?? false,
+      };
     default:
       return {
         type: "template",

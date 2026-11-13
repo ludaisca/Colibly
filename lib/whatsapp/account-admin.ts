@@ -248,8 +248,8 @@ export async function deleteMetaTemplate(account: AdminAccount, template: { name
 
 // ── Componentes conversacionales ───────────────────────────────────────────
 // Sugerencias de inicio (ice breakers) y comandos ("/") del número. El mensaje
-// de bienvenida (enable_welcome_message) solo se lee: al activarlo, Meta manda
-// un mensaje `request_welcome` que la ingesta de Colibly todavía no interpreta.
+// de bienvenida (enable_welcome_message) se activa con setMetaWelcomeMessage()
+// desde lib/whatsapp/welcome.ts, que guarda también el texto en Colibly.
 
 export interface ConversationalAutomation {
   welcomeMessageEnabled: boolean;
@@ -429,4 +429,95 @@ export async function getPricingAnalytics(
   }
   const digits = account.phoneNumber ? account.phoneNumber.replace(/\D/g, "") : null;
   return parsePricingPoints(points, digits);
+}
+
+/** Activa o apaga en Meta el aviso `request_welcome` del número. */
+export async function setMetaWelcomeMessage(account: AdminAccount, enabled: boolean): Promise<void> {
+  await graph(account, "POST", `${requirePhone(account)}/conversational_automation`, {
+    body: { enable_welcome_message: enabled },
+    fallback: "Meta no cambió el mensaje de bienvenida",
+  });
+}
+
+// ── Catálogo y comercio ────────────────────────────────────────────────────
+// El catálogo se crea en Commerce Manager y se conecta a la WABA desde el
+// Administrador de WhatsApp; aquí solo se lee cuál está conectado y se
+// cambian los dos ajustes del número (carrito y catálogo visible).
+
+export interface CatalogInfo {
+  id: string;
+  name: string | null;
+}
+
+export async function listWabaCatalogs(account: AdminAccount): Promise<CatalogInfo[]> {
+  if (!account.wabaId) throw new MetaAdminError("La cuenta no tiene WABA ID", 422, null);
+  const body = await graph<{ data?: Array<{ id?: string; name?: string }> }>(account, "GET", `${encodeURIComponent(account.wabaId)}/product_catalogs`, {
+    query: { fields: "id,name" },
+    fallback: "Meta no devolvió los catálogos",
+  });
+  return (body.data ?? []).filter((c) => c.id).map((c) => ({ id: c.id!, name: c.name ?? null }));
+}
+
+export interface CommerceSettings {
+  cartEnabled: boolean;
+  catalogVisible: boolean;
+}
+
+/** Pura. Sin configuración, Meta deja ambos apagados. */
+export function parseCommerceSettings(body: { data?: Array<{ is_cart_enabled?: boolean; is_catalog_visible?: boolean }> } | null): CommerceSettings {
+  const s = body?.data?.[0] ?? {};
+  return { cartEnabled: s.is_cart_enabled === true, catalogVisible: s.is_catalog_visible === true };
+}
+
+export async function getCommerceSettings(account: AdminAccount): Promise<CommerceSettings> {
+  const body = await graph<{ data?: Array<{ is_cart_enabled?: boolean; is_catalog_visible?: boolean }> }>(account, "GET", `${requirePhone(account)}/whatsapp_commerce_settings`, {
+    fallback: "Meta no devolvió los ajustes de comercio",
+  });
+  return parseCommerceSettings(body);
+}
+
+export async function updateCommerceSettings(account: AdminAccount, input: Partial<CommerceSettings>): Promise<void> {
+  // Meta los recibe como parámetros de la URL, no en el cuerpo.
+  await graph(account, "POST", `${requirePhone(account)}/whatsapp_commerce_settings`, {
+    query: {
+      is_cart_enabled: input.cartEnabled === undefined ? undefined : String(input.cartEnabled),
+      is_catalog_visible: input.catalogVisible === undefined ? undefined : String(input.catalogVisible),
+    },
+    fallback: "Meta no cambió los ajustes de comercio",
+  });
+}
+
+// Catálogo por omisión de la cuenta para los envíos de productos: el único
+// conectado a la WABA. Caché corta en memoria (se consulta en cada envío).
+const catalogCache = new Map<string, { at: number; catalogs: CatalogInfo[] }>();
+const CATALOG_CACHE_MS = 5 * 60_000;
+
+export async function resolveCatalogId(account: AdminAccount & { id: string }, given?: string | null): Promise<string> {
+  if (given) return given;
+  const cached = catalogCache.get(account.id);
+  const catalogs = cached && Date.now() - cached.at < CATALOG_CACHE_MS ? cached.catalogs : await listWabaCatalogs(account);
+  catalogCache.set(account.id, { at: Date.now(), catalogs });
+  if (catalogs.length === 0) throw new MetaAdminError("La cuenta no tiene un catálogo conectado en el Administrador de WhatsApp", 422, null);
+  if (catalogs.length > 1) throw new MetaAdminError("La cuenta tiene varios catálogos conectados: indica catalogId", 422, null);
+  return catalogs[0].id;
+}
+
+// ── WhatsApp Flows ─────────────────────────────────────────────────────────
+// Se diseñan y publican en el constructor de Flows del Administrador de
+// WhatsApp; aquí se listan para mandarlos (POST /messages type flow).
+
+export interface FlowInfo {
+  id: string;
+  name: string;
+  status: string; // DRAFT, PUBLISHED, DEPRECATED, BLOCKED, THROTTLED
+  categories: string[];
+}
+
+export async function listFlows(account: AdminAccount): Promise<FlowInfo[]> {
+  if (!account.wabaId) throw new MetaAdminError("La cuenta no tiene WABA ID", 422, null);
+  const body = await graph<{ data?: Array<{ id?: string; name?: string; status?: string; categories?: string[] }> }>(account, "GET", `${encodeURIComponent(account.wabaId)}/flows`, {
+    query: { fields: "id,name,status,categories", limit: "100" },
+    fallback: "Meta no devolvió los Flows",
+  });
+  return (body.data ?? []).filter((f) => f.id).map((f) => ({ id: f.id!, name: f.name ?? "", status: f.status ?? "UNKNOWN", categories: f.categories ?? [] }));
 }

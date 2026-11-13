@@ -16,6 +16,7 @@ import { SectionHeader } from "@/app/components/ui/section-header";
 import { DetailPage, DetailRow } from "@/app/components/ui/detail-page";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { ConexionCard } from "./_conexion";
+import { BienvenidaSection } from "./_bienvenida";
 import { useToast } from "@/app/components/ui/toast";
 import { canSendLabel, messagingLimitLabel, nameStatusLabel, qualityLabel } from "@/lib/platform/whatsapp-health-rules";
 import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
@@ -35,6 +36,8 @@ interface AccountDetail {
   autoAssignEnabled: boolean;
   autoAssignOnlineOnly: boolean;
   csatEnabled: boolean;
+  welcomeMessageEnabled: boolean;
+  welcomeMessageText: string | null;
   qualityRating: string | null;
   messagingTier: string | null;
   qualityUpdatedAt: string | null;
@@ -761,6 +764,10 @@ export default function CuentaDetailPage() {
               <Switch checked={account.csatEnabled} onCheckedChange={handleToggleCsat} label="Encuesta CSAT al resolver" />
             </div>
           </section>
+        )}
+
+        {canManage && account.phoneNumberId && (
+          <BienvenidaSection accountId={account.id} enabled={account.welcomeMessageEnabled} text={account.welcomeMessageText} />
         )}
 
         {isAdmin && (

@@ -4,6 +4,7 @@ import { processTranscribeJob, type TranscribeKind } from "@/lib/ai/transcribe";
 import { processPushJob, type PushJob } from "@/lib/notifications/push";
 import { processTopicMonitorTick } from "@/lib/monitors/scan";
 import { processSlaTick } from "@/lib/sla/tick";
+import { processWelcomeJob, type WelcomeJob } from "@/lib/whatsapp/welcome";
 
 // Cola `inbox`: un solo worker que enruta por nombre de job. Los jobs nuevos
 // de la bandeja (aviso fuera de horario, transcripción…) se agregan aquí.
@@ -17,6 +18,11 @@ export async function processInboxJob(name: string, data: unknown): Promise<void
       if (outcome !== "sent" && outcome !== "in_hours" && outcome !== "cooldown") {
         console.log(`[away] ${(data as AwayJob).chatId}: ${outcome}`);
       }
+      return;
+    }
+    case "welcome-message": {
+      const outcome = await processWelcomeJob(data as WelcomeJob);
+      if (outcome !== "sent" && outcome !== "disabled") console.log(`[welcome] ${(data as WelcomeJob).chatId}: ${outcome}`);
       return;
     }
     case "transcribe": {

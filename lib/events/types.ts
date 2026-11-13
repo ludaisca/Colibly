@@ -52,10 +52,26 @@ interface EventDataMap {
   "tag.added": { tagId: string; tagName: string; target: "contact" | "conversation" };
   "conversation.assigned": { assignedToId: string | null; auto: boolean };
   "conversation.resolved": Record<string, never>;
+  // Solo WhatsApp: el cliente abrió el chat por primera vez sin escribir
+  // (request_welcome de Meta). messageId = el aviso guardado en el chat.
+  "conversation.welcome_requested": { messageId: string };
   "appointment.created": { appointmentId: string; title: string; scheduledAt: string; source: "MANUAL" | "AI_BOT" | "API" };
   "appointment.status_changed": { appointmentId: string; from: WAAppointmentStatus; to: WAAppointmentStatus };
   "lead.scored": { scorerId: string; scorerName: string; score: number; label: string; previousLabel: string | null };
   "lead.ad_captured": { origin: Exclude<LeadOrigin, "ORGANIC">; adId: string | null };
+  // Solo WhatsApp: el cliente terminó un WhatsApp Flow. flowToken = el que se
+  // mandó en POST /messages (type flow) para cruzarlo con tu sistema.
+  "flow.completed": { messageId: string; flowToken: string | null; response: Record<string, unknown> };
+  // Solo WhatsApp: el cliente mandó un pedido desde el carrito del catálogo.
+  // Llega también como message.received (type order); esto lo trae ya sumado.
+  "order.received": {
+    messageId: string;
+    catalogId: string | null;
+    text: string | null;
+    items: { productId: string | null; quantity: number | null; price: number | null; currency: string | null }[];
+    total: number | null; // suma de precio × cantidad; null si falta algún dato o hay monedas distintas
+    currency: string | null;
+  };
   // Eventos de la cuenta de WhatsApp (sin contacto ni conversación). Las
   // plantillas son de la WABA: con varios números bajo la misma WABA llega uno
   // por cuenta, cada uno con su templateId de Colibly.
@@ -100,10 +116,13 @@ export const DOMAIN_EVENT_CATALOG: Record<DomainEventType, string> = {
   "tag.added": "Etiqueta agregada a un contacto o conversación",
   "conversation.assigned": "Conversación asignada",
   "conversation.resolved": "Conversación resuelta",
+  "conversation.welcome_requested": "Un cliente abrió el chat por primera vez sin escribir (mensaje de bienvenida). Solo WhatsApp",
   "appointment.created": "Cita creada",
   "appointment.status_changed": "Cambio de estado de una cita",
   "lead.scored": "Lead calificado por un calificador IA",
   "lead.ad_captured": "Lead llegado de un anuncio (CTWA o Instant Form)",
+  "flow.completed": "Un cliente terminó un formulario de WhatsApp (Flow), con sus respuestas. Solo WhatsApp",
+  "order.received": "Pedido desde el carrito del catálogo de WhatsApp, con productos y total. Solo WhatsApp",
   "template.status_changed": "Meta revisó, pausó, desactivó o marcó una plantilla. Solo WhatsApp",
   "template.category_changed": "Meta cambió la categoría de una plantilla. Solo WhatsApp",
   "account.quality_changed": "Cambió la calidad o el límite de envío del número. Solo WhatsApp",

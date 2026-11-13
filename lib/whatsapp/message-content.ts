@@ -22,6 +22,9 @@ export interface WhatsAppMessageContent {
     body?: { text?: string };
     button_reply?: { id: string; title: string };
     list_reply?: { id: string; title: string; description?: string };
+    // Respuesta a un WhatsApp Flow: `response_json` es un JSON en texto con
+    // `flow_token` y los campos que llenó el cliente.
+    nfm_reply?: { name?: string; body?: string; response_json?: string };
     action?: {
       button?: string;
       buttons?: { reply?: { id?: string; title?: string } }[];
@@ -67,6 +70,7 @@ export function getMessageBody(msg: WhatsAppMessageContent): string {
     return `🛒 Pedido${items ? ` (${items} ${items === 1 ? "producto" : "productos"})` : ""}${msg.order.text ? `: ${msg.order.text}` : ""}`;
   }
   if (msg.type === "system" && msg.system?.body) return msg.system.body;
+  if (msg.interactive?.type === "nfm_reply") return "📝 Respondió el formulario";
   if (msg.image?.caption) return msg.image.caption;
   if (msg.video?.caption) return msg.video.caption;
   if (msg.document?.caption) return msg.document.caption;
@@ -173,6 +177,9 @@ export type StructuredContent = {
     company: string | null;
   }[];
   order?: { catalogId: string | null; text: string | null; items: { productId: string | null; quantity: number | null; price: number | null; currency: string | null }[] };
+  // Respuesta a un WhatsApp Flow: el token con que se envió y lo que llenó el
+  // cliente (sin el token). Un JSON que no se entiende queda en `raw`.
+  flowResponse?: { flowToken: string | null; data: Record<string, unknown>; raw?: string };
   system?: { type: string | null; body: string | null; newWaId: string | null };
   // Mensaje no soportado o con error de Meta (p. ej. tipo desconocido).
   errors?: { code: number | null; title: string | null; detail: string | null }[];
@@ -212,6 +219,9 @@ export function structuredContentOf(msg: WhatsAppMessageContent): StructuredCont
       company: c.org?.company ?? null,
     }));
   }
+  if (msg.interactive?.type === "nfm_reply" && msg.interactive.nfm_reply) {
+    out.flowResponse = parseFlowResponse(msg.interactive.nfm_reply.response_json);
+  }
   if (msg.type === "order" && msg.order) {
     out.order = {
       catalogId: msg.order.catalog_id ?? null,
@@ -245,4 +255,17 @@ export function structuredContentOf(msg: WhatsAppMessageContent): StructuredCont
   }
   if (msg.context?.id && msg.context.from) out.replyToFrom = msg.context.from;
   return Object.keys(out).length > 0 ? out : null;
+}
+
+/** `response_json` de un nfm_reply → token y campos. Pura; nunca lanza. */
+export function parseFlowResponse(raw: string | undefined): NonNullable<StructuredContent["flowResponse"]> {
+  if (!raw) return { flowToken: null, data: {} };
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { flowToken: null, data: {}, raw: raw.slice(0, 4000) };
+    const { flow_token, ...data } = parsed as Record<string, unknown>;
+    return { flowToken: typeof flow_token === "string" ? flow_token : null, data };
+  } catch {
+    return { flowToken: null, data: {}, raw: raw.slice(0, 4000) };
+  }
 }

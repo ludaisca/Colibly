@@ -71,7 +71,11 @@ const httpsUrl = (field: string) =>
 export const API_SEND_TYPES = [
   "text", "buttons", "list", "template", ...OUTBOUND_MEDIA_TYPES,
   "sticker", "location", "location_request", "cta_url",
+  "product", "product_list", "catalog", "flow",
 ] as const;
+
+const retailerId = z.string().trim().min(1).max(100);
+const catalogIdField = z.string().trim().regex(/^\d{5,30}$/, "catalogId es el id numérico del catálogo de Meta").optional();
 
 export const apiSendMessageSchema = z
   .object({
@@ -132,6 +136,36 @@ export const apiSendMessageSchema = z
     caption: z.string().trim().min(1).max(1024, "caption admite máximo 1024 caracteres").optional(),
     // Id de Colibly del mensaje a citar (WhatsApp).
     replyTo: z.string().min(1).max(64).optional(),
+    // Catálogo de Meta (WhatsApp). Sin catalogId se usa el único conectado a la cuenta.
+    product: z.object({ id: retailerId, catalogId: catalogIdField }).strict().optional(),
+    productList: z
+      .object({
+        header: z.string().trim().min(1).max(60, "productList.header admite máximo 60 caracteres"),
+        sections: z
+          .array(z.object({ title: z.string().trim().min(1).max(24, "El título de una sección admite máximo 24 caracteres"), productIds: z.array(retailerId).min(1) }).strict())
+          .min(1)
+          .max(10, "Meta admite hasta 10 secciones"),
+        catalogId: catalogIdField,
+      })
+      .strict()
+      .refine((l) => l.sections.reduce((n, s) => n + s.productIds.length, 0) <= 30, "Meta admite hasta 30 productos por lista")
+      .optional(),
+    catalog: z.object({ thumbnailProductId: retailerId.optional() }).strict().optional(),
+    // WhatsApp Flow (GET /accounts/{id}/flows). Sin token, Colibly genera uno.
+    flow: z
+      .object({
+        id: z.string().trim().regex(/^\d{5,30}$/, "flow.id es el id numérico del Flow de Meta"),
+        cta: z.string().trim().min(1).max(20, "flow.cta admite máximo 20 caracteres"),
+        header: z.string().trim().min(1).max(60, "flow.header admite máximo 60 caracteres").optional(),
+        screen: z.string().trim().min(1).max(100).optional(),
+        data: z.record(z.string(), z.unknown()).optional(),
+        token: z.string().trim().min(1).max(200).optional(),
+        draft: z.boolean().optional(),
+      })
+      .strict()
+      .refine((f) => !f.data || !!f.screen, { message: "flow.data necesita flow.screen", path: ["data"] })
+      .optional(),
+    footer: z.string().trim().min(1).max(60, "footer admite máximo 60 caracteres").optional(),
   })
   .refine((d) => [!!d.conversationId, !!d.contactId, !!(d.accountId || d.to)].filter(Boolean).length === 1, "Envía conversationId, contactId o accountId + to (solo uno)")
   .refine((d) => !(d.accountId || d.to) || (!!d.accountId && !!d.to), { message: "accountId y to van juntos", path: ["to"] })
@@ -151,7 +185,16 @@ export const apiSendMessageSchema = z
   .refine((d) => d.type !== "audio" || !d.caption, { message: "Un audio no lleva caption", path: ["caption"] })
   .refine((d) => !d.list || d.type === "list", { message: "list solo va con type list", path: ["list"] })
   .refine((d) => !d.cta || d.type === "cta_url", { message: "cta solo va con type cta_url", path: ["cta"] })
-  .refine((d) => !d.location || d.type === "location", { message: "location solo va con type location", path: ["location"] });
+  .refine((d) => !d.location || d.type === "location", { message: "location solo va con type location", path: ["location"] })
+  .refine((d) => d.type !== "product" || !!d.product, { message: "product es requerido", path: ["product"] })
+  .refine((d) => d.type !== "product_list" || (!!d.text && !!d.productList), { message: "text y productList son requeridos", path: ["productList"] })
+  .refine((d) => d.type !== "catalog" || !!d.text, { message: "text es requerido", path: ["text"] })
+  .refine((d) => !d.product || d.type === "product", { message: "product solo va con type product", path: ["product"] })
+  .refine((d) => !d.productList || d.type === "product_list", { message: "productList solo va con type product_list", path: ["productList"] })
+  .refine((d) => !d.catalog || d.type === "catalog", { message: "catalog solo va con type catalog", path: ["catalog"] })
+  .refine((d) => d.type !== "flow" || (!!d.text && !!d.flow), { message: "text y flow son requeridos", path: ["flow"] })
+  .refine((d) => !d.flow || d.type === "flow", { message: "flow solo va con type flow", path: ["flow"] })
+  .refine((d) => !d.footer || ["product", "product_list", "catalog", "flow"].includes(d.type), { message: "footer solo va con product, product_list, catalog o flow", path: ["footer"] });
 
 function isMediaType(t: string): t is (typeof OUTBOUND_MEDIA_TYPES)[number] {
   return (OUTBOUND_MEDIA_TYPES as readonly string[]).includes(t);
@@ -263,11 +306,23 @@ export const apiConversationalAutomationSchema = z
       )
       .max(30, "Meta admite hasta 30 comandos")
       .optional(),
+    // Saludo a quien abre el chat por primera vez (lib/whatsapp/welcome.ts).
+    // text: undefined conserva el actual, null lo borra.
+    welcomeMessage: z
+      .object({ enabled: z.boolean(), text: z.string().trim().max(1024, "welcomeMessage.text admite máximo 1024 caracteres").nullable().optional() })
+      .strict()
+      .optional(),
   })
   .strict()
-  .refine((d) => d.prompts !== undefined || d.commands !== undefined, "Envía prompts, commands o ambos");
+  .refine((d) => d.prompts !== undefined || d.commands !== undefined || d.welcomeMessage !== undefined, "Envía prompts, commands, welcomeMessage o varios");
 
 // POST /accounts/{id}/qr-codes y PATCH …/{code}.
 const prefilledMessage = z.string().trim().min(1, "prefilledMessage es requerido").max(140, "El mensaje prellenado admite máximo 140 caracteres");
 export const apiQrCreateSchema = z.object({ prefilledMessage, format: z.enum(["PNG", "SVG"]).optional() }).strict();
 export const apiQrUpdateSchema = z.object({ prefilledMessage }).strict();
+
+// PATCH /accounts/{id}/catalog — ajustes de comercio del número.
+export const apiCommerceSettingsSchema = z
+  .object({ cartEnabled: z.boolean().optional(), catalogVisible: z.boolean().optional() })
+  .strict()
+  .refine((d) => d.cartEnabled !== undefined || d.catalogVisible !== undefined, "Envía cartEnabled, catalogVisible o ambos");

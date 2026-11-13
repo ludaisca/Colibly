@@ -15,6 +15,8 @@ import { markWaiting } from "@/lib/chats/waiting";
 import { queueAwayMessage } from "@/lib/inbox/away-message";
 import type { StructuredContent } from "@/lib/whatsapp/message-content";
 import { publicText } from "@/lib/messages/serialize";
+import { queueWelcomeMessage, WELCOME_BODY, WELCOME_TYPE } from "@/lib/whatsapp/welcome";
+import { orderTotal } from "@/lib/whatsapp/order";
 
 // Objeto `referral` que Meta agrega a msg cuando el chat se originó en un
 // anuncio click-to-WhatsApp. ctwa_clid es el único campo que se reenvía a la
@@ -81,8 +83,13 @@ export interface IngestResult {
 // de bots para que cualquier canal futuro se comporte idéntico.
 export async function ingestInboundMessage(
   accountId: string,
-  msg: NormalizedInboundMessage
+  inbound: NormalizedInboundMessage
 ): Promise<IngestResult | null> {
+  // `request_welcome`: el cliente abrió el chat por primera vez sin escribir
+  // (lib/whatsapp/welcome.ts). Se guarda como aviso con un texto legible y lo
+  // contesta el saludo de la cuenta, no el bot ni las automatizaciones.
+  const isWelcome = inbound.type === WELCOME_TYPE;
+  const msg: NormalizedInboundMessage = isWelcome ? { ...inbound, body: WELCOME_BODY, notice: true } : inbound;
   if (msg.wamid) {
     const existing = await prisma.wAMessage.findFirst({
       where: { wamid: msg.wamid },
@@ -214,7 +221,8 @@ export async function ingestInboundMessage(
 
   // El cliente espera respuesta desde este mensaje (si ya esperaba, se
   // conserva la marca más antigua). Ver lib/chats/waiting.ts.
-  await markWaiting("whatsapp", chat.id, msg.timestamp);
+  // El saludo no es una pregunta del cliente: no lo pone a esperar respuesta.
+  if (!isWelcome) await markWaiting("whatsapp", chat.id, msg.timestamp);
 
   // Media entrante de Meta llega solo como mediaId — los bytes se descargan async.
   if (msg.mediaId && !msg.localMediaPath && msg.type !== "text") {
@@ -248,14 +256,26 @@ export async function ingestInboundMessage(
       await emitDomainEvent({ type: "lead.ad_captured", ...refs, data: { origin: "CTWA", adId: contactRecord.adId } }, msg.timestamp);
     }
   }
-  await emitDomainEvent(
-    {
-      type: "message.received",
-      ...refs,
-      data: { messageId: createdMessage.id, messageType: msg.type, text: publicText(msg.body, msg.type), interactiveReplyId: msg.interactiveReplyId ?? null },
-    },
-    msg.timestamp
-  );
+  if (msg.content?.flowResponse) {
+    const flow = msg.content.flowResponse;
+    await emitDomainEvent({ type: "flow.completed", ...refs, data: { messageId: createdMessage.id, flowToken: flow.flowToken, response: flow.data } }, msg.timestamp);
+  }
+  if (msg.type === "order" && msg.content?.order) {
+    const order = msg.content.order;
+    await emitDomainEvent({ type: "order.received", ...refs, data: { messageId: createdMessage.id, catalogId: order.catalogId, text: order.text, items: order.items, ...orderTotal(order) } }, msg.timestamp);
+  }
+  if (isWelcome) {
+    await emitDomainEvent({ type: "conversation.welcome_requested", ...refs, data: { messageId: createdMessage.id } }, msg.timestamp);
+  } else {
+    await emitDomainEvent(
+      {
+        type: "message.received",
+        ...refs,
+        data: { messageId: createdMessage.id, messageType: msg.type, text: publicText(msg.body, msg.type), interactiveReplyId: msg.interactiveReplyId ?? null },
+      },
+      msg.timestamp
+    );
+  }
   if (autoAssigned && assignedToId) {
     await emitDomainEvent({ type: "conversation.assigned", ...refs, data: { assignedToId, auto: true } });
   }
@@ -285,6 +305,10 @@ export async function ingestInboundMessage(
   // Automatizaciones antes que el bot: una que esté esperando respuesta en
   // este chat, o que arranque con este mensaje, lo toma y el bot calla. Un
   // fallo del motor nunca debe dejar al lead sin respuesta del bot.
+  if (isWelcome) {
+    await queueWelcomeMessage(chat.id);
+    return { messageId: createdMessage.id, chatId: chat.id };
+  }
   if (msg.notice) return { messageId: createdMessage.id, chatId: chat.id };
 
   const { suppressBot } = await dispatchInboundMessage({

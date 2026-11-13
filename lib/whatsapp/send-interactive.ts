@@ -91,6 +91,98 @@ export async function sendInteractiveLocationRequest(
   }, params.replyToWamid);
 }
 
+// ── Catálogo (productos de Commerce Manager conectados a la WABA) ──────────
+
+export interface ProductSection {
+  title: string;
+  productIds: string[]; // product_retailer_id (el "ID de contenido" del catálogo)
+}
+
+export type CatalogInteractive =
+  | { kind: "product"; catalogId: string; productId: string; body?: string; footer?: string }
+  | { kind: "product_list"; catalogId: string; header: string; body: string; footer?: string; sections: ProductSection[] }
+  | { kind: "catalog"; body: string; footer?: string; thumbnailProductId?: string };
+
+/** Objeto `interactive` de Meta para un producto, una lista de productos o el catálogo. Pura. */
+export function catalogInteractive(c: CatalogInteractive): Record<string, unknown> {
+  const footer = c.footer ? { footer: { text: c.footer } } : {};
+  if (c.kind === "product") {
+    return {
+      type: "product",
+      ...(c.body ? { body: { text: c.body } } : {}),
+      ...footer,
+      action: { catalog_id: c.catalogId, product_retailer_id: c.productId },
+    };
+  }
+  if (c.kind === "product_list") {
+    return {
+      type: "product_list",
+      header: { type: "text", text: c.header },
+      body: { text: c.body },
+      ...footer,
+      action: {
+        catalog_id: c.catalogId,
+        sections: c.sections.map((s) => ({ title: s.title, product_items: s.productIds.map((id) => ({ product_retailer_id: id })) })),
+      },
+    };
+  }
+  return {
+    type: "catalog_message",
+    body: { text: c.body },
+    ...footer,
+    action: { name: "catalog_message", ...(c.thumbnailProductId ? { parameters: { thumbnail_product_retailer_id: c.thumbnailProductId } } : {}) },
+  };
+}
+
+// ── WhatsApp Flows ─────────────────────────────────────────────────────────
+
+export interface FlowInteractive {
+  flowId: string;
+  cta: string; // texto del botón (máx. 20)
+  body: string;
+  header?: string;
+  footer?: string;
+  flowToken: string;
+  /** Primera pantalla. Sin ella el Flow arranca pidiendo datos a su endpoint (data_exchange). */
+  screen?: string;
+  data?: Record<string, unknown>;
+  /** Un Flow en borrador (para probarlo antes de publicarlo). */
+  draft?: boolean;
+}
+
+/** Objeto `interactive` de Meta para abrir un Flow. Pura. */
+export function flowInteractive(f: FlowInteractive): Record<string, unknown> {
+  return {
+    type: "flow",
+    ...(f.header ? { header: { type: "text", text: f.header } } : {}),
+    body: { text: f.body },
+    ...(f.footer ? { footer: { text: f.footer } } : {}),
+    action: {
+      name: "flow",
+      parameters: {
+        flow_message_version: "3",
+        flow_token: f.flowToken,
+        flow_id: f.flowId,
+        flow_cta: f.cta,
+        ...(f.draft ? { mode: "draft" } : {}),
+        ...(f.screen
+          ? { flow_action: "navigate", flow_action_payload: { screen: f.screen, ...(f.data && Object.keys(f.data).length ? { data: f.data } : {}) } }
+          : { flow_action: "data_exchange" }),
+      },
+    },
+  };
+}
+
+export async function sendInteractiveFlow(account: WAAccount, params: { to: string; flow: FlowInteractive; replyToWamid?: string }): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
+  return postInteractive(account, params.to, flowInteractive(params.flow), params.replyToWamid);
+}
+
+export async function sendInteractiveCatalog(account: WAAccount, params: { to: string; message: CatalogInteractive; replyToWamid?: string }): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
+  return postInteractive(account, params.to, catalogInteractive(params.message), params.replyToWamid);
+}
+
 async function postInteractive(account: WAAccount, to: string, interactive: Record<string, unknown>, replyToWamid?: string): Promise<{ wamid: string | null }> {
   if (!account.accessToken || !account.phoneNumberId) {
     throw new Error("La cuenta de WhatsApp no tiene accessToken/phoneNumberId configurados");

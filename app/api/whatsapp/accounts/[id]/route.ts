@@ -11,6 +11,8 @@ import { accountManageWhere } from "@/lib/tenancy";
 import { getUserAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
 import { whatsappWebhookUrl } from "@/lib/whatsapp/webhook-url";
 import { refreshPhoneHealth } from "@/lib/whatsapp/phone-health";
+import { configureWelcomeMessage, WELCOME_TEXT_MAX, WelcomeConfigError } from "@/lib/whatsapp/welcome";
+import { MetaAdminError } from "@/lib/whatsapp/account-admin";
 
 export async function GET(
   req: Request,
@@ -47,6 +49,8 @@ export async function GET(
         autoAssignEnabled: true,
         autoAssignOnlineOnly: true,
         csatEnabled: true,
+        welcomeMessageEnabled: true,
+        welcomeMessageText: true,
         qualityRating: true,
         messagingTier: true,
         qualityUpdatedAt: true,
@@ -159,6 +163,24 @@ export async function PATCH(
       data.csatEnabled = body.csatEnabled;
     }
 
+    // Mensaje de bienvenida: se activa también en Meta (lib/whatsapp/welcome.ts).
+    const welcome = body?.welcomeMessage as { enabled?: unknown; text?: unknown } | undefined;
+    if (welcome !== undefined) {
+      if (typeof welcome?.enabled !== "boolean" || (welcome.text !== undefined && welcome.text !== null && typeof welcome.text !== "string")) {
+        return NextResponse.json({ error: "welcomeMessage necesita enabled (sí/no) y un texto opcional" }, { status: 400 });
+      }
+      if (typeof welcome.text === "string" && welcome.text.trim().length > WELCOME_TEXT_MAX) {
+        return NextResponse.json({ error: `El mensaje de bienvenida admite máximo ${WELCOME_TEXT_MAX} caracteres` }, { status: 400 });
+      }
+      try {
+        await configureWelcomeMessage(existing, { enabled: welcome.enabled, text: welcome.text as string | null | undefined });
+      } catch (err) {
+        if (err instanceof WelcomeConfigError) return NextResponse.json({ error: err.message }, { status: 400 });
+        if (err instanceof MetaAdminError) return NextResponse.json({ error: `Meta: ${err.message}` }, { status: 502 });
+        throw err;
+      }
+    }
+
     if (accessToken) {
       if (existing.channel !== "META_CLOUD" || !existing.phoneNumberId) {
         return NextResponse.json(
@@ -195,6 +217,8 @@ export async function PATCH(
         autoAssignEnabled: true,
         autoAssignOnlineOnly: true,
         csatEnabled: true,
+        welcomeMessageEnabled: true,
+        welcomeMessageText: true,
         appSecret: true,
         connectionType: true,
         createdAt: true,

@@ -1,7 +1,8 @@
 import type { ChannelAccount, Conversation, Prisma, WAAccount, WAChat } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
-import { sendInteractiveCtaUrl, sendInteractiveList, sendInteractiveLocationRequest, sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
+import { sendInteractiveFlow, sendInteractiveCatalog, sendInteractiveCtaUrl, sendInteractiveList, sendInteractiveLocationRequest, sendInteractiveMessage, type CatalogInteractive, type ProductSection } from "@/lib/whatsapp/send-interactive";
+import { MetaAdminError, resolveCatalogId } from "@/lib/whatsapp/account-admin";
 import { getMessageBody, structuredContentOf } from "@/lib/whatsapp/message-content";
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { MetaSendError } from "@/lib/whatsapp/send-errors";
@@ -48,10 +49,16 @@ export type OutboundContent =
   | { type: "location"; latitude: number; longitude: number; name?: string | null; address?: string | null }
   | { type: "location_request"; text: string }
   // WebP de 512×512 ya validado (fetchOutboundSticker).
-  | { type: "sticker"; file: OutboundMediaFile };
+  | { type: "sticker"; file: OutboundMediaFile }
+  // Catálogo de Meta: sin catalogId se usa el único conectado a la WABA.
+  | { type: "product"; productId: string; text?: string | null; footer?: string | null; catalogId?: string | null }
+  | { type: "product_list"; header: string; text: string; footer?: string | null; sections: ProductSection[]; catalogId?: string | null }
+  | { type: "catalog"; text: string; footer?: string | null; thumbnailProductId?: string | null }
+  // WhatsApp Flow publicado (o en borrador con draft).
+  | { type: "flow"; flowId: string; cta: string; text: string; header?: string | null; footer?: string | null; flowToken: string; screen?: string | null; data?: Record<string, unknown> | null; draft?: boolean };
 
 /** Tipos que solo existen en WhatsApp; los demás canales responden invalid_request. */
-const WHATSAPP_ONLY = new Set<OutboundContent["type"]>(["template", "cta_url", "location", "location_request", "sticker"]);
+const WHATSAPP_ONLY = new Set<OutboundContent["type"]>(["template", "cta_url", "location", "location_request", "sticker", "product", "product_list", "catalog", "flow"]);
 
 // Columnas de medio del mensaje guardado (WAMessage y ChannelMessage las comparten).
 interface StoredMediaColumns {
@@ -69,10 +76,15 @@ interface StoredMediaColumns {
 export interface InteractivePayload {
   /** `description`: solo filas de una lista que la traen. */
   buttons: { id: string; title: string; description?: string }[];
-  style?: "list" | "cta_url" | "location_request";
+  style?: "list" | "cta_url" | "location_request" | "product" | "product_list" | "catalog" | "flow";
   buttonLabel?: string;
   /** cta_url: a dónde lleva el botón. */
   url?: string;
+  /** product / product_list: catálogo de Meta; `buttons` son los productos (id = product_retailer_id). */
+  catalogId?: string;
+  /** flow: el Flow de Meta y el token con que vuelve la respuesta (flow.completed). */
+  flowId?: string;
+  flowToken?: string;
 }
 
 export function payloadFor(content: Extract<OutboundContent, { type: "buttons" | "list" }>): InteractivePayload {
@@ -229,6 +241,51 @@ async function sendWhatsapp(
       body = content.text;
       messageType = "interactive";
       interactivePayload = { buttons: [{ id: "cta_url", title: content.label }], style: "cta_url", url: content.url };
+    } else if (content.type === "product" || content.type === "product_list" || content.type === "catalog") {
+      const footer = content.footer ?? undefined;
+      let message: CatalogInteractive;
+      if (content.type === "catalog") {
+        message = { kind: "catalog", body: content.text, footer, thumbnailProductId: content.thumbnailProductId ?? undefined };
+        interactivePayload = { buttons: [{ id: "catalog", title: "Ver catálogo" }], style: "catalog" };
+        body = content.text;
+      } else {
+        const catalogId = await resolveCatalogId(chat.account, content.catalogId);
+        if (content.type === "product") {
+          message = { kind: "product", catalogId, productId: content.productId, body: content.text ?? undefined, footer };
+          interactivePayload = { buttons: [{ id: content.productId, title: content.productId }], style: "product", catalogId };
+          body = content.text || `🛍️ Producto ${content.productId}`;
+        } else {
+          message = { kind: "product_list", catalogId, header: content.header, body: content.text, footer, sections: content.sections };
+          interactivePayload = {
+            buttons: content.sections.flatMap((s) => s.productIds.map((id) => ({ id, title: id, description: s.title }))),
+            style: "product_list",
+            buttonLabel: content.header,
+            catalogId,
+          };
+          body = content.text;
+        }
+      }
+      ({ wamid } = await sendInteractiveCatalog(chat.account, { to: chat.remoteJid, message, replyToWamid }));
+      messageType = "interactive";
+    } else if (content.type === "flow") {
+      ({ wamid } = await sendInteractiveFlow(chat.account, {
+        to: chat.remoteJid,
+        flow: {
+          flowId: content.flowId,
+          cta: content.cta,
+          body: content.text,
+          header: content.header ?? undefined,
+          footer: content.footer ?? undefined,
+          flowToken: content.flowToken,
+          screen: content.screen ?? undefined,
+          data: content.data ?? undefined,
+          draft: content.draft,
+        },
+        replyToWamid,
+      }));
+      body = content.text;
+      messageType = "interactive";
+      interactivePayload = { buttons: [{ id: content.flowId, title: content.cta }], style: "flow", flowId: content.flowId, flowToken: content.flowToken };
     } else if (content.type === "location_request") {
       ({ wamid } = await sendInteractiveLocationRequest(chat.account, { to: chat.remoteJid, body: content.text, replyToWamid }));
       body = content.text;
@@ -269,6 +326,8 @@ async function sendWhatsapp(
     }
   } catch (err) {
     if (err instanceof OutboundError) throw err;
+    // Sin catálogo conectado (o con varios y sin catalogId): error del integrador.
+    if (err instanceof MetaAdminError && err.httpStatus === 422) throw new OutboundError("invalid_request", err.message);
     throw new OutboundError(
       "upstream_error",
       err instanceof Error ? err.message : String(err),

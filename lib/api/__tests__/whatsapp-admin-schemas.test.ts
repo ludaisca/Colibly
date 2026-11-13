@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { apiBlockUsersSchema, apiBusinessProfileSchema, apiConversationalAutomationSchema, apiQrCreateSchema, apiTemplateCreateSchema } from "@/lib/api/schemas";
+import { apiSendMessageSchema, apiBlockUsersSchema, apiBusinessProfileSchema, apiConversationalAutomationSchema, apiQrCreateSchema, apiTemplateCreateSchema } from "@/lib/api/schemas";
 
 describe("apiBusinessProfileSchema", () => {
   it("acepta un cambio parcial y \"\" para borrar", () => {
@@ -72,5 +72,23 @@ describe("apiQrCreateSchema", () => {
     expect(apiQrCreateSchema.safeParse({ prefilledMessage: "" }).success).toBe(false);
     expect(apiQrCreateSchema.safeParse({ prefilledMessage: "x".repeat(141) }).success).toBe(false);
     expect(apiQrCreateSchema.safeParse({ prefilledMessage: "Hola", format: "JPG" }).success).toBe(false);
+  });
+});
+
+describe("POST /messages con catálogo", () => {
+  const to = { conversationId: "c1" };
+  it("acepta producto, lista y catálogo con sus campos", () => {
+    expect(apiSendMessageSchema.safeParse({ ...to, type: "product", product: { id: "SKU-1" } }).success).toBe(true);
+    expect(apiSendMessageSchema.safeParse({ ...to, type: "product_list", text: "Hola", productList: { header: "Ofertas", sections: [{ title: "A", productIds: ["1"] }] } }).success).toBe(true);
+    expect(apiSendMessageSchema.safeParse({ ...to, type: "catalog", text: "Mira", footer: "Pie" }).success).toBe(true);
+  });
+
+  it("rechaza lo que Meta no acepta", () => {
+    expect(apiSendMessageSchema.safeParse({ ...to, type: "product" }).success).toBe(false);
+    expect(apiSendMessageSchema.safeParse({ ...to, type: "product_list", productList: { header: "x", sections: [{ title: "A", productIds: ["1"] }] } }).success).toBe(false);
+    const many = Array.from({ length: 31 }, (_, i) => String(i));
+    expect(apiSendMessageSchema.safeParse({ ...to, type: "product_list", text: "x", productList: { header: "x", sections: [{ title: "A", productIds: many }] } }).success).toBe(false);
+    expect(apiSendMessageSchema.safeParse({ ...to, type: "text", text: "x", footer: "pie" }).success).toBe(false);
+    expect(apiSendMessageSchema.safeParse({ ...to, type: "product", product: { id: "A", catalogId: "abc" } }).success).toBe(false);
   });
 });
