@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { validateWhatsAppWebhookSignature } from "@/lib/meta/platform-app";
 import { interpretStatusEvent, type TemplateCategoryEventValue, type TemplateStatusEventValue } from "./template-events";
 import { syncAccountTemplates } from "./template-sync";
+import { emitDomainEvent } from "@/lib/events/emit";
 
 // Campos de plantillas del webhook de WhatsApp. Se suscriben en la app de Meta
 // (la de la plataforma para Registro integrado/Coexistencia, la propia de cada
@@ -67,7 +68,23 @@ export async function applyTemplateStatusUpdate(accountId: string, ownerId: stri
     where: { id: template.id, status: template.status, statusReason: template.statusReason },
     data: { status: nextStatus, statusReason: change.reason, syncedAt: new Date() },
   });
-  if (claimed.count === 0 || !change.notify) return;
+  if (claimed.count === 0) return;
+  await emitDomainEvent({
+    type: "template.status_changed",
+    account: { kind: "whatsapp", id: accountId },
+    contactId: null,
+    chat: null,
+    data: {
+      templateId: template.id,
+      name: template.name,
+      language: template.language,
+      event: (value.event ?? "").toUpperCase(),
+      status: nextStatus,
+      previousStatus: template.status,
+      reason: change.reason,
+    },
+  });
+  if (!change.notify) return;
 
   await prisma.notification.create({
     data: {
@@ -88,5 +105,13 @@ export async function applyTemplateCategoryUpdate(accountId: string, value: Temp
   }
   const next = (value.new_category ?? "").toUpperCase();
   if (!next || next === template.category) return;
-  await prisma.wATemplate.updateMany({ where: { id: template.id, category: template.category }, data: { category: next, syncedAt: new Date() } });
+  const claimed = await prisma.wATemplate.updateMany({ where: { id: template.id, category: template.category }, data: { category: next, syncedAt: new Date() } });
+  if (claimed.count === 0) return;
+  await emitDomainEvent({
+    type: "template.category_changed",
+    account: { kind: "whatsapp", id: accountId },
+    contactId: null,
+    chat: null,
+    data: { templateId: template.id, name: template.name, language: template.language, category: next, previousCategory: template.category },
+  });
 }

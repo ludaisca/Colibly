@@ -13,6 +13,8 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/crypto", () => ({ decrypt: (s: string) => `dec:${s}` }));
+const emitDomainEvent = vi.fn(async (..._a: unknown[]) => {});
+vi.mock("@/lib/events/emit", () => ({ emitDomainEvent: (...a: unknown[]) => emitDomainEvent(...a) }));
 const rateLimit = vi.fn();
 vi.mock("@/lib/rate-limit", () => ({ rateLimit: (...a: unknown[]) => rateLimit(...a) }));
 
@@ -57,10 +59,31 @@ describe("syncAccountTemplates", () => {
 
   it("marca como DELETED (sin borrar) las que Meta ya no devuelve y desactiva sus fuentes", async () => {
     globalThis.fetch = (async () => metaPage([{ id: "1", name: "a", language: "es", category: "UTILITY", status: "APPROVED", components: [] }])) as unknown as typeof fetch;
-    findMany.mockResolvedValueOnce([{ id: "old1" }]).mockResolvedValue([]);
+    // 1.ª lectura: estado previo; 2.ª: las que Meta ya no devuelve.
+    findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: "old1" }]).mockResolvedValue([]);
     await syncAccountTemplates(account);
     expect(updateMany.mock.calls[0][0]).toMatchObject({ where: { id: { in: ["old1"] } }, data: { status: "DELETED" } });
     expect(leadUpdateMany.mock.calls[0][0]).toMatchObject({ where: { waTemplateId: { in: ["old1"] } }, data: { enabled: false } });
+  });
+
+  it("avisa template.status_changed cuando el estado cambió sin webhook, no en la primera vez", async () => {
+    globalThis.fetch = (async () => metaPage([
+      { id: "1", name: "a", language: "es", category: "UTILITY", status: "APPROVED", components: [] },
+      { id: "2", name: "b", language: "es", category: "UTILITY", status: "PENDING", components: [] },
+      { id: "3", name: "c", language: "es", category: "UTILITY", status: "REJECTED", components: [], rejected_reason: "INVALID_FORMAT" },
+    ])) as unknown as typeof fetch;
+    findMany.mockResolvedValueOnce([
+      { id: "t1", templateId: "1", status: "PENDING" },
+      { id: "t2", templateId: "2", status: "PENDING" },
+    ]).mockResolvedValue([]);
+    await syncAccountTemplates(account);
+    expect(emitDomainEvent).toHaveBeenCalledTimes(1);
+    expect(emitDomainEvent.mock.calls[0][0]).toMatchObject({
+      type: "template.status_changed",
+      account: { kind: "whatsapp", id: "acc1" },
+      contactId: null,
+      data: { templateId: "t1", status: "APPROVED", previousStatus: "PENDING" },
+    });
   });
 
   it("un error de Meta se reporta como upstream con su mensaje", async () => {

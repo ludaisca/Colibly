@@ -4,6 +4,7 @@ import { WEBHOOK_ROTATION_MAX_GRACE_HOURS } from "@/lib/webhooks/crud";
 import { OUTBOUND_ORIGINS } from "@/lib/messages/origin";
 import { DOMAIN_EVENT_CATALOG, type DomainEventType } from "@/lib/events/types";
 import { BRAND_NAME } from "@/lib/brand";
+import { API_SEND_TYPES } from "@/lib/api/schemas";
 import {
   API_BAD_KEY_ATTEMPTS_PER_MINUTE,
   API_CONVERSATIONS_LIST_PER_MINUTE,
@@ -40,13 +41,38 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.5.0";
+export const API_VERSION = "1.7.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.5.0",
+    version: "1.7.0",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-13",
+    changes: [
+      "Permiso nuevo `whatsapp:manage` para administrar la cuenta en Meta. Las keys existentes no lo tienen: se agrega editando la key en Configuración → API.",
+      "GET /accounts/{id}: la cuenta con `health` (calidad del número, límite de envío, estado del nombre, si puede enviar y avisos de Meta).",
+      "GET y PATCH /accounts/{id}/profile: el perfil de empresa de WhatsApp (descripción, dirección, correo, sitios, categoría y foto por URL).",
+      "GET y POST /accounts/{id}/blocked-users, DELETE /accounts/{id}/blocked-users/{phone}: la lista de bloqueo del número.",
+      "POST /templates (crear en Meta, con el ejemplo de cabecera multimedia por URL), GET /templates/{id} (con `components` de Meta) y DELETE /templates/{id}.",
+      "Eventos nuevos sin contacto ni conversación: `template.status_changed`, `template.category_changed` y `account.quality_changed`.",
+    ],
+  },
+  {
+    version: "1.6.0",
+    schemaVersion: "2026-11-13",
+    date: "2026-11-13",
+    changes: [
+      "POST /messages acepta `accountId` + `to` (teléfono con código de país) como destino en WhatsApp, sin crear antes el contacto: si no existe se crea al enviar una plantilla (fuera de la ventana de 24 h solo sale una plantilla).",
+      "Tipos nuevos en POST /messages: `list` (hasta 10 opciones, todos los canales con botones), y solo en WhatsApp `sticker` (WebP 512×512 por `media.url`), `location`, `location_request` (botón \"Enviar ubicación\") y `cta_url` (botón que abre una URL).",
+      "`replyTo` en POST /messages cita un mensaje de la misma conversación (WhatsApp). El mensaje enviado trae `replyTo` como cualquier respuesta citada.",
+      "Los mensajes salientes `cta_url` y `location_request` llegan con `type: \"interactive\"` e `interactive.style` = `cta_url` (con `interactive.url`) o `location_request`. Una `location` saliente trae `content.location` igual que una entrante.",
+      "Nuevo: POST /messages/{id}/reaction (reaccionar o quitar la reacción, WhatsApp) y POST /conversations/{id}/read (marcar como leída; en WhatsApp también para el cliente y, con `typing: true`, mostrar \"escribiendo…\").",
+    ],
+  },
+  {
+    version: "1.5.0",
+    schemaVersion: "2026-11-06.2",
     date: "2026-11-06",
     changes: [
       "Archivos que Meta no entrega: cuando un cliente manda un archivo de más de 100 MB, WhatsApp no lo pasa a la API. Antes no quedaba rastro; ahora hay un mensaje entrante con `type: \"media_too_large\"`, `text` con el aviso en español y `content: {kind, maxMb, sizeMb, onPhone}` (`onPhone: true` = se puede ver en la app de WhatsApp Business del teléfono conectado). También llega como `message.received`. No trae `media`. Quien filtre por `type` debe tolerar este valor nuevo.",
@@ -260,6 +286,16 @@ const EX = {
     bodyText: "Hola {{1}}, tu pedido {{2}} va en camino.",
     syncedAt: "2026-10-18T12:00:00.000Z",
   },
+  profile: {
+    accountId: "cmacc_wa_01",
+    about: "Respondemos de 9 a 19 h",
+    address: "Av. Reforma 100, CDMX",
+    description: "Muebles a la medida con envío a todo México",
+    email: "ventas@ejemplo.mx",
+    websites: ["https://ejemplo.mx"],
+    vertical: "RETAIL",
+    profilePictureUrl: "https://pps.whatsapp.net/v/t61/ejemplo.jpg",
+  },
   tag: { id: "cmtag_01", accountId: "cmacc_wa_01", name: "Mayoreo", color: "accent", createdAt: "2026-10-01T16:20:00.000Z" },
   user: { id: "cmusr_02", name: "Carlos Ventas", email: "carlos@ejemplo.mx", role: "user", active: true },
   team: { id: "cmteam_01", name: "Ventas", memberIds: ["cmusr_02"], createdAt: "2026-11-05T15:00:00.000Z" },
@@ -365,6 +401,29 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
     data: obj({ origin: { type: "string", enum: ["INSTANT_FORM", "CTWA"] }, adId: strNull }),
     example: { origin: "CTWA", adId: "120210000000000000" },
   },
+  "template.status_changed": {
+    data: obj({
+      templateId: { ...str, description: "id de GET /templates/{id}" },
+      name: str,
+      language: str,
+      event: { ...str, description: "El suceso de Meta: APPROVED, REJECTED, PAUSED, DISABLED, FLAGGED (en riesgo, sigue activa), REINSTATED, IN_APPEAL…" },
+      status: { ...str, description: "Estado de la plantilla después del evento" },
+      previousStatus: str,
+      reason: { ...strNull, description: "Motivo en español (rechazo, pausa o aviso de calidad)" },
+    }),
+    example: { templateId: "cmtpl_01", name: "confirmacion_pedido", language: "es_MX", event: "APPROVED", status: "APPROVED", previousStatus: "PENDING", reason: null },
+  },
+  "template.category_changed": {
+    data: obj({ templateId: str, name: str, language: str, category: { ...str, description: "MARKETING, UTILITY o AUTHENTICATION" }, previousCategory: str }),
+    example: { templateId: "cmtpl_01", name: "confirmacion_pedido", language: "es_MX", category: "MARKETING", previousCategory: "UTILITY" },
+  },
+  "account.quality_changed": {
+    data: obj({
+      event: { ...strNull, description: "El suceso de Meta: FLAGGED, UNFLAGGED, UPGRADE, DOWNGRADE, ONBOARDING…" },
+      messagingTier: { ...strNull, description: "Límite de envío vigente si Meta lo informa (TIER_250, TIER_1K…). La calidad actual: GET /accounts/{id}" },
+    }),
+    example: { event: "UPGRADE", messagingTier: "TIER_10K" },
+  },
 };
 
 export const WEBHOOK_EVENT_DOCS: EventDoc[] = [
@@ -383,15 +442,17 @@ export const WEBHOOK_EVENT_DOCS: EventDoc[] = [
 
 export function exampleEvent(type: string, data: Record<string, unknown>) {
   const test = type === "webhook.test";
+  // Eventos de la cuenta: sin contacto ni conversación.
+  const accountOnly = type.startsWith("template.") || type.startsWith("account.");
   return {
     id: "7d1f2c9e-3b4a-4f0e-9a51-0c2b8e6d4f10",
     type,
     occurredAt: "2026-10-18T19:02:11.000Z",
     account: test ? null : { id: EX.account.id, channel: "WHATSAPP", name: EX.account.name, phoneNumber: EX.account.phoneNumber, phoneE164: EX.account.phoneE164 },
-    contact: test
+    contact: test || accountOnly
       ? null
       : { id: EX.contact.id, name: EX.contact.name, realName: null, tags: EX.contact.tags, phone: EX.contact.phone, phoneE164: EX.contact.phoneE164, externalId: null, leadStatus: EX.contact.leadStatus, leadOrigin: "ORGANIC" },
-    conversation: test || type === "contact.created" ? null : { id: EX.conversation.id, channel: "WHATSAPP", status: "OPEN", assignedToId: "cmusr_02" },
+    conversation: test || accountOnly || type === "contact.created" ? null : { id: EX.conversation.id, channel: "WHATSAPP", status: "OPEN", assignedToId: "cmusr_02" },
     data,
     ...(type.startsWith("message.") ? { message: EX.message } : {}),
   };
@@ -485,6 +546,7 @@ export function buildOpenApiSpec(serverUrl: string) {
       { name: "Automatizaciones" },
       { name: "Catálogos", description: "Ids que piden los demás endpoints: plantillas, etiquetas, personas y automatizaciones" },
       { name: "Webhooks", description: "Administración de webhooks salientes por API" },
+      { name: "WhatsApp", description: "Administración de la cuenta en Meta: estado del número, perfil de empresa, bloqueos y plantillas" },
     ],
     paths: {
       "/me": {
@@ -509,6 +571,82 @@ export function buildOpenApiSpec(serverUrl: string) {
           summary: "Cuentas al alcance de la key",
           description: "WhatsApp y demás canales que la key puede usar. Sin permiso especial.",
           responses: { "200": ok({ type: "object", properties: { data: { type: "array", items: ref("Account") } } }, { data: [EX.account] }), ...errors },
+        },
+      },
+      "/accounts/{id}": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Cuenta y estado del número",
+          description:
+            "Sin permiso especial. En WhatsApp trae `health`: calidad del número (`qualityRating`), límite de envío (`messagingTier`), estado del nombre para mostrar, si puede enviar (`canSendMessage`) y los avisos de Meta en español. " +
+            "Se vuelve a leer de Meta como mucho cada 10 minutos (`health.checkedAt`). Otros canales: `health: null`.",
+          parameters: [idParam],
+          responses: {
+            "200": ok(ref("AccountDetail"), {
+              ...EX.account, wabaId: "102290129340398", phoneNumberId: "106540352242922", coexistence: false,
+              health: { qualityRating: "GREEN", lastQualityEvent: "UPGRADE", messagingTier: "TIER_10K", nameStatus: "APPROVED", canSendMessage: "AVAILABLE", notices: [], checkedAt: "2026-11-13T17:00:00.000Z" },
+              createdAt: "2026-10-01T16:00:00.000Z",
+            }),
+            ...errors,
+          },
+        },
+      },
+      "/accounts/{id}/profile": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Perfil de empresa",
+          description: "Sin permiso especial. El perfil que ven los clientes en WhatsApp, leído de Meta al momento. 422 si la cuenta no está conectada a WhatsApp Cloud API.",
+          parameters: [idParam],
+          responses: { "200": ok(ref("BusinessProfile"), EX.profile), "502": err("UpstreamError"), ...errors },
+        },
+        patch: {
+          tags: ["WhatsApp"],
+          summary: "Editar el perfil de empresa",
+          description:
+            `${scopeNote("whatsapp:manage")} Solo cambia los campos enviados; \`""\` borra uno (salvo \`about\`). \`profilePictureUrl\`: JPG o PNG de hasta 5 MB por https; Colibly lo sube a Meta (la cuenta necesita App ID). ` +
+            "Responde el perfil ya actualizado; la foto nueva puede tardar unos segundos en aparecer en `profilePictureUrl`. Límite: 30 cambios por minuto por organización entre perfil, bloqueos y plantillas.",
+          parameters: [idParam],
+          requestBody: { required: true, content: json(ref("BusinessProfileUpdate"), { about: "Respondemos de 9 a 19 h", websites: ["https://ejemplo.mx"] }) },
+          responses: { "200": ok(ref("BusinessProfile"), EX.profile), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/blocked-users": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Usuarios bloqueados",
+          description: `${scopeNote("whatsapp:manage")} La lista de bloqueo del número, leída de Meta. \`nextCursor\` es el de Meta: pásalo en \`cursor\`.`,
+          parameters: [idParam, ...pageParams],
+          responses: {
+            "200": ok({ type: "object", properties: { data: { type: "array", items: obj({ phone: str }) }, nextCursor: strNull } }, { data: [{ phone: "5215512345678" }], nextCursor: null }),
+            "502": err("UpstreamError"),
+            ...errors,
+          },
+        },
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Bloquear usuarios",
+          description:
+            `${scopeNote("whatsapp:manage")} Un bloqueado no puede escribir al número ni recibir mensajes de él. Regla de Meta: solo a quien escribió en las últimas 24 h. ` +
+            "Hasta 100 teléfonos por llamada; responde 200 con el resultado de cada uno (`blocked` y `failed`).",
+          parameters: [idParam],
+          requestBody: { required: true, content: json({ type: "object", required: ["phones"], additionalProperties: false, properties: { phones: { type: "array", minItems: 1, maxItems: 100, items: str, description: "Con código de país" } } }, { phones: ["+5215512345678"] }) },
+          responses: {
+            "200": ok(
+              { type: "object", properties: { blocked: { type: "array", items: obj({ phone: str }) }, failed: { type: "array", items: obj({ phone: str, error: str }) } } },
+              { blocked: [{ phone: "5215512345678" }], failed: [] }
+            ),
+            "502": err("UpstreamError"),
+            ...writeErrors,
+          },
+        },
+      },
+      "/accounts/{id}/blocked-users/{phone}": {
+        delete: {
+          tags: ["WhatsApp"],
+          summary: "Desbloquear un usuario",
+          description: `${scopeNote("whatsapp:manage")}`,
+          parameters: [idParam, { name: "phone", in: "path", required: true, schema: str, description: "Con código de país" }],
+          responses: { "200": ok(obj({ phone: str, blocked: { type: "boolean" } }), { phone: "5215512345678", blocked: false }), "502": err("UpstreamError"), ...writeErrors },
         },
       },
       "/contacts": {
@@ -604,6 +742,26 @@ export function buildOpenApiSpec(serverUrl: string) {
           responses: { "200": ok(ref("Conversation"), { ...EX.conversation, status: "RESOLVED" }), ...writeErrors },
         },
       },
+      "/conversations/{id}/read": {
+        post: {
+          tags: ["Conversaciones"],
+          summary: "Marcar como leída (y mostrar \"escribiendo…\")",
+          description:
+            `${scopeNote("conversations:write")} Pone \`unreadCount\` en 0. En WhatsApp también marca como leído el último mensaje del cliente (palomitas azules; Meta marca los anteriores) y, con \`typing: true\`, ` +
+            "le muestra \"escribiendo…\" hasta 25 s o hasta tu respuesta: úsalo justo antes de una respuesta que tarda (p. ej. de una IA). En otros canales solo se marca en Colibly y `typing` se ignora. " +
+            "`readOnWhatsApp: false` si la conversación aún no tiene un mensaje del cliente con id de WhatsApp.",
+          parameters: [idParam],
+          requestBody: { required: false, content: json({ type: "object", additionalProperties: false, properties: { typing: { type: "boolean", description: "Mostrar \"escribiendo…\" (WhatsApp)" } } }, { typing: true }) },
+          responses: {
+            "200": ok(
+              { type: "object", properties: { conversationId: str, read: { type: "boolean" }, typing: { type: "boolean", description: "true si WhatsApp recibió el indicador" }, readOnWhatsApp: { type: "boolean" } } },
+              { conversationId: "cmchat_01", read: true, typing: true, readOnWhatsApp: true }
+            ),
+            "502": err("UpstreamError"),
+            ...writeErrors,
+          },
+        },
+      },
       "/conversations/{id}/messages": {
         get: {
           tags: ["Conversaciones"],
@@ -626,6 +784,22 @@ export function buildOpenApiSpec(serverUrl: string) {
           description: `${scopeNote("conversations:read")} Bytes del archivo (imagen, audio, video, sticker o documento), como descarga. Es la URL de \`message.media.url\`. 404 si el mensaje no tiene medio o aún se está bajando de Meta.`,
           parameters: [idParam],
           responses: { "200": { description: "El archivo (Content-Type real del medio)", headers: { ...rateHeaders, ...requestIdHeader }, content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } }, ...errors },
+        },
+      },
+      "/messages/{id}/reaction": {
+        post: {
+          tags: ["Mensajes"],
+          summary: "Reaccionar a un mensaje",
+          description:
+            `${scopeNote("messages:send")} Solo WhatsApp. Reacciona con un emoji a un mensaje entrante o saliente de los últimos 30 días; \`emoji: ""\` quita la reacción. ` +
+            "Una reacción nueva reemplaza a la anterior. Cuenta para el límite por minuto de envíos, no para el cupo diario. 409 si otra reacción a ese mensaje sigue en curso.",
+          parameters: [idParam, idempotencyParam],
+          requestBody: { required: true, content: json({ type: "object", required: ["emoji"], additionalProperties: false, properties: { emoji: { type: "string", description: "Un solo emoji, o \"\" para quitarla" } } }, { emoji: "👍" }) },
+          responses: {
+            "201": ok({ type: "object", properties: { messageId: str, emoji: str, status: { type: "string", description: "accepted = WhatsApp la recibió" } } }, { messageId: "cmmsg_01", emoji: "👍", status: "accepted" }, "Enviada"),
+            "502": err("UpstreamError"),
+            ...writeErrors,
+          },
         },
       },
       "/messages/{id}": {
@@ -658,8 +832,11 @@ export function buildOpenApiSpec(serverUrl: string) {
           tags: ["Mensajes"],
           summary: "Enviar mensaje",
           description:
-            `${scopeNote("messages:send")} Destino: \`conversationId\` o \`contactId\`. En WhatsApp, texto y botones solo dentro de la ventana de 24 h ` +
-            "(fuera de ella: 422 window_closed → usa una plantilla aprobada). Una plantilla a un contacto sin chat abre el chat. " +
+            `${scopeNote("messages:send")} Destino (uno): \`conversationId\`, \`contactId\` o \`accountId\` + \`to\` (WhatsApp: el teléfono con código de país; si el contacto no existe se crea, solo con una plantilla). ` +
+            "En WhatsApp todo salvo las plantillas va solo dentro de la ventana de 24 h (fuera de ella: 422 window_closed → usa una plantilla aprobada). Una plantilla a un contacto sin chat abre el chat. " +
+            "**Tipos:** `text`, `buttons` (hasta 3), `list` (hasta 10 opciones), `template`, archivos (abajo) y, solo en WhatsApp, `sticker` (WebP 512×512 por `media.url`), `location`, `location_request` (botón \"Enviar ubicación\"; la respuesta llega como mensaje entrante `location`) y `cta_url` (botón que abre una URL). " +
+            "La opción que elige el cliente en `buttons` o `list` llega en `message.received` con `interactive.reply.id`. " +
+            "**`replyTo`** (WhatsApp): id de un mensaje de la misma conversación para citarlo. " +
             "**Manda siempre `Idempotency-Key`**: si reintentas por un timeout, el mensaje no sale dos veces.\n\n" +
             "**Archivos** (`type` image, document, audio o video): pasa `media.url`, una URL https pública; Colibly la descarga y la manda por el canal. Tipos y tamaños admitidos (los de WhatsApp, para que el mismo envío sirva en todos los canales): " +
             OUTBOUND_MEDIA_TYPES.map((t) => `${t} hasta ${OUTBOUND_MEDIA_RULES[t].maxBytes / (1024 * 1024)} MB (${OUTBOUND_MEDIA_RULES[t].mimeTypes.map((m) => m.split("/")[1]).join(", ")})`).join("; ") +
@@ -678,6 +855,15 @@ export function buildOpenApiSpec(serverUrl: string) {
                     value: { conversationId: "cmchat_01", type: "document", media: { url: "https://erp.ejemplo.mx/facturas/A-1043.pdf", filename: "Factura A-1043.pdf" }, caption: "Tu factura" },
                   },
                   plantilla: { summary: "Plantilla", value: { contactId: "cmcon_01", type: "template", template: { id: "cmtpl_01", bodyParams: ["Ana", "A-1043"] } } },
+                  plantillaPorTelefono: { summary: "Plantilla a un teléfono", value: { accountId: "cmacc_01", to: "+5215512345678", type: "template", template: { id: "cmtpl_01", bodyParams: ["Ana", "A-1043"] } } },
+                  lista: {
+                    summary: "Lista",
+                    value: { conversationId: "cmchat_01", type: "list", text: "¿Qué sucursal te queda mejor?", list: { button: "Ver sucursales", rows: [{ id: "cdmx", title: "CDMX Centro", description: "Lun a sáb, 9 a 19 h" }, { id: "gdl", title: "Guadalajara" }] } },
+                  },
+                  botonUrl: { summary: "Botón con URL", value: { conversationId: "cmchat_01", type: "cta_url", text: "Tu pedido A-1043 va en camino.", cta: { label: "Rastrear", url: "https://tienda.ejemplo.mx/pedidos/A-1043" } } },
+                  ubicacion: { summary: "Ubicación", value: { conversationId: "cmchat_01", type: "location", location: { latitude: 19.4326, longitude: -99.1332, name: "Sucursal Centro", address: "Av. Juárez 10, CDMX" } } },
+                  pedirUbicacion: { summary: "Pedir ubicación", value: { conversationId: "cmchat_01", type: "location_request", text: "¿Nos compartes tu ubicación para calcular el envío?" } },
+                  citando: { summary: "Respuesta citando un mensaje", value: { conversationId: "cmchat_01", type: "text", text: "Sí, ese modelo tiene garantía de 1 año.", replyTo: "cmmsg_01" } },
                 },
               },
             },
@@ -723,6 +909,43 @@ export function buildOpenApiSpec(serverUrl: string) {
           ],
           "x-example-query": "status=APPROVED",
           responses: { "200": ok(list("Template"), { data: [EX.template] }), ...errors },
+        },
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Crear una plantilla",
+          description:
+            `${scopeNote("whatsapp:manage")} La manda a revisión de Meta y responde la plantilla en \`PENDING\`, con \`components\` en el formato de Meta. El resultado llega con el evento \`template.status_changed\` (o GET /templates/{id}). ` +
+            "Categorías MARKETING o UTILITY. Variables del cuerpo `{{1}}`, `{{2}}`… seguidas, con un ejemplo cada una en `bodyExamples`. Cabecera TEXT (60 caracteres, una variable `{{1}}` con `exampleText`) o IMAGE, VIDEO o DOCUMENT con `exampleUrl` (JPG/PNG, MP4 o PDF por https; la cuenta necesita App ID). " +
+            "Hasta 10 botones QUICK_REPLY o URL (una URL puede terminar en `{{1}}`, con `urlExample`). 409 si ya existe ese nombre en ese idioma.",
+          parameters: [idempotencyParam],
+          requestBody: {
+            required: true,
+            content: json(ref("TemplateCreate"), {
+              accountId: "cmacc_wa_01",
+              name: "confirmacion_pedido",
+              language: "es_MX",
+              category: "UTILITY",
+              components: { body: "Hola {{1}}, tu pedido {{2}} va en camino.", bodyExamples: ["Ana", "A-1043"], buttons: [{ type: "URL", text: "Rastrear", url: "https://ejemplo.mx/envio/{{1}}", urlExample: "https://ejemplo.mx/envio/A-1043" }] },
+            }),
+          },
+          responses: { "201": ok(ref("TemplateDetail"), { ...EX.template, status: "PENDING" }, "Enviada a revisión"), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/templates/{id}": {
+        get: {
+          tags: ["Catálogos"],
+          summary: "Obtener una plantilla",
+          description: `${scopeNote("messages:send")} Igual que en GET /templates, más \`components\` tal como los guarda Meta (HEADER, BODY, FOOTER, BUTTONS).`,
+          parameters: [idParam],
+          responses: { "200": ok(ref("TemplateDetail"), EX.template), ...errors },
+        },
+        delete: {
+          tags: ["WhatsApp"],
+          summary: "Borrar una plantilla",
+          description:
+            `${scopeNote("whatsapp:manage")} La borra en Meta (solo ese idioma) y queda como DELETED en Colibly; las campañas que la usaron conservan su historial. Meta no deja volver a usar el nombre durante 30 días.`,
+          parameters: [idParam],
+          responses: { "200": ok(obj({ id: str, deleted: { type: "boolean" } }), { id: "cmtpl_01", deleted: true }), "502": err("UpstreamError"), ...writeErrors },
         },
       },
       "/templates/sync": {
@@ -1022,6 +1245,109 @@ export function buildOpenApiSpec(serverUrl: string) {
             status: str,
           },
         },
+        AccountDetail: {
+          type: "object",
+          properties: {
+            id: str,
+            channel: ref("Channel"),
+            name: str,
+            phoneNumber: strNull,
+            phoneE164: strNull,
+            status: str,
+            wabaId: { ...strNull, description: "Id de la cuenta de WhatsApp Business en Meta" },
+            phoneNumberId: { ...strNull, description: "Id del número en Meta" },
+            coexistence: { type: "boolean", description: "El número también se usa en la app WhatsApp Business del teléfono" },
+            health: {
+              type: ["object", "null"],
+              description: "Solo WhatsApp",
+              properties: {
+                qualityRating: { ...strNull, description: "GREEN, YELLOW, RED o UNKNOWN" },
+                lastQualityEvent: { ...strNull, description: "Último suceso de calidad de Meta: FLAGGED, UNFLAGGED, UPGRADE, DOWNGRADE…" },
+                messagingTier: { ...strNull, description: "Límite de conversaciones iniciadas por día: TIER_250, TIER_1K, TIER_10K, TIER_100K, TIER_UNLIMITED" },
+                nameStatus: { ...strNull, description: "Estado del nombre para mostrar: APPROVED, PENDING_REVIEW, DECLINED…" },
+                canSendMessage: { ...strNull, description: "AVAILABLE, LIMITED o BLOCKED" },
+                notices: { type: "array", items: str, description: "Avisos de Meta en español (qué limita el envío y cómo resolverlo)" },
+                checkedAt: { type: ["string", "null"], format: "date-time" },
+              },
+            },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        BusinessProfile: {
+          type: "object",
+          properties: {
+            accountId: str,
+            about: { ...strNull, description: "Texto \"Info\" (hasta 139 caracteres)" },
+            address: strNull,
+            description: strNull,
+            email: strNull,
+            websites: { type: "array", items: str },
+            vertical: { ...strNull, description: "Categoría de Meta (RETAIL, RESTAURANT, PROF_SERVICES…)" },
+            profilePictureUrl: { ...strNull, description: "URL temporal de Meta" },
+          },
+        },
+        BusinessProfileUpdate: {
+          type: "object",
+          additionalProperties: false,
+          minProperties: 1,
+          properties: {
+            about: { type: "string", minLength: 1, maxLength: 139 },
+            address: { type: "string", maxLength: 256 },
+            description: { type: "string", maxLength: 512 },
+            email: { type: "string", maxLength: 128, description: "\"\" lo borra" },
+            websites: { type: "array", maxItems: 2, items: { type: "string", maxLength: 256 } },
+            vertical: { type: "string", description: "Categoría de Meta en mayúsculas" },
+            profilePictureUrl: { type: "string", description: "JPG o PNG de hasta 5 MB por https" },
+          },
+        },
+        TemplateCreate: {
+          type: "object",
+          required: ["accountId", "name", "components"],
+          additionalProperties: false,
+          properties: {
+            accountId: str,
+            name: { type: "string", pattern: "^[a-z][a-z0-9_]*$", maxLength: 512 },
+            language: { type: "string", default: "es", description: "Código de Meta: es, es_MX, en_US…" },
+            category: { type: "string", enum: ["MARKETING", "UTILITY"], default: "MARKETING" },
+            components: {
+              type: "object",
+              required: ["body"],
+              additionalProperties: false,
+              properties: {
+                header: {
+                  type: "object",
+                  required: ["format"],
+                  properties: {
+                    format: { type: "string", enum: ["TEXT", "IMAGE", "VIDEO", "DOCUMENT"] },
+                    text: { type: "string", maxLength: 60 },
+                    exampleText: { type: "string", maxLength: 60, description: "Si text lleva {{1}}" },
+                    exampleUrl: { type: "string", description: "IMAGE/VIDEO/DOCUMENT: archivo de ejemplo por https" },
+                  },
+                },
+                body: { type: "string", maxLength: 1024 },
+                bodyExamples: { type: "array", items: str, description: "Un valor por variable del cuerpo" },
+                footer: { type: "string", maxLength: 60 },
+                buttons: {
+                  type: "array",
+                  maxItems: 10,
+                  items: {
+                    type: "object",
+                    required: ["type", "text"],
+                    properties: {
+                      type: { type: "string", enum: ["QUICK_REPLY", "URL"] },
+                      text: { type: "string", maxLength: 25 },
+                      url: { type: "string", description: "URL; puede terminar en {{1}}" },
+                      urlExample: { type: "string", description: "La URL con la variable resuelta" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        TemplateDetail: {
+          allOf: [ref("Template"), { type: "object", properties: { components: { type: "array", items: { type: "object" }, description: "Componentes tal como los guarda Meta" } } }],
+        },
         Contact: {
           type: "object",
           properties: {
@@ -1103,7 +1429,16 @@ export function buildOpenApiSpec(serverUrl: string) {
             filename: strNull,
             status: { ...strNull, description: "Salientes: sent, delivered, read, failed (null en salientes antiguos de la app WhatsApp Business y en entrantes)" },
             senderId: { ...strNull, description: "Usuario de Colibly que lo mandó o lo disparó" },
-            interactive: { description: "Botones o lista, si aplica" },
+            interactive: {
+              type: ["object", "null"],
+              description: "Botones o lista que mandó el negocio, si aplica",
+              properties: {
+                buttons: { type: "array", items: { type: "object", properties: { id: str, title: str } } },
+                style: { type: "string", enum: ["list", "cta_url", "location_request"], description: "Ausente = botones de respuesta" },
+                buttonLabel: { type: "string", description: "list: texto del botón que abre la lista" },
+                url: { type: "string", description: "cta_url: a dónde lleva el botón" },
+              },
+            },
             timestamp: { type: "string", format: "date-time" },
             externalId: { ...strNull, description: "Id del mensaje en el canal (wamid en WhatsApp)" },
             content: {
@@ -1148,12 +1483,14 @@ export function buildOpenApiSpec(serverUrl: string) {
         SendMessage: {
           type: "object",
           required: ["type"],
-          description: "Envía conversationId o contactId (uno de los dos).",
+          description: "Destino: conversationId, contactId, o accountId + to (solo uno).",
           properties: {
             conversationId: str,
             contactId: str,
-            type: { type: "string", enum: ["text", "buttons", "template", ...OUTBOUND_MEDIA_TYPES] },
-            text: { type: "string", maxLength: 4096, description: "Requerido para text y buttons" },
+            accountId: { type: "string", description: "Cuenta de WhatsApp que envía (con `to`)" },
+            to: { type: "string", description: "Teléfono con código de país (con `accountId`); se toman solo los dígitos" },
+            type: { type: "string", enum: [...API_SEND_TYPES] },
+            text: { type: "string", maxLength: 4096, description: "Requerido para text, buttons, list, cta_url y location_request" },
             buttons: {
               type: "array",
               minItems: 1,
@@ -1174,7 +1511,7 @@ export function buildOpenApiSpec(serverUrl: string) {
               type: "object",
               required: ["url"],
               additionalProperties: false,
-              description: "Requerido para image, document, audio y video. Colibly descarga la URL al enviar (sin redirecciones, 30 s como máximo).",
+              description: "Requerido para image, document, audio, video y sticker. Colibly descarga la URL al enviar (sin redirecciones, 30 s como máximo). Un sticker es WebP de 512×512, hasta 100 KB (500 KB animado).",
               properties: {
                 url: { type: "string", format: "uri", description: "https pública del archivo" },
                 filename: { type: "string", maxLength: 200, description: "Nombre que verá el cliente (documentos). Por defecto, el de la URL" },
@@ -1182,6 +1519,36 @@ export function buildOpenApiSpec(serverUrl: string) {
               },
             },
             caption: { type: "string", maxLength: 1024, description: "Texto junto al archivo (image, video, document). No en audio, ni en Messenger/Instagram" },
+            list: {
+              type: "object",
+              required: ["button", "rows"],
+              additionalProperties: false,
+              description: "type list",
+              properties: {
+                button: { type: "string", maxLength: 20, description: "Texto del botón que abre la lista" },
+                rows: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 10,
+                  items: { type: "object", required: ["title"], properties: { id: { type: "string", maxLength: 200, description: "Llega como interactive.reply.id; por defecto row_1, row_2…" }, title: { type: "string", maxLength: 24 }, description: { type: "string", maxLength: 72 } } },
+                },
+              },
+            },
+            cta: {
+              type: "object",
+              required: ["label", "url"],
+              additionalProperties: false,
+              description: "type cta_url (WhatsApp)",
+              properties: { label: { type: "string", maxLength: 20 }, url: { type: "string", format: "uri", description: "https" } },
+            },
+            location: {
+              type: "object",
+              required: ["latitude", "longitude"],
+              additionalProperties: false,
+              description: "type location (WhatsApp)",
+              properties: { latitude: { type: "number", minimum: -90, maximum: 90 }, longitude: { type: "number", minimum: -180, maximum: 180 }, name: str, address: str },
+            },
+            replyTo: { type: "string", description: "Id de un mensaje de la misma conversación para citarlo (WhatsApp)" },
           },
         },
         ConversationUpdate: {

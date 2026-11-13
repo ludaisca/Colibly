@@ -5,8 +5,9 @@ import { assertOrgCanSend } from "@/lib/billing/gates";
 
 interface SendParams {
   to: string;
-  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction";
+  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction" | "location";
   reactionMessageId?: string;
+  location?: { latitude: number; longitude: number; name?: string; address?: string };
   emoji?: string;
   body?: string;
   mediaId?: string | null;

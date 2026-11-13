@@ -53,6 +53,20 @@ interface EventDataMap {
   "appointment.status_changed": { appointmentId: string; from: WAAppointmentStatus; to: WAAppointmentStatus };
   "lead.scored": { scorerId: string; scorerName: string; score: number; label: string; previousLabel: string | null };
   "lead.ad_captured": { origin: Exclude<LeadOrigin, "ORGANIC">; adId: string | null };
+  // Eventos de la cuenta de WhatsApp (sin contacto ni conversación). Las
+  // plantillas son de la WABA: con varios números bajo la misma WABA llega uno
+  // por cuenta, cada uno con su templateId de Colibly.
+  "template.status_changed": {
+    templateId: string;
+    name: string;
+    language: string;
+    event: string; // el de Meta: APPROVED, REJECTED, PAUSED, FLAGGED, REINSTATED…
+    status: string;
+    previousStatus: string;
+    reason: string | null;
+  };
+  "template.category_changed": { templateId: string; name: string; language: string; category: string; previousCategory: string };
+  "account.quality_changed": { event: string | null; messagingTier: string | null };
 }
 
 export type DomainEventType = keyof EventDataMap;
@@ -86,6 +100,9 @@ export const DOMAIN_EVENT_CATALOG: Record<DomainEventType, string> = {
   "appointment.status_changed": "Cambio de estado de una cita",
   "lead.scored": "Lead calificado por un calificador IA",
   "lead.ad_captured": "Lead llegado de un anuncio (CTWA o Instant Form)",
+  "template.status_changed": "Meta revisó, pausó, desactivó o marcó una plantilla. Solo WhatsApp",
+  "template.category_changed": "Meta cambió la categoría de una plantilla. Solo WhatsApp",
+  "account.quality_changed": "Cambió la calidad o el límite de envío del número. Solo WhatsApp",
 };
 
 export const DOMAIN_EVENT_TYPES = Object.keys(DOMAIN_EVENT_CATALOG) as DomainEventType[];

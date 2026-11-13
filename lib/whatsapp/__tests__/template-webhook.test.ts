@@ -14,10 +14,12 @@ const afterSpy = vi.fn();
 vi.mock("next/server", () => ({ after: (fn: unknown) => afterSpy(fn) }));
 vi.mock("@/lib/meta/platform-app", () => ({ validateWhatsAppWebhookSignature: vi.fn() }));
 vi.mock("@/lib/whatsapp/template-sync", () => ({ syncAccountTemplates: vi.fn() }));
+const emitDomainEvent = vi.fn(async (..._a: unknown[]) => {});
+vi.mock("@/lib/events/emit", () => ({ emitDomainEvent: (...a: unknown[]) => emitDomainEvent(...a) }));
 
 import { applyTemplateCategoryUpdate, applyTemplateStatusUpdate } from "@/lib/whatsapp/template-webhook";
 
-const row = { id: "t1", name: "promo", status: "PENDING", statusReason: null, category: "MARKETING" };
+const row = { id: "t1", name: "promo", language: "es_MX", status: "PENDING", statusReason: null, category: "MARKETING" };
 
 describe("applyTemplateStatusUpdate", () => {
   beforeEach(() => {
@@ -31,6 +33,13 @@ describe("applyTemplateStatusUpdate", () => {
     expect(findUnique).toHaveBeenCalledWith({ where: { waAccountId_templateId: { waAccountId: "acc1", templateId: "123" } } });
     expect(updateMany.mock.calls[0][0]).toMatchObject({ where: { id: "t1", status: "PENDING" }, data: { status: "APPROVED", statusReason: null } });
     expect(notificationCreate.mock.calls[0][0].data).toMatchObject({ userId: "user1", type: "ACCOUNT_STATUS", title: 'Plantilla "promo" aprobada' });
+    expect(emitDomainEvent.mock.calls[0][0]).toMatchObject({
+      type: "template.status_changed",
+      account: { kind: "whatsapp", id: "acc1" },
+      contactId: null,
+      chat: null,
+      data: { templateId: "t1", name: "promo", language: "es_MX", event: "APPROVED", status: "APPROVED", previousStatus: "PENDING", reason: null },
+    });
   });
 
   it("un reintento de Meta (mismo estado) no avisa dos veces", async () => {
@@ -38,6 +47,7 @@ describe("applyTemplateStatusUpdate", () => {
     await applyTemplateStatusUpdate("acc1", "user1", { event: "APPROVED", message_template_id: 123 });
     expect(updateMany).not.toHaveBeenCalled();
     expect(notificationCreate).not.toHaveBeenCalled();
+    expect(emitDomainEvent).not.toHaveBeenCalled();
   });
 
   it("si otra entrega ganó la carrera, no avisa", async () => {
@@ -45,6 +55,7 @@ describe("applyTemplateStatusUpdate", () => {
     updateMany.mockResolvedValue({ count: 0 });
     await applyTemplateStatusUpdate("acc1", "user1", { event: "REJECTED", reason: "SCAM", message_template_id: 1 });
     expect(notificationCreate).not.toHaveBeenCalled();
+    expect(emitDomainEvent).not.toHaveBeenCalled();
   });
 
   it("un rechazo guarda el motivo y lo cuenta en la notificación", async () => {
@@ -78,17 +89,25 @@ describe("applyTemplateStatusUpdate", () => {
 });
 
 describe("applyTemplateCategoryUpdate", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    updateMany.mockResolvedValue({ count: 1 });
+  });
 
-  it("guarda la categoría nueva que Meta asignó", async () => {
+  it("guarda la categoría nueva que Meta asignó y emite template.category_changed", async () => {
     findUnique.mockResolvedValue(row);
     await applyTemplateCategoryUpdate("acc1", { message_template_id: 1, new_category: "utility" });
     expect(updateMany.mock.calls[0][0]).toMatchObject({ where: { id: "t1", category: "MARKETING" }, data: { category: "UTILITY" } });
+    expect(emitDomainEvent.mock.calls[0][0]).toMatchObject({
+      type: "template.category_changed",
+      data: { templateId: "t1", category: "UTILITY", previousCategory: "MARKETING" },
+    });
   });
 
   it("no hace nada si la categoría no cambió", async () => {
     findUnique.mockResolvedValue(row);
     await applyTemplateCategoryUpdate("acc1", { message_template_id: 1, new_category: "MARKETING" });
     expect(updateMany).not.toHaveBeenCalled();
+    expect(emitDomainEvent).not.toHaveBeenCalled();
   });
 });

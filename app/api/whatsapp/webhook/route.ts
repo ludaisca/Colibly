@@ -364,6 +364,13 @@ async function applyPhoneNumberQualityUpdate(wabaId: string | undefined, value: 
     data: { qualityEvent: rating, ...(tier ? { messagingTier: tier } : {}), qualityUpdatedAt: new Date() },
   });
   after(() => refreshPhoneHealth(account.id, { force: true }));
+  await emitDomainEvent({
+    type: "account.quality_changed",
+    account: { kind: "whatsapp", id: account.id },
+    contactId: null,
+    chat: null,
+    data: { event: rating, messagingTier: tier },
+  });
 
   // Solo se notifica en señales negativas — un UPGRADE/GREEN no amerita alertar
   // al admin, solo se refleja en el badge de la cuenta.

@@ -3,6 +3,7 @@ import { decrypt } from "@/lib/crypto";
 import { GRAPH_API_BASE } from "@/lib/meta/graph";
 import { rateLimit } from "@/lib/rate-limit";
 import type { WAAccount, WATemplate } from "@prisma/client";
+import { emitDomainEvent } from "@/lib/events/emit";
 
 // Sincronización de plantillas con Meta, compartida por el botón "Sincronizar"
 // (POST /api/whatsapp/templates), la API pública (POST /api/v1/templates/sync),
@@ -77,6 +78,13 @@ export async function syncAccountTemplates(account: WAAccount): Promise<WATempla
     throw new TemplateSyncError(err instanceof Error ? err.message : "Error al sincronizar plantillas", "upstream");
   }
 
+  // Estado previo, para avisar (template.status_changed) los cambios que el
+  // webhook de Meta no trajo. La primera vez que se ve una plantilla no avisa.
+  const before = new Map(
+    (await prisma.wATemplate.findMany({ where: { waAccountId: account.id }, select: { id: true, templateId: true, status: true } }))
+      .map((r) => [r.templateId, r])
+  );
+
   const now = new Date();
   for (const t of metaTemplates) {
     const data = {
@@ -93,24 +101,41 @@ export async function syncAccountTemplates(account: WAAccount): Promise<WATempla
       create: { waAccountId: account.id, templateId: t.id, ...data },
       update: data,
     });
+    const prev = before.get(t.id);
+    if (prev && prev.status !== t.status) {
+      await emitDomainEvent({
+        type: "template.status_changed",
+        account: { kind: "whatsapp", id: account.id },
+        contactId: null,
+        chat: null,
+        data: { templateId: prev.id, name: t.name, language: t.language, event: t.status, status: t.status, previousStatus: prev.status, reason: data.statusReason },
+      });
+    }
   }
 
   const missing = await prisma.wATemplate.findMany({
     where: { waAccountId: account.id, templateId: { notIn: metaTemplates.map((t) => t.id) }, status: { not: "DELETED" } },
     select: { id: true },
   });
-  if (missing.length > 0) {
-    const missingIds = missing.map((t) => t.id);
-    await prisma.$transaction([
-      prisma.wATemplate.updateMany({ where: { id: { in: missingIds } }, data: { status: "DELETED" } }),
-      prisma.leadSheetSource.updateMany({
-        where: { waTemplateId: { in: missingIds }, enabled: true },
-        data: { enabled: false, lastError: "La plantilla ya no aparece en Meta. Sincroniza o elige otra plantilla antes de reactivar." },
-      }),
-    ]);
-  }
+  if (missing.length > 0) await markTemplatesDeleted(missing.map((t) => t.id));
 
   return prisma.wATemplate.findMany({ where: { waAccountId: account.id }, orderBy: [{ name: "asc" }, { language: "asc" }] });
+}
+
+/**
+ * Plantillas que ya no existen en Meta: quedan como DELETED (la fila se
+ * conserva por las campañas) y las fuentes de Google Sheets que las usan se
+ * apagan. Lo usan la sincronización y DELETE /api/v1/templates/{id}.
+ */
+export async function markTemplatesDeleted(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await prisma.$transaction([
+    prisma.wATemplate.updateMany({ where: { id: { in: ids } }, data: { status: "DELETED", syncedAt: new Date() } }),
+    prisma.leadSheetSource.updateMany({
+      where: { waTemplateId: { in: ids }, enabled: true },
+      data: { enabled: false, lastError: "La plantilla ya no aparece en Meta. Sincroniza o elige otra plantilla antes de reactivar." },
+    }),
+  ]);
 }
 
 /** Estados en los que Meta todavía tiene que decidir algo. */

@@ -7,8 +7,9 @@ const BASE_URL = "https://graph.facebook.com";
 
 interface SendMessageParams {
   to: string;
-  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction";
+  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction" | "location";
   reactionMessageId?: string;
+  location?: { latitude: number; longitude: number; name?: string; address?: string };
   emoji?: string;
   body?: string;
   mediaId?: string;
@@ -91,6 +92,10 @@ export async function sendMessage(
     payload.reaction = { message_id: params.reactionMessageId, emoji: params.emoji ?? "" };
   } else if (params.type === "sticker") {
     payload.sticker = { id: params.mediaId };
+  } else if (params.type === "location") {
+    const loc = params.location;
+    if (!loc) throw new Error("Falta la ubicación");
+    payload.location = { latitude: loc.latitude, longitude: loc.longitude, ...(loc.name ? { name: loc.name } : {}), ...(loc.address ? { address: loc.address } : {}) };
   } else {
     // Graph no acepta mime_type aquí: el tipo queda fijado al subir el archivo.
     // filename solo existe en document; en imagen, audio o video es una clave de más.
@@ -121,6 +126,33 @@ export async function sendMessage(
   }
 
   return res.json() as Promise<SendMessageResponse>;
+}
+
+// Marca un mensaje entrante como leído (palomitas azules para el cliente) y,
+// con `typing`, muestra "escribiendo…" hasta 25 s o hasta la respuesta.
+// Meta marca también como leídos los anteriores de ese chat.
+export async function markMessageRead(
+  phoneNumberId: string,
+  accessToken: string,
+  wamid: string,
+  opts: { typing?: boolean } = {}
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/${API_VERSION}/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: wamid,
+      ...(opts.typing ? { typing_indicator: { type: "text" } } : {}),
+    }),
+    signal: httpTimeout(),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const meta = body?.error as { message?: string; code?: number } | undefined;
+    throw new MetaSendError(meta?.message ?? `Mark as read failed (HTTP ${res.status})`, typeof meta?.code === "number" ? meta.code : null);
+  }
 }
 
 export async function getMediaUrl(

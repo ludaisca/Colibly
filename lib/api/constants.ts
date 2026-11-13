@@ -28,6 +28,8 @@ export const API_CONVERSATIONS_LIST_PER_MINUTE = envInt("API_RATE_LIMIT_CONVERSA
 export const API_WEBHOOK_REPLAYS_PER_MINUTE = envInt("API_RATE_LIMIT_WEBHOOK_REPLAYS_PER_ORG", 30);
 // Eventos webhook.test por minuto por organización (POST /webhooks/{id}/test).
 export const API_WEBHOOK_TESTS_PER_MINUTE = 10;
+// Cambios en la cuenta de Meta (plantillas, perfil, bloqueos) por organización.
+export const API_WHATSAPP_ADMIN_PER_MINUTE = 30;
 /** POST /messages: envíos por día (UTC) por organización. */
 export const API_DAILY_SENDS_PER_ORG = envInt("API_DAILY_SEND_CAP_PER_ORG", 10_000);
 /** Tamaño máximo del cuerpo de una solicitud a /api/v1. */
@@ -45,7 +47,7 @@ export const API_BAD_KEY_ATTEMPTS_PER_MINUTE = 30;
  * los cambios son aditivos (campos nuevos), nunca se quita ni renombra uno.
  */
 // Fecha del contrato; un segundo cambio el mismo día lleva sufijo (.2).
-export const API_SCHEMA_VERSION = "2026-11-06.2";
+export const API_SCHEMA_VERSION = "2026-11-13.2";
 export const API_SCHEMA_VERSION_HEADER = "X-Colibly-Schema-Version";
 /** Página de listados. */
 export const API_PAGE_DEFAULT = 25;

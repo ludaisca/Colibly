@@ -39,6 +39,7 @@ export interface SendListParams {
   body: string;
   buttonLabel: string; // texto del botón que abre la lista (máx. 20)
   rows: { id: string; title: string; description?: string }[]; // 1-10
+  replyToWamid?: string;
 }
 
 export async function sendInteractiveList(account: WAAccount, params: SendListParams): Promise<{ wamid: string | null }> {
@@ -55,7 +56,39 @@ export async function sendInteractiveList(account: WAAccount, params: SendListPa
         },
       ],
     },
-  });
+  }, params.replyToWamid);
+}
+
+export interface SendCtaUrlParams {
+  to: string;
+  body: string;
+  label: string; // texto del botón (máx. 20)
+  url: string; // https
+  replyToWamid?: string;
+}
+
+// Botón que abre una URL (interactive cta_url). No genera respuesta del cliente.
+export async function sendInteractiveCtaUrl(account: WAAccount, params: SendCtaUrlParams): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
+  return postInteractive(account, params.to, {
+    type: "cta_url",
+    body: { text: params.body },
+    action: { name: "cta_url", parameters: { display_text: params.label, url: params.url } },
+  }, params.replyToWamid);
+}
+
+// Botón "Enviar ubicación" (interactive location_request_message): la
+// respuesta llega como un mensaje entrante type "location".
+export async function sendInteractiveLocationRequest(
+  account: WAAccount,
+  params: { to: string; body: string; replyToWamid?: string }
+): Promise<{ wamid: string | null }> {
+  await assertOrgCanSend(account.organizationId);
+  return postInteractive(account, params.to, {
+    type: "location_request_message",
+    body: { text: params.body },
+    action: { name: "send_location" },
+  }, params.replyToWamid);
 }
 
 async function postInteractive(account: WAAccount, to: string, interactive: Record<string, unknown>, replyToWamid?: string): Promise<{ wamid: string | null }> {

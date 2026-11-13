@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { ApiError, apiError, methodNotAllowed, readJsonBody, withApiErrors } from "../respond";
-import { apiConversationUpdateSchema, apiSendMessageSchema } from "../schemas";
+import { apiConversationUpdateSchema, apiMarkReadSchema, apiReactionSchema, apiSendMessageSchema } from "../schemas";
 
 // Errores pensados para quien integra: JSON mal formado con su propio
 // mensaje, validación en español con la ruta del campo, id de solicitud.
@@ -31,7 +31,7 @@ describe("readJsonBody", () => {
   });
 
   it("validación en español, con la ruta del campo y todos los detalles", async () => {
-    const e = await failure(post(JSON.stringify({ conversationId: "c1", type: "sticker", template: {} })), apiSendMessageSchema);
+    const e = await failure(post(JSON.stringify({ conversationId: "c1", type: "fax", template: {} })), apiSendMessageSchema);
     expect(e.code).toBe("invalid_request");
     expect(e.details?.map((d) => d.path)).toEqual(expect.arrayContaining(["type", "template.id"]));
     expect(e.message).toMatch(/^type: Opción inválida/);
@@ -41,7 +41,7 @@ describe("readJsonBody", () => {
 
   it("los mensajes propios del esquema ganan al locale", async () => {
     const e = await failure(post(JSON.stringify({ type: "text", text: "hola" })), apiSendMessageSchema);
-    expect(e.message).toBe("Envía conversationId o contactId (uno de los dos)");
+    expect(e.message).toBe("Envía conversationId, contactId o accountId + to (solo uno)");
   });
 
   it("devuelve el cuerpo validado", async () => {
@@ -103,5 +103,62 @@ describe("envío de archivos (esquema)", () => {
   it("acepta un documento con nombre y leyenda", async () => {
     const ok = { ...base, type: "document", media: { url: "https://x.mx/f.pdf", filename: "Factura.pdf" }, caption: "Tu factura" };
     await expect(readJsonBody(post(JSON.stringify(ok)), apiSendMessageSchema)).resolves.toMatchObject(ok);
+  });
+});
+
+describe("POST /messages: tipos de la v1.6", () => {
+  const base = { conversationId: "c1" };
+  const ok = (body: object) => readJsonBody(post(JSON.stringify(body)), apiSendMessageSchema);
+  const bad = (body: object) => failure(post(JSON.stringify(body)), apiSendMessageSchema);
+
+  it("destino: accountId + to, limpia el teléfono y no se mezcla con los otros", async () => {
+    await expect(ok({ accountId: "a1", to: "+52 1 55 1234 5678", type: "text", text: "hola" })).resolves.toMatchObject({ to: "5215512345678" });
+    expect((await bad({ accountId: "a1", type: "text", text: "hola" })).details?.[0].path).toBe("to");
+    expect((await bad({ ...base, accountId: "a1", to: "5215512345678", type: "text", text: "hola" })).message).toMatch(/solo uno/);
+    expect((await bad({ accountId: "a1", to: "123", type: "text", text: "hola" })).details?.[0].path).toBe("to");
+  });
+
+  it("list: botón y hasta 10 opciones con títulos cortos", async () => {
+    await expect(ok({ ...base, type: "list", text: "Elige", list: { button: "Ver", rows: [{ title: "A" }] } })).resolves.toBeTruthy();
+    expect((await bad({ ...base, type: "list", text: "Elige" })).details?.[0].path).toBe("list");
+    const rows = Array.from({ length: 11 }, (_, i) => ({ title: `Op ${i}` }));
+    expect((await bad({ ...base, type: "list", text: "Elige", list: { button: "Ver", rows } })).message).toMatch(/máximo 10/);
+    expect((await bad({ ...base, type: "list", text: "Elige", list: { button: "Ver", rows: [{ title: "x".repeat(25) }] } })).message).toMatch(/24/);
+  });
+
+  it("cta_url pide https; location pide coordenadas válidas", async () => {
+    await expect(ok({ ...base, type: "cta_url", text: "Rastrea", cta: { label: "Ver", url: "https://x.mx/p" } })).resolves.toBeTruthy();
+    expect((await bad({ ...base, type: "cta_url", text: "Rastrea", cta: { label: "Ver", url: "http://x.mx/p" } })).message).toMatch(/https/);
+    await expect(ok({ ...base, type: "location", location: { latitude: 19.4, longitude: -99.1 } })).resolves.toBeTruthy();
+    expect((await bad({ ...base, type: "location", location: { latitude: 120, longitude: 0 } })).details?.[0].path).toBe("location.latitude");
+  });
+
+  it("los objetos de un tipo no van con otro", async () => {
+    expect((await bad({ ...base, type: "text", text: "hola", location: { latitude: 1, longitude: 1 } })).details?.[0].path).toBe("location");
+    expect((await bad({ ...base, type: "text", text: "hola", cta: { label: "a", url: "https://x.mx" } })).details?.[0].path).toBe("cta");
+  });
+
+  it("sticker va por media.url y sin caption; location_request pide text", async () => {
+    await expect(ok({ ...base, type: "sticker", media: { url: "https://x.mx/s.webp" } })).resolves.toBeTruthy();
+    expect((await bad({ ...base, type: "sticker", media: { url: "https://x.mx/s.webp" }, caption: "x" })).details?.[0].path).toBe("caption");
+    expect((await bad({ ...base, type: "location_request" })).details?.[0].path).toBe("text");
+  });
+
+  it("replyTo es opcional en cualquier tipo", async () => {
+    await expect(ok({ ...base, type: "text", text: "sí", replyTo: "m1" })).resolves.toMatchObject({ replyTo: "m1" });
+  });
+});
+
+describe("reacción y leído", () => {
+  const react = (emoji: string) => readJsonBody(post(JSON.stringify({ emoji })), apiReactionSchema);
+  it("un solo emoji (con tono o compuesto), o vacío para quitar", async () => {
+    for (const e of ["👍", "❤️", "👍🏽", "👨‍👩‍👧", "🇲🇽", ""]) await expect(react(e)).resolves.toEqual({ emoji: e });
+  });
+  it("rechaza texto o varios emojis", async () => {
+    for (const e of ["hola", "👍👍", "a👍"]) await expect(react(e)).rejects.toBeInstanceOf(ApiError);
+  });
+  it("leído: typing opcional y nada más", async () => {
+    await expect(readJsonBody(post(JSON.stringify({ typing: true })), apiMarkReadSchema)).resolves.toEqual({ typing: true });
+    await expect(readJsonBody(post(JSON.stringify({ escribiendo: true })), apiMarkReadSchema)).rejects.toBeInstanceOf(ApiError);
   });
 });

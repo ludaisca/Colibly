@@ -62,6 +62,7 @@ const MIME_BY_EXT: Record<string, string> = {
   opus: "audio/ogg",
   mp4: "video/mp4",
   "3gp": "video/3gpp",
+  webp: "image/webp",
   pdf: "application/pdf",
   txt: "text/plain",
   csv: "text/csv",
@@ -130,13 +131,58 @@ export async function fetchOutboundMedia(
   type: OutboundMediaType,
   input: { url: string; filename?: string | null; mimeType?: string | null }
 ): Promise<OutboundMediaFile> {
-  const rules = OUTBOUND_MEDIA_RULES[type];
+  const res = await download(type, OUTBOUND_MEDIA_RULES[type].maxBytes, input.url);
+  const nameFromUrl = filenameFromUrl(new URL(input.url));
+  const provisional = input.filename?.trim() || nameFromUrl || "";
+  const mimeType = resolveOutboundMime(type, { declared: input.mimeType, header: res.headers["content-type"], filename: provisional });
+  const filename = provisional && extensionOf(provisional) ? provisional : defaultFilename(type, mimeType);
+  return { buffer: res.buffer, mimeType, filename };
+}
+
+/** Sticker de WhatsApp por URL: WebP de 512×512, hasta 100 KB (500 KB animado). */
+// Mismo tope que STICKER_MAX_BYTES de lib/whatsapp/stickers.ts (ese módulo
+// carga sharp, por eso se importa solo al validar).
+const STICKER_DOWNLOAD_MAX_BYTES = 500 * 1024;
+
+export async function fetchOutboundSticker(url: string): Promise<OutboundMediaFile> {
+  const res = await download("sticker", STICKER_DOWNLOAD_MAX_BYTES, url);
+  // Mismas reglas que los stickers de la bandeja (tamaño, formato y medidas).
+  const { validateSticker } = await import("@/lib/whatsapp/stickers");
+  try {
+    await validateSticker(res.buffer);
+  } catch (err) {
+    throw new OutboundMediaError(err instanceof Error ? err.message : String(err));
+  }
+  return { buffer: res.buffer, mimeType: "image/webp", filename: "sticker.webp" };
+}
+
+/**
+ * Archivo por URL con reglas propias (foto de perfil, ejemplo de cabecera de
+ * plantilla): mismas defensas que los envíos, `field` nombra el campo en los
+ * errores.
+ */
+export async function fetchRemoteFile(
+  field: string,
+  url: string,
+  rules: { maxBytes: number; mimeTypes: string[] }
+): Promise<OutboundMediaFile> {
+  const res = await download(field, rules.maxBytes, url, field);
+  const filename = filenameFromUrl(new URL(url)) ?? "archivo";
+  const header = baseMime(res.headers["content-type"]);
+  const mime = GENERIC_MIME.has(header) ? (MIME_BY_EXT[extensionOf(filename)] ?? header) : header;
+  if (!rules.mimeTypes.includes(mime)) {
+    throw new OutboundMediaError(`Tipo de archivo no admitido en ${field}: ${mime || "desconocido"}. Admitidos: ${rules.mimeTypes.join(", ")}`);
+  }
+  return { buffer: res.buffer, mimeType: mime, filename };
+}
+
+async function download(label: string, maxBytes: number, url: string, urlField = "media.url") {
   let res;
   try {
-    res = await safeFetch(input.url, {
+    res = await safeFetch(url, {
       method: "GET",
       binary: true,
-      maxResponseBytes: rules.maxBytes + 1,
+      maxResponseBytes: maxBytes + 1,
       timeoutMs: DOWNLOAD_TIMEOUT_MS,
       headers: { Accept: "*/*", "User-Agent": "Colibly-Media/1.0 (+https://colibly.com)" },
     });
@@ -150,20 +196,16 @@ export async function fetchOutboundMedia(
             : err.code === "INVALID_URL"
               ? err.message.replace(/^La URL /, "")
               : `no se pudo descargar (${err.message})`;
-      throw new OutboundMediaError(`media.url ${why}`);
+      throw new OutboundMediaError(`${urlField} ${why}`);
     }
     throw err;
   }
-  if (res.status >= 300 && res.status < 400) throw new OutboundMediaError(`media.url respondió ${res.status} (redirección): usa la URL final del archivo`);
-  if (res.status < 200 || res.status >= 300) throw new OutboundMediaError(`media.url respondió ${res.status}`);
-  if (res.truncated || res.buffer.length > rules.maxBytes) {
-    throw new OutboundMediaError(`El archivo supera el máximo de ${rules.maxBytes / MB} MB para ${type}`);
+  if (res.status >= 300 && res.status < 400) throw new OutboundMediaError(`${urlField} respondió ${res.status} (redirección): usa la URL final del archivo`);
+  if (res.status < 200 || res.status >= 300) throw new OutboundMediaError(`${urlField} respondió ${res.status}`);
+  if (res.truncated || res.buffer.length > maxBytes) {
+    const size = maxBytes >= MB ? `${maxBytes / MB} MB` : `${Math.round(maxBytes / 1024)} KB`;
+    throw new OutboundMediaError(`El archivo supera el máximo de ${size} para ${label}`);
   }
-  if (res.buffer.length === 0) throw new OutboundMediaError("media.url devolvió un archivo vacío");
-
-  const nameFromUrl = filenameFromUrl(new URL(input.url));
-  const provisional = input.filename?.trim() || nameFromUrl || "";
-  const mimeType = resolveOutboundMime(type, { declared: input.mimeType, header: res.headers["content-type"], filename: provisional });
-  const filename = provisional && extensionOf(provisional) ? provisional : defaultFilename(type, mimeType);
-  return { buffer: res.buffer, mimeType, filename };
+  if (res.buffer.length === 0) throw new OutboundMediaError(`${urlField} devolvió un archivo vacío`);
+  return res;
 }

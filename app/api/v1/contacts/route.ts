@@ -1,5 +1,4 @@
 import { Prisma } from "@prisma/client";
-import { jidCandidates } from "@/lib/whatsapp/coexistence/normalize";
 import { prisma } from "@/lib/prisma";
 import { authenticateApiKey } from "@/lib/api/auth";
 import { ApiError, apiOk, decodeCursor, encodeCursor, readPageParams, withApiErrors, readJsonBody, methodNotAllowed } from "@/lib/api/respond";
@@ -8,8 +7,7 @@ import { apiContactCreateSchema } from "@/lib/api/schemas";
 import { setCustomFieldsByKey } from "@/lib/contacts/custom-fields";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
 import { findOrCreateTag } from "@/lib/tags";
-import { emitDomainEvent } from "@/lib/events/emit";
-import { evaluatePlanLimit } from "@/lib/billing/gates";
+import { emitApiContactCreated, findOrCreateApiWhatsAppContact } from "@/lib/api/contact-create";
 import { withIdempotency } from "@/lib/api/idempotency";
 
 const LEAD_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "CUSTOMER", "LOST"] as const;
@@ -78,52 +76,15 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   const body = await readJsonBody(req, apiContactCreateSchema);
   const input = body;
 
-  if (ctx.channelAccountIds.includes(input.accountId)) {
-    throw new ApiError(400, "invalid_request", "Solo se pueden crear contactos en cuentas de WhatsApp");
-  }
-  if (!ctx.accountIds.includes(input.accountId)) {
-    throw new ApiError(404, "not_found", "Cuenta no encontrada");
-  }
-
-  // México: 52XXXXXXXXXX y 521XXXXXXXXXX son el mismo número (jidCandidates);
-  // sin esto, dar de alta "+52…" duplicaba al contacto que ya escribió como "521…".
-  const existing = await prisma.contact.findFirst({
-    where: { accountId: input.accountId, remoteJid: { in: jidCandidates(input.phone) } },
-    select: { id: true },
-  });
-  if (existing) return apiOk(serializeContact(await findScopedContact(ctx, existing.id)), 200);
-
-  const exceeded = await evaluatePlanLimit(ctx.organizationId, "contacts");
-  if (exceeded) throw new ApiError(402, "plan_limit", exceeded.message);
-  const status = input.leadStatus ?? "NEW";
-  if (status !== "CUSTOMER" && status !== "LOST") {
-    const leads = await evaluatePlanLimit(ctx.organizationId, "activeLeads");
-    if (leads) throw new ApiError(402, "plan_limit", leads.message);
-  }
-
-  let created;
-  try {
-    created = await prisma.contact.create({
-      data: {
-        accountId: input.accountId,
-        remoteJid: input.phone,
-        name: input.name ?? input.phone,
-        nameSource: input.name ? "user" : null,
-        leadStatus: status,
-      },
-      select: { id: true, accountId: true, channelAccountId: true },
-    });
-  } catch (err) {
-    // Carrera entre dos altas del mismo teléfono: la otra ganó.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      const winner = await prisma.contact.findUniqueOrThrow({
-        where: { accountId_remoteJid: { accountId: input.accountId, remoteJid: input.phone } },
-        select: { id: true },
-      });
-      return apiOk(serializeContact(await findScopedContact(ctx, winner.id)), 200);
-    }
-    throw err;
-  }
+  const contact = await findOrCreateApiWhatsAppContact(ctx, {
+    accountId: input.accountId,
+    phone: input.phone,
+    name: input.name,
+    leadStatus: input.leadStatus,
+  }, { deferEvent: true });
+  // Ya existía: se responde tal cual, sin modificarlo.
+  if (!contact.created) return apiOk(serializeContact(await findScopedContact(ctx, contact.id)), 200);
+  const created = { id: contact.id, accountId: contact.accountId, channelAccountId: contact.channelAccountId };
 
   if (input.customFields) {
     const { unknownKeys } = await setCustomFieldsByKey(created, input.customFields);
@@ -133,13 +94,7 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
     }
   }
 
-  await emitDomainEvent({
-    type: "contact.created",
-    account: { kind: "whatsapp", id: input.accountId },
-    chat: null,
-    contactId: created.id,
-    data: { origin: "ORGANIC", source: "api" },
-  });
+  await emitApiContactCreated(created.accountId, created.id);
 
   for (const tagName of input.tags ?? []) {
     const tag = await findOrCreateTag(created, tagName);

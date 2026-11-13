@@ -8,6 +8,7 @@ export const API_SCOPES = {
   "messages:send": "Enviar mensajes (texto, plantillas y botones)",
   "webhooks:manage": "Administrar webhooks salientes",
   "automations:run": "Iniciar automatizaciones manuales",
+  "whatsapp:manage": "Administrar WhatsApp: crear y borrar plantillas, perfil de empresa y bloqueos",
 } as const;
 
 export type ApiScope = keyof typeof API_SCOPES;

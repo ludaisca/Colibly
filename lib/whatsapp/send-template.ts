@@ -15,6 +15,7 @@ export interface SendTemplateParams {
   headerParam?: string | null;
   buttonIndex?: number | null;
   buttonParam?: string | null;
+  replyToWamid?: string | null;
 }
 
 // Único lugar que construye un payload type:"template" para la Graph API — usado por
@@ -38,6 +39,7 @@ export async function sendTemplateMessage(
     to: params.to,
     type: "template",
     template: { name: params.templateName, language: { code: params.language } },
+    ...(params.replyToWamid ? { context: { message_id: params.replyToWamid } } : {}),
   };
 
   const templateComponents: Record<string, unknown>[] = [];

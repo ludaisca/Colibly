@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
 import { OUTBOUND_MEDIA_TYPES } from "@/lib/messaging/outbound-media";
+import { templateCreateSchema } from "@/lib/validations";
 
 // Validación de entrada de la API pública (/api/v1). Mensajes en español,
 // igual que lib/validations.ts; los `code` de error viven en respond.ts.
@@ -55,13 +56,61 @@ const buttonSchema = z.object({
   title: z.string().trim().min(1).max(20, "El título de un botón admite máximo 20 caracteres"),
 });
 
+// Teléfono con código de país (solo dígitos tras limpiar). Mismo criterio que
+// POST /contacts.
+const phoneSchema = z
+  .string()
+  .transform((v) => v.replace(/\D/g, ""))
+  .refine((v) => v.length >= 8 && v.length <= 15, "debe tener entre 8 y 15 dígitos, con código de país");
+
+const httpsUrl = (field: string) =>
+  z.string().trim().url(`${field} debe ser una URL`).max(2048).refine((v) => v.startsWith("https://"), `${field} debe usar https://`);
+
+/** Tipos de POST /messages. Los de la segunda fila solo existen en WhatsApp. */
+export const API_SEND_TYPES = [
+  "text", "buttons", "list", "template", ...OUTBOUND_MEDIA_TYPES,
+  "sticker", "location", "location_request", "cta_url",
+] as const;
+
 export const apiSendMessageSchema = z
   .object({
+    // Destino: conversationId, contactId, o accountId + to (WhatsApp).
     conversationId: z.string().min(1).optional(),
     contactId: z.string().min(1).optional(),
-    type: z.enum(["text", "buttons", "template", ...OUTBOUND_MEDIA_TYPES]),
+    accountId: z.string().min(1).optional(),
+    to: phoneSchema.optional(),
+    type: z.enum(API_SEND_TYPES),
     text: z.string().trim().min(1).max(4096).optional(),
     buttons: z.array(buttonSchema).min(1).max(3).optional(),
+    // type list: el botón que abre la lista y hasta 10 opciones.
+    list: z
+      .object({
+        button: z.string().trim().min(1).max(20, "list.button admite máximo 20 caracteres"),
+        rows: z
+          .array(
+            z.object({
+              id: z.string().trim().min(1).max(200).optional(),
+              title: z.string().trim().min(1).max(24, "El título de una opción admite máximo 24 caracteres"),
+              description: z.string().trim().min(1).max(72, "La descripción de una opción admite máximo 72 caracteres").optional(),
+            })
+          )
+          .min(1)
+          .max(10, "Una lista admite máximo 10 opciones"),
+      })
+      .strict()
+      .optional(),
+    // type cta_url: un botón que abre una URL.
+    cta: z.object({ label: z.string().trim().min(1).max(20, "cta.label admite máximo 20 caracteres"), url: httpsUrl("cta.url") }).strict().optional(),
+    // type location.
+    location: z
+      .object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        name: z.string().trim().min(1).max(1000).optional(),
+        address: z.string().trim().min(1).max(1000).optional(),
+      })
+      .strict()
+      .optional(),
     template: z
       .object({
         id: z.string().min(1),
@@ -70,32 +119,63 @@ export const apiSendMessageSchema = z
         buttonParam: z.string().max(1024).nullable().optional(),
       })
       .optional(),
-    // Archivo por URL (type image, document, audio o video).
+    // Archivo por URL (type image, document, audio, video o sticker).
     media: z
       .object({
-        url: z.string().trim().url("media.url debe ser una URL").max(2048).refine((v) => v.startsWith("https://"), "media.url debe usar https://"),
+        url: httpsUrl("media.url"),
         filename: z.string().trim().min(1).max(200).optional(),
         mimeType: z.string().trim().min(3).max(127).optional(),
       })
       .strict()
       .optional(),
     caption: z.string().trim().min(1).max(1024, "caption admite máximo 1024 caracteres").optional(),
+    // Id de Colibly del mensaje a citar (WhatsApp).
+    replyTo: z.string().min(1).max(64).optional(),
   })
-  .refine((d) => !!d.conversationId !== !!d.contactId, "Envía conversationId o contactId (uno de los dos)")
+  .refine((d) => [!!d.conversationId, !!d.contactId, !!(d.accountId || d.to)].filter(Boolean).length === 1, "Envía conversationId, contactId o accountId + to (solo uno)")
+  .refine((d) => !(d.accountId || d.to) || (!!d.accountId && !!d.to), { message: "accountId y to van juntos", path: ["to"] })
   .refine((d) => d.type !== "text" || !!d.text, { message: "text es requerido", path: ["text"] })
   .refine((d) => d.type !== "buttons" || (!!d.text && !!d.buttons), {
     message: "text y buttons son requeridos",
     path: ["buttons"],
   })
+  .refine((d) => d.type !== "list" || (!!d.text && !!d.list), { message: "text y list son requeridos", path: ["list"] })
+  .refine((d) => d.type !== "cta_url" || (!!d.text && !!d.cta), { message: "text y cta son requeridos", path: ["cta"] })
+  .refine((d) => d.type !== "location" || !!d.location, { message: "location es requerido", path: ["location"] })
+  .refine((d) => d.type !== "location_request" || !!d.text, { message: "text es requerido", path: ["text"] })
   .refine((d) => d.type !== "template" || !!d.template, { message: "template es requerido", path: ["template"] })
-  .refine((d) => !isMediaType(d.type) || !!d.media, { message: "media es requerido para image, document, audio y video", path: ["media"] })
-  .refine((d) => isMediaType(d.type) || !d.media, { message: "media solo va con type image, document, audio o video", path: ["media"] })
+  .refine((d) => !takesMedia(d.type) || !!d.media, { message: "media es requerido para image, document, audio, video y sticker", path: ["media"] })
+  .refine((d) => takesMedia(d.type) || !d.media, { message: "media solo va con type image, document, audio, video o sticker", path: ["media"] })
   .refine((d) => isMediaType(d.type) || !d.caption, { message: "caption solo va con un archivo; para texto usa text", path: ["caption"] })
-  .refine((d) => d.type !== "audio" || !d.caption, { message: "Un audio no lleva caption", path: ["caption"] });
+  .refine((d) => d.type !== "audio" || !d.caption, { message: "Un audio no lleva caption", path: ["caption"] })
+  .refine((d) => !d.list || d.type === "list", { message: "list solo va con type list", path: ["list"] })
+  .refine((d) => !d.cta || d.type === "cta_url", { message: "cta solo va con type cta_url", path: ["cta"] })
+  .refine((d) => !d.location || d.type === "location", { message: "location solo va con type location", path: ["location"] });
 
 function isMediaType(t: string): t is (typeof OUTBOUND_MEDIA_TYPES)[number] {
   return (OUTBOUND_MEDIA_TYPES as readonly string[]).includes(t);
 }
+
+function takesMedia(t: string): boolean {
+  return isMediaType(t) || t === "sticker";
+}
+
+export const apiReactionSchema = z
+  .object({
+    // "" quita la reacción. Un solo emoji (con sus modificadores).
+    emoji: z
+      .string()
+      .max(32)
+      .refine((v) => v === "" || /^\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\uFE0F|\u200D\p{Extended_Pictographic})*$/u.test(v) || /^\p{Regional_Indicator}{2}$/u.test(v), "emoji debe ser un solo emoji, o \"\" para quitar la reacción"),
+  })
+  .strict();
+
+export const apiMarkReadSchema = z
+  .object({
+    // Además de marcar leído, muestra "escribiendo…" al cliente (WhatsApp, hasta 25 s o hasta tu respuesta).
+    typing: z.boolean().optional(),
+  })
+  .strict();
 
 export const apiConversationUpdateSchema = z
   .object({
@@ -109,3 +189,58 @@ export const apiConversationUpdateSchema = z
   .refine((d) => d.status !== undefined || d.assignedToId !== undefined || d.teamId !== undefined, "Envía status, assignedToId, teamId o varios");
 
 export type ApiSendMessageInput = z.infer<typeof apiSendMessageSchema>;
+
+// ── Administración de la cuenta de WhatsApp (permiso whatsapp:manage) ──────
+
+// PATCH /accounts/{id}/profile — solo los campos enviados; "" borra el campo
+// (salvo `about`, que Meta exige con al menos 1 carácter). Topes de Meta.
+export const apiBusinessProfileSchema = z
+  .object({
+    about: z.string().trim().min(1, "about no puede quedar vacío").max(139).optional(),
+    address: z.string().trim().max(256).optional(),
+    description: z.string().trim().max(512).optional(),
+    email: z.union([z.literal(""), z.string().trim().email("email no es válido").max(128)]).optional(),
+    websites: z.array(z.string().trim().url("cada sitio debe ser una URL").max(256).refine((v) => /^https?:\/\//.test(v), "cada sitio debe empezar con http:// o https://")).max(2, "Meta admite hasta 2 sitios").optional(),
+    // Categoría de Meta (RETAIL, RESTAURANT, PROF_SERVICES…); Meta valida la lista.
+    vertical: z.string().trim().regex(/^[A-Z_]{2,40}$/, "vertical es una categoría de Meta en mayúsculas, p. ej. RETAIL").optional(),
+    // JPG o PNG de hasta 5 MB; Colibly lo descarga y lo sube a Meta.
+    profilePictureUrl: httpsUrl("profilePictureUrl").optional(),
+  })
+  .strict()
+  .refine((d) => Object.values(d).some((v) => v !== undefined), "Envía al menos un campo del perfil");
+
+// POST /accounts/{id}/blocked-users
+export const apiBlockUsersSchema = z
+  .object({
+    phones: z.array(phoneSchema).min(1, "Envía al menos un teléfono").max(100, "Hasta 100 teléfonos por llamada"),
+  })
+  .strict();
+
+// POST /templates — el mismo formulario que la bandeja, con `accountId` y el
+// ejemplo de cabecera multimedia como URL (Colibly lo sube a Meta).
+const uiTemplate = templateCreateSchema.shape;
+const uiComponents = uiTemplate.components.shape;
+export const apiTemplateCreateSchema = z
+  .object({
+    accountId: z.string().min(1, "accountId es requerido"),
+    name: uiTemplate.name,
+    language: uiTemplate.language,
+    category: uiTemplate.category,
+    components: z
+      .object({
+        header: uiComponents.header
+          .unwrap()
+          .omit({ exampleHandle: true })
+          .extend({ exampleUrl: httpsUrl("components.header.exampleUrl").optional() })
+          .strict()
+          .optional(),
+        body: uiComponents.body,
+        bodyExamples: uiComponents.bodyExamples,
+        footer: uiComponents.footer,
+        buttons: uiComponents.buttons,
+      })
+      .strict(),
+  })
+  .strict();
+
+export type ApiTemplateCreateInput = z.infer<typeof apiTemplateCreateSchema>;

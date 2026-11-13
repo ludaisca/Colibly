@@ -1,7 +1,8 @@
 import type { ChannelAccount, Conversation, Prisma, WAAccount, WAChat } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
-import { sendInteractiveList, sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
+import { sendInteractiveCtaUrl, sendInteractiveList, sendInteractiveLocationRequest, sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
+import { getMessageBody, structuredContentOf } from "@/lib/whatsapp/message-content";
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { MetaSendError } from "@/lib/whatsapp/send-errors";
 import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/template-variables";
@@ -41,7 +42,16 @@ export type OutboundContent =
   | { type: "list"; text: string; buttonLabel: string; rows: OutboundOption[] }
   | { type: "template"; templateId: string; bodyParams?: string[]; headerParam?: string | null; buttonParam?: string | null }
   // Archivo ya descargado y validado (lib/messaging/outbound-media.ts).
-  | { type: "media"; mediaType: OutboundMediaType; file: OutboundMediaFile; caption?: string | null };
+  | { type: "media"; mediaType: OutboundMediaType; file: OutboundMediaFile; caption?: string | null }
+  // Solo WhatsApp:
+  | { type: "cta_url"; text: string; label: string; url: string }
+  | { type: "location"; latitude: number; longitude: number; name?: string | null; address?: string | null }
+  | { type: "location_request"; text: string }
+  // WebP de 512×512 ya validado (fetchOutboundSticker).
+  | { type: "sticker"; file: OutboundMediaFile };
+
+/** Tipos que solo existen en WhatsApp; los demás canales responden invalid_request. */
+const WHATSAPP_ONLY = new Set<OutboundContent["type"]>(["template", "cta_url", "location", "location_request", "sticker"]);
 
 // Columnas de medio del mensaje guardado (WAMessage y ChannelMessage las comparten).
 interface StoredMediaColumns {
@@ -58,8 +68,10 @@ interface StoredMediaColumns {
 // chat (chat-thread-panel.tsx) dibuja `buttons` igual para botones y listas.
 export interface InteractivePayload {
   buttons: { id: string; title: string }[];
-  style?: "list";
+  style?: "list" | "cta_url" | "location_request";
   buttonLabel?: string;
+  /** cta_url: a dónde lleva el botón. */
+  url?: string;
 }
 
 function payloadFor(content: Extract<OutboundContent, { type: "buttons" | "list" }>): InteractivePayload {
@@ -91,6 +103,8 @@ export interface OutboundOpts {
   countsAsReply?: boolean;
   /** `origin` público del mensaje; por defecto se deduce de source/countsAsReply. */
   origin?: OutboundOrigin;
+  /** Solo WhatsApp: cita ese mensaje (context.message_id de Meta). */
+  replyToWamid?: string | null;
 }
 
 // Lo que se guarda en `sentVia` y viaja en message.sent (lib/messages/origin.ts).
@@ -147,36 +161,49 @@ async function sendWhatsapp(
   let messageType = "text";
   let interactivePayload: InteractivePayload | undefined;
   let media: StoredMediaColumns | null = null;
+  let structured: Prisma.InputJsonObject | undefined;
+  const replyToWamid = opts.replyToWamid ?? undefined;
 
   try {
-    if (content.type === "media") {
+    if (content.type === "media" || content.type === "sticker") {
       if (!chat.account.phoneNumberId || !chat.account.accessToken) {
         throw new OutboundError("invalid_request", "La cuenta de WhatsApp no está conectada");
       }
       const { buffer, mimeType, filename } = content.file;
+      const mediaType = content.type === "sticker" ? "sticker" : content.mediaType;
+      const caption = content.type === "media" ? content.caption ?? null : null;
       // Dos pasos de Meta: subir el archivo (media id) y mandar el mensaje con él.
       const uploaded = await uploadMedia(chat.account.phoneNumberId, decrypt(chat.account.accessToken), buffer, filename, mimeType);
       const stored = await saveMediaFromBuffer(chat.accountId, buffer, mimeType);
       ({ wamid } = await sendWhatsAppMessage(chat.account, {
         to: chat.remoteJid,
-        type: content.mediaType,
+        type: mediaType,
         mediaId: uploaded.id,
-        caption: content.caption ?? undefined,
+        caption: caption ?? undefined,
         mimeType,
         filename,
         localMediaPath: stored.relativePath,
+        replyToWamid,
       }));
-      media = { mediaId: uploaded.id, mediaUrl: stored.relativePath, mimeType, filename, bytesSize: buffer.length, mediaSha256: stored.sha256 ?? null, caption: content.caption ?? null };
-      body = content.caption || `[${content.mediaType}]`;
-      messageType = content.mediaType;
+      media = { mediaId: uploaded.id, mediaUrl: stored.relativePath, mimeType, filename, bytesSize: buffer.length, mediaSha256: stored.sha256 ?? null, caption };
+      body = caption || `[${mediaType}]`;
+      messageType = mediaType;
     } else if (content.type === "text") {
-      ({ wamid } = await sendWhatsAppMessage(chat.account, { to: chat.remoteJid, type: "text", body: content.text }));
+      ({ wamid } = await sendWhatsAppMessage(chat.account, { to: chat.remoteJid, type: "text", body: content.text, replyToWamid }));
       body = content.text;
+    } else if (content.type === "location") {
+      const location = { latitude: content.latitude, longitude: content.longitude, name: content.name ?? undefined, address: content.address ?? undefined };
+      ({ wamid } = await sendWhatsAppMessage(chat.account, { to: chat.remoteJid, type: "location", location, replyToWamid }));
+      // Igual que una ubicación entrante: texto legible en body y coordenadas en content.
+      body = getMessageBody({ type: "location", location });
+      structured = (structuredContentOf({ type: "location", location }) ?? undefined) as Prisma.InputJsonObject | undefined;
+      messageType = "location";
     } else if (content.type === "buttons") {
       ({ wamid } = await sendInteractiveMessage(chat.account, {
         to: chat.remoteJid,
         body: content.text,
         buttons: content.buttons.map(({ id, title }) => ({ id, title })),
+        replyToWamid,
       }));
       body = content.text;
       messageType = "interactive";
@@ -187,10 +214,21 @@ async function sendWhatsapp(
         body: content.text,
         buttonLabel: content.buttonLabel,
         rows: content.rows,
+        replyToWamid,
       }));
       body = content.text;
       messageType = "interactive";
       interactivePayload = payloadFor(content);
+    } else if (content.type === "cta_url") {
+      ({ wamid } = await sendInteractiveCtaUrl(chat.account, { to: chat.remoteJid, body: content.text, label: content.label, url: content.url, replyToWamid }));
+      body = content.text;
+      messageType = "interactive";
+      interactivePayload = { buttons: [{ id: "cta_url", title: content.label }], style: "cta_url", url: content.url };
+    } else if (content.type === "location_request") {
+      ({ wamid } = await sendInteractiveLocationRequest(chat.account, { to: chat.remoteJid, body: content.text, replyToWamid }));
+      body = content.text;
+      messageType = "interactive";
+      interactivePayload = { buttons: [{ id: "send_location", title: "Enviar ubicación" }], style: "location_request" };
     } else {
       const template = await prisma.wATemplate.findFirst({
         where: { id: content.templateId, waAccountId: chat.accountId },
@@ -219,6 +257,7 @@ async function sendWhatsapp(
         headerParam: content.headerParam ?? null,
         buttonIndex: vars.buttonUrl?.index ?? null,
         buttonParam: content.buttonParam ?? null,
+        replyToWamid: replyToWamid ?? null,
       }));
       body = renderTemplateText(template.components, { bodyParams, headerParam: content.headerParam });
       messageType = "template";
@@ -242,6 +281,8 @@ async function sendWhatsapp(
       body: media ? null : body,
       ...(media ?? {}),
       interactivePayload: interactivePayload as Prisma.InputJsonObject | undefined,
+      content: structured,
+      replyToWamid: replyToWamid ?? null,
       status: "sent",
       senderId: opts.senderId ?? null,
       sentVia: outboundOriginOf(opts),
@@ -275,7 +316,16 @@ async function sendChannel(
   if (content.type === "template") {
     throw new OutboundError("invalid_request", "Las plantillas solo existen en WhatsApp");
   }
+  if (WHATSAPP_ONLY.has(content.type)) {
+    throw new OutboundError("invalid_request", `El tipo "${content.type}" solo se puede enviar por WhatsApp`);
+  }
+  if (opts.replyToWamid) {
+    throw new OutboundError("invalid_request", "Citar un mensaje (replyTo) solo está disponible en WhatsApp");
+  }
   if (content.type === "media") return sendChannelMedia(conversation, content, opts);
+  if (content.type !== "text" && content.type !== "buttons" && content.type !== "list") {
+    throw new OutboundError("invalid_request", `El tipo "${content.type}" solo se puede enviar por WhatsApp`);
+  }
 
   const now = new Date();
   const text = content.text;
