@@ -18,15 +18,24 @@ const eventsSchema = z
   .min(1, "Elige al menos un evento")
   .refine((list) => list.every((e) => e === "*" || (DOMAIN_EVENT_TYPES as string[]).includes(e)), "Evento desconocido");
 
-export const webhookCreateSchema = z.object({
+const webhookFields = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(80),
   url: z.string().trim().min(1, "La URL es requerida").max(2000),
   events: eventsSchema,
-  accountIds: z.array(z.string()).max(100).default([]),
-  channelAccountIds: z.array(z.string()).max(100).default([]),
+  accountIds: z.array(z.string()).max(100),
+  channelAccountIds: z.array(z.string()).max(100),
 });
 
-export const webhookUpdateSchema = webhookCreateSchema.partial().extend({
+// `[]` = sin recorte: el webhook recibe todas las cuentas de su dueño.
+export const webhookCreateSchema = webhookFields.extend({
+  accountIds: webhookFields.shape.accountIds.default([]),
+  channelAccountIds: webhookFields.shape.channelAccountIds.default([]),
+});
+
+// Sin defaults a propósito: en Zod 4 `.partial()` conserva los `.default()`,
+// y un PATCH que no mandaba `accountIds` guardaba `[]` — quitaba el recorte de
+// cuentas y el webhook empezaba a recibir eventos de todas.
+export const webhookUpdateSchema = webhookFields.partial().extend({
   active: z.boolean().optional(),
   // El webhook pasa a ser de quien lo edita: sus entregas usan desde ahora el
   // alcance de cuentas de este admin. Obligatorio para reactivar uno pausado
