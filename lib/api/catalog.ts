@@ -1,3 +1,4 @@
+import { describeTemplateSend } from "@/lib/whatsapp/template-send";
 import { getTemplateVariables } from "@/lib/whatsapp/template-variables";
 
 // Forma pública de los catálogos que un integrador necesita para armar
@@ -39,6 +40,9 @@ export function serializeTemplate(t: TemplateRow) {
       header: vars.header.required ? { format: vars.header.format } : null,
       buttonParamRequired: vars.buttonUrl?.required ?? false,
     },
+    // Todo lo que pide el envío: variables con nombre, botones, código OTP,
+    // oferta, carrusel (lib/whatsapp/template-send.ts).
+    send: describeTemplateSend(t.components, t.category),
     // Texto del cuerpo con sus {{1}}, {{2}}… para mostrarlo o validar.
     bodyText: componentText(t.components, "BODY"),
     syncedAt: t.syncedAt,

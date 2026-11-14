@@ -7,9 +7,11 @@ const BASE_URL = "https://graph.facebook.com";
 
 interface SendMessageParams {
   to: string;
-  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction" | "location";
+  type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "reaction" | "location" | "contacts";
   reactionMessageId?: string;
   location?: { latitude: number; longitude: number; name?: string; address?: string };
+  // Tarjetas de contacto con la forma de Meta (lib/whatsapp/shared-contacts.ts).
+  contacts?: Record<string, unknown>[];
   emoji?: string;
   body?: string;
   mediaId?: string;
@@ -92,6 +94,9 @@ export async function sendMessage(
     payload.reaction = { message_id: params.reactionMessageId, emoji: params.emoji ?? "" };
   } else if (params.type === "sticker") {
     payload.sticker = { id: params.mediaId };
+  } else if (params.type === "contacts") {
+    if (!params.contacts?.length) throw new Error("Faltan los contactos");
+    payload.contacts = params.contacts;
   } else if (params.type === "location") {
     const loc = params.location;
     if (!loc) throw new Error("Falta la ubicación");

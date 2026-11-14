@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import type { TemplateCreateInput } from "@/lib/validations";
 import { createTemplate, templateInputError } from "./templates";
+import { buildTemplateComponents, buildTemplateDefinitionPayload, templateDefinitionError, type TemplateComponentsDef, type TemplateDefinition } from "./template-definition";
+import { editMetaTemplate, MetaAdminError, submitMetaTemplate } from "./account-admin";
 
 // Alta de una plantilla en Meta y en Colibly. Única ruta para la bandeja
 // (/api/whatsapp/templates/create) y la API pública (POST /api/v1/templates).
@@ -10,7 +12,9 @@ import { createTemplate, templateInputError } from "./templates";
 export class TemplateCreateError extends Error {
   constructor(
     public readonly status: 400 | 409 | 422,
-    message: string
+    message: string,
+    /** Código de Meta si Graph rechazó la plantilla. */
+    public readonly metaCode: number | null = null
   ) {
     super(message);
   }
@@ -57,5 +61,81 @@ export async function createAccountTemplate(account: WAAccount, input: TemplateC
     where: { waAccountId_templateId: { waAccountId: account.id, templateId: result.templateId } },
     create: { waAccountId: account.id, templateId: result.templateId, ...data },
     update: { components: data.components, syncedAt: data.syncedAt },
+  });
+}
+
+/** Errores de Meta al crear/editar: los de la definición son 400 para el integrador. */
+function asTemplateError(err: unknown): never {
+  if (err instanceof MetaAdminError && err.httpStatus >= 400 && err.httpStatus < 500 && err.httpStatus !== 401 && err.httpStatus !== 403 && err.httpStatus !== 422) {
+    throw new TemplateCreateError(400, err.message, err.metaCode);
+  }
+  throw err;
+}
+
+/** Alta con la definición completa de la API pública (template-definition.ts). */
+export async function createAccountTemplateFromDefinition(account: WAAccount, def: TemplateDefinition): Promise<WATemplate> {
+  const inputError = templateDefinitionError(def);
+  if (inputError) throw new TemplateCreateError(400, inputError);
+  assertCanManageTemplates(account);
+
+  const existing = await prisma.wATemplate.findFirst({
+    where: { waAccountId: account.id, name: def.name, language: def.language, status: { not: "DELETED" } },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new TemplateCreateError(409, `Ya existe una plantilla con el nombre "${def.name}" en ese idioma en esta cuenta`);
+  }
+
+  const payload = buildTemplateDefinitionPayload(def);
+  const created = await submitMetaTemplate(account, payload).catch(asTemplateError);
+  const data = {
+    name: def.name,
+    language: def.language,
+    // Meta puede reclasificar la categoría al crearla (p. ej. UTILITY → MARKETING).
+    category: created.category ?? def.category,
+    status: created.status ?? "PENDING",
+    components: payload.components as object,
+    syncedAt: new Date(),
+  };
+  return prisma.wATemplate.upsert({
+    where: { waAccountId_templateId: { waAccountId: account.id, templateId: created.id } },
+    create: { waAccountId: account.id, templateId: created.id, ...data },
+    update: { components: data.components, syncedAt: data.syncedAt },
+  });
+}
+
+const EDITABLE = new Set(["APPROVED", "REJECTED", "PAUSED"]);
+
+/**
+ * Edita una plantilla en Meta: cambia sus componentes (y la categoría, solo si
+ * no está aprobada). Queda PENDING hasta la nueva revisión.
+ */
+export async function editAccountTemplate(
+  account: WAAccount,
+  template: WATemplate,
+  input: { category?: TemplateDefinition["category"]; components: TemplateComponentsDef }
+): Promise<WATemplate> {
+  assertCanManageTemplates(account);
+  if (!EDITABLE.has(template.status)) {
+    throw new TemplateCreateError(422, `Solo se editan plantillas APPROVED, REJECTED o PAUSED (esta está ${template.status})`);
+  }
+  if (input.category && input.category !== template.category && template.status === "APPROVED") {
+    throw new TemplateCreateError(422, "Meta no deja cambiar la categoría de una plantilla aprobada");
+  }
+  const category = (input.category ?? template.category) as TemplateDefinition["category"];
+  const def: TemplateDefinition = { name: template.name, language: template.language, category, components: input.components };
+  const inputError = templateDefinitionError(def);
+  if (inputError) throw new TemplateCreateError(400, inputError);
+
+  const { components, named } = buildTemplateComponents(def);
+  await editMetaTemplate(account, template.templateId, {
+    components,
+    ...(input.category && input.category !== template.category ? { category } : {}),
+    ...(named ? { parameter_format: "NAMED" } : {}),
+  }).catch(asTemplateError);
+
+  return prisma.wATemplate.update({
+    where: { id: template.id },
+    data: { components: components as object, category, status: "PENDING", statusReason: null, syncedAt: new Date() },
   });
 }

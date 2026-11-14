@@ -4,6 +4,7 @@ import { enforceLimit, type ApiContext } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/respond";
 import { API_WHATSAPP_ADMIN_PER_MINUTE } from "@/lib/api/constants";
 import { MetaAdminError } from "@/lib/whatsapp/account-admin";
+import { flowEndpointUri } from "@/lib/whatsapp/flow-endpoint";
 import { fetchRemoteFile, OutboundMediaError } from "@/lib/messaging/outbound-media";
 import { uploadTemplateHeaderMedia } from "@/lib/whatsapp/resumable-upload";
 import { decrypt } from "@/lib/crypto";
@@ -37,12 +38,16 @@ export async function enforceWhatsAppAdminLimit(req: Request, ctx: ApiContext): 
 export function toWhatsAppAdminApiError(err: unknown): never {
   if (err instanceof ApiError) throw err;
   if (err instanceof MetaAdminError) {
-    if (err.httpStatus === 422) throw new ApiError(422, "invalid_request", err.message);
-    throw new ApiError(502, "upstream_error", `Meta: ${err.message}`);
+    const meta = err.metaCode !== null ? { code: err.metaCode } : null;
+    if (err.httpStatus === 422) throw new ApiError(422, "invalid_request", err.message, undefined, undefined, meta);
+    if (err.httpStatus === 404) throw new ApiError(404, "not_found", err.message, undefined, undefined, meta);
+    // 400 de Meta = dato que Meta no acepta (no una falla de Meta): es del integrador.
+    if (err.httpStatus === 400) throw new ApiError(400, "invalid_request", `Meta: ${err.message}`, undefined, undefined, meta);
+    throw new ApiError(502, "upstream_error", `Meta: ${err.message}`, undefined, undefined, meta);
   }
   if (err instanceof OutboundMediaError) throw new ApiError(400, "invalid_request", err.message);
   if (err instanceof TemplateCreateError) {
-    throw new ApiError(err.status, err.status === 409 ? "conflict" : "invalid_request", err.message);
+    throw new ApiError(err.status, err.status === 409 ? "conflict" : "invalid_request", err.message, undefined, undefined, err.metaCode !== null ? { code: err.metaCode } : null);
   }
   throw err;
 }
@@ -86,4 +91,22 @@ export function readAnalyticsRange(url: URL, maxDays = 365): { start: Date; end:
   if (start >= end) throw new ApiError(400, "invalid_request", "since debe ser anterior a until");
   if (end.getTime() - start.getTime() > maxDays * DAY_MS) throw new ApiError(400, "invalid_request", `El rango admite máximo ${maxDays} días`);
   return { start, end };
+}
+
+/**
+ * endpointUri de un Flow: el que manda el integrador, o el de Colibly con
+ * useColiblyEndpoint (exige la llave ya subida con PATCH /flows-endpoint).
+ * undefined = no cambiar.
+ */
+export function resolveFlowEndpointUri(
+  account: Pick<WAAccount, "id" | "flowKeyUploadedAt">,
+  input: { endpointUri?: string | null; useColiblyEndpoint?: boolean }
+): string | null | undefined {
+  if (input.useColiblyEndpoint) {
+    if (!account.flowKeyUploadedAt) {
+      throw new ApiError(422, "invalid_request", "Configura primero el endpoint de Flows de la cuenta (PATCH /accounts/{id}/flows-endpoint)");
+    }
+    return flowEndpointUri(account.id);
+  }
+  return input.endpointUri;
 }

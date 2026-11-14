@@ -70,6 +70,8 @@ export interface CachedApiKey {
   scopes: string[];
   accountIds: string[];
   channelAccountIds: string[];
+  /** sk_test_ (ausente en entradas viejas del caché = false). */
+  test?: boolean;
   revokedAt: string | null;
   expiresAt: string | null;
   lastUsedAt: string | null;

@@ -10,6 +10,7 @@ import { checkPlanLimit } from "@/lib/billing/gates";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { completeEmbeddedSignup, EmbeddedSignupError } from "@/lib/whatsapp/embedded-signup/complete";
 import { realEmbeddedSignupDeps, requirePlatformApp } from "@/lib/whatsapp/embedded-signup/service";
+import { emitAccountConnected } from "@/lib/whatsapp/onboarding-links";
 
 const bodySchema = z.object({
   code: z.string().min(10).max(4000),
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
       realEmbeddedSignupDeps(app)
     );
 
+    await emitAccountConnected(result.accountId, { coexistence: result.coexistence, via: "app" });
     return NextResponse.json(
       { id: result.accountId, coexistence: result.coexistence, syncDeadlineAt: result.syncDeadlineAt, registered: result.registered },
       { status: 201 }

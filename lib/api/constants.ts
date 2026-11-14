@@ -35,6 +35,10 @@ export const API_DAILY_SENDS_PER_ORG = envInt("API_DAILY_SEND_CAP_PER_ORG", 10_0
 /** Tamaño máximo del cuerpo de una solicitud a /api/v1. */
 export const API_MAX_BODY_BYTES = envInt("API_MAX_BODY_BYTES", 1024 * 1024);
 /** Segundos que se guarda en caché (Redis) la key, el acceso del plan y el alcance. */
+// POST /media: el archivo más grande que admite WhatsApp (documento de 20 MB)
+// más el sobre de multipart. Los archivos se borran a los 30 días, como en Meta.
+export const API_MEDIA_MAX_BYTES = 21 * 1024 * 1024;
+export const API_MEDIA_RETENTION_DAYS = 30;
 export const API_AUTH_CACHE_SECONDS = envInt("API_AUTH_CACHE_SECONDS", 60);
 /** Retry-After cuando el limitador no está disponible (503). */
 export const API_UNAVAILABLE_RETRY_SECONDS = 5;
@@ -47,7 +51,7 @@ export const API_BAD_KEY_ATTEMPTS_PER_MINUTE = 30;
  * los cambios son aditivos (campos nuevos), nunca se quita ni renombra uno.
  */
 // Fecha del contrato; un segundo cambio el mismo día lleva sufijo (.2).
-export const API_SCHEMA_VERSION = "2026-11-13.6";
+export const API_SCHEMA_VERSION = "2026-11-14.2";
 export const API_SCHEMA_VERSION_HEADER = "X-Colibly-Schema-Version";
 /** Página de listados. */
 export const API_PAGE_DEFAULT = 25;

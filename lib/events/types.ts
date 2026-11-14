@@ -86,6 +86,21 @@ interface EventDataMap {
   };
   "template.category_changed": { templateId: string; name: string; language: string; category: string; previousCategory: string };
   "account.quality_changed": { event: string | null; messagingTier: string | null };
+  // Número de WhatsApp conectado con Embedded Signup: desde el panel (app) o
+  // con un enlace de conexión (onboarding_link, con su linkId y reference).
+  "account.connected": { accountId: string; coexistence: boolean; via: "app" | "onboarding_link"; linkId: string | null; reference: string | null };
+  // Llamadas de WhatsApp (Calling API). direction: inbound = llamó el cliente.
+  "call.ringing": { callId: string; direction: "inbound" | "outbound"; phone: string | null };
+  "call.answered": { callId: string; direction: "inbound" | "outbound"; phone: string | null; answeredById: string | null };
+  "call.ended": {
+    callId: string;
+    direction: "inbound" | "outbound";
+    phone: string | null;
+    outcome: "ENDED" | "MISSED" | "REJECTED" | "FAILED";
+    durationSeconds: number | null;
+    startedAt: string | null;
+    endedAt: string | null;
+  };
 }
 
 export type DomainEventType = keyof EventDataMap;
@@ -126,6 +141,10 @@ export const DOMAIN_EVENT_CATALOG: Record<DomainEventType, string> = {
   "template.status_changed": "Meta revisó, pausó, desactivó o marcó una plantilla. Solo WhatsApp",
   "template.category_changed": "Meta cambió la categoría de una plantilla. Solo WhatsApp",
   "account.quality_changed": "Cambió la calidad o el límite de envío del número. Solo WhatsApp",
+  "account.connected": "Se conectó un número de WhatsApp (desde el panel o con un enlace de conexión). Solo WhatsApp",
+  "call.ringing": "Llamada de WhatsApp sonando (entrante o saliente). Solo WhatsApp",
+  "call.answered": "Llamada de WhatsApp contestada. Solo WhatsApp",
+  "call.ended": "Llamada de WhatsApp terminada: contestada, perdida, rechazada o fallida, con su duración. Solo WhatsApp",
 };
 
 export const DOMAIN_EVENT_TYPES = Object.keys(DOMAIN_EVENT_CATALOG) as DomainEventType[];

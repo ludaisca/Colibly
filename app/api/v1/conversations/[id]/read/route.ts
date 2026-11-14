@@ -37,7 +37,7 @@ export const POST = withApiErrors(async (req: Request, { params }: Params) => {
       await markMessageRead(chat.account.phoneNumberId, decrypt(chat.account.accessToken), lastInbound.wamid, { typing });
       readOnWhatsApp = true;
     } catch (err) {
-      if (err instanceof MetaSendError) throw new ApiError(502, "upstream_error", err.message);
+      if (err instanceof MetaSendError) throw new ApiError(502, "upstream_error", err.message, undefined, undefined, err.metaCode !== null ? { code: err.metaCode } : null);
       throw err;
     }
   }

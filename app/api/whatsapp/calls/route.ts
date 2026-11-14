@@ -1,3 +1,4 @@
+import { emitCallEnded, emitCallRinging } from "@/lib/whatsapp/calling/call-events";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -30,6 +31,8 @@ export async function GET(req: Request) {
         id: true,
         accountId: true,
         chatId: true,
+        contactId: true,
+        startedAt: true,
         direction: true,
         status: true,
         peerWaId: true,
@@ -40,11 +43,14 @@ export async function GET(req: Request) {
       },
     });
     const staleIds = open.filter((call) => call.status === "RINGING" && call.createdAt < staleBefore).map((call) => call.id);
-    if (staleIds.length > 0) {
-      await prisma.wACall.updateMany({
-        where: { id: { in: staleIds }, status: "RINGING" },
-        data: { status: "MISSED", endedAt: new Date(), sdpOffer: null, sdpAnswer: null },
+    for (const call of open.filter((c) => staleIds.includes(c.id))) {
+      // Uno por uno: solo emite call.ended quien de verdad la cerró.
+      const endedAt = new Date();
+      const claimed = await prisma.wACall.updateMany({
+        where: { id: call.id, status: "RINGING" },
+        data: { status: "MISSED", endedAt, sdpOffer: null, sdpAnswer: null },
       });
+      if (claimed.count > 0) await emitCallEnded({ ...call, endedAt }, "MISSED", 0);
     }
     const calls = open.filter((call) => !staleIds.includes(call.id));
     return jsonWithEtag(req, calls.map(({ sdpAnswer, ...call }) => ({ ...call, hasAnswer: !!sdpAnswer })));
@@ -104,12 +110,14 @@ export async function POST(req: Request) {
     try {
       const metaCallId = await connectCall(chat.account, to, sdp, row.id);
       await prisma.wACall.update({ where: { id: row.id }, data: { metaCallId } });
+      await emitCallRinging(row);
       return NextResponse.json({ id: row.id });
     } catch (error) {
-      await prisma.wACall.update({
+      const failed = await prisma.wACall.update({
         where: { id: row.id },
         data: { status: "FAILED", endedAt: new Date(), sdpOffer: null, sdpAnswer: null },
       });
+      await emitCallEnded(failed, "FAILED", null);
       if (isCallPermissionError(error)) {
         return NextResponse.json({ error: "Esta persona todavía no autorizó que la llamemos.", code: "call_permission", canRequest: true }, { status: 409 });
       }

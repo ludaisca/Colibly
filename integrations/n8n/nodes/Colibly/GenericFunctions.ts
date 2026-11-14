@@ -137,15 +137,31 @@ export async function getTeams(this: ILoadOptionsFunctions): Promise<INodeProper
 
 export async function getTemplates(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const rows = await coliblyList.call(this, '/templates', { status: 'APPROVED' });
-	return rows.map((t) => {
-		const params = (t.params ?? {}) as IDataObject;
-		const count = Number(params.bodyParamCount ?? 0);
-		return {
-			name: `${t.name as string} (${t.language as string})`,
-			value: t.id as string,
-			description: count ? `Pide ${count} ${count === 1 ? 'parámetro' : 'parámetros'} en el cuerpo` : 'Sin parámetros',
-		};
-	});
+	return rows.map((t) => ({ name: `${t.name as string} (${t.language as string})`, value: t.id as string, description: templateNeeds(t) }));
+}
+
+/** Todas las plantillas (también en revisión o rechazadas), para editarlas o borrarlas. */
+export async function getAllTemplates(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	const rows = await coliblyList.call(this, '/templates');
+	return rows
+		.filter((t) => t.status !== 'DELETED')
+		.map((t) => ({ name: `${t.name as string} (${t.language as string}) · ${t.status as string}`, value: t.id as string, description: templateNeeds(t) }));
+}
+
+/** Lo que pide la plantilla al enviarse (campo `send` de GET /templates). */
+function templateNeeds(t: IDataObject): string {
+	const send = (t.send ?? {}) as IDataObject;
+	if (send.requiresCode) return 'Autenticación: pide Code';
+	const body = send.bodyParams;
+	const parts: string[] = [];
+	if (Array.isArray(body) && body.length) parts.push(`Variables: ${body.join(', ')} (objeto JSON)`);
+	else {
+		const count = Number(body ?? (t.params as IDataObject | undefined)?.bodyParamCount ?? 0);
+		if (count) parts.push(`Pide ${count} ${count === 1 ? 'parámetro' : 'parámetros'} en el cuerpo`);
+	}
+	if (send.carouselCards) parts.push(`Carrusel de ${String(send.carouselCards)} tarjetas (cards en Advanced)`);
+	if ((send.offer as IDataObject | null)?.hasExpiration) parts.push('Oferta: offerExpiresAt en Advanced');
+	return parts.join(' · ') || 'Sin parámetros';
 }
 
 export async function getRunnableAutomations(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {

@@ -63,6 +63,8 @@ export default function ApiDocsPage() {
           Versión {spec.info.version}
           <br />
           <a href="/api/v1/openapi.json" className={LINK}>openapi.json</a>
+          {" · "}
+          <a href="/api/v1/postman.json" className={LINK}>Postman</a>
         </p>
       </nav>
 
@@ -101,7 +103,8 @@ export default function ApiDocsPage() {
             <dd className="min-w-0 text-pretty">JSON en UTF-8. Fechas en ISO 8601 (UTC). Ids opacos de texto.</dd>
             <dt className="font-semibold">Especificación</dt>
             <dd className="min-w-0 text-pretty">
-              OpenAPI 3.1 en <a href="/api/v1/openapi.json" className={LINK}>/api/v1/openapi.json</a>, para generar clientes o importarla en Postman o Insomnia.
+              OpenAPI 3.1 en <a href="/api/v1/openapi.json" className={LINK}>/api/v1/openapi.json</a>, para generar clientes o importarla en Insomnia.
+              Colección de Postman lista para usar en <a href="/api/v1/postman.json" className={LINK}>/api/v1/postman.json</a> (Import → Link; pon tu key en la variable <code className="font-mono text-sm">apiKey</code>).
             </dd>
           </dl>
           <SubHeading>Primera llamada</SubHeading>

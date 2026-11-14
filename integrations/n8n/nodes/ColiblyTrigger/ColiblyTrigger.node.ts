@@ -12,19 +12,30 @@ import { verifySignature } from '../Colibly/signature';
 
 // Eventos que Colibly publica por webhook (lib/events/types.ts → DOMAIN_EVENT_CATALOG).
 const EVENTS = [
+	{ name: 'Account Connected', value: 'account.connected', description: 'Se conectó un número (desde el panel o con un enlace de conexión)' },
+	{ name: 'Account Quality Changed', value: 'account.quality_changed', description: 'Cambió la calidad o el límite de envío del número' },
 	{ name: 'Appointment Created', value: 'appointment.created', description: 'Cita creada' },
 	{ name: 'Appointment Status Changed', value: 'appointment.status_changed', description: 'Cambio de estado de una cita' },
+	{ name: 'Call Answered', value: 'call.answered', description: 'Llamada de WhatsApp contestada' },
+	{ name: 'Call Ended', value: 'call.ended', description: 'Llamada terminada: contestada, perdida, rechazada o fallida' },
+	{ name: 'Call Ringing', value: 'call.ringing', description: 'Llamada de WhatsApp sonando' },
 	{ name: 'Contact Created', value: 'contact.created', description: 'Contacto nuevo' },
 	{ name: 'Contact Lead Status Changed', value: 'contact.lead_status_changed', description: 'Cambio de etapa del lead' },
+	{ name: 'Contact Marketing Preference Changed', value: 'contact.marketing_preference_changed', description: 'Pidió dejar de recibir marketing (o volver a recibirlo)' },
 	{ name: 'Conversation Assigned', value: 'conversation.assigned', description: 'Conversación asignada' },
 	{ name: 'Conversation Resolved', value: 'conversation.resolved', description: 'Conversación resuelta' },
+	{ name: 'Conversation Welcome Requested', value: 'conversation.welcome_requested', description: 'Abrió el chat por primera vez sin escribir' },
+	{ name: 'Flow Completed', value: 'flow.completed', description: 'Terminó un formulario de WhatsApp (Flow)' },
 	{ name: 'Lead Ad Captured', value: 'lead.ad_captured', description: 'Lead llegado de un anuncio (CTWA o Instant Form)' },
 	{ name: 'Lead Scored', value: 'lead.scored', description: 'Lead calificado por un calificador IA' },
 	{ name: 'Message Received', value: 'message.received', description: 'Mensaje recibido de un contacto' },
 	{ name: 'Message Sent', value: 'message.sent', description: 'Mensaje enviado por cualquier vía' },
 	{ name: 'Message Status Changed', value: 'message.status_changed', description: 'Entregado, leído o fallido (solo WhatsApp)' },
 	{ name: 'Message Updated', value: 'message.updated', description: 'Un mensaje guardado cambió (su archivo quedó listo…)' },
+	{ name: 'Order Received', value: 'order.received', description: 'Pedido desde el carrito del catálogo' },
 	{ name: 'Tag Added', value: 'tag.added', description: 'Etiqueta agregada a un contacto o conversación' },
+	{ name: 'Template Category Changed', value: 'template.category_changed', description: 'Meta cambió la categoría de una plantilla' },
+	{ name: 'Template Status Changed', value: 'template.status_changed', description: 'Meta aprobó, rechazó o pausó una plantilla' },
 ];
 
 export class ColiblyTrigger implements INodeType {

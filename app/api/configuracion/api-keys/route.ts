@@ -17,6 +17,8 @@ const createSchema = z.object({
   channelAccountIds: z.array(z.string()).max(100).default([]),
   // null = no expira
   expiresInDays: z.union([z.literal(30), z.literal(90), z.literal(365)]).nullable().default(null),
+  // sk_test_: envíos simulados, sin escrituras (lib/api/test-mode.ts).
+  test: z.boolean().default(false),
 });
 
 export async function GET() {
@@ -54,7 +56,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cuenta no válida" }, { status: 400 });
     }
 
-    const { secret, prefix, keyHash } = generateApiKey();
+    const { secret, prefix, keyHash } = generateApiKey({ test: input.test });
     const key = await prisma.apiKey.create({
       data: {
         userId: admin.userId,
@@ -65,6 +67,7 @@ export async function POST(req: Request) {
         scopes: input.scopes,
         accountIds: input.accountIds,
         channelAccountIds: input.channelAccountIds,
+        test: input.test,
         expiresAt: input.expiresInDays ? new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000) : null,
       },
     });

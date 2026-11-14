@@ -3,6 +3,8 @@
 // chat-thread-panel, chat-composer) — sin "use client", sin hooks, para que
 // cualquiera de los paneles pueda importarlo sin acoplarse a los demás.
 
+import type { StructuredContent } from "@/lib/whatsapp/message-content";
+
 export const CHATS_PAGE_SIZE = 30;
 // Cada cuánto sincroniza la bandeja con GET /api/inbox/sync (lista, hilo
 // abierto, "está escribiendo" y, cada 6 ticks, contadores de vistas).
@@ -192,9 +194,7 @@ export interface Message {
   agentReactionEmoji?: string | null;
   agentReactions?: AgentReaction[];
   /** Contenido estructurado de WhatsApp (lib/whatsapp/message-content.ts:structuredContentOf). */
-  content?: {
-    location?: { latitude: number; longitude: number; name: string | null; address: string | null; url: string | null };
-  } | null;
+  content?: Pick<StructuredContent, "location" | "flowResponse" | "order" | "contacts"> | null;
   timestamp: string;
   /** Identidad visual estable mientras el envío optimista recibe su id real. */
   motionKey?: string;

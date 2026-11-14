@@ -5,7 +5,8 @@ import { ApiError, apiOk, decodeCursor, encodeCursor, readDateParam, readPagePar
 import { messagesFeed } from "@/lib/api/messages-feed";
 import { findScopedContact, findScopedConversation } from "@/lib/api/resources";
 import { apiSendMessageSchema, type ApiSendMessageInput } from "@/lib/api/schemas";
-import { assertMediaSupported, OutboundError, sendOutbound, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
+import { assertMediaSupported, OutboundError, previewOutbound, sendOutbound, type OutboundContent, type OutboundTarget } from "@/lib/messaging/outbound";
+import { findApiMedia, readApiMedia } from "@/lib/media/api-media";
 import { fetchOutboundMedia, fetchOutboundSticker, OutboundMediaError, OUTBOUND_MEDIA_TYPES, type OutboundMediaFile, type OutboundMediaType } from "@/lib/messaging/outbound-media";
 import { findOrCreateApiWhatsAppContact } from "@/lib/api/contact-create";
 import { jidCandidates } from "@/lib/whatsapp/coexistence/normalize";
@@ -61,6 +62,8 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   const ctx = await authenticateApiKey(req, "messages:send");
   const body = await readJsonBody(req, apiSendMessageSchema);
   const input = body;
+  // Key de prueba: valida igual y responde lo que saldría, sin enviar ni guardar.
+  if (ctx.test) return apiOk(await simulateSend(ctx, input));
 
   // Límites propios del envío (además de los de key/organización): por minuto
   // por organización, y un cupo diario (día UTC) que protege la calidad del
@@ -90,24 +93,7 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
     const replyToWamid = input.replyTo ? await resolveReplyTo(target, input.replyTo) : null;
 
     // El archivo se descarga ya con el destino validado (un 404 no gasta una descarga).
-    let file: OutboundMediaFile | null = null;
-    if (input.media && (isMedia(input.type) || input.type === "sticker")) {
-      try {
-        if (input.type === "sticker") {
-          if (target.kind !== "whatsapp") throw new OutboundError("invalid_request", 'El tipo "sticker" solo se puede enviar por WhatsApp');
-          file = await fetchOutboundSticker(input.media.url);
-        } else {
-          assertMediaSupported(target, input.caption);
-          file = await fetchOutboundMedia(input.type, input.media);
-        }
-      } catch (err) {
-        if (err instanceof OutboundError) throw new ApiError(400, "invalid_request", err.message);
-        if (err instanceof OutboundMediaError) {
-          throw new ApiError(400, "invalid_request", err.message, undefined, [{ path: "media.url", message: err.message }]);
-        }
-        throw err;
-      }
-    }
+    const file = await loadSendFile(ctx, input, target);
 
     try {
       const result = await sendOutbound(target, toContent(input, file), { source: "api", replyToWamid });
@@ -117,7 +103,7 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
     } catch (err) {
       if (err instanceof OutboundError) {
         const [status, code] = OUTBOUND_STATUS[err.code];
-        throw new ApiError(status, code, err.message);
+        throw new ApiError(status, code, err.message, undefined, undefined, err.metaCode !== null ? { code: err.metaCode } : null);
       }
       throw err;
     }
@@ -130,6 +116,28 @@ export const POST = withIdempotency(withApiErrors(async (req: Request) => {
   }
 }));
 
+// Archivo del envío: descargado de media.url o leído de POST /media (media.id).
+async function loadSendFile(ctx: ApiContext, input: ApiSendMessageInput, target: OutboundTarget): Promise<OutboundMediaFile | null> {
+  if (!input.media || !(isMedia(input.type) || input.type === "sticker")) return null;
+  const field = input.media.id ? "media.id" : "media.url";
+  try {
+    if (input.type === "sticker" && target.kind !== "whatsapp") throw new OutboundError("invalid_request", 'El tipo "sticker" solo se puede enviar por WhatsApp');
+    if (input.type !== "sticker") assertMediaSupported(target, input.caption);
+    if (input.media.id) {
+      const row = await findApiMedia(ctx.organizationId, input.media.id);
+      if (!row) throw new ApiError(404, "not_found", "media.id: archivo no encontrado o caducado (POST /media)");
+      if (row.mediaType !== input.type) throw new OutboundMediaError(`media.id es un archivo de tipo ${row.mediaType}; este envío es ${input.type}`);
+      const file = await readApiMedia(row);
+      return input.media.filename ? { ...file, filename: input.media.filename } : file;
+    }
+    return input.type === "sticker" ? await fetchOutboundSticker(input.media.url!) : await fetchOutboundMedia(input.type, { ...input.media, url: input.media.url! });
+  } catch (err) {
+    if (err instanceof OutboundError) throw new ApiError(400, "invalid_request", err.message);
+    if (err instanceof OutboundMediaError) throw new ApiError(400, "invalid_request", err.message, undefined, [{ path: field, message: err.message }]);
+    throw err;
+  }
+}
+
 function isMedia(t: string): t is OutboundMediaType {
   return (OUTBOUND_MEDIA_TYPES as readonly string[]).includes(t);
 }
@@ -137,6 +145,8 @@ function isMedia(t: string): t is OutboundMediaType {
 function toContent(input: ApiSendMessageInput, file: OutboundMediaFile | null): OutboundContent {
   if (isMedia(input.type)) return { type: "media", mediaType: input.type, file: file!, caption: input.caption ?? null };
   switch (input.type) {
+    case "contacts":
+      return { type: "contacts", contacts: input.contacts! };
     case "text":
       return { type: "text", text: input.text! };
     case "buttons":
@@ -187,14 +197,10 @@ function toContent(input: ApiSendMessageInput, file: OutboundMediaFile | null): 
         data: input.flow!.data ?? null,
         draft: input.flow!.draft ?? false,
       };
-    default:
-      return {
-        type: "template",
-        templateId: input.template!.id,
-        bodyParams: input.template!.bodyParams,
-        headerParam: input.template!.headerParam,
-        buttonParam: input.template!.buttonParam,
-      };
+    default: {
+      const { id, ...params } = input.template!;
+      return { type: "template", templateId: id, ...params };
+    }
   }
 }
 
@@ -222,6 +228,64 @@ async function resolveTarget(
   if (!isTemplate) throw windowClosedForNewContact();
   const contact = await findOrCreateApiWhatsAppContact(ctx, { accountId, phone: input.to! });
   return targetForContact(ctx, contact.id, true);
+}
+
+// Simulación de una key sk_test_: mismo destino y reglas, sin crear contactos,
+// chats ni mensajes, sin descargar archivos y sin gastar cupo.
+async function simulateSend(ctx: ApiContext, input: ApiSendMessageInput) {
+  const isTemplate = input.type === "template";
+  let target: OutboundTarget | { kind: "new_whatsapp_chat"; accountId: string };
+  if (input.conversationId) {
+    target = (await findScopedConversation(ctx, input.conversationId)).target;
+  } else {
+    let contactId = input.contactId ?? null;
+    let accountId: string | null = null;
+    if (!contactId) {
+      accountId = input.accountId!;
+      if (!ctx.accountIds.includes(accountId)) {
+        if (ctx.channelAccountIds.includes(accountId)) throw new ApiError(400, "invalid_request", "accountId + to solo sirve con cuentas de WhatsApp");
+        throw new ApiError(404, "not_found", "Cuenta no encontrada");
+      }
+      const existing = await prisma.contact.findFirst({ where: { accountId, remoteJid: { in: jidCandidates(input.to!) } }, select: { id: true } });
+      contactId = existing?.id ?? null;
+    }
+    if (contactId) {
+      const contact = await findScopedContact(ctx, contactId);
+      const conversationId = contact.chat?.id ?? contact.conversation?.id;
+      accountId = contact.accountId;
+      if (conversationId) target = (await findScopedConversation(ctx, conversationId)).target;
+      else if (contact.accountId && isTemplate) target = { kind: "new_whatsapp_chat", accountId: contact.accountId };
+      else throw windowClosedForNewContact();
+    } else {
+      if (!isTemplate) throw windowClosedForNewContact();
+      target = { kind: "new_whatsapp_chat", accountId: accountId! };
+    }
+  }
+  if (input.replyTo && target.kind !== "new_whatsapp_chat") await resolveReplyTo(target, input.replyTo);
+  if (input.media?.id) {
+    const row = await findApiMedia(ctx.organizationId, input.media.id);
+    if (!row) throw new ApiError(404, "not_found", "media.id: archivo no encontrado o caducado (POST /media)");
+  }
+  if (target.kind === "channel" && isMedia(input.type)) {
+    try {
+      assertMediaSupported(target, input.caption);
+    } catch (err) {
+      if (err instanceof OutboundError) throw new ApiError(400, "invalid_request", err.message);
+      throw err;
+    }
+  }
+  const placeholder: OutboundMediaFile = { buffer: Buffer.alloc(0), mimeType: input.media?.mimeType ?? "application/octet-stream", filename: input.media?.filename ?? "archivo" };
+  try {
+    const preview = await previewOutbound(target, toContent(input, placeholder), { replyToWamid: input.replyTo ? "simulado" : null });
+    const conversationId = target.kind === "whatsapp" ? target.chat.id : target.kind === "channel" ? target.conversation.id : null;
+    return { id: null, conversationId, externalId: null, test: true, preview };
+  } catch (err) {
+    if (err instanceof OutboundError) {
+      const [status, code] = OUTBOUND_STATUS[err.code];
+      throw new ApiError(status, code, err.message);
+    }
+    throw err;
+  }
 }
 
 function windowClosedForNewContact() {

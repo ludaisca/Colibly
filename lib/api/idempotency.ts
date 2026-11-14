@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getRedisClient } from "@/lib/redis";
 import { hashToken } from "@/lib/crypto";
 import { ApiError, apiError, bodyOverflowed, guardRequestBody, withRequestScope } from "./respond";
-import { API_KEY_PREFIX } from "./keys";
+import { isApiKeySecret } from "./keys";
 import { IDEMPOTENCY_TTL_HOURS } from "./constants";
 
 // Idempotency-Key en los POST de la API pública (envío de mensajes, alta de
@@ -128,7 +128,7 @@ function parseStored(raw: string | null): Stored | null {
 async function organizationForBearer(req: Request): Promise<string | null> {
   const header = req.headers.get("authorization") ?? "";
   const secret = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
-  if (!secret.startsWith(API_KEY_PREFIX)) return null;
+  if (!isApiKeySecret(secret)) return null;
   const key = await prisma.apiKey.findUnique({
     where: { keyHash: hashToken(secret) },
     select: { organizationId: true, revokedAt: true, expiresAt: true },

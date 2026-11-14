@@ -19,6 +19,7 @@ interface ApiKeyRow {
   name: string;
   prefix: string;
   scopes: string[];
+  test: boolean;
   accountIds: string[];
   channelAccountIds: string[];
   lastUsedAt: string | null;
@@ -158,7 +159,12 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
                   {scopeSummary(k.accountIds, k.channelAccountIds, accounts)}
                 </span>
               }
-              badges={<Badge size="sm" tone={state.tone}>{state.label}</Badge>}
+              badges={
+                <>
+                  {k.test && <Badge size="sm" tone="neutral">Prueba</Badge>}
+                  <Badge size="sm" tone={state.tone}>{state.label}</Badge>
+                </>
+              }
               meta={k.lastUsedAt ? `Usada ${formatDateTime(k.lastUsedAt)}` : "Sin uso"}
             />
           );

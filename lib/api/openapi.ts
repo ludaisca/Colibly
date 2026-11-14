@@ -11,6 +11,7 @@ import {
   API_DAILY_SENDS_PER_ORG,
   API_IP_REQUESTS_PER_MINUTE,
   API_MAX_BODY_BYTES,
+  API_MEDIA_RETENTION_DAYS,
   API_ORG_REQUESTS_PER_MINUTE,
   API_SEND_PER_MINUTE_PER_ORG,
   API_UNAVAILABLE_RETRY_SECONDS,
@@ -41,13 +42,37 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.9.1";
+export const API_VERSION = "1.11.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.9.1",
+    version: "1.11.0",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-14",
+    changes: [
+      "Enlaces de conexión: POST /onboarding-links crea un enlace (`url`) para que un cliente conecte su número de WhatsApp con su Facebook, sin cuenta en Colibly; el número entra a tu organización. GET /onboarding-links, GET y DELETE /onboarding-links/{id}. Evento nuevo `account.connected` (también al conectar desde el panel).",
+      "Números de la WABA: GET /accounts/{id}/phone-numbers (todos, conectados o no). PIN de la verificación en dos pasos: POST /accounts/{id}/two-step-pin. Registro en Cloud API: POST /accounts/{id}/register y POST /accounts/{id}/deregister (con `confirm: true`).",
+    ],
+  },
+  {
+    version: "1.10.0",
+    schemaVersion: "2026-11-14.1",
+    date: "2026-11-14",
+    changes: [
+      "Plantillas completas al enviar (POST /messages `type: \"template\"`): variables con nombre (`bodyParams` como objeto), `buttons[]` por índice (payload de respuesta rápida, `urlParam`, `couponCode`, Flow), cabecera de ubicación (`headerLocation`) o archivo por media id, `code` para AUTHENTICATION, `offerExpiresAt` para ofertas por tiempo limitado y `cards[]` para carruseles. GET /templates trae `send` con todo lo que pide cada plantilla. El payload de un botón de plantilla llega en `message.received` como `interactiveReplyId`.",
+      "POST /templates acepta la definición completa: variables con nombre, cabecera LOCATION, botones PHONE_NUMBER, COPY_CODE, FLOW y VOICE_CALL, `limitedTimeOffer`, `carousel` y `authentication` (categoría AUTHENTICATION). Nuevo PATCH /templates/{id} para editar una plantilla.",
+      "Mensajes: `type: \"contacts\"` (tarjetas de contacto) y archivos reusables: POST /media (multipart o URL, 30 días), GET y DELETE /media/{id}, y `media.id` en POST /messages y en `headerParam` de plantillas.",
+      "Keys de prueba `sk_test_`: leen lo mismo que una real; POST /messages valida todo y responde 200 con `test: true` y `preview` sin enviar; las demás escrituras responden 403.",
+      "Errores: `error.meta.code` con el código original de Meta cuando WhatsApp rechaza una operación. Un 400 de Meta en los endpoints de administración ahora es 400 `invalid_request` (antes 502), y un recurso que Meta no encuentra, 404.",
+      "Llamadas de WhatsApp: GET /calls y GET /calls/{id}, y los eventos `call.ringing`, `call.answered` y `call.ended`.",
+      "Flows por API: POST /accounts/{id}/flows, GET/PATCH/DELETE /accounts/{id}/flows/{flowId}, …/publish y …/deprecate. Endpoint de datos alojado por Colibly: PATCH /accounts/{id}/flows-endpoint reenvía cada solicitud ya descifrada a tu URL, firmada como los webhooks.",
+      "Colección de Postman en /api/v1/postman.json.",
+    ],
+  },
+  {
+    version: "1.9.1",
+    schemaVersion: "2026-11-13.6",
     date: "2026-11-13",
     changes: [
       "GET y PATCH /accounts/{id}/catalog ya no fallan enteros en los números de coexistencia (Meta no deja leer su catálogo): `catalogs` llega en null con el motivo en `notices`, y los ajustes de comercio se devuelven si Meta los da. Mandar productos a esos números pide `catalogId`.",
@@ -208,6 +233,7 @@ const pageParams = [
   { name: "cursor", in: "query", schema: { type: "string" }, description: "`nextCursor` de la página anterior" },
 ];
 const idParam = { name: "id", in: "path", required: true, schema: { type: "string" } };
+const flowIdParam = { name: "flowId", in: "path", required: true, schema: { type: "string" }, description: "Id del Flow en Meta" };
 const ORIGIN_DOC =
   "Qué parte de Colibly lo mandó: agent (bandeja), api, automation (automatizaciones, macros, fuentes de leads), bot (bot IA), campaign, sequence, recovery (recuperación de leads), system (aviso fuera de horario, auto-resolver, encuesta CSAT), business_app (escrito en la app WhatsApp Business del teléfono, Coexistencia), history (importado del historial de esa app)";
 const SENT_BY_DOC = "Quién: contact (el cliente), user (una persona de Colibly, senderId), bot, business_app (el negocio desde su teléfono) o system (Colibly sin una persona detrás)";
@@ -323,9 +349,61 @@ const EX = {
     status: "APPROVED",
     statusReason: null,
     params: { bodyParamCount: 2, header: null, buttonParamRequired: false },
+    send: {
+      parameterFormat: "POSITIONAL",
+      bodyParams: 2,
+      header: null,
+      buttons: [{ index: 0, type: "URL", text: "Rastrear", param: "urlParam", required: true }],
+      requiresCode: false,
+      offer: null,
+      carouselCards: null,
+    },
     bodyText: "Hola {{1}}, tu pedido {{2}} va en camino.",
     syncedAt: "2026-10-18T12:00:00.000Z",
   },
+  onboardingLink: {
+    id: "cmobl_01",
+    status: "PENDING",
+    name: "Sucursal Norte",
+    reference: "cliente-4521",
+    redirectUrl: "https://agencia.ejemplo.mx/whatsapp/listo",
+    accountId: null,
+    lastError: null,
+    expiresAt: "2026-11-17T10:00:00.000Z",
+    completedAt: null,
+    createdAt: "2026-11-14T10:00:00.000Z",
+  },
+  flow: {
+    id: "1234567890123456",
+    name: "Agendar visita",
+    status: "DRAFT",
+    categories: ["APPOINTMENT_BOOKING"],
+    validationErrors: [],
+    jsonVersion: "6.3",
+    dataApiVersion: null,
+    endpointUri: null,
+    previewUrl: "https://business.facebook.com/wa/manage/flows/1234567890123456/preview/?token=…",
+    previewExpiresAt: "2026-11-21T10:00:00+0000",
+  },
+  flowsEndpoint: { accountId: "cmacc_wa_01", endpointUri: "https://app.colibly.com/api/whatsapp/flows/endpoint/cmacc_wa_01", url: "https://erp.ejemplo.mx/whatsapp/flows", keyUploadedAt: "2026-11-14T10:00:00.000Z" },
+  call: {
+    id: "cmcall_01",
+    accountId: "cmacc_wa_01",
+    conversationId: "cmchat_01",
+    contactId: "cmcon_01",
+    direction: "inbound",
+    status: "ENDED",
+    phone: "5215512345678",
+    name: "Ana López",
+    answeredById: "cmusr_02",
+    startedAt: "2026-10-18T19:02:11.000Z",
+    endedAt: "2026-10-18T19:05:15.000Z",
+    durationSeconds: 184,
+    hasRecording: false,
+    transcript: null,
+    createdAt: "2026-10-18T19:01:58.000Z",
+  },
+  media: { id: "cmmed_01", type: "document", mimeType: "application/pdf", filename: "Catálogo 2026.pdf", bytes: 482113, sha256: "9f2c…", createdAt: "2026-11-14T10:00:00.000Z", expiresAt: "2026-12-14T10:00:00.000Z" },
   commerce: { accountId: "cmacc_wa_01", catalogs: [{ id: "1234567890", name: "Catálogo Tienda Centro" }], cartEnabled: true, catalogVisible: true, notices: [] },
   qr: { code: "4O4YGZEG3RIVE1", prefilledMessage: "Hola, quiero información de la promoción", deepLinkUrl: "https://wa.me/message/4O4YGZEG3RIVE1", qrImageUrl: "https://scontent.whatsapp.net/v/qr-ejemplo.png" },
   profile: {
@@ -496,6 +574,36 @@ const EVENT_DATA: Record<DomainEventType, { data: object; example: Record<string
     }),
     example: { event: "UPGRADE", messagingTier: "TIER_10K" },
   },
+  "account.connected": {
+    data: obj({
+      accountId: { type: "string", description: "La cuenta nueva (GET /accounts/{id})" },
+      coexistence: { type: "boolean", description: "true = el número de la app WhatsApp Business" },
+      via: { type: "string", enum: ["app", "onboarding_link"] },
+      linkId: { ...strNull, description: "El enlace de POST /onboarding-links que se usó" },
+      reference: { ...strNull, description: "La reference que pusiste en el enlace" },
+    }),
+    example: { accountId: "cmacc_wa_02", coexistence: false, via: "onboarding_link", linkId: "cmobl_01", reference: "cliente-4521" },
+  },
+  "call.ringing": {
+    data: obj({ callId: { type: "string", description: "Id de GET /calls/{id}" }, direction: { type: "string", enum: ["inbound", "outbound"] }, phone: { ...strNull, description: "Número del cliente (dígitos)" } }),
+    example: { callId: "cmcall_01", direction: "inbound", phone: "5215512345678" },
+  },
+  "call.answered": {
+    data: obj({ callId: str, direction: { type: "string", enum: ["inbound", "outbound"] }, phone: strNull, answeredById: { ...strNull, description: "Quién contestó (GET /users); null si contestó el cliente una llamada saliente" } }),
+    example: { callId: "cmcall_01", direction: "inbound", phone: "5215512345678", answeredById: "cmusr_02" },
+  },
+  "call.ended": {
+    data: obj({
+      callId: str,
+      direction: { type: "string", enum: ["inbound", "outbound"] },
+      phone: strNull,
+      outcome: { type: "string", enum: ["ENDED", "MISSED", "REJECTED", "FAILED"], description: "ENDED = hubo conversación" },
+      durationSeconds: { type: ["integer", "null"] },
+      startedAt: { type: ["string", "null"], format: "date-time", description: "Cuándo se contestó" },
+      endedAt: { type: ["string", "null"], format: "date-time" },
+    }),
+    example: { callId: "cmcall_01", direction: "inbound", phone: "5215512345678", outcome: "ENDED", durationSeconds: 184, startedAt: "2026-10-18T19:02:11.000Z", endedAt: "2026-10-18T19:05:15.000Z" },
+  },
 };
 
 export const WEBHOOK_EVENT_DOCS: EventDoc[] = [
@@ -568,9 +676,10 @@ export function buildOpenApiSpec(serverUrl: string) {
       description:
         `API pública de ${BRAND_NAME} (plan Pro). ` +
         "Autenticación: `Authorization: Bearer sk_live_...` (API key creada por un admin en Configuración → API). " +
+        "**Keys de prueba** (`sk_test_`): consultan los mismos datos con los mismos permisos, pero `POST /messages` valida todo (destino, ventana de 24 h, plantilla y sus parámetros) y responde 200 con `test: true` y `preview` sin enviar ni guardar nada; cualquier otra escritura responde 403. " +
         `Límites: ${API_REQUESTS_PER_MINUTE} solicitudes por minuto por key y ${API_ORG_REQUESTS_PER_MINUTE} por organización (todas sus keys), informados en los headers \`X-RateLimit-*\`; ` +
         `\`POST /messages\`: ${API_SEND_PER_MINUTE_PER_ORG} por minuto y ${API_DAILY_SENDS_PER_ORG} por día por organización. Cuerpo máximo: ${Math.round(API_MAX_BODY_BYTES / 1024)} KB. ` +
-        "Los errores tienen la forma `{ error: { code, message, details?, requestId } }` (también un 404 de ruta inexistente o un 405): ramifica por `code`; `details` lista cada campo inválido. " +
+        "Los errores tienen la forma `{ error: { code, message, details?, meta?, requestId } }` (también un 404 de ruta inexistente o un 405): ramifica por `code`; `details` lista cada campo inválido y `meta.code` es el código original de Meta cuando WhatsApp rechazó la operación. " +
         "Cada respuesta lleva `X-Request-Id`: inclúyelo si escribes a soporte. Los POST aceptan `Idempotency-Key`.\n\n" +
         "**Versiones**: la versión va en la ruta (`/api/v1`). Dentro de v1 solo se agregan cosas (campos, endpoints, eventos, valores de enum); " +
         "un cambio incompatible saldría como `/api/v2` y v1 se mantendría al menos 12 meses, avisando por correo a los admins con keys activas. " +
@@ -616,10 +725,11 @@ export function buildOpenApiSpec(serverUrl: string) {
       { name: "Contactos" },
       { name: "Conversaciones" },
       { name: "Mensajes" },
+      { name: "Llamadas", description: "Llamadas de WhatsApp (Calling API): historial y eventos call.*" },
       { name: "Automatizaciones" },
       { name: "Catálogos", description: "Ids que piden los demás endpoints: plantillas, etiquetas, personas y automatizaciones" },
       { name: "Webhooks", description: "Administración de webhooks salientes por API" },
-      { name: "WhatsApp", description: "Administración de la cuenta en Meta: estado del número, perfil de empresa, bloqueos y plantillas" },
+      { name: "WhatsApp", description: "Administración de la cuenta en Meta: estado del número, perfil de empresa, bloqueos, plantillas, Flows, números, PIN y enlaces de conexión" },
     ],
     paths: {
       "/me": {
@@ -809,8 +919,8 @@ export function buildOpenApiSpec(serverUrl: string) {
           tags: ["WhatsApp"],
           summary: "WhatsApp Flows",
           description:
-            `${scopeNote("messages:send")} Los Flows (formularios dentro de WhatsApp) de la cuenta. Se diseñan y publican en el constructor de Flows del Administrador de WhatsApp; ` +
-            "se mandan con POST /messages `type: \"flow\"`: los PUBLISHED, o un DRAFT con `flow.draft: true` para probarlo.",
+            `${scopeNote("messages:send")} Los Flows (formularios dentro de WhatsApp) de la cuenta: los del constructor del Administrador de WhatsApp y los creados con POST aquí. ` +
+            "Se mandan con POST /messages `type: \"flow\"`: los PUBLISHED, o un DRAFT con `flow.draft: true` para probarlo.",
           parameters: [idParam],
           responses: {
             "200": ok(
@@ -820,6 +930,227 @@ export function buildOpenApiSpec(serverUrl: string) {
             "502": err("UpstreamError"),
             ...errors,
           },
+        },
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Crear un Flow",
+          description:
+            `${scopeNote("whatsapp:manage")} Crea el Flow en DRAFT con su \`flowJson\` (formato de WhatsApp Flows: \`version\` y \`screens\`) o clonando otro (\`cloneFlowId\`). ` +
+            "`publish: true` lo publica de una vez si el JSON no tiene errores. Responde el Flow con los `validationErrors` de Meta. " +
+            "Para un Flow que consulta tu sistema en cada pantalla (`data_exchange`), usa `useColiblyEndpoint: true` (tras PATCH /accounts/{id}/flows-endpoint) o tu propio `endpointUri`.",
+          parameters: [idParam],
+          requestBody: {
+            required: true,
+            content: json(
+              {
+                type: "object",
+                required: ["name", "categories"],
+                additionalProperties: false,
+                properties: {
+                  name: str,
+                  categories: { type: "array", items: { type: "string", enum: ["SIGN_UP", "SIGN_IN", "APPOINTMENT_BOOKING", "LEAD_GENERATION", "CONTACT_US", "CUSTOMER_SUPPORT", "SURVEY", "OTHER"] } },
+                  flowJson: { type: "object", description: "JSON del Flow (version, screens…)" },
+                  cloneFlowId: str,
+                  endpointUri: { type: ["string", "null"], description: "Tu endpoint (https), si cifras tú" },
+                  useColiblyEndpoint: { type: "boolean", description: "Usar el endpoint de Colibly (reenvía a tu URL ya descifrado)" },
+                  publish: { type: "boolean" },
+                },
+              },
+              { name: "Agendar visita", categories: ["APPOINTMENT_BOOKING"], flowJson: { version: "6.3", screens: [{ id: "CITA", title: "Agenda tu visita", terminal: true, layout: { type: "SingleColumnLayout", children: [] } }] } }
+            ),
+          },
+          responses: { "201": ok(ref("Flow"), EX.flow, "Creado"), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/flows/{flowId}": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Obtener un Flow",
+          description: `${scopeNote("messages:send")} Estado, errores de validación, endpoint y una URL de vista previa (temporal).`,
+          parameters: [idParam, flowIdParam],
+          responses: { "200": ok(ref("Flow"), EX.flow), "502": err("UpstreamError"), ...errors },
+        },
+        patch: {
+          tags: ["WhatsApp"],
+          summary: "Editar un Flow",
+          description: `${scopeNote("whatsapp:manage")} Nombre, categorías, endpoint y/o \`flowJson\`. Meta solo deja cambiar el JSON de un Flow en DRAFT; para cambiar uno publicado, clónalo (POST con \`cloneFlowId\`).`,
+          parameters: [idParam, flowIdParam],
+          requestBody: {
+            required: true,
+            content: json(
+              { type: "object", additionalProperties: false, properties: { name: str, categories: { type: "array", items: str }, flowJson: { type: "object" }, endpointUri: { type: ["string", "null"] }, useColiblyEndpoint: { type: "boolean" } } },
+              { name: "Agendar visita (v2)" }
+            ),
+          },
+          responses: { "200": ok(ref("Flow"), EX.flow), "502": err("UpstreamError"), ...writeErrors },
+        },
+        delete: {
+          tags: ["WhatsApp"],
+          summary: "Borrar un Flow",
+          description: `${scopeNote("whatsapp:manage")} Solo en DRAFT; uno publicado se retira con …/deprecate.`,
+          parameters: [idParam, flowIdParam],
+          responses: { "200": ok(obj({ id: str, deleted: { type: "boolean" } }), { id: "1234567890123456", deleted: true }), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/flows/{flowId}/publish": {
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Publicar un Flow",
+          description: `${scopeNote("whatsapp:manage")} Solo sin errores de validación. Ya publicado, su JSON no se puede editar.`,
+          parameters: [idParam, flowIdParam],
+          responses: { "200": ok(ref("Flow"), { ...EX.flow, status: "PUBLISHED" }), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/flows/{flowId}/deprecate": {
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Retirar un Flow",
+          description: `${scopeNote("whatsapp:manage")} Deja de poder enviarse y los ya enviados dejan de abrirse. No se puede deshacer.`,
+          parameters: [idParam, flowIdParam],
+          responses: { "200": ok(ref("Flow"), { ...EX.flow, status: "DEPRECATED" }), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/flows-endpoint": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Endpoint de datos de Flows",
+          description:
+            `${scopeNote("whatsapp:manage")} ${BRAND_NAME} aloja el endpoint de datos de los Flows de la cuenta (\`endpointUri\`): recibe cada solicitud cifrada de Meta, la descifra y la reenvía como JSON a tu \`url\`, ` +
+            "firmada con `X-Colibly-Signature` (igual que los webhooks, con el `secret` de este endpoint). Tu respuesta (`{ screen, data }` o `{ data }`, el formato de Meta) vuelve cifrada al cliente. Contesta en menos de 8 s.",
+          parameters: [idParam],
+          responses: { "200": ok(ref("FlowsEndpoint"), EX.flowsEndpoint), ...errors },
+        },
+        patch: {
+          tags: ["WhatsApp"],
+          summary: "Configurar el endpoint de Flows",
+          description:
+            `${scopeNote("whatsapp:manage")} \`url\` activa o cambia el reenvío; la primera vez genera la llave RSA del número, la sube a Meta y devuelve \`secret\` (una sola vez). \`url: null\` lo apaga. ` +
+            "`?rotateSecret=true` genera un secreto nuevo (y lo devuelve).",
+          parameters: [idParam, { name: "rotateSecret", in: "query", schema: { type: "boolean" } }],
+          requestBody: { required: true, content: json({ type: "object", required: ["url"], additionalProperties: false, properties: { url: { type: ["string", "null"], format: "uri" } } }, { url: "https://erp.ejemplo.mx/whatsapp/flows" }) },
+          responses: { "200": ok(ref("FlowsEndpoint"), { ...EX.flowsEndpoint, secret: "whsec_3fQm1x9TzK2bLw7aPq0dRs8vXy4n" }), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/phone-numbers": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Números de la cuenta de Meta",
+          description: `${scopeNote("whatsapp:manage")} Todos los números de la cuenta de WhatsApp Business (WABA) de esta cuenta, estén o no conectados a ${BRAND_NAME}: estado, calidad, límite de envío, nombre y si están en la app WhatsApp Business. \`accountId\` es la cuenta de ${BRAND_NAME} de ese número (null si no está conectado en tu organización).`,
+          parameters: [idParam],
+          responses: {
+            "200": ok(
+              obj({
+                accountId: str,
+                wabaId: strNull,
+                data: {
+                  type: "array",
+                  items: obj({
+                    phoneNumberId: str,
+                    displayPhoneNumber: strNull,
+                    verifiedName: strNull,
+                    nameStatus: strNull,
+                    qualityRating: strNull,
+                    messagingLimitTier: strNull,
+                    status: strNull,
+                    platformType: { ...strNull, description: "CLOUD_API, ON_PREMISE o NOT_APPLICABLE" },
+                    codeVerificationStatus: strNull,
+                    isOnBizApp: { type: "boolean" },
+                    isOfficialBusinessAccount: { type: "boolean" },
+                    throughput: strNull,
+                    accountId: strNull,
+                  }),
+                },
+              }),
+              {
+                accountId: "cmacc_wa_01",
+                wabaId: "102938475610293",
+                data: [{ phoneNumberId: "109876543210987", displayPhoneNumber: "+52 55 1234 5678", verifiedName: "Muebles Centro", nameStatus: "APPROVED", qualityRating: "GREEN", messagingLimitTier: "TIER_1K", status: "CONNECTED", platformType: "CLOUD_API", codeVerificationStatus: "VERIFIED", isOnBizApp: false, isOfficialBusinessAccount: false, throughput: "STANDARD", accountId: "cmacc_wa_01" }],
+              }
+            ),
+            "502": err("UpstreamError"),
+            ...errors,
+          },
+        },
+      },
+      "/accounts/{id}/two-step-pin": {
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Cambiar el PIN del número",
+          description: `${scopeNote("whatsapp:manage")} PIN de 6 dígitos de la verificación en dos pasos (Meta lo pide para registrar el número). ${BRAND_NAME} lo guarda cifrado para volver a registrarlo sin pedirlo.`,
+          parameters: [idParam],
+          requestBody: { required: true, content: json({ type: "object", required: ["pin"], additionalProperties: false, properties: { pin: { type: "string", pattern: "^\\d{6}$" } } }, { pin: "482913" }) },
+          responses: { "200": ok(obj({ accountId: str, updated: { type: "boolean" } }), { accountId: "cmacc_wa_01", updated: true }), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/register": {
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Registrar el número en Cloud API",
+          description: `${scopeNote("whatsapp:manage")} Tras darlo de baja o si Meta lo pide. Sin \`pin\` usa el que guarda ${BRAND_NAME}. No aplica a números de coexistencia (422). La cuenta vuelve a CONNECTED.`,
+          parameters: [idParam],
+          requestBody: { required: false, content: json({ type: "object", additionalProperties: false, properties: { pin: { type: "string", pattern: "^\\d{6}$" } } }, {}) },
+          responses: { "200": ok(obj({ accountId: str, registered: { type: "boolean" } }), { accountId: "cmacc_wa_01", registered: true }), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/accounts/{id}/deregister": {
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Dar de baja el número de Cloud API",
+          description: `${scopeNote("whatsapp:manage")} El número deja de enviar y recibir hasta registrarlo otra vez. Pide \`confirm: true\`. La cuenta queda DISCONNECTED con su historial. No aplica a números de coexistencia (422).`,
+          parameters: [idParam],
+          requestBody: { required: true, content: json({ type: "object", required: ["confirm"], additionalProperties: false, properties: { confirm: { type: "boolean", const: true } } }, { confirm: true }) },
+          responses: { "200": ok(obj({ accountId: str, deregistered: { type: "boolean" } }), { accountId: "cmacc_wa_01", deregistered: true }), "502": err("UpstreamError"), ...writeErrors },
+        },
+      },
+      "/onboarding-links": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Enlaces de conexión",
+          description: `${scopeNote("whatsapp:manage")} Los enlaces de la organización, más recientes primero.`,
+          parameters: [...pageParams],
+          responses: { "200": ok(paged("OnboardingLink"), { data: [EX.onboardingLink], nextCursor: null }), ...errors },
+        },
+        post: {
+          tags: ["WhatsApp"],
+          summary: "Crear un enlace de conexión",
+          description:
+            `${scopeNote("whatsapp:manage")} Para agencias y revendedores: tu cliente abre \`url\`, inicia sesión con su Facebook y conecta su número (nuevo o el de su app WhatsApp Business), sin cuenta en ${BRAND_NAME}. ` +
+            "El número entra a tu organización a nombre del dueño de la key, con las mismas reglas que conectarlo desde el panel (límite del plan, coexistencia de la organización). `url` solo se devuelve aquí. " +
+            "Al terminar llega `account.connected` con tu `reference`, y si diste `redirectUrl` el cliente vuelve ahí con `?status=connected&accountId=…&reference=…`. Vence a las 72 h por omisión (máximo 720).",
+          parameters: [idempotencyParam],
+          requestBody: {
+            required: false,
+            content: json(
+              {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  name: { type: "string", maxLength: 80, description: "Nombre de la cuenta que se creará (si no, el de Meta)" },
+                  reference: { type: "string", maxLength: 200, description: "Tu id del cliente; vuelve en el evento y en la redirección" },
+                  redirectUrl: { type: "string", format: "uri", description: "https; a dónde vuelve el cliente al terminar" },
+                  expiresInHours: { type: "integer", minimum: 1, maximum: 720, default: 72 },
+                },
+              },
+              { name: "Sucursal Norte", reference: "cliente-4521", redirectUrl: "https://agencia.ejemplo.mx/whatsapp/listo" }
+            ),
+          },
+          responses: { "201": ok(ref("OnboardingLink"), { ...EX.onboardingLink, url: "https://app.colibly.com/conectar/ob_3fQm1x9TzK2bLw7aPq0dRs8vXy4nBc1d" }, "Creado"), ...writeErrors },
+        },
+      },
+      "/onboarding-links/{id}": {
+        get: {
+          tags: ["WhatsApp"],
+          summary: "Obtener un enlace de conexión",
+          description: `${scopeNote("whatsapp:manage")} PENDING, COMPLETED (con \`accountId\`), CANCELED o EXPIRED; \`lastError\` si el cliente lo intentó y falló.`,
+          parameters: [idParam],
+          responses: { "200": ok(ref("OnboardingLink"), EX.onboardingLink), ...errors },
+        },
+        delete: {
+          tags: ["WhatsApp"],
+          summary: "Cancelar un enlace de conexión",
+          description: `${scopeNote("whatsapp:manage")} Deja de funcionar al instante. 409 si ya se usó o ya estaba cancelado.`,
+          parameters: [idParam],
+          responses: { "200": ok(ref("OnboardingLink"), { ...EX.onboardingLink, status: "CANCELED" }), ...writeErrors },
         },
       },
       "/accounts/{id}/catalog": {
@@ -1012,6 +1343,73 @@ export function buildOpenApiSpec(serverUrl: string) {
           responses: { "200": { description: "El archivo (Content-Type real del medio)", headers: { ...rateHeaders, ...requestIdHeader }, content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } }, ...errors },
         },
       },
+      "/calls": {
+        get: {
+          tags: ["Llamadas"],
+          summary: "Llamadas de WhatsApp",
+          description:
+            `${scopeNote("conversations:read")} Llamadas entrantes y salientes de las cuentas de WhatsApp de la key, más recientes primero. ` +
+            "En vivo llegan por los eventos `call.ringing`, `call.answered` y `call.ended`. Filtros: accountId, contactId, status, direction (inbound u outbound) y since.",
+          parameters: [
+            ...pageParams,
+            { name: "accountId", in: "query", schema: str },
+            { name: "contactId", in: "query", schema: str },
+            { name: "status", in: "query", schema: { type: "string", enum: ["RINGING", "CONNECTING", "ACTIVE", "ENDED", "MISSED", "REJECTED", "FAILED"] } },
+            { name: "direction", in: "query", schema: { type: "string", enum: ["inbound", "outbound"] } },
+            { name: "since", in: "query", schema: { type: "string", format: "date-time" } },
+          ],
+          "x-example-query": "status=MISSED&limit=20",
+          responses: { "200": ok(paged("Call"), { data: [EX.call], nextCursor: null }), ...errors },
+        },
+      },
+      "/calls/{id}": {
+        get: {
+          tags: ["Llamadas"],
+          summary: "Obtener una llamada",
+          description: `${scopeNote("conversations:read")} Con su transcripción si Meta la mandó.`,
+          parameters: [idParam],
+          responses: { "200": ok(ref("Call"), EX.call), ...errors },
+        },
+      },
+      "/media": {
+        post: {
+          tags: ["Mensajes"],
+          summary: "Subir un archivo",
+          description:
+            `${scopeNote("messages:send")} Sube un archivo una vez para reusarlo en muchos envíos: \`media: { id }\` en POST /messages o \`headerParam\` (y \`cards[].headerParam\`) de una plantilla. ` +
+            "`multipart/form-data` con los campos `file` y `type` (image, document, audio, video o sticker; `filename` opcional), o JSON con `type` y `url` https. Mismos tipos y tamaños que los envíos (documentos hasta 20 MB). " +
+            `Caduca a los ${API_MEDIA_RETENTION_DAYS} días (\`expiresAt\`), como los archivos de Meta.`,
+          requestBody: {
+            required: true,
+            content: {
+              "multipart/form-data": {
+                schema: { type: "object", required: ["file", "type"], properties: { file: { type: "string", format: "binary" }, type: { type: "string", enum: ["image", "document", "audio", "video", "sticker"] }, filename: str } },
+              },
+              "application/json": {
+                schema: { type: "object", required: ["type", "url"], additionalProperties: false, properties: { type: { type: "string", enum: ["image", "document", "audio", "video", "sticker"] }, url: { type: "string", format: "uri" }, filename: str, mimeType: str } },
+                example: { type: "document", url: "https://erp.ejemplo.mx/catalogo-2026.pdf", filename: "Catálogo 2026.pdf" },
+              },
+            },
+          },
+          responses: { "201": ok(ref("Media"), EX.media, "Subido"), ...writeErrors },
+        },
+      },
+      "/media/{id}": {
+        get: {
+          tags: ["Mensajes"],
+          summary: "Obtener un archivo subido",
+          description: `${scopeNote("messages:send")} Tipo, tamaño y vencimiento. 404 si no existe o ya caducó.`,
+          parameters: [idParam],
+          responses: { "200": ok(ref("Media"), EX.media), ...errors },
+        },
+        delete: {
+          tags: ["Mensajes"],
+          summary: "Borrar un archivo subido",
+          description: `${scopeNote("messages:send")} Lo borra antes de que caduque. Los mensajes que ya salieron con él no cambian.`,
+          parameters: [idParam],
+          responses: { "200": ok(obj({ id: str, deleted: { type: "boolean" } }), { id: "cmmed_01", deleted: true }), ...writeErrors },
+        },
+      },
       "/messages/{id}/reaction": {
         post: {
           tags: ["Mensajes"],
@@ -1066,7 +1464,8 @@ export function buildOpenApiSpec(serverUrl: string) {
             "La opción que elige el cliente en `buttons` o `list` llega en `message.received` con `interactive.reply.id`. " +
             "**`replyTo`** (WhatsApp): id de un mensaje de la misma conversación para citarlo. " +
             "**Manda siempre `Idempotency-Key`**: si reintentas por un timeout, el mensaje no sale dos veces.\n\n" +
-            "**Archivos** (`type` image, document, audio o video): pasa `media.url`, una URL https pública; Colibly la descarga y la manda por el canal. Tipos y tamaños admitidos (los de WhatsApp, para que el mismo envío sirva en todos los canales): " +
+            "**Tarjetas de contacto** (`contacts`, solo WhatsApp): hasta 10, cada una con `name` y al menos un teléfono o correo. " +
+            "**Archivos** (`type` image, document, audio o video): pasa `media.url`, una URL https pública (Colibly la descarga y la manda por el canal), o `media.id` de un archivo subido con POST /media para reusarlo sin volver a descargarlo. Tipos y tamaños admitidos (los de WhatsApp, para que el mismo envío sirva en todos los canales): " +
             OUTBOUND_MEDIA_TYPES.map((t) => `${t} hasta ${OUTBOUND_MEDIA_RULES[t].maxBytes / (1024 * 1024)} MB (${OUTBOUND_MEDIA_RULES[t].mimeTypes.map((m) => m.split("/")[1]).join(", ")})`).join("; ") +
             ". Una URL que no responde, un tipo no admitido o un archivo muy grande dan 400 con `details[0].path = \"media.url\"`. El chat web todavía no recibe archivos, y Messenger e Instagram no admiten `caption`.",
           parameters: [idempotencyParam],
@@ -1083,6 +1482,11 @@ export function buildOpenApiSpec(serverUrl: string) {
                     value: { conversationId: "cmchat_01", type: "document", media: { url: "https://erp.ejemplo.mx/facturas/A-1043.pdf", filename: "Factura A-1043.pdf" }, caption: "Tu factura" },
                   },
                   plantilla: { summary: "Plantilla", value: { contactId: "cmcon_01", type: "template", template: { id: "cmtpl_01", bodyParams: ["Ana", "A-1043"] } } },
+                  plantillaConNombre: {
+                    summary: "Plantilla con variables con nombre y botones",
+                    value: { contactId: "cmcon_01", type: "template", template: { id: "cmtpl_02", bodyParams: { nombre: "Ana", pedido: "A-1043" }, buttons: [{ index: 0, urlParam: "A-1043" }, { index: 1, payload: "confirmar_A-1043" }] } },
+                  },
+                  codigoVerificacion: { summary: "Código de verificación (AUTHENTICATION)", value: { accountId: "cmacc_01", to: "+5215512345678", type: "template", template: { id: "cmtpl_otp", code: "482913" } } },
                   plantillaPorTelefono: { summary: "Plantilla a un teléfono", value: { accountId: "cmacc_01", to: "+5215512345678", type: "template", template: { id: "cmtpl_01", bodyParams: ["Ana", "A-1043"] } } },
                   lista: {
                     summary: "Lista",
@@ -1101,6 +1505,11 @@ export function buildOpenApiSpec(serverUrl: string) {
                     value: { conversationId: "cmchat_01", type: "flow", text: "Agenda tu visita en un minuto", flow: { id: "1234567890123456", cta: "Agendar", screen: "CITA", token: "cita-A-1043" } },
                   },
                   catalogo: { summary: "Botón \"Ver catálogo\"", value: { conversationId: "cmchat_01", type: "catalog", text: "Mira todo nuestro catálogo", catalog: { thumbnailProductId: "SKU-1043" } } },
+                  contacto: {
+                    summary: "Tarjeta de contacto",
+                    value: { conversationId: "cmchat_01", type: "contacts", contacts: [{ name: "Laura Gómez", company: "Muebles Centro", title: "Asesora", phones: [{ phone: "+52 55 1234 5678", type: "WORK" }], emails: [{ email: "laura@ejemplo.mx" }] }] },
+                  },
+                  archivoSubido: { summary: "Archivo subido con POST /media", value: { conversationId: "cmchat_01", type: "image", media: { id: "cmmed_01" }, caption: "Así queda instalado" } },
                   citando: { summary: "Respuesta citando un mensaje", value: { conversationId: "cmchat_01", type: "text", text: "Sí, ese modelo tiene garantía de 1 año.", replyTo: "cmmsg_01" } },
                 },
               },
@@ -1111,6 +1520,21 @@ export function buildOpenApiSpec(serverUrl: string) {
               { type: "object", properties: { id: { type: "string" }, conversationId: { type: "string" }, externalId: { type: ["string", "null"], description: "id del mensaje en WhatsApp/canal" } } },
               { id: "cmmsg_02", conversationId: "cmchat_01", externalId: "wamid.HBgNNTIxNTU5ODc2NTQzMhUCABEYEjA" },
               "Enviado"
+            ),
+            "200": ok(
+              {
+                type: "object",
+                description: "Solo con una key sk_test_: lo que habría salido",
+                properties: {
+                  id: { type: "null" },
+                  conversationId: strNull,
+                  externalId: { type: "null" },
+                  test: { type: "boolean", const: true },
+                  preview: obj({ type: str, text: strNull, template: { type: ["object", "null"], properties: { name: str, language: str, components: { type: "array", items: { type: "object" } } } } }),
+                },
+              },
+              { id: null, conversationId: "cmchat_01", externalId: null, test: true, preview: { type: "text", text: "Sí, enviamos a todo México.", template: null } },
+              "Simulado (key de prueba)"
             ),
             "502": err("UpstreamError"),
             ...writeErrors,
@@ -1139,7 +1563,8 @@ export function buildOpenApiSpec(serverUrl: string) {
           summary: "Plantillas de WhatsApp",
           description:
             `${scopeNote("messages:send")} Plantillas de las cuentas de WhatsApp de la key, con lo que pide cada una en POST /messages (\`type: "template"\`): ` +
-            "`params.bodyParamCount` valores en `bodyParams`, `headerParam` si `params.header` no es null (texto, o URL pública https si el formato es IMAGE, VIDEO o DOCUMENT) y `buttonParam` si `params.buttonParamRequired`. " +
+            "`send` describe todo: `bodyParams` como lista (`{{1}}`…) o como objeto (`{{nombre}}`, `parameterFormat: NAMED`), `headerParam` si `send.header.required` (texto, o URL https / media id si es IMAGE, VIDEO o DOCUMENT; `headerLocation` si es LOCATION), " +
+            "un elemento de `buttons` por cada botón con `param` (urlParam, couponCode, payload, flowToken), `code` en AUTHENTICATION, `offerExpiresAt` si `send.offer.hasExpiration` y `cards` con `send.carouselCards` elementos. `params` queda por compatibilidad. " +
             "Solo las `APPROVED` se pueden enviar. Lista completa, por nombre.",
           parameters: [
             { name: "accountId", in: "query", schema: str },
@@ -1153,8 +1578,11 @@ export function buildOpenApiSpec(serverUrl: string) {
           summary: "Crear una plantilla",
           description:
             `${scopeNote("whatsapp:manage")} La manda a revisión de Meta y responde la plantilla en \`PENDING\`, con \`components\` en el formato de Meta. El resultado llega con el evento \`template.status_changed\` (o GET /templates/{id}). ` +
-            "Categorías MARKETING o UTILITY. Variables del cuerpo `{{1}}`, `{{2}}`… seguidas, con un ejemplo cada una en `bodyExamples`. Cabecera TEXT (60 caracteres, una variable `{{1}}` con `exampleText`) o IMAGE, VIDEO o DOCUMENT con `exampleUrl` (JPG/PNG, MP4 o PDF por https; la cuenta necesita App ID). " +
-            "Hasta 10 botones QUICK_REPLY o URL (una URL puede terminar en `{{1}}`, con `urlExample`). 409 si ya existe ese nombre en ese idioma.",
+            "Categorías MARKETING, UTILITY o AUTHENTICATION. Variables del cuerpo por posición (`{{1}}`, `{{2}}`… seguidas, `bodyExamples` como lista) o con nombre (`{{nombre}}`, `bodyExamples` como objeto); no se mezclan. " +
+            "Cabecera TEXT (60 caracteres, una variable con `exampleText`), LOCATION, o IMAGE, VIDEO o DOCUMENT con `exampleUrl` (JPG/PNG, MP4 o PDF por https; la cuenta necesita App ID). " +
+            "Hasta 10 botones: QUICK_REPLY (juntos), URL (máx. 2; puede terminar en `{{1}}` con `urlExample`), PHONE_NUMBER, COPY_CODE (`example`), FLOW (`flowId`, `navigateScreen`) y VOICE_CALL. " +
+            "`limitedTimeOffer` (MARKETING, con botón URL; con vencimiento también COPY_CODE), `carousel` (MARKETING, 2 a 10 tarjetas con IMAGE o VIDEO y los mismos botones) y `authentication` (solo AUTHENTICATION: Meta fija el texto; ONE_TAP y ZERO_TAP piden `packageName` y `signatureHash`). " +
+            "409 si ya existe ese nombre en ese idioma.",
           parameters: [idempotencyParam],
           requestBody: {
             required: true,
@@ -1192,6 +1620,19 @@ export function buildOpenApiSpec(serverUrl: string) {
           description: `${scopeNote("messages:send")} Igual que en GET /templates, más \`components\` tal como los guarda Meta (HEADER, BODY, FOOTER, BUTTONS).`,
           parameters: [idParam],
           responses: { "200": ok(ref("TemplateDetail"), EX.template), ...errors },
+        },
+        patch: {
+          tags: ["WhatsApp"],
+          summary: "Editar una plantilla",
+          description:
+            `${scopeNote("whatsapp:manage")} Reemplaza sus componentes en Meta con la misma definición de POST /templates (sin accountId, name ni language) y vuelve a revisión (\`PENDING\`). ` +
+            "Solo plantillas APPROVED, REJECTED o PAUSED (si no, 422). Una aprobada se edita 1 vez cada 24 h y 10 veces en 30 días, y no cambia de categoría.",
+          parameters: [idParam],
+          requestBody: {
+            required: true,
+            content: json(ref("TemplateEdit"), { components: { body: "Hola {{1}}, tu pedido {{2}} ya salió.", bodyExamples: ["Ana", "A-1043"] } }),
+          },
+          responses: { "200": ok(ref("TemplateDetail"), { ...EX.template, status: "PENDING" }), "502": err("UpstreamError"), ...writeErrors },
         },
         delete: {
           tags: ["WhatsApp"],
@@ -1472,6 +1913,12 @@ export function buildOpenApiSpec(serverUrl: string) {
                   description: "Solo en errores de validación: cada problema con la ruta del campo (`template.id`, `buttons.0.title`; vacía = el cuerpo entero)",
                   items: { type: "object", required: ["path", "message"], properties: { path: str, message: str } },
                 },
+                meta: {
+                  type: "object",
+                  required: ["code"],
+                  description: "Solo cuando Meta rechazó la operación: su código de error original (búscalo en la documentación de la Cloud API)",
+                  properties: { code: { type: "integer", example: 131047 } },
+                },
                 requestId: { type: "string", description: "Igual al header X-Request-Id" },
               },
             },
@@ -1562,41 +2009,78 @@ export function buildOpenApiSpec(serverUrl: string) {
             accountId: str,
             name: { type: "string", pattern: "^[a-z][a-z0-9_]*$", maxLength: 512 },
             language: { type: "string", default: "es", description: "Código de Meta: es, es_MX, en_US…" },
-            category: { type: "string", enum: ["MARKETING", "UTILITY"], default: "MARKETING" },
-            components: {
+            category: { type: "string", enum: ["MARKETING", "UTILITY", "AUTHENTICATION"], default: "MARKETING" },
+            components: ref("TemplateComponents"),
+          },
+        },
+        TemplateEdit: {
+          type: "object",
+          required: ["components"],
+          additionalProperties: false,
+          properties: {
+            category: { type: "string", enum: ["MARKETING", "UTILITY", "AUTHENTICATION"], description: "Solo si la plantilla no está aprobada" },
+            components: ref("TemplateComponents"),
+          },
+        },
+        TemplateButton: {
+          type: "object",
+          required: ["type"],
+          additionalProperties: false,
+          properties: {
+            type: { type: "string", enum: ["QUICK_REPLY", "URL", "PHONE_NUMBER", "COPY_CODE", "FLOW", "VOICE_CALL"] },
+            text: { type: "string", maxLength: 25, description: "Todos menos COPY_CODE" },
+            url: { type: "string", description: "URL; puede terminar en {{1}}" },
+            urlExample: { type: "string", description: "La URL con la variable resuelta" },
+            phoneNumber: { type: "string", description: "PHONE_NUMBER, con código de país" },
+            example: { type: "string", maxLength: 15, description: "COPY_CODE: código de ejemplo" },
+            flowId: { type: "string", description: "FLOW: id numérico (GET /accounts/{id}/flows)" },
+            flowAction: { type: "string", enum: ["navigate", "data_exchange"], default: "navigate" },
+            navigateScreen: { type: "string", description: "FLOW con navigate: pantalla inicial" },
+          },
+        },
+        TemplateComponents: {
+          type: "object",
+          additionalProperties: false,
+          description: "body es requerido salvo en AUTHENTICATION, que solo lleva authentication",
+          properties: {
+            header: {
               type: "object",
-              required: ["body"],
-              additionalProperties: false,
+              required: ["format"],
               properties: {
-                header: {
-                  type: "object",
-                  required: ["format"],
-                  properties: {
-                    format: { type: "string", enum: ["TEXT", "IMAGE", "VIDEO", "DOCUMENT"] },
-                    text: { type: "string", maxLength: 60 },
-                    exampleText: { type: "string", maxLength: 60, description: "Si text lleva {{1}}" },
-                    exampleUrl: { type: "string", description: "IMAGE/VIDEO/DOCUMENT: archivo de ejemplo por https" },
-                  },
-                },
-                body: { type: "string", maxLength: 1024 },
-                bodyExamples: { type: "array", items: str, description: "Un valor por variable del cuerpo" },
-                footer: { type: "string", maxLength: 60 },
-                buttons: {
-                  type: "array",
-                  maxItems: 10,
-                  items: {
-                    type: "object",
-                    required: ["type", "text"],
-                    properties: {
-                      type: { type: "string", enum: ["QUICK_REPLY", "URL"] },
-                      text: { type: "string", maxLength: 25 },
-                      url: { type: "string", description: "URL; puede terminar en {{1}}" },
-                      urlExample: { type: "string", description: "La URL con la variable resuelta" },
-                    },
-                  },
-                },
+                format: { type: "string", enum: ["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"] },
+                text: { type: "string", maxLength: 60 },
+                exampleText: { type: "string", maxLength: 60, description: "Si text lleva una variable" },
+                exampleUrl: { type: "string", description: "IMAGE/VIDEO/DOCUMENT: archivo de ejemplo por https" },
               },
             },
+            body: { type: "string", maxLength: 1024 },
+            bodyExamples: {
+              oneOf: [{ type: "array", items: str }, { type: "object", additionalProperties: str }],
+              description: "Lista (variables {{1}}…) u objeto (variables {{nombre}})",
+            },
+            footer: { type: "string", maxLength: 60 },
+            buttons: { type: "array", maxItems: 10, items: ref("TemplateButton") },
+            limitedTimeOffer: obj({ text: { type: "string", maxLength: 16 }, hasExpiration: { type: "boolean" } }),
+            carousel: {
+              type: "array",
+              minItems: 2,
+              maxItems: 10,
+              items: obj({
+                header: obj({ format: { type: "string", enum: ["IMAGE", "VIDEO"] }, exampleUrl: str }),
+                body: { type: "string", maxLength: 160 },
+                bodyExamples: { oneOf: [{ type: "array", items: str }, { type: "object", additionalProperties: str }] },
+                buttons: { type: "array", minItems: 1, maxItems: 2, items: ref("TemplateButton") },
+              }),
+            },
+            authentication: obj({
+              otpType: { type: "string", enum: ["COPY_CODE", "ONE_TAP", "ZERO_TAP"] },
+              addSecurityRecommendation: { type: "boolean" },
+              codeExpirationMinutes: { type: "integer", minimum: 1, maximum: 90 },
+              buttonText: { type: "string", maxLength: 25 },
+              autofillText: { type: "string", maxLength: 25 },
+              packageName: { type: "string", description: "App Android (ONE_TAP / ZERO_TAP)" },
+              signatureHash: { type: "string", minLength: 11, maxLength: 11 },
+            }),
           },
         },
         ConversationalAutomation: {
@@ -1626,6 +2110,80 @@ export function buildOpenApiSpec(serverUrl: string) {
             prefilledMessage: str,
             deepLinkUrl: { ...strNull, description: "Enlace wa.me/message/… que abre el chat con el mensaje" },
             qrImageUrl: { ...strNull, description: "Imagen del QR (URL temporal de Meta)" },
+          },
+        },
+        OnboardingLink: {
+          type: "object",
+          properties: {
+            id: str,
+            status: { type: "string", enum: ["PENDING", "COMPLETED", "CANCELED", "EXPIRED"] },
+            name: strNull,
+            reference: strNull,
+            redirectUrl: strNull,
+            accountId: { ...strNull, description: "La cuenta creada, cuando COMPLETED" },
+            lastError: { ...strNull, description: "Último error si el cliente lo intentó" },
+            url: { type: "string", description: "Solo al crearlo: el enlace para tu cliente" },
+            expiresAt: { type: "string", format: "date-time" },
+            completedAt: { type: ["string", "null"], format: "date-time" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        Flow: {
+          type: "object",
+          properties: {
+            id: str,
+            name: str,
+            status: { type: "string", description: "DRAFT, PUBLISHED, DEPRECATED, BLOCKED, THROTTLED" },
+            categories: { type: "array", items: str },
+            validationErrors: { type: "array", items: obj({ error: strNull, message: strNull, line: { type: ["integer", "null"] }, column: { type: ["integer", "null"] } }) },
+            jsonVersion: strNull,
+            dataApiVersion: strNull,
+            endpointUri: strNull,
+            previewUrl: { ...strNull, description: "Vista previa web del Flow (caduca en previewExpiresAt)" },
+            previewExpiresAt: strNull,
+          },
+        },
+        FlowsEndpoint: {
+          type: "object",
+          properties: {
+            accountId: str,
+            endpointUri: { type: "string", description: "La URL que va en el Flow (endpoint_uri)" },
+            url: { ...strNull, description: "Tu URL, a la que se reenvía; null = apagado" },
+            keyUploadedAt: { type: ["string", "null"], format: "date-time", description: "Cuándo se subió la llave pública del número a Meta" },
+            secret: { type: "string", description: "Solo al generarlo: valida X-Colibly-Signature con él" },
+          },
+        },
+        Call: {
+          type: "object",
+          properties: {
+            id: str,
+            accountId: str,
+            conversationId: strNull,
+            contactId: strNull,
+            direction: { type: "string", enum: ["inbound", "outbound"], description: "inbound = llamó el cliente" },
+            status: { type: "string", enum: ["RINGING", "CONNECTING", "ACTIVE", "ENDED", "MISSED", "REJECTED", "FAILED"], description: "ENDED = hubo conversación" },
+            phone: { ...strNull, description: "Número del cliente (dígitos)" },
+            name: strNull,
+            answeredById: { ...strNull, description: "Quién contestó (GET /users)" },
+            startedAt: { type: ["string", "null"], format: "date-time", description: "Cuándo se contestó" },
+            endedAt: { type: ["string", "null"], format: "date-time" },
+            durationSeconds: { type: ["integer", "null"] },
+            hasRecording: { type: "boolean", description: "La grabación queda como audio en la conversación" },
+            transcript: { ...strNull, description: "Transcripción de Meta, si se pidió" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        Media: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "media.id de POST /messages" },
+            type: { type: "string", enum: ["image", "document", "audio", "video", "sticker"] },
+            mimeType: str,
+            filename: str,
+            bytes: { type: "integer" },
+            sha256: str,
+            createdAt: { type: "string", format: "date-time" },
+            expiresAt: { type: "string", format: "date-time" },
           },
         },
         TemplateDetail: {
@@ -1786,22 +2344,67 @@ export function buildOpenApiSpec(serverUrl: string) {
             template: {
               type: "object",
               required: ["id"],
+              description: "Lo que pide cada plantilla está en `send` de GET /templates.",
               properties: {
                 id: { type: "string", description: `Id de la plantilla en ${BRAND_NAME}` },
-                bodyParams: { type: "array", maxItems: 20, items: str },
-                headerParam: strNull,
-                buttonParam: strNull,
+                bodyParams: { oneOf: [{ type: "array", maxItems: 20, items: str }, { type: "object", additionalProperties: str }], description: "Lista ({{1}}…) u objeto ({{nombre}})" },
+                headerParam: { ...strNull, description: "Variable de la cabecera de texto, o URL https / media id (POST /media) del archivo" },
+                headerLocation: obj({ latitude: { type: "number" }, longitude: { type: "number" }, name: str, address: str }),
+                buttonParam: { ...strNull, description: "Atajo: final del primer botón URL dinámico" },
+                buttons: {
+                  type: "array",
+                  maxItems: 10,
+                  items: obj({
+                    index: { type: "integer", minimum: 0, maximum: 9 },
+                    payload: { type: "string", description: "QUICK_REPLY: vuelve en el mensaje del cliente" },
+                    urlParam: { type: "string", description: "URL dinámica" },
+                    couponCode: { type: "string", maxLength: 15, description: "COPY_CODE" },
+                    flowToken: str,
+                    flowData: { type: "object" },
+                  }),
+                },
+                code: { type: "string", maxLength: 15, description: "AUTHENTICATION: el código" },
+                offerExpiresAt: { type: "string", format: "date-time", description: "Oferta por tiempo limitado con vencimiento" },
+                cards: {
+                  type: "array",
+                  maxItems: 10,
+                  description: "Carrusel: una entrada por tarjeta, en orden",
+                  items: obj({ headerParam: str, bodyParams: { oneOf: [{ type: "array", items: str }, { type: "object", additionalProperties: str }] }, buttons: { type: "array", items: { type: "object" } } }),
+                },
               },
             },
             media: {
               type: "object",
               required: ["url"],
               additionalProperties: false,
-              description: "Requerido para image, document, audio, video y sticker. Colibly descarga la URL al enviar (sin redirecciones, 30 s como máximo). Un sticker es WebP de 512×512, hasta 100 KB (500 KB animado).",
+              description: "Requerido para image, document, audio, video y sticker: `url` o `id` (uno). Colibly descarga la URL al enviar (sin redirecciones, 30 s como máximo). Un sticker es WebP de 512×512, hasta 100 KB (500 KB animado).",
               properties: {
                 url: { type: "string", format: "uri", description: "https pública del archivo" },
+                id: { type: "string", description: "Archivo de POST /media (del mismo tipo que el envío)" },
                 filename: { type: "string", maxLength: 200, description: "Nombre que verá el cliente (documentos). Por defecto, el de la URL" },
                 mimeType: { type: "string", description: "Tipo del archivo si tu servidor no lo informa bien (p. ej. responde application/octet-stream)" },
+              },
+            },
+            contacts: {
+              type: "array",
+              minItems: 1,
+              maxItems: 10,
+              description: "type contacts (WhatsApp)",
+              items: {
+                type: "object",
+                required: ["name"],
+                additionalProperties: false,
+                properties: {
+                  name: { type: "string", maxLength: 200, description: "Nombre completo como se muestra" },
+                  firstName: str,
+                  lastName: str,
+                  phones: { type: "array", maxItems: 5, items: obj({ phone: str, type: { type: "string", description: "CELL, MAIN, HOME, WORK…" }, waId: { type: "string", description: "Número de WhatsApp (dígitos): activa el botón \"Enviar mensaje\"" } }) },
+                  emails: { type: "array", maxItems: 5, items: obj({ email: str, type: str }) },
+                  company: str,
+                  title: str,
+                  urls: { type: "array", maxItems: 5, items: obj({ url: str, type: str }) },
+                  birthday: { type: "string", description: "YYYY-MM-DD" },
+                },
               },
             },
             caption: { type: "string", maxLength: 1024, description: "Texto junto al archivo (image, video, document). No en audio, ni en Messenger/Instagram" },
@@ -1898,6 +2501,28 @@ export function buildOpenApiSpec(serverUrl: string) {
                 bodyParamCount: { type: "integer", description: "Cuántos valores van en bodyParams ({{1}}, {{2}}…)" },
                 header: { type: ["object", "null"], properties: { format: { type: "string", enum: ["TEXT", "IMAGE", "VIDEO", "DOCUMENT"] } }, description: "null = no pide headerParam" },
                 buttonParamRequired: { type: "boolean", description: "true = pide buttonParam (sufijo del botón URL)" },
+              },
+            },
+            send: {
+              type: "object",
+              description: "Todo lo que pide POST /messages con esta plantilla",
+              properties: {
+                parameterFormat: { type: "string", enum: ["POSITIONAL", "NAMED"] },
+                bodyParams: { oneOf: [{ type: "integer" }, { type: "array", items: str }], description: "Cuántos valores (POSITIONAL) o sus nombres (NAMED)" },
+                header: { type: ["object", "null"], properties: { format: { type: "string", enum: ["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"] }, required: { type: "boolean" } } },
+                buttons: {
+                  type: "array",
+                  items: obj({
+                    index: { type: "integer" },
+                    type: str,
+                    text: strNull,
+                    param: { type: ["string", "null"], enum: ["urlParam", "couponCode", "payload", "flowToken", "code", null] },
+                    required: { type: "boolean" },
+                  }),
+                },
+                requiresCode: { type: "boolean", description: "AUTHENTICATION: pide code" },
+                offer: { type: ["object", "null"], properties: { hasExpiration: { type: "boolean" } } },
+                carouselCards: { type: ["integer", "null"], description: "Cuántas cards pide" },
               },
             },
             bodyText: { ...strNull, description: "Texto del cuerpo con sus {{n}}" },

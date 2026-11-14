@@ -46,6 +46,14 @@ export async function processMediaCleanupJob() {
   });
   if (deliveries > 0) console.log(`[media-cleanup] ${deliveries} entrega(s) de webhook purgada(s)`);
 
+  // Archivos de POST /api/v1/media: caducan solos (API_MEDIA_RETENTION_DAYS).
+  const apiMedia = await purgeBatches(
+    "API",
+    async () => (await prisma.apiMedia.findMany({ where: { expiresAt: { lt: new Date() } }, select: { id: true, path: true }, take: BATCH_SIZE })).map((m) => ({ id: m.id, mediaUrl: m.path })),
+    (ids) => prisma.apiMedia.deleteMany({ where: { id: { in: ids } } })
+  );
+  if (apiMedia > 0) console.log(`[media-cleanup] ${apiMedia} archivo(s) de la API caducado(s)`);
+
   if (!RETENTION_DAYS || RETENTION_DAYS <= 0) return;
 
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);

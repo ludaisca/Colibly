@@ -25,7 +25,7 @@ describe("OpenAPI", () => {
   it("documenta todas las rutas de app/api/v1", () => {
     const documented = Object.keys(spec.paths);
     // /{...path} es el 404 en JSON para rutas inexistentes, no un endpoint.
-    for (const r of routes(V1).filter((r) => r !== "/openapi.json" && r !== "/{...path}")) expect(documented).toContain(r);
+    for (const r of routes(V1).filter((r) => r !== "/openapi.json" && r !== "/postman.json" && r !== "/{...path}")) expect(documented).toContain(r);
   });
 
   // Cada ruta atiende exactamente los métodos que documenta, y responde 405 en
@@ -42,7 +42,7 @@ describe("OpenAPI", () => {
         const isGuard = /=\s*(?:methodNotAllowed\(|(?:GET|POST|PUT|PATCH|DELETE);)/.test(decl![1]);
         if (!isGuard) served.push(m.toLowerCase());
       }
-      if (r === "/openapi.json") continue;
+      if (r === "/openapi.json" || r === "/postman.json") continue;
       expect(served.sort(), r).toEqual(Object.keys(paths[r]).sort());
     }
   });

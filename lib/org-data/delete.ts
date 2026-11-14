@@ -3,6 +3,7 @@ import { invalidateOrgBilling } from "@/lib/billing/gates";
 import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
 import { purgeDue } from "@/lib/billing/state";
 import { removeAccountMedia } from "@/lib/whatsapp/media-store";
+import { apiMediaFolder } from "@/lib/media/api-media";
 import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
 // Borrado definitivo de una organización y todo lo suyo. Lo usan el dueño
@@ -83,6 +84,13 @@ export async function deleteOrganizationData(organizationId: string, opts: { onl
     } catch (err) {
       console.error(`[org-delete] No se pudo borrar la media de la cuenta ${id}:`, err);
     }
+  }
+
+  // Archivos de POST /api/v1/media (lib/media/api-media.ts).
+  try {
+    await removeAccountMedia(apiMediaFolder(organizationId));
+  } catch (err) {
+    console.error(`[org-delete] No se pudo borrar la media de la API de ${organizationId}:`, err);
   }
 
   console.log(`[org-delete] Organización ${organizationId} eliminada (${org._count.members} usuario(s), ${accountIds.length} cuenta(s))`);

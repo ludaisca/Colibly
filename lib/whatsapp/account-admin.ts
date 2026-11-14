@@ -246,6 +246,25 @@ export async function deleteMetaTemplate(account: AdminAccount, template: { name
   });
 }
 
+/** Alta en Meta con el payload ya armado (template-definition.ts). */
+export async function submitMetaTemplate(account: AdminAccount, payload: object): Promise<{ id: string; status: string | null; category: string | null }> {
+  if (!account.wabaId) throw new MetaAdminError("La cuenta no tiene WABA ID", 422, null);
+  const res = await graph<{ id?: string; status?: string; category?: string }>(account, "POST", `${encodeURIComponent(account.wabaId)}/message_templates`, {
+    body: payload,
+    fallback: "Meta no creó la plantilla",
+  });
+  if (!res.id) throw new MetaAdminError("Meta no devolvió el id de la plantilla", 502, null);
+  return { id: res.id, status: res.status ?? null, category: res.category ?? null };
+}
+
+/**
+ * Edita una plantilla existente (POST /{template_id}). Meta deja editar una
+ * aprobada 1 vez cada 24 h y 10 veces en 30 días; vuelve a revisión.
+ */
+export async function editMetaTemplate(account: AdminAccount, templateId: string, body: { components?: object[]; category?: string; parameter_format?: string }): Promise<void> {
+  await graph(account, "POST", encodeURIComponent(templateId), { body, fallback: "Meta no editó la plantilla" });
+}
+
 // ── Componentes conversacionales ───────────────────────────────────────────
 // Sugerencias de inicio (ice breakers) y comandos ("/") del número. El mensaje
 // de bienvenida (enable_welcome_message) se activa con setMetaWelcomeMessage()
@@ -534,4 +553,193 @@ export async function listFlows(account: AdminAccount): Promise<FlowInfo[]> {
     fallback: "Meta no devolvió los Flows",
   });
   return (body.data ?? []).filter((f) => f.id).map((f) => ({ id: f.id!, name: f.name ?? "", status: f.status ?? "UNKNOWN", categories: f.categories ?? [] }));
+}
+
+// Alta, edición y ciclo de vida de Flows por API (POST /accounts/{id}/flows…).
+// Meta valida el JSON al subirlo: los errores vuelven en validationErrors y el
+// Flow queda en DRAFT hasta que se publica sin errores.
+
+export const FLOW_CATEGORIES = ["SIGN_UP", "SIGN_IN", "APPOINTMENT_BOOKING", "LEAD_GENERATION", "CONTACT_US", "CUSTOMER_SUPPORT", "SURVEY", "OTHER"] as const;
+
+export interface FlowValidationError {
+  error: string | null;
+  message: string | null;
+  line: number | null;
+  column: number | null;
+}
+
+export interface FlowDetail extends FlowInfo {
+  validationErrors: FlowValidationError[];
+  jsonVersion: string | null;
+  dataApiVersion: string | null;
+  endpointUri: string | null;
+  previewUrl: string | null;
+  previewExpiresAt: string | null;
+}
+
+type RawValidation = { error?: string; error_type?: string; message?: string; line_start?: number; column_start?: number };
+
+export function parseFlowValidation(list: RawValidation[] | undefined): FlowValidationError[] {
+  return (list ?? []).map((v) => ({ error: v.error ?? v.error_type ?? null, message: v.message ?? null, line: v.line_start ?? null, column: v.column_start ?? null }));
+}
+
+export function parseFlowDetail(raw: Record<string, unknown>): FlowDetail {
+  const preview = raw.preview as { preview_url?: string; expires_at?: string } | undefined;
+  return {
+    id: String(raw.id ?? ""),
+    name: String(raw.name ?? ""),
+    status: String(raw.status ?? "UNKNOWN"),
+    categories: Array.isArray(raw.categories) ? (raw.categories as string[]) : [],
+    validationErrors: parseFlowValidation(raw.validation_errors as RawValidation[] | undefined),
+    jsonVersion: (raw.json_version as string) ?? null,
+    dataApiVersion: (raw.data_api_version as string) ?? null,
+    endpointUri: (raw.endpoint_uri as string) ?? null,
+    previewUrl: preview?.preview_url ?? null,
+    previewExpiresAt: preview?.expires_at ?? null,
+  };
+}
+
+const FLOW_FIELDS = "id,name,status,categories,validation_errors,json_version,data_api_version,endpoint_uri,preview.invalidate(false)";
+
+/** El Flow, solo si es de la WABA de la cuenta (Meta no filtra por WABA en /{flow_id}). */
+export async function getFlow(account: AdminAccount, flowId: string): Promise<FlowDetail> {
+  const owned = (await listFlows(account)).some((f) => f.id === flowId);
+  if (!owned) throw new MetaAdminError("Flow no encontrado en esta cuenta", 404, null);
+  const raw = await graph<Record<string, unknown>>(account, "GET", encodeURIComponent(flowId), { query: { fields: FLOW_FIELDS }, fallback: "Meta no devolvió el Flow" });
+  return parseFlowDetail(raw);
+}
+
+export interface FlowWrite {
+  name?: string;
+  categories?: string[];
+  endpointUri?: string | null;
+}
+
+export async function createFlow(account: AdminAccount, input: FlowWrite & { name: string; categories: string[]; flowJson?: object; publish?: boolean; cloneFlowId?: string }): Promise<{ id: string; validationErrors: FlowValidationError[] }> {
+  if (!account.wabaId) throw new MetaAdminError("La cuenta no tiene WABA ID", 422, null);
+  const body: Record<string, unknown> = { name: input.name, categories: input.categories };
+  if (input.flowJson) body.flow_json = JSON.stringify(input.flowJson);
+  if (input.publish) body.publish = true;
+  if (input.cloneFlowId) body.clone_flow_id = input.cloneFlowId;
+  if (input.endpointUri) body.endpoint_uri = input.endpointUri;
+  const res = await graph<{ id?: string; validation_errors?: RawValidation[] }>(account, "POST", `${encodeURIComponent(account.wabaId)}/flows`, { body, fallback: "Meta no creó el Flow" });
+  if (!res.id) throw new MetaAdminError("Meta no devolvió el id del Flow", 502, null);
+  return { id: res.id, validationErrors: parseFlowValidation(res.validation_errors) };
+}
+
+export async function updateFlowMetadata(account: AdminAccount, flowId: string, input: FlowWrite): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (input.name !== undefined) body.name = input.name;
+  if (input.categories !== undefined) body.categories = input.categories;
+  if (input.endpointUri !== undefined) body.endpoint_uri = input.endpointUri ?? "";
+  if (Object.keys(body).length === 0) return;
+  await graph(account, "POST", encodeURIComponent(flowId), { body, fallback: "Meta no actualizó el Flow" });
+}
+
+/** Sube el JSON del Flow (asset FLOW_JSON). Multipart: no pasa por graph(). */
+export async function uploadFlowJson(account: AdminAccount, flowId: string, flowJson: object): Promise<FlowValidationError[]> {
+  if (!account.accessToken) throw new MetaAdminError("La cuenta no tiene token de acceso de Meta", 422, null);
+  const form = new FormData();
+  form.append("file", new Blob([JSON.stringify(flowJson)], { type: "application/json" }), "flow.json");
+  form.append("name", "flow.json");
+  form.append("asset_type", "FLOW_JSON");
+  const res = await fetch(`${GRAPH_API_BASE}/${encodeURIComponent(flowId)}/assets`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${decrypt(account.accessToken)}` },
+    body: form,
+    signal: httpTimeout(),
+  });
+  const body = (await res.json().catch(() => null)) as ({ validation_errors?: RawValidation[] } & MetaErrorBody) | null;
+  if (!res.ok) throw new MetaAdminError(metaMessage(body, "Meta no aceptó el JSON del Flow"), res.status, body?.error?.code ?? null);
+  return parseFlowValidation(body?.validation_errors);
+}
+
+export async function flowAction(account: AdminAccount, flowId: string, action: "publish" | "deprecate"): Promise<void> {
+  await graph(account, "POST", `${encodeURIComponent(flowId)}/${action}`, { body: {}, fallback: action === "publish" ? "Meta no publicó el Flow" : "Meta no retiró el Flow" });
+}
+
+/** Solo se borran Flows en DRAFT (los publicados se retiran con deprecate). */
+export async function deleteFlow(account: AdminAccount, flowId: string): Promise<void> {
+  await graph(account, "DELETE", encodeURIComponent(flowId), { fallback: "Meta no borró el Flow" });
+}
+
+// ── Números de la WABA, PIN y registro ─────────────────────────────────────
+// Lo que antes solo se hacía en el Administrador de WhatsApp: ver todos los
+// números de la cuenta de Meta (estén o no en Colibly), cambiar el PIN de la
+// verificación en dos pasos y registrar o dar de baja el número en Cloud API.
+
+export interface WabaNumber {
+  phoneNumberId: string;
+  displayPhoneNumber: string | null;
+  verifiedName: string | null;
+  nameStatus: string | null;
+  qualityRating: string | null;
+  messagingLimitTier: string | null;
+  status: string | null;
+  platformType: string | null;
+  codeVerificationStatus: string | null;
+  isOnBizApp: boolean;
+  isOfficialBusinessAccount: boolean;
+  throughput: string | null;
+}
+
+type RawNumber = {
+  id?: string;
+  display_phone_number?: string;
+  verified_name?: string;
+  name_status?: string;
+  quality_rating?: string;
+  messaging_limit_tier?: string;
+  status?: string;
+  platform_type?: string;
+  code_verification_status?: string;
+  is_on_biz_app?: boolean;
+  is_official_business_account?: boolean;
+  throughput?: { level?: string };
+};
+
+export function parseWabaNumber(n: RawNumber): WabaNumber {
+  return {
+    phoneNumberId: n.id ?? "",
+    displayPhoneNumber: n.display_phone_number ?? null,
+    verifiedName: n.verified_name ?? null,
+    nameStatus: n.name_status ?? null,
+    qualityRating: n.quality_rating ?? null,
+    messagingLimitTier: n.messaging_limit_tier ?? null,
+    status: n.status ?? null,
+    platformType: n.platform_type ?? null,
+    codeVerificationStatus: n.code_verification_status ?? null,
+    isOnBizApp: n.is_on_biz_app === true,
+    isOfficialBusinessAccount: n.is_official_business_account === true,
+    throughput: n.throughput?.level ?? null,
+  };
+}
+
+const NUMBER_FIELDS = "id,display_phone_number,verified_name,name_status,quality_rating,messaging_limit_tier,status,platform_type,code_verification_status,is_on_biz_app,is_official_business_account,throughput";
+
+export async function listWabaNumbers(account: AdminAccount): Promise<WabaNumber[]> {
+  if (!account.wabaId) throw new MetaAdminError("La cuenta no tiene WABA ID", 422, null);
+  const body = await graph<{ data?: RawNumber[] }>(account, "GET", `${encodeURIComponent(account.wabaId)}/phone_numbers`, {
+    query: { fields: NUMBER_FIELDS, limit: "100" },
+    fallback: "Meta no devolvió los números de la cuenta",
+  });
+  return (body.data ?? []).filter((n) => n.id).map(parseWabaNumber);
+}
+
+/** Cambia el PIN de 6 dígitos de la verificación en dos pasos del número. */
+export async function setTwoStepPin(account: AdminAccount, pin: string): Promise<void> {
+  await graph(account, "POST", encodeURIComponent(requirePhone(account)), { body: { pin }, fallback: "Meta no cambió el PIN" });
+}
+
+/** Registra el número en Cloud API (con el PIN vigente; si no tenía, lo fija). */
+export async function registerNumber(account: AdminAccount, pin: string): Promise<void> {
+  await graph(account, "POST", `${encodeURIComponent(requirePhone(account))}/register`, {
+    body: { messaging_product: "whatsapp", pin },
+    fallback: "Meta no registró el número",
+  });
+}
+
+/** Da de baja el número de Cloud API: deja de enviar y recibir hasta registrarlo otra vez. */
+export async function deregisterNumber(account: AdminAccount): Promise<void> {
+  await graph(account, "POST", `${encodeURIComponent(requirePhone(account))}/deregister`, { body: {}, fallback: "Meta no dio de baja el número" });
 }

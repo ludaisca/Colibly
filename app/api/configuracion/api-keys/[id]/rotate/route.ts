@@ -35,7 +35,7 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Esta key ya no funciona: crea una nueva en lugar de rotarla" }, { status: 409 });
     }
 
-    const { secret, prefix, keyHash } = generateApiKey();
+    const { secret, prefix, keyHash } = generateApiKey({ test: old.test });
     const oldUntil = rotationExpiry(old.expiresAt, parsed.data.graceHours, now);
     const [created] = await prisma.$transaction([
       prisma.apiKey.create({
@@ -46,6 +46,7 @@ export async function POST(req: Request, { params }: Params) {
           prefix,
           keyHash,
           scopes: old.scopes,
+          test: old.test,
           accountIds: old.accountIds,
           channelAccountIds: old.channelAccountIds,
           expiresAt: old.expiresAt,

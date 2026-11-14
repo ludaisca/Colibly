@@ -40,7 +40,7 @@ export const POST = withIdempotency(withApiErrors(async (req: Request, { params 
   } catch (err) {
     if (err instanceof ReactionError) throw new ApiError(err.code === "busy" ? 409 : 400, err.code === "busy" ? "conflict" : "invalid_request", err.message);
     if (err instanceof BillingBlockedError) throw new ApiError(402, "read_only", err.message);
-    if (err instanceof MetaSendError) throw new ApiError(502, "upstream_error", err.message);
+    if (err instanceof MetaSendError) throw new ApiError(502, "upstream_error", err.message, undefined, undefined, err.metaCode !== null ? { code: err.metaCode } : null);
     throw err;
   }
 }));

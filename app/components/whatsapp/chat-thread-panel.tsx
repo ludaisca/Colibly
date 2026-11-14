@@ -25,6 +25,7 @@ import {
   ImageOff,
 } from "lucide-react";
 import { ChatMessageActions, MessageContextMenu } from "./chat-message-actions";
+import { ContactsContent, FlowResponseContent, OrderContent } from "./structured-bubbles";
 import { WhatsAppText } from "./whatsapp-text";
 import { AudioTranscript } from "./audio-transcript";
 import { Button } from "@/app/components/ui/button";
@@ -286,6 +287,8 @@ function MessageBubble({
   const caption = msg.caption ?? (hasMedia && msg.body && msg.body !== `[${msg.messageType}]` ? msg.body : null);
   const isFailed = msg.status === "failed";
   const buttons = msg.messageType === "interactive" ? msg.interactivePayload?.buttons : undefined;
+  // Contenido estructurado que reemplaza al texto plano de la burbuja.
+  const structured = msg.content?.flowResponse ? "flow" : msg.content?.order ? "order" : msg.messageType === "contacts" && msg.content?.contacts?.length ? "contacts" : null;
   const latestReaction = msg.agentReactions?.[0];
   const reactionPending = latestReaction && ["pending", "accepted"].includes(latestReaction.status);
   const ownEmoji = reactionPending ? latestReaction.emoji : msg.agentReactionEmoji;
@@ -389,9 +392,12 @@ function MessageBubble({
           </div>
         )}
         {msg.messageType === "location" && <LocationContent msg={msg} />}
+        {structured === "flow" && msg.content?.flowResponse && <FlowResponseContent response={msg.content.flowResponse} />}
+        {structured === "order" && msg.content?.order && <OrderContent order={msg.content.order} />}
+        {structured === "contacts" && msg.content?.contacts && <ContactsContent contacts={msg.content.contacts} />}
         {msg.messageType === "media_too_large" && <MediaTooLargeNotice msg={msg} />}
         {msg.messageType === "media_placeholder" && <HistoryMediaNotice />}
-        {!hasMedia && msg.messageType !== "location" && msg.messageType !== "media_too_large" && msg.messageType !== "media_placeholder" && msg.body && msg.body !== "[interactive]" && (
+        {!hasMedia && !structured && msg.messageType !== "location" && msg.messageType !== "media_too_large" && msg.messageType !== "media_placeholder" && msg.body && msg.body !== "[interactive]" && (
           <p className="whitespace-pre-wrap break-words">{channel === "WHATSAPP" ? <WhatsAppText text={msg.body} /> : msg.body}</p>
         )}
         {!hasMedia && msg.body === "[interactive]" && !(buttons && buttons.length > 0) && "Mensaje con botones"}

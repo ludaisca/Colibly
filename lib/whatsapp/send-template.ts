@@ -16,6 +16,9 @@ export interface SendTemplateParams {
   buttonIndex?: number | null;
   buttonParam?: string | null;
   replyToWamid?: string | null;
+  // Componentes ya armados (lib/whatsapp/template-send.ts:buildTemplateSend);
+  // si vienen, se ignoran bodyParams/headerParam/buttonParam.
+  components?: Record<string, unknown>[];
 }
 
 // Único lugar que construye un payload type:"template" para la Graph API — usado por
@@ -42,16 +45,16 @@ export async function sendTemplateMessage(
     ...(params.replyToWamid ? { context: { message_id: params.replyToWamid } } : {}),
   };
 
-  const templateComponents: Record<string, unknown>[] = [];
+  const templateComponents: Record<string, unknown>[] = params.components ? [...params.components] : [];
 
-  if (params.bodyParams && params.bodyParams.length > 0) {
+  if (!params.components && params.bodyParams && params.bodyParams.length > 0) {
     templateComponents.push({
       type: "body",
       parameters: params.bodyParams.map((text) => ({ type: "text", text })),
     });
   }
 
-  if (params.headerParam && params.headerFormat) {
+  if (!params.components && params.headerParam && params.headerFormat) {
     if (params.headerFormat === "TEXT") {
       templateComponents.push({
         type: "header",
@@ -69,7 +72,7 @@ export async function sendTemplateMessage(
     }
   }
 
-  if (params.buttonParam && params.buttonIndex !== null && params.buttonIndex !== undefined) {
+  if (!params.components && params.buttonParam && params.buttonIndex !== null && params.buttonIndex !== undefined) {
     templateComponents.push({
       type: "button",
       sub_type: "url",

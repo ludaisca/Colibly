@@ -738,7 +738,8 @@ export async function POST(req: Request) {
                   mimeType,
                   filename,
                   caption,
-                  interactiveReplyId: msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? null,
+                  // Botón de plantilla (type "button"): su payload es lo que mandó POST /messages.
+                  interactiveReplyId: msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? msg.button?.payload ?? null,
                   replyToWamid: msg.context?.id ?? null,
                   referral: msg.referral ?? null,
                   content: structuredContentOf(msg),

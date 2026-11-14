@@ -46,9 +46,11 @@ describe("apiTemplateCreateSchema", () => {
     expect(apiTemplateCreateSchema.safeParse({ ...base, components: { ...base.components, header: { format: "IMAGE", exampleUrl: "http://a.mx/p.jpg" } } }).success).toBe(false);
   });
 
-  it("rechaza nombres que Meta no acepta y la categoría AUTHENTICATION", () => {
+  it("rechaza nombres que Meta no acepta y acepta la definición completa", () => {
     expect(apiTemplateCreateSchema.safeParse({ ...base, name: "Promo Nov" }).success).toBe(false);
-    expect(apiTemplateCreateSchema.safeParse({ ...base, category: "AUTHENTICATION" }).success).toBe(false);
+    expect(apiTemplateCreateSchema.safeParse({ ...base, category: "AUTHENTICATION", components: { authentication: { otpType: "COPY_CODE" } } }).success).toBe(true);
+    expect(apiTemplateCreateSchema.safeParse({ ...base, components: { body: "Hola {{nombre}}", bodyExamples: { nombre: "Ana" }, buttons: [{ type: "COPY_CODE", example: "NOV" }] } }).success).toBe(true);
+    expect(apiTemplateCreateSchema.safeParse({ ...base, components: { ...base.components, carousel: [{ header: { format: "IMAGE", exampleUrl: "https://a.mx/1.jpg" }, buttons: [{ type: "QUICK_REPLY", text: "Sí" }] }] } }).success).toBe(false);
   });
 });
 

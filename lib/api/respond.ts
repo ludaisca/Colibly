@@ -48,10 +48,16 @@ export function currentRequestId(): string | null {
   return requestContext.getStore()?.requestId ?? null;
 }
 
-export function apiError(status: number, code: ApiErrorCode, message: string, headers?: HeadersInit, details?: ApiErrorDetail[]): NextResponse {
+/** Error original de Meta cuando Graph rechazó la operación (para buscarlo en su documentación). */
+export interface ApiErrorMeta {
+  code: number;
+}
+
+export function apiError(status: number, code: ApiErrorCode, message: string, headers?: HeadersInit, details?: ApiErrorDetail[], meta?: ApiErrorMeta | null): NextResponse {
   const requestId = currentRequestId();
   const error: Record<string, unknown> = { code, message };
   if (details?.length) error.details = details;
+  if (meta) error.meta = meta;
   if (requestId) error.requestId = requestId;
   return NextResponse.json({ error }, { status, headers });
 }
@@ -67,7 +73,8 @@ export class ApiError extends Error {
     public readonly code: ApiErrorCode,
     message: string,
     public readonly headers?: Record<string, string>,
-    public readonly details?: ApiErrorDetail[]
+    public readonly details?: ApiErrorDetail[],
+    public readonly meta?: ApiErrorMeta | null
   ) {
     super(message);
   }
@@ -146,23 +153,24 @@ function finish(res: Response): Response {
 // Envuelve un handler: ApiError → su respuesta; cualquier otra cosa → 500 sin
 // filtrar detalles de Prisma (publicErrorMessage ya los registra). Agrega los
 // headers X-RateLimit-* que dejó authenticateApiKey.
-export function withApiErrors<A extends [Request, ...unknown[]]>(handler: (...args: A) => Promise<Response>) {
+export function withApiErrors<A extends [Request, ...unknown[]]>(handler: (...args: A) => Promise<Response>, opts: { maxBodyBytes?: number } = {}) {
+  const maxBody = opts.maxBodyBytes ?? API_MAX_BODY_BYTES;
   return async (...args: A): Promise<Response> =>
     requestContext.run({ requestId: currentRequestId() ?? newRequestId() }, async () => {
       let res: Response;
       try {
-        args[0] = guardRequestBody(args[0]);
+        args[0] = guardRequestBody(args[0], maxBody);
         res = await handler(...args);
       } catch (err) {
         if (err instanceof ApiError) {
-          res = apiError(err.status, err.code, err.message, err.headers, err.details);
+          res = apiError(err.status, err.code, err.message, err.headers, err.details, err.meta);
         } else {
           console.error(`[api] ${currentRequestId()} ${args[0].method} ${new URL(args[0].url).pathname}: error interno`);
           res = apiError(500, "internal_error", publicErrorMessage(err, "Error interno del servidor"));
         }
       }
       if (bodyOverflowed(args[0])) {
-        const tooLarge = payloadTooLarge(API_MAX_BODY_BYTES);
+        const tooLarge = payloadTooLarge(maxBody);
         res = apiError(tooLarge.status, tooLarge.code, tooLarge.message);
       }
       return finish(applyRateLimitHeaders(args[0], res));

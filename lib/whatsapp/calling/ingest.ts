@@ -4,12 +4,11 @@ import type { WAAccount, WACall } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jidCandidates } from "@/lib/whatsapp/coexistence/normalize";
 import { resolveAbsolutePath, saveMediaFromMeta } from "@/lib/whatsapp/media-store";
+import { emitCallAnswered, emitCallEnded, emitCallRinging } from "./call-events";
 import { callLogBody, formatCallTranscript, parseCallsPayload, statusAfterWebhook, type ParsedCall, type ParsedCallArtifact, type TerminalOutcome } from "./events";
 
 const TERMINAL = new Set(["ENDED", "MISSED", "REJECTED", "FAILED"]);
 
-// El webhook de Meta ya validó la firma. Coexistencia no recibe la llamada
-// por Cloud API: si igual llega un evento, no timbra en la bandeja.
 export async function handleCallsWebhook(account: WAAccount, value: unknown): Promise<void> {
   if (account.coexistence) {
     console.info("[calls] ignorada: número en coexistencia", { accountId: account.id });
@@ -28,7 +27,7 @@ export async function handleCallsWebhook(account: WAAccount, value: unknown): Pr
     if (!row || row.accountId !== account.id) continue;
     const next = statusAfterWebhook(row.status, reported.status);
     if (next === row.status) continue;
-    await prisma.wACall.update({
+    const updated = await prisma.wACall.update({
       where: { id: row.id },
       data: {
         status: next as WACall["status"],
@@ -38,7 +37,11 @@ export async function handleCallsWebhook(account: WAAccount, value: unknown): Pr
         sdpAnswer: next === "REJECTED" ? null : undefined,
       },
     });
-    if (next === "REJECTED") await writeCallLog(row, "REJECTED", null);
+    if (next === "ACTIVE") await emitCallAnswered(updated);
+    if (next === "REJECTED") {
+      await writeCallLog(row, "REJECTED", null);
+      await emitCallEnded(updated, "REJECTED", null);
+    }
   }
 }
 
@@ -87,7 +90,7 @@ async function applyConnect(account: WAAccount, call: ParsedCall): Promise<void>
     return;
   }
 
-  await prisma.wACall.create({
+  const ringing = await prisma.wACall.create({
     data: {
       organizationId: account.organizationId,
       accountId: account.id,
@@ -102,6 +105,7 @@ async function applyConnect(account: WAAccount, call: ParsedCall): Promise<void>
       contactId: linked?.contactId ?? null,
     },
   });
+  await emitCallRinging(ringing);
 
   if (call.direction === "USER_INITIATED" && linked?.assignedToId) {
     await prisma.notification.create({
@@ -146,6 +150,7 @@ async function applyTerminate(account: WAAccount, call: ParsedCall): Promise<voi
       },
     });
     await writeCallLog(created, outcome, call.durationSeconds);
+    await emitCallEnded(created, outcome, call.durationSeconds);
     return;
   }
   if (TERMINAL.has(existing.status)) return;
@@ -155,7 +160,7 @@ async function applyTerminate(account: WAAccount, call: ParsedCall): Promise<voi
   else if ((existing.status === "ACTIVE" || existing.status === "CONNECTING") && (call.durationSeconds ?? 0) > 0) outcome = "ENDED";
   else if (existing.status === "RINGING" && (call.durationSeconds ?? 0) === 0 && outcome !== "FAILED") outcome = "MISSED";
 
-  await prisma.wACall.update({
+  const ended = await prisma.wACall.update({
     where: { id: existing.id },
     data: {
       status: outcome,
@@ -168,6 +173,7 @@ async function applyTerminate(account: WAAccount, call: ParsedCall): Promise<voi
     },
   });
   await writeCallLog(existing, outcome, call.durationSeconds ?? existing.durationSeconds);
+  await emitCallEnded(ended, outcome, ended.durationSeconds);
 }
 
 async function applyArtifact(account: WAAccount, artifact: ParsedCallArtifact): Promise<void> {

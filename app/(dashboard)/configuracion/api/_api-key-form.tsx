@@ -29,6 +29,7 @@ export function ApiKeyFormModal({
   const [scopes, setScopes] = useState<ApiScope[]>(DEFAULT_SCOPES);
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [expiresInDays, setExpiresInDays] = useState<string>("");
+  const [test, setTest] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [secret, setSecret] = useState<string | null>(null);
@@ -38,6 +39,7 @@ export function ApiKeyFormModal({
     setScopes(DEFAULT_SCOPES);
     setAccountIds([]);
     setExpiresInDays("");
+    setTest(false);
     setError("");
     setSecret(null);
   }
@@ -66,6 +68,7 @@ export function ApiKeyFormModal({
           scopes,
           ...splitAccountIds(accountIds, accounts),
           expiresInDays: expiresInDays ? Number(expiresInDays) : null,
+          test,
         }),
       });
       const data = await res.json();
@@ -134,6 +137,13 @@ export function ApiKeyFormModal({
         </fieldset>
 
         <AccountScopeField accounts={accounts} value={accountIds} onChange={setAccountIds} />
+
+        <Checkbox
+          checked={test}
+          onChange={setTest}
+          label="Key de prueba (sk_test_)"
+          description="Consulta los mismos datos, pero los envíos se simulan: responde lo que saldría sin mandar ni guardar nada, y no puede cambiar datos."
+        />
 
         <FormField label="Expira">
           {(id) => (

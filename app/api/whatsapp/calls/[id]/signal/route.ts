@@ -1,3 +1,4 @@
+import { emitCallAnswered, emitCallEnded } from "@/lib/whatsapp/calling/call-events";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -61,10 +62,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         session: { sdp_type: "answer", sdp },
         ...callCaptureFields(),
       });
-      await prisma.wACall.update({
+      const answered = await prisma.wACall.update({
         where: { id: call.id },
         data: { status: "ACTIVE", answeredById: session.user.id, startedAt: call.startedAt ?? new Date(), sdpAnswer: sdp },
       });
+      if (call.status !== "ACTIVE") await emitCallAnswered(answered);
       return NextResponse.json({ status: "ACTIVE" });
     }
 
@@ -76,6 +78,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (claimed.count === 0) return NextResponse.json({ status: call.status });
       await signalCall(call.account, { call_id: call.metaCallId, action: "reject" });
       await logTerminal(call.chatId, call.direction, call.metaCallId, "REJECTED", null, session.user.id);
+      await emitCallEnded({ ...call, endedAt: new Date() }, "REJECTED", null);
       return NextResponse.json({ status: "REJECTED" });
     }
 
@@ -83,7 +86,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const duration = call.startedAt ? Math.max(0, Math.round((Date.now() - call.startedAt.getTime()) / 1000)) : 0;
     const connected = call.status === "ACTIVE" || duration > 0;
     const outcome = connected ? "ENDED" : call.direction === "USER_INITIATED" ? "REJECTED" : "MISSED";
-    await prisma.wACall.update({
+    const ended = await prisma.wACall.update({
       where: { id: call.id },
       data: {
         status: outcome,
@@ -93,6 +96,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         sdpAnswer: null,
       },
     });
+    await emitCallEnded(ended, outcome, ended.durationSeconds);
     await logTerminal(call.chatId, call.direction, call.metaCallId, outcome, connected ? duration : 0, call.answeredById ?? session.user.id);
     return NextResponse.json({ status: outcome });
   } catch (error) {

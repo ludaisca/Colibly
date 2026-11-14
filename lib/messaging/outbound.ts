@@ -6,7 +6,10 @@ import { MetaAdminError, resolveCatalogId } from "@/lib/whatsapp/account-admin";
 import { getMessageBody, structuredContentOf } from "@/lib/whatsapp/message-content";
 import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
 import { MetaSendError } from "@/lib/whatsapp/send-errors";
-import { getTemplateVariables, renderTemplateText } from "@/lib/whatsapp/template-variables";
+import { asReceivedContacts, toMetaContacts, type SharedContactInput } from "@/lib/whatsapp/shared-contacts";
+import { OutboundMediaError } from "@/lib/messaging/outbound-media";
+import { apiMediaToMetaId, looksLikeApiMediaId } from "@/lib/media/api-media";
+import { buildTemplateSend, TemplateParamsError, type TemplateSendInput } from "@/lib/whatsapp/template-send";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
 import { sendMetaChannelOptions, sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
@@ -41,13 +44,15 @@ export type OutboundContent =
   | { type: "text"; text: string }
   | { type: "buttons"; text: string; buttons: OutboundOption[] }
   | { type: "list"; text: string; buttonLabel: string; rows: OutboundOption[] }
-  | { type: "template"; templateId: string; bodyParams?: string[]; headerParam?: string | null; buttonParam?: string | null }
+  | ({ type: "template"; templateId: string } & TemplateSendInput)
   // Archivo ya descargado y validado (lib/messaging/outbound-media.ts).
   | { type: "media"; mediaType: OutboundMediaType; file: OutboundMediaFile; caption?: string | null }
   // Solo WhatsApp:
   | { type: "cta_url"; text: string; label: string; url: string }
   | { type: "location"; latitude: number; longitude: number; name?: string | null; address?: string | null }
   | { type: "location_request"; text: string }
+  // Tarjetas de contacto (vCard).
+  | { type: "contacts"; contacts: SharedContactInput[] }
   // WebP de 512×512 ya validado (fetchOutboundSticker).
   | { type: "sticker"; file: OutboundMediaFile }
   // Catálogo de Meta: sin catalogId se usa el único conectado a la WABA.
@@ -58,7 +63,7 @@ export type OutboundContent =
   | { type: "flow"; flowId: string; cta: string; text: string; header?: string | null; footer?: string | null; flowToken: string; screen?: string | null; data?: Record<string, unknown> | null; draft?: boolean };
 
 /** Tipos que solo existen en WhatsApp; los demás canales responden invalid_request. */
-const WHATSAPP_ONLY = new Set<OutboundContent["type"]>(["template", "cta_url", "location", "location_request", "sticker", "product", "product_list", "catalog", "flow"]);
+const WHATSAPP_ONLY = new Set<OutboundContent["type"]>(["template", "cta_url", "location", "location_request", "sticker", "product", "product_list", "catalog", "flow", "contacts"]);
 
 // Columnas de medio del mensaje guardado (WAMessage y ChannelMessage las comparten).
 interface StoredMediaColumns {
@@ -137,6 +142,110 @@ export interface OutboundResult {
   externalId: string | null;
 }
 
+// Ventana de 24 h de Meta: texto libre (y botones) solo dentro de las 24 h
+// posteriores al último mensaje del cliente. Las plantillas están exentas.
+async function assertServiceWindow(chatId: string, content: OutboundContent, now: Date): Promise<void> {
+  if (content.type === "template") return;
+  const lastInbound = await prisma.wAMessage.findFirst({
+    where: { chatId, direction: "INBOUND" },
+    orderBy: { timestamp: "desc" },
+    select: { timestamp: true },
+  });
+  if (!lastInbound || !isWithinServiceWindow(lastInbound.timestamp, now)) {
+    throw new OutboundError("window_closed", "Fuera de la ventana de 24 h de WhatsApp: solo se puede enviar una plantilla aprobada.");
+  }
+}
+
+/** Lo que un canal que no es WhatsApp no puede mandar (mismo texto que sendChannel). */
+function assertChannelSupports(content: OutboundContent, opts: Pick<OutboundOpts, "replyToWamid">): void {
+  if (content.type === "template") throw new OutboundError("invalid_request", "Las plantillas solo existen en WhatsApp");
+  if (WHATSAPP_ONLY.has(content.type)) throw new OutboundError("invalid_request", `El tipo "${content.type}" solo se puede enviar por WhatsApp`);
+  if (opts.replyToWamid) throw new OutboundError("invalid_request", "Citar un mensaje (replyTo) solo está disponible en WhatsApp");
+}
+
+/** Plantilla aprobada de la cuenta, con sus componentes de envío ya armados. */
+async function loadTemplateSend(accountId: string, content: Extract<OutboundContent, { type: "template" }>) {
+  const template = await prisma.wATemplate.findFirst({ where: { id: content.templateId, waAccountId: accountId } });
+  if (!template) throw new OutboundError("not_found", "Plantilla no encontrada en esta cuenta");
+  if (template.status !== "APPROVED") {
+    throw new OutboundError("invalid_request", `La plantilla "${template.name}" no está aprobada (${template.status})`);
+  }
+  try {
+    return { template, built: buildTemplateSend(template.components, template.category, content) };
+  } catch (err) {
+    if (err instanceof TemplateParamsError) throw new OutboundError("invalid_request", err.message);
+    throw err;
+  }
+}
+
+/**
+ * Cabeceras de plantilla (y tarjetas de carrusel) con un id de POST /media:
+ * se sube el archivo al número y se cambia por el media id de Meta.
+ */
+async function resolveTemplateMedia(account: WAAccount, components: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
+  const cache = new Map<string, string>();
+  const fixParams = async (params: unknown) => {
+    if (!Array.isArray(params)) return params;
+    return Promise.all(
+      params.map(async (p: Record<string, unknown>) => {
+        const kind = typeof p.type === "string" ? p.type : "";
+        const media = p[kind] as { id?: string } | undefined;
+        if (!media?.id || !looksLikeApiMediaId(media.id)) return p;
+        let metaId = cache.get(media.id);
+        if (!metaId) {
+          try {
+            metaId = await apiMediaToMetaId(account, media.id);
+          } catch (err) {
+            if (err instanceof OutboundMediaError) throw new OutboundError("invalid_request", err.message);
+            throw err;
+          }
+          cache.set(media.id, metaId);
+        }
+        return { ...p, [kind]: { id: metaId } };
+      })
+    );
+  };
+  const fix = async (list: Record<string, unknown>[]): Promise<Record<string, unknown>[]> =>
+    Promise.all(
+      list.map(async (c) => {
+        if (c.type === "header") return { ...c, parameters: await fixParams(c.parameters) };
+        if (c.type === "carousel" && Array.isArray(c.cards)) {
+          const cards = await Promise.all((c.cards as Record<string, unknown>[]).map(async (card) => ({ ...card, components: await fix(card.components as Record<string, unknown>[]) })));
+          return { ...c, cards };
+        }
+        return c;
+      })
+    );
+  return fix(components);
+}
+
+export interface OutboundPreview {
+  type: OutboundContent["type"];
+  text: string | null;
+  template: { name: string; language: string; components: Record<string, unknown>[] } | null;
+}
+
+/**
+ * Lo que saldría, sin mandarlo ni guardarlo (keys de prueba). Mismas reglas
+ * que sendOutbound: ventana de 24 h, tipos por canal y parámetros de la
+ * plantilla. `target` null = chat que el envío abriría (solo plantillas).
+ */
+export async function previewOutbound(
+  target: OutboundTarget | { kind: "new_whatsapp_chat"; accountId: string },
+  content: OutboundContent,
+  opts: Pick<OutboundOpts, "replyToWamid"> = {}
+): Promise<OutboundPreview> {
+  if (target.kind === "channel") assertChannelSupports(content, opts);
+  if (target.kind === "whatsapp") await assertServiceWindow(target.chat.id, content, new Date());
+  if (content.type === "template") {
+    const accountId = target.kind === "whatsapp" ? target.chat.accountId : target.kind === "new_whatsapp_chat" ? target.accountId : "";
+    const { template, built } = await loadTemplateSend(accountId, content);
+    return { type: "template", text: built.text || null, template: { name: template.name, language: template.language, components: built.components } };
+  }
+  const text = "text" in content && typeof content.text === "string" ? content.text : content.type === "media" ? content.caption ?? null : null;
+  return { type: content.type, text, template: null };
+}
+
 export async function sendOutbound(
   target: OutboundTarget,
   content: OutboundContent,
@@ -157,21 +266,7 @@ async function sendWhatsapp(
 ): Promise<OutboundResult> {
   const now = new Date();
 
-  // Ventana de 24 h de Meta: texto libre (y botones) solo dentro de las 24 h
-  // posteriores al último mensaje del cliente. Las plantillas están exentas.
-  if (content.type !== "template") {
-    const lastInbound = await prisma.wAMessage.findFirst({
-      where: { chatId: chat.id, direction: "INBOUND" },
-      orderBy: { timestamp: "desc" },
-      select: { timestamp: true },
-    });
-    if (!lastInbound || !isWithinServiceWindow(lastInbound.timestamp, now)) {
-      throw new OutboundError(
-        "window_closed",
-        "Fuera de la ventana de 24 h de WhatsApp: solo se puede enviar una plantilla aprobada."
-      );
-    }
-  }
+  await assertServiceWindow(chat.id, content, now);
 
   let wamid: string | null;
   let body: string;
@@ -208,6 +303,13 @@ async function sendWhatsapp(
     } else if (content.type === "text") {
       ({ wamid } = await sendWhatsAppMessage(chat.account, { to: chat.remoteJid, type: "text", body: content.text, replyToWamid }));
       body = content.text;
+    } else if (content.type === "contacts") {
+      const contacts = toMetaContacts(content.contacts);
+      ({ wamid } = await sendWhatsAppMessage(chat.account, { to: chat.remoteJid, type: "contacts", contacts, replyToWamid }));
+      const received = asReceivedContacts(content.contacts);
+      body = getMessageBody({ type: "contacts", contacts: received });
+      structured = (structuredContentOf({ type: "contacts", contacts: received }) ?? undefined) as Prisma.InputJsonObject | undefined;
+      messageType = "contacts";
     } else if (content.type === "location") {
       const location = { latitude: content.latitude, longitude: content.longitude, name: content.name ?? undefined, address: content.address ?? undefined };
       ({ wamid } = await sendWhatsAppMessage(chat.account, { to: chat.remoteJid, type: "location", location, replyToWamid }));
@@ -292,36 +394,16 @@ async function sendWhatsapp(
       messageType = "interactive";
       interactivePayload = { buttons: [{ id: "send_location", title: "Enviar ubicación" }], style: "location_request" };
     } else {
-      const template = await prisma.wATemplate.findFirst({
-        where: { id: content.templateId, waAccountId: chat.accountId },
-      });
-      if (!template) throw new OutboundError("not_found", "Plantilla no encontrada en esta cuenta");
-      if (template.status !== "APPROVED") {
-        throw new OutboundError("invalid_request", `La plantilla "${template.name}" no está aprobada (${template.status})`);
-      }
-      const vars = getTemplateVariables(template.components);
-      const bodyParams = content.bodyParams ?? [];
-      if (bodyParams.length < vars.bodyParamCount) {
-        throw new OutboundError("invalid_request", `La plantilla requiere ${vars.bodyParamCount} parámetro(s) de cuerpo`);
-      }
-      if (vars.header.required && !content.headerParam) {
-        throw new OutboundError("invalid_request", "La plantilla requiere headerParam");
-      }
-      if (vars.buttonUrl?.required && !content.buttonParam) {
-        throw new OutboundError("invalid_request", "La plantilla requiere buttonParam (sufijo del botón URL)");
-      }
+      const { template, built } = await loadTemplateSend(chat.accountId, content);
+      const components = await resolveTemplateMedia(chat.account, built.components);
       ({ wamid } = await sendTemplateMessage(chat.account, {
         to: chat.remoteJid,
         templateName: template.name,
         language: template.language,
-        bodyParams,
-        headerFormat: vars.header.format,
-        headerParam: content.headerParam ?? null,
-        buttonIndex: vars.buttonUrl?.index ?? null,
-        buttonParam: content.buttonParam ?? null,
+        components,
         replyToWamid: replyToWamid ?? null,
       }));
-      body = renderTemplateText(template.components, { bodyParams, headerParam: content.headerParam });
+      body = built.text || `Plantilla: ${template.name}`;
       messageType = "template";
     }
   } catch (err) {
@@ -377,15 +459,7 @@ async function sendChannel(
   opts: OutboundOpts
 ): Promise<OutboundResult> {
   const { channelAccount } = conversation;
-  if (content.type === "template") {
-    throw new OutboundError("invalid_request", "Las plantillas solo existen en WhatsApp");
-  }
-  if (WHATSAPP_ONLY.has(content.type)) {
-    throw new OutboundError("invalid_request", `El tipo "${content.type}" solo se puede enviar por WhatsApp`);
-  }
-  if (opts.replyToWamid) {
-    throw new OutboundError("invalid_request", "Citar un mensaje (replyTo) solo está disponible en WhatsApp");
-  }
+  assertChannelSupports(content, opts);
   if (content.type === "media") return sendChannelMedia(conversation, content, opts);
   if (content.type !== "text" && content.type !== "buttons" && content.type !== "list") {
     throw new OutboundError("invalid_request", `El tipo "${content.type}" solo se puede enviar por WhatsApp`);

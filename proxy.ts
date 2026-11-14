@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { type NextRequest, NextResponse } from "next/server";
 import { getOrgAccess, readOnlyResponse } from "@/lib/billing/gates";
 import { requestHost } from "@/lib/request-host";
-import { API_MAX_BODY_BYTES } from "@/lib/api/constants";
+import { API_MAX_BODY_BYTES, API_MEDIA_MAX_BYTES } from "@/lib/api/constants";
 
 // /plataforma (panel del operador) no va en las listas de rol: su acceso lo
 // decide PLATFORM_ADMIN_EMAILS en la página y en /api/plataforma (404 al resto).
@@ -26,7 +26,8 @@ const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/wh
 const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/whatsapp/monitores", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/meta-ads"];
 // /verificar-correo e /invitacion no van aquí: funcionan con o sin sesión.
 const AUTH = ["/login", "/register", "/recuperar", "/restablecer"];
-const APP_PUBLIC = [...AUTH, "/verificar-correo", "/invitacion"];
+// /conectar/<token>: enlace de conexión de WhatsApp para clientes de un integrador (sin sesión).
+const APP_PUBLIC = [...AUTH, "/verificar-correo", "/invitacion", "/conectar"];
 const EXCLUDE = ["/_next", "/favicon.ico"];
 
 function configuredHost(value: string | undefined): string | null {
@@ -61,9 +62,11 @@ export default async function proxy(req: NextRequest) {
   // API pública: cuerpo de 1 MB como máximo. Aquí se corta lo que declara un
   // Content-Length mayor sin que llegue al handler; lo que llega sin
   // Content-Length (chunked) lo mide enforceBodyLimit en lib/api/respond.ts.
-  if (path.startsWith("/api/v1/") && Number(req.headers.get("content-length") ?? 0) > API_MAX_BODY_BYTES) {
+  // POST /media sube archivos: su tope es el del archivo más grande de WhatsApp.
+  const apiBodyMax = path === "/api/v1/media" ? API_MEDIA_MAX_BYTES : API_MAX_BODY_BYTES;
+  if (path.startsWith("/api/v1/") && Number(req.headers.get("content-length") ?? 0) > apiBodyMax) {
     return NextResponse.json(
-      { error: { code: "payload_too_large", message: `El cuerpo supera el máximo de ${Math.round(API_MAX_BODY_BYTES / 1024)} KB` } },
+      { error: { code: "payload_too_large", message: `El cuerpo supera el máximo de ${Math.round(apiBodyMax / 1024)} KB` } },
       { status: 413 }
     );
   }

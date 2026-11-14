@@ -3,7 +3,8 @@ import { hashToken } from "@/lib/crypto";
 import { rateLimit, RateLimitUnavailableError, type RateLimitResult } from "@/lib/rate-limit";
 import { resolveIntegrationScope, type ResolvedScope } from "@/lib/integrations/account-scope";
 import { ApiError } from "./respond";
-import { API_KEY_PREFIX } from "./keys";
+import { isApiKeySecret } from "./keys";
+import { assertTestKeyAllowed } from "./test-mode";
 import type { ApiScope } from "./scopes";
 import { hasApiAccess, isOrgWritable } from "@/lib/billing/gates";
 import { clientIp } from "@/lib/net/client-ip";
@@ -23,6 +24,8 @@ export interface ApiContext extends ResolvedScope {
   userId: string;
   organizationId: string;
   scopes: string[];
+  /** Key sk_test_: los envíos se simulan (lib/api/test-mode.ts). */
+  test: boolean;
 }
 
 // Límites en capas (todos en Redis, compartidos entre instancias):
@@ -91,6 +94,7 @@ async function loadKey(keyHash: string): Promise<CachedApiKey | null> {
     scopes: key.scopes,
     accountIds: key.accountIds,
     channelAccountIds: key.channelAccountIds,
+    test: key.test,
     revokedAt: key.revokedAt?.toISOString() ?? null,
     expiresAt: key.expiresAt?.toISOString() ?? null,
     lastUsedAt: key.lastUsedAt?.toISOString() ?? null,
@@ -123,7 +127,7 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
   const header = req.headers.get("authorization") ?? "";
   const secret = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
 
-  if (!secret.startsWith(API_KEY_PREFIX)) {
+  if (!isApiKeySecret(secret)) {
     await throttleBadKey(req);
     throw new ApiError(401, "unauthorized", "Falta la API key (Authorization: Bearer sk_live_...)");
   }
@@ -157,6 +161,9 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
   await enforceLimit(req, "key", `api:${key.id}`, REQUESTS_PER_MINUTE);
   await enforceLimit(req, "organization", `api-org:${key.organizationId}`, API_ORG_REQUESTS_PER_MINUTE);
 
+  // Prueba: solo lecturas y envíos simulados.
+  if (key.test) assertTestKeyAllowed(req);
+
   if (scope && !key.scopes.includes(scope)) {
     throw new ApiError(403, "forbidden", `Esta API key no tiene el permiso ${scope}`);
   }
@@ -172,7 +179,7 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
     key.resolved = await resolveIntegrationScope(key.userId, key);
     await setCachedApiKey(keyHash, key);
   }
-  return { keyId: key.id, userId: key.userId, organizationId: key.organizationId, scopes: key.scopes, ...key.resolved };
+  return { keyId: key.id, userId: key.userId, organizationId: key.organizationId, scopes: key.scopes, test: !!key.test, ...key.resolved };
 }
 
 // Frena la enumeración de keys desde una misma IP (IP confiable: ver
