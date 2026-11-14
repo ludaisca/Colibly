@@ -4,7 +4,7 @@ vi.mock("@/lib/crypto", () => ({ decrypt: (s: string) => `dec:${s}` }));
 vi.mock("@/lib/billing/gates", () => ({ assertOrgCanSend: vi.fn() }));
 
 import { catalogInteractive } from "@/lib/whatsapp/send-interactive";
-import { parseCommerceSettings, resolveCatalogId, updateCommerceSettings } from "@/lib/whatsapp/account-admin";
+import { listWabaCatalogs, parseCommerceSettings, resolveCatalogId, SMB_CATALOG_MESSAGE, updateCommerceSettings } from "@/lib/whatsapp/account-admin";
 import { orderTotal } from "@/lib/whatsapp/order";
 
 const realFetch = globalThis.fetch;
@@ -89,5 +89,17 @@ describe("orderTotal", () => {
     expect(orderTotal({ catalogId: "1", text: null, items: [item(10, null)] }).total).toBeNull();
     expect(orderTotal({ catalogId: "1", text: null, items: [item(10, 1, "MXN"), item(10, 1, "USD")] })).toEqual({ total: null, currency: null });
     expect(orderTotal({ catalogId: "1", text: null, items: [] }).total).toBeNull();
+  });
+});
+
+describe("catálogo en números de coexistencia", () => {
+  it("la restricción SMB de Meta se vuelve un aviso claro (422), no un 502", async () => {
+    globalThis.fetch = (async () => new Response(JSON.stringify({ error: { message: "(#10) This operation can not be performed on SMB business type", code: 10 } }), { status: 400 })) as unknown as typeof fetch;
+    await expect(listWabaCatalogs({ phoneNumberId: "pn1", wabaId: "waba1", accessToken: "enc" })).rejects.toMatchObject({ httpStatus: 422, message: SMB_CATALOG_MESSAGE });
+  });
+
+  it("otros errores de Meta siguen siendo de Meta", async () => {
+    globalThis.fetch = (async () => new Response(JSON.stringify({ error: { message: "Token vencido", code: 190 } }), { status: 401 })) as unknown as typeof fetch;
+    await expect(listWabaCatalogs({ phoneNumberId: "pn1", wabaId: "waba1", accessToken: "enc" })).rejects.toMatchObject({ httpStatus: 401 });
   });
 });

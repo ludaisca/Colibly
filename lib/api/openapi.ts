@@ -41,13 +41,21 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.9.0";
+export const API_VERSION = "1.9.1";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.9.0",
+    version: "1.9.1",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-13",
+    changes: [
+      "GET y PATCH /accounts/{id}/catalog ya no fallan enteros en los números de coexistencia (Meta no deja leer su catálogo): `catalogs` llega en null con el motivo en `notices`, y los ajustes de comercio se devuelven si Meta los da. Mandar productos a esos números pide `catalogId`.",
+    ],
+  },
+  {
+    version: "1.9.0",
+    schemaVersion: "2026-11-13.5",
     date: "2026-11-13",
     changes: [
       "Mensaje de bienvenida: `welcomeMessage` en PATCH /accounts/{id}/conversational-automation (y en la ficha de la cuenta). Quien abre el chat por primera vez deja un mensaje `type: \"request_welcome\"`, el evento nuevo `conversation.welcome_requested` y, si hay texto, recibe el saludo.",
@@ -318,7 +326,7 @@ const EX = {
     bodyText: "Hola {{1}}, tu pedido {{2}} va en camino.",
     syncedAt: "2026-10-18T12:00:00.000Z",
   },
-  commerce: { accountId: "cmacc_wa_01", catalogs: [{ id: "1234567890", name: "Catálogo Tienda Centro" }], cartEnabled: true, catalogVisible: true },
+  commerce: { accountId: "cmacc_wa_01", catalogs: [{ id: "1234567890", name: "Catálogo Tienda Centro" }], cartEnabled: true, catalogVisible: true, notices: [] },
   qr: { code: "4O4YGZEG3RIVE1", prefilledMessage: "Hola, quiero información de la promoción", deepLinkUrl: "https://wa.me/message/4O4YGZEG3RIVE1", qrImageUrl: "https://scontent.whatsapp.net/v/qr-ejemplo.png" },
   profile: {
     accountId: "cmacc_wa_01",
@@ -1605,9 +1613,10 @@ export function buildOpenApiSpec(serverUrl: string) {
           type: "object",
           properties: {
             accountId: str,
-            catalogs: { type: "array", items: obj({ id: str, name: strNull }) },
-            cartEnabled: { type: "boolean" },
-            catalogVisible: { type: "boolean" },
+            catalogs: { type: ["array", "null"], items: obj({ id: str, name: strNull }), description: "null si Meta no lo deja leer (números de coexistencia): el motivo va en notices" },
+            cartEnabled: { type: ["boolean", "null"] },
+            catalogVisible: { type: ["boolean", "null"] },
+            notices: { type: "array", items: str, description: "Partes que Meta no devolvió, con el motivo" },
           },
         },
         QrCode: {

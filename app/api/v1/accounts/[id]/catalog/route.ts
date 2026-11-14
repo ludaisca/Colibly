@@ -6,9 +6,21 @@ import { getCommerceSettings, listWabaCatalogs, updateCommerceSettings } from "@
 
 type Params = { params: Promise<{ id: string }> };
 
+// Cada parte por separado: en los números de coexistencia Meta no deja leer
+// el catálogo (SMB_CATALOG_MESSAGE) pero los ajustes pueden responder igual.
+// Una parte que falla viaja en `notices` y deja su campo en null; si fallan
+// las dos, la respuesta es el error de la primera.
 async function current(account: Parameters<typeof listWabaCatalogs>[0] & { id: string }) {
-  const [catalogs, settings] = await Promise.all([listWabaCatalogs(account), getCommerceSettings(account)]);
-  return { accountId: account.id, catalogs, ...settings };
+  const [catalogs, settings] = await Promise.allSettled([listWabaCatalogs(account), getCommerceSettings(account)]);
+  if (catalogs.status === "rejected" && settings.status === "rejected") throw catalogs.reason;
+  const notices = [catalogs, settings].flatMap((r) => (r.status === "rejected" ? [r.reason instanceof Error ? r.reason.message : String(r.reason)] : []));
+  return {
+    accountId: account.id,
+    catalogs: catalogs.status === "fulfilled" ? catalogs.value : null,
+    cartEnabled: settings.status === "fulfilled" ? settings.value.cartEnabled : null,
+    catalogVisible: settings.status === "fulfilled" ? settings.value.catalogVisible : null,
+    notices,
+  };
 }
 
 // GET/PATCH /api/v1/accounts/{id}/catalog — el catálogo de Meta conectado a la

@@ -449,13 +449,27 @@ export interface CatalogInfo {
   name: string | null;
 }
 
+export const SMB_CATALOG_MESSAGE =
+  "Meta no deja leer el catálogo de los números conectados por coexistencia (app WhatsApp Business): se administra desde la app. Para mandar productos indica catalogId.";
+
+/** Meta responde (#10) "...SMB business type" en las WABA de la app WhatsApp Business. Pura. */
+export function isSmbRestriction(err: unknown): boolean {
+  return err instanceof MetaAdminError && err.metaCode === 10 && /SMB/i.test(err.message);
+}
+
 export async function listWabaCatalogs(account: AdminAccount): Promise<CatalogInfo[]> {
   if (!account.wabaId) throw new MetaAdminError("La cuenta no tiene WABA ID", 422, null);
-  const body = await graph<{ data?: Array<{ id?: string; name?: string }> }>(account, "GET", `${encodeURIComponent(account.wabaId)}/product_catalogs`, {
-    query: { fields: "id,name" },
-    fallback: "Meta no devolvió los catálogos",
-  });
-  return (body.data ?? []).filter((c) => c.id).map((c) => ({ id: c.id!, name: c.name ?? null }));
+  try {
+    const body = await graph<{ data?: Array<{ id?: string; name?: string }> }>(account, "GET", `${encodeURIComponent(account.wabaId)}/product_catalogs`, {
+      query: { fields: "id,name" },
+      fallback: "Meta no devolvió los catálogos",
+    });
+    return (body.data ?? []).filter((c) => c.id).map((c) => ({ id: c.id!, name: c.name ?? null }));
+  } catch (err) {
+    // Limitación de Meta, no un fallo: se avisa como error del integrador.
+    if (isSmbRestriction(err)) throw new MetaAdminError(SMB_CATALOG_MESSAGE, 422, 10);
+    throw err;
+  }
 }
 
 export interface CommerceSettings {
