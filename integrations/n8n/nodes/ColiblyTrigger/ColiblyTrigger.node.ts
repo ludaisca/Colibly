@@ -1,3 +1,15 @@
+/*
+ * La interfaz está en español (México). Estas reglas de eslint-plugin-n8n-nodes-base
+ * exigen textos en inglés o mayúsculas del inglés y no se pueden cumplir en español:
+ * - display-name-miscased: title-case pone mayúscula en cada palabra («ID Del Contacto»).
+ * - operation-option-action-miscased: sentence-case borra las letras no ASCII
+ *   («configuración» → «configuraci n»); cualquier acción con acento o ñ falla.
+ * - *-wrong-for-dynamic-options: exigen «Name or ID» y «Choose from the list…».
+ * - boolean-without-whether, wrong-for-return-all, wrong-for-limit,
+ *   wrong-for-update-fields, option-name-wrong-for-get-many: textos fijos en inglés.
+ * Las demás reglas (orden alfabético, puntos finales, IDs, defaults…) siguen activas.
+ */
+/* eslint-disable n8n-nodes-base/node-param-display-name-miscased, n8n-nodes-base/node-param-description-wrong-for-dynamic-multi-options */
 import type {
 	IDataObject,
 	IHookFunctions,
@@ -12,30 +24,30 @@ import { verifySignature } from '../Colibly/signature';
 
 // Eventos que Colibly publica por webhook (lib/events/types.ts → DOMAIN_EVENT_CATALOG).
 const EVENTS = [
-	{ name: 'Account Connected', value: 'account.connected', description: 'Se conectó un número (desde el panel o con un enlace de conexión)' },
-	{ name: 'Account Quality Changed', value: 'account.quality_changed', description: 'Cambió la calidad o el límite de envío del número' },
-	{ name: 'Appointment Created', value: 'appointment.created', description: 'Cita creada' },
-	{ name: 'Appointment Status Changed', value: 'appointment.status_changed', description: 'Cambio de estado de una cita' },
-	{ name: 'Call Answered', value: 'call.answered', description: 'Llamada de WhatsApp contestada' },
-	{ name: 'Call Ended', value: 'call.ended', description: 'Llamada terminada: contestada, perdida, rechazada o fallida' },
-	{ name: 'Call Ringing', value: 'call.ringing', description: 'Llamada de WhatsApp sonando' },
-	{ name: 'Contact Created', value: 'contact.created', description: 'Contacto nuevo' },
-	{ name: 'Contact Lead Status Changed', value: 'contact.lead_status_changed', description: 'Cambio de etapa del lead' },
-	{ name: 'Contact Marketing Preference Changed', value: 'contact.marketing_preference_changed', description: 'Pidió dejar de recibir marketing (o volver a recibirlo)' },
-	{ name: 'Conversation Assigned', value: 'conversation.assigned', description: 'Conversación asignada' },
-	{ name: 'Conversation Resolved', value: 'conversation.resolved', description: 'Conversación resuelta' },
-	{ name: 'Conversation Welcome Requested', value: 'conversation.welcome_requested', description: 'Abrió el chat por primera vez sin escribir' },
-	{ name: 'Flow Completed', value: 'flow.completed', description: 'Terminó un formulario de WhatsApp (Flow)' },
-	{ name: 'Lead Ad Captured', value: 'lead.ad_captured', description: 'Lead llegado de un anuncio (CTWA o Instant Form)' },
-	{ name: 'Lead Scored', value: 'lead.scored', description: 'Lead calificado por un calificador IA' },
-	{ name: 'Message Received', value: 'message.received', description: 'Mensaje recibido de un contacto' },
-	{ name: 'Message Sent', value: 'message.sent', description: 'Mensaje enviado por cualquier vía' },
-	{ name: 'Message Status Changed', value: 'message.status_changed', description: 'Entregado, leído o fallido (solo WhatsApp)' },
-	{ name: 'Message Updated', value: 'message.updated', description: 'Un mensaje guardado cambió (su archivo quedó listo…)' },
-	{ name: 'Order Received', value: 'order.received', description: 'Pedido desde el carrito del catálogo' },
-	{ name: 'Tag Added', value: 'tag.added', description: 'Etiqueta agregada a un contacto o conversación' },
-	{ name: 'Template Category Changed', value: 'template.category_changed', description: 'Meta cambió la categoría de una plantilla' },
-	{ name: 'Template Status Changed', value: 'template.status_changed', description: 'Meta aprobó, rechazó o pausó una plantilla' },
+	{ name: 'Número conectado', value: 'account.connected', description: 'Se conectó un número (desde el panel o con un enlace de conexión)' },
+	{ name: 'Cambió la calidad del número', value: 'account.quality_changed', description: 'Cambió la calidad o el límite de envío del número' },
+	{ name: 'Cita creada', value: 'appointment.created', description: 'Se agendó una cita nueva' },
+	{ name: 'Cambió el estado de una cita', value: 'appointment.status_changed', description: 'Cambio de estado de una cita' },
+	{ name: 'Llamada contestada', value: 'call.answered', description: 'Llamada de WhatsApp contestada' },
+	{ name: 'Llamada terminada', value: 'call.ended', description: 'Llamada terminada: contestada, perdida, rechazada o fallida' },
+	{ name: 'Llamada sonando', value: 'call.ringing', description: 'Llamada de WhatsApp sonando' },
+	{ name: 'Contacto creado', value: 'contact.created', description: 'Contacto nuevo' },
+	{ name: 'Cambió la etapa del lead', value: 'contact.lead_status_changed', description: 'Cambio de etapa del lead' },
+	{ name: 'Cambió la preferencia de marketing', value: 'contact.marketing_preference_changed', description: 'Pidió dejar de recibir marketing (o volver a recibirlo)' },
+	{ name: 'Conversación asignada', value: 'conversation.assigned', description: 'Se asignó una conversación a una persona o equipo' },
+	{ name: 'Conversación resuelta', value: 'conversation.resolved', description: 'Una conversación se marcó como resuelta' },
+	{ name: 'Bienvenida solicitada', value: 'conversation.welcome_requested', description: 'Abrió el chat por primera vez sin escribir' },
+	{ name: 'Flow completado', value: 'flow.completed', description: 'Terminó un formulario de WhatsApp (Flow)' },
+	{ name: 'Lead de anuncio capturado', value: 'lead.ad_captured', description: 'Lead llegado de un anuncio (CTWA o Instant Form)' },
+	{ name: 'Lead calificado', value: 'lead.scored', description: 'Lead calificado por un calificador IA' },
+	{ name: 'Mensaje recibido', value: 'message.received', description: 'Mensaje recibido de un contacto' },
+	{ name: 'Mensaje enviado', value: 'message.sent', description: 'Mensaje enviado por cualquier vía' },
+	{ name: 'Cambió el estado de un mensaje', value: 'message.status_changed', description: 'Entregado, leído o fallido (solo WhatsApp)' },
+	{ name: 'Mensaje actualizado', value: 'message.updated', description: 'Un mensaje guardado cambió (su archivo quedó listo…)' },
+	{ name: 'Pedido recibido', value: 'order.received', description: 'Pedido desde el carrito del catálogo' },
+	{ name: 'Etiqueta agregada', value: 'tag.added', description: 'Etiqueta agregada a un contacto o conversación' },
+	{ name: 'Cambió la categoría de una plantilla', value: 'template.category_changed', description: 'Meta cambió la categoría de una plantilla' },
+	{ name: 'Cambió el estado de una plantilla', value: 'template.status_changed', description: 'Meta aprobó, rechazó o pausó una plantilla' },
 ];
 
 export class ColiblyTrigger implements INodeType {
@@ -61,20 +73,20 @@ export class ColiblyTrigger implements INodeType {
 				default: '',
 			},
 			{
-				displayName: 'Events',
+				displayName: 'Eventos',
 				name: 'events',
 				type: 'multiOptions',
 				required: true,
 				default: ['message.received'],
-				options: [{ name: 'All Events', value: '*', description: 'Todos los eventos, también los que se agreguen después' }, ...EVENTS],
+				options: [{ name: 'Todos los eventos', value: '*', description: 'Todos los eventos, también los que se agreguen después' }, ...EVENTS],
 			},
 			{
-				displayName: 'Account Names or IDs',
+				displayName: 'Cuentas (nombres o IDs)',
 				name: 'accountIds',
 				type: 'multiOptions',
 				typeOptions: { loadOptionsMethod: 'getAccounts' },
 				default: [],
-				description: 'Solo eventos de estas cuentas (vacío = todas). La lista muestra solo las cuentas a las que tiene acceso la API key. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description: 'Solo eventos de estas cuentas (vacío = todas). La lista muestra solo las cuentas a las que tiene acceso la API key. Elige de la lista o indica los IDs con una <a href="https://docs.n8n.io/code/expressions/">expresión</a>.',
 			},
 		],
 	};
@@ -116,7 +128,7 @@ export class ColiblyTrigger implements INodeType {
 							`La API key no tiene acceso a ${unknown.length === 1 ? 'la cuenta' : 'las cuentas'} ${unknown.join(', ')}`,
 							{
 								description:
-									'Quítala del campo «Account Names or IDs» o, en Colibly → Configuración → API, edita la key para incluir esa cuenta (o déjala sin restricción de cuentas). Solo aparecen en la lista las cuentas a las que la key tiene acceso.',
+									'Quítala del campo «Cuentas (nombres o IDs)» o, en Colibly → Configuración → API, edita la key para incluir esa cuenta (o déjala sin restricción de cuentas). Solo aparecen en la lista las cuentas a las que la key tiene acceso.',
 							},
 						);
 					}

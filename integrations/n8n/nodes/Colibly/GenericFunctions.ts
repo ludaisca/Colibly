@@ -151,7 +151,7 @@ export async function getAllTemplates(this: ILoadOptionsFunctions): Promise<INod
 /** Lo que pide la plantilla al enviarse (campo `send` de GET /templates). */
 function templateNeeds(t: IDataObject): string {
 	const send = (t.send ?? {}) as IDataObject;
-	if (send.requiresCode) return 'Autenticación: pide Code';
+	if (send.requiresCode) return 'Autenticación: pide Código';
 	const body = send.bodyParams;
 	const parts: string[] = [];
 	if (Array.isArray(body) && body.length) parts.push(`Variables: ${body.join(', ')} (objeto JSON)`);
@@ -159,8 +159,8 @@ function templateNeeds(t: IDataObject): string {
 		const count = Number(body ?? (t.params as IDataObject | undefined)?.bodyParamCount ?? 0);
 		if (count) parts.push(`Pide ${count} ${count === 1 ? 'parámetro' : 'parámetros'} en el cuerpo`);
 	}
-	if (send.carouselCards) parts.push(`Carrusel de ${String(send.carouselCards)} tarjetas (cards en Advanced)`);
-	if ((send.offer as IDataObject | null)?.hasExpiration) parts.push('Oferta: offerExpiresAt en Advanced');
+	if (send.carouselCards) parts.push(`Carrusel de ${String(send.carouselCards)} tarjetas (cards en Avanzado)`);
+	if ((send.offer as IDataObject | null)?.hasExpiration) parts.push('Oferta: offerExpiresAt en Avanzado');
 	return parts.join(' · ') || 'Sin parámetros';
 }
 

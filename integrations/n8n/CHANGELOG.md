@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Interfaz traducida al español: recursos, operaciones, campos, opciones, eventos del disparador y mensajes. Los identificadores internos (`name`/`value`) no cambiaron, así que los flujos existentes siguen funcionando.
+- README en español con todas las operaciones.
+
 ## 0.3.0
 
 - WhatsApp: crear y consultar enlaces de conexión (tu cliente conecta su número sin cuenta en Colibly), ver los números de la cuenta de Meta, cambiar el PIN y registrar el número.
