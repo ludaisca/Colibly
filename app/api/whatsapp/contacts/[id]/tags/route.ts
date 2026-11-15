@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { contactScopeWhere } from "@/lib/contacts/scope";
 import { afterContactTagAdded } from "@/lib/contacts/side-effects";
-import { tagBelongsTo } from "@/lib/tags";
+import { findOrCreateTag, tagBelongsTo } from "@/lib/tags";
 import { publicErrorMessage } from "@/lib/api-errors";
 
 async function getOwnedContact(userId: string, contactId: string) {
@@ -30,8 +30,14 @@ export async function POST(
     }
 
     const body = await req.json().catch(() => null);
-    const tagId = body?.tagId;
-    if (!tagId || typeof tagId !== "string") {
+    // Por id, o por nombre (etiquetado en lote de Contactos: cada contacto usa
+    // la etiqueta de su propia cuenta, que se crea si no existe).
+    const tagName = typeof body?.name === "string" ? body.name.trim().slice(0, 50) : "";
+    let tagId: string | undefined = typeof body?.tagId === "string" ? body.tagId : undefined;
+    if (!tagId && tagName) {
+      tagId = (await findOrCreateTag({ accountId: contact.accountId, channelAccountId: contact.channelAccountId, organizationId: contact.organizationId }, tagName)).id;
+    }
+    if (!tagId) {
       return NextResponse.json({ error: "tagId es requerido" }, { status: 400 });
     }
 

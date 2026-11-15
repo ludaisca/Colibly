@@ -5,6 +5,8 @@ import { DashboardShell } from "./dashboard-shell";
 import { VerifyEmailBanner } from "@/app/components/ui/verify-email-banner";
 import { BillingBanner } from "@/app/components/ui/billing-banner";
 import { TrialCard } from "@/app/components/billing/trial-card";
+import { OnboardingSidebarCard } from "@/app/components/ui/onboarding-checklist";
+import { getOnboardingSteps } from "@/lib/onboarding";
 import { getOrgBilling } from "@/lib/billing/gates";
 import { billingNotice } from "@/lib/billing/state";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
@@ -88,6 +90,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // los avisos que piden actuar ya (≤3 días, pago fallido, solo lectura…).
   const showNotice = notice && notice.tone !== "info" && (isAdmin || notice.tone === "danger");
   const trialCard = isAdmin && notice?.kind === "trial_ending" ? <TrialCard daysLeft={notice.daysLeft ?? 0} /> : null;
+  // Primeros pasos al pie del menú (solo admins, mientras falte alguno).
+  const onboarding = isAdmin ? await getOnboardingSteps(session.user.id) : [];
+  const sidebarCard = (
+    <>
+      {onboarding.some((step) => !step.done) && <OnboardingSidebarCard steps={onboarding} />}
+      {trialCard}
+    </>
+  );
 
   const topBanner = (
     <>
@@ -96,7 +106,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     </>
   );
   return (
-    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} sidebarCard={trialCard} platformAdmin={platformAdmin} channels={channels} callingEnabled={callingEnabled} waitingChats={waitingChats} accountHues={accountHues}>
+    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} sidebarCard={sidebarCard} platformAdmin={platformAdmin} channels={channels} callingEnabled={callingEnabled} waitingChats={waitingChats} accountHues={accountHues}>
       {children}
     </DashboardShell>
   );

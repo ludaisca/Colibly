@@ -1,65 +1,35 @@
-import { PageHeader } from "@/app/components/ui/page-header";
 import { Skeleton } from "@/app/components/ui/skeleton";
 
+// Esqueleto del panel: mismo dibujo que la página (encabezado, frase de
+// estado, franja de 5 cifras y dos columnas 1fr / 372 px).
 export default function DashboardLoading() {
   return (
-    <div className="space-y-6">
-      <PageHeader title="Panel" description="Resumen de tu actividad en WhatsApp y Telegram" />
-
-      {/* Estado del sistema */}
-      <div className="flex items-center gap-3.5 rounded-lg border border-border bg-surface px-4 py-3">
-        <Skeleton className="h-2.5 w-2.5 rounded-full shrink-0" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-3 w-64" />
-        </div>
+    <div className="space-y-5" aria-busy="true" aria-label="Cargando panel">
+      <div className="flex min-h-14 flex-col justify-center gap-2">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-4 w-48" />
       </div>
-
-      {/* Franja KPI */}
-      <div className="grid gap-3.5 grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="space-y-2 rounded-lg border border-border bg-surface p-4">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-3 w-14" />
+      <Skeleton className="h-4 w-72" />
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:grid-cols-5">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="space-y-2 bg-surface px-4 py-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-12" />
           </div>
         ))}
       </div>
-
-      <div className="grid gap-10 lg:grid-cols-3">
-        <div className="lg:col-span-2 rounded-lg border border-border bg-surface">
-          <div className="px-4 py-3">
-            <Skeleton className="h-5 w-40" />
-          </div>
-          <div className="divide-y divide-border">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-48" />
-                </div>
-                <Skeleton className="h-3 w-12 shrink-0" />
-              </div>
-            ))}
-          </div>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_372px]">
+        <div className="space-y-3 rounded-lg border border-border bg-surface p-4">
+          {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
         </div>
-
-        <div className="rounded-lg border border-border bg-surface">
-          <div className="px-4 py-3">
-            <Skeleton className="h-5 w-32" />
-          </div>
-          <div className="divide-y divide-border">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-40" />
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="space-y-5">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="space-y-3 rounded-lg border border-border bg-surface p-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ))}
         </div>
       </div>
     </div>

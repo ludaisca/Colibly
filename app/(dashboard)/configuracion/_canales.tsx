@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SectionHeader } from "@/app/components/ui/section-header";
+import { SettingsBlock } from "@/app/components/ui/settings-block";
 import { Banner } from "@/app/components/ui/banner";
 import { Badge } from "@/app/components/ui/badge";
-import { Card } from "@/app/components/ui/card";
 import { BRAND_CONTACT_EMAIL } from "@/lib/brand";
 
 type Flags = { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean };
@@ -31,8 +30,7 @@ export function CanalesSection() {
   }, []);
 
   return (
-    <Card as="section" className="space-y-4">
-      <SectionHeader title="Canales disponibles" />
+    <SettingsBlock title="Canales disponibles" description="Qué canales están activos en tu cuenta y su estado.">
       <p className="text-sm text-muted">
         Todos los canales están disponibles desde el inicio. Conéctalos con tus propias credenciales; tu plan define cuántos puedes usar.
       </p>
@@ -59,6 +57,6 @@ export function CanalesSection() {
           .
         </p>
       )}
-    </Card>
+    </SettingsBlock>
   );
 }

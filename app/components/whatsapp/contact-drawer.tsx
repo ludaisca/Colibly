@@ -113,6 +113,10 @@ export function ContactDrawer({
   const [loading, setLoading] = useState(true);
   const [newNote, setNewNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  // "Editar" (QA-018): el nombre se edita en el encabezado de la ficha.
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [nextAppointment, setNextAppointment] = useState<AppointmentDetail | null>(null);
@@ -326,6 +330,28 @@ export function ContactDrawer({
     }
   }
 
+  async function saveName() {
+    const name = nameDraft.trim();
+    if (!contact || !name) return;
+    setSavingName(true);
+    try {
+      const res = await fetch(`/api/whatsapp/contacts/${contactId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "No se pudo guardar el nombre");
+      setContact((prev) => prev && { ...prev, name });
+      setEditingName(false);
+      onUpdated();
+      toastSuccess("Contacto actualizado");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo guardar el nombre");
+    } finally {
+      setSavingName(false);
+    }
+  }
+
   return (
     <Drawer.Root defaultOpen modal={!appointmentModalOpen} swipeDirection="right" onOpenChangeComplete={(open) => { if (!open) { writeTabToUrl(null); onClose(); } }}>
       <Drawer.Portal>
@@ -334,8 +360,19 @@ export function ContactDrawer({
           <Drawer.Popup className="colibly-contact-popup">
             <Drawer.Content className="flex h-full flex-col">
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
-                <Drawer.Title className="truncate text-sm font-semibold text-foreground">{contact ? displayName(contact.name, contact.remoteJid) : "Contacto"}</Drawer.Title>
+                {editingName ? (
+                  <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(event) => { event.preventDefault(); void saveName(); }}>
+                    <Input aria-label="Nombre del contacto" value={nameDraft} maxLength={120} onChange={(event) => setNameDraft(event.target.value)} className="min-w-0 flex-1" autoFocus />
+                    <Button type="submit" size="sm" loading={savingName} disabled={!nameDraft.trim()}>Guardar</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancelar</Button>
+                  </form>
+                ) : (
+                  <Drawer.Title className="truncate text-sm font-semibold text-foreground">{contact ? displayName(contact.name, contact.remoteJid) : "Contacto"}</Drawer.Title>
+                )}
                 <div className="flex shrink-0 items-center gap-1">
+                  {contact && !editingName && (
+                    <Button type="button" size="sm" variant="ghost" onClick={() => { setNameDraft(contact.name ?? ""); setEditingName(true); }}>Editar</Button>
+                  )}
                   <Tooltip label="Copiar enlace"><button
                     type="button"
                     aria-label="Copiar enlace del contacto"

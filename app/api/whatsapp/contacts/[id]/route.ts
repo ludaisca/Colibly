@@ -9,6 +9,7 @@ import { requireOrgId } from "@/lib/tenancy";
 import { leadStatusForStage } from "@/lib/pipeline/stages";
 import { recordContactActivity } from "@/lib/contacts/activity";
 import { formatMxn, pesosToCents } from "@/lib/money";
+import { forbidRoles } from "@/lib/roles";
 
 export async function GET(
   _req: Request,
@@ -152,6 +153,42 @@ export async function PATCH(
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// Eliminar un contacto (QA-018): se borran también su chat y sus mensajes —
+// la relación chat→contacto es SetNull, así que se borran explícitamente; los
+// mensajes caen en cascada desde el chat. Solo admin (irreversible). Un id
+// fuera del alcance responde 404. Los archivos de media del chat quedan en
+// disco hasta la purga diaria (MEDIA_RETENTION_DAYS).
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    const forbidden = forbidRoles(session, ["user", "ejecutivo"]);
+    if (forbidden) return forbidden;
+
+    const { id } = await params;
+    const scope = await contactScopeWhere(session.user.id);
+    const contact = await prisma.contact.findFirst({ where: { id, ...scope }, select: { id: true } });
+    if (!contact) {
+      return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
+    }
+
+    await prisma.$transaction([
+      prisma.wAChat.deleteMany({ where: { contactId: contact.id } }),
+      prisma.conversation.deleteMany({ where: { contactId: contact.id } }),
+      prisma.contact.delete({ where: { id: contact.id } }),
+    ]);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = publicErrorMessage(error, "Error interno del servidor");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

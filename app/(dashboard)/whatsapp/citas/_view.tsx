@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { RefreshCw, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, List, Plus, X } from "lucide-react";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Select } from "@/app/components/ui/select";
@@ -139,7 +138,8 @@ export function CitasView() {
     fetchAppointments();
   }, [fetchAppointments]);
 
-  const kpis: KpiItem[] = useMemo(() => {
+  // Línea de resumen (en lugar de cuatro tarjetas KPI).
+  const summary = useMemo(() => {
     const todayStart = startOfDay(now).getTime();
     const todayEnd = endOfDay(now).getTime();
     const weekStart = startOfWeek(now).getTime();
@@ -154,11 +154,11 @@ export function CitasView() {
       if (t < now.getTime()) overdueCount++;
     }
     return [
-      { label: "Hoy", value: String(todayCount) },
-      { label: "Esta semana", value: String(weekCount) },
-      { label: "Vencidas", value: String(overdueCount), hint: overdueCount > 0 ? "requieren atención" : "al día" },
-      { label: "Total", value: String(appointments.length), hint: "citas" },
-    ];
+      `${todayCount} hoy`,
+      `${weekCount} esta semana`,
+      `${overdueCount} ${overdueCount === 1 ? "vencida" : "vencidas"}`,
+      `${appointments.length} en total`,
+    ].join(" · ");
   }, [appointments, now]);
 
   const filtered = useMemo(() => {
@@ -234,7 +234,7 @@ export function CitasView() {
     <div className="space-y-5">
       <PageHeader
         title="Citas"
-        description="Agenda de citas por contacto — recordatorios automáticos incluidos."
+        description={loading || fetchError ? undefined : summary}
         actions={
           <div className="flex gap-2">
             <Button
@@ -243,7 +243,7 @@ export function CitasView() {
               icon={viewMode === "calendar" ? List : CalendarDays}
               onClick={() => setViewMode((current) => current === "calendar" ? "list" : "calendar")}
             >
-              {viewMode === "calendar" ? "Lista" : "Calendario"}
+              {viewMode === "calendar" ? "Agenda" : "Mes"}
             </Button>
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAppointments}>
               Actualizar
@@ -254,8 +254,6 @@ export function CitasView() {
           </div>
         }
       />
-
-      {!fetchError && <KpiStrip items={kpis} />}
 
       {/* Teléfono: los dos filtros lado a lado y a todo el ancho (antes a media
           anchura, uno sobre otro). */}
@@ -327,7 +325,9 @@ export function CitasView() {
                   <div
                     key={key}
                     className={cn(
-                      "min-h-24 border-b border-r border-border p-1.5",
+                      // 48 px en el teléfono (el mes entra completo a 390 px); en
+                      // pantallas anchas cabe la lista de citas del día.
+                      "min-h-12 border-b border-r border-border p-1 sm:min-h-24 sm:p-1.5",
                       !inMonth && "bg-surface-light/40",
                       key === todayKey && "bg-surface-light"
                     )}
@@ -339,9 +339,10 @@ export function CitasView() {
                       )}>
                         {day.getDate()}
                       </span>
-                      {items.length > 0 && <span className="text-micro text-muted-darker">{items.length}</span>}
+                      {items.length > 0 && <span className="text-micro tabular-nums text-muted-darker">{items.length}</span>}
                     </div>
-                    <div className="mt-1 space-y-1">
+                    {items.length > 0 && <span aria-hidden className="mx-auto mt-0.5 block h-1.5 w-1.5 rounded-full bg-accent sm:hidden" />}
+                    <div className="mt-1 hidden space-y-1 sm:block">
                       {items.slice(0, 3).map((appointment) => (
                         <Tooltip label={`${appointment.title} · ${contactLabelOf(appointment.contact)}`} key={appointment.id}><button
                           type="button"

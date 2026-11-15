@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
-import { Card } from "@/app/components/ui/card";
-import { SectionHeader } from "@/app/components/ui/section-header";
+import { SettingsBlock } from "@/app/components/ui/settings-block";
 import { Switch } from "@/app/components/ui/switch";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/input";
@@ -53,8 +52,7 @@ export function FirmaSection() {
 
   if (!loaded) return null;
   return (
-    <Card as="section" className="space-y-4">
-      <SectionHeader title="Firma en los mensajes" />
+    <SettingsBlock title="Firma en los mensajes" description="Tu nombre al pie de lo que envías desde el chat.">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-darker">
           Se agrega en un renglón aparte al final de los mensajes de texto que mandas desde la bandeja. No se agrega a plantillas,
@@ -78,6 +76,6 @@ export function FirmaSection() {
       <Button size="sm" variant="secondary" icon={Save} loading={saving} onClick={save} disabled={enabled && !signature.trim()}>
         Guardar firma
       </Button>
-    </Card>
+    </SettingsBlock>
   );
 }

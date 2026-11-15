@@ -174,6 +174,11 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 });
     }
+    // Solo se eliminan citas canceladas (QA-018): las demás se cancelan
+    // primero, así la agenda y los reportes no pierden citas reales.
+    if (existing.status !== "CANCELLED") {
+      return NextResponse.json({ error: "Cancela la cita antes de eliminarla" }, { status: 409 });
+    }
 
     await prisma.wAAppointment.delete({ where: { id } });
     return NextResponse.json({ success: true });

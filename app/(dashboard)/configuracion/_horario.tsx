@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
-import { SectionHeader } from "@/app/components/ui/section-header";
+import { SettingsBlock } from "@/app/components/ui/settings-block";
 import { Button } from "@/app/components/ui/button";
-import { Card } from "@/app/components/ui/card";
 import { businessHoursSummary } from "@/lib/format/business-hours-summary";
 
 // Resumen del horario del negocio (el mismo de /configuracion/ia#horario: un
@@ -25,8 +24,7 @@ export function HorarioNegocioCard() {
   }, []);
 
   return (
-    <Card as="section" className="space-y-4">
-      <SectionHeader title="Horario del negocio" />
+    <SettingsBlock title="Horario del negocio" description="Cuándo atiende tu equipo; lo usan el bot y los avisos fuera de horario.">
       <p className="text-sm text-muted">
         Define cuándo estás disponible: lo usan el mensaje fuera de horario, los avisos automáticos y las citas que agenda el bot.
       </p>
@@ -36,6 +34,6 @@ export function HorarioNegocioCard() {
       <Button href="/configuracion/ia#horario" variant="secondary" size="sm" icon={Clock}>
         Editar horario
       </Button>
-    </Card>
+    </SettingsBlock>
   );
 }

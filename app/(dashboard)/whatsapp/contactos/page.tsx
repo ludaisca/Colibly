@@ -1,31 +1,27 @@
 "use client";
 
-import { displayName } from "@/lib/chats/display-name";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { SampleDataControls } from "@/app/components/ui/sample-data-controls";
 import { GettingStarted } from "@/app/components/ui/getting-started";
 import { formatMxn } from "@/lib/money";
-import Link from "next/link";
-import { Search, RefreshCw, Upload, UserPlus, Contact as ContactIcon } from "lucide-react";
+import { Search, RefreshCw, Upload, UserPlus } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 import { FiltersPanel, type FilterFieldDef } from "@/app/components/ui/filters-panel";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
-import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { ContactCreateModal } from "@/app/components/whatsapp/contact-create-modal";
+import { ContactsTable, type ContactTableRow } from "./_table";
+import { useSession } from "next-auth/react";
 import { loadContactAccounts } from "@/app/components/whatsapp/contact-accounts";
 import { ContactImportModal } from "@/app/components/whatsapp/contact-import-modal";
 import { DismissibleNudge } from "@/app/components/ui/dismissible-nudge";
 import { shouldNudgeUntagged } from "@/lib/pipeline/nudge";
 import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
+import { LEAD_STATUS_LABEL } from "@/app/components/ui/lead-status";
 import { plural } from "@/lib/format/plural";
-import { LeadStatusBadge, LEAD_STATUS_LABEL } from "@/app/components/ui/lead-status";
-import type { LeadStatus } from "@prisma/client";
 
 const PAGE_SIZE = 25;
 
@@ -36,29 +32,13 @@ interface AccountOption {
   channel?: string;
 }
 
-interface ContactRow {
-  id: string;
-  // null = contacto sin canal (creado antes de conectar WhatsApp).
-  accountId: string | null;
-  isSample?: boolean;
-  remoteJid: string;
-  name: string | null;
-  leadStatus: string;
-  updatedAt: string;
-  tags: Array<{ tag: { id: string; name: string; color: string } }>;
-  chat: { id: string; unreadCount: number; lastMessageAt: string | null } | null;
-  _count: { notes: number };
-  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | null;
-}
-
-function phoneFromJid(remoteJid: string): string {
-  return remoteJid.split("@")[0];
-}
+type ContactRow = ContactTableRow & { _count: { notes: number } };
 
 // Estado del lead: LeadStatusBadge (estación de la ruta, sin colores de lámpara).
 
 export default function ContactosPage() {
   const { error: toastError } = useToast();
+  const { data: session } = useSession();
   const contactUsage = useContactUsage();
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
@@ -149,7 +129,7 @@ export default function ContactosPage() {
     <div className="space-y-5">
       <PageHeader
         title="Contactos"
-        description="Etiquetas, estado de lead y notas por contacto."
+        description={total > 0 ? plural(total, "contacto") : undefined}
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <ContactUsageMeter usage={contactUsage} />
@@ -238,72 +218,27 @@ export default function ContactosPage() {
             />
           </div>
         ) : (
-        <EntityList
+        <ContactsTable
           rows={contacts}
-          rowKey={(c) => c.id}
           loading={loading}
           error={fetchError}
           onRetry={fetchContacts}
-          onRowClick={(c) => setSelectedId(c.id)}
-          emptyIcon={ContactIcon}
-          emptyTitle={search || leadStatusFilter || accountFilter ? "Sin resultados" : "Sin contactos"}
-          emptyDescription={search || leadStatusFilter || accountFilter
-            ? "No se encontraron contactos con la búsqueda o los filtros actuales."
-            : "Los contactos se crean automáticamente cuando recibes mensajes en tus canales."}
-          emptyAction={search || leadStatusFilter || accountFilter ? (
-            <Button variant="secondary" size="sm" onClick={() => {
-              setSearchInput("");
-              setSearch("");
-              setLeadStatusFilter("");
-              setAccountFilter("");
-            }}>Limpiar búsqueda y filtros</Button>
-          ) : undefined}
-          renderRow={(contact) => {
-            const account = accounts.find((a) => a.id === contact.accountId);
-            const name = displayName(contact.name, contact.remoteJid);
-            return (
-              <EntityRow
-                leading={<ChannelAvatar id={contact.accountId ?? contact.id} name={name} channel={contact.channel ?? "WHATSAPP"} size="sm" />}
-                title={name}
-                badges={
-                  <span className="flex shrink-0 items-center gap-1">
-                    {contact.isSample && <Badge tone="info" size="sm">Ejemplo</Badge>}
-                    <LeadStatusBadge status={contact.leadStatus as LeadStatus} />
-                    {contact.tags.map(({ tag }) => (
-                      <Badge key={tag.id} tone="accent" size="sm" className="hidden md:inline-flex">{tag.name}</Badge>
-                    ))}
-                  </span>
-                }
-                subtitle={
-                  <>
-                    {contact.channel === "WHATSAPP" || contact.channel === null
-                      ? <span className="tabular-nums">{phoneFromJid(contact.remoteJid)}</span>
-                      : <span>{contact.channel === "WEBCHAT" ? "Chat web" : contact.channel.charAt(0) + contact.channel.slice(1).toLowerCase()}</span>}
-                    {contact.channel === null && <> · Sin canal</>}
-                    {accounts.length > 1 && account && contact.channel && account.name.trim().toLowerCase() !== contact.channel.toLowerCase() && <> · {account.name}</>}
-                    {contact._count.notes > 0 && <> · {plural(contact._count.notes, "nota")}</>}
-                  </>
-                }
-                meta={
-                  <>
-                    <span className="font-mono">
-                      {contact.chat?.lastMessageAt
-                        ? new Date(contact.chat.lastMessageAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-                        : "—"}
-                    </span>
-                    {contact.chat && (
-                      <Link
-                        href={`/whatsapp/chat/${contact.accountId}/${contact.chat.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-accent-ink hover:underline"
-                      >
-                        Ver chat
-                      </Link>
-                    )}
-                  </>
-                }
-              />
-            );
+          onOpen={setSelectedId}
+          onChanged={fetchContacts}
+          canDelete={session?.user?.role === "admin"}
+          empty={{
+            title: search || leadStatusFilter || accountFilter ? "Sin resultados" : "Sin contactos",
+            description: search || leadStatusFilter || accountFilter
+              ? "No hay contactos con esa búsqueda o filtros."
+              : "Se crean solos cuando alguien escribe a tus canales.",
+            action: search || leadStatusFilter || accountFilter ? (
+              <Button variant="secondary" size="sm" onClick={() => {
+                setSearchInput("");
+                setSearch("");
+                setLeadStatusFilter("");
+                setAccountFilter("");
+              }}>Limpiar búsqueda y filtros</Button>
+            ) : undefined,
           }}
         />
         )}

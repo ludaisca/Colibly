@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Copy, Download, LogOut, ShieldCheck, ShieldOff, KeyRound } from "lucide-react";
-import { Card } from "@/app/components/ui/card";
-import { SectionHeader } from "@/app/components/ui/section-header";
+import { SettingsBlock } from "@/app/components/ui/settings-block";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Banner } from "@/app/components/ui/banner";
@@ -132,8 +131,7 @@ export function SeguridadSection() {
   }
 
   return (
-    <Card as="section" className="space-y-4">
-      <SectionHeader title="Seguridad" />
+    <SettingsBlock title="Seguridad" description="Verificación en dos pasos y sesiones abiertas.">
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -300,6 +298,6 @@ export function SeguridadSection() {
           </FormField>
         </div>
       </Modal>
-    </Card>
+    </SettingsBlock>
   );
 }

@@ -28,11 +28,11 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
           data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
-            "w-full rounded-sm border bg-surface-light py-2 text-sm text-foreground",
+            "h-8 w-full rounded-sm border bg-surface py-1.5 text-sm text-foreground",
             "transition-colors placeholder:text-muted-darker",
-            "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
+            "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-subtle",
             showIcon ? "pl-9 pr-10" : "pl-3 pr-10",
-            error ? "border-danger-border" : "border-border"
+            error ? "border-danger-border" : "border-border-strong"
           )}
           {...props}
         />

@@ -6,10 +6,9 @@ import { useSession } from "next-auth/react";
 import { ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
-import { Card } from "@/app/components/ui/card";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { DropdownItem } from "@/app/components/ui/dropdown";
-import { SectionHeader } from "@/app/components/ui/section-header";
+import { SettingsBlock } from "@/app/components/ui/settings-block";
 import { Select } from "@/app/components/ui/select";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { useToast } from "@/app/components/ui/toast";
@@ -142,8 +141,7 @@ export function AtributosConversacionSection() {
   if (session?.user?.role === "ejecutivo") return null;
 
   return (
-    <Card as="section" className="space-y-4">
-      <SectionHeader title="Atributos de conversación" />
+    <SettingsBlock title="Atributos de conversación" description="Datos que se piden al cerrar o seguir una conversación.">
       <p className="text-sm text-muted">
         Campos por chat para clasificar el motivo, la objeción o el contexto de la conversación. No se comparten con la ficha del contacto.
       </p>
@@ -207,6 +205,6 @@ export function AtributosConversacionSection() {
         tone="danger"
         onConfirm={remove}
       />
-    </Card>
+    </SettingsBlock>
   );
 }

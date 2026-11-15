@@ -29,7 +29,7 @@ const STATS_TTL_MS = 60_000;
 // by raw UTC would misfile evening messages under tomorrow's date — up to 6h/day
 // of drift. These helpers compute boundaries against Mexico City wall-clock time
 // instead, without pulling in a date library for one call site.
-const STATS_TZ = "America/Mexico_City";
+export const STATS_TZ = "America/Mexico_City";
 
 function tzOffsetMinutes(date: Date, timeZone: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -51,7 +51,7 @@ function dateKeyInTz(date: Date, timeZone: string = STATS_TZ): string {
 
 // Given a calendar date (year/month/day as seen in timeZone), returns the UTC
 // instant that is midnight on that date in timeZone.
-function utcInstantForLocalMidnight(year: number, month: number, day: number, timeZone: string = STATS_TZ): Date {
+export function utcInstantForLocalMidnight(year: number, month: number, day: number, timeZone: string = STATS_TZ): Date {
   const naiveUTCMidnight = new Date(Date.UTC(year, month - 1, day));
   return new Date(naiveUTCMidnight.getTime() - tzOffsetMinutes(naiveUTCMidnight, timeZone) * 60000);
 }

@@ -14,7 +14,7 @@ import { formatCalendarDate, type IsoRange } from "@/lib/format/calendar";
 // HeroUI; las APIs públicas no cambiaron. Valor en ISO `AAAA-MM-DD`.
 
 const TRIGGER =
-  "relative flex h-[38px] w-full items-center gap-2 rounded-sm border bg-surface-light pl-3 pr-9 text-left text-sm outline-none transition-colors focus-visible:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted data-[popup-open]:border-accent-strong disabled:cursor-not-allowed disabled:opacity-50";
+  "relative flex h-8 w-full items-center gap-2 rounded-sm border bg-surface pl-3 pr-9 text-left text-sm outline-none transition-colors focus-visible:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-subtle data-[popup-open]:border-accent-strong disabled:cursor-not-allowed disabled:opacity-50";
 const PANEL =
   "z-[80] rounded-lg border border-border bg-surface p-3 shadow-lg outline-none origin-[var(--transform-origin)] transition-[opacity,scale] duration-fast ease-brand data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none";
 
@@ -71,7 +71,7 @@ export function DatePicker({
           disabled={disabled}
           aria-invalid={!!error}
           aria-label={ariaLabel ? `${ariaLabel}${shown ? `: ${shown}` : ""}` : undefined}
-          className={cn(TRIGGER, error ? "border-danger-border" : "border-border")}
+          className={cn(TRIGGER, error ? "border-danger-border" : "border-border-strong")}
         >
           <CalendarDays size={16} aria-hidden className="shrink-0 text-muted" />
           <span className={cn("truncate tabular-nums", !shown && "text-muted")}>{shown || placeholder}</span>
@@ -112,7 +112,7 @@ export function DateRangePicker({ value, onChange, label = "Periodo", max, clear
   return (
     <div className={cn("relative w-full sm:w-auto sm:min-w-64", className)}>
       <Popover.Root open={open} onOpenChange={setOpen}>
-        <Popover.Trigger data-focus-ring="" aria-label={`${label}${shown ? `: ${shown}` : ""}`} className={cn(TRIGGER, "border-border")}>
+        <Popover.Trigger data-focus-ring="" aria-label={`${label}${shown ? `: ${shown}` : ""}`} className={cn(TRIGGER, "border-border-strong")}>
           <CalendarDays size={16} aria-hidden className="shrink-0 text-muted" />
           <span className={cn("truncate tabular-nums", !shown && "text-muted")}>{shown || label}</span>
         </Popover.Trigger>

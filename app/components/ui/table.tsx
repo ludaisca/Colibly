@@ -16,7 +16,7 @@ export interface TableColumn<T> {
   cellClassName?: string;
   render: (row: T) => React.ReactNode;
   sortable?: boolean;
-  hideBelow?: "sm" | "md";
+  hideBelow?: "sm" | "md" | "lg";
 }
 
 interface TableSort {
@@ -46,9 +46,10 @@ interface TableProps<T> {
   className?: string;
 }
 
-const HIDE_BELOW_CLASS: Record<"sm" | "md", string> = {
+const HIDE_BELOW_CLASS: Record<"sm" | "md" | "lg", string> = {
   sm: "hidden sm:table-cell",
   md: "hidden md:table-cell",
+  lg: "hidden lg:table-cell",
 };
 
 export function Table<T>({

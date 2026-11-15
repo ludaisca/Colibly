@@ -14,6 +14,7 @@ import { Select } from "@/app/components/ui/select";
 import { Textarea } from "@/app/components/ui/textarea";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
+import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { useToast } from "@/app/components/ui/toast";
 
 export interface AppointmentDetail {
@@ -96,6 +97,24 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
   const [status, setStatus] = useState<AppointmentDetail["status"]>("SCHEDULED");
   const [cancelReason, setCancelReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function deleteAppointment() {
+    if (!initialData) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/whatsapp/appointments/${initialData.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "No se pudo eliminar la cita");
+      success("Cita eliminada");
+      setConfirmDelete(false);
+      onSaved();
+      onClose();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo eliminar la cita");
+    } finally {
+      setSaving(false);
+    }
+  }
   const [error, setError] = useState("");
 
   const [selectedContact, setSelectedContact] = useState<ContactOption | null>(null);
@@ -255,6 +274,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
     (selectedContact ? contactLabelOf(selectedContact) : null);
 
   return (
+    <>
     <Modal layout="drawer"
       open={open}
       onClose={onClose}
@@ -262,6 +282,10 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
       size="md"
       footer={
         <>
+          {/* Solo las citas canceladas se eliminan (la API responde 409 a las demás). */}
+          {isEdit && initialData?.status === "CANCELLED" && (
+            <Button variant="link-danger" size="sm" className="mr-auto" disabled={saving} onClick={() => setConfirmDelete(true)}>Eliminar</Button>
+          )}
           <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Agendar"}
@@ -411,5 +435,15 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
         )}
       </div>
     </Modal>
+    <ConfirmDialog
+      open={confirmDelete}
+      onClose={() => setConfirmDelete(false)}
+      onConfirm={deleteAppointment}
+      loading={saving}
+      title="¿Eliminar esta cita cancelada?"
+      description="Se quita de la agenda. No se puede deshacer."
+      confirmLabel="Eliminar"
+    />
+    </>
   );
 }

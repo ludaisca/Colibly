@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { User, Lock, CalendarDays, Brain, ExternalLink, RefreshCw, Unlink, Plug } from "lucide-react";
-import { GoogleSheetsButtonIcon, GoogleSheetsIcon, StripeIcon } from "@/app/components/ui/brand-marks";
+import { GoogleSheetsButtonIcon, StripeIcon } from "@/app/components/ui/brand-marks";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { PasswordInput } from "@/app/components/ui/password-input";
@@ -14,8 +14,6 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SectionHeader } from "@/app/components/ui/section-header";
-import { Card } from "@/app/components/ui/card";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { useToast } from "@/app/components/ui/toast";
@@ -24,6 +22,8 @@ import { CamposPersonalizadosSection } from "./_campos-personalizados";
 import { AtributosConversacionSection } from "./_atributos-conversacion";
 import { CanalesSection } from "./_canales";
 import { HorarioNegocioCard } from "./_horario";
+import { EtiquetasSection } from "./_etiquetas";
+import { SettingsBlock } from "@/app/components/ui/settings-block";
 
 interface GoogleSheetsStatus {
   connected: boolean;
@@ -159,6 +159,7 @@ export default function SettingsPage() {
         throw new Error(data.error || "Error al guardar");
       }
       await update();
+      setNameTouched(false);
       success("Nombre actualizado");
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error");
@@ -207,139 +208,154 @@ export default function SettingsPage() {
     }
   }
 
+  // Subnavegación (QA-022): secciones de esta página y las que tienen la suya.
+  const sections = [
+    { href: "#cuenta", label: "Cuenta" },
+    ...(isAdmin ? [{ href: "/usuarios", label: "Equipo" }] : []),
+    ...(isAdmin ? [{ href: "#canales", label: "Canales" }] : []),
+    ...(isAdmin ? [{ href: "/configuracion/ia", label: "IA" }] : []),
+    ...(isAdmin ? [{ href: "#horario", label: "Horario" }] : []),
+    { href: "#respuestas", label: "Respuestas rápidas" },
+    { href: "#campos", label: "Campos" },
+    ...(isAdmin ? [{ href: "#etiquetas", label: "Etiquetas" }] : []),
+    ...(isAdmin || showGoogleSheets ? [{ href: "#api", label: "API" }] : []),
+    ...(isAdmin ? [{ href: "/configuracion/plan", label: "Plan" }] : []),
+  ];
+  const nameDirty = nameTouched && newName.trim() !== (user?.name ?? "").trim();
+
   return (
-    <div className="space-y-6">
-      <PageHeader title="Configuración" description="Administra tu cuenta y preferencias." />
+    <div className="space-y-4">
+      <PageHeader title="Configuración" />
 
-      {/* Índice: en el teléfono la página son ~6 pantallas seguidas. */}
-      <nav aria-label="Secciones de la configuración" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 scrollbar-none">
-        {[
-          { href: "#mi-cuenta", label: "Mi cuenta" },
-          ...(isAdmin ? [{ href: "#empresa", label: "Empresa" }] : []),
-          { href: "#bandeja", label: "Bandeja" },
-          ...(isAdmin || showGoogleSheets ? [{ href: "#integraciones", label: "Integraciones" }] : []),
-          { href: "#seguridad", label: "Seguridad" },
-        ].map((item) => (
-          <a key={item.href} href={item.href} className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-light">
-            {item.label}
-          </a>
-        ))}
-      </nav>
+      <div className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+        {/* Escritorio: menú fijo a la izquierda. Teléfono: lista que lleva a
+            cada sección (nada de pestañas cortadas). */}
+        <nav aria-label="Secciones de la configuración" className="md:sticky md:top-4 md:self-start">
+          <ul className="divide-y divide-border rounded-lg border border-border bg-surface md:divide-y-0 md:rounded-none md:border-0 md:bg-transparent">
+            {sections.map((item) => (
+              <li key={item.href}>
+                <a href={item.href} className="flex h-11 items-center justify-between px-3 text-sm font-medium text-foreground md:h-[30px] md:rounded-sm md:px-2.5 md:text-muted md:hover:bg-surface-light md:hover:text-foreground">
+                  {item.label}
+                  <span aria-hidden className="text-muted-darker md:hidden">›</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-      <div id="mi-cuenta" className="scroll-mt-4 space-y-6">
-      <Card className="flex items-center gap-3">
-        <EntityAvatar id={user?.id ?? email} name={name} size="lg" />
-        <div>
-          <h2 className="text-lg font-semibold">{name}</h2>
-          <p className="text-sm text-muted-darker">{email}</p>
-          <div className="mt-1.5 flex items-center gap-2">
-            <Badge tone="info" size="sm">{user?.role === "admin" ? "Administrador" : user?.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}</Badge>
-            {createdAt && (
-              <span className="flex items-center gap-1 text-xs text-muted-darker">
-                <CalendarDays size={11} />
-                Miembro desde {new Date(createdAt).toLocaleDateString("es-MX", { year: "numeric", month: "long", timeZone: "America/Mexico_City" })}
-              </span>
-            )}
-          </div>
-        </div>
-      </Card>
+        <div className="max-w-3xl min-w-0">
+          <SettingsBlock id="cuenta" title="Cuenta" description="Tu nombre y cómo te ve el equipo.">
+            <div className="flex items-center gap-3">
+              <EntityAvatar id={user?.id ?? email} name={name} size="lg" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{email}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Badge tone="neutral" size="sm">{user?.role === "admin" ? "Administrador" : user?.role === "ejecutivo" ? "Ejecutivo" : "Usuario"}</Badge>
+                  {createdAt && (
+                    <span className="flex items-center gap-1 text-xs text-muted-darker">
+                      <CalendarDays size={12} aria-hidden />
+                      Miembro desde {new Date(createdAt).toLocaleDateString("es-MX", { year: "numeric", month: "long", timeZone: "America/Mexico_City" })}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <FormField label="Nombre" required error={nameError}>
+              {(id, describedBy) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={newName}
+                  error={nameError}
+                  onChange={(e) => { setNewName(e.target.value); setNameTouched(true); }}
+                />
+              )}
+            </FormField>
+          </SettingsBlock>
 
-      <Card as="section" className="space-y-4">
-        <SectionHeader title="Cuenta" />
-        <FormField label="Nombre" required error={nameError}>
-          {(id, describedBy) => (
-            <Input
+          <SettingsBlock title="Contraseña" description="Cámbiala cuando quieras; cierra la sesión en otros equipos desde Seguridad.">
+        {passwordError && <Banner tone="danger">{passwordError}</Banner>}
+
+        <FormField label="Contraseña actual" required>
+          {(id) => (
+            <PasswordInput
               id={id}
-              aria-describedby={describedBy}
-              value={newName}
-              error={nameError}
-              onChange={(e) => { setNewName(e.target.value); setNameTouched(true); }}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
             />
           )}
         </FormField>
-        <Button size="sm" icon={User} onClick={handleSaveName} loading={savingName} disabled={!newName.trim()}>Guardar nombre</Button>
-      </Card>
 
-      </div>
+        <FormField label="Nueva contraseña" required>
+          {(id) => (
+            <>
+              <PasswordInput
+                id={id}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                autoComplete="new-password"
+              />
+              <PasswordStrength password={newPassword} />
+            </>
+          )}
+        </FormField>
 
-      <div id="empresa" className="scroll-mt-4 space-y-6 empty:hidden">
+        <FormField label="Confirmar nueva contraseña" required>
+          {(id) => (
+            <PasswordInput
+              id={id}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repite la contraseña"
+              autoComplete="new-password"
+            />
+          )}
+        </FormField>
 
-      {isAdmin && (
-        <Card as="section" className="space-y-4">
-          <div className="flex items-center gap-2.5">
-            <StripeIcon size={22} className="shrink-0" />
-            <SectionHeader title="Plan y facturación" className="min-w-0 flex-1" />
+            <Button size="sm" variant="secondary" icon={Lock} onClick={handleSavePassword} loading={saving}>
+              Cambiar contraseña
+            </Button>
+          </SettingsBlock>
+
+          <FirmaSection />
+          <SeguridadSection />
+
+          {isAdmin && (
+            <div id="canales" className="scroll-mt-4">
+              <CanalesSection />
+            </div>
+          )}
+          {isAdmin && (
+            <div id="horario" className="scroll-mt-4">
+              <HorarioNegocioCard />
+            </div>
+          )}
+
+          <div id="respuestas" className="scroll-mt-4">
+            <RespuestasRapidasSection />
+            <SettingsBlock title="Macros" description="Acciones manuales para asignar, resolver, priorizar, posponer o responder en un clic.">
+              <Button variant="secondary" size="sm" href="/configuracion/macros">Administrar macros</Button>
+            </SettingsBlock>
           </div>
-          <p className="text-sm text-muted">
-            Tu plan, el consumo contra sus límites, tus pagos y facturas.
-          </p>
-          <Button href="/configuracion/plan" variant="secondary" size="sm" icon={StripeIcon}>
-            Ver plan
-          </Button>
-        </Card>
-      )}
 
-      {isAdmin && <CanalesSection />}
+          <div id="campos" className="scroll-mt-4">
+            <CamposPersonalizadosSection />
+            <AtributosConversacionSection />
+          </div>
 
-      {isAdmin && <HorarioNegocioCard />}
+          {isAdmin && <EtiquetasSection />}
 
-      {isAdmin && (
-        <Card as="section" className="space-y-4">
-          <SectionHeader title="IA y operación" />
-          <p className="text-sm text-muted">
-            Créditos de IA incluidos, horario del negocio, recuperación automática de leads y automatismos de la bandeja.
-          </p>
-          <Button href="/configuracion/ia" variant="secondary" size="sm" icon={Brain}>
-            Configurar
-          </Button>
-        </Card>
-      )}
-
-      </div>
-
-      <div id="bandeja" className="scroll-mt-4 space-y-6">
-      <RespuestasRapidasSection />
-
-      <CamposPersonalizadosSection />
-
-      <AtributosConversacionSection />
-
-      <Card as="section" className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <SectionHeader title="Macros" />
-          <p className="mt-1 text-sm text-muted">
-            Acciones manuales reutilizables para asignar, resolver, priorizar, posponer o responder en un clic.
-          </p>
-        </div>
-        <Button variant="secondary" href="/configuracion/macros">Administrar macros</Button>
-      </Card>
-      </div>
-
-      <div id="integraciones" className="scroll-mt-4 space-y-6 empty:hidden">
-      {isAdmin && (
-        <Card as="section" className="space-y-4">
-          <SectionHeader title="API e integraciones" />
-          <p className="text-sm text-muted">
-            API keys, webhooks salientes y documentación para conectar el CRM con tu ERP, tienda o Zapier/Make.
-          </p>
-          <Button href="/configuracion/api" variant="secondary" size="sm" icon={Plug}>
-            Configurar API
-          </Button>
-        </Card>
-      )}
-
-
-      {/* Sin configurar en la plataforma no se muestra: una tarjeta que solo
-          dice "todavía no está disponible" no le sirve a nadie. */}
+          <div id="api" className="scroll-mt-4">
+            {isAdmin && (
+              <SettingsBlock title="API e integraciones" description="API keys, webhooks y documentación para conectar tu ERP, tienda, n8n o Zapier.">
+                <Button href="/configuracion/api" variant="secondary" size="sm" icon={Plug}>Configurar API</Button>
+              </SettingsBlock>
+            )}
       {showGoogleSheets && (
-      <Card as="section" id="google-sheets" className="scroll-mt-4 space-y-4">
-        <div className="flex items-center gap-2.5">
-          <GoogleSheetsIcon size={22} className="shrink-0" />
-          <SectionHeader title="Google Sheets" className="min-w-0 flex-1" />
-        </div>
-        <p className="text-sm text-muted">
-          Sincroniza automáticamente tus leads calificados y resultados de campaña a una hoja de Google, cada 15 minutos.
-        </p>
+      <SettingsBlock id="google-sheets" title="Google Sheets" description="Sincroniza tus contactos calificados y resultados de campaña a una hoja de Google cada 15 minutos.">
         {googleStatusError && <Banner tone="danger" action={<Button type="button" variant="link" size="sm" onClick={fetchGoogleStatus}>Reintentar</Button>}>{googleStatusError}</Banner>}
 
         {!loadingGoogleStatus && !googleStatusError && !googleStatus.connected && googleStatus.configured !== false && (
@@ -390,65 +406,34 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
-      </Card>
+      </SettingsBlock>
       )}
 
+          </div>
+
+          {isAdmin && (
+            <SettingsBlock title="Plan y facturación" description="Tu plan, el consumo contra sus límites, pagos y facturas.">
+              <Button href="/configuracion/plan" variant="secondary" size="sm" icon={StripeIcon}>Ver plan</Button>
+            </SettingsBlock>
+          )}
+          {isAdmin && (
+            <SettingsBlock title="IA y operación" description="Créditos de IA, recuperación automática de contactos y automatismos de la bandeja.">
+              <Button href="/configuracion/ia" variant="secondary" size="sm" icon={Brain}>Configurar</Button>
+            </SettingsBlock>
+          )}
+        </div>
       </div>
 
-      <div id="seguridad" className="scroll-mt-4 space-y-6">
-      <Card as="section" className="space-y-4">
-        <SectionHeader title="Cambiar contraseña" />
-        {passwordError && <Banner tone="danger">{passwordError}</Banner>}
-
-        <FormField label="Contraseña actual" required>
-          {(id) => (
-            <PasswordInput
-              id={id}
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-          )}
-        </FormField>
-
-        <FormField label="Nueva contraseña" required>
-          {(id) => (
-            <>
-              <PasswordInput
-                id={id}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
-                autoComplete="new-password"
-              />
-              <PasswordStrength password={newPassword} />
-            </>
-          )}
-        </FormField>
-
-        <FormField label="Confirmar nueva contraseña" required>
-          {(id) => (
-            <PasswordInput
-              id={id}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Repite la contraseña"
-              autoComplete="new-password"
-            />
-          )}
-        </FormField>
-
-        <Button size="sm" icon={Lock} onClick={handleSavePassword} loading={saving}>
-          Cambiar contraseña
-        </Button>
-      </Card>
-
-      <FirmaSection />
-
-
-      <SeguridadSection />
-      </div>
+      {/* Guardado por sección: el nombre muestra una barra fija mientras tenga cambios. */}
+      {nameDirty && (
+        <div role="region" aria-label="Cambios sin guardar" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface md:left-[232px]">
+          <div className="flex max-w-3xl items-center gap-3 px-4 py-3 md:px-6">
+            <p className="min-w-0 flex-1 text-sm font-medium">Cambios sin guardar</p>
+            <Button variant="ghost" size="sm" onClick={() => { setNewName(user?.name ?? ""); setNameTouched(false); }}>Descartar</Button>
+            <Button size="sm" icon={User} onClick={handleSaveName} loading={savingName} disabled={!newName.trim()}>Guardar</Button>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={disconnectConfirmOpen}
