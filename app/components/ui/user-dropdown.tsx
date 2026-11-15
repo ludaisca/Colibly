@@ -132,7 +132,7 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
         aria-label={availability ? `Menú de usuario — ${AVAILABILITY_LABEL[availability]}` : "Menú de usuario"}
       >
         <span className="relative inline-flex shrink-0">
-          <EntityAvatar id={seed} name={name} size="sm" figure seed={seed} />
+          <EntityAvatar id={seed} name={name} size="sm" />
           {availability && <StatusDot value={availability} className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5" />}
         </span>
         <span className="hidden md:block text-sm font-medium max-w-[130px] truncate">{shortName}</span>
@@ -148,7 +148,7 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
           <Menu.Popup className="w-64 max-w-[calc(100vw-16px)] overflow-hidden rounded-lg border border-border bg-surface shadow-lg outline-none origin-[var(--transform-origin)] transition-[scale,opacity] duration-fast ease-brand data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 motion-reduce:transition-none">
             <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center gap-3">
-                <EntityAvatar id={seed} name={name} size="md" figure seed={seed} />
+                <EntityAvatar id={seed} name={name} size="md" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate">{name}</p>
                   {/* Sin nombre, `name` ya es el correo: no repetirlo. */}

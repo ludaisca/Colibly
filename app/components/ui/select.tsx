@@ -19,11 +19,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
-            "w-full appearance-none rounded-[9px] border bg-surface-light text-foreground",
-            compact ? "h-8 pl-2 pr-7 text-xs" : "pl-3 pr-9 py-2 text-sm",
+            "w-full appearance-none rounded-sm border bg-surface text-foreground",
+            compact ? "h-7 pl-2 pr-7 text-xs" : "h-8 pl-3 pr-9 text-sm",
             "transition-colors",
-            "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
-            error ? "border-danger-border" : "border-border"
+            // Campo blanco con borde --border-strong; foco: borde acento + anillo 2 px
+            // --accent-subtle. Gris solo deshabilitado.
+            "focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-subtle disabled:bg-surface-light disabled:text-muted",
+            error ? "border-danger-border" : "border-border-strong"
           )}
           {...props}
         >

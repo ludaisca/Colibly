@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Sparkles, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Button } from "./button";
 import { ConfirmDialog } from "./confirm-dialog";
 import { useToast } from "./toast";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 // Datos de ejemplo (Spa Aurora): un botón para cargarlos y otro, con
 // confirmación, para borrarlos. Solo lo ve un admin. Los de ejemplo son
@@ -70,7 +71,7 @@ export function SampleDataControls({ size = "md", variant = "secondary" }: { siz
       {loaded ? (
         <Button size={size} variant="ghost" icon={Trash2} onClick={() => setConfirmOpen(true)}>Borrar datos de ejemplo</Button>
       ) : (
-        <Button size={size} variant={variant} icon={Sparkles} onClick={() => void load()} disabled={busy}>
+        <Button size={size} variant={variant} icon={AiMark} onClick={() => void load()} disabled={busy}>
           {busy ? "Cargando…" : "Cargar datos de ejemplo"}
         </Button>
       )}

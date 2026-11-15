@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Dropdown, DropdownButton } from "@/app/components/ui/dropdown";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
 import { useToast } from "@/app/components/ui/toast";
 import type { ScoreDetails } from "@/lib/whatsapp/export-columns";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 interface LeadScore {
   id: string;
@@ -145,11 +146,11 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
         selectedScore ? (
           <DropdownButton
             label={`${labelText(selectedScore.label)} · ${selectedScore.score}`}
-            icon={Sparkles}
+            icon={AiMark}
             size="sm"
           />
         ) : (
-          <DropdownButton label="Calificar lead" icon={Sparkles} size="sm" />
+          <DropdownButton label="Calificar lead" icon={AiMark} size="sm" />
         )
       }
     >
@@ -255,7 +256,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
               <Button
                 size="sm"
                 variant="secondary"
-                icon={loading ? RefreshCw : Sparkles}
+                icon={loading ? RefreshCw : AiMark}
                 onClick={handleScore}
                 disabled={loading || !scorerId}
                 className="w-full"

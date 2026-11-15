@@ -12,12 +12,11 @@ export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
   const done = steps.filter((s) => s.done).length;
   const next = nextOnboardingStep(steps);
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+    <section className="rounded-lg border border-border bg-surface p-5">
       {/* Siguiente paso destacado: una sola acción clara arriba de la lista. */}
       {next && (
-        <div className="mb-5 rounded-xl border border-accent-strong bg-accent-subtle p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent-ink">Siguiente paso</p>
-          <p className="mt-1 font-display text-lg font-semibold text-foreground">{next.step.title}</p>
+        <div className="mb-5 rounded-lg bg-accent-subtle p-4">
+          <p className="text-title text-foreground">{next.step.title}</p>
           <p className="mt-0.5 text-sm text-muted">{next.step.description}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button href={next.step.href!}>{next.cta}</Button>
@@ -54,7 +53,7 @@ export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
           return (
             <li key={step.key}>
               {!step.done && step.href ? (
-                <Link href={step.href} className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-3 hover:bg-surface-light">
+                <Link href={step.href} className="-mx-2 flex items-start gap-3 rounded-sm px-2 py-3 hover:bg-surface-light">
                   {body}
                 </Link>
               ) : (

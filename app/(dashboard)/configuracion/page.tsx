@@ -228,7 +228,7 @@ export default function SettingsPage() {
 
       <div id="mi-cuenta" className="scroll-mt-4 space-y-6">
       <Card className="flex items-center gap-3">
-        <EntityAvatar id={user?.id ?? email} name={name} size="lg" figure seed={user?.id ?? email} />
+        <EntityAvatar id={user?.id ?? email} name={name} size="lg" />
         <div>
           <h2 className="text-lg font-semibold">{name}</h2>
           <p className="text-sm text-muted-darker">{email}</p>

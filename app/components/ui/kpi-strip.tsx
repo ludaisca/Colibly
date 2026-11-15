@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { cn } from "./cn";
 
-// Franja KPI del layout workbench — grid de tarjetas con borde y sombra
-// suave, cifra protagonista en font-display + tabular-nums. Server-safe por
+// Franja KPI (dirección congelada, nov 2026): UNA superficie con divisores
+// (gap-px sobre el filete), etiqueta text-xs 500 en minúscula, cifra
+// text-figure y una línea de contexto. Con ceros conserva la estructura. Server-safe por
 // diseño — al no aceptar iconos como props, los RSC (dashboard, hub
 // WhatsApp) la usan directo sin chocar con la regla "no pasar componentes
 // Lucide a client".
@@ -28,25 +29,18 @@ const DELTA_TONE: Record<"success" | "danger" | "neutral", string> = {
 function KpiContent({ item, hero }: { item: KpiItem; hero: boolean }) {
   return (
     <>
-      <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">
-        {item.label}
-      </p>
+      <p className="text-xs text-muted">{item.label}</p>
       <p className="flex items-baseline gap-2 flex-wrap">
-        <span
-          className={cn(
-            "font-display font-extrabold tabular-nums tracking-tight text-foreground",
-            hero ? "text-3xl" : "text-xl"
-          )}
-        >
+        <span className={cn("text-figure text-foreground", !hero && "text-xl leading-7")}>
           {item.value}
         </span>
         {item.delta && (
-          <span className={cn("text-xs font-bold tabular-nums", DELTA_TONE[item.deltaTone ?? "neutral"])}>
+          <span className={cn("text-xs font-medium tabular-nums", DELTA_TONE[item.deltaTone ?? "neutral"])}>
             {item.delta}
           </span>
         )}
       </p>
-      {item.hint && <p className="text-xs text-muted">{item.hint}</p>}
+      {item.hint && <p className="text-xs text-muted-darker">{item.hint}</p>}
     </>
   );
 }
@@ -80,7 +74,7 @@ export function KpiStrip({ items, size = "hero", className, columns }: KpiStripP
   return (
     <div
       className={cn(
-        "grid gap-3 grid-cols-2",
+        "grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border",
         desktopColumns,
         className
       )}
@@ -88,7 +82,7 @@ export function KpiStrip({ items, size = "hero", className, columns }: KpiStripP
       {items.map((item) => {
         const inner = <KpiContent item={item} hero={hero} />;
         const cellClass = cn(
-          "flex flex-col gap-1.5 rounded-lg border border-border bg-surface p-4 transition-colors",
+          "flex flex-col gap-1 bg-surface px-4 py-3 transition-colors",
           oddMobile && "last:col-span-2 lg:last:col-span-1",
         );
         return item.href ? (

@@ -26,7 +26,7 @@ function figureUri(seed: string): string {
 // overview y desde componentes client.
 
 const SIZE: Record<"xs" | "sm" | "md" | "lg", string> = {
-  xs: "h-5 w-5 rounded-md text-micro",
+  xs: "h-5 w-5 text-micro",
   sm: "h-8 w-8 text-micro",
   md: "h-10 w-10 text-sm",
   lg: "h-12 w-12 text-base",
@@ -57,8 +57,9 @@ export function EntityAvatar({ id, name, size = "md", className, figure = false,
     <span
       aria-hidden="true"
       className={cn(
-        "inline-flex shrink-0 select-none items-center justify-center rounded-lg bg-entity-bg font-semibold text-entity",
-        "transition-transform duration-fast ease-brand hover:scale-105",
+        // Iniciales sobre el tono de la cuenta, redondo (rounded-full es solo
+        // para avatares); la figura blobatar queda solo para bots.
+        "inline-flex shrink-0 select-none items-center justify-center rounded-full bg-entity-bg font-semibold text-entity",
         SIZE[size],
         hueClassFor(id),
         figure && "overflow-hidden",

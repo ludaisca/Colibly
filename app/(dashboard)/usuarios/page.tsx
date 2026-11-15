@@ -271,7 +271,7 @@ export default function UsersPage() {
             renderRow={(inv) => (
               <>
                 <EntityRow
-                  leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" figure />}
+                  leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" />}
                   title={<span className="font-mono">{inv.email}</span>}
                   badges={
                     <>
@@ -310,7 +310,7 @@ export default function UsersPage() {
         renderRow={(u) => (
           <>
             <EntityRow
-              leading={<EntityAvatar id={u.id} name={u.name ?? u.email} size="sm" figure seed={u.id} />}
+              leading={<EntityAvatar id={u.id} name={u.name ?? u.email} size="sm" />}
               title={u.name ?? "—"}
               badges={
                 <>

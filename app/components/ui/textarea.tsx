@@ -15,10 +15,12 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
-            "w-full rounded-[9px] border bg-surface-light px-3 py-2 text-sm text-foreground",
-            "transition-colors placeholder:text-muted-darker resize-y min-h-[80px]",
-            "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
-            error ? "border-danger-border" : "border-border"
+            "w-full rounded-sm border bg-surface px-3 py-2 text-sm text-foreground",
+            "transition-colors placeholder:text-subtle resize-y min-h-[80px]",
+            // Campo blanco con borde --border-strong; foco: borde acento + anillo 2 px
+            // --accent-subtle. Gris solo deshabilitado.
+            "focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-subtle disabled:bg-surface-light disabled:text-muted",
+            error ? "border-danger-border" : "border-border-strong"
           )}
           {...props}
         />

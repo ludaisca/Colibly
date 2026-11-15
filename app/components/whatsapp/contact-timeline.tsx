@@ -3,24 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { RelativeTime } from "@/app/components/ui/relative-time";
 import type { ElementType } from "react";
-import {
-  CalendarClock,
-  CheckCircle2,
-  GitBranch,
-  Megaphone,
-  RefreshCw,
-  SlidersHorizontal,
-  Sparkles,
-  StickyNote,
-  Tag,
-  UserCheck,
-  UserPlus,
-  ListTodo,
-  CircleDollarSign,
-} from "lucide-react";
+import { CalendarClock, CheckCircle2, GitBranch, Megaphone, RefreshCw, SlidersHorizontal, StickyNote, Tag, UserCheck, UserPlus, ListTodo, CircleDollarSign } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 interface Activity {
   id: string;
@@ -39,7 +26,7 @@ const ICONS: Record<string, ElementType> = {
   CONVERSATION_RESOLVED: CheckCircle2,
   APPOINTMENT_CREATED: CalendarClock,
   APPOINTMENT_STATUS_CHANGED: CalendarClock,
-  LEAD_SCORED: Sparkles,
+  LEAD_SCORED: AiMark,
   LEAD_AD_CAPTURED: Megaphone,
   NOTE_ADDED: StickyNote,
   TASK_CREATED: ListTodo,
@@ -98,7 +85,7 @@ export function ContactTimeline({ contactId, refreshKey = 0 }: { contactId: stri
       ) : (
         <ol className="space-y-3">
           {items.map((item) => {
-            const Icon = ICONS[item.type] ?? Sparkles;
+            const Icon = ICONS[item.type] ?? AiMark;
             return (
               <li key={item.id} className="flex gap-2.5">
                 <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-accent-subtle text-accent-ink">

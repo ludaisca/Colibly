@@ -1,8 +1,8 @@
 import { cn } from "./cn";
 
-// Encabezado de sección del layout workbench — sustituye a los cards con borde
-// como separador visual: la jerarquía la da la tipografía (eyebrow uppercase +
-// título en Fraunces), no una caja. Server-safe, sin iconos como props.
+// Encabezado de sección del layout workbench: la jerarquía la da la
+// tipografía (text-title), no una caja ni una etiqueta en mayúsculas.
+// Server-safe, sin iconos como props.
 
 interface SectionHeaderProps {
   title: string;
@@ -19,7 +19,7 @@ export function SectionHeader({ title, action, className }: SectionHeaderProps) 
   return (
     <div className={cn("flex items-end justify-between gap-3", className)}>
       <div className="min-w-0">
-        <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+        <h2 className="text-title text-foreground">
           {title}
         </h2>
       </div>

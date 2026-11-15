@@ -23,13 +23,15 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
-            "w-full rounded-[9px] border bg-surface-light py-2 text-sm text-foreground",
-            "transition-colors placeholder:text-muted-darker",
-            "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
+            "h-8 w-full rounded-sm border bg-surface py-1.5 text-sm text-foreground",
+            "transition-colors placeholder:text-subtle",
+            // Campo blanco con borde --border-strong; foco: borde acento + anillo 2 px
+            // --accent-subtle. Gris solo deshabilitado.
+            "focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-subtle disabled:bg-surface-light disabled:text-muted",
             Icon ? "pl-9 pr-3" : "px-3",
             error
               ? "border-danger-border focus:border-danger"
-              : "border-border",
+              : "border-border-strong",
             inputClassName
           )}
           {...props}

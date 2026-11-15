@@ -4,18 +4,19 @@ import { cn } from "./cn";
 type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "accent";
 type Size = "sm" | "md";
 
+// Sin borde, radio 4, text-xs 500: fondo tenue + texto (dirección congelada).
 const TONE: Record<Tone, string> = {
-  neutral: "bg-surface-light text-muted border border-border",
-  success: "bg-success-bg text-success border border-success-border",
-  warning: "bg-warning-bg text-warning border border-warning-border",
-  danger:  "bg-danger-bg  text-danger  border border-danger-border",
-  info:    "bg-info-bg    text-info    border border-info-border",
-  accent:  "bg-accent-subtle  text-accent-ink  border border-accent-muted",
+  neutral: "bg-surface-light text-muted",
+  success: "bg-success-bg text-success",
+  warning: "bg-warning-bg text-warning",
+  danger:  "bg-danger-bg text-danger",
+  info:    "bg-info-bg text-info",
+  accent:  "bg-accent-subtle text-accent-ink",
 };
 
 const SIZE: Record<Size, string> = {
-  sm: "px-2 py-0.5 text-micro gap-1",
-  md: "px-2.5 py-1 text-xs gap-1.5",
+  sm: "px-1.5 py-px text-xs gap-1",
+  md: "px-2 py-0.5 text-xs gap-1.5",
 };
 
 interface BadgeProps {
@@ -30,7 +31,7 @@ export function Badge({ tone = "neutral", size = "md", icon: Icon, className, ch
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full font-medium",
+        "inline-flex items-center rounded-xs font-medium",
         TONE[tone],
         SIZE[size],
         className

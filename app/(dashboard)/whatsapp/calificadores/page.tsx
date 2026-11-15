@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { Plus, Target, Trash2, Pencil, Sparkles, Clock, Download } from "lucide-react";
+import { Plus, Target, Trash2, Pencil, Clock, Download } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Switch } from "@/app/components/ui/switch";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
@@ -24,6 +24,7 @@ import { EXPORT_COLUMNS, labelText, type LeadScoreRow } from "@/lib/whatsapp/exp
 import { LeadScorerFormModal } from "./_form";
 import { localISODaysAgo } from "@/lib/format/calendar";
 import { plural } from "@/lib/format/plural";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 interface LeadScorerBot {
   id: string;
@@ -512,7 +513,7 @@ function LeadsTab() {
         error={fetchError}
         onRetry={fetchRows}
         onRowClick={(r) => setDetailId(r.id)}
-        emptyIcon={Sparkles}
+        emptyIcon={AiMark}
         emptyTitle="Sin leads calificados"
         emptyDescription="Los chats que califiques manualmente o mediante ejecución automática aparecerán aquí."
         mobileCard={(r) => {

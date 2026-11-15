@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { requireOrgId } from "@/lib/tenancy";
 import { AI_NOT_INCLUDED_MESSAGE, BILLING_PLAN_PATH } from "@/lib/billing/gates";
@@ -6,6 +6,7 @@ import { orgHasAnyFeature } from "@/lib/billing/entitlements";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 async function orgHasAi(): Promise<boolean> {
   const session = await auth();
@@ -22,7 +23,7 @@ export async function AiPlanGate({ children, feature }: { children: React.ReactN
   if (await orgHasAi()) return <>{children}</>;
   return (
     <EmptyState
-      icon={Sparkles}
+      icon={AiMark}
       title={`${feature} no está incluido en tus licencias`}
       description={AI_NOT_INCLUDED_MESSAGE}
       action={<Button href={BILLING_PLAN_PATH}>Ver planes</Button>}

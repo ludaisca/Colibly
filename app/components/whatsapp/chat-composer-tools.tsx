@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ArrowLeft, FileText, ListChecks, PenLine, Plus, RefreshCw, Sparkles, Sticker } from "lucide-react";
+import { ArrowLeft, FileText, ListChecks, PenLine, Plus, RefreshCw, Sticker } from "lucide-react";
 import { Dropdown, DropdownItem } from "@/app/components/ui/dropdown";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
@@ -9,6 +9,7 @@ import { Spinner, SpinningLoader } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { StickerPicker } from "./sticker-picker";
 import type { Channel } from "./chat-shared";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 // Herramientas del composer agrupadas para que la barra no parezca una caja
 // de herramientas: un botón de IA (sugerir / reescribir) y un "+" con botones,
@@ -133,7 +134,7 @@ export function ChatAiMenu({
           aria-label="Herramientas de IA"
           aria-expanded={open}
         >
-          <Sparkles size={18} />
+          <AiMark size={18} />
         </button>
       }
     >
@@ -141,7 +142,7 @@ export function ChatAiMenu({
         {view === "menu" ? (
           <>
             {supportsSuggestions && (
-              <DropdownItem icon={Sparkles} onClick={() => setView("suggest")}>Sugerir respuesta</DropdownItem>
+              <DropdownItem icon={AiMark} onClick={() => setView("suggest")}>Sugerir respuesta</DropdownItem>
             )}
             <DropdownItem icon={rewriting ? SpinningLoader : PenLine} disabled={!draft.trim() || rewriting} onClick={() => void handleRewrite()}>Reescribir borrador</DropdownItem>
             {!draft.trim() && (
@@ -171,7 +172,7 @@ export function ChatAiMenu({
                   type="button"
                   size="sm"
                   variant="secondary"
-                  icon={loading ? RefreshCw : Sparkles}
+                  icon={loading ? RefreshCw : AiMark}
                   onClick={() => void handleSuggest()}
                   disabled={loading || !botId}
                   className="w-full"

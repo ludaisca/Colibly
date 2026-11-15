@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BarChart3, Bell, CreditCard, Mail, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { BarChart3, Bell, CreditCard, Mail, MessageCircle, ShieldCheck } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/input";
@@ -16,6 +16,7 @@ import { PageContainer } from "@/app/components/ui/page-container";
 import { useToast } from "@/app/components/ui/toast";
 import type { PlatformSecretField } from "@/lib/platform-settings";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 interface ConfigResponse {
   hasOpencodeApiKey: boolean;
@@ -270,7 +271,7 @@ function PushKeysBlock({ active }: { active: boolean }) {
 }
 
 const SECTIONS = [
-  { id: "ia", label: "Inteligencia artificial", Icon: Sparkles },
+  { id: "ia", label: "Inteligencia artificial", Icon: AiMark },
   { id: "stripe", label: "Facturación", Icon: CreditCard },
   { id: "smtp", label: "Correo", Icon: Mail },
   { id: "turnstile", label: "Captcha", Icon: ShieldCheck },

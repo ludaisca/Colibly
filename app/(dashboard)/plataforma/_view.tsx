@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, CalendarPlus, Search, ShieldOff, ShieldCheck, Sparkles } from "lucide-react";
+import { Building2, CalendarPlus, Search, ShieldOff, ShieldCheck } from "lucide-react";
 import type { OrganizationStatus, PlanId } from "@prisma/client";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
@@ -30,6 +30,7 @@ import { Tabs, useUrlTab } from "@/app/components/ui/tabs";
 import { PlataformaActivacion } from "./_activacion";
 import { formatInZone } from "@/lib/format/dates";
 import { plural } from "@/lib/format/plural";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 const TABS = ["organizaciones", "activacion", "soporte", "configuracion", "respaldos", "operacion"] as const;
 type Tab = (typeof TABS)[number];
@@ -378,7 +379,7 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
                 <FormField label="Dar créditos de IA" hint="Extra solo para el periodo actual.">
                   {(id) => <Input id={id} type="number" min={1} max={100000} value={credits} onChange={(e) => setCredits(e.target.value)} />}
                 </FormField>
-                <Button type="submit" variant="secondary" icon={Sparkles} loading={busy === "grant_credits"} disabled={!!busy}>
+                <Button type="submit" variant="secondary" icon={AiMark} loading={busy === "grant_credits"} disabled={!!busy}>
                   Dar créditos
                 </Button>
               </form>

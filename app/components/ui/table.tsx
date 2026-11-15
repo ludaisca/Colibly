@@ -103,7 +103,8 @@ export function Table<T>({
       <div className="-mx-4 hidden overflow-x-auto sm:block" role="region" aria-label="Tabla desplazable horizontalmente" tabIndex={0}>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-y border-border">
+            {/* Encabezado en surface-light, text-xs 500 sin mayúsculas; filas de 40 px. */}
+            <tr className="border-y border-border bg-surface-light">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -111,7 +112,7 @@ export function Table<T>({
                     ? sort?.key === col.key ? sort.direction === "asc" ? "ascending" : "descending" : "none"
                     : undefined}
                   className={cn(
-                    "px-3 py-2 text-left text-xs font-medium text-muted-darker uppercase tracking-wider first:pl-4",
+                    "h-9 px-3 text-left text-xs font-medium text-muted first:pl-4",
                     col.hideBelow && HIDE_BELOW_CLASS[col.hideBelow],
                     col.headerClassName
                   )}
@@ -129,7 +130,7 @@ export function Table<T>({
                 </th>
               ))}
               {rowActions && (
-                <th className="px-3 py-2 text-right text-xs font-medium text-muted-darker uppercase tracking-wider w-12"><span className="sr-only">Acciones</span></th>
+                <th className="h-9 px-3 text-right text-xs font-medium text-muted w-12"><span className="sr-only">Acciones</span></th>
               )}
             </tr>
           </thead>
@@ -137,14 +138,14 @@ export function Table<T>({
             {rows.map((row) => (
               <tr
                 key={rowKey(row)}
-                className={cn("hover:bg-surface-light/40 transition-colors", activation && "cursor-pointer")}
+                className={cn("h-10 hover:bg-surface-light transition-colors duration-fast", activation && "cursor-pointer")}
                 {...activation?.(row)}
               >
                 {columns.map((col) => (
                   <td
                     key={col.key}
                     className={cn(
-                      "px-3 py-2 first:pl-4 tabular-nums",
+                      "px-3 py-1.5 first:pl-4 tabular-nums",
                       col.hideBelow && HIDE_BELOW_CLASS[col.hideBelow],
                       col.cellClassName
                     )}
@@ -160,7 +161,7 @@ export function Table<T>({
                       // un menú "absolute" se recortaría o abriría scroll.
                       portal
                       trigger={
-                        <button type="button" aria-label="Acciones" className="p-1.5 rounded-md hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
+                        <button type="button" aria-label="Acciones" className="p-1.5 rounded-sm hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
                           <MoreVertical size={14} />
                         </button>
                       }
@@ -180,7 +181,7 @@ export function Table<T>({
           <div
             key={rowKey(row)}
             className={cn(
-              "px-4 py-3 flex items-start justify-between gap-3 hover:bg-surface-light/20 transition-colors",
+              "px-4 py-3 flex items-start justify-between gap-3 hover:bg-surface-light transition-colors duration-fast",
               activation && "cursor-pointer"
             )}
             {...activation?.(row)}
@@ -194,7 +195,7 @@ export function Table<T>({
                   align="right"
                   portal
                   trigger={
-                    <button type="button" aria-label="Acciones" className="p-1.5 rounded-md border border-border bg-surface hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
+                    <button type="button" aria-label="Acciones" className="p-1.5 rounded-sm border border-border bg-surface hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
                       <MoreVertical size={14} />
                     </button>
                   }

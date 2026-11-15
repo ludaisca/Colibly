@@ -1,10 +1,8 @@
 "use client";
 
-import {
-  MessageSquare, LayoutList, ListChecks, FileText, Clock, MessageCircleQuestion, GitBranch, Tag, TagsIcon, KanbanSquare,
-  FormInput, UserPlus, Users, BellRing, Sparkles, ScanText, Target, Bot, Webhook, Hand, CircleStop, Zap,
-} from "lucide-react";
+import { MessageSquare, LayoutList, ListChecks, FileText, Clock, MessageCircleQuestion, GitBranch, Tag, TagsIcon, KanbanSquare, FormInput, UserPlus, Users, BellRing, ScanText, Target, Bot, Webhook, Hand, CircleStop, Zap } from "lucide-react";
 import type { StepType } from "@/lib/automations/types";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 export type AutomationChannelName = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
 
@@ -37,7 +35,7 @@ export const STEP_ICON: Record<StepType, React.ElementType> = {
   assign: UserPlus,
   assign_team: Users,
   notify_team: BellRing,
-  ai_classify: Sparkles,
+  ai_classify: AiMark,
   ai_extract: ScanText,
   score_lead: Target,
   ai_reply: Bot,

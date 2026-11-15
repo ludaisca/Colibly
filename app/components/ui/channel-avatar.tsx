@@ -15,7 +15,7 @@ const CHANNEL_NAME: Record<AvatarChannel, string> = {
 // Avatar del contacto con la insignia del canal en la esquina: de un vistazo
 // se distingue un chat de Instagram, WhatsApp o del chat web. El hue sigue
 // siendo el de la cuenta (hueClassFor), la insignia el de la marca. Cada
-// contacto lleva su figura (blobatar), con el nombre visible como semilla.
+// contacto lleva sus iniciales (la figura blobatar queda solo para bots).
 export function ChannelAvatar({
   id,
   name,
@@ -33,7 +33,7 @@ export function ChannelAvatar({
   const badge = size === "sm" ? 14 : 16;
   return (
     <span className={cn("relative inline-flex shrink-0", className)}>
-      <EntityAvatar id={id} name={name} size={size} figure />
+      <EntityAvatar id={id} name={name} size={size} />
       {Mark && (
         <span
           className="absolute -bottom-1 -right-1 inline-flex items-center justify-center rounded-full bg-surface p-[2px] text-accent-ink shadow-sm ring-1 ring-border"

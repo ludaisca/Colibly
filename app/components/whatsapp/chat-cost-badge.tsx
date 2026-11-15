@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { DollarSign, Bot, Sparkles, Zap } from "lucide-react";
+import { DollarSign, Bot, Zap } from "lucide-react";
 import { Dropdown, DropdownButton } from "@/app/components/ui/dropdown";
 import { Badge } from "@/app/components/ui/badge";
+import { AiMark } from "@/app/components/ui/ai-mark";
 
 interface UsageEntry {
   source: "bot" | "scorer" | "automation";
@@ -92,7 +93,7 @@ export function ChatCostBadge({ chatId, showEmpty = false }: { chatId: string; s
                 ) : entry.source === "automation" ? (
                   <Zap size={12} className="text-info shrink-0 mt-0.5" />
                 ) : (
-                  <Sparkles size={12} className="text-warning shrink-0 mt-0.5" />
+                  <AiMark size={12} className="text-warning shrink-0 mt-0.5" />
                 )}
                 <div className="min-w-0">
                   <p className="truncate text-foreground">{entry.name}</p>

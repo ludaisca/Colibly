@@ -181,7 +181,7 @@ export function LeadCard({ data, stages, onOpen, onStageChange }: {
               )}
               {data.assignee && (
                 <span className="ml-auto" title={`Asignado a ${data.assignee.name ?? "un ejecutivo"}`}>
-                  <EntityAvatar id={data.assignee.id} name={data.assignee.name ?? "?"} size="xs" figure seed={data.assignee.id} />
+                  <EntityAvatar id={data.assignee.id} name={data.assignee.name ?? "?"} size="xs" />
                 </span>
               )}
             </div>

@@ -56,10 +56,9 @@ export interface AppShellProps {
 
 function activeClass(accent: "accent" | "danger") {
   return accent === "accent"
-    // Andén: la selección se marca en tinta (como los chips y pestañas de la
-    // bandeja); el acento queda para la acción principal.
-    ? "bg-foreground text-background font-semibold"
-    : "bg-danger text-surface font-semibold";
+    // Ítem activo: fondo --nav-active y texto de tinta, no un bloque negro.
+    ? "bg-nav-active text-foreground"
+    : "bg-danger text-surface";
 }
 
 function SidebarContent({
@@ -111,16 +110,15 @@ function SidebarContent({
         aria-label={collapsed ? item.label : undefined}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex items-center text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
-          collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-          // Radio cercano al de la marca (rx=9 sobre 32): el item mide 40px
-          // de alto, así que 12px conserva la misma proporción visual.
+          "flex items-center rounded-sm text-sm font-medium transition-colors duration-fast focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
+          // Ítems de 30 px con íconos de 16 px (trazo 1.75).
+          collapsed ? "justify-center w-9 h-9 mx-auto" : "h-[30px] gap-2.5 px-2.5",
           active
-            ? cn("rounded-[9px]", activeClass(accent ?? "accent"))
-            : "rounded-[9px] text-muted hover:bg-surface-light hover:text-foreground"
+            ? activeClass(accent ?? "accent")
+            : "text-muted hover:bg-surface-light hover:text-foreground"
         )}
       >
-        <Icon size={18} className="shrink-0" />
+        <Icon size={16} strokeWidth={1.75} className="shrink-0" />
         {!collapsed && item.label}
       </Link>
     );
@@ -148,7 +146,7 @@ function SidebarContent({
       </div>
 
       <nav className={cn("scrollbar-none w-full flex-1 overflow-y-auto overflow-x-hidden", collapsed ? "px-1" : "px-3")}>
-        <div className="flex flex-col gap-3.5 w-full">
+        <div className="flex flex-col gap-4 w-full">
           {nav.map((groupOrItem, index) => {
             const isGroup = "items" in groupOrItem;
             if (isGroup) {
@@ -173,11 +171,11 @@ function SidebarContent({
                         // Con una página del grupo abierta no se puede plegar: sería esconder dónde estás.
                         onClick={() => { if (!hasActive) toggleMore(open); }}
                         className={cn(
-                          "flex items-center text-sm font-medium text-muted transition-colors hover:bg-surface-light hover:text-foreground rounded-[9px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
-                          collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2 w-full"
+                          "flex items-center text-sm font-medium text-muted transition-colors duration-fast hover:bg-surface-light hover:text-foreground rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
+                          collapsed ? "justify-center w-9 h-9 mx-auto" : "h-[30px] gap-2.5 px-2.5 w-full"
                         )}
                       >
-                        <MoreHorizontal size={18} className="shrink-0" aria-hidden />
+                        <MoreHorizontal size={16} strokeWidth={1.75} className="shrink-0" aria-hidden />
                         {!collapsed && (
                           <>
                             <span className="flex-1 text-left">{label}</span>
@@ -186,7 +184,7 @@ function SidebarContent({
                         )}
                       </button>
                     ); return collapsed ? <Tooltip label={label} side="right">{toggle}</Tooltip> : toggle; })()}
-                    <ul id={regionId} hidden={!open} className="flex flex-col gap-0.5 w-full">
+                    <ul id={regionId} hidden={!open} className="flex flex-col gap-px w-full">
                       {group.items.map(renderLink)}
                     </ul>
                   </div>
@@ -198,11 +196,11 @@ function SidebarContent({
                     <div className="mx-auto my-1 h-px w-8 bg-border/70" aria-hidden="true" />
                   )}
                   {!collapsed && group.title && (
-                    <div className="px-3 text-micro font-bold text-muted-darker tracking-wider uppercase mb-1">
+                    <div className="mb-0.5 px-2.5 text-xs font-medium text-subtle">
                       {group.title}
                     </div>
                   )}
-                  <ul className="flex flex-col gap-0.5 w-full">
+                  <ul className="flex flex-col gap-px w-full">
                     {group.items.map(renderLink)}
                   </ul>
                 </div>
@@ -238,11 +236,11 @@ function SidebarContent({
             window.location.href = "/login";
           }}
           className={cn(
-            "flex items-center text-sm font-medium text-muted transition-colors hover:bg-surface-light hover:text-danger rounded-lg",
-            collapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 w-full px-3 py-2.5"
+            "flex items-center text-sm font-medium text-muted transition-colors duration-fast hover:bg-surface-light hover:text-danger rounded-sm",
+            collapsed ? "justify-center w-9 h-9 mx-auto" : "h-[30px] gap-2.5 w-full px-2.5"
           )}
         >
-          <LogOut size={18} />
+          <LogOut size={16} strokeWidth={1.75} />
           {!collapsed && "Cerrar sesión"}
         </button></Tooltip>
       </div>
@@ -270,8 +268,8 @@ export function AppShell({
   // scrolling panes — the standard page chrome (p-8 padding) just eats space
   // it needs, so this route gets a full-bleed shell instead.
   const pathname = usePathname();
-  // Chat necesita pantalla completa (paneles con scroll propio). Los tableros
-  // y editores también usan todo el ancho; el resto se centra a 6XL.
+  // Chat necesita pantalla completa (paneles con scroll propio); el resto usa
+  // todo el ancho con px-6.
   const segments = pathname.split("/").filter(Boolean);
   const immersive = pathname.startsWith("/whatsapp/chat");
   // Dentro de una conversación abierta la barra estorba al compositor.
@@ -311,8 +309,9 @@ export function AppShell({
       </Suspense>
       <aside
         className={cn(
-          "hidden md:flex sticky top-0 self-start h-svh overflow-hidden border-r border-border/60 bg-background flex-col shrink-0 transition-[width] duration-200 motion-reduce:transition-none",
-          collapsed ? "w-16" : "w-56 lg:w-60"
+          // Menú de 232 px sobre --background con filete a la derecha.
+          "hidden md:flex sticky top-0 self-start h-svh overflow-hidden border-r border-border bg-background flex-col shrink-0 transition-[width] duration-200 motion-reduce:transition-none",
+          collapsed ? "w-16" : "w-[232px]"
         )}
       >
         <SidebarContent
@@ -392,10 +391,12 @@ export function AppShell({
           tabIndex={-1}
           className={cn(
             "flex-1 ",
-            immersive ? "flex flex-col min-h-0 overflow-hidden" : "p-3 md:p-5 lg:p-6"
+            immersive ? "flex flex-col min-h-0 overflow-hidden" : "px-4 py-4 md:px-6 md:py-5"
           )}
         >
-          {wideContent ? children : <div className="mx-auto w-full min-w-0 max-w-6xl">{children}</div>}
+          {/* Sin contenedor centrado de 6XL: listas y tablas a todo lo ancho
+              (px-6); los formularios se limitan solos a max-w-3xl a la izquierda. */}
+          {wideContent ? children : <div className="w-full min-w-0">{children}</div>}
         </main>
 
         {mobileTabs && mobileTabs.length > 0 && !inConversation && (
@@ -417,7 +418,7 @@ export function AppShell({
                     active ? "text-foreground" : "text-muted hover:text-foreground"
                   )}
                 >
-                  <span className={cn("flex h-7 w-12 items-center justify-center rounded-full", active && "bg-foreground text-background")}>
+                  <span className={cn("flex h-7 w-12 items-center justify-center rounded-sm", active && "bg-nav-active text-foreground")}>
                     <Icon size={18} aria-hidden />
                   </span>
                   {item.label}
@@ -429,7 +430,7 @@ export function AppShell({
               onClick={() => setDrawerOpen(true)}
               className="flex flex-col items-center gap-0.5 py-2 text-micro font-medium text-muted transition-colors hover:text-foreground"
             >
-              <span className="flex h-7 w-12 items-center justify-center rounded-full"><MoreHorizontal size={18} aria-hidden /></span>
+              <span className="flex h-7 w-12 items-center justify-center rounded-sm"><MoreHorizontal size={18} aria-hidden /></span>
               Más
             </button>
           </nav>
