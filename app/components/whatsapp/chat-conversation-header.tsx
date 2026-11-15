@@ -3,11 +3,12 @@
 import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName } from "@/lib/chats/display-name";
 import { useId, useState } from "react";
-import { ArrowLeft, Check, MoreVertical, Phone, RotateCw, SlidersHorizontal, X, Zap } from "lucide-react";
+import { ArrowLeft, Check, MoreHorizontal, PanelRight, Phone, RotateCw, SlidersHorizontal, Trophy, X, Zap } from "lucide-react";
 import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
-import { useHueClass } from "@/app/components/ui/account-hues";
-import { cn } from "@/app/components/ui/cn";
 import { Button } from "@/app/components/ui/button";
+import { Badge } from "@/app/components/ui/badge";
+import { useToast } from "@/app/components/ui/toast";
+import { formatPhoneShort } from "@/lib/format/phone";
 import { Dropdown, DropdownItem } from "@/app/components/ui/dropdown";
 import { Select } from "@/app/components/ui/select";
 import { ChatAssigneePicker } from "./chat-assignee-picker";
@@ -31,50 +32,6 @@ const CHANNELS: Record<Channel, { label: string }> = {
   WEBCHAT: { label: "Chat web" },
 };
 
-// Andén: la venta como una línea con estaciones, en el color de la cuenta.
-// Sale de Contact.leadStatus (el mismo que cambia la ficha y el pipeline).
-const ROUTE: Array<{ status: NonNullable<ChatItem["leadStatus"]>; label: string }> = [
-  { status: "NEW", label: "Nuevo" },
-  { status: "CONTACTED", label: "Contactado" },
-  { status: "QUALIFIED", label: "Calificado" },
-  { status: "CUSTOMER", label: "Cliente" },
-];
-
-function SalesRoute({ status, accountId }: { status: NonNullable<ChatItem["leadStatus"]>; accountId: string }) {
-  const hueClassFor = useHueClass();
-  const lost = status === "LOST";
-  const current = ROUTE.findIndex((s) => s.status === status);
-  const label = lost ? "Etapa del lead: perdido" : `Etapa del lead: ${ROUTE[current]?.label} (${current + 1} de ${ROUTE.length})`;
-  return (
-    <div className={cn("flex items-center gap-3 px-3 pb-2.5 pt-1", hueClassFor(accountId))}>
-      <ol aria-label={label} className="relative flex min-w-0 flex-1">
-        {/* Vía: llena hasta la estación actual, gris después. */}
-        <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[5px] h-1 rounded-full bg-border" />
-        {!lost && current > 0 && (
-          <span aria-hidden className="absolute left-[12.5%] top-[5px] h-1 rounded-full bg-entity" style={{ width: `${(current / (ROUTE.length - 1)) * 75}%` }} />
-        )}
-        {ROUTE.map((station, index) => {
-          const done = !lost && index < current;
-          const now = !lost && index === current;
-          return (
-            <li key={station.status} aria-current={now ? "step" : undefined} className="relative z-[1] flex flex-1 flex-col items-center gap-1">
-              <span
-                aria-hidden
-                className={cn(
-                  "box-border rounded-full border-[3px]",
-                  now ? "h-3.5 w-3.5 -mt-0.5 border-entity bg-surface" : done ? "h-2.5 w-2.5 border-entity bg-entity" : "h-2.5 w-2.5 border-border bg-surface"
-                )}
-              />
-              <span className={cn("text-micro leading-none", now ? "font-semibold text-foreground" : "text-muted")}>{station.label}</span>
-            </li>
-          );
-        })}
-      </ol>
-      {lost && <span className="shrink-0 rounded-full border border-border bg-surface-light px-2 py-0.5 text-micro font-semibold text-muted">Perdido</span>}
-    </div>
-  );
-}
-
 interface Props {
   chat: ChatItem;
   refreshKey: string;
@@ -86,9 +43,41 @@ interface Props {
   onPriorityChange: (priority: ChatPriority) => void;
   onSnoozedChange: (until: string | null) => void;
   onMacroApplied?: () => void;
+  /** Ficha derecha (xl): abierta o no, y cómo alternarla. */
+  contactPanelOpen?: boolean;
+  onToggleContactPanel?: () => void;
+  /** El contacto cambió (p. ej. "Marcar venta"): refrescar lista y ficha. */
+  onContactChanged?: () => void;
 }
 
-export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned, onPriorityChange, onSnoozedChange, onMacroApplied }: Props) {
+export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseChat, onOpenContactDrawer, onStatusChange, onAssigned, onPriorityChange, onSnoozedChange, onMacroApplied, contactPanelOpen, onToggleContactPanel, onContactChanged }: Props) {
+  const { error: toastError, success } = useToast();
+  const [markingSale, setMarkingSale] = useState(false);
+  const [leadStatus, setLeadStatus] = useState(chat.leadStatus ?? null);
+  const phone = chat.channel === "WHATSAPP" && !chat.isGroup ? formatPhoneShort(chat.remoteJid) : null;
+
+  // "Marcar venta": el contacto pasa a Cliente (misma acción que la ficha y el
+  // embudo; afterLeadStatusChanged registra la venta ganada).
+  async function markSale() {
+    if (!chat.contactId || markingSale) return;
+    setMarkingSale(true);
+    try {
+      const res = await fetch(`/api/whatsapp/contacts/${chat.contactId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadStatus: "CUSTOMER" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "No se pudo marcar la venta");
+      setLeadStatus("CUSTOMER");
+      success("Venta ganada");
+      onContactChanged?.();
+    } catch (error) {
+      toastError(error instanceof Error ? error.message : "No se pudo marcar la venta");
+    } finally {
+      setMarkingSale(false);
+    }
+  }
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [macroOpen, setMacroOpen] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
@@ -119,22 +108,51 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
 
   return (
     <header className="shrink-0 border-b border-border bg-surface">
-      <div className="flex items-center gap-2.5 px-3 py-1">
+      {/* 56 px: avatar, nombre y número, Asignado a, Marcar venta y menú ⋯. */}
+      <div className="flex h-14 items-center gap-2.5 px-3">
         <Button type="button" variant="ghost" size="icon" icon={ArrowLeft} onClick={onCloseChat} aria-label="Volver a la lista de chats" className="lg:hidden" />
         <ChannelAvatar id={chat.accountId} name={name} channel={chat.channel} size="sm" />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[7rem] flex-1">
           {chat.contactId ? (
-            <Tooltip label="Ver contacto"><button type="button" onClick={onOpenContactDrawer} className="block max-w-full truncate rounded text-left text-base font-semibold text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button></Tooltip>
-          ) : <p className="truncate text-base font-semibold text-foreground">{name}</p>}
-          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-micro text-muted-darker" title={subtitle}>
-            {/* Sin icono de canal: la insignia del avatar ya lo muestra. */}
-            <span className="truncate">{subtitle}</span>
-            {resolved && <span className="shrink-0 rounded-full bg-success-bg px-1.5 text-micro font-medium text-success">Resuelto</span>}
-          </p>
-          {typingLabel && (
-            <p className="mt-0.5 truncate text-micro font-medium text-accent-ink motion-safe:animate-pulse">{typingLabel}</p>
+            <Tooltip label="Ver contacto"><button type="button" onClick={onOpenContactDrawer} className="block max-w-full truncate rounded text-left text-title text-foreground hover:text-accent-ink focus-visible:outline-2 focus-visible:outline-accent-strong">{name}</button></Tooltip>
+          ) : <p className="truncate text-title text-foreground">{name}</p>}
+          {typingLabel ? (
+            <p className="truncate text-xs font-medium text-accent-ink motion-safe:animate-pulse">{typingLabel}</p>
+          ) : (
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted" title={subtitle}>
+              {/* Sin icono de canal: la insignia del avatar ya lo muestra. */}
+              {phone ? <span className="shrink-0 tabular-nums">{phone}</span> : <span className="truncate">{subtitle}</span>}
+              {phone && <span className="hidden truncate sm:inline">· {subtitle}</span>}
+              {resolved && <Badge tone="success" size="sm">Resuelto</Badge>}
+            </p>
           )}
         </div>
+        <div className="hidden shrink-0 items-center gap-1.5 md:flex">
+          <span className="hidden text-xs text-muted 2xl:inline">Asignado a</span>
+          <ChatAssigneePicker chatId={chat.id} assignedTo={chat.assignedTo} onAssigned={onAssigned} />
+        </div>
+        {chat.contactId && (leadStatus === "CUSTOMER" ? (
+          <Badge tone="success" size="sm" className="hidden sm:inline-flex">Venta ganada</Badge>
+        ) : leadStatus === "LOST" ? (
+          <Badge tone="neutral" size="sm" className="hidden sm:inline-flex">Perdido</Badge>
+        ) : (
+          <Button type="button" variant="secondary" size="sm" icon={Trophy} loading={markingSale} onClick={() => void markSale()} className="hidden shrink-0 sm:inline-flex">
+            Marcar venta
+          </Button>
+        ))}
+        {onToggleContactPanel && chat.contactId && (
+          <Tooltip label={contactPanelOpen ? "Ocultar ficha" : "Mostrar ficha"}>
+            <button
+              type="button"
+              onClick={onToggleContactPanel}
+              aria-pressed={!!contactPanelOpen}
+              aria-label={contactPanelOpen ? "Ocultar ficha" : "Mostrar ficha"}
+              className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-sm text-muted hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong xl:inline-flex aria-pressed:bg-nav-active aria-pressed:text-foreground"
+            >
+              <PanelRight size={16} aria-hidden />
+            </button>
+          </Tooltip>
+        )}
         <Dropdown
           align="right"
           portal
@@ -142,13 +160,16 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
             <button
               type="button"
               aria-label="Acciones de la conversación"
-              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-accent-subtle text-accent-ink" : "text-muted-darker hover:bg-surface-light hover:text-foreground"}`}
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-nav-active text-foreground" : "text-muted hover:bg-surface-light hover:text-foreground"}`}
             >
-              <MoreVertical size={17} />
+              <MoreHorizontal size={16} />
             </button>
           }
         >
           <div className="w-56">
+            {chat.contactId && leadStatus !== "CUSTOMER" && leadStatus !== "LOST" && (
+              <DropdownItem icon={Trophy} className="sm:hidden" onClick={() => void markSale()}>Marcar venta</DropdownItem>
+            )}
             <DropdownItem icon={SlidersHorizontal} onClick={() => setDetailsOpen((open) => !open)}>
               {detailsOpen ? "Ocultar detalles" : "Detalles"}
             </DropdownItem>
@@ -173,7 +194,6 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
           </div>
         </Dropdown>
       </div>
-      {chat.contactId && chat.leadStatus && <SalesRoute status={chat.leadStatus} accountId={chat.accountId} />}
       {detailsOpen && (
         <div className="border-t border-border bg-surface-light px-3 py-3 sm:px-4">
           <div id={detailsId} role="region" aria-labelledby={`${detailsId}-title`} className="@container flex max-h-[40dvh] flex-col overflow-hidden rounded-lg border border-accent-muted bg-surface shadow-md">

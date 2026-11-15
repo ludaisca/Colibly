@@ -320,7 +320,7 @@ export function ChatListPanel({
             { key: "awaiting", label: "Esperando", count: viewCounts?.awaiting, active: awaitingFilter && !assignedFilter && !snoozedFilter, apply: () => { onAssignedFilterChange(""); onSnoozedFilterChange(""); onAwaitingFilterChange(true); } },
             { key: "mine", label: "Mías", count: viewCounts?.mine, active: !awaitingFilter && assignedFilter === "me" && !snoozedFilter, apply: () => { onAwaitingFilterChange(false); onSnoozedFilterChange(""); onAssignedFilterChange("me"); } },
             { key: "all", label: "Todas", count: viewCounts?.all, active: !awaitingFilter && !assignedFilter && !snoozedFilter, apply: () => { onAwaitingFilterChange(false); onAssignedFilterChange(""); onSnoozedFilterChange(""); } },
-            { key: "later", label: "Después", count: undefined, active: !awaitingFilter && snoozedFilter === "only", apply: () => { onAwaitingFilterChange(false); onAssignedFilterChange(""); onSnoozedFilterChange("only"); } },
+            { key: "later", label: "Después", count: viewCounts?.snoozed, active: !awaitingFilter && snoozedFilter === "only", apply: () => { onAwaitingFilterChange(false); onAssignedFilterChange(""); onSnoozedFilterChange("only"); } },
           ] as const).map((tab) => (
             <button
               key={tab.key}

@@ -515,6 +515,9 @@ interface ChatThreadPanelProps {
   onPriorityChange: (priority: ChatPriority) => void;
   onSnoozedChange: (until: string | null) => void;
   onMacroApplied?: () => void;
+  contactPanelOpen?: boolean;
+  onToggleContactPanel?: () => void;
+  onContactChanged?: () => void;
   onPreview: (media: PreviewMedia) => void;
   onRetry: (msg: Message) => void;
   onReply: (msg: Message) => void;
@@ -540,6 +543,9 @@ export function ChatThreadPanel({
   onPriorityChange,
   onSnoozedChange,
   onMacroApplied,
+  contactPanelOpen,
+  onToggleContactPanel,
+  onContactChanged,
   onPreview,
   onRetry,
   onReply,
@@ -677,6 +683,9 @@ export function ChatThreadPanel({
         onPriorityChange={onPriorityChange}
         onSnoozedChange={onSnoozedChange}
         onMacroApplied={onMacroApplied}
+        contactPanelOpen={contactPanelOpen}
+        onToggleContactPanel={onToggleContactPanel}
+        onContactChanged={onContactChanged}
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col">

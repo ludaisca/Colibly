@@ -8,8 +8,7 @@ import { Button } from "@/app/components/ui/button";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { SectionHeader } from "@/app/components/ui/section-header";
-import { Card } from "@/app/components/ui/card";
-import { Workbench, WorkbenchMain, WorkbenchAside } from "@/app/components/ui/workbench";
+import { Workbench, WorkbenchMain, WorkbenchAside, WorkbenchSection } from "@/app/components/ui/workbench";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import type { Estadisticas } from "@/lib/estadisticas/get-stats";
 import { CAMPAIGN_ORIGIN_LABEL, LABEL_TEXT } from "@/lib/whatsapp/export-columns";
@@ -161,16 +160,16 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
         <KpiStrip items={kpis} />
       </div>
 
-      <Workbench>
+      <Workbench ruled>
         <WorkbenchMain>
-          <Card as="section" >
+          <WorkbenchSection>
             <SectionHeader eyebrow="Actividad" title="Mensajes diarios" />
             <div className="mt-4">
               <MessagesTrendChart data={stats.dailyMessages} />
             </div>
-          </Card>
+          </WorkbenchSection>
 
-          <Card as="section" >
+          <WorkbenchSection>
             <SectionHeader eyebrow="Difusión" title="Mensajes por campaña / automatización" />
             <div className="mt-4">
               <Table
@@ -195,9 +194,9 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 )}
               />
             </div>
-          </Card>
+          </WorkbenchSection>
 
-          <Card as="section" >
+          <WorkbenchSection>
             <SectionHeader eyebrow="Automatización" title="Uso por bot" />
             <div className="mt-4">
               <Table
@@ -226,9 +225,9 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 }}
               />
             </div>
-          </Card>
+          </WorkbenchSection>
 
-          <Card as="section" >
+          <WorkbenchSection>
             <SectionHeader eyebrow="Equipo" title="Rendimiento por agente" />
             {stats.firstResponse.count > 0 && (
               <p className="mt-2 text-sm text-muted-darker" title="Desde el primer mensaje de cada conversación que inició el cliente hasta la primera respuesta (persona, bot o app). No cuentan campañas, avisos automáticos, historial importado ni conversaciones sin respuesta.">
@@ -260,11 +259,11 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 }}
               />
             </div>
-          </Card>
+          </WorkbenchSection>
         </WorkbenchMain>
 
         <WorkbenchAside>
-          <Card as="section" >
+          <WorkbenchSection>
             <SectionHeader eyebrow="Inteligencia artificial" title="Inversión en IA" />
             <div className="mt-3 space-y-4">
               <div>
@@ -296,9 +295,9 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 </div>
               )}
             </div>
-          </Card>
+          </WorkbenchSection>
 
-          <Card as="section" >
+          <WorkbenchSection>
             <SectionHeader eyebrow="Leads" title="Chats calificados" />
             <div className="mt-3 space-y-4">
               <QualifiedLabelDonut data={stats.qualifiedChats.byLabel} labelText={LABEL_TEXT} total={stats.qualifiedChats.total} />
@@ -318,9 +317,9 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 </div>
               )}
             </div>
-          </Card>
+          </WorkbenchSection>
 
-          <Card as="section" >
+          <WorkbenchSection>
             <SectionHeader eyebrow="Difusión" title="Entregas por origen" />
             <div className="mt-3 space-y-3">
               <DeliveryComparisonChart data={stats.campaignMessagesByOrigin} />
@@ -339,9 +338,9 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 ))}
               </div>
             </div>
-          </Card>
+          </WorkbenchSection>
 
-          <Card as="section" >
+          <WorkbenchSection>
             <SectionHeader eyebrow="Canales" title="Chats por cuenta" />
             <div className="mt-3">
               <EntityBars
@@ -349,7 +348,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 emptyLabel="Sin cuentas todavía"
               />
             </div>
-          </Card>
+          </WorkbenchSection>
         </WorkbenchAside>
       </Workbench>
     </div>

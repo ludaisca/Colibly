@@ -13,6 +13,7 @@ import { SampleConversationButton } from "@/app/components/whatsapp/sample-conve
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
+import { ChatContactPanel } from "@/app/components/whatsapp/chat-contact-panel";
 import { ChatAccountRail } from "@/app/components/whatsapp/chat-account-rail";
 import { ChatListPanel } from "@/app/components/whatsapp/chat-list-panel";
 import { ChatThreadPanel, MediaPreviewModal } from "@/app/components/whatsapp/chat-thread-panel";
@@ -219,6 +220,23 @@ export function ChatWorkspace({
   // Las cuentas llegan del servidor: un filtro de cuenta ya conoce su canal
   // antes de pedir chats y no consulta los otros cuatro endpoints por error.
   const [contactDrawerContactId, setContactDrawerContactId] = useState<string | null>(initialContactId ?? null);
+  // Ficha derecha de 288 px (solo xl). Abierta por defecto; la preferencia es por navegador.
+  const [contactPanelOpen, setContactPanelOpen] = useState(true);
+  const [contactPanelKey, setContactPanelKey] = useState(0);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preferencia guardada, se lee tras hidratar
+      if (localStorage.getItem("colibly:chat-contact-panel") === "0") setContactPanelOpen(false);
+    } catch {
+      // sin localStorage: queda abierta
+    }
+  }, []);
+  const toggleContactPanel = useCallback(() => {
+    setContactPanelOpen((open) => {
+      try { localStorage.setItem("colibly:chat-contact-panel", open ? "0" : "1"); } catch { /* sin localStorage */ }
+      return !open;
+    });
+  }, []);
   const [previewMedia, setPreviewMedia] = useState<PreviewMedia | null>(null);
   const [cannedResponses, setCannedResponses] = useState<CannedResponseItem[]>([]);
   // Sugerencia de respuesta rápida resaltada — navegable con ↑/↓, se inserta
@@ -1522,7 +1540,8 @@ export function ChatWorkspace({
   );
 
   const conversationPane = (
-      <div className={`${selectedChatId ? "flex" : "hidden lg:flex"} flex-col flex-1 min-w-0 bg-background`}>
+    <div className={`${selectedChatId ? "flex" : "hidden lg:flex"} flex-1 min-w-0`}>
+      <div className="flex flex-col flex-1 min-w-0 bg-background">
         {!selectedChatId ? (
           <div className="flex-1 flex items-center justify-center">
             <EmptyState
@@ -1551,6 +1570,9 @@ export function ChatWorkspace({
               onPriorityChange={handlePriorityChange}
               onSnoozedChange={handleSnoozedChange}
               onMacroApplied={() => void refreshChats()}
+              contactPanelOpen={contactPanelOpen}
+              onToggleContactPanel={toggleContactPanel}
+              onContactChanged={() => { void refreshChats(); setContactPanelKey((key) => key + 1); }}
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
               onReply={setReplyTo}
@@ -1627,6 +1649,15 @@ export function ChatWorkspace({
           </div>
         )}
       </div>
+      {selectedChat?.contactId && contactPanelOpen && (
+        <ChatContactPanel
+          key={`${selectedChat.contactId}-${contactPanelKey}`}
+          chat={selectedChat}
+          onOpenFull={() => openContactDrawer(selectedChat.contactId)}
+          onChanged={() => void refreshChats()}
+        />
+      )}
+    </div>
   );
 
   return (

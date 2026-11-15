@@ -111,10 +111,24 @@ export async function GET(req: Request) {
       summary = { withoutTags, withoutConversation, withDeal: deals._count._all, dealValueCents: deals._sum.dealValueCents ?? 0 };
     }
 
+    // Un contacto sin etapa propia (QA-103) muestra la etapa del embudo
+    // principal que corresponde a su estado ("Nuevos", no "Nuevo"): la columna
+    // Etapa siempre habla con los nombres del Embudo.
+    const unplaced = contacts.some((c) => !c.pipelineStage);
+    const organizationId = unplaced ? await requireOrgId(session.user.id).catch(() => null) : null;
+    const defaultStages = organizationId
+      ? await prisma.pipelineStage.findMany({
+          where: { pipeline: { organizationId, isDefault: true }, leadStatus: { not: null } },
+          select: { name: true, leadStatus: true },
+        })
+      : [];
+    const stageByStatus = new Map(defaultStages.map((stage) => [stage.leadStatus, stage.name]));
+
     // Se aplana a un solo shape (accountId + chat + channel) para que la UI no
     // tenga que ramificar por canal — mismo criterio que GET /api/telegram/chats.
     const items = contacts.map(({ channelAccountId, channelAccount, conversation, ...c }) => ({
       ...c,
+      pipelineStage: c.pipelineStage ?? (stageByStatus.has(c.leadStatus) ? { name: stageByStatus.get(c.leadStatus)! } : null),
       accountId: c.accountId ?? channelAccountId ?? null,
       chat: c.chat ?? conversation,
       // Sin canal (contactos creados a mano antes de conectar WhatsApp): null.

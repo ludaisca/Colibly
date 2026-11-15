@@ -426,7 +426,7 @@ export default function SettingsPage() {
 
       {/* Guardado por sección: el nombre muestra una barra fija mientras tenga cambios. */}
       {nameDirty && (
-        <div role="region" aria-label="Cambios sin guardar" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface md:left-[232px]">
+        <div role="region" aria-label="Cambios sin guardar" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface pb-[env(safe-area-inset-bottom,0px)] md:left-[var(--sidebar-w,232px)]">
           <div className="flex max-w-3xl items-center gap-3 px-4 py-3 md:px-6">
             <p className="min-w-0 flex-1 text-sm font-medium">Cambios sin guardar</p>
             <Button variant="ghost" size="sm" onClick={() => { setNewName(user?.name ?? ""); setNameTouched(false); }}>Descartar</Button>

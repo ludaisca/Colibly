@@ -141,7 +141,7 @@ export function oldestLastMessageAt(chats: Array<{ lastMessageAt: string | null 
   return oldest;
 }
 
-export type ViewCounts = Record<"awaiting" | "mine" | "unassigned" | "all", number> & { sla?: number; teams?: number };
+export type ViewCounts = Record<"awaiting" | "mine" | "unassigned" | "all", number> & { sla?: number; teams?: number; snoozed?: number };
 
 /** Respuesta de GET /api/inbox/sync. */
 export interface InboxSyncResponse {

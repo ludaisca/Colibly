@@ -39,6 +39,7 @@ export async function GET(
         overLimit: true,
         dealValueCents: true,
         expectedCloseAt: true,
+        pipelineStageId: true,
         createdAt: true,
         updatedAt: true,
         tags: { select: { tag: { select: { id: true, name: true, color: true } } } },

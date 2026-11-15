@@ -11,6 +11,7 @@ import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { Modal } from "@/app/components/ui/modal";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SectionHeader } from "@/app/components/ui/section-header";
+import { Workbench, WorkbenchMain, WorkbenchAside, WorkbenchSection } from "@/app/components/ui/workbench";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { centsToPesos, formatMxn } from "@/lib/money";
@@ -263,8 +264,10 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
         <KpiStrip items={kpis} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="p-4 lg:col-span-2">
+      {/* Una superficie: agentes y canales en dos columnas separadas por un filete. */}
+      <Workbench ruled>
+        <WorkbenchMain>
+        <WorkbenchSection>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <SectionHeader eyebrow="Equipo" title="Por agente" />
             <Button variant="secondary" size="sm" icon={Download} onClick={exportAgents} disabled={data.agents.length === 0}>
@@ -282,9 +285,11 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
             emptyTitle="Sin actividad en el periodo"
             emptyDescription="Cambia el rango o espera a que el equipo cierre conversaciones."
           />
-        </Card>
+        </WorkbenchSection>
+        </WorkbenchMain>
 
-        <Card className="p-4">
+        <WorkbenchAside>
+        <WorkbenchSection>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <SectionHeader eyebrow="Canales" title="Volumen" />
             <Button variant="secondary" size="sm" icon={Download} onClick={exportChannels} disabled={data.channels.length === 0}>
@@ -299,11 +304,13 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
             emptyIcon={Users}
             emptyTitle="Sin chats en el periodo"
           />
-        </Card>
-      </div>
+        </WorkbenchSection>
+        </WorkbenchAside>
+      </Workbench>
 
+      {/* Sin tarjeta alrededor: la tira de KPIs ya es su propia superficie. */}
       {bot.chats > 0 && (
-        <Card className="space-y-3 p-4">
+        <section className="space-y-3">
           <SectionHeader eyebrow="Automatización" title="Bot de IA" />
           <p className="text-xs text-muted">
             Chats donde el bot respondió en el periodo. Traspaso = una persona escribió después del bot; resuelto por el bot = se
@@ -321,7 +328,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
               },
             ]}
           />
-        </Card>
+        </section>
       )}
 
       <div>
@@ -336,12 +343,12 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
         size="lg"
       >
         {agentModal && (
-          <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+          <div className="max-h-[60vh] divide-y divide-border overflow-y-auto">
             {agentModal.chats.length === 0 ? (
               <p className="text-sm text-muted">Sin chats en el periodo.</p>
             ) : (
               agentModal.chats.map((chat) => (
-                <div key={chat.id} className="rounded-lg border border-border bg-surface-light p-3">
+                <div key={chat.id} className="py-3 first:pt-0">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="min-w-0 truncate text-sm font-medium text-foreground">{chat.contactName}</p>
                     <span className="text-micro text-muted">{CHANNEL_LABEL[chat.channel] ?? chat.channel}</span>

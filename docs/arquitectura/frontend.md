@@ -171,3 +171,10 @@ Tesela (`/data/Proyectos/Tesela`, biblioteca propia de Custom Elements) **no se 
 - **Bots**: instrucciones con `ClampedText` (2 líneas + "Ver todo", QA-027); en "Probar" sin canal, "N de 10 pruebas" (QA-033); `GET /api/whatsapp/bots` devuelve `weeklyReplies`.
 - **Acceso** (`app/(auth)/layout.tsx`): columna de 400 px, logo arriba a la izquierda, título `text-page-title` ("Entra a Colibly" / "Crea tu cuenta"), campos y botón principal de 40 px; las tarjetas se aplanan con `data-auth-card`. Turnstile con `appearance: "interaction-only"` (QA-009).
 - **Configuración**: `SettingsBlock` (título/descripción 240 px + campos, filetes), subnavegación de 200 px (lista en el teléfono), `max-w-3xl` a la izquierda, barra fija "Cambios sin guardar" para el nombre.
+
+
+## Workbench `ruled` y ancho del menú (2026-11-15)
+
+- `<Workbench ruled>` + `WorkbenchSection`: una sola superficie con las dos columnas separadas por un filete y las secciones por filetes horizontales — sin tarjeta dentro de tarjeta (Estadísticas, Reportes). El `Workbench` normal (tarjetas sueltas) sigue para el Panel.
+- `AppShell` expone `--sidebar-w` (232 px o 4 rem colapsado) en su raíz: lo fijo a la derecha del menú (la barra "Cambios sin guardar" de Configuración) usa `md:left-[var(--sidebar-w,232px)]`, nunca un ancho literal.
+- En el teléfono, con la barra de accesos inferior, `<main>` deja abajo su alto + `env(safe-area-inset-bottom)`.

@@ -104,7 +104,10 @@ export function CitasView() {
   const [scopeFilter, setScopeFilter] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<AppointmentDetail | null>(null);
+  // Agenda por defecto en todos los tamaños (también en el teléfono).
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  // Día tocado en la vista Mes del teléfono (QA-104): sus citas se listan debajo.
+  const [pickedDay, setPickedDay] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const date = new Date();
     return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -209,7 +212,9 @@ export function CitasView() {
     return Array.from({ length: 42 }, (_, index) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + index));
   }, [calendarMonth]);
 
-  const calendarTitle = calendarMonth.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+  // "Noviembre de 2026" (no "Noviembre De 2026", que dejaba `capitalize`).
+  const calendarLabel = calendarMonth.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+  const calendarTitle = calendarLabel.charAt(0).toUpperCase() + calendarLabel.slice(1);
   const todayKey = localDateKey(now);
 
   const contactFilterLabel = contactIdParam
@@ -301,7 +306,7 @@ export function CitasView() {
               aria-label="Mes anterior"
               onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
             />
-            <p className="text-title capitalize text-foreground">{calendarTitle}</p>
+            <p className="text-title text-foreground">{calendarTitle}</p>
             <Button
               variant="secondary"
               size="sm"
@@ -324,12 +329,16 @@ export function CitasView() {
                 return (
                   <div
                     key={key}
+                    // En el teléfono la celda solo muestra un punto: tocarla lista
+                    // las citas del día debajo del calendario (QA-104).
+                    onClick={() => setPickedDay(key)}
                     className={cn(
                       // 48 px en el teléfono (el mes entra completo a 390 px); en
                       // pantallas anchas cabe la lista de citas del día.
-                      "min-h-12 border-b border-r border-border p-1 sm:min-h-24 sm:p-1.5",
+                      "min-h-12 cursor-pointer border-b border-r border-border p-1 sm:min-h-24 sm:cursor-default sm:p-1.5",
                       !inMonth && "bg-surface-light/40",
-                      key === todayKey && "bg-surface-light"
+                      key === todayKey && "bg-surface-light",
+                      key === pickedDay && "ring-2 ring-inset ring-accent-muted sm:ring-0"
                     )}
                   >
                     <div className="flex items-center justify-between gap-1">
@@ -362,7 +371,40 @@ export function CitasView() {
               })}
             </div>
           </div>
-          <p className="text-xs text-muted">Haz clic en una cita para editarla. El calendario respeta los filtros activos.</p>
+          {/* Teléfono: citas del día tocado (o un aviso para tocar uno). */}
+          <div className="sm:hidden">
+            {pickedDay ? (
+              <div className="space-y-2">
+                <SectionHeader title={dayLabel(`${pickedDay}T12:00:00`)} />
+                {(appointmentsByDay.get(pickedDay) ?? []).length === 0 ? (
+                  <p className="text-sm text-muted">Sin citas este día.</p>
+                ) : (
+                  <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+                    {(appointmentsByDay.get(pickedDay) ?? []).map((appointment) => (
+                      <button
+                        key={appointment.id}
+                        type="button"
+                        onClick={() => { setEditing(appointment); setModalOpen(true); }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                      >
+                        <span className="w-12 shrink-0 text-sm tabular-nums text-muted">
+                          {new Date(appointment.scheduledAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-foreground">{appointment.title}</span>
+                          <span className="block truncate text-xs text-muted">{contactLabelOf(appointment.contact)}</span>
+                        </span>
+                        <Badge tone={STATUS_BADGE[appointment.status].tone} size="sm">{STATUS_BADGE[appointment.status].label}</Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted">Toca un día para ver sus citas.</p>
+            )}
+          </div>
+          <p className="hidden text-xs text-muted sm:block">Haz clic en una cita para editarla. El calendario respeta los filtros activos.</p>
         </div>
       ) : (
         <div className="space-y-5">

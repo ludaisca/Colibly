@@ -3,7 +3,7 @@
 import { Tooltip } from "@/app/components/ui/tooltip";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { FormatToolbar } from "@/app/components/ui/format-toolbar";
-import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check, Image as ImageIcon } from "lucide-react";
+import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check, MessageSquareText, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
@@ -401,41 +401,11 @@ export function ChatComposer({
           <Button type="button" size="sm" icon={Check} onClick={() => finishRecording(false)}>Adjuntar</Button>
         </div>
       ) : (
-      <div className="flex items-end gap-1">
-        <div className="flex min-w-0 items-center" aria-label="Herramientas del mensaje">
-          {supportsAttachments && (
-            <Tooltip label={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar"}><button
-              type="button"
-              onClick={onPickFile}
-              disabled={sending || attachmentsDisabled}
-              className={TOOL_BUTTON}
-              aria-label="Adjuntar archivo"
-            >
-              <Paperclip size={18} />
-            </button></Tooltip>
-          )}
-          <ChatAiMenu
-            chatId={chatId}
-            draft={newMessage}
-            supportsSuggestions={supportsSuggestions}
-            disabled={sending}
-            onInsert={insertSuggestion}
-          />
-          {(channel === "WHATSAPP" || !!onOpenTemplates) && (
-            <ChatMoreMenu
-              channel={channel}
-              disabled={sending}
-              supportsButtons={supportsButtons}
-              buttonsPanelOpen={buttonsPanelOpen}
-              buttonsDisabled={interactiveDisabled}
-              onToggleButtons={toggleButtons}
-              onOpenTemplates={onOpenTemplates}
-              onSendSticker={onSendSticker}
-              stickersDisabled={sending || !!attachment || interactiveButtons.length > 0}
-            />
-          )}
-        </div>
-        <div className="relative flex min-w-[8rem] flex-1">
+      // Compositor (dirección congelada nov 2026): una caja blanca de radio 8
+      // con el texto arriba y debajo herramientas calladas (Respuestas,
+      // Plantilla, Adjuntar, IA); "Enviar" es el único primario.
+      <div className="rounded-md border border-border-strong bg-surface transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-subtle">
+        <div className="relative">
         {/* Formato de WhatsApp (*negrita*…) sobre lo seleccionado; los otros
             canales mandan texto plano, así que ahí no se ofrece. */}
         {channel === "WHATSAPP" && <FormatToolbar textareaRef={messageInputRef} value={newMessage} onChange={onMessageChange} />}
@@ -477,36 +447,88 @@ export function ChatComposer({
                 : "Escribe un mensaje"
           }
           data-focus-ring=""
-          className="max-h-32 min-h-9 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="block max-h-32 min-h-10 w-full resize-none bg-transparent px-3 pb-1 pt-2.5 text-base text-foreground placeholder:text-subtle focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           disabled={sending}
         />
         </div>
-        {canRecord && !attachment && interactiveButtons.length === 0 && (
-          <Tooltip label="Grabar audio"><button
+        <div className="flex items-center gap-0.5 px-1.5 pb-1.5" aria-label="Herramientas del mensaje">
+          <Tooltip label="Respuestas rápidas (/)"><button
             type="button"
-            onClick={() => void startRecording()}
+            onClick={() => { onMessageChange("/"); onCannedIndexChange(0); messageInputRef.current?.focus(); }}
             disabled={sending}
             className={TOOL_BUTTON}
-            aria-label="Grabar audio"
+            aria-label="Respuestas rápidas"
           >
-            <Mic size={18} />
+            <MessageSquareText size={18} />
           </button></Tooltip>
-        )}
-        <Button
-          type="submit"
-          aria-label="Enviar mensaje"
-          icon={sending ? undefined : Send}
-          size="md"
-          className="shrink-0"
-          disabled={
-            (!newMessage.trim() && !attachment && interactiveButtons.length === 0) ||
-            (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((t) => !t.trim()))) ||
-            sending
-          }
-          title="Enviar"
-        >
-          {sending ? <Spinner /> : "Enviar"}
-        </Button>
+          {onOpenTemplates && (
+            <Tooltip label="Plantilla"><button
+              type="button"
+              onClick={onOpenTemplates}
+              disabled={sending}
+              className={TOOL_BUTTON}
+              aria-label="Enviar plantilla"
+            >
+              <FileText size={18} />
+            </button></Tooltip>
+          )}
+          {supportsAttachments && (
+            <Tooltip label={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar"}><button
+              type="button"
+              onClick={onPickFile}
+              disabled={sending || attachmentsDisabled}
+              className={TOOL_BUTTON}
+              aria-label="Adjuntar archivo"
+            >
+              <Paperclip size={18} />
+            </button></Tooltip>
+          )}
+          <ChatAiMenu
+            chatId={chatId}
+            draft={newMessage}
+            supportsSuggestions={supportsSuggestions}
+            disabled={sending}
+            onInsert={insertSuggestion}
+          />
+          {(channel === "WHATSAPP" || !!onOpenTemplates) && (
+            <ChatMoreMenu
+              channel={channel}
+              disabled={sending}
+              supportsButtons={supportsButtons}
+              buttonsPanelOpen={buttonsPanelOpen}
+              buttonsDisabled={interactiveDisabled}
+              onToggleButtons={toggleButtons}
+              onSendSticker={onSendSticker}
+              stickersDisabled={sending || !!attachment || interactiveButtons.length > 0}
+            />
+          )}
+          {canRecord && !attachment && interactiveButtons.length === 0 && (
+            <Tooltip label="Grabar audio"><button
+              type="button"
+              onClick={() => void startRecording()}
+              disabled={sending}
+              className={TOOL_BUTTON}
+              aria-label="Grabar audio"
+            >
+              <Mic size={18} />
+            </button></Tooltip>
+          )}
+          <Button
+            type="submit"
+            aria-label="Enviar mensaje"
+            icon={sending ? undefined : Send}
+            size="sm"
+            className="ml-auto shrink-0"
+            disabled={
+              (!newMessage.trim() && !attachment && interactiveButtons.length === 0) ||
+              (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((t) => !t.trim()))) ||
+              sending
+            }
+            title="Enviar"
+          >
+            {sending ? <Spinner /> : "Enviar"}
+          </Button>
+        </div>
       </div>
       )}
     </form>

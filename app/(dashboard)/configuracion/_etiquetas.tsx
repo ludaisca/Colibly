@@ -107,7 +107,7 @@ export function EtiquetasSection() {
                 aria-label={`Nombre de la etiqueta ${tag.name}`}
                 defaultValue={tag.name}
                 maxLength={50}
-                className="min-w-0 flex-1"
+                className="min-w-[10rem] flex-1"
                 onBlur={(event) => {
                   const name = event.target.value.trim();
                   if (name && name !== tag.name) void update(tag, { name });

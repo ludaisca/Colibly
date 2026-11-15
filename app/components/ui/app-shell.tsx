@@ -310,7 +310,12 @@ export function AppShell({
   }, []);
 
   return (
-    <div className={cn("flex bg-background", immersive ? "h-svh" : "min-h-svh")}>
+    // --sidebar-w: ancho real del menú (colapsado o no) para lo que se fija
+    // abajo a la derecha de él, como la barra "Cambios sin guardar".
+    <div
+      className={cn("flex bg-background", immersive ? "h-svh" : "min-h-svh")}
+      style={{ "--sidebar-w": collapsed ? "4rem" : "232px" } as React.CSSProperties}
+    >
       <a
         href="#contenido-principal"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100001] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-3 focus:text-foreground focus:shadow-lg"
@@ -406,7 +411,10 @@ export function AppShell({
           tabIndex={-1}
           className={cn(
             "flex-1 ",
-            immersive ? "flex flex-col min-h-0 overflow-hidden" : "px-4 py-4 md:px-6 md:py-5"
+            immersive ? "flex flex-col min-h-0 overflow-hidden" : "px-4 py-4 md:px-6 md:py-5",
+            // En el teléfono la barra de accesos queda pegada abajo: el final de
+            // la página deja su alto (56 px) + el área segura libres.
+            !immersive && mobileTabs && mobileTabs.length > 0 && "max-md:pb-[calc(3.5rem+1rem+env(safe-area-inset-bottom,0px))]"
           )}
         >
           {/* Sin contenedor centrado de 6XL: listas y tablas a todo lo ancho

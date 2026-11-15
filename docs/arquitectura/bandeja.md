@@ -169,3 +169,11 @@ Por organización, apagado por defecto: Configuración → IA y operación → "
 ## Orden de la lista: espera y más antiguos (2026-11-11)
 
 El orden vive en la base y el cliente lo repite igual: `lib/chats/query.ts:chatListOrderBy(filters)` (GET `/api/whatsapp/chats`, canales y `/api/inbox/sync`) y `lib/chats/sort.ts:chatRowComparator()` (mezcla de canales, sync y `visibleChats`). Con `awaiting=1`: `waitingSince` asc (quien lleva más esperando arriba) con desempate por `lastMessageAt` e `id`; con `sort=oldest` en Todos: último mensaje más viejo arriba; por defecto, el más reciente. Antes solo se reordenaba lo ya cargado y, con cientos de chats, los que más esperaban no entraban en la primera página. Cada fila con `waitingSince` (no resuelta) muestra `WaitingBadge` ("espera 3 h", ámbar desde 15 min y rojo desde 60) también en Todos; `sort` viaja en la URL y en las vistas guardadas.
+
+
+## Conversación: encabezado, ficha derecha y compositor (2026-11-15)
+
+- **Encabezado** (`chat-conversation-header.tsx`): 56 px — avatar, nombre (`text-title`) y número `tabular-nums` (WhatsApp), "Asignado a" (`ChatAssigneePicker`, desde `md`), **Marcar venta** (PATCH del contacto a `CUSTOMER`; ya ganado muestra el badge "Venta ganada", perdido "Perdido"), botón de ficha (xl) y menú ⋯ (detalles, macro, llamar, resolver). La antigua "ruta de la venta" (Andén) se quitó: la etapa vive en la ficha.
+- **Ficha derecha** (`chat-contact-panel.tsx`): 288 px, solo `xl`, secciones plegables (`<details>`): Contacto (etiquetas, "Ficha completa" abre `ContactDrawer`), Trato (etapa editable del embudo del contacto o el principal; sin etapa propia, la que corresponde a su estado; el rol ejecutivo, sin acceso a embudos, cambia el estado), Próxima cita (+ "Agendar cita"), Notas, Historial (`ContactTimeline`). Abierta por defecto; la preferencia es por navegador (`colibly:chat-contact-panel`).
+- **Compositor**: una caja blanca radio 8 (`border-border-strong`, foco acento + anillo) con el texto arriba y herramientas calladas abajo — Respuestas (escribe `/` y abre las respuestas rápidas), Plantilla (WhatsApp), Adjuntar, IA, más (botones/stickers), audio — y **Enviar** como único primario.
+- **"Después"** tiene contador: `ViewCounts.snoozed` (activos pospuestos, mismos builders que la lista, `lib/chats/counts.ts`).
