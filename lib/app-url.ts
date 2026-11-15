@@ -30,3 +30,10 @@ export function isAppHost(host: string | null): boolean {
 export function siteHref(path: string, onAppHost: boolean): string {
   return onAppHost ? siteUrl(path) : path;
 }
+
+/** ¿La petición llega al host del sitio público, con sitio y app en dominios distintos? */
+export function isSiteHost(host: string | null): boolean {
+  const site = hostOf(process.env.SITE_URL);
+  const app = hostOf(process.env.APP_URL);
+  return !!site && !!app && site !== app && (host === site || host === `www.${site}`);
+}

@@ -147,7 +147,7 @@ export default function LandingPage() {
             items={HERO_THREAD}
             footer={
               <>
-                <QuickReply href="/register" primary track="hero">
+                <QuickReply href={appUrl("/register")} primary track="hero">
                   {CTA}, sin tarjeta
                 </QuickReply>
                 <QuickReply href="#precios">Ver precios · desde ${OFFER_FROM_MXN} MXN</QuickReply>
@@ -249,7 +249,7 @@ export default function LandingPage() {
               footer={<QuickReply href="/precios#comparar">Compara los planes</QuickReply>}
             />
           </div>
-          <LandingOffer cta={CTA} />
+          <LandingOffer cta={CTA} registerHref={appUrl("/register")} />
         </div>
       </section>
 
@@ -299,7 +299,7 @@ export default function LandingPage() {
                 { kind: "note", text: <span className="inline-flex items-center gap-2">Esperando respuesta <WaitClock clock="0:16" spoken="16 minutos" lamp="warning" /></span> },
               ]}
               footer={
-                <QuickReply href="/register" primary track="cierre">
+                <QuickReply href={appUrl("/register")} primary track="cierre">
                   {CTA}, sin tarjeta
                 </QuickReply>
               }

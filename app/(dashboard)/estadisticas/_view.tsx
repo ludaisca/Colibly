@@ -302,14 +302,14 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
             <div className="mt-3 space-y-4">
               <QualifiedLabelDonut data={stats.qualifiedChats.byLabel} labelText={LABEL_TEXT} total={stats.qualifiedChats.total} />
               {/* Deduplicado por chat (mejor score) — por eso puede no coincidir
-                  con la pestaña "Leads calificados", que lista cada evaluación. */}
+                  con la pestaña "Contactos calificados", que lista cada evaluación. */}
               <p className="text-xs text-muted" title="Chats únicos con al menos una calificación — no evaluaciones individuales">
                 {stats.qualifiedChats.total} chats únicos, no evaluaciones
               </p>
 
               {stats.qualifiedChatsByCampaign.length > 0 && (
                 <div className="space-y-2 pt-2">
-                  <p className="text-eyebrow font-medium text-muted-darker">Por campaña</p>
+                  <p className="text-micro font-medium text-muted-darker">Por campaña</p>
                   <HorizontalBarChart
                     data={stats.qualifiedChatsByCampaign.map((c) => ({ id: c.id ?? "__none__", label: c.name, value: c.count }))}
                     color="var(--accent)"

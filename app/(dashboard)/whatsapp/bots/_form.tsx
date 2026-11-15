@@ -275,7 +275,7 @@ export function BotFormModal({ open, onClose, editId = null, onSaved, preset = n
               <div className="flex items-center justify-between py-2">
                 <div>
                   <p className="text-sm font-medium">Agendar citas automáticamente</p>
-                  <p className="text-xs text-muted-darker">Cuando el lead confirma fecha y hora en la conversación, el bot crea la cita solo — se avisa al agente asignado, sin pasos manuales. Solo disponible para cuentas de WhatsApp.</p>
+                  <p className="text-xs text-muted-darker">Cuando el contacto confirma fecha y hora en la conversación, el bot crea la cita solo — se avisa al agente asignado, sin pasos manuales. Solo disponible para cuentas de WhatsApp.</p>
                 </div>
                 <Switch checked={appointmentSchedulingEnabled} onCheckedChange={setAppointmentSchedulingEnabled} label="Agendar citas automáticamente" />
               </div>

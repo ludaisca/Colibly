@@ -5,7 +5,7 @@ export default function CalificadoresLoading() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Calificadores de Leads"
+        title="Calificadores de contactos"
       />
 
       <div className="flex gap-1 border-b border-border">

@@ -15,12 +15,15 @@ const fail = (msg) => { console.error("FALLA:", msg); process.exitCode = 1; };
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 const page = await ctx.newPage();
-await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
+// "load" + espera de hidratación: con el dev server, networkidle no siempre llega (HMR).
+await page.goto(`${BASE}/login`, { waitUntil: "load" });
+await page.waitForTimeout(2500);
 await page.fill('input[type="email"]', process.env.QA_EMAIL);
 await page.fill('input[type="password"]', process.env.QA_PASSWORD);
 await page.press('input[type="password"]', "Enter");
 await page.waitForURL(/dashboard|whatsapp|ventas/);
-await page.goto(`${BASE}/ventas`, { waitUntil: "networkidle" });
+await page.goto(`${BASE}/ventas`, { waitUntil: "load" });
+await page.waitForTimeout(2500);
 
 const cdp = await ctx.newCDPSession(page);
 const touch = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
@@ -65,7 +68,8 @@ await page.waitForTimeout(150);
 await touch("touchEnd");
 await page.waitForTimeout(2500);
 if (patches.length !== 1) fail(`se esperaba 1 PATCH, hubo ${patches.length}`);
-await page.reload({ waitUntil: "networkidle" });
+await page.reload({ waitUntil: "load" });
+await page.waitForTimeout(2500);
 await page.locator(`[data-stage-tab="${to}"]`).click();
 if (!(await byLabel(`[data-stage="${to}"]`).count())) fail("la etapa nueva no persistió al recargar");
 

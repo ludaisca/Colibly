@@ -33,7 +33,7 @@ const WHATSAPP_WINDOW_MINUTES = 24 * 60;
 
 const TRIGGER_LABEL: Record<string, string> = {
   TAG_ADDED: "Se agrega una etiqueta",
-  LEAD_STATUS_CHANGED: "El estado del lead cambia a",
+  LEAD_STATUS_CHANGED: "El estado del contacto cambia a",
   APPOINTMENT_COMPLETED: "Se completa una cita",
 };
 
@@ -236,7 +236,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved, prese
           )}
 
           <FormField label="Nombre" error={errors.name}>
-            {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Bienvenida a nuevos leads" />}
+            {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Bienvenida a nuevos contactos" />}
           </FormField>
 
           <FormField label="Cuenta" error={errors.accountId}>

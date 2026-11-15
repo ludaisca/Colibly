@@ -78,7 +78,7 @@ export function Builder(props: BuilderProps) {
         >
           <IconBox icon={TriggerIcon} size="sm" tone="neutral" />
           <div className="min-w-0 flex-1">
-            <p className="text-eyebrow font-medium text-muted-darker">Cuando</p>
+            <p className="text-micro font-medium text-muted-darker">Cuando</p>
             <p className="truncate text-sm font-medium text-foreground">{TRIGGER_META[props.graph.trigger.type].label}</p>
             <p className="truncate text-xs text-muted">{triggerSummary(props.graph.trigger)}</p>
           </div>
@@ -197,7 +197,7 @@ export function StepPicker({
       <div className="space-y-5">
         {GROUPS.map((group) => (
           <section key={group}>
-            <p className="mb-2 text-eyebrow font-medium text-muted-darker">{group}</p>
+            <p className="mb-2 text-micro font-medium text-muted-darker">{group}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {(Object.entries(STEP_META) as [StepType, (typeof STEP_META)[StepType]][])
                 .filter(([, m]) => m.group === group)

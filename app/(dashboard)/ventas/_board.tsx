@@ -297,14 +297,14 @@ export function PipelineBoard({
       if (stageId === onlyStaleStageId) params.set("detenidos", "1");
       const response = await fetch(`/api/pipelines/${pipelineId}/stages/${stageId}/cards?${params}`);
       const body = await response.json().catch(() => ({}));
-      if (!response.ok || !Array.isArray(body.cards)) throw new Error(typeof body.error === "string" ? body.error : "No se pudieron cargar más leads");
+      if (!response.ok || !Array.isArray(body.cards)) throw new Error(typeof body.error === "string" ? body.error : "No se pudieron cargar más contactos");
       setBoardData((currentBoard) => {
         const loaded = currentBoard[stageId] ?? [];
         const seen = new Set(loaded.map((card) => card.id));
         return { ...currentBoard, [stageId]: [...loaded, ...(body.cards as LeadCardData[]).filter((card) => !seen.has(card.id))] };
       });
     } catch (error) {
-      toastError(error instanceof Error ? error.message : "No se pudieron cargar más leads");
+      toastError(error instanceof Error ? error.message : "No se pudieron cargar más contactos");
     } finally {
       setLoadingStage(null);
     }

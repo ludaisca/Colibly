@@ -79,7 +79,7 @@ export function ApiDocsSection() {
   -H "Content-Type: application/json" \\
   -d '{ "accountId": "<id de la cuenta>", "phone": "5215512345678", "name": "Ana López",
         "tags": ["Web"], "customFields": { "tipo_piel": "Mixta" } }'`}</Code>
-        <p className="text-sm text-muted">Mover el lead de etapa (dispara Meta Ads, secuencias y webhooks como el Pipeline):</p>
+        <p className="text-sm text-muted">Mover el contacto de etapa (dispara Meta Ads, secuencias y webhooks como el Pipeline):</p>
         <Code>{`curl -X PATCH ${base}/contacts/<contactId> \\
   -H "Authorization: Bearer $COLIBLY_API_KEY" -H "Content-Type: application/json" \\
   -d '{ "leadStatus": "CUSTOMER" }'`}</Code>

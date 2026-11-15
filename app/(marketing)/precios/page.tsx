@@ -41,7 +41,7 @@ export default function PricingPage() {
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:py-10 md:px-6 md:py-14">
-        <LandingOffer cta={CTA} compare />
+        <LandingOffer cta={CTA} registerHref={appUrl("/register")} compare />
       </div>
 
       <section className="border-t border-border bg-surface">

@@ -106,7 +106,7 @@ export function TriggerEditor({
         </FormField>
       )}
       {trigger.type === "lead_status_changed" && (
-        <FormField label="Cuando el lead pasa a">
+        <FormField label="Cuando el contacto pasa a">
           {(id) => (
             <Select id={id} value={trigger.status} onChange={(e) => onChange({ ...trigger, status: e.target.value as typeof trigger.status })}>
               {Object.entries(LEAD_STATUS_LABEL).map(([v, l]) => (

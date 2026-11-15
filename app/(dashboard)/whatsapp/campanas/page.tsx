@@ -245,10 +245,10 @@ function AutomationTab() {
     try {
       const res = await fetch("/api/whatsapp/lead-sheet-sources");
       const data = await res.json();
-      if (!res.ok || !Array.isArray(data)) throw new Error(data?.error ?? "Error al cargar las fuentes de leads");
+      if (!res.ok || !Array.isArray(data)) throw new Error(data?.error ?? "Error al cargar las fuentes de contactos");
       setSources(data);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Error al cargar las fuentes de leads");
+      setLoadError(error instanceof Error ? error.message : "Error al cargar las fuentes de contactos");
     } finally {
       setLoading(false);
     }
@@ -301,7 +301,7 @@ function AutomationTab() {
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-darker max-w-xl">
           Conecta una hoja de Google Sheets (por ejemplo, la que Facebook Lead Ads sincroniza por ti) y dispara
-          automáticamente una plantilla apenas aparezca un lead nuevo. Se revisa cada 5 minutos, dentro del horario
+          automáticamente una plantilla apenas aparezca un contacto nuevo. Se revisa cada 5 minutos, dentro del horario
           laboral configurado en Configuración.
         </p>
         <Button href="/whatsapp/campanas/automatizacion/nueva" icon={Plus} size="sm" className="shrink-0">
@@ -316,8 +316,8 @@ function AutomationTab() {
         error={loadError}
         onRetry={fetchSources}
         emptyIcon={Workflow}
-        emptyTitle="Sin fuentes de leads"
-        emptyDescription="Conecta una hoja de Google Sheets para disparar plantillas automáticamente a leads nuevos."
+        emptyTitle="Sin fuentes de contactos"
+        emptyDescription="Conecta una hoja de Google Sheets para disparar plantillas automáticamente a contactos nuevos."
         rowHref={(s) => `/whatsapp/campanas/automatizacion/${s.id}`}
         renderRow={(s) => (
           <>
@@ -385,7 +385,7 @@ function AutomationTab() {
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
         loading={deleting}
-        title="Eliminar fuente de leads"
+        title="Eliminar fuente de contactos"
         description="Se dejará de revisar esta hoja. Los chats y contactos ya creados no se eliminan."
         confirmLabel="Eliminar"
         tone="danger"

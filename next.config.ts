@@ -29,7 +29,10 @@ const CSP = [
   // WebRTC (llamadas de WhatsApp) no pasa por connect-src: el STUN y el audio
   // los resuelve el navegador fuera de CSP. Poner "stun:" aquí era una fuente
   // inválida que Chrome ignoraba y reportaba en consola en cada carga.
-  `connect-src 'self' ${[...META, ...GOOGLE_BEACON].join(" ")}`,
+  // Turnstile también en connect-src (lo pide Cloudflare con CSP estricta).
+  // Los "Connecting to 'data:,'" del registro salen del iframe de Turnstile,
+  // con su propia CSP: nuestra cabecera no los puede quitar.
+  `connect-src 'self' ${[...META, ...GOOGLE_BEACON, TURNSTILE].join(" ")}`,
   `frame-src ${TURNSTILE} ${META_FRAMES.join(" ")} https://td.doubleclick.net https://www.googletagmanager.com`,
 ].join("; ");
 

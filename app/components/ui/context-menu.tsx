@@ -38,7 +38,7 @@ function Entries({ items }: { items: ContextMenuEntry[] }) {
       {items.map((entry, index) => {
         if (entry.type === "separator") return <Base.Separator key={index} className="mx-1 my-1 h-px bg-border" />;
         if (entry.type === "label") {
-          return <div key={index} className="truncate px-2 pb-1 pt-1.5 text-eyebrow text-muted-darker">{entry.label}</div>;
+          return <div key={index} className="truncate px-2 pb-1 pt-1.5 text-micro text-muted-darker">{entry.label}</div>;
         }
         if (entry.type === "submenu") {
           const Icon = entry.icon;

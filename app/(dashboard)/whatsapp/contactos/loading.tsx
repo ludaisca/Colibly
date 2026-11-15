@@ -4,7 +4,7 @@ export default function ContactosLoading() {
   return (
     <ListPageSkeleton
       title="Contactos"
-      description="Etiquetas, estado de lead y notas por contacto."
+      description="Etiquetas, etapa y notas de cada contacto."
       rows={7}
     />
   );

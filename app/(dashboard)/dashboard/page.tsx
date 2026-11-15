@@ -17,6 +17,7 @@ import { plural } from "@/lib/format/plural";
 import { botDisplayStatus, BOT_DISPLAY_STATUS_LABEL } from "@/lib/bots/display-status";
 import { stageSummaries } from "@/lib/pipeline/board";
 import { ensureDefaultPipeline } from "@/lib/pipeline/ensure";
+import { outcomeScopeWhere } from "@/lib/pipeline/outcome-scope";
 import { formatMxn } from "@/lib/money";
 import { KpiStrip, type KpiItem } from "@/app/components/ui/kpi-strip";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -97,12 +98,22 @@ export default async function DashboardPage() {
     channelAccountIds.length ? prisma.conversation.aggregate({ where: chWaiting, _count: { _all: true }, _min: { waitingSince: true } }) : null,
     accountIds.length ? prisma.wAChat.count({ where: { accountId: { in: accountIds }, createdAt: { gte: todayStart } } }) : 0,
     channelAccountIds.length ? prisma.conversation.count({ where: { channelAccountId: { in: channelAccountIds }, createdAt: { gte: todayStart } } }) : 0,
-    accountIds.length ? prisma.wAChat.findMany({ where: waWaiting, orderBy: { waitingSince: "asc" }, take: 6, select: { ...chatSelect, accountId: true } }) : [],
+    accountIds.length ? prisma.wAChat.findMany({ where: waWaiting, orderBy: { waitingSince: "asc" }, take: 6, select: { ...chatSelect, accountId: true, remoteJid: true } }) : [],
     channelAccountIds.length ? prisma.conversation.findMany({ where: chWaiting, orderBy: { waitingSince: "asc" }, take: 6, select: { ...chatSelect, channelAccountId: true, externalId: true } }) : [],
     accountIds.length ? prisma.wAChat.findMany({ where: { accountId: { in: accountIds }, waitingSince: null }, orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } }, take: 5, select: { ...chatSelect, accountId: true, remoteJid: true } }) : [],
     channelAccountIds.length ? prisma.conversation.findMany({ where: { channelAccountId: { in: channelAccountIds }, waitingSince: null }, orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } }, take: 5, select: { ...chatSelect, channelAccountId: true, externalId: true } }) : [],
     hasChannel ? firstResponseRows(accountIds, channelAccountIds, responseSince).catch(() => []) : [],
-    prisma.leadOutcomeEvent.count({ where: { organizationId, outcome: "WON", createdAt: { gte: monthAgo } } }),
+    // Mismo alcance que el resto del panel: el admin ve toda la organización;
+    // los demás, las ventas de sus contactos (o de sus cuentas si el contacto
+    // se borró: outcome-scope.ts).
+    prisma.leadOutcomeEvent.count({
+      where: {
+        organizationId,
+        outcome: "WON",
+        createdAt: { gte: monthAgo },
+        ...(isAdmin ? {} : outcomeScopeWhere({ accountIds, channelAccountIds, organizationId, isAdmin: false })),
+      },
+    }),
     prisma.wAAppointment.findMany({
       where: { status: "SCHEDULED", scheduledAt: { gte: todayStart, lt: tomorrowStart }, contact: { ...(await contactScopeWhere(userId)) } },
       orderBy: { scheduledAt: "asc" },
@@ -126,7 +137,7 @@ export default async function DashboardPage() {
   const firstResponse = summarizeResponses(responses.map((row) => row.minutes));
 
   const waitingChats = [
-    ...waitingWa.map((c) => ({ id: c.id, href: `/whatsapp/chat/${c.accountId}/${c.id}`, accountId: c.accountId, name: displayName(c.name, null), preview: c.lastMessage, waitingSince: c.waitingSince })),
+    ...waitingWa.map((c) => ({ id: c.id, href: `/whatsapp/chat/${c.accountId}/${c.id}`, accountId: c.accountId, name: displayName(c.name, c.remoteJid), preview: c.lastMessage, waitingSince: c.waitingSince })),
     ...waitingCh.map((c) => ({ id: c.id, href: `/whatsapp/chat/${c.channelAccountId}/${c.id}`, accountId: c.channelAccountId, name: displayName(c.name, c.externalId), preview: c.lastMessage, waitingSince: c.waitingSince })),
   ].sort((a, b) => (a.waitingSince?.getTime() ?? 0) - (b.waitingSince?.getTime() ?? 0)).slice(0, 6);
   const recentChats = [

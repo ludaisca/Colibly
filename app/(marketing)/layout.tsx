@@ -88,7 +88,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
               <Button href={appUrl("/login")} variant="ghost">Entrar</Button>
             </span>
             <Button
-              href="/register"
+              href={appUrl("/register")}
               data-track="cta"
               data-track-location="header"
               className="!h-9 !px-3 !text-xs min-[400px]:!h-10 min-[400px]:!px-4 min-[400px]:!text-sm"
@@ -98,7 +98,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
             <span className="hidden sm:contents">
               <ThemeToggle />
             </span>
-            <SiteMobileNav links={NAV_LINKS.map((link) => ({ href: siteHref(link.path, onAppHost), label: link.label }))} loginHref={appUrl("/login")} ctaHref="/register" ctaLabel={`Prueba ${TRIAL_DAYS} días de Pro`} trackLocation="menu" label="Menú principal" />
+            <SiteMobileNav links={NAV_LINKS.map((link) => ({ href: siteHref(link.path, onAppHost), label: link.label }))} loginHref={appUrl("/login")} ctaHref={appUrl("/register")} ctaLabel={`Prueba ${TRIAL_DAYS} días de Pro`} trackLocation="menu" label="Menú principal" />
           </div>
         </div>
       </header>

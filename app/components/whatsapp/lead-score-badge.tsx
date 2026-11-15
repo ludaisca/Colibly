@@ -111,14 +111,14 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
         body: JSON.stringify({ scorerId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error al calificar el lead");
+      if (!res.ok) throw new Error(data.error ?? "Error al calificar el contacto");
       setScores((prev) => {
         const next = prev.filter((s) => s.scorerId !== data.scorerId);
         return [data, ...next];
       });
       setSelectedScoreId(data.id);
     } catch (err) {
-      toastError(err instanceof Error ? err.message : "Error al calificar el lead");
+      toastError(err instanceof Error ? err.message : "Error al calificar el contacto");
     } finally {
       setLoading(false);
     }
@@ -136,7 +136,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
   return (
     <Dropdown
       panel
-      panelLabel="Calificación del lead"
+      panelLabel="Calificación del contacto"
       open={open}
       onOpenChange={setOpen}
       align="right"
@@ -150,7 +150,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
             size="sm"
           />
         ) : (
-          <DropdownButton label="Calificar lead" icon={AiMark} size="sm" />
+          <DropdownButton label="Calificar contacto" icon={AiMark} size="sm" />
         )
       }
     >

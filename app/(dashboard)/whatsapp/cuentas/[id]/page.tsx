@@ -128,7 +128,7 @@ const SCORE_LABEL_OPTIONS = [
 ];
 const CONDITION_TYPE_LABEL: Record<RoutingRule["conditionType"], string> = {
   TAG: "Etiqueta",
-  LEAD_ORIGIN: "Origen del lead",
+  LEAD_ORIGIN: "Origen del contacto",
   SCORE_LABEL: "Calificación de IA",
 };
 
@@ -725,7 +725,7 @@ export default function CuentaDetailPage() {
                   className="w-40"
                 >
                   <option value="TAG">Etiqueta</option>
-                  <option value="LEAD_ORIGIN">Origen del lead</option>
+                  <option value="LEAD_ORIGIN">Origen del contacto</option>
                   <option value="SCORE_LABEL">Calificación de IA</option>
                 </Select>
 

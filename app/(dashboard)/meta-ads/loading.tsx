@@ -4,7 +4,7 @@ export default function MetaAdsLoading() {
   return (
     <ListPageSkeleton
       title="Meta Ads"
-      description="Páginas que reciben leads de anuncios; le avisamos a Meta cuáles resultaron buenos."
+      description="Páginas que reciben contactos de anuncios; le avisamos a Meta cuáles resultaron buenos."
       rows={3}
     />
   );

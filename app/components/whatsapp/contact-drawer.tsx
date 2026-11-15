@@ -418,7 +418,7 @@ export function ContactDrawer({
               {tab === "resumen" && (
                 <>
           <div>
-            <label htmlFor="contact-lead-status" className="block text-xs font-medium text-muted-darker mb-1.5">Estado de lead</label>
+            <label htmlFor="contact-lead-status" className="block text-xs font-medium text-muted-darker mb-1.5">Etapa</label>
             <Select id="contact-lead-status" value={contact.leadStatus} onChange={(e) => handleLeadStatusChange(e.target.value)}>
               {LEAD_STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>

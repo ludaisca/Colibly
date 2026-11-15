@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { appUrl, siteUrl } from "@/lib/app-url";
 import { requestHost } from "@/lib/request-host";
+import { isSiteHost } from "@/lib/app-url";
 import { Barlow, Barlow_Condensed } from "next/font/google";
 import { THEME_INIT_SCRIPT } from "@/app/components/theme-provider";
 import "./globals.css";
@@ -52,11 +53,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // En el host del sitio (colibly.com) no hay sesión: la cookie vive en el host
+  // de la app y pedir /api/auth/session allá rompe la CSP (punto 23).
+  const onSiteHost = isSiteHost(requestHost(await headers()));
   return (
     <html
       lang="es"
@@ -71,7 +75,7 @@ export default function RootLayout({
       <body className="min-h-dvh flex flex-col bg-background text-foreground">
         {/* Activa el mundo Andén en toda la app (globals.css, `:has([data-world="anden"])`). */}
         <span data-world="anden" hidden />
-        <Providers>{children}</Providers>
+        <Providers sessionless={onSiteHost}>{children}</Providers>
       </body>
     </html>
   );

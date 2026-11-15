@@ -612,7 +612,7 @@ function TemplateEditor({ step, templates, onChange }: { step: StepOf<"send_temp
 
 const SUBJECTS: { value: ConditionRule["subject"]; label: string }[] = [
   { value: "tag", label: "Etiqueta" },
-  { value: "lead_status", label: "Etapa del lead" },
+  { value: "lead_status", label: "Etapa del contacto" },
   { value: "custom_field", label: "Campo personalizado" },
   { value: "var", label: "Variable" },
   { value: "score_label", label: "Calificación IA" },

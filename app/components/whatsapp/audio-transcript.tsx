@@ -52,7 +52,7 @@ export function AudioTranscript({ messageId, initial }: { messageId: string; ini
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1 text-eyebrow text-muted-darker hover:text-foreground"
+        className="inline-flex items-center gap-1 text-micro text-muted-darker hover:text-foreground"
       >
         Transcripción {open ? <ChevronUp size={12} aria-hidden /> : <ChevronDown size={12} aria-hidden />}
       </button>

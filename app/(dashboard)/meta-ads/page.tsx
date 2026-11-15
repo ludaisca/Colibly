@@ -148,7 +148,7 @@ export default function MetaAdsPage() {
           emptyTitle={accounts.length === 0 ? "Sin cuentas" : "Sin resultados"}
           emptyDescription={
             accounts.length === 0
-              ? "No has conectado ninguna cuenta de Meta Ads. Conéctala para empezar a reportar calidad de leads."
+              ? "No has conectado ninguna cuenta de Meta Ads. Conéctala para empezar a reportar calidad de contactos."
               : "No se encontraron cuentas con los filtros actuales."
           }
           rowActions={(a) => (
@@ -190,7 +190,7 @@ export default function MetaAdsPage() {
                     {a.status === "ERROR" && a.errorMessage && <> · {a.errorMessage}</>}
                   </>
                 }
-                meta={<span>{plural(a._count.contacts, "lead")}</span>}
+                meta={<span>{plural(a._count.contacts, "contacto")}</span>}
               />
             );
           }}

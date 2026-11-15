@@ -219,7 +219,7 @@ export function MetaAdsAccountFormModal({ open, onClose, onSaved, initialData }:
       open={open}
       onClose={handleClose}
       title={isEdit ? "Editar cuenta de Meta Ads" : "Conectar cuenta de Meta Ads"}
-      description="Página que recibe leads de anuncios; le avisamos a Meta cuáles resultaron buenos."
+      description="Página que recibe contactos de anuncios; le avisamos a Meta cuáles resultaron buenos."
       size="md"
       footer={
         <>

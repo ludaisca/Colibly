@@ -34,7 +34,7 @@ function CellValue({ value }: { value: OfferCell }) {
   return <span className="text-pretty text-xs leading-snug sm:text-sm">{value}</span>;
 }
 
-function PlanCard({ plan, cta }: { plan: LandingPlan; cta: string }) {
+function PlanCard({ plan, cta, registerHref }: { plan: LandingPlan; cta: string; registerHref: string }) {
   const custom = plan.priceMxn == null;
   return (
     <div
@@ -84,7 +84,9 @@ function PlanCard({ plan, cta }: { plan: LandingPlan; cta: string }) {
         )}
       </ul>
       <Button
-        href={custom ? "/contacto" : "/register"}
+        // Registro absoluto al host de la app: un <Link> relativo a /register en
+        // colibly.com se precargaba, seguía la redirección y rompía la CSP.
+        href={custom ? "/contacto" : registerHref}
         variant={plan.featured ? "primary" : "secondary"}
         size="lg"
         fullWidth
@@ -98,7 +100,7 @@ function PlanCard({ plan, cta }: { plan: LandingPlan; cta: string }) {
   );
 }
 
-function PlanCarousel({ cta }: { cta: string }) {
+function PlanCarousel({ cta, registerHref }: { cta: string; registerHref: string }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const initial = Math.max(0, LANDING_PLANS.findIndex((p) => p.featured));
   const [active, setActive] = useState(initial);
@@ -163,7 +165,7 @@ function PlanCarousel({ cta }: { cta: string }) {
               className="w-[min(20.5rem,calc(100vw-3.25rem))] shrink-0 snap-center"
               aria-current={i === active ? "true" : undefined}
             >
-              <PlanCard plan={plan} cta={cta} />
+              <PlanCard plan={plan} cta={cta} registerHref={registerHref} />
             </div>
           ))}
         </div>
@@ -300,13 +302,13 @@ function CompareTable() {
 }
 
 /** Tarjetas de planes. La tabla de comparación solo se pide en /precios. */
-export function LandingOffer({ cta, compare = false }: { cta: string; compare?: boolean }) {
+export function LandingOffer({ cta, registerHref, compare = false }: { cta: string; registerHref: string; compare?: boolean }) {
   return (
     <div>
-      <PlanCarousel cta={cta} />
+      <PlanCarousel cta={cta} registerHref={registerHref} />
       <div className="mt-10 hidden gap-4 sm:mt-12 xl:grid xl:grid-cols-4">
         {LANDING_PLANS.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} cta={cta} />
+          <PlanCard key={plan.id} plan={plan} cta={cta} registerHref={registerHref} />
         ))}
       </div>
       <p className="mx-auto mt-8 max-w-3xl text-pretty text-center text-sm text-muted">

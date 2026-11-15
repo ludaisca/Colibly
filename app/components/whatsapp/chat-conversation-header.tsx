@@ -255,7 +255,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
               </section>
               {(chat.channel === "WHATSAPP" || chat.channel === "TELEGRAM") && (
                 <section className="min-w-0 space-y-2">
-                  <h3 className="text-xs font-semibold text-muted-darker">Calificación del lead</h3>
+                  <h3 className="text-xs font-semibold text-muted-darker">Calificación del contacto</h3>
                   <LeadScoreBadge chatId={chat.id} />
                 </section>
               )}

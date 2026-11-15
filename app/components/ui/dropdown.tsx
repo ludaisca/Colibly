@@ -170,7 +170,7 @@ export function DropdownDivider() {
 
 /** Título de un grupo de opciones (no se puede elegir). */
 export function DropdownLabel({ children }: { children: React.ReactNode }) {
-  return <div className="px-3.5 pb-1 pt-1.5 text-eyebrow text-muted-darker">{children}</div>;
+  return <div className="px-3.5 pb-1 pt-1.5 text-micro text-muted-darker">{children}</div>;
 }
 
 interface DropdownButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

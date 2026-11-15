@@ -128,7 +128,7 @@ export default function AutomationsPage() {
         onRetry={load}
         emptyIcon={Workflow}
         emptyTitle="Tu primera automatización"
-        emptyDescription="Responde, etiqueta y mueve leads sin hacerlo a mano. Elige una plantilla y ajústala en el editor:"
+        emptyDescription="Responde, etiqueta y mueve contactos sin hacerlo a mano. Elige una plantilla y ajústala en el editor:"
         emptyAction={
           <div className="space-y-3">
             <StarterTemplates

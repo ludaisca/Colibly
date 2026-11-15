@@ -3,7 +3,8 @@ import { siteUrl } from "@/lib/app-url";
 
 // QA-017: /.well-known/security.txt (RFC 9116). El contacto es el correo
 // oficial de la marca (lib/brand.ts); si se crea un buzón de seguridad propio,
-// cambiarlo aquí. Expires se recalcula en cada petición: siempre un año.
+// cambiarlo aquí. Expires se recalcula en cada petición: siempre un año. Sin
+// Policy: el aviso de privacidad no es una política de divulgación.
 export const dynamic = "force-dynamic";
 
 export function GET() {
@@ -13,7 +14,6 @@ export function GET() {
     `Expires: ${expires}`,
     "Preferred-Languages: es, en",
     `Canonical: ${siteUrl("/.well-known/security.txt")}`,
-    `Policy: ${siteUrl("/privacidad")}`,
     "",
   ].join("\n");
   return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" } });

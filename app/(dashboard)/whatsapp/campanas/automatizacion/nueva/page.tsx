@@ -253,7 +253,7 @@ export default function NewLeadSheetSourcePage() {
   return (
     <div className="space-y-6">
       <BackLink href="/whatsapp/campanas" className="mb-3">Volver a campañas</BackLink>
-      <h1 className="text-page-title">Nueva fuente de leads</h1>
+      <h1 className="text-page-title">Nueva fuente de contactos</h1>
 
       <Card>
         <form onSubmit={handleSubmit}>
@@ -300,7 +300,7 @@ export default function NewLeadSheetSourcePage() {
               )}
 
               {templateVars?.header.required && templateVars.header.format === "TEXT" && (
-                <FormField label="Valor de la cabecera" required error={errors.headerParam} hint="Se aplica igual a todos los leads.">
+                <FormField label="Valor de la cabecera" required error={errors.headerParam} hint="Se aplica igual a todos los contactos.">
                   {(id) => <Input id={id} value={headerParam} onChange={(e) => setHeaderParam(e.target.value)} placeholder="Texto de la cabecera" error={errors.headerParam} />}
                 </FormField>
               )}
@@ -310,7 +310,7 @@ export default function NewLeadSheetSourcePage() {
                   label={`Archivo de ${templateVars.header.format?.toLowerCase()} para la cabecera`}
                   required
                   error={errors.headerParam}
-                  hint="Se aplica igual a todos los leads que dispare esta fuente."
+                  hint="Se aplica igual a todos los contactos que dispare esta fuente."
                 >
                   {() => (
                     <div className="space-y-2">
@@ -336,7 +336,7 @@ export default function NewLeadSheetSourcePage() {
               )}
 
               {templateVars?.buttonUrl && (
-                <FormField label={`Valor dinámico del botón "${templateVars.buttonUrl.text}"`} required error={errors.buttonParam} hint="Se aplica igual a todos los leads.">
+                <FormField label={`Valor dinámico del botón "${templateVars.buttonUrl.text}"`} required error={errors.buttonParam} hint="Se aplica igual a todos los contactos.">
                   {(id) => <Input id={id} value={buttonParam} onChange={(e) => setButtonParam(e.target.value)} placeholder="Sufijo o valor de la URL" error={errors.buttonParam} />}
                 </FormField>
               )}

@@ -184,7 +184,7 @@ export default function AutomationRunsPage() {
               </ol>
               {Object.keys(detail.vars).length > 0 && (
                 <div>
-                  <p className="mb-1 text-eyebrow font-medium text-muted-darker">Variables</p>
+                  <p className="mb-1 text-micro font-medium text-muted-darker">Variables</p>
                   <dl className="space-y-1 text-xs">
                     {Object.entries(detail.vars).map(([k, v]) => (
                       <div key={k} className="flex gap-2">

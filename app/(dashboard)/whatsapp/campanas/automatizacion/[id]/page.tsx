@@ -198,9 +198,9 @@ export default function LeadSheetSourceDetailPage() {
             {syncing ? <Spinner /> : "Sincronizar ahora"}
           </Button>
           <Button variant="secondary" size="sm" icon={importing ? undefined : History} onClick={() => setImportConfirmOpen(true)} disabled={importing || seededCount === 0}>
-            {importing ? <Spinner /> : "Importar leads existentes"}
+            {importing ? <Spinner /> : "Importar contactos existentes"}
           </Button>
-          <Button variant="ghost" size="sm" icon={Trash2} aria-label="Eliminar fuente de leads" onClick={() => setDeleteOpen(true)} className="text-muted-darker hover:text-danger" />
+          <Button variant="ghost" size="sm" icon={Trash2} aria-label="Eliminar fuente de contactos" onClick={() => setDeleteOpen(true)} className="text-muted-darker hover:text-danger" />
         </>
       }
     >
@@ -268,7 +268,7 @@ export default function LeadSheetSourceDetailPage() {
             rowKey={(r) => r.id}
             emptyIcon={History}
             emptyTitle="Sin actividad todavía"
-            emptyDescription="Cuando esta fuente procese leads, aparecerán aquí."
+            emptyDescription="Cuando esta fuente procese contactos, aparecerán aquí."
             mobileCard={(row) => (
               <div className="grid min-w-0 grid-cols-2 gap-1 text-xs">
                 <span className="col-span-2 break-all tabular-nums text-foreground">{row.phoneNumber}</span>
@@ -285,7 +285,7 @@ export default function LeadSheetSourceDetailPage() {
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         loading={deleting}
-        title="Eliminar fuente de leads"
+        title="Eliminar fuente de contactos"
         description="Se dejará de revisar esta hoja. Los chats y contactos ya creados no se eliminan."
         confirmLabel="Eliminar"
         tone="danger"
@@ -295,8 +295,8 @@ export default function LeadSheetSourceDetailPage() {
       <ConfirmDialog
         open={importConfirmOpen}
         onClose={() => setImportConfirmOpen(false)}
-        title="Importar leads existentes"
-        description={`Se enviará la plantilla "${source.waTemplate.name}" a ${seededCount === 1 ? "el lead" : `los ${seededCount} leads`} que ya estaban en la hoja al conectar esta fuente y que aún no han recibido nada. Esta acción no se puede deshacer.`}
+        title="Importar contactos existentes"
+        description={`Se enviará la plantilla "${source.waTemplate.name}" a ${seededCount === 1 ? "el contacto" : `los ${seededCount} contactos`} que ya estaban en la hoja al conectar esta fuente y que aún no han recibido nada. Esta acción no se puede deshacer.`}
         confirmLabel="Enviar a todos"
         tone="danger"
         onConfirm={handleImportExisting}

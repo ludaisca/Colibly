@@ -120,7 +120,7 @@ export function AutomationChip({ chatId, showEmpty = false }: { chatId: string; 
         {data.manual.length > 0 && (
           <>
             {data.runs.length > 0 && <DropdownDivider />}
-            <p className="px-3.5 pb-1 pt-2 text-eyebrow font-medium text-muted-darker">Iniciar automatización</p>
+            <p className="px-3.5 pb-1 pt-2 text-micro font-medium text-muted-darker">Iniciar automatización</p>
             {data.manual.map((m) => (
               <DropdownItem key={m.id} icon={Zap} onClick={() => start(m.id)}>
                 {m.name}

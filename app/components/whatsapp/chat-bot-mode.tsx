@@ -56,7 +56,7 @@ export function ChatBotMode({ chatId, refreshKey, compact = false }: { chatId: s
       if (!response.ok) throw new Error(body.error ?? "No se pudo devolver el chat al bot");
       setData(body);
       setOpen(false);
-      success("El bot responderá al próximo mensaje del lead");
+      success("El bot responderá al próximo mensaje del contacto");
     } catch (error) {
       toastError(error instanceof Error ? error.message : "No se pudo devolver el chat al bot");
       load();

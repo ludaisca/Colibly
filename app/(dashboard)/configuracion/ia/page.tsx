@@ -167,7 +167,7 @@ export default function IASettingsPage() {
           leadRecoveryFirstMessageHours: recoveryFirstHours,
           leadRecoverySecondMessageHours: recoverySecondHours.trim() ? Number(recoverySecondHours) : null,
         },
-        "Recuperación de leads guardada"
+        "Recuperación de contactos guardada"
       );
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Error al guardar");
@@ -336,22 +336,22 @@ export default function IASettingsPage() {
       </Card>
 
       <Card as="section" className="space-y-5">
-        <SectionHeader title="Recuperación de leads" />
+        <SectionHeader title="Recuperación de contactos" />
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-medium">Reactivar leads que dejan de responder</p>
+            <p className="text-sm font-medium">Reactivar contactos que dejan de responder</p>
             <p className="text-xs text-muted-darker">
               Cuando un lead se queda &quot;en visto&quot;, el bot de esa cuenta le manda hasta 2 mensajes de seguimiento,
               generados con IA, dentro del horario del negocio. Cada mensaje usa un crédito de IA.
             </p>
           </div>
-          <Switch checked={recoveryEnabled} onCheckedChange={setRecoveryEnabled} label="Reactivar leads" />
+          <Switch checked={recoveryEnabled} onCheckedChange={setRecoveryEnabled} label="Reactivar contactos" />
         </div>
 
         {recoveryEnabled && (
           <>
             <div className="grid gap-5 sm:grid-cols-2">
-              <FormField label="Horas de silencio para el mensaje 1" hint="Desde el último mensaje del lead">
+              <FormField label="Horas de silencio para el mensaje 1" hint="Desde el último mensaje del contacto">
                 {(id) => (
                   <Input id={id} type="number" min="1" max="168" value={recoveryFirstHours} onChange={(e) => setRecoveryFirstHours(Number(e.target.value))} />
                 )}
@@ -364,7 +364,7 @@ export default function IASettingsPage() {
             </div>
             {(recoveryFirstHours >= 24 || Number(recoverySecondHours) >= 24) && (
               <Banner tone="warning">
-                En WhatsApp solo se puede escribir texto libre dentro de las 24 h posteriores al último mensaje del lead:
+                En WhatsApp solo se puede escribir texto libre dentro de las 24 h posteriores al último mensaje del contacto:
                 los mensajes configurados a 24 h o más no se enviarán a chats de WhatsApp (sí a Telegram, Messenger e
                 Instagram, que no tienen esa restricción).
               </Banner>
@@ -373,7 +373,7 @@ export default function IASettingsPage() {
         )}
 
         <Button size="sm" variant="secondary" icon={Save} loading={savingRecovery} onClick={handleSaveRecovery}>
-          Guardar recuperación de leads
+          Guardar recuperación de contactos
         </Button>
       </Card>
 

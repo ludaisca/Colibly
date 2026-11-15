@@ -164,8 +164,8 @@ export interface CampaignOption {
 
 export const HAS_REPLIED_OPTIONS: Array<{ value: "" | "yes" | "no"; label: string }> = [
   { value: "", label: "Todos los chats" },
-  { value: "yes", label: "Con respuesta del lead" },
-  { value: "no", label: "Sin respuesta del lead" },
+  { value: "yes", label: "Con respuesta del contacto" },
+  { value: "no", label: "Sin respuesta del contacto" },
 ];
 
 export interface AgentReaction { id: string; emoji: string; status: string; error: string | null }

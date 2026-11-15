@@ -79,12 +79,12 @@ function CalificadoresPageContent() {
     <div className="space-y-5">
       <PageHeader
         hint="qualifiers"
-        title="Calificadores de Leads"
+        title="Calificadores de contactos"
       />
 
       {canManageScorers ? (
         <Tabs
-          items={TABS.map((id) => ({ id, label: id === "calificadores" ? "Calificadores" : "Leads calificados" }))}
+          items={TABS.map((id) => ({ id, label: id === "calificadores" ? "Calificadores" : "Contactos calificados" }))}
           value={tab}
           onChange={setTab}
           label="Secciones de calificadores"
@@ -216,7 +216,7 @@ function CalificadoresTab() {
         onRetry={fetchItems}
         emptyIcon={Target}
         emptyTitle="Sin calificadores"
-        emptyDescription="Crea tu primer calificador para empezar a calificar leads desde los chats."
+        emptyDescription="Crea tu primer calificador para empezar a calificar contactos desde los chats."
         mobileCard={(r) => {
           const schedule = columns.find((c) => c.key === "schedule")!;
           const active = columns.find((c) => c.key === "isActive")!;
@@ -293,10 +293,10 @@ function LeadsTab() {
       const res = await fetch("/api/whatsapp/lead-scores");
       const data = await res.json();
       if (Array.isArray(data)) setRows(data);
-      else throw new Error(data.error ?? "Error al cargar leads calificados");
+      else throw new Error(data.error ?? "Error al cargar contactos calificados");
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : "Error al cargar leads calificados");
-      toastError(err instanceof Error ? err.message : "Error al cargar leads calificados");
+      setFetchError(err instanceof Error ? err.message : "Error al cargar contactos calificados");
+      toastError(err instanceof Error ? err.message : "Error al cargar contactos calificados");
     } finally {
       setLoading(false);
     }
@@ -379,7 +379,7 @@ function LeadsTab() {
     const activeColumns = EXPORT_COLUMNS.filter((c) => exportColumns.has(c.key));
     const headers = activeColumns.map((c) => c.label);
     const csvRows = exportRows.map((r) => activeColumns.map((c) => c.get(r)));
-    downloadCsv(`leads-calificados-${localISODaysAgo()}.csv`, toCsv(headers, csvRows));
+    downloadCsv(`contactos-calificados-${localISODaysAgo()}.csv`, toCsv(headers, csvRows));
     setExportModalOpen(false);
   }
 
@@ -387,7 +387,7 @@ function LeadsTab() {
     {
       key: "select",
       header: (
-        <Checkbox checked={allFilteredSelected} onChange={toggleSelectAll} ariaLabel="Seleccionar todos los leads" />
+        <Checkbox checked={allFilteredSelected} onChange={toggleSelectAll} ariaLabel="Seleccionar todos los contactos" />
       ),
       render: (r) => (
         <div onClick={(e) => e.stopPropagation()}>
@@ -397,7 +397,7 @@ function LeadsTab() {
     },
     {
       key: "chat",
-      header: "Lead",
+      header: "Contacto",
       render: (r) => (
         <Link
           href={`/whatsapp/chat/${r.chat.accountId}/${r.chat.id}`}
@@ -500,7 +500,7 @@ function LeadsTab() {
       </div>
 
       {selectedIds.size > 0 && (
-        <p className="text-xs text-muted-darker">{plural(selectedIds.size, "lead seleccionado", "leads seleccionados")}.</p>
+        <p className="text-xs text-muted-darker">{plural(selectedIds.size, "contacto seleccionado", "contactos seleccionados")}.</p>
       )}
 
       <Table
@@ -513,7 +513,7 @@ function LeadsTab() {
         onRetry={fetchRows}
         onRowClick={(r) => setDetailId(r.id)}
         emptyIcon={AiMark}
-        emptyTitle="Sin leads calificados"
+        emptyTitle="Sin contactos calificados"
         emptyDescription="Los chats que califiques manualmente o mediante ejecución automática aparecerán aquí."
         mobileCard={(r) => {
           const label = columns.find((c) => c.key === "label")!;
@@ -689,11 +689,11 @@ function LeadsTab() {
                 setExportScope(v as "current" | "selected");
               }}
               options={[
-                { value: "current", label: `Vista actual (${plural(filtered.length, "lead")})`, description: "Todo lo que cumple los filtros y el rango de fechas activos." },
+                { value: "current", label: `Vista actual (${plural(filtered.length, "contacto")})`, description: "Todo lo que cumple los filtros y el rango de fechas activos." },
                 {
                   value: "selected",
-                  label: `Seleccionados (${plural(selectedIds.size, "lead")})`,
-                  description: selectedIds.size === 0 ? "Marca leads en la tabla con la casilla de la izquierda para habilitar esta opción." : undefined,
+                  label: `Seleccionados (${plural(selectedIds.size, "contacto")})`,
+                  description: selectedIds.size === 0 ? "Marca contactos en la tabla con la casilla de la izquierda para habilitar esta opción." : undefined,
                 },
               ]}
             />

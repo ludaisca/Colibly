@@ -126,7 +126,7 @@ export function ChatViewsMenu({
         }
       >
         <div className="w-64 p-1">
-          <p className="px-2.5 pb-1 pt-1.5 text-eyebrow text-muted-darker">Vistas rápidas</p>
+          <p className="px-2.5 pb-1 pt-1.5 text-micro text-muted-darker">Vistas rápidas</p>
           {QUICK_VIEWS.filter(
             (view) =>
               (view.key !== "sla" || (counts?.sla ?? 0) > 0 || currentQuery.includes("sla=1")) &&
