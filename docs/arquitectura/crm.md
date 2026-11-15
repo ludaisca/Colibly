@@ -77,7 +77,7 @@ Roadmap P3-a — drip campaigns simples: un trigger inscribe un `Contact`, y un 
 - **Cards**: `app/components/pipeline/lead-card.tsx` — show `EntityAvatar`, phone, tags (max 3 + overflow), last activity time, lead score bar with color-coded label (frio/tibio/caliente).
 - **Stage constants**: `lib/pipeline/stages.ts` — `PIPELINE_STAGES`, `STAGE_LABEL`, `STAGE_COLOR_BORDER`, `STAGE_COLOR_BG`, `STAGE_DOT_COLOR`.
 - **Roles**: accessible to admin + user, blocked for ejecutivo. Added to `PROTECTED` + `EXECUTIVE_BLOCKED` in `proxy.ts`.
-- **Nav**: "Pipeline" item with `KanbanSquare` icon in `dashboard-shell.tsx` "Principal" group.
+- **Nav**: "Embudo" item with `KanbanSquare` icon in the "Ventas" group of `dashboard-shell.tsx`.
 
 ### Embudos configurables y tareas (2026-10-27)
 

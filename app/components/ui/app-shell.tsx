@@ -22,6 +22,10 @@ export interface NavItem {
   label: string;
   icon: React.ElementType;
   exact?: boolean;
+  /** Otras rutas que marcan este ítem como activo (p. ej. "Canales" cubre /whatsapp/cuentas, /telegram/cuentas…). */
+  matchPrefixes?: string[];
+  /** Contador junto a la etiqueta (p. ej. chats en espera), en warning. */
+  badge?: number;
 }
 
 export interface NavGroup {
@@ -51,6 +55,8 @@ export interface AppShellProps {
   // sin verificar, estado del plan). Fuera de <main> para no alterar el
   // layout full-bleed del inbox.
   topBanner?: React.ReactNode;
+  /** Ítems fijos al pie del menú (Configuración, Ayuda), debajo de bottomActions. */
+  footerNav?: NavItem[];
   children: React.ReactNode;
 }
 
@@ -65,11 +71,12 @@ function SidebarContent({
   nav,
   accent = "accent",
   bottomActions,
+  footerNav,
   logoArea,
   brand = BRAND_NAME,
   collapsed,
   onClose,
-}: Pick<AppShellProps, "nav" | "accent" | "bottomActions" | "brand"> & {
+}: Pick<AppShellProps, "nav" | "accent" | "bottomActions" | "brand" | "footerNav"> & {
   logoArea?: React.ReactNode;
   collapsed?: boolean;
   onClose?: () => void;
@@ -95,13 +102,14 @@ function SidebarContent({
       /* sin localStorage: solo vale en esta pestaña */
     }
   };
-  const isActiveItem = (item: NavItem) => (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/"));
+  const isActiveItem = (item: NavItem) =>
+    (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/"))
+    || (item.matchPrefixes ?? []).some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
 
   const renderLink = (item: NavItem) => {
     const Icon = item.icon;
-    const active = item.exact
-      ? pathname === item.href
-      : pathname === item.href || pathname.startsWith(item.href + "/");
+    const active = isActiveItem(item);
+    const badge = item.badge && item.badge > 0 ? (item.badge > 99 ? "99+" : String(item.badge)) : null;
 
     const linkEl = (
       <Link
@@ -119,7 +127,10 @@ function SidebarContent({
         )}
       >
         <Icon size={16} strokeWidth={1.75} className="shrink-0" />
-        {!collapsed && item.label}
+        {!collapsed && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+        {!collapsed && badge && (
+          <span className="rounded-xs bg-warning-bg px-1.5 text-xs tabular-nums text-warning" aria-label={`${badge} en espera`}>{badge}</span>
+        )}
       </Link>
     );
 
@@ -222,6 +233,7 @@ function SidebarContent({
         collapsed ? "px-1 pt-3 mt-1 pb-4" : "px-3 pt-3 mt-1 pb-4"
       )}>
         {!collapsed && bottomActions}
+        {footerNav && footerNav.length > 0 && <ul className="mb-1 flex w-full flex-col gap-px">{footerNav.map(renderLink)}</ul>}
         <Tooltip label="Cerrar sesión" side="right"><button aria-label="Cerrar sesión"
           // redirect: false + navegación relativa: la URL absoluta que arma el
           // servidor usa el origen interno del contenedor (0.0.0.0:5000) y
@@ -260,6 +272,7 @@ export function AppShell({
   hideUserDropdown = false,
   collapsible = false,
   topBanner,
+  footerNav,
   children,
 }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -318,6 +331,7 @@ export function AppShell({
           nav={nav}
           accent={accent}
           bottomActions={bottomActions}
+          footerNav={footerNav}
           logoArea={logoArea}
           brand={brand}
           collapsed={collapsed}
@@ -329,6 +343,7 @@ export function AppShell({
           nav={nav}
           accent={accent}
           bottomActions={bottomActions}
+          footerNav={footerNav}
           logoArea={logoArea}
           brand={brand}
           onClose={() => setDrawerOpen(false)}
@@ -377,7 +392,7 @@ export function AppShell({
           <div className="hidden md:block flex-1" />
 
           <div className="flex items-center gap-1.5">
-            <CommandPalette nav={nav} />
+            <CommandPalette nav={footerNav ? [...nav, { items: footerNav }] : nav} />
             <ThemeToggle />
             {headerRight}
             {!hideUserDropdown && <UserDropdown initialUser={initialUser} />}

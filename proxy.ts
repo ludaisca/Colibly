@@ -6,13 +6,13 @@ import { API_MAX_BODY_BYTES, API_MEDIA_MAX_BYTES } from "@/lib/api/constants";
 
 // /plataforma (panel del operador) no va en las listas de rol: su acceso lo
 // decide PLATFORM_ADMIN_EMAILS en la página y en /api/plataforma (404 al resto).
-const PROTECTED = ["/dashboard", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/meta-ads", "/plataforma", "/ayuda"];
+const PROTECTED = ["/dashboard", "/canales", "/configuracion", "/whatsapp", "/telegram", "/messenger", "/instagram", "/webchat", "/usuarios", "/estadisticas", "/ventas", "/meta-ads", "/plataforma", "/ayuda"];
 // Ojo: las tres comprobaciones de rol viven DENTRO del bloque PROTECTED — una
 // ruta ausente de esa lista no solo pierde el redirect a /login con
 // callbackUrl, se salta también EXECUTIVE_BLOCKED/USER_BLOCKED por completo.
 // Cualquier sección nueva (un canal adicional, p. ej.) debe entrar en PROTECTED
 // aunque el layout ya redirija a los no autenticados.
-const EXECUTIVE_BLOCKED = ["/dashboard", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/ventas", "/meta-ads", "/whatsapp/secuencias", "/whatsapp/automatizaciones", "/whatsapp/monitores"];
+const EXECUTIVE_BLOCKED = ["/dashboard", "/canales", "/estadisticas", "/whatsapp/bots", "/whatsapp/campanas", "/whatsapp/plantillas", "/usuarios", "/whatsapp/cuentas", "/telegram/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/webchat/cuentas", "/configuracion/ia", "/configuracion/api", "/configuracion/plan", "/ventas", "/meta-ads", "/whatsapp/secuencias", "/whatsapp/automatizaciones", "/whatsapp/monitores"];
 // Regular "user" role keeps Panel/Estadísticas/Chats/Cuentas/Plantillas/Campañas/Config,
 // but loses Contactos and Bots IA entirely (la antigua página /whatsapp/conocimiento se
 // eliminó — el flujo de conocimiento vive en la pestaña del bot, ya bloqueada vía

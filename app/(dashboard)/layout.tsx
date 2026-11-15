@@ -10,6 +10,14 @@ import { billingNotice } from "@/lib/billing/state";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import { getOrgAccountHues } from "@/lib/accounts/hues";
+import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { getViewCountsCached } from "@/lib/chats/counts";
+
+async function countWaitingChats(userId: string): Promise<number> {
+  const [accountIds, channelAccountIds] = await Promise.all([getUserAccountIds(userId), getUserChannelAccountIds(userId)]);
+  if (accountIds.length === 0 && channelAccountIds.length === 0) return 0;
+  return (await getViewCountsCached(userId, accountIds, channelAccountIds)).awaiting;
+}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -47,11 +55,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   //   después no le esconde lo que ya tenía conectado — lib/channel-flags.ts);
   // - Calling API: el dock de llamadas solo sondea si alguna cuenta la tiene;
   // - estado del plan para el aviso.
-  const [channelCounts, callingAccounts, whatsappAccounts, org, accountHues] = user
+  const [channelCounts, callingAccounts, waitingChats, org, accountHues] = user
     ? await Promise.all([
         prisma.channelAccount.groupBy({ by: ["channel"], where: { organizationId: user.organizationId }, _count: true }),
         prisma.wAAccount.count({ where: { organizationId: user.organizationId, callingEnabled: true } }),
-        prisma.wAAccount.count({ where: { organizationId: user.organizationId } }),
+        // Chats esperando respuesta: el contador del menú junto a "Chats" (caché de Redis).
+        countWaitingChats(session.user.id),
         getOrgBilling(user.organizationId),
         getOrgAccountHues(user.organizationId),
       ])
@@ -87,7 +96,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     </>
   );
   return (
-    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} sidebarCard={trialCard} platformAdmin={platformAdmin} channels={channels} callingEnabled={callingEnabled} hasWhatsapp={whatsappAccounts > 0} accountHues={accountHues}>
+    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} sidebarCard={trialCard} platformAdmin={platformAdmin} channels={channels} callingEnabled={callingEnabled} waitingChats={waitingChats} accountHues={accountHues}>
       {children}
     </DashboardShell>
   );

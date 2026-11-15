@@ -6,7 +6,7 @@ import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { Settings, LifeBuoy, LogOut, ChevronDown, Check, BellRing } from "lucide-react";
+import { Settings, LifeBuoy, LogOut, ChevronDown, Check, BellRing, Users, Megaphone } from "lucide-react";
 import { enablePush, needsHomeScreenInstall, pushSupported, syncPush } from "@/lib/notifications/push-client";
 import { AVAILABILITY_LABEL, type Availability } from "@/lib/users/availability-rules";
 import { useToast } from "./toast";
@@ -38,6 +38,8 @@ export interface ShellUser {
   email?: string | null;
   availability?: Availability;
   pushPublicKey?: string | null;
+  /** Admin: Usuarios y Meta Ads viven en este menú (ya no en el lateral). */
+  isAdmin?: boolean;
 }
 
 export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
@@ -217,6 +219,18 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
                 <LifeBuoy size={15} className="text-muted shrink-0" aria-hidden />
                 Ayuda
               </Menu.LinkItem>
+              {initialUser?.isAdmin && (
+                <>
+                  <Menu.LinkItem render={<Link href="/usuarios" />} closeOnClick className={ITEM}>
+                    <Users size={15} className="text-muted shrink-0" aria-hidden />
+                    Usuarios
+                  </Menu.LinkItem>
+                  <Menu.LinkItem render={<Link href="/meta-ads" />} closeOnClick className={ITEM}>
+                    <Megaphone size={15} className="text-muted shrink-0" aria-hidden />
+                    Meta Ads
+                  </Menu.LinkItem>
+                </>
+              )}
             </div>
 
             <div className="border-t border-border py-1">
