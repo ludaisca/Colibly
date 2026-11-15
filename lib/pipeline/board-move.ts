@@ -24,10 +24,14 @@ export interface BoardMove<C extends MovableCard> {
   to: string;
 }
 
-/** Columna destino de un arrastre: el id del droppable es "column-<stageId>". */
+/**
+ * Etapa destino de un arrastre. Droppables: la columna ("column-<stageId>") y,
+ * en el teléfono, donde solo se ve una columna, el botón de la etapa
+ * ("tab-<stageId>").
+ */
 export function dropTargetStage(overId: string | number | null | undefined, stages: { id: string }[]): string | null {
   if (overId === null || overId === undefined) return null;
-  const id = String(overId).replace(/^column-/, "");
+  const id = String(overId).replace(/^(column|tab)-/, "");
   return stages.some((stage) => stage.id === id) ? id : null;
 }
 

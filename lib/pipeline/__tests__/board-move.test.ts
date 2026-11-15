@@ -14,6 +14,10 @@ describe("dropTargetStage", () => {
   it("lee la columna del id del droppable", () => {
     expect(dropTargetStage("column-propuesta", stages)).toBe("propuesta");
   });
+  it("acepta el botón de etapa del teléfono", () => {
+    expect(dropTargetStage("tab-ganado", stages)).toBe("ganado");
+    expect(dropTargetStage("tab-otra", stages)).toBeNull();
+  });
   it("ignora destinos que no son columnas del embudo", () => {
     expect(dropTargetStage("column-otra", stages)).toBeNull();
     expect(dropTargetStage(null, stages)).toBeNull();

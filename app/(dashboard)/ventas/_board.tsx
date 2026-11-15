@@ -8,7 +8,7 @@ import {
   useDroppable,
   type DragStartEvent,
   type DragEndEvent,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   KeyboardSensor,
   useSensor,
@@ -48,6 +48,29 @@ function stageDotClass(outcome: StageOutcome, openIndex: number): string {
   if (outcome === "WON") return "bg-success";
   if (outcome === "LOST") return "bg-subtle";
   return OPEN_DOT[Math.max(0, openIndex) % OPEN_DOT.length];
+}
+
+// Botón de etapa del teléfono. También recibe tarjetas: ahí solo se ve una
+// columna, así que una tarjeta levantada (pulsación larga) se suelta sobre la
+// etapa destino.
+function StagePill({ stage, active, count, onSelect }: { stage: BoardStage; active: boolean; count: number; onSelect: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `tab-${stage.id}` });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      aria-pressed={active}
+      data-stage-tab={stage.id}
+      onClick={onSelect}
+      className={cn(
+        "-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium",
+        active ? "border-accent text-foreground" : "border-transparent text-muted",
+        isOver && "bg-accent-subtle text-foreground"
+      )}
+    >
+      {stage.name} <span className="tabular-nums text-muted">{count.toLocaleString("es-MX")}</span>
+    </button>
+  );
 }
 
 function Column({
@@ -179,21 +202,38 @@ export function PipelineBoard({
   }
 
   // Toda la tarjeta se arrastra: con el mouse tras 5 px (un clic abre la
-  // ficha) y en pantallas táctiles con una pulsación de 200 ms (el desplazamiento
-  // normal de la columna no se convierte en arrastre).
+  // ficha) y en pantallas táctiles con una pulsación de 200 ms (deslizar el dedo
+  // desplaza la columna). Mouse y Touch por separado: un PointerSensor también
+  // captura el toque y arrancaría el arrastre a los 5 px. Con teclado, Espacio
+  // levanta y suelta; Enter abre la ficha (lead-card.tsx).
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor, { keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] } })
   );
   const options: StageOption[] = stages.map(({ id, name }) => ({ id, name }));
   const current = pipelines.find((item) => item.id === pipelineId);
 
   // Arrastre y menú ⋯ usan la misma acción: optimista, guarda y, si falla,
-  // deshace (lib/pipeline/board-move.ts, con pruebas).
+  // deshace (lib/pipeline/board-move.ts, con pruebas). El movimiento parte del
+  // estado más reciente (refs, no el cierre del render) y una tarjeta con un
+  // guardado en curso no se vuelve a mover: dos movimientos rápidos no pueden
+  // partir de un tablero viejo ni duplicar la tarjeta al deshacer.
+  const boardRef = useRef(boardData);
+  const totalsRef = useRef(totals);
+  const savingRef = useRef(new Set<string>());
+  useEffect(() => {
+    boardRef.current = boardData;
+    totalsRef.current = totals;
+  }, [boardData, totals]);
+
   const moveCard = useCallback(async (id: string, targetStageId: string) => {
-    const move = applyMove(boardData, totals, id, targetStageId, stages);
+    if (savingRef.current.has(id)) return;
+    const move = applyMove(boardRef.current, totalsRef.current, id, targetStageId, stages);
     if (!move) return;
+    savingRef.current.add(id);
+    boardRef.current = move.board;
+    totalsRef.current = move.totals;
     setBoardData(move.board);
     setTotals(move.totals);
     setStageInView(targetStageId);
@@ -206,13 +246,18 @@ export function PipelineBoard({
       if (!response.ok) throw new Error();
       router.refresh();
     } catch {
-      // Cada mitad se deshace sobre su estado actual (pudo cambiar mientras tanto).
-      setBoardData((currentBoard) => revertMove(currentBoard, {}, move).board);
-      setTotals((currentTotals) => revertMove({}, currentTotals, move).totals);
+      // Se deshace sobre el estado actual (pudo cambiar mientras tanto).
+      const reverted = revertMove(boardRef.current, totalsRef.current, move);
+      boardRef.current = reverted.board;
+      totalsRef.current = reverted.totals;
+      setBoardData(reverted.board);
+      setTotals(reverted.totals);
       setStageInView(move.from);
       toastError("No se pudo guardar la nueva etapa");
+    } finally {
+      savingRef.current.delete(id);
     }
-  }, [boardData, router, stages, toastError, totals]);
+  }, [router, stages, toastError]);
 
   // "Agregar trato": alta de contacto y, ya creado, a la columna elegida.
   const [addingTo, setAddingTo] = useState<string | null>(null);
@@ -231,14 +276,18 @@ export function PipelineBoard({
     const stageId = addingTo;
     setAddingTo(null);
     if (stageId) {
-      await fetch(`/api/whatsapp/contacts/${contactId}`, {
+      const response = await fetch(`/api/whatsapp/contacts/${contactId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipelineStageId: stageId }),
       }).catch(() => null);
+      if (!response?.ok) {
+        const stageName = stages.find((stage) => stage.id === stageId)?.name ?? "la etapa";
+        toastError(`El contacto se creó, pero no se pudo poner en «${stageName}»`);
+      }
     }
     router.refresh();
-  }, [addingTo, router]);
+  }, [addingTo, router, stages, toastError]);
 
   // «Cargar más»: la siguiente página de la columna (lo ya cargado es el skip).
   const loadMore = useCallback(async (stageId: string) => {
@@ -438,23 +487,17 @@ export function PipelineBoard({
         </div>
       )}
 
-      {/* Teléfono: una columna a la vez, con pestañas de etapa. */}
-      <div role="tablist" aria-label="Etapas" className="-mx-1 mb-3 flex gap-1 overflow-x-auto border-b border-border scrollbar-none sm:hidden">
-        {stages.map((stage) => {
-          const active = stage.id === stageInView;
-          return (
-            <button
-              key={stage.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setStageInView(stage.id)}
-              className={cn("-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium", active ? "border-accent text-foreground" : "border-transparent text-muted")}
-            >
-              {stage.name} <span className="tabular-nums text-muted">{(totals[stage.id]?.count ?? boardData[stage.id]?.length ?? 0).toLocaleString("es-MX")}</span>
-            </button>
-          );
-        })}
+      {/* Teléfono: una columna a la vez; botones de etapa (aria-pressed). */}
+      <div role="group" aria-label="Etapa visible" className="-mx-1 mb-3 flex gap-1 overflow-x-auto border-b border-border scrollbar-none sm:hidden">
+        {stages.map((stage) => (
+          <StagePill
+            key={stage.id}
+            stage={stage}
+            active={stage.id === stageInView}
+            count={totals[stage.id]?.count ?? boardData[stage.id]?.length ?? 0}
+            onSelect={() => setStageInView(stage.id)}
+          />
+        ))}
       </div>
       <div className="relative">
       <div ref={scrollRef} className="flex gap-3 overflow-hidden pb-4 sm:overflow-x-auto">

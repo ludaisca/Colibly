@@ -108,11 +108,21 @@ export function LeadCard({ data, stages, onOpen, onStageChange, overlay = false 
       ref={overlay ? undefined : setNodeRef}
       {...(overlay ? {} : attributes)}
       {...(overlay ? {} : listeners)}
-      // El arrastre arranca tras 5 px (PointerSensor); un clic sin mover abre la ficha.
+      // El arrastre arranca tras 5 px con el mouse o tras una pulsación de
+      // 200 ms en pantallas táctiles; un clic sin mover abre la ficha. Con
+      // teclado: Enter abre la ficha, Espacio levanta la tarjeta.
       onClick={onOpen ? () => onOpen(data.id) : undefined}
-      aria-label={`${displayName}${onOpen ? ". Abrir ficha; arrastra para cambiar de etapa" : ""}`}
+      onKeyDown={overlay ? undefined : (event) => {
+        if (event.key === "Enter" && onOpen && event.target === event.currentTarget) {
+          event.preventDefault();
+          onOpen(data.id);
+          return;
+        }
+        listeners?.onKeyDown?.(event);
+      }}
+      aria-label={`${displayName}${onOpen ? ". Enter abre la ficha; Espacio la levanta para cambiar de etapa" : ""}`}
       className={cn(
-        "group relative cursor-grab touch-none select-none overflow-hidden rounded-md border border-border bg-surface py-2.5 pl-4 pr-2 text-left active:cursor-grabbing",
+        "group relative cursor-grab touch-manipulation select-none overflow-hidden rounded-md border border-border bg-surface py-2.5 pl-4 pr-2 text-left active:cursor-grabbing",
         data.lineAccountId && hueClassFor(data.lineAccountId),
         isDragging && !overlay && "opacity-40",
         overlay && "shadow-md"
