@@ -122,7 +122,7 @@ export function AtributosConversacionSection() {
       render: (row) => (
         <div>
           <span className="text-sm font-medium text-foreground">{row.label}</span>
-          <span className="block font-mono text-xs text-muted-darker">{row.key}</span>
+          <span className="block tabular-nums text-xs text-muted-darker">{row.key}</span>
         </div>
       ),
     },

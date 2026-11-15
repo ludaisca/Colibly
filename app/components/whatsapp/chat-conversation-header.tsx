@@ -65,12 +65,12 @@ function SalesRoute({ status, accountId }: { status: NonNullable<ChatItem["leadS
                   now ? "h-3.5 w-3.5 -mt-0.5 border-entity bg-surface" : done ? "h-2.5 w-2.5 border-entity bg-entity" : "h-2.5 w-2.5 border-border bg-surface"
                 )}
               />
-              <span className={cn("text-micro leading-none", now ? "font-bold text-foreground" : "text-muted")}>{station.label}</span>
+              <span className={cn("text-micro leading-none", now ? "font-semibold text-foreground" : "text-muted")}>{station.label}</span>
             </li>
           );
         })}
       </ol>
-      {lost && <span className="shrink-0 rounded-full border border-border bg-surface-light px-2 py-0.5 text-micro font-bold text-muted">Perdido</span>}
+      {lost && <span className="shrink-0 rounded-full border border-border bg-surface-light px-2 py-0.5 text-micro font-semibold text-muted">Perdido</span>}
     </div>
   );
 }

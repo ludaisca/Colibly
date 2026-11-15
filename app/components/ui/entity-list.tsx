@@ -123,7 +123,7 @@ export function EntityList<T>({
 }
 
 // Anatomía estándar de una fila: leading (normalmente <EntityAvatar>), bloque
-// título/subtítulo, badges y meta a la derecha (cifras/fechas en font-mono la
+// título/subtítulo, badges y meta a la derecha (cifras/fechas en tabular-nums la
 // decide el caller). Puro layout — cada página decide el contenido.
 interface EntityRowProps {
   leading?: React.ReactNode;

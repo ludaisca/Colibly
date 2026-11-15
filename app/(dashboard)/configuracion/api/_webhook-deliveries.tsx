@@ -93,7 +93,7 @@ export function WebhookDeliveriesView({ webhook }: { webhook: { id: string; name
               <details>
                 <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2">
                   <Badge size="sm" tone={STATUS[d.status].tone}>{STATUS[d.status].label}</Badge>
-                  <span className="font-mono text-xs text-foreground">{d.eventType}</span>
+                  <span className="tabular-nums text-xs text-foreground">{d.eventType}</span>
                   <span className="text-xs text-muted">
                     {d.responseCode ? `HTTP ${d.responseCode} · ` : ""}
                     {d.attempts} intento{d.attempts === 1 ? "" : "s"}

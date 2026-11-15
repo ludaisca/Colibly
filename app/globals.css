@@ -266,11 +266,9 @@ html:has([data-world="anden"]) {
 
   --font-sans:    var(--font-body), system-ui, sans-serif;
   --font-display: var(--font-display), system-ui, sans-serif;
-  /* Puente temporal: el rediseño 2026-07 "fresco y cercano" retira la
-     tipografía monoespaciada (antes IBM Plex Mono) — font-mono cae en la
-     misma sans de cuerpo mientras el paso 3 termina de quitar los usos de
-     font-mono en los componentes compartidos (KpiStrip, EntityAvatar, etc). */
-  --font-mono:    var(--font-body), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* font-mono es la monoespaciada del sistema: solo para código, claves y
+     tokens. Las cifras usan tabular-nums. */
+  --font-mono:    ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Escala tipográfica (congelada, nov 2026). text-sm es el cuerpo de UI
      por defecto; text-base, burbujas y párrafos. Los tamaños con familia,

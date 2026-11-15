@@ -5,7 +5,9 @@ primary_target: "app/(dashboard)/whatsapp/chat/page.tsx"
 related_targets: ["app/components/whatsapp"]
 ---
 
-# Bandeja de chats — brief de superficie
+# Bandeja de chats — brief de superficie (ARCHIVADO)
+
+> Archivado el 2026-11-14: contradice la dirección de diseño congelada (AGENTS.md → "Dirección de diseño"): paleta, títulos condensados y selección en tinta ya no aplican. Se conserva como historia.
 
 **Alcance:** bandeja multicanal (`/whatsapp/chat`): lista de chats, conversación y ficha de contacto. Modo **Operate**. Primera superficie de la nueva interfaz; el mundo elegido se extiende después al resto del panel.
 
@@ -25,6 +27,5 @@ STORY: Al abrir, el agente ve de inmediato cuál chat lleva más esperando y cu�
 
 FIRST VIEWPORT: Teléfono 390px. Arriba: título "Chats" condensado y "Ordenado por espera" a la derecha. Debajo: chips de línea por cuenta (la activa en tinta llena). Cabecera de tabla "Esperando N · Espera". Lista de filas blancas: franja de color de cuenta, nombre y último mensaje, y a la derecha la lámpara y la espera en celdas (h:mm). Barra inferior estándar: Chats, Contactos, Pipeline, Más. En la conversación: cabecera con nombre, cuenta, asignado y la ruta de estaciones en el color de la cuenta.
 
-FORM: Fusión elegida por el usuario de dos direcciones de la primera ronda (tablero de espera, retador `signals-instruments-split-flap-concourse`, + líneas de señalética de transporte, candidata propia #1), sin referencias locales. Firma: el tiempo que voltea (celdas de espera que giran al cambiar; desactivado con prefers-reduced-motion). seed:d7fe44f887bd80d9
+FORM: Fusión elegida por el usuario de dos direcciones de la primera ronda (tablero de espera, retador `signals-instruments-split-flap-concourse`, + líneas de señalética de transporte, candidata propia #1), sin referencias locales. Firma: el tiempo que voltea (celdas de espera que giran al cambiar; desactivado con prefers-reduced-motion).
 
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

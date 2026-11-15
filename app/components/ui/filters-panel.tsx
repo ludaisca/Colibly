@@ -124,7 +124,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
         {!compact && "Filtros"}
         {appliedCount > 0 && (
           <span className={cn(
-            "flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-micro font-bold text-on-accent",
+            "flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-micro font-semibold text-on-accent",
             compact && "absolute -right-1 -top-1"
           )}>
             {appliedCount}
@@ -134,7 +134,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
 
       {open && (
         <div id={panelId} className="absolute z-30 mt-1.5 w-[min(20rem,calc(100vw-2rem))] origin-top-left animate-scale-in rounded-lg border border-border bg-surface p-4 shadow-lg" style={{ left: panelLeft }}>
-          <p className="mb-3 text-sm font-bold">{panelTitle}</p>
+          <p className="mb-3 text-sm font-semibold">{panelTitle}</p>
 
           {visibleKeys.length === 0 ? (
             <p className="mb-3 text-xs text-muted">Sin condiciones — agrega una para filtrar la lista.</p>

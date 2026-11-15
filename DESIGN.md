@@ -168,7 +168,9 @@ components:
     height: "44px"
 ---
 
-<!-- Mundo "Andén" del panel, documentado desde lo construido en la rama feat/nueva-interfaz (2026-11-07). Fuente normativa de valores: app/globals.css (bloques :has([data-world="anden"])); contrato: .impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md. Desde 2026-11-08 el sitio público (app/(marketing)) y la autenticación usan el mismo mundo en registro de venta; contrato: .impeccable/surfaces/app-marketing-page-tsx.md. -->
+> **Valores obsoletos (2026-11-14).** La dirección de diseño está congelada: tokens, fuentes, radios y reglas de componentes vigentes en `AGENTS.md` → "Dirección de diseño (congelada, nov 2026)" y `app/globals.css`. Este documento se conserva como historia del mundo Andén; donde contradiga a esos, mandan ellos.
+
+<!-- Mundo "Andén" del panel, documentado desde lo construido en la rama feat/nueva-interfaz (2026-11-07). Fuente normativa de valores: app/globals.css (bloques :has([data-world="anden"])); contrato: docs/archivo/brief-bandeja-anden-2026-11-07.md (archivado). Desde 2026-11-08 el sitio público (app/(marketing)) y la autenticación usan el mismo mundo en registro de venta; contrato: .impeccable/surfaces/app-marketing-page-tsx.md. -->
 
 # Design System: Colibly
 

@@ -161,7 +161,7 @@ export default function LeadSheetSourceDetailPage() {
   }
 
   const rowColumns: TableColumn<ImportedRow>[] = [
-    { key: "phoneNumber", header: "Teléfono", render: (r) => <span className="font-mono text-xs">{r.phoneNumber}</span> },
+    { key: "phoneNumber", header: "Teléfono", render: (r) => <span className="tabular-nums text-xs">{r.phoneNumber}</span> },
     {
       key: "status",
       header: "Estado",
@@ -227,18 +227,18 @@ export default function LeadSheetSourceDetailPage() {
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-muted-darker">Columna de teléfono</dt>
-              <dd className="font-mono text-xs">{source.phoneColumn}</dd>
+              <dd className="tabular-nums text-xs">{source.phoneColumn}</dd>
             </div>
             {source.nameColumn && (
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-darker">Columna de nombre</dt>
-                <dd className="font-mono text-xs">{source.nameColumn}</dd>
+                <dd className="tabular-nums text-xs">{source.nameColumn}</dd>
               </div>
             )}
             {source.bodyColumns.length > 0 && (
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-darker">Variables del cuerpo</dt>
-                <dd className="font-mono text-xs text-right">{source.bodyColumns.map((c, i) => `{{${i + 1}}}=${c}`).join(", ")}</dd>
+                <dd className="tabular-nums text-xs text-right">{source.bodyColumns.map((c, i) => `{{${i + 1}}}=${c}`).join(", ")}</dd>
               </div>
             )}
             <div className="flex justify-between gap-3">
@@ -271,7 +271,7 @@ export default function LeadSheetSourceDetailPage() {
             emptyDescription="Cuando esta fuente procese leads, aparecerán aquí."
             mobileCard={(row) => (
               <div className="grid min-w-0 grid-cols-2 gap-1 text-xs">
-                <span className="col-span-2 break-all font-mono text-foreground">{row.phoneNumber}</span>
+                <span className="col-span-2 break-all tabular-nums text-foreground">{row.phoneNumber}</span>
                 <span>{ROW_STATUS_BADGE[row.status]?.label ?? row.status}</span>
                 <span className="text-right text-muted-darker">{new Date(row.importedAt).toLocaleDateString("es-MX")}</span>
                 {row.errorMessage && <span className="col-span-2 break-words text-danger">{row.errorMessage}</span>}

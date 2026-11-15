@@ -27,7 +27,7 @@ export default async function DataDeletionStatusPage({ params }: { params: Promi
   return (
     <main className="mx-auto max-w-xl space-y-4 px-4 py-16">
       <h1 className="text-2xl font-semibold">Solicitud de eliminación de datos</h1>
-      <p className="text-sm text-muted-darker">Código de confirmación: <span className="font-mono">{code}</span></p>
+      <p className="text-sm text-muted-darker">Código de confirmación: <span className="tabular-nums">{code}</span></p>
       <p>{STATUS[request.status] ?? request.status}</p>
       <p className="text-sm text-muted-darker">
         Recibida el {formatInZone(request.receivedAt, { dateStyle: "long" })}

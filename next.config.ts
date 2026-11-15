@@ -79,6 +79,11 @@ const nextConfig: NextConfig = {
             : []),
         ],
       },
+      // QA-012: íconos y manifiesto con caché de un día (cambian casi nunca).
+      ...["/icon.svg", "/apple-icon", "/manifest.webmanifest"].map((source) => ({
+        source,
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400" }],
+      })),
       // Media subida por usuarios o recibida de leads: `sandbox` impide que un
       // archivo abierto directamente (p. ej. un SVG con <script>) ejecute
       // código con la sesión del usuario en el origen de la app. Va después de

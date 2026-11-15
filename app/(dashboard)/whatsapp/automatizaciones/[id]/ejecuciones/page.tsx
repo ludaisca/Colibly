@@ -188,7 +188,7 @@ export default function AutomationRunsPage() {
                   <dl className="space-y-1 text-xs">
                     {Object.entries(detail.vars).map(([k, v]) => (
                       <div key={k} className="flex gap-2">
-                        <dt className="font-mono text-muted">{k}</dt>
+                        <dt className="tabular-nums text-muted">{k}</dt>
                         <dd className="break-all text-foreground">{v}</dd>
                       </div>
                     ))}

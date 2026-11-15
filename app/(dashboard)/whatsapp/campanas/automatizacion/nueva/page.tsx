@@ -253,7 +253,7 @@ export default function NewLeadSheetSourcePage() {
   return (
     <div className="space-y-6">
       <BackLink href="/whatsapp/campanas" className="mb-3">Volver a campañas</BackLink>
-      <h1 className="text-2xl font-bold tracking-tight">Nueva fuente de leads</h1>
+      <h1 className="text-page-title">Nueva fuente de leads</h1>
 
       <Card>
         <form onSubmit={handleSubmit}>

@@ -271,7 +271,7 @@ export default function UsersPage() {
               <>
                 <EntityRow
                   leading={<EntityAvatar id={inv.email} name={inv.email} size="sm" />}
-                  title={<span className="font-mono">{inv.email}</span>}
+                  title={<span className="tabular-nums">{inv.email}</span>}
                   badges={
                     <>
                       <Badge tone="neutral" size="sm">{ROLE_LABEL[inv.role] ?? inv.role}</Badge>
@@ -324,11 +324,11 @@ export default function UsersPage() {
               }
               subtitle={
                 <>
-                  <span className="font-mono">{u.email}</span> · {u.ownedWaAccounts.length + u.ownedChannelAccounts.length === 0 ? "sin canales propios" : `titular de ${plural(u.ownedWaAccounts.length + u.ownedChannelAccounts.length, "canal", "canales")}`}
+                  <span className="tabular-nums">{u.email}</span> · {u.ownedWaAccounts.length + u.ownedChannelAccounts.length === 0 ? "sin canales propios" : `titular de ${plural(u.ownedWaAccounts.length + u.ownedChannelAccounts.length, "canal", "canales")}`}
                 </>
               }
               meta={
-                <span className="font-mono">
+                <span className="tabular-nums">
                   {formatInZone(u.createdAt, { day: "2-digit", month: "short", year: "numeric" })}
                 </span>
               }

@@ -236,7 +236,7 @@ function LocationContent({ msg }: { msg: Message }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground" title={place || undefined}>{place || "Ubicación compartida"}</p>
-          <p className="font-mono text-micro tabular-nums text-muted-darker">
+          <p className=" text-micro tabular-nums text-muted-darker">
             {location ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : "Sin coordenadas (mensaje anterior al 4 nov 2026)"}
           </p>
         </div>

@@ -323,7 +323,7 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
           </FormField>
           {step.config.method === "POST" && (
             <FormField label="Cuerpo (JSON)">
-              {(id) => <Textarea id={id} rows={6} className="font-mono" value={step.config.body} onChange={(e) => set(step, { body: e.target.value })} />}
+              {(id) => <Textarea id={id} rows={6} className="tabular-nums" value={step.config.body} onChange={(e) => set(step, { body: e.target.value })} />}
             </FormField>
           )}
           <FormField label="Guardar respuesta en" hint="Cada campo del JSON de respuesta queda como {{var.nombre.campo}}; el status en {{var.nombre.status}}.">

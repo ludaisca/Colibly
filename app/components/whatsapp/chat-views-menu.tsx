@@ -118,7 +118,7 @@ export function ChatViewsMenu({
           >
             <Bookmark size={15} />
             {awaiting > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-micro font-bold tabular-nums text-surface">
+              <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-micro font-semibold tabular-nums text-surface">
                 {awaiting > 99 ? "99+" : awaiting}
               </span>
             )}

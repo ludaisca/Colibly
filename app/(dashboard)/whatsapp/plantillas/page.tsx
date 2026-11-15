@@ -215,7 +215,7 @@ function TemplatesContent() {
                 subtitle={<>{templateLanguageLabel(t.language)} · {templateCategoryLabel(t.category)}{t.statusReason ? <> · <span className={t.status === "APPROVED" || t.status === "PENDING" ? "" : "text-danger"}>{t.statusReason}</span></> : null}</>}
                 meta={
                   <>
-                    <span className="font-mono">
+                    <span className="tabular-nums">
                       {new Date(t.syncedAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </span>
                     <span className="text-accent-ink">Ver métricas →</span>

@@ -498,9 +498,9 @@ export default function CuentaDetailPage() {
         <section className="space-y-4">
           <SectionHeader title="Información de la cuenta" />
           <dl className="space-y-4">
-            <DetailRow label="Número" value={<span className="font-mono">{account.phoneNumber ?? "—"}</span>} />
-            <DetailRow label="Phone Number ID" value={<span className="font-mono">{account.phoneNumberId}</span>} />
-            <DetailRow label="WABA ID" value={<span className="font-mono">{account.wabaId ?? "—"}</span>} />
+            <DetailRow label="Número" value={<span className="tabular-nums">{account.phoneNumber ?? "—"}</span>} />
+            <DetailRow label="Phone Number ID" value={<span className="tabular-nums">{account.phoneNumberId}</span>} />
+            <DetailRow label="WABA ID" value={<span className="tabular-nums">{account.wabaId ?? "—"}</span>} />
             <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
               <dt className="shrink-0 text-sm text-muted-darker">App ID</dt>
               {editingAppId ? (
@@ -509,7 +509,7 @@ export default function CuentaDetailPage() {
                     value={appIdDraft}
                     onChange={(e) => setAppIdDraft(e.target.value)}
                     placeholder="123456789012345"
-                    className="max-w-[200px] font-mono text-sm"
+                    className="max-w-[200px] tabular-nums text-sm"
                   />
                   <Button size="sm" onClick={handleSaveAppId} disabled={savingAppId}>
                     {savingAppId ? <Spinner /> : "Guardar"}
@@ -519,7 +519,7 @@ export default function CuentaDetailPage() {
                   </Button>
                 </div>
               ) : (
-                <dd className="flex items-center gap-2 font-mono text-sm">
+                <dd className="flex items-center gap-2 tabular-nums text-sm">
                   {account.appId ?? "—"}
                   {canManage && <Button type="button" variant="ghost" size="icon" icon={Pencil} className="-my-1.5" onClick={startEditAppId} aria-label="Editar App ID" />}
                 </dd>
@@ -536,7 +536,7 @@ export default function CuentaDetailPage() {
                     onChange={(e) => setAppSecretDraft(e.target.value)}
                     placeholder="abc123…"
                     aria-label="Nuevo App Secret"
-                    className="max-w-[200px] font-mono text-sm"
+                    className="max-w-[200px] tabular-nums text-sm"
                   />
                   <Button size="sm" onClick={handleSaveAppSecret} disabled={savingAppSecret}>
                     {savingAppSecret ? <Spinner /> : "Guardar"}

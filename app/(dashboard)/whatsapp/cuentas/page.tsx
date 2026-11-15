@@ -234,14 +234,14 @@ function CuentasView() {
                 }
                 subtitle={
                   <>
-                    <span className="font-mono">{a.phoneNumber ?? "—"}</span>
+                    <span className="tabular-nums">{a.phoneNumber ?? "—"}</span>
                     {a.status === "ERROR" && a.errorMessage && <> · {a.errorMessage}</>}
                   </>
                 }
                 meta={
                   <>
                     <span>{plural(a._count.chats, "chat")}</span>
-                    <span className="font-mono">
+                    <span className="tabular-nums">
                       {a.lastActivity
                         ? new Date(a.lastActivity).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
                         : "—"}

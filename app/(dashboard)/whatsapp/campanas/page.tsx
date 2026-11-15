@@ -183,7 +183,7 @@ function CampaignsTab() {
                           style={{ width: `${progress}%` }}
                         />
                       </span>
-                      <span className="font-mono">{progress}%</span>
+                      <span className="tabular-nums">{progress}%</span>
                     </span>
                   ) : undefined
                 }
@@ -354,7 +354,7 @@ function AutomationTab() {
                 </>
               }
               meta={
-                <span className="font-mono">
+                <span className="tabular-nums">
                   {s.lastRunAt
                     ? `${new Date(s.lastRunAt).toLocaleString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} · ${plural(s.lastImportedCount, "enviado")}`
                     : "Aún no ha corrido"}

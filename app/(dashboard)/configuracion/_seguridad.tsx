@@ -248,7 +248,7 @@ export function SeguridadSection() {
         description="Si pierdes el teléfono, cada código te deja entrar una vez. No los volverás a ver."
         footer={<Button onClick={close}>Ya los guardé</Button>}
       >
-        <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-light p-3 font-mono text-sm text-foreground">
+        <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-light p-3 tabular-nums text-sm text-foreground">
           {backupCodes.map((backupCode) => <span key={backupCode}>{backupCode}</span>)}
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -294,7 +294,7 @@ export function SeguridadSection() {
             {(id) => <PasswordInput id={id} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus />}
           </FormField>
           <FormField label="Código de la app o de respaldo" required>
-            {(id) => <Input id={id} value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={12} className="font-mono" />}
+            {(id) => <Input id={id} value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={12} className="tabular-nums" />}
           </FormField>
         </div>
       </Modal>

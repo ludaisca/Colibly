@@ -398,7 +398,7 @@ export function CitasView() {
                           </>
                         }
                         meta={
-                          <span className="font-mono">
+                          <span className="tabular-nums">
                             {new Date(a.scheduledAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         }

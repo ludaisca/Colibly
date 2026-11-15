@@ -154,7 +154,7 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
               leading={<KeyRound size={18} className="text-muted" />}
               title={k.name}
               subtitle={
-                <span className="font-mono">
+                <span className="tabular-nums">
                   {k.prefix}… · {k.scopes.length} permiso{k.scopes.length === 1 ? "" : "s"} ·{" "}
                   {scopeSummary(k.accountIds, k.channelAccountIds, accounts)}
                 </span>

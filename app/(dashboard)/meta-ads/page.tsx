@@ -185,7 +185,7 @@ export default function MetaAdsPage() {
                 }
                 subtitle={
                   <>
-                    <span className="font-mono">{a.pageId}</span>
+                    <span className="tabular-nums">{a.pageId}</span>
                     {a.waAccount ? <> · sigue en {a.waAccount.name}</> : <> · sin WhatsApp vinculado</>}
                     {a.status === "ERROR" && a.errorMessage && <> · {a.errorMessage}</>}
                   </>

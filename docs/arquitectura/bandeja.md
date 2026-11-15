@@ -57,7 +57,7 @@ These mirror equivalent Contact-level concepts but are **separate models** scope
 
 ### Bandeja "Andén" (2026-11-07)
 
-Primera superficie de la nueva interfaz (rama `feat/nueva-interfaz`; contrato en `.impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md`, mundo visual en `frontend.md` → "Mundo Andén").
+Primera superficie de la nueva interfaz (rama `feat/nueva-interfaz`; contrato en `docs/archivo/brief-bandeja-anden-2026-11-07.md` (archivado el 2026-11-14: la dirección vigente está congelada en AGENTS.md), mundo visual en `frontend.md` → "Mundo Andén").
 - **Una sola lista**, sin encabezados por cuenta: cada fila lleva a la izquierda la franja de color de su cuenta (`hueClassFor(accountId)` + `bg-entity`). `chat-workspace.tsx` pasa `groupedChats` como `{ all: [...] }`; Alt+J/K siguen ese orden.
 - **Orden por espera** en "Esperando" (`awaiting=1`): `compareByWaiting()` (`chat-shared.ts`) pone primero quien lleva más esperando. Ordena lo cargado en el cliente: cada canal sigue paginando por `lastMessageAt` (la sincronización usa ese piso), así que con más de una página de chats esperando por canal la segunda página continúa por último mensaje.
 - **Cifra de espera**: `WaitCells` (`waiting-badge.tsx`) dibuja `waitingClock()` ("1:12", "2d") en celdas que voltean al cambiar (`animate-flap`, sin animación con "reducir movimiento") y una lámpara: ámbar desde 15 min, roja desde 60 o fuera de SLA de respuesta (umbrales de `waiting-shared.ts`). Lectores de pantalla oyen `waitingSpoken()`.

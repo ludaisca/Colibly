@@ -168,7 +168,7 @@ function LoginForm() {
                       autoFocus
                       maxLength={12}
                       placeholder="xxxx-xxxx"
-                      className="font-mono tracking-widest"
+                      className="tabular-nums tracking-widest"
                     />
                   )}
                 </FormField>

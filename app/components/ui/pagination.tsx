@@ -53,7 +53,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
               className={cn(
                 "min-w-[36px] px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 page === currentPage
-                  ? "bg-accent text-on-accent font-bold"
+                  ? "bg-accent text-on-accent font-semibold"
                   : "border border-border text-muted hover:bg-surface-light hover:text-foreground"
               )}
             >

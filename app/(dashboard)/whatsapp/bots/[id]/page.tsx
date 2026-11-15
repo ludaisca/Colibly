@@ -251,14 +251,14 @@ function BotDetailPageContent() {
       header: "Tokens",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (u) => <span className="font-mono text-xs">{u.totalTokens.toLocaleString()}</span>,
+      render: (u) => <span className="text-xs tabular-nums">{u.totalTokens.toLocaleString()}</span>,
     },
     {
       key: "estimatedCost",
       header: "Costo",
       headerClassName: "text-right",
       cellClassName: "text-right",
-      render: (u) => <span className="font-mono text-xs">${u.estimatedCost.toFixed(4)}</span>,
+      render: (u) => <span className="tabular-nums text-xs">${u.estimatedCost.toFixed(4)}</span>,
     },
   ], []);
 

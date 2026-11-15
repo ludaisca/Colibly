@@ -63,12 +63,12 @@ export function WaitCells({ since, now, overdue = false }: { since: string; now:
       <span className="sr-only">{waitingSpoken(minutes)}</span>
       {clock.split("").map((char, index) =>
         char === ":" ? (
-          <span key={`sep-${index}`} aria-hidden className={`font-display text-base font-bold leading-none ${DIGIT_CLASS[tone]}`}>:</span>
+          <span key={`sep-${index}`} aria-hidden className={`font-display text-base font-semibold leading-none ${DIGIT_CLASS[tone]}`}>:</span>
         ) : (
           <span
             key={`${index}-${char}`}
             aria-hidden
-            className={`animate-flap relative inline-flex h-6 min-w-4 items-center justify-center rounded-xs bg-cell px-[3px] font-display text-base font-bold leading-none tabular-nums ${DIGIT_CLASS[tone]} after:absolute after:inset-x-0 after:top-1/2 after:h-px after:bg-foreground/10`}
+            className={`animate-flap relative inline-flex h-6 min-w-4 items-center justify-center rounded-xs bg-cell px-[3px] font-display text-base font-semibold leading-none tabular-nums ${DIGIT_CLASS[tone]} after:absolute after:inset-x-0 after:top-1/2 after:h-px after:bg-foreground/10`}
           >
             {char}
           </span>

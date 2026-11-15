@@ -63,7 +63,7 @@ function ChartTooltip({
           {formatLabel ? formatLabel(String(label)) : label}
         </p>
       )}
-      {sublabel && <p className="mb-1 font-mono text-micro text-muted-darker">{sublabel}</p>}
+      {sublabel && <p className="mb-1 tabular-nums text-micro text-muted-darker">{sublabel}</p>}
       <div className={sublabel ? "space-y-1" : "mt-1 space-y-1"}>
         {payload.map((entry, i) => (
           <div key={`${entry.dataKey}-${i}`} className="flex items-center gap-2 text-xs">

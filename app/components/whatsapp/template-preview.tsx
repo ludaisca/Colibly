@@ -40,7 +40,7 @@ function highlightVariables(text: string, formatted = false) {
   const parts = text.split(/(\{\{\s*\d+\s*\}\})/g);
   return parts.map((part, i) =>
     /^\{\{\s*\d+\s*\}\}$/.test(part) ? (
-      <span key={i} className="inline-block rounded px-1 text-micro font-bold" style={{ background: WA.variableBg, color: WA.accent }}>
+      <span key={i} className="inline-block rounded px-1 text-micro font-semibold" style={{ background: WA.variableBg, color: WA.accent }}>
         {part}
       </span>
     ) : (
@@ -91,7 +91,7 @@ export function TemplatePreview({ components, headerImagePreview }: Props) {
 
           <div className="px-3 py-2.5">
             {header?.format === "TEXT" && (
-              <p className="text-xs font-bold mb-1" style={{ color: WA.text }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: WA.text }}>
                 {header.text ? highlightVariables(header.text) : "(cabecera de texto)"}
               </p>
             )}

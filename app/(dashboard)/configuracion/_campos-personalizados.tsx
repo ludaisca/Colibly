@@ -119,7 +119,7 @@ export function CamposPersonalizadosSection() {
       render: (r) => (
         <div>
           <span className="text-sm text-foreground font-medium">{r.label}</span>
-          <span className="block text-xs text-muted-darker font-mono">{r.key}</span>
+          <span className="block text-xs text-muted-darker tabular-nums">{r.key}</span>
         </div>
       ),
     },

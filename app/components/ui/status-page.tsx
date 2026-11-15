@@ -28,7 +28,7 @@ export function StatusPage({ code, title, description, actions, reference }: Sta
         <h1 className="mt-4 text-page-title">{title}</h1>
         <p className="mt-3 text-muted">{description}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">{actions}</div>
-        {reference && <p className="mt-8 text-xs text-muted">Referencia: <span className="font-mono">{reference}</span></p>}
+        {reference && <p className="mt-8 text-xs text-muted">Referencia: <span className="tabular-nums">{reference}</span></p>}
       </main>
     </div>
   );

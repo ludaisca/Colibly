@@ -62,7 +62,7 @@ export function OrderContent({ order }: { order: NonNullable<StructuredContent["
       <ul className="space-y-1 rounded-lg bg-surface px-2.5 py-2 text-xs">
         {order.items.map((item, i) => (
           <li key={`${item.productId}-${i}`} className="flex items-baseline justify-between gap-2">
-            <span className="min-w-0 truncate font-mono text-foreground" title={item.productId ?? undefined}>
+            <span className="min-w-0 truncate tabular-nums text-foreground" title={item.productId ?? undefined}>
               {item.quantity ?? "?"} × {item.productId ?? "Producto"}
             </span>
             {item.price !== null && <span className="shrink-0 tabular-nums text-muted-darker">{money(item.price, item.currency)}</span>}
@@ -88,7 +88,7 @@ export function ContactsContent({ contacts }: { contacts: NonNullable<Structured
           {(c.phones.length > 0 || c.emails.length > 0) && (
             <ul className="space-y-0.5 pl-11 text-xs text-muted-darker">
               {c.phones.map((p, j) => (
-                <li key={`p${j}`} className="font-mono tabular-nums">{p.phone ?? p.waId}{p.type ? ` · ${p.type.toLowerCase()}` : ""}</li>
+                <li key={`p${j}`} className=" tabular-nums">{p.phone ?? p.waId}{p.type ? ` · ${p.type.toLowerCase()}` : ""}</li>
               ))}
               {c.emails.map((e) => (
                 <li key={e} className="truncate">{e}</li>
