@@ -1,0 +1,54 @@
+PROMPT PARA CLAUDE CODE · Colibly · Correcciones de la revisión unificada (15 nov 2026)
+Repo: ludaisca/Colibly, rama main (punto de partida: da43119). Contexto: revisamos tus commits ab406c5 … da43119 contra docs/prompts/prompt-claude-revision-unificada-colibly-2026-11.txt. El trabajo quedó bien en general (tokens exactos, dirección congelada, QA-001/002/008/011/013/014/017/012 verificados en producción). Abajo van las correcciones, en orden de prioridad.
+
+REGLAS (las mismas de antes)
+- Lee AGENTS.md y CLAUDE.md ("Dirección de diseño (congelada, nov 2026)") antes de empezar. No cambies paleta, fuentes ni metáfora visual.
+- Sin dependencias nuevas. Única excepción autorizada por Luis: la migración del punto 6 para conservar el historial de ventas (aditiva y no destructiva). Ningún otro cambio de esquema; si otro te parece indispensable, NO lo hagas: déjalo descrito en el resumen.
+- Textos en español de México, tuteo, sin "¡". "contacto" (no "lead") y "trato" para la tarjeta del embudo.
+- Al cerrar cada bloque: npm run lint, tsc --noEmit, npm test y npm run build en verde. Un commit por bloque ("correcciones N: ...") y push a main al cerrar CADA bloque (la vez pasada todo subió en un solo push y CI solo corrió sobre el último commit).
+- No toques secretos, Coolify ni variables de entorno. No hagas deploy.
+
+BLOQUE 1 · Embudo en el teléfono (alta)
+1. app/(dashboard)/ventas/_board.tsx usa PointerSensor (distance 5) + TouchSensor (delay 200) y app/components/pipeline/lead-card.tsx pone `touch-none` en TODA la tarjeta. Resultado probable en el teléfono: deslizar el dedo sobre una tarjeta no hace scroll (touch-action: none) y el PointerSensor arranca el arrastre a los 5 px, así que el TouchSensor con demora nunca actúa.
+   Cambia a: useSensor(MouseSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }), useSensor(KeyboardSensor, { keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] } }). En la tarjeta reemplaza `touch-none` por `touch-manipulation`.
+   Con el KeyboardSensor solo en Space, haz que Enter abra la ficha (onKeyDown Enter → onOpen). Hoy Enter inicia el arrastre y no hay forma de abrir la ficha con teclado salvo el menú ⋯.
+   Criterio: en Playwright con emulación táctil (hasTouch, 390x844), un swipe vertical sobre una columna llena hace scroll y no mueve tarjetas; una pulsación larga (≥200 ms) y arrastre sí cambia la etapa y persiste al recargar. Agrega esa prueba (o déjala documentada si el entorno no puede).
+2. moveCard usa `boardData`/`totals` del cierre (no actualizaciones funcionales). Con dos movimientos rápidos, el segundo parte de un estado viejo y el rollback del primero puede duplicar la tarjeta. Usa setBoardData/setTotals con función, o bloquea un segundo movimiento de la misma tarjeta mientras el PATCH está en curso.
+3. "Agregar trato" (placeNewContact): el PATCH de pipelineStageId ignora errores (`.catch(() => null)` y no revisa res.ok). Si falla, muestra toast "El contacto se creó, pero no se pudo poner en «{etapa}»".
+4. Pestañas de etapa en el teléfono: hoy tienen role="tablist"/"tab" sin tabpanel ni flechas. Usa botones con aria-pressed o implementa el patrón completo (aria-controls + flechas izquierda y derecha).
+
+BLOQUE 2 · Contactos y etiquetas (media)
+5. app/(dashboard)/whatsapp/contactos/_table.tsx, runEach: `if (res && !res.ok) failed++` cuenta un error de red (res = null) como éxito. Cámbialo a `if (!res || !res.ok) failed++`.
+6. Eliminar contacto: el DELETE borra en cascada mucho más de lo que dice el aviso. Según prisma/schema.prisma, con onDelete: Cascade se borran citas (WAAppointment), notas, tareas, actividad, CSAT, LeadOutcomeEvent (las ventas ganadas dejan de contar en "Ventas ganadas 30 días" y en reportes), MetaConversionEvent, inscripciones a secuencias y corridas de automatización. El texto actual solo dice "Se borran sus chats y mensajes".
+   - Cambia la descripción del ConfirmDialog a: "Se borran sus chats, mensajes, citas, notas y tareas. Sus ventas ganadas y perdidas se conservan en los reportes. No se puede deshacer."
+   - Luis decidió CONSERVAR el historial de ventas. Haz la migración de Prisma mínima y no destructiva: en LeadOutcomeEvent (y en los eventos de conversión que alimentan reportes de ventas) cambia la relación con el contacto a opcional con onDelete: SetNull, y guarda en el evento el nombre y número del contacto (snapshot) para que el reporte lo siga mostrando. Verifica que reportes y panel cuenten esas ventas aunque el contacto ya no exista y que nada truene con contactId null. Agrega test. Revisa que la migración no borre ni reescriba datos existentes y explícala en el commit.
+   - Agrega a lib/contacts/__tests__/delete-route.test.ts un caso que confirme que un contacto "sin canal" de OTRA organización responde 404.
+7. Asignar en lote: la lista de personas sale de /api/whatsapp/contacts/{primero}/assignees (solo la cuenta del primer contacto), y los contactos con Conversation (Instagram, Messenger, Telegram, Web) se omiten aunque tienen chat. Usa una lista de personas válida para todas las cuentas seleccionadas (o agrupa por cuenta) y asigna también las conversaciones de canal con su endpoint. Si alguna no se pudo, el toast debe decir cuántas.
+8. Eliminar etiqueta (app/api/whatsapp/tags/[id]/route.ts + _etiquetas.tsx): si la etiqueta es disparador de una secuencia (TAG_ADDED con triggerValue = tag.id) o de una automatización, avisa en la confirmación ("La usa la secuencia «X»; dejará de dispararse.").
+
+BLOQUE 3 · Sitio público y aviso de cookies (media)
+9. app/components/analytics/analytics.tsx: a 390 px el enlace "Detalles" queda dentro del <p> con `truncate` y no se ve (verificado en producción: scrollWidth 229 vs clientWidth 183). Saca el enlace del texto truncado (texto corto "Usamos cookies." + enlace "Detalles" fijo) o usa un botón ⓘ con aria-label. Criterio: a 390x844, "Detalles", "Solo necesarias" y "Aceptar" visibles y tocables.
+10. app/(marketing)/layout.tsx: todos los enlaces del encabezado y del pie pasaron a <a href="https://colibly.com/..."> también EN colibly.com. Ahí se pierde la navegación del cliente y el prefetch de Next (cada clic recarga la página entera). Haz los enlaces absolutos solo cuando la página se sirve en el host de la app (por ejemplo, detecta el host con headers() en el layout y pásalo a un helper siteHref(path, isAppHost)). En colibly.com deja <Link> relativo.
+
+BLOQUE 4 · Pendientes de la fase 3 que no quedaron (media)
+11. Chats: encabezado de conversación de 56 px con nombre, número tabular-nums, "Asignado a", "Marcar venta" y menú ⋯. Ficha derecha de 288 px con secciones plegables (Contacto, Trato con etapa editable, Próxima cita, Notas, Historial). Compositor blanco radio 8 con herramientas calladas (Respuestas, Plantilla, Adjuntar, IA) y "Enviar" como único primario.
+12. Citas: en el teléfono la vista por defecto debe ser "Agenda" (hoy sigue en Mes). En "Mes" a 390 px, tocar un día abre la lista de citas de ese día (QA-104).
+13. Chats: contador en la pestaña "Después" (QA-102; agrega snoozed a viewCounts).
+14. Contactos: la columna Etapa mezcla estado ("Nuevo") y etapa ("Nuevos"). Muestra siempre el nombre de la etapa del embudo por defecto (QA-103).
+15. Configuración: "Cambios sin guardar" usa md:left-[232px] fijo y queda mal con el menú colapsado (w-16). Toma el ancho real del menú (variable CSS o contexto del AppShell). Revisa también "Canales disponibles como tabla de una línea con estado real" y el guardado por sección, que no se ven en los commits.
+16. Estadísticas/Reportes: confirma que quedaron sin tarjeta dentro de tarjeta y con dos columnas separadas por filetes; si no, aplícalo.
+
+BLOQUE 5 · Limpieza menor (baja)
+17. Panel (app/(dashboard)/dashboard/page.tsx):
+   - "Ventas ganadas 30 días" cuenta toda la organización aunque el resto del panel sale del alcance de la persona. Para quien no es admin, filtra LeadOutcomeEvent por contacto dentro de contactScopeWhere.
+   - Los chats de WhatsApp en espera usan displayName(c.name, null): pasa remoteJid para que un chat sin nombre muestre el número.
+18. app/globals.css: quita --text-eyebrow (el comentario dice que se retiraba en la fase 3) si ya no tiene usos.
+19. Badge "Perdido" en chat-conversation-header.tsx: rounded-full + borde contradice la regla (rounded-full solo avatares, puntos y switch). Usa <Badge tone="neutral">.
+20. Vocabulario: "Calificar lead" (lead-score-badge.tsx) → "Calificar contacto"; "Nueva fuente de leads" (campanas/automatizacion/nueva) → "Nueva fuente de contactos". Busca otros textos visibles con "lead" en app/(dashboard) y app/components y cámbialos (no toques identificadores ni nombres de modelos).
+21. security.txt: el campo Policy apunta al aviso de privacidad, que no es una política de divulgación. Quítalo o crea /seguridad con una política corta. El contacto contacto@colibly.com se queda (decisión de Luis).
+
+22. Configuración en móvil (390x844): la navegación fija inferior tapa el borde del último campo al final de la página. Agrega padding-bottom al contenedor igual al alto de la barra inferior + safe-area (env(safe-area-inset-bottom)) en todas las páginas del panel.
+23. CSP: en app.colibly.com/register la consola muestra 3 errores CSP relacionados con Turnstile (Cloudflare); agrega a script-src/frame-src/connect-src lo que Turnstile requiere (https://challenges.cloudflare.com). En colibly.com hay 3 errores CSP al intentar conectar con /api/auth/session y /register: o agrega el origen correspondiente a connect-src o evita esas peticiones en el sitio de marketing (preferible: no llamar a la sesión en páginas públicas). Verifica 0 errores CSP en consola en ambas.
+
+AL TERMINAR
+Resumen en español con: hash por bloque, qué quedó pendiente y por qué, y cómo quedó la migración para conservar el historial de ventas (archivo de migración y qué hace). No hagas deploy; Luis lo hace (la migración se aplicará en el deploy). Recuerda push al cerrar CADA bloque para que el CI corra en cada uno.
