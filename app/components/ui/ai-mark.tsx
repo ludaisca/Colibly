@@ -1,6 +1,6 @@
 import { cn } from "./cn";
 
-// La palabra "IA" en lugar del ícono de destellos (Sparkles), que se retiró
+// La palabra "IA" en lugar del ícono de destellos de Lucide, que se retiró
 // con la dirección congelada (nov 2026). Misma firma que un ícono de Lucide
 // (`size`, `className`) para poder pasarla como `icon` a Button, Dropdown, etc.
 export function AiMark({ size = 16, className }: { size?: number; className?: string }) {

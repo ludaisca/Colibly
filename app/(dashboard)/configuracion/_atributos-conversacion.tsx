@@ -158,9 +158,12 @@ export function AtributosConversacionSection() {
             </Select>
           </div>
         )}
-        <Button size="sm" icon={Plus} onClick={() => { setEditing(null); setModalOpen(true); }} disabled={!selectedAccountId}>
-          Nuevo atributo
-        </Button>
+        {/* Sin cuenta no hay botón deshabilitado: solo "Conectar WhatsApp". */}
+        {selectedAccountId && (
+          <Button size="sm" variant="secondary" icon={Plus} onClick={() => { setEditing(null); setModalOpen(true); }}>
+            Nuevo atributo
+          </Button>
+        )}
       </div>
 
       {accountsLoaded && accounts.length === 0 ? (

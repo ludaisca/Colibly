@@ -23,7 +23,9 @@ export function NeedsChannelEmpty({
       title={title}
       description={description}
       className={className}
-      action={<Button href="/whatsapp/cuentas" size="sm">Conectar WhatsApp</Button>}
+      // Secundario: suele aparecer en varias secciones de una misma vista
+      // (Configuración) y el primario de la vista es otro.
+      action={<Button href="/whatsapp/cuentas" size="sm" variant="secondary">Conectar WhatsApp</Button>}
     />
   );
 }

@@ -159,7 +159,7 @@ export function SeguridadSection() {
               </Button>
             </div>
           ) : (
-            <Button size="sm" icon={ShieldCheck} onClick={() => open("setup-password")}>
+            <Button size="sm" variant="secondary" icon={ShieldCheck} onClick={() => open("setup-password")}>
               Activar
             </Button>
           ))}
