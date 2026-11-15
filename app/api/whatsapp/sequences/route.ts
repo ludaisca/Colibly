@@ -145,6 +145,8 @@ export async function POST(req: Request) {
     const sequence = await prisma.wASequence.create({
       data: {
         ...data,
+        // QA-032: una secuencia nueva nace apagada salvo que se pida encendida.
+        active: data.active ?? false,
         organizationId: await requireOrgId(session.user.id),
         waAccountId: waAccountId ?? null,
         channelAccountId: channelAccountId ?? null,

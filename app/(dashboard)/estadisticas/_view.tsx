@@ -16,11 +16,8 @@ import { CAMPAIGN_ORIGIN_LABEL, LABEL_TEXT } from "@/lib/whatsapp/export-columns
 import { MessagesTrendChart, HorizontalBarChart, EntityBars, DeliveryComparisonChart, QualifiedLabelDonut } from "./_charts";
 import { formatDuration } from "@/lib/format/duration";
 import { plural } from "@/lib/format/plural";
+import { BOT_DISPLAY_STATUS_LABEL } from "@/lib/bots/display-status";
 
-const BOT_STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
-  ACTIVE: { label: "Activo", tone: "success" },
-  ERROR: { label: "Error", tone: "danger" },
-};
 
 const CAMPAIGN_ORIGIN_BADGE: Record<string, "accent" | "info"> = {
   manual: "accent",
@@ -56,7 +53,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       key: "status",
       header: "Estado",
       render: (b) => {
-        const badge = BOT_STATUS_BADGE[b.status] ?? { label: b.status, tone: "neutral" as const };
+        const badge = BOT_DISPLAY_STATUS_LABEL[b.status];
         return <Badge tone={badge.tone} size="sm">{badge.label}</Badge>;
       },
     },
@@ -153,7 +150,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
 
   return (
     <div className="space-y-6">
-      <div className="animate-fade-in-up">
+      <div>
         <PageHeader
           title="Estadísticas"
           description="Cómo va tu negocio: chats, respuestas, campañas y equipo."
@@ -161,20 +158,20 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
         />
       </div>
 
-      <div className="animate-fade-in-up animation-delay-100">
+      <div>
         <KpiStrip items={kpis} />
       </div>
 
       <Workbench>
         <WorkbenchMain>
-          <Card as="section" className="animate-fade-in-up animation-delay-200">
+          <Card as="section" >
             <SectionHeader eyebrow="Actividad" title="Mensajes diarios" />
             <div className="mt-4">
               <MessagesTrendChart data={stats.dailyMessages} />
             </div>
           </Card>
 
-          <Card as="section" className="animate-fade-in-up animation-delay-300">
+          <Card as="section" >
             <SectionHeader eyebrow="Difusión" title="Mensajes por campaña / automatización" />
             <div className="mt-4">
               <Table
@@ -203,7 +200,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
             </div>
           </Card>
 
-          <Card as="section" className="animate-fade-in-up animation-delay-300">
+          <Card as="section" >
             <SectionHeader eyebrow="Automatización" title="Uso por bot" />
             <div className="mt-4">
               <Table
@@ -235,7 +232,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
             </div>
           </Card>
 
-          <Card as="section" className="animate-fade-in-up animation-delay-400">
+          <Card as="section" >
             <SectionHeader eyebrow="Equipo" title="Rendimiento por agente" />
             {stats.firstResponse.count > 0 && (
               <p className="mt-2 text-sm text-muted-darker" title="Desde el primer mensaje de cada conversación que inició el cliente hasta la primera respuesta (persona, bot o app). No cuentan campañas, avisos automáticos, historial importado ni conversaciones sin respuesta.">
@@ -273,7 +270,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
         </WorkbenchMain>
 
         <WorkbenchAside>
-          <Card as="section" className="animate-fade-in-up animation-delay-200">
+          <Card as="section" >
             <SectionHeader eyebrow="Inteligencia artificial" title="Inversión en IA" />
             <div className="mt-3 space-y-4">
               <div>
@@ -307,7 +304,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
             </div>
           </Card>
 
-          <Card as="section" className="animate-fade-in-up animation-delay-300">
+          <Card as="section" >
             <SectionHeader eyebrow="Leads" title="Chats calificados" />
             <div className="mt-3 space-y-4">
               <QualifiedLabelDonut data={stats.qualifiedChats.byLabel} labelText={LABEL_TEXT} total={stats.qualifiedChats.total} />
@@ -329,7 +326,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
             </div>
           </Card>
 
-          <Card as="section" className="animate-fade-in-up animation-delay-300">
+          <Card as="section" >
             <SectionHeader eyebrow="Difusión" title="Entregas por origen" />
             <div className="mt-3 space-y-3">
               <DeliveryComparisonChart data={stats.campaignMessagesByOrigin} />
@@ -350,7 +347,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
             </div>
           </Card>
 
-          <Card as="section" className="animate-fade-in-up animation-delay-400">
+          <Card as="section" >
             <SectionHeader eyebrow="Canales" title="Chats por cuenta" />
             <div className="mt-3">
               <EntityBars

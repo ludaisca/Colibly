@@ -68,10 +68,11 @@ function ResetPasswordForm() {
               )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <FormField label="Contraseña nueva" required error={errors.password} hint="Mínimo 8 caracteres">
-                  {(id) => (
+                  {(id, describedBy) => (
                     <>
                       <PasswordInput
                         id={id}
+                        aria-describedby={describedBy}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         autoComplete="new-password"
@@ -82,9 +83,10 @@ function ResetPasswordForm() {
                   )}
                 </FormField>
                 <FormField label="Repite la contraseña" required error={errors.confirm}>
-                  {(id) => (
+                  {(id, describedBy) => (
                     <PasswordInput
                       id={id}
+                      aria-describedby={describedBy}
                       value={confirm}
                       onChange={(e) => setConfirm(e.target.value)}
                       autoComplete="new-password"

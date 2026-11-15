@@ -7,6 +7,11 @@ import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { FormField } from "@/app/components/ui/form-field";
 import { useToast } from "@/app/components/ui/toast";
+import { normalizeManualPhone } from "@/lib/contacts/manual-phone";
+
+const NAME_MAX = 120;
+// El contador aparece cuando faltan 10 caracteres o menos para el límite.
+const NAME_COUNTER_FROM = NAME_MAX - 10;
 
 interface AccountOption {
   id: string;
@@ -43,6 +48,15 @@ export function ContactCreateModal({
   const [error, setError] = useState<string | null>(null);
   const effectiveAccountId = accountId || accounts[0]?.id || "";
   const account = accounts.find((a) => a.id === effectiveAccountId);
+  // Misma normalización que el servidor (10 dígitos sin + = México).
+  const phoneError = phone.trim() && !normalizeManualPhone(phone) ? "El teléfono no es válido. Escríbelo con lada, por ejemplo +52 55 1234 5678." : undefined;
+  const blockedReason = !name.trim()
+    ? "Escribe el nombre para guardar."
+    : !phone.trim()
+      ? "Escribe el teléfono para guardar."
+      : phoneError
+        ? "Corrige el teléfono para guardar."
+        : null;
 
   // Etiquetas del destino: las de la cuenta elegida o, sin canal, las de la organización.
   useEffect(() => {
@@ -104,18 +118,19 @@ export function ContactCreateModal({
       description={accounts.length === 0 ? "Aún no tienes un canal conectado: el contacto se vinculará a tu WhatsApp cuando lo conectes." : undefined}
       footer={
         <>
+          {blockedReason && <p id="contact-create-blocked" className="mr-auto self-center text-xs text-muted-darker">{blockedReason}</p>}
           <Button variant="secondary" onClick={close}>Cancelar</Button>
-          <Button type="submit" form="contact-create-form" disabled={saving || !name.trim() || !phone.trim()}>{saving ? "Guardando…" : "Guardar contacto"}</Button>
+          <Button type="submit" form="contact-create-form" disabled={saving || !!blockedReason} aria-describedby={blockedReason ? "contact-create-blocked" : undefined}>{saving ? "Guardando…" : "Guardar contacto"}</Button>
         </>
       }
     >
       <form id="contact-create-form" onSubmit={submit} className="space-y-4">
         {error && <p className="rounded-[9px] bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>}
-        <FormField label="Nombre" required>
-          {(id) => <Input id={id} value={name} maxLength={120} onChange={(e) => setName(e.target.value)} placeholder="Mariana López" autoFocus />}
+        <FormField label="Nombre" required hint={name.length >= NAME_COUNTER_FROM ? `${name.length}/${NAME_MAX}` : undefined}>
+          {(id, describedBy) => <Input id={id} aria-describedby={describedBy} value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} placeholder="Mariana López" autoFocus />}
         </FormField>
-        <FormField label="Teléfono" required hint="Con lada, por ejemplo +52 55 1234 5678. Si escribes 10 dígitos asumimos México.">
-          {(id, describedBy) => <Input id={id} aria-describedby={describedBy} inputMode="tel" value={phone} maxLength={40} onChange={(e) => setPhone(e.target.value)} placeholder="+52 55 1234 5678" />}
+        <FormField label="Teléfono" required error={phoneError} hint="Con lada, por ejemplo +52 55 1234 5678. Si escribes 10 dígitos asumimos México.">
+          {(id, describedBy) => <Input id={id} aria-describedby={describedBy} error={phoneError} inputMode="tel" value={phone} maxLength={40} onChange={(e) => setPhone(e.target.value)} placeholder="+52 55 1234 5678" />}
         </FormField>
         {accounts.length > 1 && (
           <FormField label="Cuenta">

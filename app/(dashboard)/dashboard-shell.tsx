@@ -35,6 +35,7 @@ export function DashboardShell({
   role,
   initialUser,
   topBanner,
+  sidebarCard = null,
   platformAdmin = false,
   channels,
   callingEnabled = false,
@@ -51,6 +52,8 @@ export function DashboardShell({
   /** Tono de cada cuenta en la organización, sin choques (lib/accounts/hues.ts). */
   accountHues?: AccountHues | null;
   topBanner?: React.ReactNode;
+  /** Tarjeta al pie del menú (días de prueba); en el celular sale en "Más". */
+  sidebarCard?: React.ReactNode;
   // Operador de la plataforma (PLATFORM_ADMIN_EMAILS): ve el grupo "Plataforma".
   platformAdmin?: boolean;
   // Canales adicionales a WhatsApp. Están disponibles por defecto; el
@@ -154,7 +157,7 @@ export function DashboardShell({
   return (
     <BusinessNameProvider name={businessName ?? null}>
     <AccountHuesProvider hues={accountHues}>
-    <AppShell nav={NAV} mobileTabs={mobileTabs} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} initialUser={initialUser}>
+    <AppShell nav={NAV} mobileTabs={mobileTabs} accent="accent" collapsible brand={businessName || undefined} headerRight={<NotificationBell />} topBanner={topBanner} bottomActions={sidebarCard} initialUser={initialUser}>
       {children}
       <CallDock pollIncoming={callingEnabled} />
     </AppShell>

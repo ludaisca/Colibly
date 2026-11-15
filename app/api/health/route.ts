@@ -27,8 +27,8 @@ export async function GET() {
     check(() => getRedisClient().ping()),
   ]);
   const healthy = db === "ok" && redis === "ok";
-  return NextResponse.json(
-    { status: healthy ? "ok" : "degraded", db, redis, timestamp: Date.now() },
-    { status: healthy ? 200 : 503 }
-  );
+  // Público (QA-008): solo el estado. El detalle de qué falló no se publica;
+  // el healthcheck mira el código HTTP y el doctor de /plataforma revisa cada
+  // dependencia por su cuenta.
+  return NextResponse.json({ status: healthy ? "ok" : "degraded" }, { status: healthy ? 200 : 503 });
 }

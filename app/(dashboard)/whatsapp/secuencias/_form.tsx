@@ -48,7 +48,8 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved, prese
   const [triggerType, setTriggerType] = useState("TAG_ADDED");
   const [triggerValue, setTriggerValue] = useState("");
   const [exitOnReply, setExitOnReply] = useState(true);
-  const [active, setActive] = useState(true);
+  // QA-032: una secuencia nueva arranca apagada.
+  const [active, setActive] = useState(false);
   const [steps, setSteps] = useState<StepDraft[]>([{ delayMinutes: "0", message: "" }]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
@@ -63,7 +64,7 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved, prese
     setTriggerType("TAG_ADDED");
     setTriggerValue("");
     setExitOnReply(true);
-    setActive(true);
+    setActive(false);
     setSteps([{ delayMinutes: "0", message: "" }]);
     setErrors({});
     setError("");

@@ -46,8 +46,17 @@ export async function countBots(userId: string) {
   return prisma.wABot.count({ where: { ...(await orgWhere(userId)) } });
 }
 
+// Misma regla que botDisplayStatus() (lib/bots/display-status.ts): encendido,
+// sin error y con una cuenta conectada.
 export async function countActiveBots(userId: string) {
-  return prisma.wABot.count({ where: { ...(await orgWhere(userId)), isActive: true } });
+  return prisma.wABot.count({
+    where: {
+      ...(await orgWhere(userId)),
+      isActive: true,
+      status: { not: "ERROR" },
+      OR: [{ waAccountId: { not: null } }, { channelAccountId: { not: null } }],
+    },
+  });
 }
 
 export async function countCampaigns(userId: string) {

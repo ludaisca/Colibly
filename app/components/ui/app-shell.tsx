@@ -391,7 +391,7 @@ export function AppShell({
           id="contenido-principal"
           tabIndex={-1}
           className={cn(
-            "flex-1 animate-fade-in",
+            "flex-1 ",
             immersive ? "flex flex-col min-h-0 overflow-hidden" : "p-3 md:p-5 lg:p-6"
           )}
         >

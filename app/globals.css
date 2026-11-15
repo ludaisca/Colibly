@@ -531,11 +531,8 @@ input, textarea, [contenteditable="true"] {
    ANIMATIONS
    ───────────────────────────────────────────────── */
 
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
+/* Sin animaciones de entrada en el panel (D-07): solo color (120 ms) y la
+   apertura de menús y modales. */
 @keyframes fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -598,7 +595,6 @@ input, textarea, [contenteditable="true"] {
   50%      { opacity: 0.55; transform: scale(0.82); }
 }
 
-.animate-fade-in-up  { animation: fade-in-up  0.6s ease-out both; }
 /* Entrada de las pantallas de acceso: corta y desde un desplazamiento mínimo,
    para que /login no se vea en blanco al cargar (≤ 300 ms). */
 .animate-auth-in     { animation: auth-in 0.25s ease-out both; }
@@ -606,7 +602,6 @@ input, textarea, [contenteditable="true"] {
   from { opacity: 0.01; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-in     { animation: fade-in     0.6s ease-out both; }
 .animate-fade-out    { animation: fade-out    var(--dur) var(--ease) both; }
 .animate-scale-in    { animation: scale-in    var(--dur) var(--ease) both; }
 .animate-scale-out   { animation: scale-out   var(--dur) var(--ease) both; }
@@ -638,10 +633,6 @@ input, textarea, [contenteditable="true"] {
 }
 .chat-list-row[aria-current="true"]::before { transform: scaleY(1); }
 
-.animation-delay-100 { animation-delay: 100ms; }
-.animation-delay-200 { animation-delay: 200ms; }
-.animation-delay-300 { animation-delay: 300ms; }
-.animation-delay-400 { animation-delay: 400ms; }
 
 /* ─────────────────────────────────────────────────
    SITIO PÚBLICO — movimiento

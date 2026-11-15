@@ -14,6 +14,7 @@ import { Logo } from "@/app/components/ui/logo";
 import { registerSchema } from "@/lib/validations";
 import { newAnalyticsEventId, track } from "@/lib/analytics/client";
 import { Turnstile } from "@/app/components/ui/turnstile";
+import { BRAND_DOMAIN } from "@/lib/brand";
 
 // `turnstileSiteKey`: captcha activo (lo decide page.tsx en el servidor con
 // lib/turnstile.ts). null = registro sin captcha.
@@ -46,7 +47,7 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {};
       parsed.error.issues.forEach((i) => {
-        fieldErrors[i.path[0] as string] = i.message;
+        fieldErrors[i.path[0] as string] ??= i.message;
       });
       setErrors(fieldErrors);
       const firstInvalid = (["businessName", "name", "email", "password"] as const).find((field) => fieldErrors[field]);
@@ -253,8 +254,8 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
             </Button>
             <p className="text-center text-xs text-muted-darker">
               Al crear tu cuenta aceptas los{" "}
-              <Link href="/terminos" className="text-accent-ink underline underline-offset-2">Términos y condiciones</Link> y el{" "}
-              <Link href="/privacidad" className="text-accent-ink underline underline-offset-2">Aviso de privacidad</Link>.
+              <a href={`https://${BRAND_DOMAIN}/terminos`} className="text-accent-ink underline underline-offset-2">Términos y condiciones</a> y el{" "}
+              <a href={`https://${BRAND_DOMAIN}/privacidad`} className="text-accent-ink underline underline-offset-2">Aviso de privacidad</a>.
             </p>
           </form>
         </CardBody>

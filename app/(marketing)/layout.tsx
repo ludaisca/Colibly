@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Script from "next/script";
 import { connection } from "next/server";
 import { Logo } from "@/app/components/ui/logo";
@@ -9,25 +8,29 @@ import { BRAND_NAME, BRAND_SUPPORT_WHATSAPP_DISPLAY, BRAND_SUPPORT_WHATSAPP_URL,
 import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { LEGAL } from "./_legal";
 import { SiteMobileNav } from "@/app/components/ui/site-mobile-nav";
-import { appUrl } from "@/lib/app-url";
+import { appUrl, siteUrl } from "@/lib/app-url";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { siteSchemaJson } from "@/lib/seo/site-schema";
 
 const MOBILE_LINKS = [
-  { href: "/#producto", label: "Producto" },
-  { href: "/#como-funciona", label: "Cómo funciona" },
-  { href: "/precios", label: "Precios" },
-  { href: "/blog", label: "Blog" },
-  { href: "/#preguntas", label: "Preguntas" },
+  { href: siteUrl("/#producto"), label: "Producto" },
+  { href: siteUrl("/#como-funciona"), label: "Cómo funciona" },
+  { href: siteUrl("/precios"), label: "Precios" },
+  { href: siteUrl("/blog"), label: "Blog" },
+  { href: siteUrl("/#preguntas"), label: "Preguntas" },
 ];
 
 // 44 px de alto para tocar con el dedo; en escritorio vuelve a su altura de texto.
 const FOOTER_LINK = "inline-flex min-h-11 items-center hover:text-foreground md:min-h-0";
 
+// Este layout también envuelve /docs/api en app.colibly.com: los enlaces del
+// sitio van absolutos a SITE_URL (las anclas /#… en el host de la app acababan
+// en /login) y como <a> simple, sin el prefetch de Next que la CSP del host de
+// la app bloquea.
 const FOOTER_COLUMNS = [
-  { title: "Producto", links: [{ href: "/", label: "Conocer Colibly" }, { href: "/precios", label: "Planes y precios" }, { href: "/blog", label: "Blog" }, { href: "/guias", label: "Guías" }, { href: "/comparativas", label: "Comparativas" }, { href: "/crm-whatsapp", label: "CRM para WhatsApp" }, { href: "/chatbot-whatsapp-ia", label: "Chatbot de IA" }, { href: "/whatsapp-business-app-vs-api", label: "WhatsApp Business: app o API" }, { href: "/#preguntas", label: "Preguntas frecuentes" }, { href: appUrl("/docs/api"), label: "API para desarrolladores" }] },
-  { title: "Soporte", links: [{ href: "/contacto", label: "Contacto y soporte" }, { href: "/eliminar-datos", label: "Eliminar mis datos" }] },
-  { title: "Legal", links: [{ href: "/terminos", label: "Términos y condiciones" }, { href: "/privacidad", label: "Aviso de privacidad" }, { href: "/privacidad#cookies", label: "Cookies y medición" }] },
+  { title: "Producto", links: [{ href: siteUrl("/"), label: "Conocer Colibly" }, { href: siteUrl("/precios"), label: "Planes y precios" }, { href: siteUrl("/blog"), label: "Blog" }, { href: siteUrl("/guias"), label: "Guías" }, { href: siteUrl("/comparativas"), label: "Comparativas" }, { href: siteUrl("/crm-whatsapp"), label: "CRM para WhatsApp" }, { href: siteUrl("/chatbot-whatsapp-ia"), label: "Chatbot de IA" }, { href: siteUrl("/whatsapp-business-app-vs-api"), label: "WhatsApp Business: app o API" }, { href: siteUrl("/#preguntas"), label: "Preguntas frecuentes" }, { href: appUrl("/docs/api"), label: "API para desarrolladores" }] },
+  { title: "Soporte", links: [{ href: siteUrl("/contacto"), label: "Contacto y soporte" }, { href: siteUrl("/eliminar-datos"), label: "Eliminar mis datos" }] },
+  { title: "Legal", links: [{ href: siteUrl("/terminos"), label: "Términos y condiciones" }, { href: siteUrl("/privacidad"), label: "Aviso de privacidad" }, { href: siteUrl("/privacidad#cookies"), label: "Cookies y medición" }] },
 ];
 
 // Nuestro propio widget de chat web en la landing (una cuenta WEBCHAT de la
@@ -63,13 +66,13 @@ export default async function MarketingLayout({ children }: { children: React.Re
       </a>
       <header className="sticky top-0 z-40 border-b border-border bg-surface">
         <div className="relative mx-auto flex max-w-6xl items-center gap-1.5 px-3 py-2 min-[400px]:gap-2 min-[400px]:px-4 md:gap-4 md:px-6">
-          <Logo href="/" className="min-w-0 shrink max-[360px]:[&_span.font-display]:sr-only" />
+          <Logo href={siteUrl("/")} className="min-w-0 shrink max-[360px]:[&_span.font-display]:sr-only" />
           <nav className="ml-auto hidden items-center gap-5 text-[15px] font-medium text-muted-darker lg:gap-6 md:flex" aria-label="Secciones">
-            <Link href="/#producto" className="hover:text-foreground">Producto</Link>
-            <Link href="/#como-funciona" className="whitespace-nowrap hover:text-foreground">Cómo funciona</Link>
-            <Link href="/precios" className="hover:text-foreground">Precios</Link>
-            <Link href="/blog" className="hover:text-foreground">Blog</Link>
-            <Link href="/#preguntas" className="hover:text-foreground">Preguntas</Link>
+            <a href={siteUrl("/#producto")} className="hover:text-foreground">Producto</a>
+            <a href={siteUrl("/#como-funciona")} className="whitespace-nowrap hover:text-foreground">Cómo funciona</a>
+            <a href={siteUrl("/precios")} className="hover:text-foreground">Precios</a>
+            <a href={siteUrl("/blog")} className="hover:text-foreground">Blog</a>
+            <a href={siteUrl("/#preguntas")} className="hover:text-foreground">Preguntas</a>
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-1.5 min-[400px]:gap-2 md:ml-0">
             {/* En móvil "Entrar" vive en el menú para que quepan logo, botón y menú en 360 px. */}
@@ -97,7 +100,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <footer className="border-t border-border bg-surface">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted-strong sm:grid-cols-2 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))] lg:px-6 md:px-6">
           <div className="space-y-3 sm:col-span-2 lg:col-span-1">
-            <Logo href="/" />
+            <Logo href={siteUrl("/")} />
             <p className="max-w-xs text-pretty">{BRAND_TAGLINE}.</p>
             {contactEmail && (
               <p className="break-words">
@@ -113,7 +116,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
               <p className="mb-2 font-semibold text-foreground">{col.title}</p>
               <ul className="flex flex-col gap-0.5 md:gap-2">
                 {col.links.map((l) => (
-                  <li key={l.href}><Link href={l.href} className={FOOTER_LINK}>{l.label}</Link></li>
+                  <li key={l.href}><a href={l.href} className={FOOTER_LINK}>{l.label}</a></li>
                 ))}
                 {col.title === "Legal" && analytics && (
                   <li><CookiePreferencesButton className={`${FOOTER_LINK} cursor-pointer`} /></li>

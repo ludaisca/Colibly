@@ -295,7 +295,7 @@ export function ChatComposer({
         <div className="chat-disclosure-enter flex items-center gap-3 rounded-lg border border-border bg-background p-2">
           {attachmentPreview && isImageMime(attachment.type) ? (
             // eslint-disable-next-line @next/next/no-img-element -- local preview blob
-            <img src={attachmentPreview} alt={attachment.name} width={48} height={48} className="h-12 w-12 rounded object-cover animate-fade-in" />
+            <img src={attachmentPreview} alt={attachment.name} width={48} height={48} className="h-12 w-12 rounded object-cover" />
           ) : isAudioMime(attachment.type) ? (
             attachmentPreview ? (
               <audio controls src={attachmentPreview} className="h-10 w-44 shrink-0" />

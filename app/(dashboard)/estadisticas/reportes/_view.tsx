@@ -45,8 +45,10 @@ function shiftKey(key: string, days: number): string {
 
 export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: RangeReport; heatmap: ActivityHeatmapData; bot: BotPerformance; fromKey: string; toKey: string }) {
   const router = useRouter();
-  const [from, setFrom] = useState(fromKey);
-  const [to, setTo] = useState(toKey);
+  // El periodo sale siempre de la URL (fromKey/toKey, igual que el CSV): un
+  // estado local se quedaba con el rango anterior al usar los atajos.
+  const from = fromKey;
+  const to = toKey;
   const [agentModal, setAgentModal] = useState<AgentReport | null>(null);
 
   function applyRange(nextFrom = from, nextTo = to) {
@@ -221,7 +223,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
 
   return (
     <div className="space-y-6">
-      <div className="animate-fade-in-up">
+      <div>
         <PageHeader
           title="Reportes"
           description="Actividad, tiempos de respuesta y carga por agente en un periodo."
@@ -233,11 +235,11 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
         />
       </div>
 
-      <div className="animate-fade-in-up animation-delay-100">
+      <div>
         <LivePanel />
       </div>
 
-      <Card className="animate-fade-in-up animation-delay-100 p-4">
+      <Card className="p-4">
         <div className="flex flex-wrap items-end gap-3">
           {/* Elegir el último día aplica el periodo: no hace falta "Aplicar". */}
           <DateRangePicker
@@ -245,7 +247,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
             value={{ start: from, end: to }}
             max={localISODaysAgo()}
             clearable={false}
-            onChange={(range) => { setFrom(range.start); setTo(range.end); applyRange(range.start, range.end); }}
+            onChange={(range) => applyRange(range.start, range.end)}
           />
           <Button variant="secondary" size="sm" icon={Download} onClick={exportSummary} className="ml-auto order-last">
             Exportar resumen
@@ -258,12 +260,12 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
         </div>
       </Card>
 
-      <div className="animate-fade-in-up animation-delay-200">
+      <div>
         <KpiStrip items={kpis} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="animate-fade-in-up animation-delay-300 p-4 lg:col-span-2">
+        <Card className="p-4 lg:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <SectionHeader eyebrow="Equipo" title="Por agente" />
             <Button variant="secondary" size="sm" icon={Download} onClick={exportAgents} disabled={data.agents.length === 0}>
@@ -283,7 +285,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
           />
         </Card>
 
-        <Card className="animate-fade-in-up animation-delay-400 p-4">
+        <Card className="p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <SectionHeader eyebrow="Canales" title="Volumen" />
             <Button variant="secondary" size="sm" icon={Download} onClick={exportChannels} disabled={data.channels.length === 0}>
@@ -302,7 +304,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
       </div>
 
       {bot.chats > 0 && (
-        <Card className="animate-fade-in-up animation-delay-300 space-y-3 p-4">
+        <Card className="space-y-3 p-4">
           <SectionHeader eyebrow="Automatización" title="Bot de IA" />
           <p className="text-xs text-muted">
             Chats donde el bot respondió en el periodo. Traspaso = una persona escribió después del bot; resuelto por el bot = se
@@ -323,7 +325,7 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
         </Card>
       )}
 
-      <div className="animate-fade-in-up animation-delay-300">
+      <div>
         <ActivityHeatmap inbound={heatmap.inbound} resolved={heatmap.resolved} timeZone={heatmap.timeZone} />
       </div>
 

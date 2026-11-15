@@ -45,6 +45,9 @@ export default function SettingsPage() {
   const email = user?.email ?? "";
 
   const [newName, setNewName] = useState("");
+  // El error de nombre vacío sale cuando la persona lo borra, no mientras carga.
+  const [nameTouched, setNameTouched] = useState(false);
+  const nameError = nameTouched && !newName.trim() ? "Escribe tu nombre" : undefined;
   const nameInitialized = useRef(false);
   useEffect(() => {
     if (user && !nameInitialized.current) {
@@ -243,16 +246,18 @@ export default function SettingsPage() {
 
       <Card as="section" className="space-y-4">
         <SectionHeader title="Cuenta" />
-        <FormField label="Nombre">
-          {(id) => (
+        <FormField label="Nombre" required error={nameError}>
+          {(id, describedBy) => (
             <Input
               id={id}
+              aria-describedby={describedBy}
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              error={nameError}
+              onChange={(e) => { setNewName(e.target.value); setNameTouched(true); }}
             />
           )}
         </FormField>
-        <Button size="sm" icon={User} onClick={handleSaveName} loading={savingName}>Guardar nombre</Button>
+        <Button size="sm" icon={User} onClick={handleSaveName} loading={savingName} disabled={!newName.trim()}>Guardar nombre</Button>
       </Card>
 
       </div>

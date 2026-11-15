@@ -34,6 +34,16 @@ const CSP = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Sin "X-Powered-By: Next.js" (QA-014).
+  poweredByHeader: false,
+  async redirects() {
+    return [
+      // QA-013: la ruta en español lleva al registro (308 conserva la query).
+      { source: "/registro", destination: "/register", permanent: true },
+      // QA-011: los navegadores y lectores piden /favicon.ico aunque el ícono sea SVG.
+      { source: "/favicon.ico", destination: "/icon.svg", permanent: true },
+    ];
+  },
   // Next dev blocks cross-origin requests to dev resources (HMR websocket, RSC
   // payloads) by default. Needed while testing through an ngrok tunnel for the
   // Meta webhook, and for the LAN/Tailscale hostnames used to reach this dev

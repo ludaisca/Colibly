@@ -325,18 +325,29 @@ function BotDetailPageContent() {
               <FormField label="Título">
                 {(id) => <Input id={id} value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="Ej: Manual de soporte" />}
               </FormField>
-              <FormField label="Archivo" hint=".txt, .md, .csv, .json (máx 10MB)">
-                {(id) => (
+              {/* Input nativo oculto: el botón "Elegir archivo" es su label (QA-028). */}
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-foreground">Archivo</p>
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
                   <input
-                    id={id}
+                    id="knowledge-file"
                     ref={fileRef}
                     type="file"
                     accept=".txt,.md,.csv,.json"
                     onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                    className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-light file:text-foreground hover:file:bg-surface file:cursor-pointer"
+                    aria-describedby="knowledge-file-hint"
+                    className="peer sr-only"
                   />
-                )}
-              </FormField>
+                  <label
+                    htmlFor="knowledge-file"
+                    className="inline-flex h-8 cursor-pointer items-center rounded-[9px] border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-light peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
+                  >
+                    Elegir archivo
+                  </label>
+                  <span className="min-w-0 truncate text-sm text-muted-darker">{selectedFile ? selectedFile.name : "Ningún archivo elegido"}</span>
+                </div>
+                <p id="knowledge-file-hint" className="text-xs text-muted-darker">.txt, .md, .csv, .json (máx 10MB)</p>
+              </div>
               <Button icon={Upload} size="sm" onClick={handleUpload} disabled={uploading || !selectedFile}>
                 {uploading ? <Spinner /> : "Indexar documento"}
               </Button>

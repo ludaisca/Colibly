@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import Link from "next/link";
+import { BRAND_DOMAIN } from "@/lib/brand";
 import { usePathname } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import type { AnalyticsConfig } from "@/lib/analytics/config";
@@ -187,25 +187,27 @@ export function Analytics({ config }: { config: AnalyticsConfig }) {
   const decide = (value: Consent) => saveConsent(value);
 
   if (consent !== null) return null;
+  // Banda inferior de una línea (14 = 56 px). El espaciador en el flujo da a
+  // la página el mismo alto extra mientras el aviso está visible: no tapa los
+  // últimos enlaces (p. ej. "Términos" en /register a 390 px) ni bloquea el scroll.
   return (
-    <div
-      role="region"
-      aria-label="Aviso de cookies"
-      className="fixed inset-x-3 bottom-3 z-50 rounded-2xl border border-border bg-surface p-4 text-sm text-foreground shadow-lg sm:inset-x-auto sm:left-4 sm:max-w-md"
-    >
-      <p>
-        Usamos cookies para saber qué anuncios nos traen visitas y mejorar esta página. Puedes aceptarlas o
-        rechazarlas; el sitio funciona igual.{" "}
-        <Link href="/privacidad#cookies" className="font-medium text-accent-ink underline underline-offset-2">
-          Aviso de privacidad
-        </Link>
-      </p>
-      {/* En móvil los botones van a la izquierda: a la derecha queda la burbuja del chat web. */}
-      <div className="mt-3 flex justify-start gap-2 sm:justify-end">
-        <Button variant="secondary" onClick={() => decide("denied")}>Rechazar</Button>
-        <Button onClick={() => decide("granted")}>Aceptar</Button>
+    <>
+      <div aria-hidden className="h-14 shrink-0" />
+      <div
+        role="region"
+        aria-label="Aviso de cookies"
+        className="fixed inset-x-0 bottom-0 z-50 flex h-14 items-center gap-2 border-t border-border bg-surface px-3 text-xs text-foreground sm:gap-3 sm:px-4 sm:text-sm"
+      >
+        <p className="min-w-0 flex-1 truncate">
+          Usamos cookies para medir visitas.{" "}
+          <a href={`https://${BRAND_DOMAIN}/privacidad#cookies`} className="font-medium text-accent-ink underline underline-offset-2">
+            Detalles
+          </a>
+        </p>
+        <Button size="sm" variant="secondary" onClick={() => decide("denied")}>Solo necesarias</Button>
+        <Button size="sm" onClick={() => decide("granted")}>Aceptar</Button>
       </div>
-    </div>
+    </>
   );
 }
 

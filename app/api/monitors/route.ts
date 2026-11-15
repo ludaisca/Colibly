@@ -41,7 +41,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Máximo ${MAX_MONITORS_PER_ORG} monitores por organización` }, { status: 400 });
     }
     const monitor = await prisma.topicMonitor.create({
-      data: { organizationId: ctx.organizationId, createdById: ctx.userId, name: parsed.data.name, description: parsed.data.description, active: parsed.data.active ?? true },
+      // QA-032: un monitor nuevo nace inactivo salvo que se pida encendido.
+      data: { organizationId: ctx.organizationId, createdById: ctx.userId, name: parsed.data.name, description: parsed.data.description, active: parsed.data.active ?? false },
       select: { id: true, name: true, description: true, active: true, createdAt: true },
     });
     return NextResponse.json({ ...monitor, matchCount: 0 }, { status: 201 });

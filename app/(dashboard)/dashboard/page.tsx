@@ -179,14 +179,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="animate-fade-in-up">
+      <div>
         <PageHeader title="Panel" description="Resumen de la actividad de tus canales" actions={<SampleDataControls />} />
       </div>
 
       <ContactLimitNotice />
 
       {showOnboarding && (
-        <div className="animate-fade-in-up animation-delay-100">
+        <div>
           <OnboardingChecklist steps={onboarding} />
         </div>
       )}
@@ -195,7 +195,7 @@ export default async function DashboardPage() {
           un mensaje verde de "todo en orden" daría una señal equivocada. */}
       <div
         className={cn(
-          "animate-fade-in-up animation-delay-100 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3",
+          " flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3",
           needsSetup ? "bg-info-bg" : needsAttention ? "bg-warning-bg" : "bg-success-bg"
         )}
       >
@@ -221,13 +221,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="animate-fade-in-up animation-delay-200">
+      <div>
         <KpiStrip items={kpis} />
       </div>
 
       <Workbench>
         <WorkbenchMain>
-          <section className="animate-fade-in-up animation-delay-300 overflow-hidden rounded-xl border border-border bg-surface">
+          <section className="overflow-hidden rounded-xl border border-border bg-surface">
             <div className="flex items-baseline justify-between gap-3 px-4 py-3">
               <SectionHeader
                 eyebrow="Actividad"
@@ -286,7 +286,7 @@ export default async function DashboardPage() {
         </WorkbenchMain>
 
         <WorkbenchAside>
-          <section className="animate-fade-in-up animation-delay-400 rounded-xl border border-border bg-surface">
+          <section className="rounded-xl border border-border bg-surface">
             <div className="px-4 py-3">
               <SectionHeader eyebrow="Atajos" title="Acceso rápido" />
             </div>

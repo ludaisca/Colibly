@@ -6,7 +6,7 @@ import { MAX_SEATS } from "@/lib/billing/plans";
 // busca al usuario con el email en minúsculas, así que cualquier alta que lo
 // guarde tal cual lo tecleó ("Luis@Empresa.com") deja a esa persona sin poder
 // iniciar sesión nunca. Usar este campo en todo schema que cree o busque usuarios.
-export const emailField = z.string().trim().toLowerCase().email("Email inválido");
+export const emailField = z.string().trim().toLowerCase().min(1, "El correo es obligatorio").email("El correo no es válido");
 
 export const loginSchema = z.object({
   email: emailField,

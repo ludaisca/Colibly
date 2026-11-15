@@ -4,7 +4,6 @@ import { orgAiCreditSummary } from "@/lib/ai/credits";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { orgWhere } from "@/lib/tenancy";
 import {
-  countActiveBots,
   countBots,
   countCampaigns,
   countChats,
@@ -16,6 +15,7 @@ import { agentAggregates, dailyMessageCounts, qualifiedChatRows } from "@/lib/es
 import { firstResponseRows, minutesByResponder } from "@/lib/estadisticas/response-times";
 import { summarizeResponses, type ResponseSummary } from "@/lib/estadisticas/response-rules";
 import { chartDayKeys, withTimeout } from "@/lib/estadisticas/aggregate-rules";
+import { botDisplayStatus, type BotDisplayStatus } from "@/lib/bots/display-status";
 
 // Mismo orden que VALID_LABELS en lib/whatsapp/lead-scoring.ts, invertido para
 // mostrar primero lo más urgente/accionable.
@@ -70,7 +70,7 @@ export interface Estadisticas {
   botBreakdown: Array<{
     id: string;
     name: string;
-    status: string;
+    status: BotDisplayStatus;
     interactions: number;
     totalTokens: number;
     totalCost: number;
@@ -175,7 +175,6 @@ async function computeEstadisticas(userId: string): Promise<Estadisticas> {
     scorerUsage,
     recoveryUsage,
     dailyMap,
-    activeBots,
     campaignsCompleted,
     botsList,
     usageByBot,
@@ -208,11 +207,10 @@ async function computeEstadisticas(userId: string): Promise<Estadisticas> {
       _sum: { totalTokens: true, estimatedCost: true },
     }),
     dailyMessageCounts(accountIds, channelAccountIds, chartStart, STATS_TZ),
-    countActiveBots(userId),
     countCompletedCampaigns(userId),
     prisma.wABot.findMany({
       where: org,
-      select: { id: true, name: true, status: true },
+      select: { id: true, name: true, status: true, isActive: true, waAccountId: true, channelAccountId: true },
     }),
     prisma.wABotUsage.groupBy({
       by: ["botId"],
@@ -273,7 +271,7 @@ async function computeEstadisticas(userId: string): Promise<Estadisticas> {
       return {
         id: b.id,
         name: b.name,
-        status: b.status,
+        status: botDisplayStatus(b),
         interactions: u?._count._all ?? 0,
         totalTokens: u?._sum.totalTokens ?? 0,
         totalCost: Math.round((u?._sum.estimatedCost ?? 0) * 10000) / 10000,
@@ -392,7 +390,8 @@ async function computeEstadisticas(userId: string): Promise<Estadisticas> {
     messages,
     bots,
     campaigns,
-    activeBots,
+    // Misma regla que la tabla (botDisplayStatus): sin cuenta nunca cuenta como activo.
+    activeBots: botBreakdown.filter((b) => b.status === "active").length,
     campaignsCompleted,
     totalTokens:
       (usage._sum.totalTokens ?? 0) +

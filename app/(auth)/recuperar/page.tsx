@@ -71,9 +71,10 @@ export default function ForgotPasswordPage() {
               </p>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <FormField label="Correo electrónico" required error={fieldError}>
-                  {(id) => (
+                  {(id, describedBy) => (
                     <Input
                       id={id}
+                      aria-describedby={describedBy}
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}

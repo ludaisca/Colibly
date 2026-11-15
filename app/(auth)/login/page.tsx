@@ -57,7 +57,7 @@ function LoginForm() {
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {};
       parsed.error.issues.forEach((i) => {
-        fieldErrors[i.path[0] as string] = i.message;
+        fieldErrors[i.path[0] as string] ??= i.message;
       });
       setErrors(fieldErrors);
       return;
@@ -157,9 +157,10 @@ function LoginForm() {
               </div>
               {useBackupCode ? (
                 <FormField label="Código de respaldo" required hint="Uno de los 10 códigos que guardaste al activar la verificación.">
-                  {(id) => (
+                  {(id, describedBy) => (
                     <Input
                       id={id}
+                      aria-describedby={describedBy}
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
                       autoComplete="off"
@@ -212,9 +213,10 @@ function LoginForm() {
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <FormField label="Correo electrónico" required error={errors.email}>
-              {(id) => (
+              {(id, describedBy) => (
                 <Input
                   id={id}
+                  aria-describedby={describedBy}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -226,9 +228,10 @@ function LoginForm() {
             </FormField>
 
             <FormField label="Contraseña" required error={errors.password}>
-              {(id) => (
+              {(id, describedBy) => (
                 <Input
                   id={id}
+                  aria-describedby={describedBy}
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

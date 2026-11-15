@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "./dashboard-shell";
 import { VerifyEmailBanner } from "@/app/components/ui/verify-email-banner";
 import { BillingBanner } from "@/app/components/ui/billing-banner";
+import { TrialCard } from "@/app/components/billing/trial-card";
 import { getOrgBilling } from "@/lib/billing/gates";
 import { billingNotice } from "@/lib/billing/state";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
@@ -74,7 +75,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // exige que los dos sean de un operador.
   const platformAdmin = isPlatformAdminEmail(session.user.email) && isPlatformAdminEmail(user?.email);
   const notice = org ? billingNotice(org, new Date()) : null;
-  const showNotice = notice && (isAdmin || notice.tone === "danger");
+  // La prueba con días de sobra va en una tarjeta al pie del menú; arriba solo
+  // los avisos que piden actuar ya (≤3 días, pago fallido, solo lectura…).
+  const showNotice = notice && notice.tone !== "info" && (isAdmin || notice.tone === "danger");
+  const trialCard = isAdmin && notice?.kind === "trial_ending" ? <TrialCard daysLeft={notice.daysLeft ?? 0} /> : null;
 
   const topBanner = (
     <>
@@ -83,7 +87,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     </>
   );
   return (
-    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} platformAdmin={platformAdmin} channels={channels} callingEnabled={callingEnabled} hasWhatsapp={whatsappAccounts > 0} accountHues={accountHues}>
+    <DashboardShell businessName={user?.organization.name} role={session.user.role} initialUser={{ name: session.user.name, email: session.user.email, availability: user?.availability, pushPublicKey: settings.vapidPrivateKey ? settings.vapidPublicKey : null }} topBanner={topBanner} sidebarCard={trialCard} platformAdmin={platformAdmin} channels={channels} callingEnabled={callingEnabled} hasWhatsapp={whatsappAccounts > 0} accountHues={accountHues}>
       {children}
     </DashboardShell>
   );
