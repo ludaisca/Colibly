@@ -187,13 +187,13 @@ export function ChatListPanel({
   }));
 
   return (
-    <div className={`${selectedChatId ? "hidden lg:flex" : "flex"} lg:flex flex-col w-full ${resizable ? "" : "lg:w-80 xl:w-96 shrink-0"} min-w-0 border-r border-border`}>
+    <div className={`${selectedChatId ? "hidden lg:flex" : "flex"} lg:flex flex-col w-full ${resizable ? "" : "lg:w-80 shrink-0"} min-w-0 border-r border-border`}>
       <div className="space-y-2 border-b border-border px-3 py-2">
         {/* Cabecera estilo Chatwoot: título a la izquierda y acciones de icono
             a la derecha; nunca compiten por espacio con la búsqueda. */}
         <div className="flex items-center gap-1">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-display text-2xl font-bold leading-none">Chats</h1>
+            <h1 className="truncate text-page-title leading-none">Chats</h1>
             <p className="mt-1 truncate text-micro text-muted">{awaitingFilter ? "Quien lleva más esperando, arriba" : sortOldest ? "Más antiguos primero" : "Por último mensaje"}</p>
           </div>
           <ChatViewsMenu currentQuery={currentViewQuery} onApply={onApplyView} counts={viewCounts} />
@@ -270,7 +270,7 @@ export function ChatListPanel({
           <Combobox.Root items={suggestions} inputValue={search}
             onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
             onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
-            <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-sm border border-border bg-surface-light px-3 focus-within:border-accent-strong">
+            <Combobox.InputGroup className="flex h-8 items-center gap-2 rounded-sm border border-border-strong bg-surface px-3 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-subtle">
               <Search size={16} className="shrink-0 text-muted-darker" />
               <Combobox.Input data-inbox-search data-focus-ring="" aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat…" className="h-full min-w-0 flex-1 self-stretch bg-transparent text-sm text-foreground placeholder:text-muted-darker" />
             </Combobox.InputGroup>
@@ -311,34 +311,40 @@ export function ChatListPanel({
         )}
       </div>
       {/* Cabecera del tablero: qué se ve y por qué columna se ordena. */}
-      <div className="flex items-center justify-between gap-2 px-3 pb-1.5 pt-2">
-        <div className="inline-flex rounded-full bg-surface-light p-0.5" role="group" aria-label="Qué chats ver">
-          <button
-            type="button"
-            aria-pressed={awaitingFilter}
-            onClick={() => onAwaitingFilterChange(true)}
-            className={cn("rounded-full px-3 py-1 text-micro font-semibold transition-colors", awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
-          >
-            Esperando{viewCounts ? ` ${viewCounts.awaiting}` : ""}
-          </button>
-          <button
-            type="button"
-            aria-pressed={!awaitingFilter}
-            onClick={() => onAwaitingFilterChange(false)}
-            className={cn("rounded-full px-3 py-1 text-micro font-semibold transition-colors", !awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
-          >
-            Todos
-          </button>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 pt-2">
+        {/* Pestañas (dirección congelada): Esperando · Mías · Todas · Después,
+            con contador y subrayado de 2 px. Son combinaciones de los filtros
+            de siempre (awaiting / assigned=me / snoozed=only). */}
+        <div role="tablist" aria-label="Qué chats ver" className="flex min-w-0 gap-0.5 overflow-x-auto scrollbar-none">
+          {([
+            { key: "awaiting", label: "Esperando", count: viewCounts?.awaiting, active: awaitingFilter && !assignedFilter && !snoozedFilter, apply: () => { onAssignedFilterChange(""); onSnoozedFilterChange(""); onAwaitingFilterChange(true); } },
+            { key: "mine", label: "Mías", count: viewCounts?.mine, active: !awaitingFilter && assignedFilter === "me" && !snoozedFilter, apply: () => { onAwaitingFilterChange(false); onSnoozedFilterChange(""); onAssignedFilterChange("me"); } },
+            { key: "all", label: "Todas", count: viewCounts?.all, active: !awaitingFilter && !assignedFilter && !snoozedFilter, apply: () => { onAwaitingFilterChange(false); onAssignedFilterChange(""); onSnoozedFilterChange(""); } },
+            { key: "later", label: "Después", count: undefined, active: !awaitingFilter && snoozedFilter === "only", apply: () => { onAwaitingFilterChange(false); onAssignedFilterChange(""); onSnoozedFilterChange("only"); } },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={tab.active}
+              onClick={tab.apply}
+              className={cn(
+                "-mb-px shrink-0 border-b-2 px-2 pb-1.5 pt-1 text-sm font-medium transition-colors duration-fast",
+                tab.active ? "border-accent text-foreground" : "border-transparent text-muted hover:text-foreground"
+              )}
+            >
+              {tab.label}
+              {typeof tab.count === "number" && <span className="ml-1 tabular-nums text-muted-darker">{tab.count}</span>}
+            </button>
+          ))}
         </div>
-        {awaitingFilter ? (
-          <span className="text-micro font-semibold tracking-[0.12em] text-muted">Más espera</span>
-        ) : (
+        {awaitingFilter || snoozedFilter === "only" ? null : (
           // Orden de la vista Todos: lo viejo sin contestar no se pierde debajo de lo reciente.
           <button
             type="button"
             onClick={() => onSortOldestChange(!sortOldest)}
             aria-label={sortOldest ? "Ordenar por más recientes" : "Ordenar por más antiguos"}
-            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-micro font-semibold tracking-[0.12em] text-muted hover:bg-surface-light hover:text-foreground"
+            className="inline-flex shrink-0 items-center gap-1 rounded-sm px-2 py-1 text-xs font-medium text-muted hover:bg-surface-light hover:text-foreground"
           >
             {sortOldest ? "Antiguos" : "Recientes"}
             <ArrowUpDown size={11} aria-hidden />
@@ -354,18 +360,18 @@ export function ChatListPanel({
           <div className="p-4"><ListErrorState message={loadError} onRetry={onRetry} /></div>
         ) : !hasResults && totalChatsLoaded === 0 && !(search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter || slaFilter) ? (
           <GettingStarted
-            title="Tu bandeja está lista"
-            description="Aquí llegan los mensajes de todos tus canales. Conecta uno para empezar a recibirlos."
+            title="Sin canales conectados"
+            description="Conecta tu WhatsApp para recibir mensajes aquí."
             memberHint="Aquí verás los chats de las cuentas que tienes asignadas. Si no llega nada, pide a un administrador que te comparta una cuenta."
           />
         ) : !hasResults ? (
           <div className="py-8">
             <EmptyState
               icon={MessageSquare}
-              title={awaitingFilter && !search ? "Nadie espera respuesta" : totalChatsLoaded === 0 ? "Sin chats" : "Sin resultados"}
-              description={awaitingFilter && !search
-                ? "Cuando un cliente escriba y nadie le conteste, aparecerá aquí con su tiempo de espera."
-                : totalChatsLoaded === 0 ? "No tienes chats activos. Cuando recibas mensajes aparecerán aquí." : "No se encontraron chats con ese filtro."}
+              title={(awaitingFilter && !search) || totalChatsLoaded === 0 ? "Todo contestado." : "Sin resultados"}
+              description={(awaitingFilter && !search) || totalChatsLoaded === 0
+                ? "Te avisamos cuando alguien escriba."
+                : "No hay chats con ese filtro."}
               action={totalChatsLoaded > 0 && (search || campaignFilter || hasRepliedFilter || accountFilter || assignedFilter || priorityFilter || snoozedFilter || awaitingFilter || slaFilter) ? (
                 <Button variant="secondary" size="sm" onClick={() => {
                   onSearchChange("");

@@ -92,7 +92,6 @@ export default function MonitoresPage() {
       <PageHeader
         hint="monitors"
         title="Monitores IA"
-        description="La IA revisa tus conversaciones cada hora y te muestra en cuáles aparece cada tema: quejas, preguntas por un producto, intención de cancelar…"
         actions={
           <Button icon={Plus} onClick={() => { setMonitorPreset(null); setEditing("new"); }} disabled={!planIncluded || monitors.length >= max}>
             Nuevo monitor

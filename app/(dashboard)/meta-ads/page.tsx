@@ -117,7 +117,6 @@ export default function MetaAdsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Meta Ads"
-        description="Páginas que reciben leads de anuncios (formularios instantáneos y clic a WhatsApp). Le avisamos a Meta cuáles resultaron buenos para que tus campañas mejoren."
         actions={
           <>
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>

@@ -166,7 +166,6 @@ export function MacrosView() {
       <BackLink href="/configuracion" className="-mb-2">Volver a configuración</BackLink>
       <PageHeader
         title="Macros"
-        description="Acciones manuales reutilizables para despachar chats en un clic."
         actions={
           <>
             <Button icon={Plus} onClick={openCreate}>Nueva macro</Button>

@@ -6,7 +6,6 @@ export default function CalificadoresLoading() {
     <div className="space-y-5">
       <PageHeader
         title="Calificadores de Leads"
-        description="Crea agentes de IA que analizan una conversación y la califican con tu propio criterio — cada uno con sus propias instrucciones, para el negocio que vendas."
       />
 
       <div className="flex gap-1 border-b border-border">

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Bot, Megaphone, UserCheck, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -153,7 +153,6 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
       <div>
         <PageHeader
           title="Estadísticas"
-          description="Cómo va tu negocio: chats, respuestas, campañas y equipo."
           actions={<Button variant="secondary" href="/estadisticas/reportes">Reportes por periodo</Button>}
         />
       </div>
@@ -179,9 +178,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 columns={campaignColumns}
                 rows={stats.campaignMessageBreakdown}
                 rowKey={(r) => `${r.origin}-${r.id}`}
-                emptyIcon={Megaphone}
-                emptyTitle="Sin envíos todavía"
-                emptyDescription="Aparecerán aquí una vez que se envíe una campaña masiva o se dispare una automatización de leads."
+                emptyTitle="Sin envíos en este periodo."
                 mobileCard={(r) => (
                   <div className="w-full min-w-0 space-y-1">
                     <div className="flex items-center justify-between gap-2">
@@ -208,8 +205,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 columns={botColumns}
                 rows={stats.botBreakdown}
                 rowKey={(b) => b.id}
-                emptyIcon={Bot}
-                emptyTitle="Sin bots todavía"
+                emptyTitle="Sin bots todavía."
                 mobileCard={(b) => {
                   const status = botColumns.find((c) => c.key === "status")!;
                   const cost = botColumns.find((c) => c.key === "totalCost")!;
@@ -245,9 +241,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                 columns={agentColumns}
                 rows={stats.agentPerformance}
                 rowKey={(a) => a.userId}
-                emptyIcon={UserCheck}
-                emptyTitle="Sin datos todavía"
-                emptyDescription="Aparecerán agentes aquí una vez que se asignen y respondan chats."
+                emptyTitle="Sin respuestas de agentes en este periodo."
                 mobileCard={(a) => {
                   const firstResponse = agentColumns.find((c) => c.key === "medianFirstResponseMinutes")!;
                   const resolution = agentColumns.find((c) => c.key === "avgResolutionMinutes")!;
@@ -336,7 +330,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
                     <span className="font-medium text-muted-darker">{CAMPAIGN_ORIGIN_LABEL[o.origin]}</span>
                     <span className="tabular-nums text-muted">
                       {o.total === 0 ? (
-                        "Sin envíos todavía"
+                        "Sin envíos en este periodo."
                       ) : (
                         <>Entrega: {o.deliveryRate != null ? `${o.deliveryRate}%` : "—"} · Lectura: {o.readRate != null ? `${o.readRate}%` : "—"}</>
                       )}

@@ -169,7 +169,13 @@ export async function GET(req: Request) {
       orderBy: { updatedAt: "desc" },
     });
 
-    return NextResponse.json(bots);
+    // Respuestas de cada bot en los últimos 7 días (subtítulo con dato vivo de /whatsapp/bots).
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+    const usage = bots.length
+      ? await prisma.wABotUsage.groupBy({ by: ["botId"], where: { botId: { in: bots.map((b) => b.id) }, createdAt: { gte: weekAgo } }, _count: { _all: true } })
+      : [];
+    const repliesByBot = new Map(usage.map((row) => [row.botId, row._count._all]));
+    return NextResponse.json(bots.map((bot) => ({ ...bot, weeklyReplies: repliesByBot.get(bot.id) ?? 0 })));
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");

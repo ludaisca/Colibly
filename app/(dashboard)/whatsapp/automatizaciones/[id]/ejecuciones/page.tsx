@@ -111,7 +111,7 @@ export default function AutomationRunsPage() {
       <div>
         <BackLink href={`/whatsapp/automatizaciones/${id}`} className="mb-3">Volver al editor</BackLink>
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="font-display text-page-title font-semibold tracking-tight">Ejecuciones</h1>
+          <h1 className="text-page-title">Ejecuciones</h1>
           <div className="flex gap-2">
             <Select aria-label="Filtrar" value={filter} onChange={(e) => setFilter(e.target.value)}>
               {FILTERS.map((f) => (

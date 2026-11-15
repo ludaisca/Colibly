@@ -74,13 +74,13 @@ function AcceptInvitation() {
 
   return (
     <div className="space-y-6 animate-auth-in">
-      <div className="flex justify-center">
+      <div className="flex justify-start">
         <Logo href="/" size="lg" />
       </div>
 
-      <Card>
+      <Card data-auth-card="">
         <CardHeader>
-          <CardTitle as="h1">{invitation ? `Únete a ${invitation.organizationName}` : "Invitación"}</CardTitle>
+          <CardTitle as="h1" className="text-page-title">{invitation ? `Únete a ${invitation.organizationName}` : "Invitación"}</CardTitle>
         </CardHeader>
         <CardBody>
           {loadError ? (

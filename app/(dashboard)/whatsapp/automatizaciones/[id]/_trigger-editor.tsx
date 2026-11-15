@@ -49,7 +49,7 @@ export function TriggerEditor({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-display text-lg font-semibold">¿Cuándo empieza?</h2>
+        <h2 className="text-title">¿Cuándo empieza?</h2>
       </div>
       {issues.map((i, n) => (
         <Banner key={n} tone={i.level === "error" ? "danger" : "warning"}>

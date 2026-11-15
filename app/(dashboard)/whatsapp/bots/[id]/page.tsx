@@ -19,6 +19,7 @@ import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
 import { DetailPage, DetailRow } from "@/app/components/ui/detail-page";
+import { ClampedText } from "@/app/components/ui/clamped-text";
 import { useToast } from "@/app/components/ui/toast";
 import { BotFormModal } from "../_form";
 
@@ -305,7 +306,7 @@ function BotDetailPageContent() {
       {tab === "config" && (
         <section>
           <dl className="space-y-3">
-            <DetailRow label="Instrucciones" value={bot.systemPrompt} />
+            <DetailRow label="Instrucciones" value={<ClampedText text={bot.systemPrompt} />} />
             <DetailRow label="Creatividad" value={String(bot.temperature)} />
             <DetailRow label="Largo máximo de respuesta" value={`${bot.maxTokens.toLocaleString("es-MX")} tokens`} />
             <DetailRow label="Memoria" value={bot.memoryType === "RECENT" ? `Reciente (${bot.memoryLimit} mensajes)` : bot.memoryType === "SUMMARY" ? "Resumen acumulativo" : "Ninguna"} />
@@ -399,7 +400,8 @@ function BotDetailPageContent() {
           {testCredits?.mode === "channelless_trial" && (
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={testCredits.remaining <= 3 ? "warning" : "info"} size="sm">
-                {testCredits.remaining === 0 ? "Sin mensajes de prueba" : `Te quedan ${testCredits.remaining} de ${testCredits.max} mensajes de prueba`}
+                {/* QA-033: cuántas pruebas lleva, de cuántas. */}
+                {`${testCredits.used} de ${testCredits.max} pruebas`}
               </Badge>
             </div>
           )}

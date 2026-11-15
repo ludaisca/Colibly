@@ -51,7 +51,7 @@ export function DetailPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-3">
-              <h1 className="min-w-0 break-words font-display text-page-title font-semibold tracking-tight">{title}</h1>
+              <h1 className="min-w-0 break-words text-page-title">{title}</h1>
               {badge}
             </div>
             {description && <p className="mt-1 text-sm text-muted">{description}</p>}

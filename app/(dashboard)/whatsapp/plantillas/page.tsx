@@ -136,9 +136,11 @@ function TemplatesContent() {
     <div className="space-y-5">
       <PageHeader
         title="Plantillas"
-        description="Gestiona las plantillas de mensaje de tus cuentas WhatsApp."
       />
 
+      {/* Sin cuenta conectada no se muestran controles deshabilitados: solo la
+          línea de "Conectar WhatsApp" de abajo. */}
+      {accounts.length > 0 && (
       <div className="flex items-end gap-3 flex-wrap">
         <div className="w-64">
           <Select
@@ -172,6 +174,7 @@ function TemplatesContent() {
           Crear plantilla
         </Button>
       </div>
+      )}
 
       {missingWabaId && selectedAccountId && (
         <p className="text-sm text-muted">

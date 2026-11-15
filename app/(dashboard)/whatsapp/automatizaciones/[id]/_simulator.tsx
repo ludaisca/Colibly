@@ -105,7 +105,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
     <div className="flex h-full flex-col">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-          <h2 className="font-display text-lg font-semibold">Conversación simulada</h2>
+          <h2 className="text-title">Conversación simulada</h2>
           <p className="text-xs text-muted">Usa el borrador actual. No se envía nada ni se modifica el CRM; la IA sí es real.</p>
         </div>
         <Button variant="secondary" size="sm" icon={RotateCcw} onClick={restart} disabled={busy}>

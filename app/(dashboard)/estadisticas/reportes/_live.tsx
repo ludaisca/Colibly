@@ -61,7 +61,7 @@ export function LivePanel() {
     <Card className="space-y-4 p-4" aria-live="polite">
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-success animate-pulse-live" aria-hidden />
-        <h2 className="font-display text-base font-semibold tracking-tight text-foreground">Ahora</h2>
+        <h2 className="text-title text-foreground">Ahora</h2>
         <span className="text-xs text-muted-darker">
           {failed ? "No se pudo actualizar; se reintenta en 30 s" : "Se actualiza cada 30 s"}
         </span>

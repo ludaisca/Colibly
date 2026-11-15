@@ -91,7 +91,6 @@ export default function WebchatCuentasPage() {
     <div className="space-y-5">
       <PageHeader
         title="Cuentas Web"
-        description="Widget de chat en vivo embebible en tu sitio web — el visitante escribe sin necesitar cuenta, la conversación llega al mismo inbox."
         actions={
           <Button icon={Plus} size="sm" disabled={!available} onClick={() => { setEditId(null); setFormOpen(true); }}>
             Nueva cuenta web

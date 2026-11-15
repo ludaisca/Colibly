@@ -226,7 +226,6 @@ export function ReportsView({ data, heatmap, bot, fromKey, toKey }: { data: Rang
       <div>
         <PageHeader
           title="Reportes"
-          description="Actividad, tiempos de respuesta y carga por agente en un periodo."
           actions={
             <Button variant="secondary" onClick={() => router.push("/estadisticas")}>
               Volver a Estadísticas

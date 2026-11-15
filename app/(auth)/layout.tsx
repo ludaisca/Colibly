@@ -7,10 +7,11 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   await connection();
   const analytics = await getAnalyticsConfig();
   return (
-    <div
-      className="min-h-dvh flex items-center justify-center bg-background p-4"
-    >
-      <div className="w-full max-w-md">
+    // Columna de 400 px (dirección congelada): logo arriba a la izquierda,
+    // título de 22 px, campos de 40 px y botón principal a todo lo ancho. Las
+    // tarjetas de cada pantalla se aplanan aquí (sin borde ni fondo propio).
+    <div className="flex min-h-dvh justify-center bg-background px-4 py-10 sm:items-center">
+      <div className="w-full max-w-[400px] [&_[data-auth-card]]:border-0 [&_[data-auth-card]]:bg-transparent [&_[data-auth-card]]:p-0 [&_input:not([type=checkbox]):not([type=radio])]:h-10 [&_button[type=submit]]:h-10">
         {children}
       </div>
       {analytics && <Analytics config={analytics} />}

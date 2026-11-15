@@ -31,7 +31,7 @@ interface TableProps<T> {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
-  emptyIcon: React.ElementType;
+  emptyIcon?: React.ElementType;
   emptyTitle: string;
   emptyDescription?: string;
   emptyAction?: React.ReactNode;

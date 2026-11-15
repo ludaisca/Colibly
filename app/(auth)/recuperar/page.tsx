@@ -45,13 +45,13 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="space-y-6 animate-auth-in">
-      <div className="flex justify-center">
+      <div className="flex justify-start">
         <Logo href="/" size="lg" />
       </div>
 
-      <Card>
+      <Card data-auth-card="">
         <CardHeader>
-          <CardTitle as="h1">Recuperar contraseña</CardTitle>
+          <CardTitle as="h1" className="text-page-title">Recuperar contraseña</CardTitle>
         </CardHeader>
         <CardBody>
           {sent ? (

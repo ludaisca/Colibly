@@ -12,6 +12,7 @@ import { Input } from "@/app/components/ui/input";
 import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Logo } from "@/app/components/ui/logo";
+import { BRAND_NAME } from "@/lib/brand";
 import { Spinner } from "@/app/components/ui/spinner";
 import { loginSchema } from "@/lib/validations";
 import { OtpInput } from "@/app/components/ui/otp-input";
@@ -123,13 +124,13 @@ function LoginForm() {
 
   return (
     <div className="space-y-6 animate-auth-in">
-      <div className="flex justify-center">
+      <div className="flex justify-start">
         <Logo href="/" size="lg" />
       </div>
 
-      <Card>
+      <Card data-auth-card="">
         <CardHeader>
-          <CardTitle as="h1">Iniciar sesión</CardTitle>
+          <CardTitle as="h1" className="text-page-title">Entra a {BRAND_NAME}</CardTitle>
         </CardHeader>
         <CardBody>
           {serverError ? (
@@ -271,7 +272,7 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="space-y-6">
-        <div className="flex justify-center"><Logo href="/" size="lg" /></div>
+        <div className="flex justify-start"><Logo href="/" size="lg" /></div>
         <div className="flex items-center justify-center py-10"><Spinner /></div>
       </div>
     }>

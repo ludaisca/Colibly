@@ -4,7 +4,7 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 export default function ReportsLoading() {
   return (
     <div className="space-y-6">
-      <PageHeader title="Reportes" description="Actividad, tiempos de respuesta y carga por agente en un periodo." />
+      <PageHeader title="Reportes" />
       <Skeleton className="h-20 rounded-lg" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, index) => (

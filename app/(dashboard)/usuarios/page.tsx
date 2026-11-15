@@ -218,7 +218,6 @@ export default function UsersPage() {
     <div className="space-y-5">
       <PageHeader
         title="Usuarios"
-        description="Tu equipo y sus roles en este espacio."
         actions={
           <>
             <Button icon={Mail} size="sm" onClick={() => setShowInvite(true)}>

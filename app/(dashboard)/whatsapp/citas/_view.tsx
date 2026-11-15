@@ -301,7 +301,7 @@ export function CitasView() {
               aria-label="Mes anterior"
               onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
             />
-            <p className="font-display text-base font-semibold capitalize text-foreground">{calendarTitle}</p>
+            <p className="text-title capitalize text-foreground">{calendarTitle}</p>
             <Button
               variant="secondary"
               size="sm"

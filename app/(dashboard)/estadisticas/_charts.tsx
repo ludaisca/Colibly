@@ -82,15 +82,9 @@ function ChartTooltip({
 export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages"] }) {
   const reducedMotion = useReducedMotion();
 
+  // Sin mensajes: la gráfica se dibuja igual, con el eje en cero, y una nota
+  // (sin estado vacío con ícono).
   const total = data.reduce((sum, d) => sum + d.count, 0);
-  if (total === 0) {
-    return (
-      <div className="flex min-h-36 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface/60 px-4 text-center">
-        <p className="text-sm font-medium text-foreground">Aún no hay mensajes</p>
-        <p className="mt-1 text-xs text-muted">La tendencia aparecerá cuando tus canales reciban conversaciones.</p>
-      </div>
-    );
-  }
 
   const formatDay = (d: string, style: "short" | "long") =>
     new Date(d + "T00:00:00").toLocaleDateString("es-MX", {
@@ -137,6 +131,7 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
               tickLine={false}
               width={yAxisWidth(Math.max(0, ...data.map((d) => d.count)))}
               tickFormatter={(value: number) => compactCount(value)}
+              domain={[0, (max: number) => Math.max(max, 4)]}
             />
             <Tooltip
               cursor={{ stroke: "var(--accent-strong)", strokeWidth: 1, strokeDasharray: "3 3" }}
@@ -157,6 +152,7 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      {total === 0 && <p className="mt-2 text-xs text-muted">Sin mensajes en este periodo.</p>}
     </div>
   );
 }
@@ -252,7 +248,7 @@ export function DeliveryComparisonChart({ data }: { data: Estadisticas["campaign
   const hasData = data.some((d) => d.total > 0);
 
   if (!hasData) {
-    return <p className="py-5 text-center text-sm text-muted">Sin envíos todavía</p>;
+    return <p className="py-5 text-center text-sm text-muted">Sin envíos en este periodo.</p>;
   }
 
   const chartData = data.map((d) => ({
@@ -355,7 +351,7 @@ export function QualifiedLabelDonut({
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-display text-lg font-bold tabular-nums">{total}</span>
+          <span className="font-display text-lg font-semibold tabular-nums">{total}</span>
           <span className="text-micro text-muted-darker">chats</span>
         </div>
       </div>

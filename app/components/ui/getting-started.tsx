@@ -42,7 +42,7 @@ export function GettingStarted({
   return (
     <div className="mx-auto max-w-md space-y-4 px-4 py-8 text-center">
       <div>
-        <p className="font-display text-base font-semibold text-foreground">{title}</p>
+        <p className="text-title text-foreground">{title}</p>
         <p className="mt-1 text-sm text-muted">{isAdmin ? description : memberHint}</p>
       </div>
       {extraAction && <div className="flex justify-center">{extraAction}</div>}

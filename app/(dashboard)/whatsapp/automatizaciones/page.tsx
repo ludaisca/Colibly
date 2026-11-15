@@ -117,7 +117,6 @@ export default function AutomationsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Automatizaciones"
-        description="Chatbots con botones, respuestas por palabra clave, seguimientos y reglas — en todos tus canales."
         actions={<Button icon={Plus} onClick={() => openWithTemplate(null)}>Nueva automatización</Button>}
       />
 

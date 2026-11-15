@@ -126,7 +126,6 @@ function InstagramCuentasView() {
     <div className="space-y-5">
       <PageHeader
         title="Cuentas Instagram"
-        description="Administra las cuentas profesionales de Instagram conectadas para mensajería directa."
         actions={
           <>
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>

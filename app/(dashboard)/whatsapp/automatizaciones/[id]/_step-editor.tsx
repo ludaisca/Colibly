@@ -97,7 +97,7 @@ export function StepEditor({ step, channel, options, issues, onChange, onDelete 
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-display text-lg font-semibold">{STEP_META[step.type].label}</h2>
+          <h2 className="text-title">{STEP_META[step.type].label}</h2>
           <p className="text-xs text-muted">{STEP_META[step.type].description}</p>
         </div>
         <Button variant="danger" size="sm" icon={Trash2} onClick={onDelete} aria-label="Eliminar paso" />

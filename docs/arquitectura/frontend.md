@@ -160,3 +160,14 @@ Tesela (`/data/Proyectos/Tesela`, biblioteca propia de Custom Elements) **no se 
 - **Tooltips "¿Qué es esto?".** `HelpHint` (ícono (i) sobre `Tooltip`) con los textos centralizados en `lib/help/glossary.ts`; `PageHeader` acepta `hint="<término>"`.
 - **Estados "sin canal".** Lo que vive por número (respuestas rápidas, campos, atributos, plantillas) muestra `NeedsChannelEmpty` con "Conectar WhatsApp" cuando no hay cuentas.
 - **Panel.** `OnboardingChecklist` destaca el primer paso pendiente con enlace (`nextOnboardingStep`), con "Mientras tanto, prueba tu bot" mientras no haya canal.
+
+## Pantallas con la dirección congelada (2026-11-14)
+
+- **Listas** (`EntityList`/`EntityRow`): filas de 52 px a todo lo ancho (`px-4`), hover `surface-light`. Las **plantillas de partida** (`StarterTemplates`) son filas con un botón "Usar", no tarjetas.
+- **Sin canal**: nada de controles deshabilitados; una línea con "Conectar WhatsApp" (`NeedsChannelEmpty`, Panel, Chats, Plantillas oculta su barra).
+- **Subtítulos** de `PageHeader`: solo datos vivos (Bots: "N bots activos · N respuestas esta semana"; Contactos: total; Embudo y Citas: línea de resumen; Panel: la fecha). Los de relleno ("Administra…", "Configura…") se quitaron.
+- **Chats**: lista de 320 px con pestañas Esperando · Mías · Todas · Después (combinaciones de `awaiting`, `assigned=me` y `snoozed=only`, contador de `viewCounts`, subrayado de 2 px); burbujas `text-base` con `rounded-bubble-in/out` sin sombra; botón "Enviar" con texto como único primario del compositor; vacíos "Todo contestado." / "Te avisamos cuando alguien escriba.".
+- **Estadísticas**: la gráfica diaria se dibuja con el eje en cero y una nota ("Sin mensajes en este periodo.") en vez de un estado vacío; las tablas vacías dicen "Sin envíos en este periodo." (sin ícono). `Table.emptyIcon` es opcional.
+- **Bots**: instrucciones con `ClampedText` (2 líneas + "Ver todo", QA-027); en "Probar" sin canal, "N de 10 pruebas" (QA-033); `GET /api/whatsapp/bots` devuelve `weeklyReplies`.
+- **Acceso** (`app/(auth)/layout.tsx`): columna de 400 px, logo arriba a la izquierda, título `text-page-title` ("Entra a Colibly" / "Crea tu cuenta"), campos y botón principal de 40 px; las tarjetas se aplanan con `data-auth-card`. Turnstile con `appearance: "interaction-only"` (QA-009).
+- **Configuración**: `SettingsBlock` (título/descripción 240 px + campos, filetes), subnavegación de 200 px (lista en el teléfono), `max-w-3xl` a la izquierda, barra fija "Cambios sin guardar" para el nombre.

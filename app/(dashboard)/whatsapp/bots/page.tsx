@@ -10,6 +10,7 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { botDisplayStatus } from "@/lib/bots/display-status";
 import { useToast } from "@/app/components/ui/toast";
 import { BotFormModal } from "./_form";
 import { plural } from "@/lib/format/plural";
@@ -23,6 +24,7 @@ interface WaBot {
   name: string;
   isActive: boolean;
   status: string;
+  weeklyReplies?: number;
   waAccountId: string | null;
   memoryType: string;
   ragEnabled: boolean;
@@ -97,7 +99,7 @@ export default function BotsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Bots IA"
-        description="Configura bots con IA para responder automáticamente en tus canales."
+        description={bots.length > 0 ? `${plural(bots.filter((b) => botDisplayStatus(b) === "active").length, "bot activo", "bots activos")} · ${plural(bots.reduce((sum, b) => sum + (b.weeklyReplies ?? 0), 0), "respuesta")} esta semana` : undefined}
         actions={
           <Button icon={Plus} size="sm" onClick={() => { setPreset(null); setFormOpen(true); }}>
             Crear bot
@@ -166,7 +168,7 @@ export default function BotsPage() {
                 </>
               }
               meta={
-                <span className="font-mono">{bot._count.conversations} conv.</span>
+                <span className="tabular-nums">{plural(bot.weeklyReplies ?? 0, "respuesta")} esta semana</span>
               }
             />
             <span

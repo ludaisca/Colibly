@@ -62,7 +62,6 @@ function CampaignsPageContent() {
     <div className="space-y-5">
       <PageHeader
         title="Campañas"
-        description="Envía mensajes masivos usando plantillas de WhatsApp, manualmente o disparados en automático desde una hoja de Google Sheets."
       />
 
       <Tabs items={[{ id: "campanas", label: "Campañas" }, { id: "automatizacion", label: "Desde Google Sheets" }]} value={tab} onChange={setTab} label="Secciones de campañas">

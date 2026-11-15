@@ -22,10 +22,10 @@ export function StatusPage({ code, title, description, actions, reference }: Sta
         <div className="mb-8 flex justify-center">
           <Logo href="/" size="lg" />
         </div>
-        <p className="font-display text-hero font-bold leading-none tracking-tight text-foreground tabular-nums" aria-hidden>
+        <p className="text-hero text-foreground tabular-nums" aria-hidden>
           {code}
         </p>
-        <h1 className="mt-4 font-display text-page-title font-bold tracking-tight">{title}</h1>
+        <h1 className="mt-4 text-page-title">{title}</h1>
         <p className="mt-3 text-muted">{description}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">{actions}</div>
         {reference && <p className="mt-8 text-xs text-muted">Referencia: <span className="font-mono">{reference}</span></p>}

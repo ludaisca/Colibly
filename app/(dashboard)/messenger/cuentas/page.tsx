@@ -126,7 +126,6 @@ function MessengerCuentasView() {
     <div className="space-y-5">
       <PageHeader
         title="Cuentas Messenger"
-        description="Administra las Páginas de Facebook conectadas para mensajería de Messenger."
         actions={
           <>
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>

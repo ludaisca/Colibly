@@ -146,7 +146,7 @@ export function LicensesSection({
           return (
             <div key={id} className={cn("flex flex-col rounded-lg border bg-surface p-4", counts[id] > 0 ? "border-accent-strong" : "border-border")}>
               <div className="flex items-center justify-between gap-2">
-                <p className="font-display text-lg font-semibold">{PLANS[id].name}</p>
+                <p className="text-title">{PLANS[id].name}</p>
                 {id === "BUSINESS" && <Badge tone="info" size="sm">Recomendado</Badge>}
               </div>
               <p className="mt-2">

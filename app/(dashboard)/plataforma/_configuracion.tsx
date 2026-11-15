@@ -194,7 +194,7 @@ function SettingsBlock({ id, active, eyebrow, title, status, children }: { id: s
         <div className="min-w-0">
           {/* Sin etiqueta sobre el título (Impeccable): la sección es el título
               y el proveedor/detalle va debajo. */}
-          <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">{eyebrow}</h2>
+          <h2 className="text-title text-foreground">{eyebrow}</h2>
           <p className="text-sm text-muted-darker">{title}</p>
         </div>
         <Badge tone={status.tone} size="sm">{status.label}</Badge>

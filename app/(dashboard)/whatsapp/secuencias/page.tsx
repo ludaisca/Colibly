@@ -103,7 +103,6 @@ export default function SequencesPage() {
       <PageHeader
         hint="sequences"
         title="Secuencias"
-        description="Un evento inscribe al contacto y envía mensajes programados en orden. Disponible para WhatsApp y Telegram."
         actions={
           <Button icon={Plus} size="sm" onClick={() => { setEditId(null); setPreset(null); setFormOpen(true); }}>
             Crear secuencia

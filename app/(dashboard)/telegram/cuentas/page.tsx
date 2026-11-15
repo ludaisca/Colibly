@@ -126,7 +126,6 @@ function TelegramCuentasView() {
     <div className="space-y-5">
       <PageHeader
         title="Cuentas Telegram"
-        description="Administra los bots de Telegram conectados."
         actions={
           <>
             <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchAccounts}>

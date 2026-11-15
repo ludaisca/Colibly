@@ -4,7 +4,7 @@ import { Skeleton, SkeletonRow } from "@/app/components/ui/skeleton";
 export default function EstadisticasLoading() {
   return (
     <div className="space-y-10">
-      <PageHeader title="Estadísticas" description="Cómo va tu negocio: chats, respuestas, campañas y equipo." />
+      <PageHeader title="Estadísticas" />
 
       {/* Franja KPI */}
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">

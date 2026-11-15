@@ -273,7 +273,7 @@ export default function AutomationEditorPage() {
                 />
               ) : (
                 <button type="button" onClick={() => setRenaming(true)} className="group flex items-center gap-2 text-left">
-                  <h1 className="font-display text-page-title font-semibold tracking-tight">{name}</h1>
+                  <h1 className="text-page-title">{name}</h1>
                   <Pencil size={14} className="text-muted opacity-0 transition-opacity group-hover:opacity-100" />
                 </button>
               )}

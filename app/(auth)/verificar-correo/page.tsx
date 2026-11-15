@@ -35,12 +35,12 @@ function VerifyEmail() {
 
   return (
     <div className="space-y-6 animate-auth-in">
-      <div className="flex justify-center">
+      <div className="flex justify-start">
         <Logo href="/" size="lg" />
       </div>
-      <Card>
+      <Card data-auth-card="">
         <CardHeader>
-          <CardTitle as="h1">Confirmar correo</CardTitle>
+          <CardTitle as="h1" className="text-page-title">Confirmar correo</CardTitle>
         </CardHeader>
         <CardBody className="space-y-4">
           {state.status === "loading" && (

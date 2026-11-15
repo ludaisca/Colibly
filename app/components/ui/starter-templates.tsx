@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { cn } from "./cn";
 
-// Tarjetas de plantillas para los estados vacíos (Bots, Automatizaciones,
-// Monitores, Secuencias): enseñan para qué sirve la pantalla con 2–3 puntos
-// de partida. Cada tarjeta abre el formulario con esos valores o va a un enlace.
+// Plantillas de partida en los estados vacíos (Bots, Automatizaciones,
+// Monitores, Secuencias) como filas con "Usar" (dirección congelada): cada
+// una abre el formulario con esos valores o va a un enlace.
 export interface StarterCard {
   id: string;
   title: string;
@@ -15,26 +14,24 @@ export interface StarterCard {
   href?: string;
 }
 
+const USE = "shrink-0 inline-flex h-7 items-center rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-foreground transition-colors duration-fast hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong";
+
 export function StarterTemplates({ cards, className }: { cards: StarterCard[]; className?: string }) {
   return (
-    <div className={cn("mx-auto grid w-full max-w-3xl gap-3 text-left sm:grid-cols-3", className)}>
-      {cards.map((card) => {
-        const body = (
-          <>
-            <span className="block text-sm font-semibold text-foreground">{card.title}</span>
-            <span className="mt-1 block text-xs text-muted">{card.description}</span>
-            <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-accent-ink">
-              Usar plantilla <ArrowRight size={12} aria-hidden />
-            </span>
-          </>
-        );
-        const cls = "block h-full w-full rounded-lg text-left border border-border bg-surface p-4 transition-colors hover:border-accent-strong hover:bg-accent-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong";
-        return card.href ? (
-          <Link key={card.id} href={card.href} className={cls}>{body}</Link>
-        ) : (
-          <button key={card.id} type="button" onClick={card.onSelect} className={cls}>{body}</button>
-        );
-      })}
-    </div>
+    <ul className={cn("w-full divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface text-left", className)}>
+      {cards.map((card) => (
+        <li key={card.id} className="flex min-h-[52px] items-center gap-3 px-4 py-2">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-foreground">{card.title}</span>
+            <span className="block text-xs text-muted">{card.description}</span>
+          </span>
+          {card.href ? (
+            <Link href={card.href} className={USE} aria-label={`Usar ${card.title}`}>Usar</Link>
+          ) : (
+            <button type="button" onClick={card.onSelect} className={USE} aria-label={`Usar ${card.title}`}>Usar</button>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }

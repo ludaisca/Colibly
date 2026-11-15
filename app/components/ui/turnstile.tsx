@@ -73,7 +73,9 @@ export function Turnstile({
           // servidor (lib/turnstile.ts) rechaza todos los registros.
           action: TURNSTILE_ACTION,
           language: "es",
-          appearance: "always",
+          // QA-009: el widget solo aparece si Cloudflare pide interacción; antes
+          // mostraba "¡Operación exitosa!" antes de enviar el formulario.
+          appearance: "interaction-only",
           callback: (token: string) => onTokenRef.current(token),
           "expired-callback": () => onTokenRef.current(null),
           "error-callback": () => onTokenRef.current(null),

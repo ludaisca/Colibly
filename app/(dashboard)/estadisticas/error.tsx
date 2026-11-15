@@ -15,7 +15,7 @@ export default function EstadisticasError({ error, reset }: { error: Error & { d
   }, [error]);
   return (
     <div className="space-y-6">
-      <PageHeader title="Estadísticas" description="Cómo va tu negocio: chats, respuestas, campañas y equipo." />
+      <PageHeader title="Estadísticas" />
       <ListErrorState
         message="No pudimos cargar las estadísticas a tiempo. Intenta de nuevo en unos segundos."
         onRetry={() => {

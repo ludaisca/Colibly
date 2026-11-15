@@ -88,9 +88,10 @@ export function EntityList<T>({
           key={rowKey(row)}
           {...activation?.(row)}
           className={cn(
-            "group relative flex items-center gap-2.5 px-3 py-2 transition-colors",
+            // Filas de 52 px a todo lo ancho (dirección congelada).
+            "group relative flex min-h-[52px] items-center gap-2.5 px-4 py-2 transition-colors duration-fast",
             rowClassName,
-            activation && "cursor-pointer hover:bg-surface-light/60"
+            activation && "cursor-pointer hover:bg-surface-light"
           )}
         >
           {renderRow(row)}
@@ -106,7 +107,7 @@ export function EntityList<T>({
                 // (visto con una sola fila): se dibuja en el body.
                 portal
                 trigger={
-                  <button type="button" aria-label="Acciones" className="rounded-md p-1.5 text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground">
+                  <button type="button" aria-label="Acciones" className="rounded-sm p-1.5 text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground">
                     <MoreVertical size={15} />
                   </button>
                 }

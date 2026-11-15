@@ -351,14 +351,16 @@ function MessageBubble({
       {!isInbound && canReply && <ChatMessageActions message={msg} onReply={canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReact} />}
       <MessageContextMenu message={msg} onReply={canReply && canQuote ? onReply : undefined} onReaction={onReaction} canReact={canReply && canReact}>
       <div
-        className={`relative max-w-[75%] text-sm leading-[1.4] transition-opacity duration-base lg:max-w-[65%] ${
+        // Burbujas: text-base, radio 10 con la cola en 3 px, sin sombra;
+        // entrante blanca y saliente --bubble-out sobre --chat-bg.
+        className={`relative max-w-[75%] text-base transition-opacity duration-base lg:max-w-[65%] ${
           mediaOnly ? "p-1" : "px-3 py-2"
         } ${
           msg.messageType === "sticker" ? "rounded-lg bg-transparent text-foreground" : msg.messageType === "media_too_large"
             ? "rounded-lg border border-dashed border-warning-border bg-warning-bg text-foreground"
             : isInbound
-            ? "rounded-lg border border-border bg-bubble-in text-foreground shadow-sm"
-            : "chat-bubble-out rounded-lg bg-bubble-out text-foreground shadow-sm"
+            ? "rounded-bubble-in bg-bubble-in text-foreground"
+            : "chat-bubble-out rounded-bubble-out bg-bubble-out text-foreground"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (

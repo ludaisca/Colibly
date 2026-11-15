@@ -136,7 +136,6 @@ function CuentasView() {
     <div className="space-y-5">
       <PageHeader
         title="Cuentas WhatsApp"
-        description="Administra los números de WhatsApp Business conectados."
         actions={
           <>
             {/* En el teléfono los tres botones con texto se partían en dos líneas. */}

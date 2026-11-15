@@ -205,7 +205,6 @@ export function PlanView({ data }: { data: PlanViewData }) {
     <div className="space-y-6">
       <PageHeader
         title="Plan y facturación"
-        description="Asientos (ejecutivos), consumo del mes y pagos."
         actions={
           data.hasCustomer && data.stripeConfigured ? (
             <Button size="sm" variant="secondary" icon={ExternalLink} loading={busy === "portal"} onClick={goPortal}>
@@ -229,7 +228,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
 
       <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-display text-xl font-semibold">{data.licenses?.mode === "license" ? "Licencias por persona" : `Plan ${PLANS[data.plan].name}`}</p>
+          <p className="text-title">{data.licenses?.mode === "license" ? "Licencias por persona" : `Plan ${PLANS[data.plan].name}`}</p>
           {!data.isInternal && <OrgStatusBadge status={data.status} />}
         </div>
         <p className={cn("mt-2 text-sm", data.access === "full" ? "text-muted" : "text-danger")}>{statusLine(data)}</p>
@@ -310,7 +309,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-display text-lg font-semibold">{p.name}</p>
+                    <p className="text-title">{p.name}</p>
                     <span className="flex gap-1">
                       {p.badge && <Badge tone="info" size="sm">{p.badge}</Badge>}
                       {current && <Badge tone="accent" size="sm">{data.status === "TRIALING" ? "En prueba" : "Tu plan"}</Badge>}

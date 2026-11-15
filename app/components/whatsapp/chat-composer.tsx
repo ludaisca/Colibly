@@ -63,7 +63,7 @@ interface ChatComposerProps {
 
 const MAX_BUTTONS = 3;
 const MAX_BUTTON_LENGTH = 20;
-const TOOL_BUTTON = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
+const TOOL_BUTTON = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 export function ChatComposer({
   signature,
@@ -496,8 +496,8 @@ export function ChatComposer({
           type="submit"
           aria-label="Enviar mensaje"
           icon={sending ? undefined : Send}
-          size="sm"
-          className="shrink-0 px-3"
+          size="md"
+          className="shrink-0"
           disabled={
             (!newMessage.trim() && !attachment && interactiveButtons.length === 0) ||
             (interactiveButtons.length > 0 && (!newMessage.trim() || interactiveButtons.some((t) => !t.trim()))) ||
@@ -505,7 +505,7 @@ export function ChatComposer({
           }
           title="Enviar"
         >
-          {sending ? <Spinner /> : ""}
+          {sending ? <Spinner /> : "Enviar"}
         </Button>
       </div>
       )}

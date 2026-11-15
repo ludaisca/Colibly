@@ -37,7 +37,7 @@ export default async function AyudaPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader title="Ayuda" description={`Lo básico para empezar con ${BRAND_NAME} y cómo escribirnos.`} />
+      <PageHeader title="Ayuda" />
 
       {isAdmin && (
         <Card as="section" className="space-y-4">

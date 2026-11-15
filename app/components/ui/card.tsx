@@ -47,7 +47,8 @@ export function CardHeader({ className, children }: { className?: string; childr
 // el contenido principal de la página, como en las de acceso); el aspecto no cambia.
 export function CardTitle({ className, children, as: Tag = "h3" }: { className?: string; children: React.ReactNode; as?: "h1" | "h2" | "h3" }) {
   return (
-    <Tag className={cn("text-base font-semibold tracking-tight text-foreground", className)}>
+    // Con text-page-title (pantallas de acceso) no se mezcla con text-base.
+    <Tag className={cn(className?.includes("text-page-title") ? "" : "text-base font-semibold tracking-tight", "text-foreground", className)}>
       {children}
     </Tag>
   );

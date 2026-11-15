@@ -113,12 +113,12 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
   if (registeredEmail) {
     return (
       <div className="space-y-6 animate-auth-in">
-        <div className="flex justify-center">
+        <div className="flex justify-start">
           <Logo href="/" size="lg" />
         </div>
-        <Card>
+        <Card data-auth-card="">
           <CardHeader className="mb-2">
-            <CardTitle as="h1">Confirma tu correo</CardTitle>
+            <CardTitle as="h1" className="text-page-title">Confirma tu correo</CardTitle>
           </CardHeader>
           <CardBody className="space-y-4">
             <Banner tone="success">
@@ -147,13 +147,13 @@ export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | 
 
   return (
     <div className="space-y-6 animate-auth-in">
-      <div className="flex justify-center">
+      <div className="flex justify-start">
         <Logo href="/" size="lg" />
       </div>
 
-      <Card>
+      <Card data-auth-card="">
         <CardHeader className="mb-2">
-          <CardTitle as="h1">Crear cuenta</CardTitle>
+          <CardTitle as="h1" className="text-page-title">Crea tu cuenta</CardTitle>
         </CardHeader>
         <p className="mb-4 text-sm text-muted">14 días gratis con Pro, sin tarjeta.</p>
         <CardBody>
