@@ -2,6 +2,7 @@ import { displayName } from "@/lib/chats/display-name";
 import type { Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
+import { outcomeScopeWhere } from "@/lib/pipeline/outcome-scope";
 import { firstResponseRows, minutesByResponder } from "./response-times";
 import { summarizeResponses } from "./response-rules";
 import { addDaysKey, safeTimeZone, zonedDayKey, zonedDayStart } from "@/lib/dates/zoned";
@@ -200,13 +201,13 @@ export async function getRangeReport(userId: string, range: ParsedRange): Promis
       _count: { _all: true, rating: true },
     }),
     // Mismo alcance que el resto del reporte: contactos de las cuentas que el
-    // usuario ve (el evento es por organización, el contacto da la cuenta).
+    // usuario ve; si el contacto se borró, la cuenta guardada en el evento.
     prisma.leadOutcomeEvent.groupBy({
       by: ["outcome"],
       where: {
         createdAt: { gte: range.from, lt: range.to },
         outcome: { in: ["WON", "LOST"] },
-        contact: { OR: [{ accountId: { in: accountIds } }, { channelAccountId: { in: channelAccountIds } }] },
+        ...outcomeScopeWhere({ accountIds, channelAccountIds, organizationId: null, isAdmin: false }),
       },
       _count: { _all: true },
       _sum: { valueCents: true },

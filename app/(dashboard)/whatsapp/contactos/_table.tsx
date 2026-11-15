@@ -86,17 +86,21 @@ export function ContactsTable({
       return next;
     });
 
-  async function runEach(targets: ContactTableRow[], fn: (row: ContactTableRow) => Promise<Response | null>, done: string) {
+  // `skipped`: contactos que no aplican (p. ej. sin chat al asignar); se dicen en el aviso.
+  async function runEach(targets: ContactTableRow[], fn: (row: ContactTableRow) => Promise<Response | null>, done: string, skipped = 0) {
     setBusy(true);
     let failed = 0;
     for (const row of targets) {
       const res = await fn(row).catch(() => null);
-      if (res && !res.ok) failed++;
+      // Un error de red (res null) también es una falla.
+      if (!res || !res.ok) failed++;
     }
     setBusy(false);
     setSelected(new Set());
     onChanged();
-    if (failed > 0) toastError(`No se pudo con ${plural(failed, "contacto")}`);
+    const skippedNote = skipped > 0 ? ` ${plural(skipped, "contacto sin chat se omitió", "contactos sin chat se omitieron")}.` : "";
+    if (failed > 0) toastError(`No se pudo con ${plural(failed, "contacto")} de ${targets.length}.${skippedNote}`);
+    else if (skipped > 0) success(`${done}.${skippedNote}`);
     else success(done);
   }
 
@@ -105,15 +109,31 @@ export function ContactsTable({
     setConfirmDelete(null);
   }
 
+  // Personas que se pueden asignar en TODAS las cuentas de la selección: se
+  // pide la lista de un contacto por cuenta y se cruzan. Los chats de canal
+  // (Instagram, Messenger, Telegram, Web) entran igual: /chats/[id]/assign
+  // resuelve ambos mundos.
   async function openAssign() {
-    const first = selectedRows.find((r) => r.chat) ?? selectedRows[0];
-    if (!first) return;
+    const withChat = selectedRows.filter((r) => r.chat);
+    if (withChat.length === 0) {
+      toastError("Ninguno de los contactos elegidos tiene chat");
+      return;
+    }
+    const onePerAccount = [...new Map(withChat.map((r) => [r.accountId ?? r.id, r])).values()];
     try {
-      const res = await fetch(`/api/whatsapp/contacts/${first.id}/assignees`);
-      const data = await res.json();
-      setAssignees(Array.isArray(data) ? data : []);
+      const lists = await Promise.all(
+        onePerAccount.map(async (row) => {
+          const res = await fetch(`/api/whatsapp/contacts/${row.id}/assignees`);
+          const data = await res.json().catch(() => null);
+          if (!res.ok || !Array.isArray(data)) throw new Error();
+          return data as Array<{ id: string; name: string | null }>;
+        })
+      );
+      const [first, ...rest] = lists;
+      setAssignees(first.filter((person) => rest.every((list) => list.some((other) => other.id === person.id))));
     } catch {
       setAssignees([]);
+      toastError("No se pudo cargar la lista de personas");
     }
     setAssigneeId("");
     setAssignOpen(true);
@@ -221,7 +241,7 @@ export function ContactsTable({
         title={confirmDelete && confirmDelete.length === 1
           ? `¿Eliminar "${displayName(confirmDelete[0].name, confirmDelete[0].remoteJid)}"?`
           : `¿Eliminar ${plural(confirmDelete?.length ?? 0, "contacto")}?`}
-        description="Se borran sus chats y mensajes. No se puede deshacer."
+        description="Se borran sus chats, mensajes, citas, notas y tareas. Sus ventas ganadas y perdidas se conservan en los reportes. No se puede deshacer."
         confirmLabel="Eliminar"
         onConfirm={() => deleteRows(confirmDelete ?? [])}
       />
@@ -256,7 +276,7 @@ export function ContactsTable({
         open={assignOpen}
         onClose={() => setAssignOpen(false)}
         title="Asignar contactos"
-        description="Se asigna el chat de cada contacto. Los contactos sin conversación se omiten."
+        description="Se asigna el chat de cada contacto, de cualquier canal. Solo aparecen las personas con acceso a todas las cuentas elegidas; los contactos sin chat se omiten."
         footer={
           <>
             <Button variant="secondary" onClick={() => setAssignOpen(false)}>Cancelar</Button>
@@ -265,7 +285,7 @@ export function ContactsTable({
               onClick={async () => {
                 setAssignOpen(false);
                 const targets = selectedRows.filter((row) => row.chat);
-                await runEach(targets, (row) => fetch(`/api/whatsapp/chats/${row.chat!.id}/assign`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignedToId: assigneeId === "none" ? null : assigneeId }) }), "Asignación actualizada");
+                await runEach(targets, (row) => fetch(`/api/whatsapp/chats/${row.chat!.id}/assign`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignedToId: assigneeId === "none" ? null : assigneeId }) }), "Asignación actualizada", selectedRows.length - targets.length);
               }}
             >
               Asignar

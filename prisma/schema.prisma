@@ -1547,8 +1547,17 @@ model LeadOutcomeEvent {
   id             String               @id @default(cuid())
   organizationId String               @map("organization_id")
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  contactId      String               @map("contact_id")
-  contact        Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  // Opcional desde 2026-11-15: borrar un contacto conserva sus ventas en los
+  // reportes (SetNull). Las columnas contact_* son la foto del contacto al
+  // registrar el evento: nombre y número para mostrarlo, y su cuenta para el
+  // alcance por cuentas cuando el contacto ya no existe
+  // (lib/pipeline/outcome-scope.ts). Sin FK a la cuenta a propósito.
+  contactId               String?              @map("contact_id")
+  contact                 Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  contactName             String?              @map("contact_name")
+  contactPhone            String?              @map("contact_phone")
+  contactAccountId        String?              @map("contact_account_id")
+  contactChannelAccountId String?              @map("contact_channel_account_id")
   outcome        PipelineStageOutcome
   // Foto del valor del trato al cambiar de resultado (los reportes suman esto,
   // no el valor actual del contacto, que puede cambiar después).

@@ -23,3 +23,25 @@ export function tagDotClass(color: string | null | undefined): string {
   const match = color?.match(/^hue-([0-7])$/);
   return match ? `${HUE_CLASS[Number(match[1]) as HueIndex]} bg-entity` : "bg-accent";
 }
+
+export interface TagUsage {
+  sequences: { id: string; name: string }[];
+  automations: { id: string; name: string }[];
+}
+
+/** Texto de la confirmación al eliminar una etiqueta que dispara algo. */
+export function tagDeleteWarning(usage: TagUsage | null): string | null {
+  if (!usage) return null;
+  const quote = (items: { name: string }[]) => items.map((item) => `«${item.name}»`).join(", ");
+  const parts: string[] = [];
+  if (usage.sequences.length) {
+    parts.push(`${usage.sequences.length === 1 ? "La secuencia" : "Las secuencias"} ${quote(usage.sequences)}`);
+  }
+  if (usage.automations.length) {
+    parts.push(`${usage.automations.length === 1 ? "la automatización" : "las automatizaciones"} ${quote(usage.automations)}`);
+  }
+  if (!parts.length) return null;
+  const many = usage.sequences.length + usage.automations.length > 1;
+  const sentence = parts.join(" y ");
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)} ${many ? "la usan como disparador; dejarán" : "la usa como disparador; dejará"} de dispararse.`;
+}

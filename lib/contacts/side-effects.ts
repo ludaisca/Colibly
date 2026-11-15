@@ -4,6 +4,7 @@ import { metaConversionsQueue } from "@/lib/queue";
 import { enrollContactInTrigger } from "@/lib/sequences";
 import { emitDomainEvent } from "@/lib/events/emit";
 import { eventRefsForContact } from "@/lib/events/refs";
+import { outcomeContactSnapshot } from "@/lib/pipeline/outcome-scope";
 
 // Efectos de un cambio real de etapa del lead. Un único lugar para que la UI
 // (PATCH /api/whatsapp/contacts/[id]), la API pública y las automatizaciones
@@ -23,6 +24,10 @@ export async function afterLeadStatusChanged(
       pipelineStage: { select: { pipeline: { select: { isDefault: true } } } },
       organizationId: true,
       isSample: true,
+      name: true,
+      remoteJid: true,
+      accountId: true,
+      channelAccountId: true,
       account: { select: { organizationId: true } },
       channelAccount: { select: { organizationId: true } },
     },
@@ -43,7 +48,16 @@ export async function afterLeadStatusChanged(
   const toOutcome = to === "CUSTOMER" ? "WON" : to === "LOST" ? "LOST" : "OPEN";
   if (fromOutcome !== toOutcome && organizationId && !placed?.isSample) {
     await prisma.leadOutcomeEvent
-      .create({ data: { organizationId, contactId: contact.id, outcome: toOutcome, valueCents: placed?.dealValueCents ?? null } })
+      .create({
+        data: {
+          organizationId,
+          contactId: contact.id,
+          outcome: toOutcome,
+          valueCents: placed?.dealValueCents ?? null,
+          // Foto del contacto: la venta sigue en los reportes si se borra (outcome-scope.ts).
+          ...(placed ? outcomeContactSnapshot(placed) : {}),
+        },
+      })
       .catch((err) => console.error("[contacts] lead outcome event failed:", err));
   }
 

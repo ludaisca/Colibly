@@ -10,7 +10,7 @@ import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { cn } from "@/app/components/ui/cn";
-import { TAG_COLOR_OPTIONS, tagDotClass } from "@/lib/tags-shared";
+import { TAG_COLOR_OPTIONS, tagDeleteWarning, tagDotClass, type TagUsage } from "@/lib/tags-shared";
 import { loadContactAccounts, type ContactAccountOption } from "@/app/components/whatsapp/contact-accounts";
 
 interface TagRow {
@@ -28,6 +28,8 @@ export function EtiquetasSection() {
   const [tags, setTags] = useState<TagRow[] | null>(null);
   const [accounts, setAccounts] = useState<ContactAccountOption[]>([]);
   const [deleting, setDeleting] = useState<TagRow | null>(null);
+  // Qué la usa como disparador (se pide al abrir la confirmación).
+  const [usageWarning, setUsageWarning] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -56,6 +58,17 @@ export function EtiquetasSection() {
     }
     setTags((prev) => prev?.map((t) => (t.id === tag.id ? { ...t, ...data } : t)) ?? prev);
     success("Etiqueta guardada");
+  }
+
+  async function askDelete(tag: TagRow) {
+    setUsageWarning(null);
+    setDeleting(tag);
+    try {
+      const res = await fetch(`/api/whatsapp/tags/${tag.id}`, { cache: "no-store" });
+      if (res.ok) setUsageWarning(tagDeleteWarning((await res.json()) as TagUsage));
+    } catch {
+      // Sin la lista, la confirmación queda con el texto general.
+    }
   }
 
   async function remove(tag: TagRow) {
@@ -106,7 +119,7 @@ export function EtiquetasSection() {
                 {TAG_COLOR_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </Select>
               <span className="w-28 truncate text-xs text-muted-darker">{accountName(tag)}</span>
-              <Button type="button" variant="ghost" size="icon" icon={Trash2} aria-label={`Eliminar ${tag.name}`} onClick={() => setDeleting(tag)} />
+              <Button type="button" variant="ghost" size="icon" icon={Trash2} aria-label={`Eliminar ${tag.name}`} onClick={() => void askDelete(tag)} />
             </li>
           ))}
         </ul>
@@ -117,7 +130,7 @@ export function EtiquetasSection() {
         onConfirm={() => (deleting ? remove(deleting) : undefined)}
         loading={busy}
         title={`¿Eliminar "${deleting?.name ?? ""}"?`}
-        description="Se quita de todos los contactos y chats que la tienen. No se puede deshacer."
+        description={`${usageWarning ? `${usageWarning} ` : ""}Se quita de todos los contactos y chats que la tienen. No se puede deshacer.`}
         confirmLabel="Eliminar"
       />
     </SettingsBlock>
