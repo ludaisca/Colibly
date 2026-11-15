@@ -198,12 +198,14 @@ export function Analytics({ config }: { config: AnalyticsConfig }) {
         aria-label="Aviso de cookies"
         className="fixed inset-x-0 bottom-0 z-50 flex h-14 items-center gap-2 border-t border-border bg-surface px-3 text-xs text-foreground sm:gap-3 sm:px-4 sm:text-sm"
       >
-        <p className="min-w-0 flex-1 truncate">
-          Usamos cookies para medir visitas.{" "}
-          <a href={`https://${BRAND_DOMAIN}/privacidad#cookies`} className="font-medium text-accent-ink underline underline-offset-2">
-            Detalles
-          </a>
+        {/* El enlace va fuera del texto truncado: a 390 px quedaba cortado (QA). */}
+        <p className="min-w-0 truncate">
+          <span className="sm:hidden">Usamos cookies.</span>
+          <span className="hidden sm:inline">Usamos cookies para medir visitas.</span>
         </p>
+        <a href={`https://${BRAND_DOMAIN}/privacidad#cookies`} className="mr-auto shrink-0 py-2 font-medium text-accent-ink underline underline-offset-2">
+          Detalles
+        </a>
         <Button size="sm" variant="secondary" onClick={() => decide("denied")}>Solo necesarias</Button>
         <Button size="sm" onClick={() => decide("granted")}>Aceptar</Button>
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "@/app/components/theme-toggle";
@@ -82,7 +83,12 @@ export function SiteMobileNav({ links, loginHref, ctaHref, ctaLabel, trackLocati
           <ul className="flex flex-col">
             {links.map(({ href, label: text }) => (
               <li key={href + text} className="border-b border-border/60">
-                <a href={href} onClick={() => close(false)} className={item}>{text}</a>
+                {/* Relativo (en el propio sitio) navega con <Link>; absoluto (host de la app), <a>. */}
+                {href.startsWith("/") ? (
+                  <Link href={href} onClick={() => close(false)} className={item}>{text}</Link>
+                ) : (
+                  <a href={href} onClick={() => close(false)} className={item}>{text}</a>
+                )}
               </li>
             ))}
             <li><a href={loginHref} onClick={() => close(false)} className={item}>Entrar</a></li>
