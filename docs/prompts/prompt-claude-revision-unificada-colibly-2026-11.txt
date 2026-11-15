@@ -1,0 +1,198 @@
+PROMPT PARA CLAUDE CODE · Colibly · Revisión unificada: arreglos funcionales + pulido de diseño + verificación visual y funcional de app.colibly.com (noviembre 2026)
+Repo: ludaisca/Colibly, rama main (Next.js + Tailwind v4 CSS-first + componentes propios en app/components/ui sobre Base UI).
+
+CÓMO USAR ESTE DOCUMENTO
+Parte A (fases 1 a 4): aplica los arreglos de QA y el pulido de diseño en el código.
+Parte B (fase 5): al terminar, verifica visual y funcionalmente app.colibly.com (o el entorno local) con la lista de revisión y entrega un reporte.
+
+##################################################################
+PARTE A · ARREGLOS Y DISEÑO
+##################################################################
+CONTEXTO
+Hicimos una revisión de QA funcional y de diseño de app.colibly.com. La conclusión: el producto funciona y el sistema de diseño tiene buena base (tokens semánticos, contraste probado, foco accesible), pero se ve "hecho por IA" por decisiones de kit acumuladas: paleta de Tailwind (cyan-700), neutros de dos temperaturas, tarjetas KPI idénticas con etiquetas en MAYÚSCULAS, estados vacíos con ícono en cuadro teal, animaciones de entrada escalonadas, subtítulos de relleno, menú de 22 entradas y banner azul de prueba en todas las pantallas. Además hubo 5 paletas en 3 semanas.
+
+La dirección es: CONGELAR LA MARCA Y PULIR EL OFICIO. Se queda el teal como único acento, se queda Barlow (Barlow Condensed solo para cifras), se queda la franja de color por cuenta y la espera como dato protagonista. NO propongas otra paleta, otra fuente ni otra metáfora visual.
+
+REGLAS GENERALES
+- Antes de empezar, lee AGENTS.md, CLAUDE.md, app/globals.css, app/layout.tsx, .impeccable/design.json y docs/arquitectura/frontend.md. Los números de línea de este prompt vienen de un snapshot anterior (commit bada0cf); verifica rutas y líneas en el código actual antes de editar.
+- No agregues dependencias nuevas. Si alguna es indispensable, justifícalo en el mensaje de commit y en el CHANGELOG.
+- No cambies lógica de negocio, APIs, esquemas de Prisma ni permisos salvo donde la fase lo pide explícitamente (QA-018, QA-020, validaciones).
+- Al final de CADA fase: npm run lint, npm run typecheck (o tsc --noEmit), npm test y npm run build deben pasar en verde. Si algo ya fallaba antes de tu cambio, dilo en el resumen; no lo escondas.
+- Un commit por fase (puedes hacer commits intermedios dentro de la fase si te ayuda, pero cierra cada fase con un commit "fase N: ..."), en español, y push a main al cerrar cada fase.
+- No toques secretos, variables de entorno de despliegue, Coolify ni credenciales. No hagas deploy manual. No imprimas tokens en logs.
+- Textos de la UI en español de México, tuteo, sin signos de admiración, sin "¡Empieza ahora!". Vocabulario fijo: Chats, Contactos, Embudo, Etapa, Venta ganada / perdida, Asignado a, Canal, Número. No mezcles "lead" y "contacto" en la UI (usa "contacto"; "trato" para la tarjeta del embudo).
+- Respeta prefers-reduced-motion y mantén el foco visible.
+
+==================================================================
+FASE 1 · Bugs altos + quick wins (sin cambiar tokens todavía)
+==================================================================
+1. QA-001 Aviso de cookies en /register a 390 px: hoy es position:fixed (z-50), tapa "Términos y condiciones", "Aviso de privacidad" e "Inicia sesión", y el documento no hace scroll. Conviértelo en una banda inferior de una línea (máx. 56 px de alto) con "Aceptar" y "Solo necesarias"; agrega padding-bottom al contenedor de la página igual al alto del aviso mientras esté visible; no bloquees el scroll.
+   Criterio: a 390x844, sin aceptar cookies, se ven y se pueden tocar los tres enlaces y el botón "Crear cuenta"; document.scrollingElement.scrollHeight > innerHeight cuando el contenido lo requiere.
+2. QA-002 Docs API (app/(marketing)/docs/api/...): los enlaces Producto, Cómo funciona y Preguntas usan /#producto, /#como-funciona, /#preguntas en el dominio de la app y acaban en /login. Cámbialos a https://colibly.com/#producto, https://colibly.com/#como-funciona, https://colibly.com/#preguntas; el logo a https://colibly.com. También en el menú móvil.
+3. QA-004 Mensaje de correo (busca "Email inválido", probablemente en lib/validations.ts): vacío → "El correo es obligatorio"; formato incorrecto → "El correo no es válido". Aplica a login, registro y recuperar. Agrega aria-describedby del input al id del mensaje de error (QA-016).
+4. QA-019 / QA-021 / QA-025 / QA-026 Validación: teléfono inválido en contactos muestra error junto al campo y deshabilita "Guardar contacto"; nombre vacío en Configuración > Mi cuenta muestra "Escribe tu nombre" y no deja guardar; en contactos, el botón deshabilitado por nombre vacío muestra el motivo; contador "118/120" cuando falten 10 caracteres para el límite de 120.
+5. QA-023 Estadísticas/Reportes: la etiqueta del rango debe derivarse de los searchParams (igual que el CSV), no de un estado local que no se actualiza.
+   QA-024: calcula el estado del bot con una sola función y úsala en la tarjeta ("0/2 activos") y en la tabla; sin cuenta conectada el bot no puede aparecer "Activo".
+6. QA-003 CSP: en los enlaces a /privacidad, /terminos, /blog y /precios de las páginas públicas usa prefetch={false} o apunta directo a https://colibly.com/... con <a>. Criterio: sin errores de CSP en consola en /login, /register, /recuperar y /docs/api.
+7. Copias: QA-030 "la IA" → "La IA" en Calificadores; QA-005 title de /conectar/[token] sin la marca duplicada ("Conectar WhatsApp · Colibly"), con enlaces a /login y a soporte, y respuesta 404 cuando el token no existe; QA-028 reemplaza el input de archivo nativo de Bots > Conocimiento por un botón "Elegir archivo" + nombre del archivo (input oculto con label); QA-013 redirección 308 de /registro a /register; QA-011 /favicon.ico sirve o redirige al icono; QA-014 poweredByHeader: false en next.config.
+8. D-01 Banner de prueba: quita la banda azul de prueba de todo el ancho (busca billing-banner.tsx / banner-copy.ts). Muévelo a una tarjeta neutra al pie del sidebar: "Prueba Pro · quedan N días", barra de 4 px (relleno = accent), enlace "Elegir plan". Solo si quedan ≤3 días o hay pago fallido se muestra un banner arriba, en warning. En móvil, la misma tarjeta dentro de "Más".
+   Criterio: en /dashboard, /whatsapp/chat y /ventas el contenido empieza 40 px más arriba que hoy.
+9. D-07 Quita animate-fade-in-up y animation-delay-* del panel y del resto de la app (hay ~16 usos). Deja solo transiciones de color de 120 ms y apertura de menús/modales.
+10. QA-008 /api/health público: responde solo {"status":"ok"} (sin db/redis). Si hoy algo interno depende del detalle, muévelo a una ruta protegida.
+11. QA-032 Monitores y secuencias nuevos se crean inactivos por defecto.
+Commit: "fase 1: arreglos de QA altos y quick wins"
+
+==================================================================
+FASE 2 · Tokens, tipografía y radios en app/globals.css + congelar el diseño
+==================================================================
+Cambia SOLO valores de la capa semántica (y el bloque Andén) en app/globals.css; los componentes ya consumen semánticos.
+
+Color, tema claro (valores exactos):
+--background #F4F4F1
+--surface #FFFFFF
+--surface-light #EEEEEA
+--nav-active #E6E6E1 (nuevo)
+--border #E1E1DB
+--border-strong #93948D (nuevo; borde de inputs, selects, checkbox)
+--foreground #17181A
+--muted / --muted-darker #5E5F5A (reemplaza el pizarra azulado #5B6B7A y #7A96A8)
+--subtle #8A8B84 (renombra --muted-strong; solo metadatos >=12 px y placeholders)
+--accent #0F6E7E · --accent-hover #0B5864 · --accent-ink #0B5D6A · --accent-subtle #E3F0F1 · --accent-muted #A9CFD4 · --ring #0F6E7E
+--success #1F6B45 / bg #E6F2EA / border #BCDCC8
+--warning #9A4A0B / bg #FBF0E2 / border #EFCFA6 (solo espera/SLA)
+--danger #B3261E / bg #FBE9E7 / border #F0BDB8
+--info #2F5D8A / bg #EAF0F6 / border #C3D3E4
+--bubble-in #FFFFFF · --bubble-out #DCEFEC · --chat-bg #EEEEEA
+Series de gráficas: #0F6E7E, #7A6A3A, #5B6FA6, #9C5B7A, #8A8B84.
+Hues por cuenta: conserva el oklch con L fija pero baja la croma a ~0.09.
+
+Tema oscuro (uno solo): lienzo #111211, superficie #18191A, superficie 2 #222321, borde #2E2F2C, texto #ECECE8, texto 2 #A3A49E, acento de relleno #0F6E7E con texto blanco, acento de texto y foco #5FB8C4. Elimina el bloque AMOLED #000 y el duplicado.
+
+Elimina: --accent-2 (coral) del panel, primitivos sin uso (--teal-300/400, --coral-*, --graphite-*), el fondo frío --ink-25 #F3F6F8, rounded-bubble.
+
+Tipografía (app/layout.tsx + globals.css):
+- Carga Barlow 400/500/600 y Barlow Condensed 600/700. Nada de font-extrabold (800) ni font-bold en el panel; 600 como máximo.
+- text-micro 11/16 500 · text-xs 12/16 500 · text-sm 13/18 (cuerpo de UI por defecto) · text-base 15/22 (burbujas, párrafos) · text-title (nuevo) 16/22 600 tracking -0.01em · text-page-title 22/28 600 tracking -0.015em en Barlow normal (NO Condensed) · text-figure (nuevo) 28/32 Barlow Condensed 600 tabular-nums · text-hero 40/44 Condensed 600 (solo 404/500).
+- Peso 500 para nombres en listas, botones y navegación.
+
+Radios (una sola escala en @theme): --radius-xs 4px (badges, chips, checkbox) · --radius-sm 6px (botones, inputs, ítems de menú) · --radius-md 8px (tarjetas del embudo, popovers) · --radius-lg 10px (paneles, tablas, modales) · burbuja 10px con la esquina de la cola en 3px · rounded-full SOLO avatares, puntos de estado y switch. Elimina --radius-control 9px.
+
+Sombras: ninguna en reposo · --shadow-sm 0 1px 2px rgb(23 24 26 / .06) (arrastre/hover) · --shadow-md 0 4px 12px rgb(23 24 26 / .08), 0 1px 3px rgb(23 24 26 / .06) (menús, ⌘K) · --shadow-lg 0 16px 40px rgb(23 24 26 / .14) (modales).
+
+Actualiza lib/brand-colors.ts y lib/design/__tests__/contrast.test.ts con los nuevos pares y verifica: texto 2 #5E5F5A >= 4.5:1 sobre blanco y sobre #F4F4F1; #0F6E7E con blanco >= 4.5:1; #0B5D6A sobre blanco >= 7:1; estados sobre su fondo >= 4.5:1; #93948D sobre blanco >= 3:1.
+
+Congelar: agrega a AGENTS.md y CLAUDE.md una sección "Dirección de diseño (congelada, nov 2026)" con: los tokens de arriba, las fuentes, la escala de radios, las reglas de componentes de la fase 3 y la frase "No cambiar paleta, fuentes ni metáfora visual sin aprobación explícita de Luis. Las propuestas van en un issue, no en un commit." Actualiza .impeccable/design.json para que coincida (o márcalo como obsoleto si contradice).
+Commit: "fase 2: tokens, tipografía y radios congelados"
+
+==================================================================
+FASE 3 · Componentes base y pantallas
+==================================================================
+3a. Componentes en app/components/ui/:
+- button.tsx: alturas 28 (sm) / 32 (md) / 40 (lg), radio 6, primario teal (máximo uno por vista), secundario blanco con borde --border y --border-strong en hover, ghost para acciones de fila.
+- input.tsx (y select/textarea): fondo blanco, borde --border-strong, foco con borde accent + anillo 2 px --accent-subtle; gris solo deshabilitado.
+- badge.tsx: sin borde, radio 4, text-xs 500, fondo tenue + texto. Etiquetas de usuario = punto de color 7 px + texto neutro.
+- table.tsx: encabezado bg-surface-light en text-xs 500 minúscula normal (sin uppercase), números a la derecha con tabular-nums, hover surface-light, fila 40 px.
+- empty-state.tsx: SIN IconBox. Ícono Lucide 20 px en --subtle (opcional), titular de 3 a 5 palabras en text-title, máximo 1 línea de cuerpo, 1 CTA. Dentro de una sección, sin borde propio.
+- kpi-strip.tsx: una superficie con divisores verticales; etiqueta text-xs 500 --muted en minúscula; cifra text-figure; línea de contexto text-xs. Con ceros conserva la estructura.
+- page-header.tsx: 56 px, título text-page-title a la izquierda, acciones a la derecha en la misma línea; subtítulo solo si es dato vivo (prop opcional).
+- section-header.tsx y onboarding-checklist.tsx: sin eyebrow/"Siguiente paso" en mayúsculas.
+- app-shell.tsx: sidebar 232 px con fondo --background y filete derecho; ítems 30 px text-sm 500; íconos 16 px stroke 1.75; activo bg --nav-active + texto --foreground (no bloque negro); grupos text-xs 500 --subtle sin mayúsculas; sin logos de canal de colores en el menú.
+- Íconos: nunca dentro de cuadros de color salvo logos de canal. Reemplaza Sparkles (lead-score-badge.tsx, sample-data-controls.tsx) por la palabra "IA" o sin ícono.
+- Avatares: iniciales sobre el tono de la cuenta; blobatar solo para bots, si acaso.
+
+3b. Menú (app/(dashboard)/dashboard-shell.tsx): agrupa por tarea:
+Panel · Bandeja (Chats, Contactos, Citas) · Ventas (Embudo, Campañas) · Automatización (Bots IA, Automatizaciones, Secuencias, Plantillas) · Reportes (Estadísticas, Calificadores, Monitores) · Canales (UNA entrada, página con pestañas WhatsApp / Instagram / Messenger / Telegram / Web que reutiliza las páginas actuales de cuentas). Al pie: tarjeta de prueba/plan, Configuración, Ayuda y menú de usuario (Usuarios y Meta Ads dentro de Configuración o del menú de workspace). Contador de chats en espera en warning junto a "Chats". Las rutas actuales siguen funcionando (redirecciones si cambias alguna).
+
+3c. Pantallas (los mockups de referencia están en diseno/mockups/ del reporte; Luis te los puede pasar):
+- Panel (dashboard/page.tsx): encabezado "Panel" + fecha; frase de estado con datos ("3 chats esperan respuesta · el más antiguo hace 42 min"); KpiStrip de 5 (Esperan respuesta, Chats nuevos hoy, Primera respuesta mediana, Ventas ganadas 30 días, Citas hoy) usando datos que ya existen; dos columnas 1fr / 372 px: Chats (esperan respuesta + atendidos hace poco, filas 52 px con franja de cuenta 3 px y espera en Condensed sobre warning/danger bg), Bots IA (fila con estado y respuestas de la semana), Citas de hoy (filas 48 px, hora en Condensed 16 px), Embudo (barras de 6 px por etapa con conteo y total MXN). Quita "Acceso rápido" y el bloque "Prepara tu bandeja"; el checklist de onboarding va al pie del sidebar mientras esté incompleto. Sin canal: misma estructura con ceros + una línea "Conecta tu WhatsApp para recibir mensajes aquí." [Conectar WhatsApp].
+- Chats (whatsapp/chat, chat-list-panel.tsx, chat-thread-panel.tsx, chat-composer.tsx): lista 320 px; pestañas "Esperando · Mías · Todas · Después" text-sm 500 con contador y subrayado 2 px (sin uppercase); filas ~60 px (franja de cuenta, nombre 500 + cuenta 12 px --subtle, vista previa 1 línea, espera Condensed 14 px); encabezado de conversación 56 px (nombre, número tabular-nums, Asignado, "Marcar venta", menú ⋯); burbujas text-base, radio 10 con cola 3 px, sin sombra, entrante #FFFFFF y saliente #DCEFEC sobre #EEEEEA; compositor blanco radio 8 con herramientas calladas (Respuestas, Plantilla, Adjuntar, IA) y un solo primario "Enviar"; ficha derecha 288 px con secciones plegables (Contacto, Trato con etapa editable, Próxima cita, Notas, Historial). Estado sin chats: "Todo contestado." / "Te avisamos cuando alguien escriba." Sin canal: "Conecta tu WhatsApp para recibir mensajes aquí." [Conectar WhatsApp].
+- Contactos (whatsapp/contactos/page.tsx) + QA-018: tabla real (checkbox · Nombre con iniciales 24 px · Teléfono "+52 55 1234 5678" · Etiquetas punto+texto, máx 2 y "+N" · Etapa · Asignado · Última actividad relativa), barra de acciones al seleccionar (Etiquetar, Asignar, Eliminar), menú ⋯ por fila con Editar y Eliminar, botón "Editar" en la ficha. Confirmación: "¿Eliminar "{nombre}"? Se borran sus chats y mensajes. No se puede deshacer." [Eliminar]. Administrador de etiquetas (renombrar, cambiar color, eliminar) en Configuración. En Citas, "Eliminar" para citas canceladas. Si faltan endpoints DELETE/PATCH, agrégalos con la misma autorización por workspace que ya usan los de creación y con tests.
+- Embudo (ventas/page.tsx, ventas/_board.tsx, components/pipeline/lead-card.tsx) + QA-020: arregla el drag & drop de @dnd-kit para que soltar en otra columna cambie la etapa con la misma acción que usa el selector (optimista + persistencia + rollback si falla) y agrega test. Las 4 tarjetas KPI pasan a una línea de resumen ("14 tratos abiertos · $35,300 en juego · 4 ganados y 1 perdido en 30 días · 2 sin movimiento en más de 3 días"); columnas bg surface-light sin borde radio 10; encabezado con punto de color de la etapa (en lugar de "●●○○"), nombre 600, conteo y total MXN en Condensed; tarjeta blanca radio 8 con 3 datos: nombre + avatar 20 px, monto Condensed 16 px + servicio/canal, señal (ámbar "Sin movimiento N d" desde 3 días, rojo desde 6, gris para siguiente paso). Quita de la tarjeta el selector de etapa y "Ver contacto": la tarjeta abre la ficha y la etapa se cambia arrastrando o con el menú ⋯. Sombra solo al arrastrar. "Agregar trato" al pie de cada columna. Columna vacía: sin texto (o "Suelta aquí" durante el arrastre). En móvil: una columna a la vez con pestañas de etapa.
+- Citas: línea de resumen en lugar de 4 KPIs; en móvil vista "Agenda" por defecto (lista por día) y el mes con celdas de 48 px que quepa completo a 390 px.
+- Estadísticas y Reportes: KpiStrip; gráficas con ejes en cero y nota "Sin envíos en este periodo." en lugar de estados vacíos con ícono; dos columnas separadas por filetes, sin tarjeta dentro de tarjeta.
+- Bots, Automatizaciones, Monitores, Plantillas, Campañas: listas a todo lo ancho en filas de 52 px; plantillas de automatización como filas con "Usar"; sin canal, nada de controles deshabilitados: una línea + [Conectar WhatsApp]. Bots: subtítulo con dato vivo ("2 bots activos · 148 respuestas esta semana"); instrucciones con line-clamp-2 + "Ver todo" (QA-027); en "Probar" muestra "N de 10 pruebas" (QA-033).
+- Configuración (configuracion/page.tsx) + QA-022: subnavegación izquierda 200 px (Cuenta, Equipo, Canales, IA, Horario, Respuestas rápidas, Campos, API, Plan) y contenido max-w-3xl alineado a la izquierda; cada bloque = título + descripción corta a la izquierda (240 px) / campos a la derecha, filetes entre bloques, guardado por sección y barra fija "Cambios sin guardar". En móvil, lista que entra a cada sección (nada de pestañas cortadas). Canales disponibles como tabla de 1 línea con estado real.
+- Login/registro: columna de 400 px, logo arriba a la izquierda, título 22 px ("Entra a Colibly" / "Crea tu cuenta"), inputs blancos de 40 px, botón a todo lo ancho. Turnstile con appearance "interaction-only" para que no muestre "¡Operación exitosa!" antes de enviar (QA-009).
+- Anchos: listas y tablas a todo lo ancho con px-6; formularios max-w-3xl a la izquierda. Elimina los contenedores max-w-6xl centrados del panel.
+- Subtítulos: elimina los de relleno ("Administra…", "Gestiona…", "Configura…", "Resumen de la actividad de tus canales"); deja solo los que son dato vivo.
+
+Criterios de aceptación de la fase 3:
+- rg "uppercase" en app/(dashboard) y app/components no devuelve usos en encabezados de tabla, grupos de menú, pestañas ni KPIs.
+- rg "rounded-2xl|rounded-xl|rounded-\[9px\]" en el panel = 0 (salvo justificación en comentario).
+- rg "IconBox" dentro de empty-state.tsx = 0; rg "Sparkles" = 0.
+- Un solo botón primario por vista en Panel, Chats, Contactos, Embudo y Configuración.
+- A 390x844 ninguna página del panel tiene desborde horizontal y las pestañas de Configuración no se cortan.
+- Arrastrar una tarjeta del embudo cambia la etapa y persiste al recargar (test incluido).
+- Se pueden editar y eliminar contactos, administrar etiquetas y eliminar citas canceladas (tests de API incluidos).
+- contrast.test.ts, lint, typecheck, tests y build en verde.
+Commit: "fase 3: componentes base, menú por tareas y pantallas" (puedes partirlo en 3a/3b/3c).
+
+==================================================================
+FASE 4 · Limpieza
+==================================================================
+- Quita los usos de font-mono (≈31 en los archivos revisados, más en el resto del repo) y el "puente temporal" --font-mono → body en globals.css; usa tabular-nums donde se buscaba alinear números.
+- Quita font-extrabold y font-bold del panel.
+- Borra utilidades marcadas "no agregar usos nuevos" que ya no tengan usos (rounded-bubble, etc.) y comentarios de paletas anteriores (Colibrí, Menta y grafito, Laguna, Laguna + coral) en globals.css; deja un solo comentario con la dirección vigente.
+- Revisa .impeccable/surfaces/*.md: elimina el texto copiado del generador (p. ej. "FINISH: unreviewed and undocumented is unfinished…" y líneas "seed:…") y los briefs que contradigan la dirección congelada; si no se usan, muévelos a docs/archivo/.
+- Actualiza docs/arquitectura/frontend.md con las reglas de componentes de la fase 3.
+- QA-012 Cache-Control public, max-age=86400 para /icon.svg, /apple-icon y /manifest.webmanifest. QA-017 publica /.well-known/security.txt con contacto de seguridad (pide el correo a Luis si no está en el repo; no inventes uno).
+Commit: "fase 4: limpieza de estilos y briefs obsoletos"
+
+##################################################################
+PARTE B · FASE 5 · Verificación visual y funcional
+##################################################################
+Objetivo: comprobar que las fases 1 a 4 quedaron bien y que no se rompió nada. Hazlo en local (npm run dev) y, si tu entorno tiene navegador, también en https://app.colibly.com después del deploy de Luis. No arregles nada en esta fase: si encuentras algo, anótalo; solo corrige si es un error introducido por tus propios commits de las fases 1 a 4.
+
+REGLAS DE LA VERIFICACIÓN
+1. Usa SOLO la cuenta de QA (workspace "Prueba Bobert QA") que te da Luis aparte. Nunca la cuenta del dueño ni de clientes reales. Si ves un workspace de cliente (por ejemplo "Corporativo Vasa" / MedicalBuy), sal sin tocar nada y anótalo.
+2. No envíes mensajes de WhatsApp ni de Instagram a números reales. No conectes, desconectes ni cambies números, cuentas de Meta o Instagram, facturación ni plan. No hagas compras.
+3. Datos de prueba con prefijo "QA-", bórralos al final y anota lo que no se pudo borrar. Si tocas una configuración global para probarla, regrésala y anota valor antes y después.
+
+ALCANCE: todas las secciones y pestañas del menú (descúbrelas; no te limites a esta lista)
+- Registro / inicio de sesión / recuperar contraseña / cerrar sesión (sin crear cuentas nuevas reales)
+- Onboarding y estados vacíos (bots, automatizaciones, monitores, secuencias, avisos de leads detenidos y contactos sin etiquetas)
+- Bandeja / conversaciones: filtros (Esperando, Todos, orden más antiguos primero), búsqueda, asignación, etiquetas, notas, adjuntos, respuestas rápidas
+- Contactos: crear, editar, importar/exportar, etiquetas, campos personalizados, búsqueda y paginación
+- Embudo (pipeline): columnas, arrastrar tarjetas, totales, carga de 50 leads por columna
+- Bots e IA, automatizaciones, secuencias, monitores
+- Plantillas de WhatsApp (variables con nombre, botones, OTP, carrusel) sin enviarlas a revisión de Meta
+- Catálogo y pedidos, WhatsApp Flows, llamadas, mensaje de bienvenida, códigos QR, baja de marketing
+- Estadísticas y analíticas (primera respuesta, gráficas, ejes con miles)
+- Plataforma / Configuración: todas las pestañas (incluida Medición), usuarios y roles, API keys, webhooks, enlaces de conexión, integraciones (n8n, etc.)
+- Página pública /conectar/<token> si puedes generar un enlace de prueba
+- Ayuda / soporte, enlaces del pie, enlace de WhatsApp de soporte
+
+QUÉ REVISAR EN CADA PANTALLA
+Visual:
+- En escritorio (1440x900 y 1280x800) y en móvil (390x844). Toma captura de cada pantalla en ambos tamaños.
+- Textos cortados, solapados o desbordados; alineación; espaciado; contraste; tipografías y colores inconsistentes; iconos rotos; imágenes que no cargan.
+- Textos en inglés o mezclados, errores de ortografía, tono inconsistente, placeholders tipo "lorem" o "TODO".
+- Estados de carga, vacío y error: ¿existen y se entienden?
+- Modo oscuro si existe.
+Funcionamiento:
+- Cada botón, enlace, menú, pestaña y formulario: ¿hace lo que dice?
+- Validaciones de formularios (campos vacíos, formatos inválidos, teléfono de 10 dígitos sin + que debe tomarse como México, textos muy largos, emojis, acentos).
+- Guardar, editar, borrar, deshacer; que los cambios persistan al recargar.
+- Navegación: botón atrás del navegador, recargar en cada ruta, enlaces directos, 404.
+- Consola del navegador: errores de JavaScript, warnings relevantes y peticiones de red fallidas (4xx/5xx). Anota la URL y el mensaje.
+- Rendimiento: pantallas que tarden más de 3 segundos; anota el tiempo aproximado.
+- Permisos: si puedes crear un usuario de prueba con rol limitado dentro del mismo workspace de QA, verifica que no vea lo que no debe.
+- Accesibilidad básica: navegación con teclado, foco visible, etiquetas en inputs.
+- Además, confirma cada criterio de aceptación de las fases 1 a 4 (marca cumplido / no cumplido con evidencia).
+
+REPORTE DE VERIFICACIÓN (español, Markdown): guárdalo como docs/qa/reporte-verificacion-AAAA-MM-DD.md con capturas en una carpeta con el mismo nombre
+1. Resumen ejecutivo en 5 líneas y conteo de hallazgos por severidad.
+2. Criterios de aceptación de las fases 1 a 4: tabla cumplido / no cumplido.
+3. Qué recorriste y qué NO pudiste probar y por qué.
+4. Hallazgos nuevos: tabla con ID (QA-1xx), sección, URL, severidad (Crítico / Alto / Medio / Bajo / Sugerencia), tipo (Visual / Funcional / Texto / Rendimiento / Consola / Seguridad / Accesibilidad), dispositivo, pasos, esperado, obtenido, captura.
+5. Errores de consola y de red (URL, endpoint, código, mensaje).
+6. Textos a corregir: texto actual y texto sugerido.
+7. Datos de prueba creados y si se borraron; configuraciones tocadas (antes y después).
+8. Top 10 de arreglos pendientes por impacto.
+
+AL TERMINAR
+Escribe un resumen en español con: qué se hizo por fase (incluida la ruta del reporte de verificación de la fase 5), hashes de commit, qué quedó pendiente y por qué, cualquier test que ya fallara antes, y capturas (o rutas) de Panel, Chats, Contactos, Embudo y Configuración a 1440x900 y 390x844 si tu entorno puede generarlas. No hagas deploy; Luis lo hace.
+
+FUERA DE ALCANCE (no lo hagas en este trabajo)
+- Investigar los 503 intermitentes de Coolify (QA-007), el peso de la docs (QA-010), nonces de CSP (QA-015) y el bug de navegación atrás (QA-029): anótalos como issues si quieres, pero no los mezcles con estos commits.
+- Datos de prueba a borrar en BD (workspace "Prueba Bobert QA"): QA-Contacto, QA-Importado, QA-Etiqueta, cita "QA-Cita Editada". No los borres con scripts; cuando exista eliminar en la UI, Luis o Bobert los quitan desde ahí.
