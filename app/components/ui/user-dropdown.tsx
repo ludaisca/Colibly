@@ -200,7 +200,7 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
                     <span className="block text-xs text-muted-darker">Mensajes y chats asignados, aunque la pestaña esté cerrada</span>
                   </span>
                   <span aria-hidden className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${pushOn ? "bg-accent" : "bg-border"}`}>
-                    <span className={`absolute h-4 w-4 rounded-full bg-surface shadow-sm transition-transform motion-reduce:transition-none ${pushOn ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+                    <span className={`absolute h-4 w-4 rounded-full bg-surface transition-transform motion-reduce:transition-none ${pushOn ? "translate-x-[18px]" : "translate-x-0.5"}`} />
                   </span>
                 </Menu.CheckboxItem>
               </div>

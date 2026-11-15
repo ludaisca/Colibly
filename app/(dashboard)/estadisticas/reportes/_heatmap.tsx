@@ -77,7 +77,7 @@ export function ActivityHeatmap({ inbound, resolved, timeZone }: { inbound: Heat
                         key={hour}
                         title={text}
                         aria-label={text}
-                        className="h-6 rounded-[4px] border border-border"
+                        className="h-6 rounded-xs border border-border"
                         style={{
                           backgroundColor: pct === 0 ? "var(--surface)" : `color-mix(in oklab, var(--accent-strong) ${Math.max(pct, 8)}%, var(--surface))`,
                         }}
@@ -93,7 +93,7 @@ export function ActivityHeatmap({ inbound, resolved, timeZone }: { inbound: Heat
             {[0, 25, 50, 75, 100].map((step) => (
               <span
                 key={step}
-                className="h-3 w-5 rounded-[3px] border border-border"
+                className="h-3 w-5 rounded-xs border border-border"
                 style={{ backgroundColor: step === 0 ? "var(--surface)" : `color-mix(in oklab, var(--accent-strong) ${step}%, var(--surface))` }}
               />
             ))}

@@ -74,7 +74,7 @@ export function SearchableSelect({
           data-focus-ring=""
           aria-invalid={!!error}
           className={cn(
-            "relative flex w-full items-center gap-2 rounded-[9px] border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 text-sm text-left transition-colors outline-none",
+            "relative flex w-full items-center gap-2 rounded-sm border bg-surface-light pl-3 sm:pl-4 pr-9 py-2 text-sm text-left transition-colors outline-none",
             "focus-visible:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted data-[popup-open]:border-accent-strong",
             error ? "border-danger-border" : "border-border",
             disabled && "opacity-50 cursor-not-allowed"

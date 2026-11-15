@@ -114,7 +114,7 @@ export function ChatViewsMenu({
           <button
             type="button"
             aria-label={awaiting > 0 ? `Vistas — ${awaiting} esperando respuesta` : "Vistas"}
-            className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground"
+            className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground"
           >
             <Bookmark size={15} />
             {awaiting > 0 && (
@@ -126,7 +126,7 @@ export function ChatViewsMenu({
         }
       >
         <div className="w-64 p-1">
-          <p className="px-2.5 pb-1 pt-1.5 text-eyebrow uppercase text-muted-darker">Vistas rápidas</p>
+          <p className="px-2.5 pb-1 pt-1.5 text-eyebrow text-muted-darker">Vistas rápidas</p>
           {QUICK_VIEWS.filter(
             (view) =>
               (view.key !== "sla" || (counts?.sla ?? 0) > 0 || currentQuery.includes("sla=1")) &&
@@ -136,7 +136,7 @@ export function ChatViewsMenu({
               key={view.key}
               type="button"
               onClick={() => apply(view.query)}
-              className="flex w-full items-center gap-2 rounded-[9px] px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light"
+              className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light"
             >
               <view.icon size={14} className="shrink-0 text-muted" aria-hidden />
               <span className="min-w-0 flex-1 truncate">{view.label}</span>
@@ -177,7 +177,7 @@ export function ChatViewsMenu({
             <button
               type="button"
               onClick={() => setSaveOpen(true)}
-              className="flex w-full items-center gap-2 rounded-[9px] px-2.5 py-2 text-left text-sm text-accent-ink transition-colors hover:bg-accent-subtle"
+              className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-sm text-accent-ink transition-colors hover:bg-accent-subtle"
             >
               <Plus size={15} /> Guardar vista actual
             </button>
@@ -191,7 +191,7 @@ export function ChatViewsMenu({
                   <button
                     type="button"
                     onClick={() => apply(view.query)}
-                    className="min-w-0 flex-1 truncate rounded-[9px] px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light"
+                    className="min-w-0 flex-1 truncate rounded-sm px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-light"
                   >
                     {view.name}
                   </button>
@@ -199,7 +199,7 @@ export function ChatViewsMenu({
                     type="button"
                     aria-label={`Eliminar vista ${view.name}`}
                     onClick={() => remove(view.id)}
-                    className="shrink-0 rounded-[9px] p-1.5 text-muted-darker transition-colors hover:bg-danger-bg hover:text-danger"
+                    className="shrink-0 rounded-sm p-1.5 text-muted-darker transition-colors hover:bg-danger-bg hover:text-danger"
                   >
                     <Trash2 size={13} />
                   </button>

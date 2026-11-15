@@ -421,7 +421,7 @@ export function CallDock({ pollIncoming = true }: { pollIncoming?: boolean } = {
     <>
       <audio ref={audioRef} autoPlay className="hidden" />
       {visible && (
-        <div className="fixed bottom-4 right-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-border bg-surface p-4 shadow-lg">
+        <div className="fixed bottom-4 right-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-4 shadow-lg">
           <p className="text-xs font-medium text-muted-darker">{title}</p>
           <p className="mt-1 truncate text-sm font-semibold text-foreground">{label || "WhatsApp"}</p>
           {note && <p className="mt-2 text-xs text-muted-darker">{note}</p>}

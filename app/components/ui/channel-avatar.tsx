@@ -36,7 +36,7 @@ export function ChannelAvatar({
       <EntityAvatar id={id} name={name} size={size} />
       {Mark && (
         <span
-          className="absolute -bottom-1 -right-1 inline-flex items-center justify-center rounded-full bg-surface p-[2px] text-accent-ink shadow-sm ring-1 ring-border"
+          className="absolute -bottom-1 -right-1 inline-flex items-center justify-center rounded-full bg-surface p-[2px] text-accent-ink ring-1 ring-border"
           title={CHANNEL_NAME[channel!]}
         >
           <Mark size={badge - 4} />

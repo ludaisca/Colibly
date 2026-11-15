@@ -104,7 +104,7 @@ export function MacroPickerModal({
               disabled={running !== null}
               className="flex w-full items-start gap-3 rounded-lg border border-border bg-surface-light p-3 text-left transition-colors hover:border-accent-muted disabled:opacity-50"
             >
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-accent-subtle text-accent-ink">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-accent-subtle text-accent-ink">
                 {running === macro.id ? <Spinner /> : <Zap size={15} />}
               </span>
               <span className="min-w-0 flex-1">

@@ -270,17 +270,17 @@ export function PlataformaRespaldos() {
         />
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
-            <dt className="text-eyebrow uppercase text-muted">Programación</dt>
+            <dt className="text-eyebrow text-muted">Programación</dt>
             <dd className="mt-1">
               {data.config.enabled ? <Badge tone="success">Activo · {formatHourOfDay(data.config.hour)} (Ciudad de México)</Badge> : <Badge tone="neutral">Desactivado</Badge>}
             </dd>
           </div>
           <div>
-            <dt className="text-eyebrow uppercase text-muted">Último respaldo correcto</dt>
+            <dt className="text-eyebrow text-muted">Último respaldo correcto</dt>
             <dd className="mt-1 text-sm tabular-nums">{data.lastSuccessAt ? formatDate(data.lastSuccessAt, tz) : "Aún no hay"}</dd>
           </div>
           <div>
-            <dt className="text-eyebrow uppercase text-muted">Próximo respaldo</dt>
+            <dt className="text-eyebrow text-muted">Próximo respaldo</dt>
             <dd className="mt-1 text-sm tabular-nums">{data.nextRunAt ? formatDate(data.nextRunAt, tz) : "—"}</dd>
           </div>
         </dl>

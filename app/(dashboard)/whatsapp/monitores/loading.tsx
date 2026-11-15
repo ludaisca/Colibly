@@ -5,7 +5,7 @@ export default function MonitoresLoading() {
   return (
     <div className="space-y-5">
       <PageHeader title="Monitores IA" description="La IA revisa tus conversaciones cada hora y te avisa en cuáles aparece cada tema." />
-      <div className="divide-y divide-border rounded-xl border border-border">
+      <div className="divide-y divide-border rounded-lg border border-border">
         {Array.from({ length: 4 }).map((_, i) => (
           <SkeletonRow key={i} cols={3} />
         ))}

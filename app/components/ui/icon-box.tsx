@@ -6,9 +6,9 @@ type Tone = "accent" | "success" | "warning" | "danger" | "info" | "neutral";
 
 const SIZE: Record<Size, { box: string; icon: number }> = {
   sm: { box: "h-9  w-9  rounded-lg",  icon: 16 },
-  md: { box: "h-11 w-11 rounded-xl",  icon: 20 },
-  lg: { box: "h-14 w-14 rounded-xl",  icon: 24 },
-  xl: { box: "h-16 w-16 rounded-2xl", icon: 28 },
+  md: { box: "h-11 w-11 rounded-lg",  icon: 20 },
+  lg: { box: "h-14 w-14 rounded-lg",  icon: 24 },
+  xl: { box: "h-16 w-16 rounded-lg", icon: 28 },
 };
 
 const TONE: Record<Tone, string> = {

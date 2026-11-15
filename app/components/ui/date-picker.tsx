@@ -14,9 +14,9 @@ import { formatCalendarDate, type IsoRange } from "@/lib/format/calendar";
 // HeroUI; las APIs públicas no cambiaron. Valor en ISO `AAAA-MM-DD`.
 
 const TRIGGER =
-  "relative flex h-[38px] w-full items-center gap-2 rounded-[9px] border bg-surface-light pl-3 pr-9 text-left text-sm outline-none transition-colors focus-visible:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted data-[popup-open]:border-accent-strong disabled:cursor-not-allowed disabled:opacity-50";
+  "relative flex h-[38px] w-full items-center gap-2 rounded-sm border bg-surface-light pl-3 pr-9 text-left text-sm outline-none transition-colors focus-visible:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted data-[popup-open]:border-accent-strong disabled:cursor-not-allowed disabled:opacity-50";
 const PANEL =
-  "z-[80] rounded-xl border border-border bg-surface p-3 shadow-lg outline-none origin-[var(--transform-origin)] transition-[opacity,scale] duration-fast ease-brand data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none";
+  "z-[80] rounded-lg border border-border bg-surface p-3 shadow-lg outline-none origin-[var(--transform-origin)] transition-[opacity,scale] duration-fast ease-brand data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none";
 
 function ClearButton({ label, onClear }: { label: string; onClear: () => void }) {
   return (

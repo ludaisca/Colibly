@@ -15,7 +15,7 @@ import { AiMark } from "@/app/components/ui/ai-mark";
 // de herramientas: un botón de IA (sugerir / reescribir) y un "+" con botones,
 // plantilla y stickers. Antes eran cinco iconos más el adjunto.
 
-const TOOL = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
+const TOOL = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 interface BotOption { id: string; name: string; isActive: boolean }
 

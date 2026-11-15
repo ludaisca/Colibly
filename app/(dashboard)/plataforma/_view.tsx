@@ -216,7 +216,7 @@ export function PlatformView({
 
             <p className="text-sm text-muted">{plural(total, "organización", "organizaciones")}</p>
             <Table
-              className="rounded-lg border border-border bg-surface p-4 shadow-sm"
+              className="rounded-lg border border-border bg-surface p-4"
               columns={columns}
               rows={rows}
               rowKey={(r) => r.id}

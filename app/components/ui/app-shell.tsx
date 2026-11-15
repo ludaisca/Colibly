@@ -313,7 +313,7 @@ export function AppShell({
     <div className={cn("flex bg-background", immersive ? "h-svh" : "min-h-svh")}>
       <a
         href="#contenido-principal"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100001] focus:rounded-[12px] focus:bg-surface focus:px-4 focus:py-3 focus:text-foreground focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100001] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-3 focus:text-foreground focus:shadow-lg"
       >
         Saltar al contenido principal
       </a>
@@ -362,7 +362,7 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="-ml-2 grid h-10 w-10 shrink-0 place-items-center rounded-[9px] text-foreground transition-colors hover:bg-surface-light md:hidden"
+            className="-ml-2 grid h-10 w-10 shrink-0 place-items-center rounded-sm text-foreground transition-colors hover:bg-surface-light md:hidden"
             aria-label="Abrir menú"
           >
             <Menu size={22} aria-hidden />

@@ -14,7 +14,7 @@ export default function CalificadoresLoading() {
         <Skeleton className="h-9 w-40 mb-[-1px]" />
       </div>
 
-      <div className="divide-y divide-border rounded-xl border border-border">
+      <div className="divide-y divide-border rounded-lg border border-border">
         {Array.from({ length: 5 }).map((_, i) => (
           <SkeletonRow key={i} cols={5} />
         ))}

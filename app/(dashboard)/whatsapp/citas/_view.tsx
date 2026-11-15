@@ -312,8 +312,8 @@ export function CitasView() {
               onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
             />
           </div>
-          <div className="overflow-hidden rounded-xl border border-border bg-surface">
-            <div className="grid grid-cols-7 border-b border-border bg-surface-light/60 text-center text-micro font-semibold uppercase tracking-wider text-muted-darker">
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            <div className="grid grid-cols-7 border-b border-border bg-surface-light/60 text-center text-micro font-semibold text-muted-darker">
               {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
                 <div key={day} className="px-1 py-2">{day}</div>
               ))}
@@ -347,7 +347,7 @@ export function CitasView() {
                           type="button"
                           onClick={() => { setEditing(appointment); setModalOpen(true); }}
                           className={cn(
-                            "block w-full truncate rounded-[6px] px-1.5 py-1 text-left text-micro font-medium transition-opacity hover:opacity-80",
+                            "block w-full truncate rounded-sm px-1.5 py-1 text-left text-micro font-medium transition-opacity hover:opacity-80",
                             CALENDAR_STATUS[appointment.status]
                           )}
                         >
@@ -368,7 +368,7 @@ export function CitasView() {
           {groups.map(([key, rows]) => (
             <div key={key} className="space-y-2">
               <SectionHeader title={dayLabel(rows[0].scheduledAt)} />
-              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+              <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
                 {rows.map((a) => {
                   const badge = STATUS_BADGE[a.status];
                   return (

@@ -80,7 +80,7 @@ export function FormatToolbar({ textareaRef, value, onChange, className }: {
       role="toolbar"
       aria-label="Formato del texto"
       className={cn(
-        "absolute bottom-full left-0 z-20 mb-2 flex animate-scale-in items-center gap-0.5 rounded-xl border border-border bg-surface p-1 shadow-lg",
+        "absolute bottom-full left-0 z-20 mb-2 flex animate-scale-in items-center gap-0.5 rounded-lg border border-border bg-surface p-1 shadow-lg",
         className
       )}
       // Sin esto, el clic le quita el foco al textarea y se pierde la selección.

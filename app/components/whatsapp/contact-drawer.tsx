@@ -347,11 +347,11 @@ export function ContactDrawer({
                         toastError("No se pudo copiar el enlace");
                       }
                     }}
-                    className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"
+                    className="rounded-sm p-1.5 text-muted hover:bg-surface-light hover:text-foreground"
                   >
                     <Link2 size={16} />
                   </button></Tooltip>
-                  <Drawer.Close aria-label="Cerrar ficha" className="rounded-[9px] p-1.5 text-muted hover:bg-surface-light hover:text-foreground"><X size={18} /></Drawer.Close>
+                  <Drawer.Close aria-label="Cerrar ficha" className="rounded-sm p-1.5 text-muted hover:bg-surface-light hover:text-foreground"><X size={18} /></Drawer.Close>
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">

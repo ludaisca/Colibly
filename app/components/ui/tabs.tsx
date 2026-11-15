@@ -27,7 +27,7 @@ export function Tabs<T extends string>({ items, value, onChange, label, children
           <Base.Tab
             key={item.id}
             value={item.id}
-            className="relative inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-t-[9px] px-3.5 text-sm font-semibold text-muted transition-colors hover:bg-surface-light hover:text-foreground data-[selected]:text-foreground"
+            className="relative inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-t-sm px-3.5 text-sm font-semibold text-muted transition-colors hover:bg-surface-light hover:text-foreground data-[selected]:text-foreground"
           >
             {item.label}
           </Base.Tab>

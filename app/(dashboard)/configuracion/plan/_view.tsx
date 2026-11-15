@@ -227,7 +227,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
         </Banner>
       )}
 
-      <section className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+      <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-display text-xl font-semibold">{data.licenses?.mode === "license" ? "Licencias por persona" : `Plan ${PLANS[data.plan].name}`}</p>
           {!data.isInternal && <OrgStatusBadge status={data.status} />}
@@ -267,7 +267,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
             const pct = u.max ? Math.round((u.used / u.max) * 100) : 0;
             const tone = u.max && pct >= 100 ? "danger" : u.max && pct >= 80 ? "warning" : "accent";
             return (
-              <div key={u.key} className="rounded-xl border border-border bg-surface p-4">
+              <div key={u.key} className="rounded-lg border border-border bg-surface p-4">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="text-sm font-medium">{u.label}</p>
                   <p className="text-sm tabular-nums text-muted">
@@ -304,7 +304,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                   disabled={!canEdit}
                   onClick={() => canEdit && setSelectedPlan(p.id)}
                   className={cn(
-                    "flex flex-col rounded-xl border bg-surface p-4 text-left transition-colors",
+                    "flex flex-col rounded-lg border bg-surface p-4 text-left transition-colors",
                     selected ? "border-foreground ring-1 ring-foreground" : "border-border",
                     canEdit ? "hover:border-muted" : "opacity-90"
                   )}
@@ -335,7 +335,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
           </div>
 
           {canEdit && (
-            <div className="rounded-xl border border-border bg-surface p-4 space-y-4">
+            <div className="rounded-lg border border-border bg-surface p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">Ejecutivos (asientos)</p>

@@ -125,7 +125,7 @@ export function ContactCreateModal({
       }
     >
       <form id="contact-create-form" onSubmit={submit} className="space-y-4">
-        {error && <p className="rounded-[9px] bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>}
+        {error && <p className="rounded-sm bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>}
         <FormField label="Nombre" required hint={name.length >= NAME_COUNTER_FROM ? `${name.length}/${NAME_MAX}` : undefined}>
           {(id, describedBy) => <Input id={id} aria-describedby={describedBy} value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} placeholder="Mariana López" autoFocus />}
         </FormField>

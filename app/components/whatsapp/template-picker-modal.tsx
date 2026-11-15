@@ -148,7 +148,7 @@ export function TemplatePickerModal({
           <ul className="max-h-[50vh] space-y-2 overflow-y-auto" aria-label="Plantillas aprobadas">
             {filtered.map((t) => (
               <li key={t.id}>
-                <button type="button" onClick={() => choose(t)} className="w-full rounded-xl border border-border bg-surface p-3 text-left hover:border-accent-strong hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong">
+                <button type="button" onClick={() => choose(t)} className="w-full rounded-lg border border-border bg-surface p-3 text-left hover:border-accent-strong hover:bg-surface-light focus-visible:outline-2 focus-visible:outline-accent-strong">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-foreground">{t.name}</span>
                     <span className="rounded-md bg-surface-light px-1.5 py-0.5 text-micro text-muted">{templateLanguageLabel(t.language)}</span>
@@ -165,7 +165,7 @@ export function TemplatePickerModal({
       ) : (
         <div className="space-y-4">
           {mediaHeader ? (
-            <p role="alert" className="rounded-xl border border-warning-border bg-warning-bg p-3 text-sm text-warning">
+            <p role="alert" className="rounded-lg border border-warning-border bg-warning-bg p-3 text-sm text-warning">
               Esta plantilla lleva un encabezado con archivo ({vars?.header.format?.toLowerCase()}); desde el chat solo se envían plantillas de texto. Usa Campañas para enviarla.
             </p>
           ) : null}
@@ -188,8 +188,8 @@ export function TemplatePickerModal({
             </label>
           )}
           <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">Vista previa</p>
-            <div className="whitespace-pre-wrap rounded-xl border border-border bg-surface-light p-3 text-sm text-foreground">{preview}</div>
+            <p className="mb-1 text-xs font-medium text-muted">Vista previa</p>
+            <div className="whitespace-pre-wrap rounded-lg border border-border bg-surface-light p-3 text-sm text-foreground">{preview}</div>
           </div>
           <p className="text-xs text-muted">{categoryNote(selected.category, windowOpen)}</p>
           {sendError && <p role="alert" className="text-sm text-danger">{sendError}</p>}

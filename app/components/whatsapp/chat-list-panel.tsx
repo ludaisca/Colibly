@@ -62,7 +62,7 @@ function BulkButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-7 items-center gap-1 rounded-[9px] border border-accent-muted bg-surface px-2 text-micro font-semibold text-accent-ink transition-colors hover:bg-accent-subtle disabled:opacity-50"
+      className="inline-flex h-7 items-center gap-1 rounded-sm border border-accent-muted bg-surface px-2 text-micro font-semibold text-accent-ink transition-colors hover:bg-accent-subtle disabled:opacity-50"
     >
       <Icon size={12} />
       {children}
@@ -204,7 +204,7 @@ export function ChatListPanel({
             aria-pressed={selectionMode}
             onClick={onToggleSelectionMode}
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] transition-colors",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors",
               selectionMode
                 ? "bg-accent-subtle text-accent-ink"
                 : "text-muted-darker hover:bg-surface-light hover:text-foreground"
@@ -270,14 +270,14 @@ export function ChatListPanel({
           <Combobox.Root items={suggestions} inputValue={search}
             onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
             onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
-            <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-[9px] border border-border bg-surface-light px-3 focus-within:border-accent-strong">
+            <Combobox.InputGroup className="flex h-[38px] items-center gap-2 rounded-sm border border-border bg-surface-light px-3 focus-within:border-accent-strong">
               <Search size={16} className="shrink-0 text-muted-darker" />
               <Combobox.Input data-inbox-search data-focus-ring="" aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat…" className="h-full min-w-0 flex-1 self-stretch bg-transparent text-sm text-foreground placeholder:text-muted-darker" />
             </Combobox.InputGroup>
             <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
               <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">
                 <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
-                <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-[9px] px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
+                <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-sm px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
                   <span className="truncate font-medium">{displayName(item.chat.name, item.chat.remoteJid)}</span>
                   <span className="truncate text-micro text-muted">{item.chat.account.name}{isWebchatVisitorId(item.chat.remoteJid) ? "" : ` · ${item.chat.remoteJid}`}</span>
                 </Combobox.Item>}</Combobox.List>
@@ -287,7 +287,7 @@ export function ChatListPanel({
         </div>
 
         {selectionMode && (
-          <div className="flex flex-wrap items-center gap-1.5 rounded-[9px] bg-accent-subtle px-2 py-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-sm bg-accent-subtle px-2 py-1.5">
             <span className="mr-1 text-micro font-semibold text-accent-ink">
               {selectedChatIds.size > 0 ? `${selectedChatIds.size} seleccionados` : "Selecciona chats"}
             </span>
@@ -317,7 +317,7 @@ export function ChatListPanel({
             type="button"
             aria-pressed={awaitingFilter}
             onClick={() => onAwaitingFilterChange(true)}
-            className={cn("rounded-full px-3 py-1 text-micro font-semibold uppercase tracking-wider transition-colors", awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
+            className={cn("rounded-full px-3 py-1 text-micro font-semibold transition-colors", awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
           >
             Esperando{viewCounts ? ` ${viewCounts.awaiting}` : ""}
           </button>
@@ -325,20 +325,20 @@ export function ChatListPanel({
             type="button"
             aria-pressed={!awaitingFilter}
             onClick={() => onAwaitingFilterChange(false)}
-            className={cn("rounded-full px-3 py-1 text-micro font-semibold uppercase tracking-wider transition-colors", !awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
+            className={cn("rounded-full px-3 py-1 text-micro font-semibold transition-colors", !awaitingFilter ? "bg-foreground text-background" : "text-muted hover:text-foreground")}
           >
             Todos
           </button>
         </div>
         {awaitingFilter ? (
-          <span className="text-micro font-semibold uppercase tracking-[0.12em] text-muted">Más espera</span>
+          <span className="text-micro font-semibold tracking-[0.12em] text-muted">Más espera</span>
         ) : (
           // Orden de la vista Todos: lo viejo sin contestar no se pierde debajo de lo reciente.
           <button
             type="button"
             onClick={() => onSortOldestChange(!sortOldest)}
             aria-label={sortOldest ? "Ordenar por más recientes" : "Ordenar por más antiguos"}
-            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-micro font-semibold uppercase tracking-[0.12em] text-muted hover:bg-surface-light hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-micro font-semibold tracking-[0.12em] text-muted hover:bg-surface-light hover:text-foreground"
           >
             {sortOldest ? "Antiguos" : "Recientes"}
             <ArrowUpDown size={11} aria-hidden />

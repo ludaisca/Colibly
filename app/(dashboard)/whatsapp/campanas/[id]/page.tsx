@@ -303,7 +303,7 @@ export default function CampaignDetailPage() {
             </Select>
           </div>
           <Table
-            className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+            className="rounded-lg border border-border bg-surface p-4"
             columns={recipientColumns}
             rows={recipients}
             rowKey={(r) => r.id}

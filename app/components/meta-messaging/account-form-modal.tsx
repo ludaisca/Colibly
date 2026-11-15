@@ -144,7 +144,7 @@ export function MetaChannelAccountFormModal({ channel, open, onClose, onCreated 
       >
         <div className="space-y-4">
           <div>
-            <p className="text-xs font-medium text-muted-darker uppercase tracking-wider mb-1.5">URL del webhook</p>
+            <p className="text-xs font-medium text-muted-darker mb-1.5">URL del webhook</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 bg-surface px-3 py-2 rounded-lg text-xs font-mono break-all">
                 {getWebhookUrl()}
@@ -162,7 +162,7 @@ export function MetaChannelAccountFormModal({ channel, open, onClose, onCreated 
           </div>
 
           <div>
-            <p className="text-xs font-medium text-muted-darker uppercase tracking-wider mb-1.5">Verify token</p>
+            <p className="text-xs font-medium text-muted-darker mb-1.5">Verify token</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 bg-surface px-3 py-2 rounded-lg text-xs font-mono break-all">
                 {verifyToken}

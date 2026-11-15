@@ -59,7 +59,7 @@ export function TemplatePreview({ components, headerImagePreview }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl p-3" style={{ background: WA.wallpaper }}>
+      <div className="rounded-lg p-3" style={{ background: WA.wallpaper }}>
         <div className="max-w-[280px] mx-auto rounded-lg rounded-tl-sm shadow-sm overflow-hidden" style={{ background: WA.bubble }}>
           {header && header.format !== "TEXT" && (
             <div className="flex items-center justify-center" style={{ background: WA.mediaPlaceholder, height: 140 }}>

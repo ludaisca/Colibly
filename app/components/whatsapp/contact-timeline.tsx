@@ -88,7 +88,7 @@ export function ContactTimeline({ contactId, refreshKey = 0 }: { contactId: stri
             const Icon = ICONS[item.type] ?? AiMark;
             return (
               <li key={item.id} className="flex gap-2.5">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-accent-subtle text-accent-ink">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-accent-subtle text-accent-ink">
                   <Icon size={14} />
                 </span>
                 <div className="min-w-0 flex-1">

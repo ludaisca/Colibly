@@ -195,7 +195,7 @@ export default async function DashboardPage() {
           un mensaje verde de "todo en orden" daría una señal equivocada. */}
       <div
         className={cn(
-          " flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3",
+          " flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3",
           needsSetup ? "bg-info-bg" : needsAttention ? "bg-warning-bg" : "bg-success-bg"
         )}
       >
@@ -227,7 +227,7 @@ export default async function DashboardPage() {
 
       <Workbench>
         <WorkbenchMain>
-          <section className="overflow-hidden rounded-xl border border-border bg-surface">
+          <section className="overflow-hidden rounded-lg border border-border bg-surface">
             <div className="flex items-baseline justify-between gap-3 px-4 py-3">
               <SectionHeader
                 eyebrow="Actividad"
@@ -286,7 +286,7 @@ export default async function DashboardPage() {
         </WorkbenchMain>
 
         <WorkbenchAside>
-          <section className="rounded-xl border border-border bg-surface">
+          <section className="rounded-lg border border-border bg-surface">
             <div className="px-4 py-3">
               <SectionHeader eyebrow="Atajos" title="Acceso rápido" />
             </div>

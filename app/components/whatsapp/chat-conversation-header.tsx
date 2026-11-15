@@ -70,7 +70,7 @@ function SalesRoute({ status, accountId }: { status: NonNullable<ChatItem["leadS
           );
         })}
       </ol>
-      {lost && <span className="shrink-0 rounded-full border border-border bg-surface-light px-2 py-0.5 text-micro font-bold uppercase tracking-wider text-muted">Perdido</span>}
+      {lost && <span className="shrink-0 rounded-full border border-border bg-surface-light px-2 py-0.5 text-micro font-bold text-muted">Perdido</span>}
     </div>
   );
 }
@@ -142,7 +142,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
             <button
               type="button"
               aria-label="Acciones de la conversación"
-              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-accent-subtle text-accent-ink" : "text-muted-darker hover:bg-surface-light hover:text-foreground"}`}
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-accent-subtle text-accent-ink" : "text-muted-darker hover:bg-surface-light hover:text-foreground"}`}
             >
               <MoreVertical size={17} />
             </button>
@@ -176,7 +176,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
       {chat.contactId && chat.leadStatus && <SalesRoute status={chat.leadStatus} accountId={chat.accountId} />}
       {detailsOpen && (
         <div className="border-t border-border bg-surface-light px-3 py-3 sm:px-4">
-          <div id={detailsId} role="region" aria-labelledby={`${detailsId}-title`} className="@container flex max-h-[40dvh] flex-col overflow-hidden rounded-xl border border-accent-muted bg-surface shadow-md">
+          <div id={detailsId} role="region" aria-labelledby={`${detailsId}-title`} className="@container flex max-h-[40dvh] flex-col overflow-hidden rounded-lg border border-accent-muted bg-surface shadow-md">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-accent-subtle/40 px-4 py-2">
               <h2 id={`${detailsId}-title`} className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <SlidersHorizontal size={15} className="text-accent-ink" /> Detalles de la conversación

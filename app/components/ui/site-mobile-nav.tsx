@@ -87,7 +87,7 @@ export function SiteMobileNav({ links, loginHref, ctaHref, ctaLabel, trackLocati
             ))}
             <li><a href={loginHref} onClick={() => close(false)} className={item}>Entrar</a></li>
           </ul>
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2 sm:hidden">
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-3 py-2 sm:hidden">
             <span className="text-sm text-muted">Apariencia</span>
             <ThemeToggle />
           </div>
@@ -96,7 +96,7 @@ export function SiteMobileNav({ links, loginHref, ctaHref, ctaLabel, trackLocati
             data-track="cta"
             data-track-location={trackLocation}
             onClick={() => close(false)}
-            className="mt-2 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-5 text-base font-semibold text-on-accent shadow-sm hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+            className="mt-2 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-accent px-5 text-base font-semibold text-on-accent shadow-sm hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
           >
             {ctaLabel}
           </a>

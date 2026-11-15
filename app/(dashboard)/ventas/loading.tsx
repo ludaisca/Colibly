@@ -1,51 +1,30 @@
-import { PIPELINE_STAGES, STAGE_COLUMN_CLASS } from "@/lib/pipeline/stages";
-import { cn } from "@/app/components/ui/cn";
-
+// Esqueleto del embudo: encabezado con la línea de resumen y columnas sobre
+// surface-light con tarjetas planas (mismo dibujo que la página).
 function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-sm animate-pulse">
-      <div className="flex items-start gap-3">
-        <div className="h-9 w-9 rounded-lg bg-surface-light" />
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="h-4 w-28 rounded bg-surface-light" />
-          <div className="h-3 w-20 rounded bg-surface-light" />
-          <div className="flex gap-1">
-            <div className="h-4 w-12 rounded-full bg-surface-light" />
-            <div className="h-4 w-16 rounded-full bg-surface-light" />
-          </div>
-        </div>
+    <div className="space-y-2 rounded-md border border-border bg-surface p-3">
+      <div className="flex items-center gap-2">
+        <div className="h-5 w-5 rounded-full bg-surface-light" />
+        <div className="h-4 w-28 rounded-xs bg-surface-light" />
       </div>
+      <div className="h-4 w-20 rounded-xs bg-surface-light" />
     </div>
   );
 }
 
 export default function VentasLoading() {
   return (
-    <div className="space-y-5">
-      <div className="animate-pulse space-y-2">
-        <div className="h-8 w-36 rounded bg-surface-light" />
-        <div className="h-4 w-56 rounded bg-surface-light" />
+    <div className="space-y-5 animate-pulse motion-reduce:animate-none" aria-busy="true" aria-label="Cargando embudo">
+      <div className="flex min-h-14 flex-col justify-center gap-2">
+        <div className="h-6 w-28 rounded-xs bg-surface-light" />
+        <div className="h-4 w-96 max-w-full rounded-xs bg-surface-light" />
       </div>
-
-      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="rounded-xl border border-border bg-surface p-4 shadow-sm animate-pulse space-y-2">
-            <div className="h-3 w-16 rounded bg-surface-light" />
-            <div className="h-7 w-12 rounded bg-surface-light" />
-            <div className="h-3 w-20 rounded bg-surface-light" />
-          </div>
-        ))}
-      </div>
-
-      <div className="flex gap-3 overflow-x-auto pb-4">
-        {PIPELINE_STAGES.map((stage) => (
-          <div key={stage} className="flex min-w-[300px] max-w-[360px] flex-1 flex-col">
-            <div className="mb-3 flex items-center gap-2 px-1">
-              <div className="h-2.5 w-2.5 rounded-full bg-surface-light" />
-              <div className="h-4 w-20 rounded bg-surface-light animate-pulse" />
-            </div>
-            <div className={cn("flex flex-1 flex-col gap-3 rounded-xl border p-3 min-h-[200px]", STAGE_COLUMN_CLASS)}>
-              <SkeletonCard />
+      <div className="h-8 w-full max-w-md rounded-sm bg-surface-light" />
+      <div className="flex gap-3 overflow-hidden pb-4">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="min-w-full flex-1 space-y-2 sm:min-w-[260px]">
+            <div className="h-5 w-32 rounded-xs bg-surface-light" />
+            <div className="space-y-2 rounded-lg bg-surface-light p-2">
               <SkeletonCard />
               <SkeletonCard />
             </div>

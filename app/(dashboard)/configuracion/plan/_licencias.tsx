@@ -144,7 +144,7 @@ export function LicensesSection({
           const added = licenseAddedFeatures(id);
           const below = LICENSE_ORDER[LICENSE_ORDER.indexOf(id) - 1];
           return (
-            <div key={id} className={cn("flex flex-col rounded-xl border bg-surface p-4 shadow-sm", counts[id] > 0 ? "border-accent-strong" : "border-border")}>
+            <div key={id} className={cn("flex flex-col rounded-lg border bg-surface p-4", counts[id] > 0 ? "border-accent-strong" : "border-border")}>
               <div className="flex items-center justify-between gap-2">
                 <p className="font-display text-lg font-semibold">{PLANS[id].name}</p>
                 {id === "BUSINESS" && <Badge tone="info" size="sm">Recomendado</Badge>}
@@ -185,7 +185,7 @@ export function LicensesSection({
         })}
       </div>
 
-      <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
+      <div className="space-y-4 rounded-lg border border-border bg-surface p-4">
         <p className="text-sm">
           {n(totalLicenses(counts))} {totalLicenses(counts) === 1 ? "licencia" : "licencias"} · Total mensual:{" "}
           <span className="font-display text-xl font-semibold tabular-nums">{formatMxn(total)}</span>

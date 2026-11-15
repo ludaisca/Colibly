@@ -171,7 +171,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
                   <button
                     key={s.id}
                     onClick={() => setSelectedScoreId(s.id)}
-                    className={`text-micro px-2 py-1 rounded-[12px] border transition-colors ${
+                    className={`text-micro px-2 py-1 rounded-lg border transition-colors ${
                       s.id === selectedScoreId
                         ? "border-accent-strong text-accent-ink bg-accent-subtle"
                         : "border-border text-muted-darker hover:text-foreground"

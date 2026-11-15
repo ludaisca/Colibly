@@ -9,7 +9,7 @@ export default function EstadisticasLoading() {
       {/* Franja KPI */}
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="space-y-2 rounded-xl border border-border bg-surface p-4 shadow-sm">
+          <div key={i} className="space-y-2 rounded-lg border border-border bg-surface p-4">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-7 w-20" />
           </div>

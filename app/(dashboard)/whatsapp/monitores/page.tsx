@@ -107,7 +107,7 @@ export default function MonitoresPage() {
       )}
 
       {loading ? (
-        <div className="divide-y divide-border rounded-xl border border-border">
+        <div className="divide-y divide-border rounded-lg border border-border">
           {Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} cols={3} />)}
         </div>
       ) : loadError ? (

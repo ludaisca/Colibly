@@ -340,7 +340,7 @@ function BotDetailPageContent() {
                   />
                   <label
                     htmlFor="knowledge-file"
-                    className="inline-flex h-8 cursor-pointer items-center rounded-[9px] border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-light peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
+                    className="inline-flex h-8 cursor-pointer items-center rounded-sm border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-light peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
                   >
                     Elegir archivo
                   </label>
@@ -359,7 +359,7 @@ function BotDetailPageContent() {
             {knowledgeLoading ? <Spinner /> : knowledge.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted">Sin documentos. Sube archivos para la base de conocimiento.</p>
             ) : (
-              <div className="divide-y divide-border rounded-xl border border-border">
+              <div className="divide-y divide-border rounded-lg border border-border">
                 {knowledge.map((doc) => (
                   <div key={doc.id} className="flex items-center justify-between px-4 py-3">
                     <div>
@@ -416,7 +416,7 @@ function BotDetailPageContent() {
               }
             />
           )}
-          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
             <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
               <span className="text-sm font-medium">Conversación de prueba</span>
               <Button icon={RotateCcw} variant="ghost" size="sm" onClick={() => { setTestTurns([]); setTestMessage(""); }} disabled={testing || testTurns.length === 0}>Nueva conversación</Button>
@@ -425,12 +425,12 @@ function BotDetailPageContent() {
               {testTurns.length === 0 && <p className="py-16 text-center text-sm text-muted">Escribe un mensaje para iniciar la conversación.</p>}
               {testTurns.map((turn, index) => (
                 <div key={index} className={`flex ${turn.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-sm ${turn.role === "user" ? "bg-accent text-white" : "border border-border bg-surface-light text-foreground"}`}>
+                  <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-lg px-3.5 py-2.5 text-sm ${turn.role === "user" ? "bg-accent text-white" : "border border-border bg-surface-light text-foreground"}`}>
                     {turn.content}
                   </div>
                 </div>
               ))}
-              {testing && <div className="flex justify-start"><div className="rounded-xl border border-border bg-surface-light px-4 py-3" aria-label="El bot está respondiendo"><Spinner /></div></div>}
+              {testing && <div className="flex justify-start"><div className="rounded-lg border border-border bg-surface-light px-4 py-3" aria-label="El bot está respondiendo"><Spinner /></div></div>}
               <div ref={testEndRef} />
             </div>
             <form className="flex items-end gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); handleTest(); }}>
@@ -458,7 +458,7 @@ function BotDetailPageContent() {
           <section className="space-y-4">
             <SectionHeader title={`Últimas interacciones (${usageData?.total.interactions ?? 0} total)`} />
             <Table
-              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+              className="rounded-lg border border-border bg-surface p-4"
               columns={usageColumns}
               rows={usageData?.recent ?? []}
               rowKey={(u) => `${u.createdAt}-${u.totalTokens}-${u.estimatedCost}`}

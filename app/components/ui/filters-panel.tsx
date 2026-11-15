@@ -113,8 +113,8 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
         className={cn(
           "relative flex items-center transition-colors",
           compact
-            ? "h-8 w-8 justify-center rounded-[9px]"
-            : "h-[38px] gap-1.5 rounded-[9px] border px-3 text-xs font-semibold",
+            ? "h-8 w-8 justify-center rounded-sm"
+            : "h-[38px] gap-1.5 rounded-sm border px-3 text-xs font-semibold",
           appliedCount > 0
             ? compact ? "bg-accent-subtle text-accent-ink" : "border-accent-strong bg-accent-subtle text-accent-ink"
             : compact ? "text-muted-darker hover:bg-surface-light hover:text-foreground" : "border-border bg-surface text-muted hover:bg-surface-light"
@@ -163,7 +163,7 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
                       type="button"
                       onClick={() => removeField(key)}
                       aria-label={`Quitar condición ${field.label}`}
-                      className="shrink-0 rounded-[9px] p-1.5 text-muted-darker transition-colors hover:bg-danger-bg hover:text-danger"
+                      className="shrink-0 rounded-sm p-1.5 text-muted-darker transition-colors hover:bg-danger-bg hover:text-danger"
                     >
                       <Trash2 size={14} />
                     </button>

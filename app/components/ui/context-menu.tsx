@@ -28,7 +28,7 @@ export type ContextMenuEntry =
   | { type: "submenu"; label: string; icon?: LucideIcon; items: ContextMenuEntry[]; disabled?: boolean };
 
 const POPUP =
-  "min-w-52 max-w-72 origin-[var(--transform-origin)] rounded-xl border border-border bg-surface p-1 text-sm text-foreground shadow-lg outline-none transition-[scale,opacity] duration-100 ease-out data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0";
+  "min-w-52 max-w-72 origin-[var(--transform-origin)] rounded-lg border border-border bg-surface p-1 text-sm text-foreground shadow-lg outline-none transition-[scale,opacity] duration-100 ease-out data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0";
 const ITEM =
   "flex w-full cursor-default select-none items-center gap-2 rounded-lg px-2 py-1.5 text-left outline-none data-[highlighted]:bg-surface-light data-[disabled]:opacity-50";
 
@@ -38,7 +38,7 @@ function Entries({ items }: { items: ContextMenuEntry[] }) {
       {items.map((entry, index) => {
         if (entry.type === "separator") return <Base.Separator key={index} className="mx-1 my-1 h-px bg-border" />;
         if (entry.type === "label") {
-          return <div key={index} className="truncate px-2 pb-1 pt-1.5 text-eyebrow uppercase text-muted-darker">{entry.label}</div>;
+          return <div key={index} className="truncate px-2 pb-1 pt-1.5 text-eyebrow text-muted-darker">{entry.label}</div>;
         }
         if (entry.type === "submenu") {
           const Icon = entry.icon;

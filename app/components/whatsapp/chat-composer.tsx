@@ -63,7 +63,7 @@ interface ChatComposerProps {
 
 const MAX_BUTTONS = 3;
 const MAX_BUTTON_LENGTH = 20;
-const TOOL_BUTTON = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
+const TOOL_BUTTON = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 export function ChatComposer({
   signature,
@@ -258,7 +258,7 @@ export function ChatComposer({
         </p>
       )}
       {replyTo && (
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
           {replyThumb ? (
             // eslint-disable-next-line @next/next/no-img-element -- proxied media, runtime URL
             <img src={replyThumb} alt="" width={36} height={36} className="h-9 w-9 shrink-0 rounded-md object-cover" />
@@ -323,7 +323,7 @@ export function ChatComposer({
       )}
 
       {buttonsPanelOpen && (
-        <div className="chat-disclosure-enter max-h-[min(40dvh,18rem)] space-y-2 overflow-y-auto rounded-xl border border-border bg-background p-3">
+        <div className="chat-disclosure-enter max-h-[min(40dvh,18rem)] space-y-2 overflow-y-auto rounded-lg border border-border bg-background p-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-darker">
               Botones de respuesta rápida ({interactiveButtons.length}/{MAX_BUTTONS})
@@ -391,7 +391,7 @@ export function ChatComposer({
         className="hidden"
       />
       {recording ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-danger-border bg-danger-bg px-3 py-2" role="status" aria-live="polite">
+        <div className="flex items-center gap-3 rounded-lg border border-danger-border bg-danger-bg px-3 py-2" role="status" aria-live="polite">
           <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-danger" />
           <span className="tabular-nums text-sm font-semibold text-foreground">{formatDuration(recording.seconds)}</span>
           <span className="flex-1 text-xs text-muted-darker">Grabando audio…</span>
@@ -477,7 +477,7 @@ export function ChatComposer({
                 : "Escribe un mensaje"
           }
           data-focus-ring=""
-          className="max-h-32 min-h-9 w-full resize-none rounded-2xl border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="max-h-32 min-h-9 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-darker focus:outline-none focus:ring-2 focus:ring-accent-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           disabled={sending}
         />
         </div>

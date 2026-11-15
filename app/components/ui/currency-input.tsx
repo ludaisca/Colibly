@@ -70,7 +70,7 @@ export function CurrencyInput({
   return (
     <div
       className={cn(
-        "flex items-center rounded-[9px] border border-border bg-surface-light text-sm transition-colors",
+        "flex items-center rounded-sm border border-border bg-surface-light text-sm transition-colors",
         focused && "border-accent-strong ring-2 ring-accent-muted",
         disabled && "opacity-60",
         className

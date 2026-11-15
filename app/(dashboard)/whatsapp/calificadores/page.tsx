@@ -208,7 +208,7 @@ function CalificadoresTab() {
       </div>
 
       <Table
-        className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+        className="rounded-lg border border-border bg-surface p-4"
         columns={columns}
         rows={items}
         rowKey={(r) => r.id}
@@ -505,7 +505,7 @@ function LeadsTab() {
       )}
 
       <Table
-        className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+        className="rounded-lg border border-border bg-surface p-4"
         columns={columns}
         rows={pageRows}
         rowKey={(r) => r.id}

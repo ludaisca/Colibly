@@ -356,7 +356,7 @@ export default function AutomationEditorPage() {
           />
         )}
         {isDesktop && (
-          <aside className="self-start rounded-2xl border border-border bg-surface p-4 shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100svh-2rem)] lg:overflow-y-auto">
+          <aside className="self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-4 lg:max-h-[calc(100svh-2rem)] lg:overflow-y-auto">
             {panelContent}
           </aside>
         )}

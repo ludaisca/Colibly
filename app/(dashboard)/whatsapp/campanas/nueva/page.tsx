@@ -635,7 +635,7 @@ export default function NewCampaignPage() {
                     </Button>
                   </div>
 
-                  <div className="border border-border rounded-xl p-4 space-y-3">
+                  <div className="border border-border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Carga masiva de destinatarios</span>
                       <input
@@ -775,7 +775,7 @@ export default function NewCampaignPage() {
           {selectedTemplate ? (
             <TemplatePreview components={selectedTemplate.components} headerImagePreview={headerPreviewUrl} />
           ) : (
-            <div className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-darker">
+            <div className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-darker">
               Selecciona una plantilla para ver la vista previa
             </div>
           )}

@@ -113,7 +113,7 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
         </Button>
       </div>
 
-      <div className="min-h-[320px] flex-1 space-y-2 overflow-y-auto rounded-xl border border-border bg-surface-light/40 p-3">
+      <div className="min-h-[320px] flex-1 space-y-2 overflow-y-auto rounded-lg border border-border bg-surface-light/40 p-3">
         {entries.map((e, i) =>
           e.kind === "effect" || e.kind === "status" ? (
             <p key={i} className={cn("text-center text-micro", e.kind === "status" ? "font-medium text-accent-ink" : "text-muted")}>
@@ -123,8 +123,8 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
             <div key={i} className={cn("flex", e.kind === "client" ? "justify-end" : "justify-start")}>
               <div
                 className={cn(
-                  "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm",
-                  e.kind === "client" ? "rounded-tr-sm bg-accent text-on-accent" : "rounded-tl-sm bg-surface text-foreground shadow-sm"
+                  "max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm",
+                  e.kind === "client" ? "rounded-tr-sm bg-accent text-on-accent" : "rounded-tl-sm bg-surface text-foreground"
                 )}
               >
                 {e.text}

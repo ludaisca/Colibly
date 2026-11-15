@@ -56,7 +56,7 @@ export function MultiSelect({
         <Combobox.Chips
           ref={chipsRef}
           className={cn(
-            "flex w-full min-h-[38px] flex-wrap items-center gap-1.5 rounded-[9px] border bg-surface-light px-3 py-1.5 text-sm transition-colors",
+            "flex w-full min-h-[38px] flex-wrap items-center gap-1.5 rounded-sm border bg-surface-light px-3 py-1.5 text-sm transition-colors",
             "focus-within:border-accent-strong focus-within:ring-2 focus-within:ring-accent-muted",
             error ? "border-danger-border" : "border-border",
             disabled && "opacity-50 cursor-not-allowed"

@@ -235,7 +235,7 @@ export default function UsersPage() {
       </p>
 
       {licenses && licenses.mode === "license" && !licenses.isInternal && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-surface px-4 py-3 text-sm">
           <span className="font-medium">Licencias</span>
           {[...LICENSE_ORDER].reverse().map((p) => (
             <span key={p} className="tabular-nums text-muted">

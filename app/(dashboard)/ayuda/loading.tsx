@@ -5,7 +5,7 @@ export default function Loading() {
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title="Ayuda" description="Lo básico para empezar y cómo escribirnos." />
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-40 animate-pulse rounded-xl border border-border bg-surface" />
+        <div key={i} className="h-40 animate-pulse rounded-lg border border-border bg-surface" />
       ))}
     </div>
   );

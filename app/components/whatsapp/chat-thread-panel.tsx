@@ -111,7 +111,7 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
           alt={msg.caption ?? "imagen"}
           decoding="async"
           {...(msg.messageType === "sticker" ? { width: 176, height: 176 } : {})}
-          className={msg.messageType === "sticker" ? "h-36 w-36 max-w-full object-contain sm:h-44 sm:w-44" : "max-h-[320px] max-w-full rounded-xl object-cover"}
+          className={msg.messageType === "sticker" ? "h-36 w-36 max-w-full object-contain sm:h-44 sm:w-44" : "max-h-[320px] max-w-full rounded-lg object-cover"}
           loading="lazy"
         />
       </button>
@@ -160,7 +160,7 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
     }
     return (
       <div className="relative group max-w-full">
-        <video controls src={mediaSrc} className="max-h-[320px] max-w-full rounded-xl" />
+        <video controls src={mediaSrc} className="max-h-[320px] max-w-full rounded-lg" />
         <Tooltip label="Ver en grande"><button aria-label="Ver en grande"
           type="button"
           onClick={() => onPreview({ type: "video", src: mediaSrc, filename: msg.filename, mimeType: msg.mimeType })}
@@ -354,11 +354,11 @@ function MessageBubble({
         className={`relative max-w-[75%] text-sm leading-[1.4] transition-opacity duration-base lg:max-w-[65%] ${
           mediaOnly ? "p-1" : "px-3 py-2"
         } ${
-          msg.messageType === "sticker" ? "rounded-xl bg-transparent text-foreground" : msg.messageType === "media_too_large"
-            ? "rounded-2xl border border-dashed border-warning-border bg-warning-bg text-foreground"
+          msg.messageType === "sticker" ? "rounded-lg bg-transparent text-foreground" : msg.messageType === "media_too_large"
+            ? "rounded-lg border border-dashed border-warning-border bg-warning-bg text-foreground"
             : isInbound
-            ? "rounded-2xl border border-border bg-bubble-in text-foreground shadow-sm"
-            : "chat-bubble-out rounded-2xl bg-bubble-out text-foreground shadow-sm"
+            ? "rounded-lg border border-border bg-bubble-in text-foreground shadow-sm"
+            : "chat-bubble-out rounded-lg bg-bubble-out text-foreground shadow-sm"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
         {msg.isFromComment && (
@@ -433,7 +433,7 @@ function MessageBubble({
           <div className={`absolute -bottom-3 z-20 flex items-center gap-1 ${isInbound ? "left-2" : "right-2"}`} aria-live="polite">
             {msg.reactionEmoji && (
               <span
-                className="rounded-full border border-border bg-surface px-1.5 py-0.5 text-sm leading-none shadow-sm"
+                className="rounded-full border border-border bg-surface px-1.5 py-0.5 text-sm leading-none"
                 aria-label={`${leadName} reaccionó con ${msg.reactionEmoji}`}
                 title={`Reacción de ${leadName}`}
               >
@@ -442,7 +442,7 @@ function MessageBubble({
             )}
             {(ownEmoji || reactionPending) && (
               <span
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-1.5 py-0.5 text-sm leading-none shadow-sm"
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-1.5 py-0.5 text-sm leading-none"
                 title={reactionPending ? "Reacción enviada a WhatsApp; pendiente de confirmación" : "Reacción del equipo"}
                 aria-label={reactionPending ? "Reacción del equipo pendiente de confirmación" : "Reacción del equipo"}
               >
@@ -451,7 +451,7 @@ function MessageBubble({
               </span>
             )}
             {reactionFailed && (
-              <span role="img" className="rounded-full border border-danger-border bg-surface p-1 text-danger shadow-sm" title={latestReaction.error ?? "WhatsApp rechazó la reacción"} aria-label="No se pudo actualizar la reacción">
+              <span role="img" className="rounded-full border border-danger-border bg-surface p-1 text-danger" title={latestReaction.error ?? "WhatsApp rechazó la reacción"} aria-label="No se pudo actualizar la reacción">
                 <AlertCircle size={12} aria-hidden />
               </span>
             )}
@@ -635,7 +635,7 @@ export function ChatThreadPanel({
     if (!target) return;
     atBottomRef.current = false;
     target.scrollIntoView({ behavior: "auto", block: "center" });
-    const bubble = target.querySelector<HTMLElement>(".rounded-2xl") ?? target;
+    const bubble = target.querySelector<HTMLElement>(".rounded-lg") ?? target;
     const ring = ["ring-2", "ring-accent-strong", "ring-offset-2", "ring-offset-background"];
     bubble.classList.add(...ring);
     // Sin cleanup: onFocusHandled vuelve a correr el efecto y cancelaría el apagado.
@@ -655,7 +655,7 @@ export function ChatThreadPanel({
       return;
     }
     target.scrollIntoView({ behavior: "smooth", block: "center" });
-    const bubble = target.querySelector<HTMLElement>(".rounded-2xl") ?? target;
+    const bubble = target.querySelector<HTMLElement>(".rounded-lg") ?? target;
     const ring = ["ring-2", "ring-accent-strong", "ring-offset-2", "ring-offset-background"];
     bubble.classList.add(...ring);
     window.setTimeout(() => bubble.classList.remove(...ring), 1600);
@@ -681,7 +681,7 @@ export function ChatThreadPanel({
         {floatingDay && (
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center">
             <span
-              className={`rounded-full border border-border bg-surface px-2.5 py-1 text-micro font-medium text-muted-darker shadow-sm transition-opacity duration-300 ${floatingDay.visible ? "opacity-100" : "opacity-0"}`}
+              className={`rounded-full border border-border bg-surface px-2.5 py-1 text-micro font-medium text-muted-darker transition-opacity duration-300 ${floatingDay.visible ? "opacity-100" : "opacity-0"}`}
             >
               {floatingDay.label}
             </span>
@@ -713,7 +713,7 @@ export function ChatThreadPanel({
               {groups.map((group) => (
                 <div key={group.key} data-day-label={group.label}>
                   <div className="flex justify-center py-2">
-                    <span className="rounded-full border border-border bg-surface px-2.5 py-1 text-micro font-medium text-muted-darker shadow-sm">
+                    <span className="rounded-full border border-border bg-surface px-2.5 py-1 text-micro font-medium text-muted-darker">
                       {group.label}
                     </span>
                   </div>

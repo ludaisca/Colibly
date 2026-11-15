@@ -84,7 +84,7 @@ export function OtpInput({
           onPaste={(e) => onPaste(index, e)}
           onChange={(e) => setFrom(index, incomingText(e.target.value, char))}
           className={cn(
-            "h-12 w-10 rounded-[9px] border bg-surface-light text-center font-mono text-lg font-semibold text-foreground transition-colors sm:w-11",
+            "h-12 w-10 rounded-sm border bg-surface-light text-center font-mono text-lg font-semibold text-foreground transition-colors sm:w-11",
             "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-muted",
             invalid ? "border-danger-border" : "border-border"
           )}

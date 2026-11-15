@@ -195,7 +195,7 @@ function Panel({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border">
         {visible.length === 0 ? (
           <div className="flex flex-col items-center px-6 py-14 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-light text-muted-darker">
+            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-light text-muted-darker">
               {tab === "unread" ? <BellOff size={22} /> : <Bell size={22} />}
             </span>
             <p className="mt-4 text-sm font-medium text-foreground">
@@ -209,7 +209,7 @@ function Panel({
           groups.map((g) => (
             <section key={g.label ?? "todas"} aria-label={g.label ?? undefined}>
               {g.label && (
-                <h3 className="sticky top-0 z-10 border-b border-border bg-surface px-4 py-2 text-micro font-semibold uppercase tracking-wider text-muted-darker md:px-5">
+                <h3 className="sticky top-0 z-10 border-b border-border bg-surface px-4 py-2 text-micro font-semibold text-muted-darker md:px-5">
                   {g.label}
                 </h3>
               )}

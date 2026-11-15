@@ -33,10 +33,10 @@ export function SampleConversationButton({ size = "sm" }: { size?: "sm" | "md" }
             ))}
             <Badge tone="info" size="sm">Ejemplo, no es un chat real</Badge>
           </div>
-          <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-xl border border-border bg-surface-light p-3" role="log" aria-label={`Conversación de ejemplo con ${active.contact}`}>
+          <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-border bg-surface-light p-3" role="log" aria-label={`Conversación de ejemplo con ${active.contact}`}>
             {active.messages.map((m, i) => (
               <div key={i} className={`flex ${m.from === "cliente" ? "justify-start" : "justify-end"}`}>
-                <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.from === "cliente" ? "border border-border bg-surface text-foreground" : "bg-accent-subtle text-foreground"}`}>
+                <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${m.from === "cliente" ? "border border-border bg-surface text-foreground" : "bg-accent-subtle text-foreground"}`}>
                   <p className="mb-0.5 text-micro font-semibold text-muted-darker">{m.from === "cliente" ? active.contact : m.from === "bot" ? "Bot de IA" : "Equipo"} · {m.time}</p>
                   <p className="whitespace-pre-wrap break-words">{m.text}</p>
                 </div>

@@ -61,6 +61,7 @@ const cardSelect = {
   leadStatus: true,
   dealValueCents: true,
   expectedCloseAt: true,
+  stageEnteredAt: true,
   accountId: true,
   channelAccountId: true,
   isSample: true,
@@ -126,6 +127,7 @@ export async function loadStageCards(input: {
     unreadCount: (contact.chat?.unreadCount ?? 0) + (contact.conversation?.unreadCount ?? 0),
     dealValueCents: contact.dealValueCents,
     expectedCloseAt: contact.expectedCloseAt?.toISOString() ?? null,
+    stageEnteredAt: contact.stageEnteredAt.toISOString(),
     assignee: contact.chat?.assignedTo ?? contact.conversation?.assignedTo ?? null,
     closed: stage.outcome !== "OPEN",
   }));

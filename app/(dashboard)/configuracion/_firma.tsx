@@ -69,7 +69,7 @@ export function FirmaSection() {
           </FormField>
           {signature.trim() && (
             <div className="rounded-lg bg-surface-light p-3">
-              <p className="mb-1 text-eyebrow uppercase text-muted-darker">Así se verá</p>
+              <p className="mb-1 text-eyebrow text-muted-darker">Así se verá</p>
               <p className="whitespace-pre-wrap text-sm text-foreground">{appendSignature("¡Hola! Te comparto la cotización.", signature, true, 4096)}</p>
             </div>
           )}

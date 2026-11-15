@@ -28,7 +28,7 @@ export function StarterTemplates({ cards, className }: { cards: StarterCard[]; c
             </span>
           </>
         );
-        const cls = "block h-full w-full rounded-xl text-left border border-border bg-surface p-4 transition-colors hover:border-accent-strong hover:bg-accent-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong";
+        const cls = "block h-full w-full rounded-lg text-left border border-border bg-surface p-4 transition-colors hover:border-accent-strong hover:bg-accent-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong";
         return card.href ? (
           <Link key={card.id} href={card.href} className={cls}>{body}</Link>
         ) : (

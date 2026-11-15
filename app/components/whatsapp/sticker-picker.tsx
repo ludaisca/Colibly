@@ -79,7 +79,7 @@ export function StickerPicker({ disabled, onSend, open: controlledOpen, onOpenCh
     finally { setBusy(false); }
   }
   return <>
-    {!hideTrigger && <Tooltip label="Stickers"><button type="button" disabled={disabled} onClick={() => setOpen(true)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong" aria-label="Stickers"><Sticker size={18} /></button></Tooltip>}
+    {!hideTrigger && <Tooltip label="Stickers"><button type="button" disabled={disabled} onClick={() => setOpen(true)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong" aria-label="Stickers"><Sticker size={18} /></button></Tooltip>}
     <Modal open={open} onClose={() => { if (!busy) { setOpen(false); setSelectedId(null); setConfirmDelete(false); } }} title="Stickers del equipo" size="md">
       <div className="space-y-4">
         <p className="text-xs text-muted-darker">Biblioteca compartida por tu organización · {items.length}/100. WebP de 512 × 512 px: hasta 100 KB estáticos o 500 KB animados.</p>
@@ -90,7 +90,7 @@ export function StickerPicker({ disabled, onSend, open: controlledOpen, onOpenCh
         </div>
         {loading ? <p role="status" className="py-8 text-center text-sm text-muted-darker">Cargando stickers…</p> : failed ? <Button type="button" variant="secondary" onClick={load}>Reintentar cargar</Button> : visible.length === 0 ? <p className="py-8 text-center text-sm text-muted-darker">{filter === "all" ? "Sube tu primer sticker o guarda uno recibido desde el chat." : "Todavía no hay stickers en esta sección."}</p> : (
           <div className="grid max-h-[40dvh] grid-cols-3 gap-2 overflow-y-auto p-1 sm:grid-cols-4">
-            {visible.map((item) => <button key={item.id} type="button" disabled={busy} aria-label={`Seleccionar ${item.name}`} aria-pressed={selectedId === item.id} onClick={() => { setSelectedId(item.id); setConfirmDelete(false); }} className={`relative rounded-xl border p-2 hover:bg-surface-light ${selectedId === item.id ? "border-foreground bg-background ring-1 ring-foreground" : "border-border bg-background"}`}>
+            {visible.map((item) => <button key={item.id} type="button" disabled={busy} aria-label={`Seleccionar ${item.name}`} aria-pressed={selectedId === item.id} onClick={() => { setSelectedId(item.id); setConfirmDelete(false); }} className={`relative rounded-lg border p-2 hover:bg-surface-light ${selectedId === item.id ? "border-foreground bg-background ring-1 ring-foreground" : "border-border bg-background"}`}>
               {/* eslint-disable-next-line @next/next/no-img-element -- authenticated media endpoint */}
               <img src={`/api/whatsapp/stickers/${item.id}`} alt={item.name} width={512} height={512} className="aspect-square h-auto w-full object-contain" loading="lazy" decoding="async" />
               {item.favorite && <Star size={13} className="absolute right-1 top-1 fill-accent-ink text-accent-ink" />}

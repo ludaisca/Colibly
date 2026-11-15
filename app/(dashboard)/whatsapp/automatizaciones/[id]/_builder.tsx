@@ -65,20 +65,20 @@ export function Builder(props: BuilderProps) {
         <MoveHorizontal size={14} aria-hidden /> Desliza el lienzo a los lados para ver todas las ramas.
       </p>
     )}
-    <div ref={canvasRef} className="relative overflow-x-auto rounded-2xl border border-border bg-surface-light/40 p-4">
+    <div ref={canvasRef} className="relative overflow-x-auto rounded-lg border border-border bg-surface-light/40 p-4">
       <div className="mx-auto flex w-max min-w-full flex-col items-center">
         <button
           type="button"
           data-node-id="trigger"
           onClick={() => props.onSelect("trigger")}
           className={cn(
-            "flex w-[280px] items-center gap-3 rounded-xl border bg-surface p-3 text-left transition-colors hover:bg-surface-light",
+            "flex w-[280px] items-center gap-3 rounded-lg border bg-surface p-3 text-left transition-colors hover:bg-surface-light",
             props.selectedId === "trigger" ? "border-foreground ring-1 ring-foreground" : "border-border"
           )}
         >
           <IconBox icon={TriggerIcon} size="sm" tone="neutral" />
           <div className="min-w-0 flex-1">
-            <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">Cuando</p>
+            <p className="text-eyebrow font-medium text-muted-darker">Cuando</p>
             <p className="truncate text-sm font-medium text-foreground">{TRIGGER_META[props.graph.trigger.type].label}</p>
             <p className="truncate text-xs text-muted">{triggerSummary(props.graph.trigger)}</p>
           </div>
@@ -162,8 +162,8 @@ function AddButton(props: BuilderProps & { listId: string; index: number; allowT
       type="button"
       onClick={() => props.onRequestAdd({ listId: props.listId, index: props.index, allowTerminal: props.allowTerminal })}
       className={cn(
-        "flex items-center justify-center border bg-surface text-muted shadow-sm transition-colors hover:border-accent-strong hover:text-accent-ink",
-        props.prominent ? "h-9 gap-1.5 rounded-[12px] px-3 text-xs font-medium" : "h-6 w-6 rounded-full"
+        "flex items-center justify-center border bg-surface text-muted transition-colors hover:border-accent-strong hover:text-accent-ink",
+        props.prominent ? "h-9 gap-1.5 rounded-lg px-3 text-xs font-medium" : "h-6 w-6 rounded-full"
       )}
       aria-label="Agregar paso"
     >
@@ -197,7 +197,7 @@ export function StepPicker({
       <div className="space-y-5">
         {GROUPS.map((group) => (
           <section key={group}>
-            <p className="mb-2 text-eyebrow font-medium uppercase tracking-wider text-muted-darker">{group}</p>
+            <p className="mb-2 text-eyebrow font-medium text-muted-darker">{group}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {(Object.entries(STEP_META) as [StepType, (typeof STEP_META)[StepType]][])
                 .filter(([, m]) => m.group === group)
@@ -210,7 +210,7 @@ export function StepPicker({
                       type="button"
                       disabled={byPosition || byChannel}
                       onClick={() => onPick(type)}
-                      className="flex items-start gap-3 rounded-xl border border-border p-3 text-left transition-colors hover:border-accent-strong hover:bg-accent-subtle disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-border disabled:hover:bg-transparent"
+                      className="flex items-start gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-accent-strong hover:bg-accent-subtle disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-border disabled:hover:bg-transparent"
                     >
                       <IconBox icon={STEP_ICON[type]} size="sm" tone={stepTone(type)} />
                       <span className="min-w-0">
@@ -254,7 +254,7 @@ function StepCard({
         data-node-id={step.id}
         onClick={onSelect}
         className={cn(
-          "flex w-[280px] items-start gap-3 rounded-xl border bg-surface p-3 text-left transition-colors hover:bg-surface-light",
+          "flex w-[280px] items-start gap-3 rounded-lg border bg-surface p-3 text-left transition-colors hover:bg-surface-light",
           selected ? "border-foreground ring-1 ring-foreground" : issues.some((i) => i.level === "error") ? "border-danger-border" : "border-border"
         )}
       >

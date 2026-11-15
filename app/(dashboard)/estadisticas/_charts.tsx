@@ -85,7 +85,7 @@ export function MessagesTrendChart({ data }: { data: Estadisticas["dailyMessages
   const total = data.reduce((sum, d) => sum + d.count, 0);
   if (total === 0) {
     return (
-      <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface/60 px-4 text-center">
+      <div className="flex min-h-36 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface/60 px-4 text-center">
         <p className="text-sm font-medium text-foreground">Aún no hay mensajes</p>
         <p className="mt-1 text-xs text-muted">La tendencia aparecerá cuando tus canales reciban conversaciones.</p>
       </div>

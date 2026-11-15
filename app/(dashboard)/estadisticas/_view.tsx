@@ -316,7 +316,7 @@ export function EstadisticasView({ stats, canManageBots }: { stats: Estadisticas
 
               {stats.qualifiedChatsByCampaign.length > 0 && (
                 <div className="space-y-2 pt-2">
-                  <p className="text-eyebrow font-medium uppercase tracking-wider text-muted-darker">Por campaña</p>
+                  <p className="text-eyebrow font-medium text-muted-darker">Por campaña</p>
                   <HorizontalBarChart
                     data={stats.qualifiedChatsByCampaign.map((c) => ({ id: c.id ?? "__none__", label: c.name, value: c.count }))}
                     color="var(--accent)"

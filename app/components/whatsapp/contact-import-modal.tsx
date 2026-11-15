@@ -182,7 +182,7 @@ export function ContactImportModal({
       }
     >
       <div className="space-y-4">
-        {error && <p className="rounded-[9px] bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>}
+        {error && <p className="rounded-sm bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>}
 
         {step === "file" ? (
           <>
@@ -216,7 +216,7 @@ export function ContactImportModal({
                 type="file"
                 accept=".csv,text/csv"
                 onChange={(event) => void onFile(event.target.files?.[0] ?? null)}
-                className="block w-full cursor-pointer rounded-[9px] border border-border bg-surface-light px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-[9px] file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-accent-subtle"
+                className="block w-full cursor-pointer rounded-sm border border-border bg-surface-light px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-sm file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-accent-subtle"
               />
               <p className="mt-1 text-micro text-muted-darker">Máximo 2 MB y 5,000 filas.</p>
             </div>
@@ -231,7 +231,7 @@ export function ContactImportModal({
           <>
             <div className="max-h-72 overflow-y-auto rounded-lg border border-border">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-surface-light text-left text-micro uppercase text-muted-darker">
+                <thead className="sticky top-0 bg-surface-light text-left text-micro text-muted-darker">
                   <tr>
                     <th className="px-3 py-2 font-medium">Columna del archivo</th>
                     <th className="px-3 py-2 font-medium">Ejemplo</th>
@@ -267,7 +267,7 @@ export function ContactImportModal({
             </div>
 
             {mapError ? (
-              <p className="rounded-[9px] bg-warning-bg px-3 py-2 text-xs text-warning">{mapError}</p>
+              <p className="rounded-sm bg-warning-bg px-3 py-2 text-xs text-warning">{mapError}</p>
             ) : plan && (
               <div className="space-y-2 rounded-lg border border-border bg-surface-light p-3 text-xs">
                 <p className="text-foreground">

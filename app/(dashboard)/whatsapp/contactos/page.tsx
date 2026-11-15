@@ -18,6 +18,7 @@ import { Pagination } from "@/app/components/ui/pagination";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { ContactCreateModal } from "@/app/components/whatsapp/contact-create-modal";
+import { loadContactAccounts } from "@/app/components/whatsapp/contact-accounts";
 import { ContactImportModal } from "@/app/components/whatsapp/contact-import-modal";
 import { DismissibleNudge } from "@/app/components/ui/dismissible-nudge";
 import { shouldNudgeUntagged } from "@/lib/pipeline/nudge";
@@ -128,18 +129,7 @@ export default function ContactosPage() {
   // importar de qué canal venga (la API resuelve la columna correcta).
   const fetchAccounts = useCallback(async () => {
     try {
-      const endpoints = ["whatsapp", "telegram", "messenger", "instagram", "webchat"];
-      const channelNames = ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"];
-      const results = await Promise.all(endpoints.map(async (channel) => {
-        const res = await fetch(`/api/${channel}/accounts`);
-        if (!res.ok) throw new Error("Error al cargar cuentas");
-        const data: unknown = await res.json();
-        if (!Array.isArray(data)) throw new Error("Respuesta inválida de cuentas");
-        return data as Array<{ id: string; name: string; phoneNumber?: string | null }>;
-      }));
-      setAccounts(results.flatMap((rows, index) => rows.map((a) => ({
-        id: a.id, name: a.name, phoneNumber: a.phoneNumber ?? null, channel: channelNames[index],
-      }))));
+      setAccounts(await loadContactAccounts());
     } catch {
       toastError("Error al cargar cuentas");
     }

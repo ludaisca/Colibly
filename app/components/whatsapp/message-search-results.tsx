@@ -45,7 +45,7 @@ export function MessageSearchResults({ query, onOpen }: { query: string; onOpen:
 
   return (
     <section aria-label="Resultados en mensajes" className="border-t border-border">
-      <p className="flex items-center gap-1.5 bg-surface/50 px-3 py-1.5 text-micro font-semibold uppercase tracking-wider text-muted-darker">
+      <p className="flex items-center gap-1.5 bg-surface/50 px-3 py-1.5 text-micro font-semibold text-muted-darker">
         <MessageSquareText size={12} aria-hidden /> En mensajes
         {loading && <Spinner size="sm" label="Buscando en mensajes" className="ml-auto" />}
       </p>

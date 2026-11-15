@@ -262,7 +262,7 @@ export default function LeadSheetSourceDetailPage() {
         <section className="min-w-0 space-y-4">
           <SectionHeader title="Actividad reciente" />
           <Table
-            className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+            className="rounded-lg border border-border bg-surface p-4"
             columns={rowColumns}
             rows={source.recentRows}
             rowKey={(r) => r.id}

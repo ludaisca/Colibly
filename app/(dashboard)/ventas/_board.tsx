@@ -9,20 +9,23 @@ import {
   type DragStartEvent,
   type DragEndEvent,
   PointerSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import { LeadCard, type LeadCardData, type StageOption } from "@/app/components/pipeline/lead-card";
-import { STAGE_COLUMN_CLASS, stageStation, type StageOutcome } from "@/lib/pipeline/stages";
-import { StationMark } from "@/app/components/ui/lead-status";
+import { type StageOutcome } from "@/lib/pipeline/stages";
+import { applyMove, dropTargetStage, revertMove } from "@/lib/pipeline/board-move";
+import { ContactCreateModal } from "@/app/components/whatsapp/contact-create-modal";
+import { loadContactAccounts, type ContactAccountOption } from "@/app/components/whatsapp/contact-accounts";
 import { formatMxn } from "@/lib/money";
 import { cn } from "@/app/components/ui/cn";
 import { useToast } from "@/app/components/ui/toast";
 import { ContactDrawer } from "@/app/components/whatsapp/contact-drawer";
 import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
 
 export type BoardStage = StageOption & { outcome: StageOutcome; locked: boolean };
@@ -38,73 +41,81 @@ interface PipelineOption {
   isDefault: boolean;
 }
 
+// Punto de color de la etapa: las abiertas toman las series de gráficas en
+// orden; ganada en verde, perdida en gris.
+const OPEN_DOT = ["bg-[var(--chart-1)]", "bg-[var(--chart-2)]", "bg-[var(--chart-3)]", "bg-[var(--chart-4)]", "bg-[var(--chart-5)]"];
+function stageDotClass(outcome: StageOutcome, openIndex: number): string {
+  if (outcome === "WON") return "bg-success";
+  if (outcome === "LOST") return "bg-subtle";
+  return OPEN_DOT[Math.max(0, openIndex) % OPEN_DOT.length];
+}
+
 function Column({
   stage,
   index,
-  openCount,
   contacts,
   total,
   loadingMore,
   onLoadMore,
   stages,
   visibleOnMobile,
+  dragging,
   onOpen,
   onStageChange,
+  onAdd,
 }: {
   stage: BoardStage;
   total: { count: number; valueCents: number; partialValue?: boolean };
   loadingMore: boolean;
   onLoadMore: () => void;
-  /** Posición entre las etapas abiertas (para la marca de estación). */
+  /** Posición entre las etapas abiertas (color del punto). */
   index: number;
-  openCount: number;
   contacts: LeadCardData[];
   stages: StageOption[];
   visibleOnMobile: boolean;
+  /** Hay una tarjeta en el aire: las columnas vacías dicen "Suelta aquí". */
+  dragging: boolean;
   onOpen: (id: string) => void;
   onStageChange: (id: string, stageId: string) => void;
+  onAdd: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `column-${stage.id}` });
-  const totalCents = total.valueCents;
   const remaining = Math.max(total.count - contacts.length, 0);
-  const station = stageStation(stage.outcome, index, openCount);
 
   return (
-    <div data-stage={stage.id} className={cn(visibleOnMobile ? "flex" : "hidden sm:flex", "min-w-full flex-col sm:min-w-[260px] sm:max-w-[360px] sm:flex-1 lg:min-w-[200px] xl:min-w-[176px]")}>
-      <div className="mb-3 flex items-center gap-2 px-1">
-        <StationMark station={station} />
-        <h3 className={cn("text-sm font-semibold", station.tone === "lost" ? "text-muted" : station.tone === "won" ? "text-success" : "text-foreground")}>{stage.name}</h3>
+    <div data-stage={stage.id} className={cn(visibleOnMobile ? "flex" : "hidden sm:flex", "min-w-full flex-col sm:min-w-[260px] sm:max-w-[340px] sm:flex-1 lg:min-w-[220px]")}>
+      <div className="mb-2 flex items-center gap-2 px-1">
+        <span aria-hidden className={cn("h-2 w-2 shrink-0 rounded-full", stageDotClass(stage.outcome, index))} />
+        <h3 className="min-w-0 truncate text-sm font-semibold text-foreground">{stage.name}</h3>
+        <span className="font-display text-base font-semibold tabular-nums text-muted">{total.count.toLocaleString("es-MX")}</span>
         {/* Total de la base; al arrastrar, el tablero lo ajusta con la tarjeta. */}
-        {totalCents > 0 && (
-          <span className="text-xs font-semibold tabular-nums text-muted" title={total.partialValue ? "Suma del valor de los tratos mostrados" : "Suma del valor de los tratos de esta etapa"}>
-            {formatMxn(totalCents, { compact: true })}
+        {total.valueCents > 0 && (
+          <span className="ml-auto font-display text-base font-semibold tabular-nums text-foreground" title={total.partialValue ? "Suma del valor de los tratos mostrados" : "Suma del valor de los tratos de esta etapa"}>
+            {formatMxn(total.valueCents, { compact: true })}
           </span>
         )}
-        <span className="ml-auto rounded-full bg-surface-light px-2 py-0.5 text-xs font-mono tabular-nums text-muted">
-          {total.count.toLocaleString("es-MX")}
-        </span>
       </div>
       <div
         ref={setNodeRef}
         className={cn(
-          "flex flex-1 flex-col gap-3 rounded-xl border p-3 transition-colors min-h-[200px]",
-          STAGE_COLUMN_CLASS,
-          isOver && "ring-2 ring-accent-muted border-accent-muted"
+          "flex min-h-[200px] flex-1 flex-col gap-2 rounded-lg bg-surface-light p-2 transition-colors duration-fast",
+          isOver && "ring-2 ring-accent-muted"
         )}
       >
-        {contacts.length === 0 && remaining === 0 && (
-          <div className="flex flex-1 items-center justify-center py-6">
-            <p className="text-xs text-muted">Sin leads</p>
-          </div>
+        {contacts.length === 0 && remaining === 0 && dragging && (
+          <p className="flex flex-1 items-center justify-center py-6 text-xs text-muted">Suelta aquí</p>
         )}
         {contacts.map((contact) => (
           <LeadCard key={contact.id} data={contact} stages={stages} onOpen={onOpen} onStageChange={onStageChange} />
         ))}
         {remaining > 0 && (
-          <Button type="button" variant="secondary" size="sm" className="w-full" disabled={loadingMore} onClick={onLoadMore}>
+          <Button type="button" variant="ghost" size="sm" className="w-full" disabled={loadingMore} onClick={onLoadMore}>
             {loadingMore ? "Cargando…" : `Cargar más (${remaining.toLocaleString("es-MX")})`}
           </Button>
         )}
+        <Button type="button" variant="ghost" size="sm" icon={Plus} className="mt-auto w-full justify-start" onClick={onAdd}>
+          Agregar trato
+        </Button>
       </div>
     </div>
   );
@@ -167,29 +178,24 @@ export function PipelineBoard({
     setTotals(initialTotals);
   }
 
+  // Toda la tarjeta se arrastra: con el mouse tras 5 px (un clic abre la
+  // ficha) y en pantallas táctiles con una pulsación de 200 ms (el desplazamiento
+  // normal de la columna no se convierte en arrastre).
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor)
   );
   const options: StageOption[] = stages.map(({ id, name }) => ({ id, name }));
   const current = pipelines.find((item) => item.id === pipelineId);
 
+  // Arrastre y menú ⋯ usan la misma acción: optimista, guarda y, si falla,
+  // deshace (lib/pipeline/board-move.ts, con pruebas).
   const moveCard = useCallback(async (id: string, targetStageId: string) => {
-    const sourceStageId = stages.find((stage) => boardData[stage.id]?.some((card) => card.id === id))?.id;
-    if (!sourceStageId || sourceStageId === targetStageId) return;
-    const card = boardData[sourceStageId].find((item) => item.id === id)!;
-    const shiftTotals = (from: string, to: string) =>
-      setTotals((current) => ({
-        ...current,
-        [from]: { ...current[from], count: Math.max((current[from]?.count ?? 1) - 1, 0), valueCents: (current[from]?.valueCents ?? 0) - (card.dealValueCents ?? 0) },
-        [to]: { ...current[to], count: (current[to]?.count ?? 0) + 1, valueCents: (current[to]?.valueCents ?? 0) + (card.dealValueCents ?? 0) },
-      }));
-    shiftTotals(sourceStageId, targetStageId);
-    setBoardData((currentBoard) => ({
-      ...currentBoard,
-      [sourceStageId]: currentBoard[sourceStageId].filter((item) => item.id !== id),
-      [targetStageId]: [...(currentBoard[targetStageId] ?? []), { ...card, stageId: targetStageId, closed: stages.find((stage) => stage.id === targetStageId)?.outcome !== "OPEN" }],
-    }));
+    const move = applyMove(boardData, totals, id, targetStageId, stages);
+    if (!move) return;
+    setBoardData(move.board);
+    setTotals(move.totals);
     setStageInView(targetStageId);
     try {
       const response = await fetch(`/api/whatsapp/contacts/${id}`, {
@@ -200,16 +206,39 @@ export function PipelineBoard({
       if (!response.ok) throw new Error();
       router.refresh();
     } catch {
-      setBoardData((currentBoard) => ({
-        ...currentBoard,
-        [targetStageId]: (currentBoard[targetStageId] ?? []).filter((item) => item.id !== id),
-        [sourceStageId]: [...(currentBoard[sourceStageId] ?? []), card],
-      }));
-      shiftTotals(targetStageId, sourceStageId);
-      setStageInView(sourceStageId);
+      // Cada mitad se deshace sobre su estado actual (pudo cambiar mientras tanto).
+      setBoardData((currentBoard) => revertMove(currentBoard, {}, move).board);
+      setTotals((currentTotals) => revertMove({}, currentTotals, move).totals);
+      setStageInView(move.from);
       toastError("No se pudo guardar la nueva etapa");
     }
-  }, [boardData, router, stages, toastError]);
+  }, [boardData, router, stages, toastError, totals]);
+
+  // "Agregar trato": alta de contacto y, ya creado, a la columna elegida.
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<ContactAccountOption[] | null>(null);
+  const openAdd = useCallback(async (stageId: string) => {
+    if (!accounts) {
+      try {
+        setAccounts(await loadContactAccounts());
+      } catch {
+        setAccounts([]);
+      }
+    }
+    setAddingTo(stageId);
+  }, [accounts]);
+  const placeNewContact = useCallback(async (contactId: string) => {
+    const stageId = addingTo;
+    setAddingTo(null);
+    if (stageId) {
+      await fetch(`/api/whatsapp/contacts/${contactId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pipelineStageId: stageId }),
+      }).catch(() => null);
+    }
+    router.refresh();
+  }, [addingTo, router]);
 
   // «Cargar más»: la siguiente página de la columna (lo ya cargado es el skip).
   const loadMore = useCallback(async (stageId: string) => {
@@ -239,12 +268,9 @@ export function PipelineBoard({
   }, [boardData]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
     setActiveCard(null);
-    if (!over) return;
-    const targetStageId = over.id.toString().replace("column-", "");
-    if (!stages.some((stage) => stage.id === targetStageId)) return;
-    void moveCard(String(active.id), targetStageId);
+    const targetStageId = dropTargetStage(event.over?.id, stages);
+    if (targetStageId) void moveCard(String(event.active.id), targetStageId);
   }, [moveCard, stages]);
 
   async function createPipeline() {
@@ -345,7 +371,7 @@ export function PipelineBoard({
       </div>
 
       {editing && (
-        <div className="mb-4 space-y-3 rounded-xl border border-border bg-surface p-4">
+        <div className="mb-4 space-y-3 rounded-lg border border-border bg-surface p-4">
           <form
             className="flex gap-2"
             onSubmit={(event) => {
@@ -412,11 +438,23 @@ export function PipelineBoard({
         </div>
       )}
 
-      <div className="mb-3 flex items-center gap-3 sm:hidden">
-        <label htmlFor="pipeline-stage" className="text-sm font-medium">Ir a etapa</label>
-        <Select id="pipeline-stage" value={stageInView} onChange={(event) => setStageInView(event.target.value)} className="min-w-0 flex-1">
-          {stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name} ({(totals[stage.id]?.count ?? boardData[stage.id]?.length ?? 0).toLocaleString("es-MX")})</option>)}
-        </Select>
+      {/* Teléfono: una columna a la vez, con pestañas de etapa. */}
+      <div role="tablist" aria-label="Etapas" className="-mx-1 mb-3 flex gap-1 overflow-x-auto border-b border-border scrollbar-none sm:hidden">
+        {stages.map((stage) => {
+          const active = stage.id === stageInView;
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setStageInView(stage.id)}
+              className={cn("-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium", active ? "border-accent text-foreground" : "border-transparent text-muted")}
+            >
+              {stage.name} <span className="tabular-nums text-muted">{(totals[stage.id]?.count ?? boardData[stage.id]?.length ?? 0).toLocaleString("es-MX")}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="relative">
       <div ref={scrollRef} className="flex gap-3 overflow-hidden pb-4 sm:overflow-x-auto">
@@ -425,15 +463,16 @@ export function PipelineBoard({
             key={stage.id}
             stage={stage}
             index={stages.filter((s) => s.outcome === "OPEN").findIndex((s) => s.id === stage.id)}
-            openCount={stages.filter((s) => s.outcome === "OPEN").length}
             contacts={boardData[stage.id] ?? []}
             total={totals[stage.id] ?? { count: boardData[stage.id]?.length ?? 0, valueCents: 0 }}
             loadingMore={loadingStage === stage.id}
             onLoadMore={() => void loadMore(stage.id)}
             stages={options}
             visibleOnMobile={stage.id === stageInView}
+            dragging={activeCard !== null}
             onOpen={setSelectedContactId}
             onStageChange={(id, target) => void moveCard(id, target)}
+            onAdd={() => void openAdd(stage.id)}
           />
         ))}
       </div>
@@ -450,8 +489,11 @@ export function PipelineBoard({
       </div>
 
       <DragOverlay dropAnimation={null}>
-        {activeCard ? <LeadCard data={activeCard} /> : null}
+        {activeCard ? <LeadCard data={activeCard} overlay /> : null}
       </DragOverlay>
+      {addingTo && accounts && (
+        <ContactCreateModal open onClose={() => setAddingTo(null)} accounts={accounts} onCreated={(id) => void placeNewContact(id)} />
+      )}
       {selectedContactId && (
         <ContactDrawer
           contactId={selectedContactId}

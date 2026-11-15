@@ -118,7 +118,7 @@ export function NewAutomationModal({ open, onClose, initialTemplateId }: { open:
                 onClick={() => setTemplateId(t.id)}
                 aria-pressed={templateId === t.id}
                 className={cn(
-                  "rounded-xl border p-3 text-left transition-colors",
+                  "rounded-lg border p-3 text-left transition-colors",
                   templateId === t.id ? "border-foreground ring-1 ring-foreground" : "border-border hover:bg-surface-light"
                 )}
               >

@@ -48,7 +48,7 @@ export function ChatBubblesSkeleton({ className }: { className?: string }) {
             className={cn(
               "h-10",
               b.w,
-              b.mine ? "rounded-2xl rounded-tr-sm" : "rounded-2xl rounded-tl-sm"
+              b.mine ? "rounded-lg rounded-tr-sm" : "rounded-lg rounded-tl-sm"
             )}
           />
         </div>

@@ -17,7 +17,7 @@ export function SecretField({ label, value }: { label: string; value: string }) 
 
   return (
     <div>
-      <p className="text-xs font-medium text-muted-darker uppercase tracking-wider mb-1.5">{label}</p>
+      <p className="text-xs font-medium text-muted-darker mb-1.5">{label}</p>
       <div className="flex items-center gap-2">
         <code className="flex-1 bg-surface px-3 py-2 rounded-lg text-xs font-mono break-all">{value}</code>
         <Button type="button" variant="secondary" size="sm" icon={copied ? Check : Copy} onClick={handleCopy}>

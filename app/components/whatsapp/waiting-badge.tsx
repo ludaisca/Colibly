@@ -68,7 +68,7 @@ export function WaitCells({ since, now, overdue = false }: { since: string; now:
           <span
             key={`${index}-${char}`}
             aria-hidden
-            className={`animate-flap relative inline-flex h-6 min-w-4 items-center justify-center rounded-[3px] bg-cell px-[3px] font-display text-base font-bold leading-none tabular-nums ${DIGIT_CLASS[tone]} after:absolute after:inset-x-0 after:top-1/2 after:h-px after:bg-foreground/10`}
+            className={`animate-flap relative inline-flex h-6 min-w-4 items-center justify-center rounded-xs bg-cell px-[3px] font-display text-base font-bold leading-none tabular-nums ${DIGIT_CLASS[tone]} after:absolute after:inset-x-0 after:top-1/2 after:h-px after:bg-foreground/10`}
           >
             {char}
           </span>
