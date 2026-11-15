@@ -51,15 +51,15 @@ export default function ApiDocsPage() {
     // texto a propósito (globals.css), pero el código necesita columnas alineadas.
     <div className="mx-auto max-w-6xl px-4 py-8 sm:py-10 md:px-6 [&_code]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] [&_h4]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-12 lg:py-14">
       <nav aria-label="Contenido de la documentación" className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-strong">En esta página</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">En esta página</p>
         <ol className="mt-3 space-y-1.5 border-l border-border text-sm">
           {toc.map(([id, label]) => (
             <li key={id}>
-              <a href={`#${id}`} className="-ml-px block border-l border-transparent py-0.5 pl-3 text-muted-strong hover:border-accent hover:text-foreground">{label}</a>
+              <a href={`#${id}`} className="-ml-px block border-l border-transparent py-0.5 pl-3 text-muted hover:border-accent hover:text-foreground">{label}</a>
             </li>
           ))}
         </ol>
-        <p className="mt-6 text-sm text-muted-strong">
+        <p className="mt-6 text-sm text-muted">
           Versión {spec.info.version}
           <br />
           <a href="/api/v1/openapi.json" className={LINK}>openapi.json</a>
@@ -76,7 +76,7 @@ export default function ApiDocsPage() {
               <li key={id}>
                 <a
                   href={`#${id}`}
-                  className="inline-flex min-h-9 items-center whitespace-nowrap rounded-full border border-border bg-surface px-3 text-xs font-medium text-muted-strong hover:border-accent-muted hover:text-foreground"
+                  className="inline-flex min-h-9 items-center whitespace-nowrap rounded-full border border-border bg-surface px-3 text-xs font-medium text-muted hover:border-accent-muted hover:text-foreground"
                 >
                   {label}
                 </a>
@@ -90,7 +90,7 @@ export default function ApiDocsPage() {
           <h1 className="mt-1 text-balance font-display text-page-title font-semibold tracking-tight lg:text-4xl lg:leading-tight">
             API y webhooks de {BRAND_NAME}
           </h1>
-          <p className="mt-4 max-w-3xl text-pretty text-base text-muted-strong sm:text-lg">
+          <p className="mt-4 max-w-3xl text-pretty text-base text-muted sm:text-lg">
             Con la API tu sistema consulta y actualiza contactos, lee conversaciones, envía mensajes de WhatsApp y arranca automatizaciones.
             Con los webhooks, {BRAND_NAME} avisa a tu servidor cada vez que llega un mensaje, se crea un contacto o cambia la etapa de un lead.
             Ambos se incluyen con la licencia Pro (y en la prueba gratuita): las API keys y los webhooks los crea un administrador con licencia Pro,
@@ -129,7 +129,7 @@ export default function ApiDocsPage() {
             head={["Permiso", "Qué permite"]}
             rows={Object.entries(API_SCOPES).map(([k, v]) => [<code key={k} className="font-mono text-sm">{k}</code>, v])}
           />
-          <p className="text-sm text-muted-strong"><code className="font-mono">GET /me</code> y <code className="font-mono">GET /accounts</code> no piden permiso.</p>
+          <p className="text-sm text-muted"><code className="font-mono">GET /me</code> y <code className="font-mono">GET /accounts</code> no piden permiso.</p>
         </Section>
 
         <Section id="limites" title="Límites de velocidad">
@@ -160,10 +160,10 @@ export default function ApiDocsPage() {
           />
           <p>Al pasarte recibes <code className="font-mono text-sm">429 rate_limited</code>. Espera lo que indica <code className="font-mono text-sm">Retry-After</code>; reintentar antes vuelve a contar.</p>
           <Code>{`HTTP/1.1 429 Too Many Requests\nX-RateLimit-Limit: ${limits.requestsPerMinute}\nX-RateLimit-Remaining: 0\nX-RateLimit-Reset: 12\nX-RateLimit-Scope: key\nRetry-After: 12\n\n{ "error": { "code": "rate_limited", "message": "Límite de ${limits.requestsPerMinute} solicitudes por minuto excedido" } }`}</Code>
-          <p className="text-sm text-muted-strong">
+          <p className="text-sm text-muted">
             Además, una misma IP puede hacer hasta {limits.badKeyAttemptsPerMinutePerIp} intentos por minuto con keys inválidas; después recibe 429 aunque la siguiente key sea válida.
           </p>
-          <p className="text-sm text-muted-strong">
+          <p className="text-sm text-muted">
             Si se agota el cupo diario de envíos recibes <code className="font-mono text-sm">429 daily_limit_reached</code>, con <code className="font-mono text-sm">Retry-After</code> hasta las 00:00 UTC. Si el servicio de límites no está disponible respondemos <code className="font-mono text-sm">503 service_unavailable</code> con <code className="font-mono text-sm">Retry-After: {limits.unavailableRetrySeconds}</code>: reintenta después.
           </p>
         </Section>
@@ -222,7 +222,7 @@ export default function ApiDocsPage() {
             <code className="font-mono text-sm">/users</code>, <code className="font-mono text-sm">/teams</code>, <code className="font-mono text-sm">/automations</code>) devuelven la lista completa en <code className="font-mono text-sm">data</code>, sin cursor.
           </p>
           <Code>{PAGINATION_NODE.replace("https://app.colibly.com/api/v1", base)}</Code>
-          <p className="text-sm text-muted-strong">
+          <p className="text-sm text-muted">
             Para sincronizar cambios periódicamente usa <code className="font-mono">GET /contacts?updatedSince=…</code> con la fecha de tu última sincronización, o mejor, suscríbete al webhook correspondiente.
           </p>
         </Section>
@@ -280,14 +280,14 @@ export default function ApiDocsPage() {
               <details key={e.type} className="group px-4 py-3">
                 <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1">
                   <code className="font-mono text-sm font-semibold">{e.type}</code>
-                  <span className="text-sm text-muted-strong">{e.description}</span>
+                  <span className="text-sm text-muted">{e.description}</span>
                   <span className="ml-auto text-xs text-accent-ink group-open:hidden">Ver ejemplo</span>
                 </summary>
                 <Code>{JSON.stringify(e.example.data, null, 2)}</Code>
               </details>
             ))}
           </div>
-          <p className="text-sm text-muted-strong">
+          <p className="text-sm text-muted">
             Los contactos que llegan al importar el historial de WhatsApp Business (Coexistencia) generan <code className="font-mono">contact.created</code> con <code className="font-mono">data.source = &quot;history&quot;</code>.
             Llegan espaciados y después de los eventos en vivo; fíltralos por ese campo si no te interesan.
           </p>
@@ -328,11 +328,11 @@ export default function ApiDocsPage() {
 
         <section id="referencia" className="scroll-mt-24 border-t border-border pt-10 mt-12">
           <h2 className="font-display text-2xl font-semibold tracking-tight">Referencia de endpoints</h2>
-          <p className="mt-2 text-muted-strong">Todos los ejemplos usan datos ficticios. Las rutas son relativas a <code className="break-all font-mono text-sm">{base}</code>.</p>
+          <p className="mt-2 text-muted">Todos los ejemplos usan datos ficticios. Las rutas son relativas a <code className="break-all font-mono text-sm">{base}</code>.</p>
           {groups.map((g) => (
             <div key={g.name} className="mt-10">
               <h3 className="font-display text-xl font-semibold">{g.name}</h3>
-              {g.description && <p className="mt-1 text-sm text-muted-strong">{g.description}</p>}
+              {g.description && <p className="mt-1 text-sm text-muted">{g.description}</p>}
               <div className="mt-4 space-y-8">
                 {g.items.map((e) => (
                   <EndpointBlock key={`${e.method} ${e.path}`} endpoint={e} base={base} />
@@ -355,7 +355,7 @@ function EndpointBlock({ endpoint: e, base }: { endpoint: EndpointDoc; base: str
         <span className="break-all font-semibold">{e.path}</span>
       </h4>
       <p className="mt-1 font-medium">{e.summary}</p>
-      {e.description && <p className="mt-1 text-sm text-muted-strong"><InlineText text={e.description} /></p>}
+      {e.description && <p className="mt-1 text-sm text-muted"><InlineText text={e.description} /></p>}
       {e.params.length > 0 && (
         <ParamTable
           head={["Parámetro", "En", "Descripción"]}
@@ -372,11 +372,11 @@ function EndpointBlock({ endpoint: e, base }: { endpoint: EndpointDoc; base: str
           rows={e.bodyFields.map((f) => [<code key={f.name} className="font-mono text-sm">{f.name}{f.required ? "" : "?"}</code>, f.type, f.description ?? ""])}
         />
       )}
-      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-strong">Ejemplo</p>
+      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Ejemplo</p>
       <Code>{curlFor(e, base)}</Code>
       {e.responseExample !== undefined && (
         <>
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-strong">Respuesta {e.successStatus}</p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted">Respuesta {e.successStatus}</p>
           <Code>{JSON.stringify(e.responseExample, null, 2)}</Code>
         </>
       )}

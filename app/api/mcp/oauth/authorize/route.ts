@@ -87,10 +87,10 @@ function consentPage(input: AuthorizeInput, email: string): string {
   h1 { font-size: 22px; margin:0 0 8px; }
   p { line-height:1.5; color:#334155; }
   ul { padding-left:20px; color:#334155; }
-  .client { display:inline-block; background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc; border-radius:999px; padding:2px 10px; font-weight:600; }
+  .client { display:inline-block; background:#ecfeff; color:#0f6e7e; border:1px solid #a5f3fc; border-radius:999px; padding:2px 10px; font-weight:600; }
   .actions { display:flex; gap:12px; margin-top:24px; }
   button { flex:1; border-radius:10px; padding:12px 16px; font-size:15px; font-weight:600; cursor:pointer; border:1px solid transparent; }
-  .approve { background:#0e7490; color:#fff; }
+  .approve { background:#0f6e7e; color:#fff; }
   .deny { background:#fff; color:#334155; border-color:#cbd5e1; }
   small { color:#64748b; }
 </style></head>

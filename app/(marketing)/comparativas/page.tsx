@@ -60,7 +60,7 @@ export default function ComparativasIndexPage() {
             {list.map((g) => (
               <li key={g.slug} className="!ml-0 !list-none">
                 <a href={guidePath(g)} className={`${LINK} text-lg font-semibold`}>{g.title}</a>
-                <p className="mt-1 text-pretty text-muted-strong">{g.description}</p>
+                <p className="mt-1 text-pretty text-muted">{g.description}</p>
               </li>
             ))}
           </ul>
@@ -79,7 +79,7 @@ export default function ComparativasIndexPage() {
               <li key={l.href}><a href={l.href} className={LINK}>{l.label}</a></li>
             ))}
           </ul>
-          <p className="mt-4 text-sm text-muted-strong">Última actualización: {monthYearEs(comparativasUpdated())}</p>
+          <p className="mt-4 text-sm text-muted">Última actualización: {monthYearEs(comparativasUpdated())}</p>
         </section>
       </InfoPage>
     </>

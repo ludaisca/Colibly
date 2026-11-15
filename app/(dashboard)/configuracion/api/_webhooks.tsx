@@ -243,7 +243,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
           </>
         }
       >
-        <p className="text-sm text-muted-strong">Tu verificador debe aceptar la entrega si cualquiera de las firmas v1 coincide (las recetas de la documentación ya lo hacen).</p>
+        <p className="text-sm text-muted">Tu verificador debe aceptar la entrega si cualquiera de las firmas v1 coincide (las recetas de la documentación ya lo hacen).</p>
       </Modal>
       <Modal
         open={!!rotatedSecret}

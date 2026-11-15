@@ -35,7 +35,7 @@ export function ParamTable({ head, rows }: { head: string[]; rows: React.ReactNo
   return (
     <div tabIndex={0} role="region" aria-label="Tabla de parámetros" className="mt-3 max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-border">
       <table className="w-full min-w-[28rem] border-collapse text-left text-sm sm:min-w-[32rem]">
-        <thead className="bg-surface-light text-muted-strong">
+        <thead className="bg-surface-light text-muted">
           <tr>{head.map((h) => <th key={h} scope="col" className="px-2.5 py-2 font-semibold sm:px-3">{h}</th>)}</tr>
         </thead>
         <tbody>

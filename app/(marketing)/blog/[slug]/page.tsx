@@ -80,13 +80,13 @@ export default async function BlogPostPage({ params }: { params: Params }) {
       />
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-14">
         <div className="mx-auto min-w-0 max-w-[44rem] lg:mx-0">
-          <nav aria-label="Ruta" className="text-sm text-muted-strong">
+          <nav aria-label="Ruta" className="text-sm text-muted">
             <Link href="/blog" className="hover:underline">Blog</Link>
             <span aria-hidden> / </span>
             <a href={`/blog/categoria/${post.category}`} className="hover:underline">{BLOG_CATEGORIES[post.category].label}</a>
           </nav>
           <h1 className="mt-4 text-balance font-display text-[2.5rem] font-bold leading-[1] tracking-[-0.015em] sm:text-5xl">{post.title}</h1>
-          <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-strong">{post.description}</p>
+          <p className="mt-4 text-pretty text-lg leading-relaxed text-muted">{post.description}</p>
           <p className="mt-5 text-sm text-muted-darker">
             {BLOG_AUTHORS[post.author].name} · <time dateTime={post.date}>{formatPostDate(post.date)}</time>
             {post.updated !== post.date && (
@@ -125,7 +125,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
               <ul className="mt-3 space-y-2 border-l border-border pl-4">
                 {post.headings.map((h) => (
                   <li key={h.id}>
-                    <a href={`#${h.id}`} className="text-pretty text-muted-strong hover:text-foreground hover:underline">{h.text}</a>
+                    <a href={`#${h.id}`} className="text-pretty text-muted hover:text-foreground hover:underline">{h.text}</a>
                   </li>
                 ))}
               </ul>

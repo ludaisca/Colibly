@@ -234,13 +234,13 @@ export function PlanView({ data }: { data: PlanViewData }) {
         </div>
         <p className={cn("mt-2 text-sm", data.access === "full" ? "text-muted" : "text-danger")}>{statusLine(data)}</p>
         {data.licenses?.mode === "license" && (
-          <p className="mt-3 text-sm text-muted-strong">
+          <p className="mt-3 text-sm text-muted">
             {licenseSummary(data.licenses)}
             {PRICE_TAX_NOTE ? ` · ${PRICE_TAX_NOTE}` : null}
           </p>
         )}
         {!data.isInternal && data.licenses?.mode !== "license" && (
-          <p className="mt-3 text-sm text-muted-strong">
+          <p className="mt-3 text-sm text-muted">
             {data.seatsPaid === null
               ? `${data.seatsUsed.toLocaleString("es-MX")} ${data.seatsUsed === 1 ? "ejecutivo" : "ejecutivos"} ocupados`
               : data.status === "TRIALING"

@@ -10,7 +10,7 @@ Vigentes primero. Las reglas de trabajo viven en [`../CLAUDE.md`](../CLAUDE.md) 
 | [PLAN_MEJORAS_FASES_2026-11-01.md](PLAN_MEJORAS_FASES_2026-11-01.md) | **Vigente**: plan de 4 fases de mejoras, qué se implementó, decisiones y pendientes (SLA, equipos, FAQ, merge). |
 | [PLAN_LANZAMIENTO.md](PLAN_LANZAMIENTO.md) | Plan maestro: decisiones, marca, dominio, legal, Meta, Stripe. |
 | [TIPOGRAFIA.md](TIPOGRAFIA.md) | Fuentes en producción (Newsreader + Figtree) y reserva (Syne + DM Sans). |
-| [COLOR.md](COLOR.md) | Paleta Laguna: problema de monocromía y las direcciones que se evaluaron (el laboratorio `/marca/color` se quitó el 2026-11-08). |
+| [COLOR.md](COLOR.md) | Paleta congelada (noviembre 2026) e historial de paletas anteriores. |
 | [CONTINUIDAD_LANDING_CPANEL_2026-10-01.md](CONTINUIDAD_LANDING_CPANEL_2026-10-01.md) | **Histórico**: la landing en cPanel ya no existe; `colibly.com` lo sirve Next.js y `cpanel-site/` se eliminó (2026-11-05). |
 | [INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md](INFRAESTRUCTURA_BETA_CONTABO_LUDAISCA.md) | Plan A (Contabo) y plan B (ludaisca), DNS, correo. |
 | [DOMINIOS_Y_LANDING_BETA.md](DOMINIOS_Y_LANDING_BETA.md) | Separación `colibly.com` / `app.colibly.com`. |

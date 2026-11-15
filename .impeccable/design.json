@@ -1,260 +1,196 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-08T13:30:00-06:00",
-  "title": "Design System: Colibly",
+  "generatedAt": "2026-11-14T21:00:00-06:00",
+  "title": "Design System: Colibly (congelado, noviembre 2026)",
+  "frozen": true,
+  "frozenNote": "No cambiar paleta, fuentes ni metáfora visual sin aprobación explícita de Luis. Las propuestas van en un issue, no en un commit. Fuente de verdad: app/globals.css y AGENTS.md → Dirección de diseño.",
   "extensions": {
     "colorMeta": {
-      "concrete": {
+      "background": {
         "role": "neutral",
-        "displayName": "Concreto",
-        "canonical": "#F3F4F2",
-        "tonalRamp": [
-          "#15171A",
-          "#2C3035",
-          "#5B6B7A",
-          "#9AA1A8",
-          "#DCDFDB",
-          "#E6E8E4",
-          "#ECEEEB",
-          "#F3F4F2"
-        ]
+        "displayName": "Fondo",
+        "canonical": "#F4F4F1"
       },
-      "platform-night": {
+      "surface": {
         "role": "neutral",
-        "displayName": "Andén (noche)",
-        "canonical": "#0F1113"
+        "displayName": "Superficie",
+        "canonical": "#FFFFFF"
       },
-      "ink": {
+      "surface-light": {
+        "role": "neutral",
+        "displayName": "Superficie 2",
+        "canonical": "#EEEEEA"
+      },
+      "nav-active": {
+        "role": "neutral",
+        "displayName": "Ítem activo del menú",
+        "canonical": "#E6E6E1"
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Filete",
+        "canonical": "#E1E1DB"
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Borde de controles",
+        "canonical": "#93948D"
+      },
+      "foreground": {
         "role": "neutral",
         "displayName": "Tinta",
-        "canonical": "#15171A"
+        "canonical": "#17181A"
       },
-      "laguna": {
+      "muted": {
+        "role": "neutral",
+        "displayName": "Texto 2",
+        "canonical": "#5E5F5A"
+      },
+      "subtle": {
+        "role": "neutral",
+        "displayName": "Metadatos (≥12 px)",
+        "canonical": "#8A8B84"
+      },
+      "accent": {
         "role": "primary",
-        "displayName": "Laguna",
-        "canonical": "#0E7490",
+        "displayName": "Teal",
+        "canonical": "#0F6E7E",
         "tonalRamp": [
-          "#0A4A5C",
-          "#0C5F75",
-          "#0E7490",
-          "#38BDF8",
-          "#67E8F9",
-          "#9BD0DE",
-          "#DDF0F5",
-          "#F0F9FF"
+          "#0B5864",
+          "#0B5D6A",
+          "#0F6E7E",
+          "#A9CFD4",
+          "#E3F0F1"
         ]
       },
-      "lamp-amber": {
+      "success": {
         "role": "tertiary",
-        "displayName": "Lámpara ámbar",
-        "canonical": "#9A4307"
+        "displayName": "Éxito",
+        "canonical": "#1F6B45"
       },
-      "lamp-red": {
+      "warning": {
         "role": "tertiary",
-        "displayName": "Lámpara roja",
-        "canonical": "#B42318"
+        "displayName": "Espera / SLA",
+        "canonical": "#9A4A0B"
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Peligro",
+        "canonical": "#B3261E"
+      },
+      "info": {
+        "role": "tertiary",
+        "displayName": "Información",
+        "canonical": "#2F5D8A"
       },
       "bubble-out": {
         "role": "neutral",
         "displayName": "Burbuja saliente",
-        "canonical": "#D5EEF4"
+        "canonical": "#DCEFEC"
+      },
+      "dark-background": {
+        "role": "neutral",
+        "displayName": "Noche: lienzo",
+        "canonical": "#111211"
+      },
+      "dark-accent-ink": {
+        "role": "primary",
+        "displayName": "Noche: texto de acento y foco",
+        "canonical": "#5FB8C4"
       }
     },
+    "chartSeries": [
+      "#0F6E7E",
+      "#7A6A3A",
+      "#5B6FA6",
+      "#9C5B7A",
+      "#8A8B84"
+    ],
     "typographyMeta": {
-      "display": {
-        "displayName": "Display",
-        "purpose": "Cifras de KPIs."
+      "micro": {
+        "spec": "11/16 500 Barlow"
       },
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "Título de página."
+      "xs": {
+        "spec": "12/16 500 Barlow"
+      },
+      "sm": {
+        "spec": "13/18 Barlow — cuerpo de UI por defecto"
+      },
+      "base": {
+        "spec": "15/22 Barlow — burbujas y párrafos"
       },
       "title": {
-        "displayName": "Title",
-        "purpose": "Títulos de sección y tarjeta."
+        "spec": "16/22 600 Barlow, tracking -0.01em"
       },
-      "body": {
-        "displayName": "Body",
-        "purpose": "Interfaz, listas y mensajes."
+      "page-title": {
+        "spec": "22/28 600 Barlow (no Condensed), tracking -0.015em"
       },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Etiquetas de KPI, pestañas y columnas."
+      "figure": {
+        "spec": "28/32 600 Barlow Condensed, tabular-nums"
       },
-      "board-figure": {
-        "displayName": "Cifra de tablero",
-        "purpose": "Celdas de espera."
-      },
-      "caption": {
-        "displayName": "Caption",
-        "purpose": "Ayudas y texto secundario (text-xs)."
-      },
-      "micro": {
-        "displayName": "Micro",
-        "purpose": "Metadatos, insignias y contadores; piso del panel (text-micro)."
-      },
-      "site-hero": {
-        "displayName": "Titular del sitio",
-        "purpose": "Titular de la portada y del cierre (2.75rem en el teléfono, 5rem en escritorio)."
-      },
-      "site-headline": {
-        "displayName": "Sección del sitio",
-        "purpose": "Títulos de sección del sitio público."
-      },
-      "site-title": {
-        "displayName": "Tramo del sitio",
-        "purpose": "Títulos de cada tramo del hilo."
-      },
-      "site-lede": {
-        "displayName": "Entrada del sitio",
-        "purpose": "Párrafo bajo los titulares del sitio."
-      },
-      "bubble": {
-        "displayName": "Burbuja",
-        "purpose": "Texto de las burbujas del hilo."
+      "hero": {
+        "spec": "40/44 600 Barlow Condensed — solo 404/500"
       }
     },
-    "shadows": [
-      {
-        "name": "shadow-sm",
-        "value": "0 1px 1px rgba(21, 23, 26, 0.04)",
-        "purpose": "Reposo casi plano."
-      },
-      {
-        "name": "shadow-lg",
-        "value": "0 20px 48px rgba(15, 26, 26, 0.12), 0 4px 10px rgba(15, 26, 26, 0.06)",
-        "purpose": "Menús, paneles y modales."
-      }
-    ],
-    "motion": [
-      {
-        "name": "flap",
-        "value": "260ms cubic-bezier(0.4, 0, 0.2, 1)",
-        "purpose": "Volteo de una celda de espera al cambiar."
-      },
-      {
-        "name": "dur-fast",
-        "value": "120ms",
-        "purpose": "Cambios de color de controles."
-      },
-      {
-        "name": "seq-in",
-        "value": "420ms cubic-bezier(0.16, 1, 0.3, 1)",
-        "purpose": "Llegada de cada mensaje del hilo del sitio, en orden; sin animación con reducir movimiento."
-      }
-    ],
-    "breakpoints": [
-      {
-        "name": "md",
-        "value": "768px"
-      },
-      {
-        "name": "lg",
-        "value": "1024px"
-      }
-    ]
+    "radius": {
+      "xs": "4px badges, chips, checkbox",
+      "sm": "6px botones, inputs, ítems de menú",
+      "md": "8px tarjetas del embudo, popovers",
+      "lg": "10px paneles, tablas, modales",
+      "bubble": "10px con la cola en 3px",
+      "full": "solo avatares, puntos de estado y switch"
+    },
+    "shadow": {
+      "rest": "ninguna",
+      "sm": "0 1px 2px rgb(23 24 26 / .06)",
+      "md": "0 4px 12px rgb(23 24 26 / .08), 0 1px 3px rgb(23 24 26 / .06)",
+      "lg": "0 16px 40px rgb(23 24 26 / .14)"
+    }
   },
   "components": [
     {
       "name": "Primary Button",
       "kind": "button",
-      "refersTo": "button-primary",
-      "description": "Acción principal; sin sombra ni salto.",
-      "html": "<button class=\"ds-btn\">Guardar cambios</button>",
-      "css": ".ds-btn{background:#0E7490;color:#fff;height:38px;padding:0 16px;border:0;border-radius:9px;font:600 14px Barlow,system-ui,sans-serif;transition:background-color 120ms;cursor:pointer}.ds-btn:hover{background:#0C5F75}.ds-btn:focus-visible{outline:2px solid #0E7490;outline-offset:2px}"
+      "description": "Teal, máximo uno por vista; alturas 28/32/40, radio 6.",
+      "css": ".ds-btn{background:#0F6E7E;color:#fff;height:32px;padding:0 12px;border:0;border-radius:6px;font:500 13px Barlow,system-ui,sans-serif;transition:background-color 120ms}.ds-btn:hover{background:#0B5864}"
     },
     {
-      "name": "Selection Pills",
-      "kind": "chip",
-      "refersTo": "selection-pill",
-      "description": "Pestañas del tablero; lo activo en tinta.",
-      "html": "<div class=\"ds-seg\"><button class=\"on\">ESPERANDO 2</button><button>TODOS</button></div>",
-      "css": ".ds-seg{display:inline-flex;background:#ECEEEB;border-radius:999px;padding:2px}.ds-seg button{border:0;background:none;border-radius:999px;padding:4px 12px;font:600 11px Barlow,system-ui,sans-serif;letter-spacing:.08em;color:#5B6B7A;cursor:pointer}.ds-seg button.on{background:#15171A;color:#F3F4F2}.ds-seg button:focus-visible{outline:2px solid #0E7490}"
-    },
-    {
-      "name": "Chat Row with Wait Cells",
-      "kind": "custom",
-      "refersTo": "chat-row",
-      "description": "Fila con línea de cuenta y cifra de espera.",
-      "html": "<div class=\"ds-row\"><span class=\"ln\"></span><div class=\"tx\"><b>Lupita Hernández</b><small>¿Me apartan dos docenas?</small></div><div class=\"w\"><i></i><span>1</span>:<span>1</span><span>2</span></div></div>",
-      "css": ".ds-row{display:flex;align-items:center;gap:10px;width:320px;background:#fff;border-radius:8px;overflow:hidden;font:400 13px Barlow,system-ui,sans-serif;color:#15171A}.ds-row .ln{width:4px;align-self:stretch;background:oklch(.44 .13 25)}.ds-row .tx{flex:1;padding:8px 0;min-width:0}.ds-row small{display:block;color:#5B6B7A;font-size:12px}.ds-row .w{display:flex;align-items:center;gap:3px;padding-right:10px;font:700 16px 'Barlow Condensed',system-ui;color:#B42318}.ds-row .w i{width:5px;height:24px;border-radius:2px;background:#B42318;margin-right:2px}.ds-row .w span{background:#E6E8E4;border-radius:3px;height:24px;min-width:16px;display:inline-flex;align-items:center;justify-content:center}"
-    },
-    {
-      "name": "Nav Item",
-      "kind": "nav",
-      "refersTo": "nav-item-active",
-      "description": "Navegación lateral; activo en tinta.",
-      "html": "<nav class=\"ds-nav\"><a class=\"on\" href=\"#\">Bandeja de chats</a><a href=\"#\">Contactos</a></nav>",
-      "css": ".ds-nav{display:flex;flex-direction:column;gap:2px;width:200px;font:500 14px Barlow,system-ui,sans-serif}.ds-nav a{padding:8px 12px;border-radius:9px;color:#5B6B7A;text-decoration:none}.ds-nav a:hover{background:#ECEEEB;color:#15171A}.ds-nav a.on{background:#15171A;color:#F3F4F2;font-weight:600}"
-    },
-    {
-      "name": "Card",
-      "kind": "card",
-      "refersTo": "card",
-      "description": "Tarjeta plana con filete.",
-      "html": "<div class=\"ds-card\"><span>CHATS ACTIVOS</span><strong>12</strong></div>",
-      "css": ".ds-card{width:200px;background:#fff;border:1px solid #DCDFDB;border-radius:12px;padding:16px;font:400 13px Barlow,system-ui,sans-serif;color:#15171A}.ds-card span{font-size:11px;font-weight:600;letter-spacing:.08em;color:#5B6B7A}.ds-card strong{display:block;font:700 44px/1.05 'Barlow Condensed',system-ui}"
-    },
-    {
-      "name": "Quick Reply",
+      "name": "Secondary Button",
       "kind": "button",
-      "refersTo": "quick-reply-primary",
-      "description": "Acción del sitio dentro del hilo: botón a lo ancho, 44px; la variante secundaria va en papel con texto laguna-ink.",
-      "html": "<a class=\"ds-qr\">Prueba 14 días de Pro, sin tarjeta</a>",
-      "css": ".ds-qr{display:flex;justify-content:center;min-height:44px;align-items:center;border-radius:9px;background:#0E7490;color:#fff;font:600 15px Barlow,system-ui,sans-serif}"
+      "description": "Blanco con borde --border; --border-strong en hover.",
+      "css": ".ds-btn2{background:#fff;color:#17181A;height:32px;border:1px solid #E1E1DB;border-radius:6px}.ds-btn2:hover{border-color:#93948D}"
     },
     {
-      "name": "Thread Bubble",
+      "name": "Input",
+      "kind": "input",
+      "description": "Fondo blanco, borde --border-strong, foco con borde accent y anillo 2px --accent-subtle.",
+      "css": ".ds-input{background:#fff;border:1px solid #93948D;border-radius:6px;height:32px}.ds-input:focus{border-color:#0F6E7E;box-shadow:0 0 0 2px #E3F0F1}"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "description": "Sin borde, radio 4, 12px 500, fondo tenue + texto. Etiquetas de usuario: punto de 7px + texto neutro."
+    },
+    {
+      "name": "KPI Strip",
       "kind": "card",
-      "refersTo": "bubble-out",
-      "description": "Burbuja del hilo del sitio, igual que la del panel; hora y palomitas abajo a la derecha.",
-      "html": "<div class=\"ds-bubble\">Cuesta $850 y dura 60 minutos.</div>",
-      "css": ".ds-bubble{background:#D5EEF4;color:#15171A;border-radius:12px 3px 12px 12px;padding:8px 12px;font:400 15px/1.375 Barlow,system-ui,sans-serif;max-width:86%}"
+      "description": "Una superficie con divisores verticales; etiqueta 12px 500 minúscula, cifra text-figure, contexto 12px."
+    },
+    {
+      "name": "Empty State",
+      "kind": "card",
+      "description": "Sin cuadro de ícono; ícono 20px opcional en --subtle, titular de 3 a 5 palabras, máximo 1 línea y 1 CTA."
     }
   ],
   "narrative": {
-    "northStar": "Andén",
-    "overview": "El panel es el tablero de un andén: lo que importa es quién lleva más tiempo esperando, y el tiempo es el dato protagonista. Cada cuenta es una línea con su color; cada conversación avanza por estaciones hasta la venta. Dos temas de primera: concreto de día y andén de noche.",
+    "northStar": "Marca congelada, oficio pulido",
+    "overview": "Un solo acento teal, neutros cálidos de una temperatura, Barlow con Barlow Condensed solo para cifras. La franja de color por cuenta y la espera como dato protagonista se quedan. Sin animaciones de entrada, sin sombras en reposo, sin mayúsculas en etiquetas.",
     "keyCharacteristics": [
-      "La espera como cifra de tablero con lámpara ámbar o roja.",
-      "Una línea de color por cuenta en filas, tarjetas y chips.",
-      "Selección en tinta; el teal Laguna solo para la acción principal y el foco.",
-      "Superficies blancas planas sobre concreto.",
-      "Barra inferior en el celular: Chats, Contactos, Pipeline, Más."
-    ],
-    "rules": [
-      {
-        "name": "La regla de la tinta",
-        "body": "Lo seleccionado se marca en tinta; el teal es para actuar, no para señalar dónde estás.",
-        "section": "colors"
-      },
-      {
-        "name": "La regla de la lámpara",
-        "body": "Ámbar y rojo solo encienden por tiempo de espera o SLA; ningún adorno usa esos colores.",
-        "section": "colors"
-      },
-      {
-        "name": "La regla del título solo",
-        "body": "Ningún título lleva etiqueta encima; se sostiene solo.",
-        "section": "typography"
-      },
-      {
-        "name": "La regla del piso",
-        "body": "Nada en el panel va por debajo de 11px (text-micro); los tamaños escritos a mano no se usan.",
-        "section": "typography"
-      }
-    ],
-    "dos": [
-      "Do marcar la selección en tinta y la acción en Laguna.",
-      "Do usar hueClassFor(id) para toda línea de cuenta.",
-      "Do mostrar la espera con WaitCells donde un chat espera respuesta."
-    ],
-    "donts": [
-      "Don't poner etiquetas sobre los títulos.",
-      "Don't usar ámbar o rojo fuera de espera/SLA/errores.",
-      "Don't agregar sombras o saltos a controles en reposo.",
-      "Don't usar referencias folclóricas o exclusivas de un país.",
-      "Don't usar Tailwind dark:; el tema lo controla la app."
+      "Teal #0F6E7E como único acento; nada de coral ni cian.",
+      "Neutros cálidos #F4F4F1 / #EEEEEA / #E1E1DB.",
+      "Selección del menú en --nav-active, no en bloque negro.",
+      "Cifras en Barlow Condensed 600 tabular; títulos en Barlow normal.",
+      "Franja de color por cuenta (hues oklch, croma 0.09)."
     ]
   }
 }

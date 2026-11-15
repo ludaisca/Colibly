@@ -38,7 +38,7 @@ export default async function BlogIndexPage({ searchParams }: { searchParams: Pr
       </header>
       <div className="mt-8"><CategoryNav posts={posts} /></div>
       {slice.length === 0 ? (
-        <p className="mt-10 text-muted-strong">Pronto publicaremos los primeros artículos.</p>
+        <p className="mt-10 text-muted">Pronto publicaremos los primeros artículos.</p>
       ) : (
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {slice.map((p, i) => (
@@ -49,7 +49,7 @@ export default async function BlogIndexPage({ searchParams }: { searchParams: Pr
       {totalPages > 1 && (
         <nav aria-label="Páginas del blog" className="mt-10 flex items-center justify-between gap-3">
           {page > 1 ? <a href={page === 2 ? "/blog" : `/blog?pagina=${page - 1}`} rel="prev" className={link}>Anterior</a> : <span />}
-          <span className="text-sm text-muted-strong">Página {page} de {totalPages}</span>
+          <span className="text-sm text-muted">Página {page} de {totalPages}</span>
           {page < totalPages ? <a href={`/blog?pagina=${page + 1}`} rel="next" className={link}>Siguiente</a> : <span />}
         </nav>
       )}

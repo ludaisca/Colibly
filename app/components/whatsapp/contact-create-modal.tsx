@@ -153,7 +153,7 @@ export function ContactCreateModal({
                     type="button"
                     aria-pressed={on}
                     onClick={() => setTagIds((prev) => (on ? prev.filter((x) => x !== t.id) : [...prev, t.id]))}
-                    className={`rounded-full border px-3 py-1 text-xs ${on ? "border-accent-strong bg-accent-subtle text-accent-ink" : "border-border text-muted-strong hover:border-accent-strong"}`}
+                    className={`rounded-full border px-3 py-1 text-xs ${on ? "border-accent-strong bg-accent-subtle text-accent-ink" : "border-border text-muted hover:border-accent-strong"}`}
                   >
                     {t.name}
                   </button>

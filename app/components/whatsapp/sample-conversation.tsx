@@ -26,7 +26,7 @@ export function SampleConversationButton({ size = "sm" }: { size?: "sm" | "md" }
                 type="button"
                 aria-pressed={c.id === activeId}
                 onClick={() => setActiveId(c.id)}
-                className={`rounded-full border px-3 py-1 text-xs ${c.id === activeId ? "border-accent-strong bg-accent-subtle text-accent-ink" : "border-border text-muted-strong hover:border-accent-strong"}`}
+                className={`rounded-full border px-3 py-1 text-xs ${c.id === activeId ? "border-accent-strong bg-accent-subtle text-accent-ink" : "border-border text-muted hover:border-accent-strong"}`}
               >
                 {c.contact}
               </button>

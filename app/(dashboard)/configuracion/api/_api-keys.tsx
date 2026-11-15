@@ -215,7 +215,7 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
           </>
         }
       >
-        <p className="text-sm text-muted-strong">Si la key se filtró, usa &quot;Rotar ya&quot;: la gracia también le sirve a quien la tenga.</p>
+        <p className="text-sm text-muted">Si la key se filtró, usa &quot;Rotar ya&quot;: la gracia también le sirve a quien la tenga.</p>
       </Modal>
       <Modal
         open={!!rotatedSecret}

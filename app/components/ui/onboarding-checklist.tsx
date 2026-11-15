@@ -18,7 +18,7 @@ export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
         <div className="mb-5 rounded-xl border border-accent-strong bg-accent-subtle p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-accent-ink">Siguiente paso</p>
           <p className="mt-1 font-display text-lg font-semibold text-foreground">{next.step.title}</p>
-          <p className="mt-0.5 text-sm text-muted-strong">{next.step.description}</p>
+          <p className="mt-0.5 text-sm text-muted">{next.step.description}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button href={next.step.href!}>{next.cta}</Button>
             {next.secondary && <Button href={next.secondary.href} variant="secondary">{next.secondary.label}</Button>}

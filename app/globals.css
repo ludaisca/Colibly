@@ -1,151 +1,96 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
-   TOKENS — paleta "Laguna + coral" de Colibly (2026-10-25): teal
-   #0E7490 como acento, coral #C21E4C como --accent-2, cian #67E8F9
-   solo decorativo, tinta #0C1A22 y neutros fríos (sin cielo en fondos/
-   bordes). Reemplaza Laguna monocroma (2026-10-24), antes "Menta y
-   grafito" y "Colibrí" (violeta).
-   Dos capas:
-   1. Primitivos (--teal-*, --coral-*, --graphite-*, --ink-*, estados):
-      solo se usan aquí dentro, nunca desde componentes. Los nombres
-      --teal-* se conservan; los valores son los de Laguna.
-   2. Semánticos (--accent, --surface, --muted…): lo único que consumen
-      los componentes vía las utilidades de Tailwind (@theme inline).
-   El acento conserva sus cuatro usos separados:
-     accent        relleno (botón principal, switch, barras) con texto --on-accent
-     accent-strong bordes, anillos de foco y trazos de gráficas (≥ 3:1)
-     accent-ink    texto e iconos en color de marca (≥ 4.5:1)
+   TOKENS — dirección de diseño CONGELADA (noviembre 2026; AGENTS.md y
+   CLAUDE.md → "Dirección de diseño"). Un solo acento teal, neutros cálidos
+   de una sola temperatura, Barlow (Barlow Condensed solo para cifras).
+   No cambiar paleta, fuentes ni metáfora visual sin aprobación explícita de
+   Luis: las propuestas van en un issue, no en un commit.
+   Los componentes consumen solo esta capa semántica vía @theme inline.
+   El acento tiene cuatro usos:
+     accent        relleno (botón principal, switch, barras) con --on-accent
+     accent-strong bordes, anillos de foco y trazos (≥ 3:1)
+     accent-ink    texto e iconos en color de marca (≥ 7:1 sobre blanco)
      accent-subtle / accent-muted  fondos suaves y bordes decorativos
-   El cian decorativo (--teal-300) no pasa como texto sobre fondo claro;
-   el acento de apoyo (--accent-2) es coral (badges, highlights — no CTA).
    Hex espejo: lib/brand-colors.ts. Contraste: lib/design/__tests__/contrast.test.ts.
    Temas: `:root, .theme-light` claro; .dark remapea solo semánticos.
    ───────────────────────────────────────────────── */
-:root {
-  /* ── Primitivos (Laguna + coral) ── */
-  --teal-50:  #F0F9FF;
-  --teal-100: #DDF0F5;
-  --teal-200: #9BD0DE;
-  --teal-300: #67E8F9;  /* cian: solo decorativo (puntos, trazos, texto sobre fondo oscuro) */
-  --teal-400: #38BDF8;
-  --teal-600: #0E7490;
-  --teal-700: #0C5F75;
-  --teal-800: #0A4A5C;
-
-  /* Coral de apoyo: #E11D48 (lab) oscurecido a #C21E4C para AA sobre el tinte. */
-  --coral-50:  #FFE4EA;
-  --coral-600: #C21E4C;
-  --coral-700: #9F1840;
-
-  --graphite-50:  #E2E8F0;
-  --graphite-500: #64748B;
-  --graphite-700: #334155;
-  --graphite-800: #1E293B;
-
-  --ink-0:   #FFFFFF;
-  --ink-25:  #F3F6F8;
-  --ink-50:  #ECF0F3;
-  --ink-100: #D5DCE3;
-  --ink-400: #7A96A8;
-  --ink-600: #5B6B7A;
-  --ink-700: #3D4B58;
-  --ink-950: #0C1A22;
-
-  --green-700: #17663F;  --green-50:  #E3F4EA;  --green-200: #B9E0C9;
-  --orange-700:#9A4307;  --orange-50: #FDEFE3;  --orange-200:#F6CBA8;
-  --red-700:   #B42318;  --red-50:    #FBE6E3;  --red-200:   #F1B9B3;
-  --blue-700:  #1D5FBF;  --blue-50:   #E6EEFA;  --blue-200:  #B8CDEE;
-}
 
 /* ── Semánticos (tema claro) ──
    También en .theme-light: un contenedor con esa clase vuelve a la paleta
-   clara aunque <html> tenga .dark (la landing es siempre clara). */
+   clara aunque <html> tenga .dark. */
 :root, .theme-light {
-  --background:    var(--ink-25);
-  --foreground:    var(--ink-950);
-  --surface:       var(--ink-0);
-  --surface-light: var(--ink-50);
-  --border:        var(--ink-100);
+  --background:    #F4F4F1;
+  --foreground:    #17181A;
+  --surface:       #FFFFFF;
+  --surface-light: #EEEEEA;
+  --nav-active:    #E6E6E1;
+  --border:        #E1E1DB;
+  /* Borde de inputs, selects y checkbox (≥ 3:1 sobre blanco). */
+  --border-strong: #93948D;
 
-  --muted:         var(--ink-600);
-  --muted-darker:  var(--ink-600);   /* texto secundario pequeño y placeholders legibles */
-  --muted-strong:  var(--ink-700);   /* microtexto (notas bajo botones, pies de tarjeta, enlaces del pie): ≥ 7:1 */
+  --muted:         #5E5F5A;
+  --muted-darker:  #5E5F5A;
+  /* Solo metadatos ≥ 12 px y placeholders (no pasa 4.5:1: nunca texto de lectura). */
+  --subtle:        #8A8B84;
 
-  --accent:        var(--teal-600);
-  --accent-hover:  var(--teal-700);
-  --on-accent:     var(--ink-0);
-  --accent-strong: var(--teal-600);
-  --accent-ink:    #0A5A6E;
-  --accent-subtle: var(--teal-100);
-  --accent-muted:  var(--teal-200);
+  --accent:        #0F6E7E;
+  --accent-hover:  #0B5864;
+  --on-accent:     #FFFFFF;
+  --accent-strong: #0F6E7E;
+  --accent-ink:    #0B5D6A;
+  --accent-subtle: #E3F0F1;
+  --accent-muted:  #A9CFD4;
 
-  /* Burbujas del chat. Entrante y saliente deben separarse del lienzo
-     (surface-light) sin competir con el acento; el texto sigue siendo
-     --foreground. Pares en contrast.test.ts. */
-  --bubble-in:  var(--surface);
-  --bubble-out: #D5EEF4;
-  /* Fondo del hilo (chat-canvas): color sólido, sin patrón. En claro es
-     gris tenue para que la burbuja blanca destaque. */
-  --chat-bg: var(--surface-light);
+  /* Burbujas del chat sobre el lienzo --chat-bg. */
+  --bubble-in:  #FFFFFF;
+  --bubble-out: #DCEFEC;
+  --chat-bg:    #EEEEEA;
 
-  /* Celdas del tablero de espera (Andén): fondo de cada cifra. */
+  /* Celdas del tablero de espera: fondo de cada cifra. */
   --cell: var(--surface-light);
 
-  /* Velo detrás de modales, cajones y la paleta de comandos (antes tres
-     violetas sueltos en sus .css). */
-  --overlay: rgb(15 17 19 / 58%);
+  /* Velo detrás de modales, cajones y la paleta de comandos. */
+  --overlay: rgb(23 24 26 / 55%);
 
-  /* Acento de apoyo: coral (badges, highlights). No es CTA. */
-  --accent-2:       var(--coral-600);
-  --accent-2-hover: var(--coral-700);
-  --accent-2-bg:    var(--coral-50);
-
-  /* Estados. */
-  --success:        var(--green-700);
-  --success-bg:     var(--green-50);
-  --success-border: var(--green-200);
-  --warning:        var(--orange-700);
-  --warning-bg:     var(--orange-50);
-  --warning-border: var(--orange-200);
-  --danger:         var(--red-700);
-  --danger-bg:      var(--red-50);
-  --danger-border:  var(--red-200);
-  --info:           var(--blue-700);
-  --info-bg:        var(--blue-50);
-  --info-border:    var(--blue-200);
+  /* Estados. Warning es solo espera/SLA. */
+  --success:        #1F6B45;
+  --success-bg:     #E6F2EA;
+  --success-border: #BCDCC8;
+  --warning:        #9A4A0B;
+  --warning-bg:     #FBF0E2;
+  --warning-border: #EFCFA6;
+  --danger:         #B3261E;
+  --danger-bg:      #FBE9E7;
+  --danger-border:  #F0BDB8;
+  --info:           #2F5D8A;
+  --info-bg:        #EAF0F6;
+  --info-border:    #C3D3E4;
 
   /* Bloques de código de la documentación. */
-  --code-bg:        var(--graphite-800);
-  --code-fg:        #F8FAFC;
+  --code-bg:        #1E1F1D;
+  --code-fg:        #F4F4F1;
 
-  /* Elevation — sombras suaves con tinte de la tinta. */
-  --shadow-sm: 0 1px 2px rgba(15, 26, 26, 0.05);
-  --shadow-md: 0 10px 28px rgba(15, 26, 26, 0.08), 0 2px 6px rgba(15, 26, 26, 0.05);
-  --shadow-lg: 0 20px 48px rgba(15, 26, 26, 0.12), 0 4px 10px rgba(15, 26, 26, 0.06);
+  /* Elevación: ninguna en reposo. sm = arrastre/hover, md = menús y ⌘K,
+     lg = modales. */
+  --shadow-sm: 0 1px 2px rgb(23 24 26 / 0.06);
+  --shadow-md: 0 4px 12px rgb(23 24 26 / 0.08), 0 1px 3px rgb(23 24 26 / 0.06);
+  --shadow-lg: 0 16px 40px rgb(23 24 26 / 0.14);
 
   /* Focus */
-  --ring:        var(--accent-strong);
+  --ring:        #0F6E7E;
   --ring-offset: var(--background);
 
-  /* Radius */
-  --radius-control: 9px;   /* botones, inputs, selects y chips */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  /* Hue por entidad (cuentas) — L y C fijas, solo varía el hue. Solo
+     asignar vía HUE_CLASS de app/components/ui/hue.ts. */
+  --entity: oklch(0.52 0.09 60); /* fallback si falta la clase hue-N */
 
-  /* Hue por entidad (cuentas) — lightness/chroma fijos, solo varía el hue.
-     Solo asignar vía HUE_CLASS de app/components/ui/hue.ts — nunca
-     interpolar "hue-N". */
-  --entity: oklch(0.52 0.12 60); /* fallback si falta la clase hue-N */
-
-  /* Series de gráficas (identidad de serie, no estado): validadas contra el
-     fondo de las tarjetas. Sin ámbar ni rojo: esos son las lámparas. */
-  --chart-1: #2a78d6;
-  --chart-2: #008300;
-  --chart-3: #d0507f;
-  --chart-4: #7a5af5;
+  /* Series de gráficas (identidad de serie, no estado). */
+  --chart-1: #0F6E7E;
+  --chart-2: #7A6A3A;
+  --chart-3: #5B6FA6;
+  --chart-4: #9C5B7A;
+  --chart-5: #8A8B84;
 
   /* Durations */
   --dur-fast: 120ms;
@@ -160,102 +105,71 @@
 }
 
 /* ─────────────────────────────────────────────────
-   TEMA OSCURO — solo remapea la capa semántica (theme-provider.tsx pone .dark en
-   <html>). Fondo "noche" azul casi negro; el acento de relleno conserva
-   texto blanco encima; texto/borde se aclaran. Pares en contrast.test.ts.
+   TEMA OSCURO — uno solo (theme-provider.tsx pone .dark en <html>); solo
+   remapea la capa semántica. Pares en contrast.test.ts.
    ───────────────────────────────────────────────── */
 .dark {
   color-scheme: dark;
 
-  /* AMOLED (2026-11-01): fondo negro puro (#000, el píxel OLED se apaga) y
-     grises neutros sin tinte azul. Las superficies apenas se separan del
-     negro; la jerarquía la dan los bordes, porque las sombras no se ven
-     sobre negro. El acento sigue siendo el teal de la marca. */
-  --background:    #000000;
-  --foreground:    #EDEFF0;
-  --surface:       #0A0A0B;
-  --surface-light: #161718;
-  --border:        #26282A;
+  --background:    #111211;
+  --foreground:    #ECECE8;
+  --surface:       #18191A;
+  --surface-light: #222321;
+  --nav-active:    #222321;
+  --border:        #2E2F2C;
+  --border-strong: #6E6F69;
 
-  --muted:         #A4A8AB;
-  --muted-darker:  #8A8E92;
-  --muted-strong:  #D2D5D7;
+  --muted:         #A3A49E;
+  --muted-darker:  #A3A49E;
+  --subtle:        #7E7F79;
 
-  --accent:        #0E7490;
-  --accent-hover:  #0C5F75;
+  --accent:        #0F6E7E;
+  --accent-hover:  #0B5864;
   --on-accent:     #FFFFFF;
-  --accent-strong: #38BDF8;
-  --accent-ink:    #67E8F9;
-  --accent-subtle: #03181F;
-  --accent-muted:  #0C3A47;
+  --accent-strong: #5FB8C4;
+  --accent-ink:    #5FB8C4;
+  --accent-subtle: #13282B;
+  --accent-muted:  #24474C;
 
-  --bubble-in:  #17181A;
-  --bubble-out: #0A3D4B;
-  /* AMOLED: el hilo es negro puro; las burbujas (#17181A) se separan solas. */
-  --chat-bg: var(--background);
-
-  --accent-2:       #FB7185;
-  --accent-2-hover: #FDA4AF;
-  --accent-2-bg:    #240A11;
+  --bubble-in:  #222321;
+  --bubble-out: #163A3E;
+  --chat-bg:    #111211;
+  --cell:       #222321;
 
   --success:        #74CC8F;
-  --success-bg:     #0C1D11;
+  --success-bg:     #0F1E14;
   --success-border: #234A2E;
-  --warning:        #FBA35E;
-  --warning-bg:     #22140A;
+  --warning:        #F2A65E;
+  --warning-bg:     #24170C;
   --warning-border: #5A3415;
   --danger:         #F58C80;
-  --danger-bg:      #250F0D;
+  --danger-bg:      #2A1210;
   --danger-border:  #5E2822;
-  --info:           #86B2F2;
-  --info-bg:        #0A1626;
-  --info-border:    #24406A;
+  --info:           #8DB4E0;
+  --info-bg:        #111B27;
+  --info-border:    #2B4566;
 
-  --code-bg:        #0A0A0B;
-  --code-fg:        #EDEFF0;
+  --code-bg:        #0C0D0C;
+  --code-fg:        #ECECE8;
 
-  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.03);
-  --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 28px rgba(0, 0, 0, 0.9);
-  --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 20px 48px rgba(0, 0, 0, 0.95);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 0 0 1px rgb(255 255 255 / 0.04), 0 4px 12px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.05), 0 16px 40px rgb(0 0 0 / 0.6);
 
-  --chart-1: #3987e5;
-  --chart-2: #2e9d3a;
-  --chart-3: #e07aa2;
-  --chart-4: #9b85ff;
+  --ring: #5FB8C4;
+
+  --chart-1: #5FB8C4;
+  --chart-2: #C2AE70;
+  --chart-3: #93A6DB;
+  --chart-4: #D394B2;
+  --chart-5: #8A8B84;
 }
 
-/* ─────────────────────────────────────────────────
-   MUNDO "ANDÉN" — el panel (2026-11-07; brief en
-   .impeccable/surfaces/app-dashboard-whatsapp-chat-page-tsx.md). Lo activa
-   el marcador <span data-world="anden"> de app/layout.tsx (desde 2026-11-08
-   toda la app; antes solo el panel). Concreto de día, andén casi negro de
-   noche; Barlow para todo y Barlow Condensed para títulos y cifras.
-   :root:has() pesa más que .dark, por eso el bloque oscuro repite TODOS los
-   tokens que cambia el claro. Pares en contrast.test.ts.
-   ───────────────────────────────────────────────── */
+/* Fuentes del mundo "Andén" (app/layout.tsx pone el marcador): Barlow para
+   todo y Barlow Condensed solo para cifras. */
 html:has([data-world="anden"]) {
   --font-body:     var(--font-barlow);
   --font-display:  var(--font-barlow-condensed);
-}
-:root:has([data-world="anden"]) {
-  --background:    #F3F4F2;
-  --foreground:    #15171A;
-  --surface-light: #ECEEEB;
-  --border:        #DCDFDB;
-  --cell:          #E6E8E4;
-  --chat-bg:       #ECEEEB;
-  /* Superficies planas: en reposo casi sin sombra; la profundidad queda
-     para lo que flota (menús, modales). */
-  --shadow-sm:     0 1px 1px rgba(21, 23, 26, 0.04);
-}
-html.dark:has([data-world="anden"]) {
-  --background:    #0F1113;
-  --foreground:    #EEF0EE;
-  --surface:       #181B1E;
-  --surface-light: #22262A;
-  --border:        #2C3035;
-  --cell:          #262A2E;
-  --chat-bg:       #0F1113;
 }
 
 /* Volteo de una celda del tablero al cambiar su cifra (ver WaitCells). */
@@ -272,23 +186,23 @@ html.dark:has([data-world="anden"]) {
    200/225/250 se confundían entre sí); en .dark suben de luminosidad para
    leerse sobre fondo oscuro
    ───────────────────────────────────────────────── */
-.hue-0 { --entity: oklch(0.44 0.13 25);  }
-.hue-1 { --entity: oklch(0.44 0.11 70);  }
-.hue-2 { --entity: oklch(0.44 0.11 115); }
-.hue-3 { --entity: oklch(0.44 0.10 160); }
-.hue-4 { --entity: oklch(0.44 0.10 205); }
-.hue-5 { --entity: oklch(0.44 0.12 250); }
-.hue-6 { --entity: oklch(0.44 0.12 295); }
-.hue-7 { --entity: oklch(0.44 0.12 340); }
+.hue-0 { --entity: oklch(0.44 0.09 25);  }
+.hue-1 { --entity: oklch(0.44 0.09 70);  }
+.hue-2 { --entity: oklch(0.44 0.09 115); }
+.hue-3 { --entity: oklch(0.44 0.09 160); }
+.hue-4 { --entity: oklch(0.44 0.09 205); }
+.hue-5 { --entity: oklch(0.44 0.09 250); }
+.hue-6 { --entity: oklch(0.44 0.09 295); }
+.hue-7 { --entity: oklch(0.44 0.09 340); }
 
-.dark .hue-0 { --entity: oklch(0.84 0.11 25); --entity-bg: color-mix(in oklab, var(--entity) 16%, var(--surface)); }
-.dark .hue-1 { --entity: oklch(0.80 0.11 70);  }
-.dark .hue-2 { --entity: oklch(0.82 0.10 115); }
-.dark .hue-3 { --entity: oklch(0.78 0.10 160); }
-.dark .hue-4 { --entity: oklch(0.78 0.10 205); }
-.dark .hue-5 { --entity: oklch(0.76 0.11 250); }
-.dark .hue-6 { --entity: oklch(0.78 0.11 295); }
-.dark .hue-7 { --entity: oklch(0.80 0.10 340); }
+.dark .hue-0 { --entity: oklch(0.84 0.09 25); --entity-bg: color-mix(in oklab, var(--entity) 16%, var(--surface)); }
+.dark .hue-1 { --entity: oklch(0.80 0.09 70);  }
+.dark .hue-2 { --entity: oklch(0.82 0.09 115); }
+.dark .hue-3 { --entity: oklch(0.78 0.09 160); }
+.dark .hue-4 { --entity: oklch(0.78 0.09 205); }
+.dark .hue-5 { --entity: oklch(0.76 0.09 250); }
+.dark .hue-6 { --entity: oklch(0.78 0.09 295); }
+.dark .hue-7 { --entity: oklch(0.80 0.09 340); }
 
 /* Mezclado contra --surface (opaco), no "transparent": a 14% sobre
    transparent el relleno quedaba casi invisible en algunos hues sobre el
@@ -309,9 +223,11 @@ html.dark:has([data-world="anden"]) {
   --color-surface:      var(--surface);
   --color-surface-light:var(--surface-light);
   --color-border:       var(--border);
+  --color-border-strong:var(--border-strong);
+  --color-nav-active:   var(--nav-active);
   --color-muted:        var(--muted);
   --color-muted-darker: var(--muted-darker);
-  --color-muted-strong: var(--muted-strong);
+  --color-subtle:       var(--subtle);
 
   --color-accent:        var(--accent);
   --color-accent-hover:  var(--accent-hover);
@@ -323,10 +239,6 @@ html.dark:has([data-world="anden"]) {
 
   --color-bubble-in:  var(--bubble-in);
   --color-bubble-out: var(--bubble-out);
-
-  --color-accent-2:       var(--accent-2);
-  --color-accent-2-hover: var(--accent-2-hover);
-  --color-accent-2-bg:    var(--accent-2-bg);
 
   --color-success:        var(--success);
   --color-success-bg:     var(--success-bg);
@@ -360,33 +272,67 @@ html.dark:has([data-world="anden"]) {
      font-mono en los componentes compartidos (KpiStrip, EntityAvatar, etc). */
   --font-mono:    var(--font-body), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Escala tipográfica del rediseño — text-hero (números protagonistas),
-     text-page-title (h1 de página), text-eyebrow (etiquetas uppercase de
-     sección). */
-  --text-hero: 2.75rem;
-  --text-hero--line-height: 1.05;
-  --text-page-title: 1.875rem;
-  --text-page-title--line-height: 1.2;
-  --text-eyebrow: 0.6875rem;
-  --text-eyebrow--line-height: 1rem;
-  /* Piso del panel (Andén, 2026-11-07): metadatos, insignias, contadores y
-     etiquetas. Nada en el panel va por debajo de 11px (antes 9-10px a mano). */
+  /* Escala tipográfica (congelada, nov 2026). text-sm es el cuerpo de UI
+     por defecto; text-base, burbujas y párrafos. Los tamaños con familia,
+     peso o tracking propios (title, page-title, figure, hero) son @utility
+     más abajo. */
   --text-micro: 0.6875rem;
   --text-micro--line-height: 1rem;
+  --text-micro--font-weight: 500;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-xs--font-weight: 500;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.125rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.375rem;
+  /* Etiqueta de sección (se retira en la fase 3: sin mayúsculas). */
+  --text-eyebrow: 0.6875rem;
+  --text-eyebrow--line-height: 1rem;
+
+  /* Radios: una sola escala. xs badges/chips/checkbox · sm botones, inputs e
+     ítems de menú · md tarjetas del embudo y popovers · lg paneles, tablas y
+     modales. rounded-full solo avatares, puntos de estado y switch. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
 }
 
-/* ─────────────────────────────────────────────────
-   ESQUINA DE BURBUJA — firma visual del rediseño "Conversación primero"
-   (2026-07). El rediseño "fresco y cercano" (paso 3 en curso) la retira en
-   favor de esquinas generosas + sombra suave; se deja definida aquí mientras
-   los componentes que todavía la usan (Button, EntityAvatar, nav activo del
-   sidebar) migran uno a uno — no agregar usos nuevos.
-   ───────────────────────────────────────────────── */
-@utility rounded-bubble {
-  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);
+/* Tamaños con familia, peso o tracking propios. */
+@utility text-title {
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
-@utility rounded-bubble-br {
-  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+@utility text-page-title {
+  font-family: var(--font-sans);
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+@utility text-figure {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@utility text-hero {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  line-height: 2.75rem;
+  font-weight: 600;
+}
+
+/* Burbuja del chat: radio 10 con la esquina de la cola en 3 px. */
+@utility rounded-bubble-in {
+  border-radius: 10px 10px 10px 3px;
+}
+@utility rounded-bubble-out {
+  border-radius: 10px 10px 3px 10px;
 }
 
 /* Lienzo del hilo de chat: color sólido por tema (--chat-bg), sin patrón
@@ -473,11 +419,11 @@ body {
 .chat-bubble-out {
   --muted: color-mix(in oklab, var(--foreground) 74%, var(--bubble-out));
   --muted-darker: color-mix(in oklab, var(--foreground) 78%, var(--bubble-out));
-  --muted-strong: color-mix(in oklab, var(--foreground) 88%, var(--bubble-out));
+  --subtle: color-mix(in oklab, var(--foreground) 62%, var(--bubble-out));
   /* Las utilidades leen --color-*, que ya vienen resueltas desde :root. */
   --color-muted: var(--muted);
   --color-muted-darker: var(--muted-darker);
-  --color-muted-strong: var(--muted-strong);
+  --color-subtle: var(--subtle);
 }
 
 /* Área táctil ≥ 24 px para enlaces de texto chicos sin mover el diseño

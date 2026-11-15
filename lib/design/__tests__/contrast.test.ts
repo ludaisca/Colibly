@@ -5,13 +5,10 @@ import { contrastRatio, readThemeTokens } from "../contrast";
 import { BRAND_COLORS as B } from "../../brand-colors";
 
 const css = readFileSync(path.resolve(__dirname, "../../../app/globals.css"), "utf8");
-const ANDEN = ':root:has([data-world="anden"])';
+// Un tema claro y uno oscuro (dirección congelada, nov 2026).
 const THEMES = {
   claro: readThemeTokens(css),
   oscuro: readThemeTokens(css, ".dark"),
-  // Mundo "Andén" del panel: se apila sobre el tema (globals.css).
-  "andén claro": readThemeTokens(css, ANDEN),
-  "andén oscuro": readThemeTokens(css, [".dark", ANDEN, 'html.dark:has([data-world="anden"])']),
 };
 
 // [texto, fondo, mínimo]. 4.5 = texto normal (WCAG AA); 3 = iconos, bordes
@@ -22,10 +19,10 @@ const PAIRS: [string, string, number][] = [
   ["muted", "background", 4.5],
   ["muted", "surface", 4.5],
   ["muted", "surface-light", 4.5],
-  ["muted-strong", "background", 4.5],
-  ["muted-strong", "surface", 4.5],
-  ["muted-strong", "surface-light", 4.5],
-  ["muted-strong", "accent-subtle", 4.5],
+  ["muted", "accent-subtle", 4.5],
+  ["muted", "nav-active", 4.5],
+  ["foreground", "nav-active", 4.5],
+  ["border-strong", "surface", 3],
   ["on-accent", "accent", 4.5],
   ["on-accent", "accent-hover", 4.5],
   ["foreground", "accent-muted", 4.5],
@@ -33,6 +30,7 @@ const PAIRS: [string, string, number][] = [
   ["foreground", "bubble-in", 4.5],
   ["foreground", "bubble-out", 4.5],
   ["accent-ink", "surface", 4.5],
+  ["accent-ink", "surface-light", 4.5],
   ["accent-ink", "background", 4.5],
   ["accent-ink", "accent-subtle", 4.5],
   ["accent-strong", "surface", 3],
@@ -40,9 +38,6 @@ const PAIRS: [string, string, number][] = [
   ["surface", "danger", 4.5],
   ["surface", "info", 4.5],
   ["surface", "warning", 4.5],
-  ["surface", "accent-2", 4.5],
-  ["accent-2", "surface", 4.5],
-  ["accent-2", "accent-2-bg", 4.5],
   ["success", "surface", 4.5],
   ["success", "success-bg", 4.5],
   ["warning", "surface", 4.5],
@@ -79,21 +74,25 @@ const HEX_PAIRS: [string, string, string, number][] = [
   ["texto de marca sobre blanco", B.accentInk, B.surface, 4.5],
   ["texto de marca sobre fondo", B.accentInk, B.background, 4.5],
   ["texto de marca sobre tinte", B.accentInk, B.accentSubtle, 4.5],
-  ["coral sobre blanco", B.coral, B.surface, 4.5],
-  ["coral sobre tinte", B.coral, B.coralBg, 4.5],
-  ["tinta sobre cian decorativo", B.ink, B.mint, 4.5],
+  ["secundario sobre --surface-light", B.muted, B.surfaceLight, 4.5],
+  ["borde de inputs sobre blanco", B.borderStrong, B.surface, 3],
 ];
 describe("pares fijos de lib/brand-colors.ts", () => {
   it.each(HEX_PAIRS)("%s ≥ %s", (_n, fg, bg, min) => {
     expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(min);
   });
-  it("el cian es solo decorativo: no sirve como texto sobre fondo claro", () => {
-    expect(contrastRatio(B.mint, B.surface)).toBeLessThan(3);
+  // Criterios de la dirección congelada (nov 2026).
+  it("texto de marca ≥ 7:1 sobre blanco", () => {
+    expect(contrastRatio(B.accentInk, B.surface)).toBeGreaterThanOrEqual(7);
   });
   it("brand-colors coincide con los primitivos de globals.css", () => {
     const t = readThemeTokens(css);
     expect(t["accent"].toLowerCase()).toBe(B.accent.toLowerCase());
-    expect(t["accent-2"].toLowerCase()).toBe(B.coral.toLowerCase());
+    expect(t["accent-ink"].toLowerCase()).toBe(B.accentInk.toLowerCase());
+    expect(t["muted"].toLowerCase()).toBe(B.muted.toLowerCase());
+    expect(t["subtle"].toLowerCase()).toBe(B.subtle.toLowerCase());
+    expect(t["border-strong"].toLowerCase()).toBe(B.borderStrong.toLowerCase());
+    expect(t["surface-light"].toLowerCase()).toBe(B.surfaceLight.toLowerCase());
     expect(t["foreground"].toLowerCase()).toBe(B.ink.toLowerCase());
     expect(t["background"].toLowerCase()).toBe(B.background.toLowerCase());
   });

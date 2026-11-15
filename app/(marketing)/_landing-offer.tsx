@@ -65,7 +65,7 @@ function PlanCard({ plan, cta }: { plan: LandingPlan; cta: string }) {
           {custom ? "Según tu configuración" : "MXN por usuario al mes"}
         </span>
       </p>
-      <p className="mt-2 text-pretty text-xs text-muted-strong">
+      <p className="mt-2 text-pretty text-xs text-muted">
         {custom ? "El costo depende de tu configuración. Escríbenos." : "Pago mensual. Cancelas cuando quieras."}
       </p>
       <ul className="mt-5 flex-1 space-y-2.5 text-sm">
@@ -74,7 +74,7 @@ function PlanCard({ plan, cta }: { plan: LandingPlan; cta: string }) {
         <li className="text-pretty text-muted">{plan.channels}</li>
         {plan.includes.map((line) =>
           line.endsWith(", más:") ? (
-            <li key={line} className="text-pretty text-muted-strong">{line}</li>
+            <li key={line} className="text-pretty text-muted">{line}</li>
           ) : (
             <li key={line} className="flex items-start gap-2">
               <Check size={16} className="mt-0.5 shrink-0 text-accent-ink" aria-hidden />
@@ -227,7 +227,7 @@ function CompareTable() {
             <ul className="mt-2 divide-y divide-border">
               {group.items.map((item) =>
                 item.kind === "sub" ? (
-                  <li key={item.label} className="pt-3 text-xs font-semibold uppercase tracking-wide text-muted-strong">
+                  <li key={item.label} className="pt-3 text-xs font-semibold uppercase tracking-wide text-muted">
                     {item.label}
                   </li>
                 ) : (
@@ -273,7 +273,7 @@ function CompareTable() {
                 {group.items.map((item) =>
                   item.kind === "sub" ? (
                     <tr key={`${group.title}-${item.label}`}>
-                      <th scope="colgroup" colSpan={5} className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-strong">
+                      <th scope="colgroup" colSpan={5} className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                         {item.label}
                       </th>
                     </tr>

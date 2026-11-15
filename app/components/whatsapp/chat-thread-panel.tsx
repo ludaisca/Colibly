@@ -67,7 +67,7 @@ function MediaTooLargeNotice({ msg }: { msg: Message }) {
       <FileWarning size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
       <div className="min-w-0">
         <p className="font-semibold">Archivo demasiado grande</p>
-        <p className="mt-0.5 break-words text-muted-strong">{msg.body}</p>
+        <p className="mt-0.5 break-words text-muted">{msg.body}</p>
       </div>
     </div>
   );
@@ -77,7 +77,7 @@ function MediaTooLargeNotice({ msg }: { msg: Message }) {
 // 14 días llegan después; el resto se queda así). Antes se veía el tipo crudo.
 function HistoryMediaNotice() {
   return (
-    <div className="flex items-start gap-2 text-muted-strong" role="note">
+    <div className="flex items-start gap-2 text-muted" role="note">
       <ImageOff size={16} className="mt-0.5 shrink-0" aria-hidden />
       <div className="min-w-0">
         <p>Archivo del historial</p>
@@ -316,7 +316,7 @@ function MessageBubble({
     : null;
 
   const metaRow = (overlay: boolean) => (
-    <div className={`flex items-center justify-end gap-1 ${overlay ? "text-white/90" : "text-muted-strong"}`}>
+    <div className={`flex items-center justify-end gap-1 ${overlay ? "text-white/90" : "text-muted"}`}>
       {/* Una plantilla no se reintenta como texto libre: se reenvía desde "Enviar plantilla". */}
       {isFailed && msg.messageType !== "template" && (
         <button
@@ -413,7 +413,7 @@ function MessageBubble({
                 <span>
                   {b.title}
                   {/* Filas de una lista: su descripción, como la ve el cliente al abrirla. */}
-                  {b.description && <span className="text-muted-strong"> · {b.description}</span>}
+                  {b.description && <span className="text-muted"> · {b.description}</span>}
                 </span>
               </div>
             ))}

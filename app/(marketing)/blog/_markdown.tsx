@@ -27,7 +27,7 @@ const components: Components = {
   ol: ({ children }) => <ol className="mt-4 list-decimal space-y-1.5 pl-6">{children}</ol>,
   li: ({ children }) => <li className="text-pretty pl-1">{children}</li>,
   strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-  blockquote: ({ children }) => <blockquote className="mt-6 border-l-4 border-accent-strong bg-surface px-4 py-1 text-pretty text-muted-strong">{children}</blockquote>,
+  blockquote: ({ children }) => <blockquote className="mt-6 border-l-4 border-accent-strong bg-surface px-4 py-1 text-pretty text-muted">{children}</blockquote>,
   hr: () => <hr className="my-10 border-border" />,
   a: ({ href = "", children }) => {
     const external = /^https?:\/\//i.test(href);

@@ -22,7 +22,7 @@ export default function GuidesIndexPage() {
           {GUIDES.filter((g) => !g.section).map((g) => (
             <li key={g.slug} className="!ml-0 !list-none">
               <a href={guidePath(g)} className={`${LINK} text-lg font-semibold`}>{g.title}</a>
-              <p className="mt-1 text-pretty text-muted-strong">{g.description}</p>
+              <p className="mt-1 text-pretty text-muted">{g.description}</p>
             </li>
           ))}
         </ul>
@@ -31,7 +31,7 @@ export default function GuidesIndexPage() {
           {GUIDES.filter((g) => g.section === "comparativas").map((g) => (
             <li key={g.slug} className="!ml-0 !list-none">
               <a href={guidePath(g)} className={`${LINK} text-lg font-semibold`}>{g.title}</a>
-              <p className="mt-1 text-pretty text-muted-strong">{g.description}</p>
+              <p className="mt-1 text-pretty text-muted">{g.description}</p>
             </li>
           ))}
         </ul>

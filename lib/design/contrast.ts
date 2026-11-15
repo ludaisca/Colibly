@@ -36,8 +36,11 @@ function readBlock(css: string, selector: string): Record<string, string> {
  */
 export function readThemeTokens(css: string, themeSelector?: string | string[]): Record<string, string> {
   const layers = themeSelector === undefined ? [] : Array.isArray(themeSelector) ? themeSelector : [themeSelector];
+  // Un bloque :root suelto (primitivos) es opcional: la paleta congelada
+  // (nov 2026) define todo en ":root, .theme-light".
+  const primitives = /(?:^|\n):root\s*\{/.test(css) ? readBlock(css, ":root") : {};
   const raw: Record<string, string> = {
-    ...readBlock(css, ":root"),
+    ...primitives,
     ...readBlock(css, ":root, .theme-light"),
   };
   for (const selector of layers) Object.assign(raw, readBlock(css, selector));

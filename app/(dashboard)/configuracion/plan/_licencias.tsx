@@ -154,7 +154,7 @@ export function LicensesSection({
                 <span className="text-sm text-muted"> por persona al mes</span>
               </p>
               <ul className="mt-4 flex-1 space-y-2 text-sm">
-                <li className="text-muted-strong">{below ? `Todo lo de ${PLANS[below].name}, más:` : "Bandeja compartida, CRM, embudos, tareas, citas y respuestas rápidas"}</li>
+                <li className="text-muted">{below ? `Todo lo de ${PLANS[below].name}, más:` : "Bandeja compartida, CRM, embudos, tareas, citas y respuestas rápidas"}</li>
                 {added.map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <Check size={16} className="mt-0.5 shrink-0 text-accent-ink" />

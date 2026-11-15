@@ -98,7 +98,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <main id="contenido-principal" tabIndex={-1} className="scroll-mt-20">{children}</main>
 
       <footer className="border-t border-border bg-surface">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted-strong sm:grid-cols-2 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))] lg:px-6 md:px-6">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm text-muted sm:grid-cols-2 lg:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))] lg:px-6 md:px-6">
           <div className="space-y-3 sm:col-span-2 lg:col-span-1">
             <Logo href={siteUrl("/")} />
             <p className="max-w-xs text-pretty">{BRAND_TAGLINE}.</p>
@@ -130,7 +130,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
           </nav>
         </div>
         <div className="border-t border-border">
-          <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-muted-strong md:px-6">© {new Date().getFullYear()} {BRAND_NAME}</p>
+          <p className="mx-auto max-w-6xl px-4 py-4 text-sm text-muted md:px-6">© {new Date().getFullYear()} {BRAND_NAME}</p>
         </div>
       </footer>
 

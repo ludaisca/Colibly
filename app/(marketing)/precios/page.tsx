@@ -73,7 +73,7 @@ export default function PricingPage() {
             </li>
           </ul>
 
-          <p className="mt-8 rounded-xl border border-border bg-background p-4 text-pretty text-sm text-muted-strong">
+          <p className="mt-8 rounded-xl border border-border bg-background p-4 text-pretty text-sm text-muted">
             <strong className="text-foreground">Precios sujetos a ajuste.</strong> Si cambian, te avisamos con al
             menos 30 días de anticipación; aplica en el siguiente periodo, según los{" "}
             <a href="/terminos" className={LINK}>

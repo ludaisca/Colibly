@@ -2,11 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). Repo, folder, containers, database and npm package are all named Colibly. Use `lib/brand.ts` (`BRAND_NAME`, `BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`) in user-facing text, never a literal, and colors only through the semantic tokens (palette "Laguna + coral", `docs/COLOR.md`; hex copy for emails/images in `lib/brand-colors.ts`). The logo is **Nexo** (geometric C + east triangle) — `BrandMark` / `lib/brand-mark.ts`; see `docs/PLAN_LANZAMIENTO.md`.
+The product is **Colibly** (`colibly.com`; formerly SunflowCRM and SundayCRM). Repo, folder, containers, database and npm package are all named Colibly. Use `lib/brand.ts` (`BRAND_NAME`, `BRAND_DOMAIN`, `BRAND_CONTACT_EMAIL`) in user-facing text, never a literal, and colors only through the semantic tokens (frozen palette, nov 2026: `docs/COLOR.md`; hex copy for emails/images in `lib/brand-colors.ts`). The logo is **Nexo** (geometric C + east triangle) — `BrandMark` / `lib/brand-mark.ts`; see `docs/PLAN_LANZAMIENTO.md`.
 
 @AGENTS.md
 
 Detail per module: `docs/arquitectura/` (map in AGENTS.md) — read the matching doc before changing a module and update it in the same change.
+
+## Dirección de diseño (congelada, nov 2026)
+
+**No cambiar paleta, fuentes ni metáfora visual sin aprobación explícita de Luis. Las propuestas van en un issue, no en un commit.** Un solo acento teal (`#0F6E7E`), neutros cálidos (`#F4F4F1` / `#EEEEEA` / `#E1E1DB`, tinta `#17181A`, texto 2 `#5E5F5A`), Barlow (Barlow Condensed solo para cifras, máximo peso 600), radios 4/6/8/10, sin sombras en reposo ni animaciones de entrada. Tokens exactos, escala tipográfica y reglas de componentes en `AGENTS.md` → "Dirección de diseño"; fuente de verdad `app/globals.css`.
 
 ## Commands
 
