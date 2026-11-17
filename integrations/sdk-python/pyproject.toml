@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "colibly"
-version = "0.1.0"
+version = "0.1.1"
 description = "Cliente oficial de la API de Colibly (CRM para WhatsApp): contactos, conversaciones, mensajes, plantillas, llamadas y verificación de webhooks."
 readme = "README.md"
 license = { text = "MIT" }
@@ -13,4 +13,3 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://app.colibly.com/docs/api"
-Repository = "https://github.com/ludaisca/Colibly"

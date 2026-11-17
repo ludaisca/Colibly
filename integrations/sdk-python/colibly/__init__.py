@@ -15,7 +15,7 @@ from typing import Any, Dict, Iterator, List, Optional
 from urllib import error, parse, request
 
 __all__ = ["Colibly", "ColiblyError", "verify_webhook_signature", "construct_webhook_event"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 _RETRYABLE = {429, 503}
 

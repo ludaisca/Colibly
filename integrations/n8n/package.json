@@ -14,11 +14,6 @@
 		"name": "Colibly",
 		"email": "contacto@colibly.com"
 	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/ludaisca/Colibly.git",
-		"directory": "integrations/n8n"
-	},
 	"scripts": {
 		"build": "n8n-node build",
 		"build:watch": "tsc --watch",

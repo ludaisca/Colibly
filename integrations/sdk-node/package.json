@@ -1,10 +1,9 @@
 {
   "name": "colibly",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cliente oficial de la API de Colibly (CRM para WhatsApp) para Node.js: contactos, conversaciones, mensajes, plantillas, llamadas y verificación de webhooks.",
   "license": "MIT",
   "homepage": "https://app.colibly.com/docs/api",
-  "repository": { "type": "git", "url": "https://github.com/ludaisca/Colibly.git", "directory": "integrations/sdk-node" },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
