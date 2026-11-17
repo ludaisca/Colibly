@@ -27,7 +27,7 @@ export interface AppointmentDetail {
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
   source: "MANUAL" | "AI_BOT";
   cancelReason: string | null;
-  contact: { id: string; name: string | null; realName: string | null; remoteJid: string; isSample?: boolean; channelAccount?: { channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" } | null };
+  contact: { id: string; name: string | null; realName: string | null; remoteJid: string; isSample?: boolean; channelAccount?: { channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB" } | null };
   assignedTo: { id: string; name: string | null; email: string } | null;
 }
 

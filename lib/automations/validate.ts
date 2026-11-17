@@ -4,7 +4,7 @@ import { INBOUND_TRIGGERS, isBranching, type Graph, type Step } from "./types";
 // cada tarjeta) y la ruta de publicar (en el servidor, como autoridad). No
 // importa nada de Node.
 
-export type AutomationChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+export type AutomationChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 
 export interface ValidationIssue {
   nodeId: string | null; // null = problema del disparador o del grafo entero

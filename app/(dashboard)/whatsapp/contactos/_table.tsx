@@ -32,10 +32,10 @@ export interface ContactTableRow {
   tags: Array<{ tag: { id: string; name: string; color: string } }>;
   chat: { id: string; unreadCount: number; lastMessageAt: string | null; assignedTo?: { id: string; name: string | null } | null } | null;
   pipelineStage?: { name: string } | null;
-  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | null;
+  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB" | null;
 }
 
-const CHANNEL_LABEL = { TELEGRAM: "Telegram", MESSENGER: "Messenger", INSTAGRAM: "Instagram", WEBCHAT: "Chat web" } as const;
+const CHANNEL_LABEL = { TELEGRAM: "Telegram", MESSENGER: "Messenger", INSTAGRAM: "Instagram", WEBCHAT: "Chat web", WHATSAPP_WEB: "WhatsApp (QR)" } as const;
 
 function phoneOrChannel(row: ContactTableRow): string {
   if (row.channel && row.channel !== "WHATSAPP") return CHANNEL_LABEL[row.channel];

@@ -6,6 +6,8 @@ import { sendMessageSchema, telegramSendMessageSchema, metaChannelSendMessageSch
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
 import { sendTelegramMessage, sendTelegramMedia } from "@/lib/telegram/send";
+import { sendGowaMessage, sendGowaMedia, GowaChannelDisabledError } from "@/lib/gowa/send";
+import { GowaError } from "@/lib/gowa/client";
 import { sendMetaChannelText, sendMetaChannelMedia, sendMetaChannelPrivateReply } from "@/lib/meta-messaging/send";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { rateLimit } from "@/lib/rate-limit";
@@ -45,14 +47,16 @@ export async function POST(
       return NextResponse.json({ error: "Chat no encontrado" }, { status: 404 });
     }
 
-    if (resolved.channel === "TELEGRAM") {
-      return sendTelegramReply(req, chatId, session.user.id);
+    // WhatsApp por QR comparte el flujo de Telegram (texto/medios, cita, sin
+    // ventana de 24 h); solo cambia el remitente.
+    if (resolved.channel === "TELEGRAM" || resolved.channel === "WHATSAPP_WEB") {
+      return await sendTelegramReply(req, chatId, session.user.id);
     }
     if (resolved.channel === "MESSENGER" || resolved.channel === "INSTAGRAM") {
-      return sendMetaChannelReply(resolved.channel, req, chatId, session.user.id);
+      return await sendMetaChannelReply(resolved.channel, req, chatId, session.user.id);
     }
     if (resolved.channel === "WEBCHAT") {
-      return sendWebchatReply(req, chatId, session.user.id);
+      return await sendWebchatReply(req, chatId, session.user.id);
     }
 
     const chat = await prisma.wAChat.findFirst({
@@ -215,8 +219,8 @@ export async function POST(
   } catch (error) {
     const message =
       publicErrorMessage(error, "Error interno del servidor");
-    // Meta rechazó el envío (p. ej. 131037): no es un fallo nuestro.
-    return NextResponse.json({ error: message }, { status: error instanceof MetaSendError ? 422 : 500 });
+    // Meta (p. ej. 131037) o WhatsApp vía GoWA rechazó el envío: no es un fallo nuestro.
+    return NextResponse.json({ error: message }, { status: error instanceof MetaSendError || error instanceof GowaError ? 422 : 500 });
   }
 }
 
@@ -249,35 +253,48 @@ async function sendTelegramReply(req: Request, chatId: string, userId: string) {
       where: { id: replyToMessageId, conversationId: conversation.id, externalMessageId: { not: null } },
       select: { externalMessageId: true },
     });
-    if (!target?.externalMessageId || !/^\d+$/.test(target.externalMessageId)) {
-      return NextResponse.json({ error: "Ese mensaje no se puede citar en Telegram" }, { status: 400 });
+    const isTelegram = conversation.channelAccount.channel === "TELEGRAM";
+    if (!target?.externalMessageId || (isTelegram && !/^\d+$/.test(target.externalMessageId))) {
+      return NextResponse.json({ error: "Ese mensaje no se puede citar" }, { status: 400 });
     }
     replyToExternalId = target.externalMessageId;
   }
 
   let externalMessageId: string | null;
   let mediaId: string | null = null;
+  const viaGowa = conversation.channelAccount.channel === "WHATSAPP_WEB";
 
-  if (type === "text") {
-    const result = await sendTelegramMessage(conversation.channelAccount, {
-      to: conversation.externalId,
-      body: textBody!,
-      replyToMessageId: replyToExternalId ?? undefined,
-    });
-    externalMessageId = result.externalMessageId;
-  } else {
-    const buffer = await fs.readFile(resolveAbsolutePath(localMediaPath!));
-    const result = await sendTelegramMedia(conversation.channelAccount, {
-      to: conversation.externalId,
-      type,
-      buffer,
-      filename: filename ?? `media-${Date.now()}`,
-      mimeType: mimeType ?? "application/octet-stream",
-      caption: textBody,
-      replyToMessageId: replyToExternalId ?? undefined,
-    });
-    externalMessageId = result.externalMessageId;
-    mediaId = result.fileId;
+  try {
+    if (type === "text") {
+      const params = { to: conversation.externalId, body: textBody!, replyToMessageId: replyToExternalId ?? undefined };
+      const result = viaGowa
+        ? await sendGowaMessage(conversation.channelAccount, params)
+        : await sendTelegramMessage(conversation.channelAccount, params);
+      externalMessageId = result.externalMessageId;
+    } else {
+      const buffer = await fs.readFile(resolveAbsolutePath(localMediaPath!));
+      const params = {
+        to: conversation.externalId,
+        type,
+        buffer,
+        filename: filename ?? `media-${Date.now()}`,
+        mimeType: mimeType ?? "application/octet-stream",
+        caption: textBody,
+        replyToMessageId: replyToExternalId ?? undefined,
+      };
+      if (viaGowa) {
+        externalMessageId = (await sendGowaMedia(conversation.channelAccount, params)).externalMessageId;
+      } else {
+        const result = await sendTelegramMedia(conversation.channelAccount, params);
+        externalMessageId = result.externalMessageId;
+        mediaId = result.fileId;
+      }
+    }
+  } catch (error) {
+    if (error instanceof GowaChannelDisabledError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 403 });
+    }
+    throw error;
   }
 
   const now = new Date();

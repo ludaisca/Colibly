@@ -65,18 +65,26 @@ export async function getUserChannelAccountIds(userId: string): Promise<string[]
 async function loadUserChannelAccountIds(userId: string): Promise<string[]> {
   const tenant = await getUserTenant(userId);
   if (!tenant) return [];
+  // WhatsApp por QR apagado por el operador: sus cuentas desaparecen de todo lo
+  // que se resuelve por aquí (bandeja, contadores, envíos, búsqueda) aunque
+  // existan. El interruptor de /plataforma llama a invalidateAccountScopes().
+  const org = await prisma.organization.findUnique({
+    where: { id: tenant.organizationId },
+    select: { channelWhatsappWebEnabled: true },
+  });
+  const channelFilter = org?.channelWhatsappWebEnabled ? {} : { channel: { not: "WHATSAPP_WEB" as const } };
   if (tenant.role === "admin") {
-    const accounts = await prisma.channelAccount.findMany({ where: { organizationId: tenant.organizationId }, select: { id: true } });
+    const accounts = await prisma.channelAccount.findMany({ where: { organizationId: tenant.organizationId, ...channelFilter }, select: { id: true } });
     return accounts.map((a) => a.id);
   }
 
   const [ownAccounts, shared] = await Promise.all([
     prisma.channelAccount.findMany({
-      where: { userId, organizationId: tenant.organizationId },
+      where: { userId, organizationId: tenant.organizationId, ...channelFilter },
       select: { id: true },
     }),
     prisma.channelAccountShare.findMany({
-      where: { userId, channelAccount: { organizationId: tenant.organizationId } },
+      where: { userId, channelAccount: { organizationId: tenant.organizationId, ...channelFilter } },
       select: { channelAccountId: true },
     }),
   ]);

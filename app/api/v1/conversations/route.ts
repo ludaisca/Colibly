@@ -53,7 +53,9 @@ export const GET = withApiErrors(async (req: Request) => {
   const chAccountIds = accountId ? ctx.channelAccountIds.filter((id) => id === accountId) : ctx.channelAccountIds;
 
   const wantWa = !channel || channel === "WHATSAPP";
-  const wantChannels = !channel || channel !== "WHATSAPP";
+  // channel=WHATSAPP incluye también WhatsApp por QR (oculto: se presenta como WhatsApp).
+  const channelEnum = !channel ? null : channel === "WHATSAPP" ? ("WHATSAPP_WEB" as const) : channel;
+  const wantChannels = true;
 
   const [waChats, conversations] = await Promise.all([
     wantWa && waAccountIds.length > 0
@@ -68,7 +70,7 @@ export const GET = withApiErrors(async (req: Request) => {
           where: {
             ...common,
             channelAccountId: { in: chAccountIds },
-            ...(channel && channel !== "WHATSAPP" ? { channelAccount: { channel: channel as Exclude<typeof channel, "WHATSAPP"> } } : {}),
+            ...(channelEnum ? { channelAccount: { channel: channelEnum as Exclude<typeof channel, "WHATSAPP"> | "WHATSAPP_WEB" } } : {}),
           } as Prisma.ConversationWhereInput,
           include: { channelAccount: { select: { channel: true } } },
           orderBy,

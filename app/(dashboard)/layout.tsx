@@ -43,6 +43,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             channelMessengerEnabled: true,
             channelInstagramEnabled: true,
             channelWebchatEnabled: true,
+            channelWhatsappWebEnabled: true,
           },
         },
       },
@@ -74,6 +75,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     messenger: !!user?.organization.channelMessengerEnabled || hasAccount("MESSENGER"),
     instagram: !!user?.organization.channelInstagramEnabled || hasAccount("INSTAGRAM"),
     webchat: !!user?.organization.channelWebchatEnabled || hasAccount("WEBCHAT"),
+    // WhatsApp por QR: solo con la bandera del operador (tener cuentas no basta).
+    whatsappWeb: !!user?.organization.channelWhatsappWebEnabled,
   };
 
   // Aviso del plan: los admins ven también los días de prueba que quedan, la

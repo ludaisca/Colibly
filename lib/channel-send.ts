@@ -1,5 +1,6 @@
 import type { ChannelAccount } from "@prisma/client";
 import { sendTelegramMessage } from "@/lib/telegram/send";
+import { sendGowaMessage } from "@/lib/gowa/send";
 import { assertOrgCanSend } from "@/lib/billing/gates";
 
 // Roadmap P3-f — lib/telegram/bot-worker.ts se reutiliza tal cual para
@@ -17,6 +18,9 @@ export async function sendChannelReplyText(
   await assertOrgCanSend(channelAccount.organizationId);
   if (channelAccount.channel === "WEBCHAT") {
     return { externalMessageId: null };
+  }
+  if (channelAccount.channel === "WHATSAPP_WEB") {
+    return sendGowaMessage(channelAccount, { to, body });
   }
   return sendTelegramMessage(channelAccount, { to, body });
 }

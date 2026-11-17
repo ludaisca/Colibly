@@ -737,7 +737,7 @@ export function ChatThreadPanel({
                       animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                       transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={displayName(selectedChat.name, selectedChat.remoteJid)} reduceMotion={!!shouldReduceMotion} onJumpToMessage={jumpToMessage} />
+                      <MessageBubble msg={msg} channel={selectedChat.channel} onPreview={onPreview} onRetry={onRetry} onReply={onReply} onReaction={onReaction} canReply={(selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM" || selectedChat.channel === "WHATSAPP_WEB") && !!msg.wamid} canQuote={canQuote} canReact={canReact} leadName={displayName(selectedChat.name, selectedChat.remoteJid)} reduceMotion={!!shouldReduceMotion} onJumpToMessage={jumpToMessage} />
                     </motion.div>
                   ))}
                 </div>

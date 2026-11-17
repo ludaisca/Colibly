@@ -3,6 +3,8 @@ import { emitMessageUpdated } from "@/lib/events/message-sent";
 import { saveMediaFromMeta, saveMediaFromBuffer } from "@/lib/whatsapp/media-store";
 import { decrypt } from "@/lib/crypto";
 import { getFileUrl } from "@/lib/telegram";
+import { readGowaCredentials } from "@/lib/gowa/account";
+import { downloadMessageMedia } from "@/lib/gowa/client";
 import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
 import { queueAutoTranscribe } from "@/lib/ai/transcribe";
 
@@ -13,7 +15,7 @@ interface MediaDownloadJob {
   // Messenger/Instagram se conectan a este switch cuando exista su
   // implementación (ver plan de canales Meta) — a diferencia de Telegram,
   // ahí `mediaId` ya ES la URL directa del adjunto, sin paso getFile().
-  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM";
+  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WHATSAPP_WEB";
 }
 
 export async function processMediaDownloadJob(job: MediaDownloadJob) {
@@ -23,6 +25,10 @@ export async function processMediaDownloadJob(job: MediaDownloadJob) {
   }
   if (job.channel === "MESSENGER" || job.channel === "INSTAGRAM") {
     await processMetaChannelMediaDownload(job);
+    return;
+  }
+  if (job.channel === "WHATSAPP_WEB") {
+    await processGowaMediaDownload(job);
     return;
   }
 
@@ -124,6 +130,39 @@ async function processMetaChannelMediaDownload(job: MediaDownloadJob) {
   await prisma.channelMessage.update({
     where: { id: job.messageId },
     data: { mediaUrl: stored.relativePath, bytesSize: stored.bytesSize, mediaSha256: stored.sha256 ?? null, mimeType },
+  });
+  await emitMessageUpdated("channel", job.messageId, "media_ready");
+  if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("channel", message.id);
+}
+// WhatsApp por QR: `mediaId` es el id del mensaje; GoWA lo baja de WhatsApp
+// bajo demanda (GET /message/:id/download) y lo sirve por la red interna.
+async function processGowaMediaDownload(job: MediaDownloadJob) {
+  const message = await prisma.channelMessage.findUnique({
+    where: { id: job.messageId },
+    select: { id: true, mediaUrl: true, mimeType: true, filename: true, messageType: true, direction: true, conversation: { select: { externalId: true } } },
+  });
+  if (!message || message.mediaUrl) return;
+
+  const account = await prisma.channelAccount.findUnique({
+    where: { id: job.accountId },
+    select: { id: true, channel: true, credentials: true },
+  });
+  if (!account || account.channel !== "WHATSAPP_WEB") return;
+
+  const { deviceId } = readGowaCredentials(account);
+  const file = await downloadMessageMedia(deviceId, job.mediaId, message.conversation.externalId);
+  const mimeType = file.mimeType && file.mimeType !== "application/octet-stream" ? file.mimeType : message.mimeType;
+  const stored = await saveMediaFromBuffer(job.accountId, file.buffer, mimeType);
+
+  await prisma.channelMessage.update({
+    where: { id: job.messageId },
+    data: {
+      mediaUrl: stored.relativePath,
+      bytesSize: stored.bytesSize,
+      mediaSha256: stored.sha256 ?? null,
+      mimeType,
+      filename: message.filename ?? (message.messageType === "document" ? file.filename : null),
+    },
   });
   await emitMessageUpdated("channel", job.messageId, "media_ready");
   if (message.messageType === "audio" && message.direction === "INBOUND") await queueAutoTranscribe("channel", message.id);

@@ -76,4 +76,6 @@ export const CHANNEL_ICONS = {
   MESSENGER: MessengerIcon,
   TELEGRAM: TelegramIcon,
   WEBCHAT: WebchatIcon,
+  // WhatsApp por QR (no oficial): misma marca de WhatsApp.
+  WHATSAPP_WEB: WhatsAppIcon,
 } as const;

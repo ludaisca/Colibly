@@ -3,6 +3,7 @@ import { emitMessageSent } from "@/lib/events/message-sent";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
 import { sendTelegramMessage } from "@/lib/telegram/send";
+import { sendGowaMessage } from "@/lib/gowa/send";
 import { sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { assertOrgCanSend, isAccountWritable } from "@/lib/billing/gates";
 
@@ -13,7 +14,7 @@ interface BotSendJob {
   chunk: string;
   // Presente solo en trabajos de canales no-WhatsApp — el payload de
   // WhatsApp lo omite, igual que el discriminador de la cola media-download.
-  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 }
 
 // Delivers one chunk of a "humanized" (split) bot reply — kept in its own queue/worker
@@ -21,7 +22,7 @@ interface BotSendJob {
 // would otherwise let a single humanized conversation block the other two bot jobs.
 export async function processBotSendJob(job: BotSendJob) {
   if (!(await isAccountWritable(job.channel ? { channelAccountId: job.accountId } : { waAccountId: job.accountId }))) return;
-  if (job.channel === "TELEGRAM" || job.channel === "MESSENGER" || job.channel === "INSTAGRAM" || job.channel === "WEBCHAT") {
+  if (job.channel === "TELEGRAM" || job.channel === "MESSENGER" || job.channel === "INSTAGRAM" || job.channel === "WEBCHAT" || job.channel === "WHATSAPP_WEB") {
     await processChannelBotSendJob(job);
     return;
   }
@@ -102,6 +103,7 @@ async function processChannelBotSendJob(job: BotSendJob) {
 
 function sendChannelChunk(account: ChannelAccount, to: string, body: string): Promise<{ externalMessageId: string | null }> {
   if (account.channel === "TELEGRAM") return sendTelegramMessage(account, { to, body });
+  if (account.channel === "WHATSAPP_WEB") return sendGowaMessage(account, { to, body });
   // WEBCHAT (roadmap P3-f): no hay ninguna API externa a la que llamar — el
   // ChannelMessage OUTBOUND creado justo abajo YA es la entrega, el widget
   // lo recoge por polling.

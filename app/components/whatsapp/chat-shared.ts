@@ -75,7 +75,7 @@ export function formatSnoozeUntil(iso: string): string {
   return new Date(iso).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export type Channel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+export type Channel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 
 export interface AccountOption {
   id: string;

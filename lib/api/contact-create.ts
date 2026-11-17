@@ -22,7 +22,14 @@ export async function findOrCreateApiWhatsAppContact(
   opts: { deferEvent?: boolean } = {}
 ): Promise<{ id: string; created: boolean; accountId: string; channelAccountId: string | null }> {
   if (ctx.channelAccountIds.includes(input.accountId)) {
-    throw new ApiError(400, "invalid_request", "Solo se pueden crear contactos en cuentas de WhatsApp");
+    // WhatsApp por QR se presenta como WhatsApp, pero no admite contactos en
+    // frío (es lo que más suspensiones causa): el mensaje no lo delata.
+    const qr = await prisma.channelAccount.count({ where: { id: input.accountId, channel: "WHATSAPP_WEB" } });
+    throw new ApiError(
+      400,
+      "invalid_request",
+      qr > 0 ? "Esta cuenta no permite crear contactos por la API: el contacto se crea cuando te escribe" : "Solo se pueden crear contactos en cuentas de WhatsApp"
+    );
   }
   if (!ctx.accountIds.includes(input.accountId)) {
     throw new ApiError(404, "not_found", "Cuenta no encontrada");

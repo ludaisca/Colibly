@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { invalidateUserSessionCache } from "@/lib/auth";
@@ -19,6 +20,8 @@ const actionSchema = z.discriminatedUnion("action", [
   // Coexistencia de WhatsApp (conectar el número de la app WhatsApp Business):
   // bandera por organización durante la beta, apagada por defecto.
   z.object({ action: z.literal("set_whatsapp_coexistence"), enabled: z.boolean() }),
+  // WhatsApp por QR (GoWA, no oficial): solo por invitación del operador.
+  z.object({ action: z.literal("set_whatsapp_web"), enabled: z.boolean() }),
   z.object({
     action: z.literal("set_channels"),
     telegram: z.boolean(),
@@ -100,6 +103,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
     } else if (input.action === "set_whatsapp_coexistence") {
       await prisma.organization.update({ where: { id }, data: { whatsappCoexistenceEnabled: input.enabled } });
+    } else if (input.action === "set_whatsapp_web") {
+      // Apagarlo detiene el canal: sus cuentas salen del alcance de todos
+      // (getUserChannelAccountIds), por eso se invalida el caché de alcances.
+      await prisma.organization.update({ where: { id }, data: { channelWhatsappWebEnabled: input.enabled } });
+      invalidateAccountScopes();
     } else {
       // set_channels: feature por organización, no toca facturación ni sesiones.
       await prisma.organization.update({
@@ -127,6 +135,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         channelInstagramEnabled: true,
         channelWebchatEnabled: true,
         whatsappCoexistenceEnabled: true,
+        channelWhatsappWebEnabled: true,
       },
     });
     return NextResponse.json({ organization: updated });

@@ -79,7 +79,7 @@ export interface Estadisticas {
     id: string;
     name: string;
     phoneNumber: string | null;
-    channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+    channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
     chats: number;
   }>;
   agentPerformance: Array<{

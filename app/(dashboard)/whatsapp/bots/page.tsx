@@ -32,7 +32,7 @@ interface WaBot {
   updatedAt: string;
   waAccount: { id: string; name: string; phoneNumber: string | null } | null;
   channelAccountId: string | null;
-  channelAccount: { id: string; name: string; channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" } | null;
+  channelAccount: { id: string; name: string; channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB" } | null;
   _count: { conversations: number; knowledgeBots: number };
 }
 

@@ -59,7 +59,7 @@ export function DashboardShell({
   // operador puede desactivarlos desde /plataforma (ver lib/channel-flags.ts).
   // Un canal desactivado no aparece en el nav (a menos que la organización ya
   // tuviera cuentas ahí).
-  channels?: { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean };
+  channels?: { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean; whatsappWeb: boolean };
 }) {
   const isAdmin = role === "admin";
   const isEjecutivo = role === "ejecutivo";
@@ -120,7 +120,7 @@ export function DashboardShell({
               href: "/canales",
               label: "Canales",
               icon: Cable,
-              matchPrefixes: ["/whatsapp/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/telegram/cuentas", "/webchat/cuentas"],
+              matchPrefixes: ["/whatsapp/cuentas", "/messenger/cuentas", "/instagram/cuentas", "/telegram/cuentas", "/webchat/cuentas", "/whatsapp-web/cuentas"],
             },
           ],
         },

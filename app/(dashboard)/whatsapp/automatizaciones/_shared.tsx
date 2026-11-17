@@ -4,7 +4,7 @@ import { MessageSquare, LayoutList, ListChecks, FileText, Clock, MessageCircleQu
 import type { StepType } from "@/lib/automations/types";
 import { AiMark } from "@/app/components/ui/ai-mark";
 
-export type AutomationChannelName = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+export type AutomationChannelName = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 
 export const CHANNEL_LABEL: Record<AutomationChannelName, string> = {
   WHATSAPP: "WhatsApp",
@@ -12,6 +12,7 @@ export const CHANNEL_LABEL: Record<AutomationChannelName, string> = {
   MESSENGER: "Messenger",
   INSTAGRAM: "Instagram",
   WEBCHAT: "Web",
+  WHATSAPP_WEB: "WhatsApp (QR)",
 };
 
 export interface AutomationAccount {

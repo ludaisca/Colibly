@@ -55,7 +55,7 @@ export function isDocumentMime(mimeType: string | null | undefined): boolean {
   );
 }
 
-export type MediaChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+export type MediaChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 
 // Cada canal sirve sus medios desde su propio endpoint (el id es un WAMessage
 // en WhatsApp y un ChannelMessage en el resto). El widget web no tiene medios.
@@ -65,6 +65,8 @@ const MEDIA_ROUTE: Record<MediaChannel, string | null> = {
   MESSENGER: "/api/messenger/messages",
   INSTAGRAM: "/api/instagram/messages",
   WEBCHAT: null,
+  // Ruta genérica de ChannelMessage (lib/channel-media.ts): sirve a cualquier canal.
+  WHATSAPP_WEB: "/api/telegram/messages",
 };
 
 export function mediaEndpointFor(messageId: string, channel: MediaChannel = "WHATSAPP"): string | null {

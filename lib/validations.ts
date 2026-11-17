@@ -64,6 +64,16 @@ export const telegramAccountSchema = z.object({
 
 export type TelegramAccountInput = z.infer<typeof telegramAccountSchema>;
 
+// WhatsApp por QR (GoWA): solo el nombre; el número sale de la vinculación.
+export const whatsappWebAccountSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es requerido").max(100),
+});
+
+// Vincular con código en vez de QR: el número completo con lada (52…).
+export const whatsappWebPairingSchema = z.object({
+  phone: z.string().trim().regex(/^\+?\d{10,15}$/, "Escribe el número con lada, solo dígitos (ej. 5215512345678)"),
+});
+
 export const waAccountSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100),
   phoneNumberId: z.string().min(1, "El Phone Number ID es requerido").regex(/^\d+$/, "Debe ser un ID numérico"),

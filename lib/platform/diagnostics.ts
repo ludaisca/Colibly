@@ -1,5 +1,6 @@
 import type { PlanId } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { gowaInfo, isGowaConfigured } from "@/lib/gowa/client";
 import { getPlatformSettings } from "@/lib/platform-settings";
 import { getRedisClient } from "@/lib/redis";
 import { getStripe, priceIdFor } from "@/lib/billing/stripe";
@@ -93,6 +94,7 @@ export async function getPlatformDiagnostics(opts: { live?: boolean; now?: Date 
     checkPush(settings),
     checkBackups(settings, now),
     checkSecurityEnv(isProduction),
+    checkGowa(),
   ]);
 
   return {
@@ -162,6 +164,33 @@ async function checkVectorIndex(): Promise<DiagnosticCheck> {
     return check("db.vector", "Índice pgvector", "ok", "idx_knowledge_embedding presente");
   } catch (error) {
     return check("db.vector", "Índice pgvector", "unknown", errorMessage(error));
+  }
+}
+
+// WhatsApp por QR (GoWA, no oficial): solo importa si alguna organización lo
+// tiene habilitado; sin ninguna, que no esté configurado no es un problema.
+async function checkGowa(): Promise<DiagnosticCheck> {
+  const id = "channels.gowa";
+  const label = "WhatsApp por QR (GoWA)";
+  try {
+    const [enabledOrgs, byStatus] = await Promise.all([
+      prisma.organization.count({ where: { channelWhatsappWebEnabled: true } }),
+      prisma.channelAccount.groupBy({ by: ["status"], where: { channel: "WHATSAPP_WEB" }, _count: { _all: true } }),
+    ]);
+    const count = (status: string) => byStatus.find((r) => r.status === status)?._count._all ?? 0;
+    if (!isGowaConfigured()) {
+      return enabledOrgs > 0
+        ? check(id, label, "fail", `${enabledOrgs} organización(es) lo tienen habilitado y GoWA no está configurado`, "Falta SERVICE_PASSWORD_GOWA en el entorno del compose")
+        : check(id, label, "ok", "Sin configurar; ninguna organización lo usa");
+    }
+    const info = await gowaInfo();
+    const errors = count("ERROR");
+    const summary = `GoWA ${info.version ?? "?"} · ${count("CONNECTED")} conectado(s) · ${errors} con error · ${enabledOrgs} organización(es)`;
+    return errors > 0
+      ? check(id, label, "warn", summary, "Hay números desconectados o suspendidos: revísalos en WhatsApp por QR")
+      : check(id, label, "ok", summary);
+  } catch (error) {
+    return check(id, label, "warn", `GoWA no responde: ${errorMessage(error)}`, "Revisa el contenedor gowa del compose");
   }
 }
 

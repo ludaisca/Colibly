@@ -3,7 +3,7 @@
 import { FormField } from "@/app/components/ui/form-field";
 import { MultiSelect } from "@/app/components/ui/multi-select";
 
-export type IntegrationChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+export type IntegrationChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 
 export interface IntegrationAccount {
   id: string;
@@ -17,6 +17,7 @@ export const CHANNEL_LABEL: Record<IntegrationChannel, string> = {
   MESSENGER: "Messenger",
   INSTAGRAM: "Instagram",
   WEBCHAT: "Web",
+  WHATSAPP_WEB: "WhatsApp (QR)",
 };
 
 // Selector de alcance compartido por el formulario de key y el de webhook: una

@@ -7,13 +7,20 @@ import { prisma } from "@/lib/prisma";
 // (Organization.channel*Enabled). Desactivar un canal ya en uso NO apaga las
 // cuentas existentes (siguen recibiendo/enviando) — solo bloquea crear cuentas
 // nuevas de ese canal.
-export type FeatureChannel = "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+//
+// Excepción: WHATSAPP_WEB (WhatsApp por QR vía GoWA, no oficial) está APAGADO
+// por defecto, solo el operador lo enciende, y apagarlo SÍ detiene las cuentas
+// (lib/gowa/send.ts no envía, el webhook descarta lo entrante, el menú lo oculta).
+export type FeatureChannel = "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 
-const FIELD: Record<FeatureChannel, "channelTelegramEnabled" | "channelMessengerEnabled" | "channelInstagramEnabled" | "channelWebchatEnabled"> = {
+type FlagField = "channelTelegramEnabled" | "channelMessengerEnabled" | "channelInstagramEnabled" | "channelWebchatEnabled" | "channelWhatsappWebEnabled";
+
+const FIELD: Record<FeatureChannel, FlagField> = {
   TELEGRAM: "channelTelegramEnabled",
   MESSENGER: "channelMessengerEnabled",
   INSTAGRAM: "channelInstagramEnabled",
   WEBCHAT: "channelWebchatEnabled",
+  WHATSAPP_WEB: "channelWhatsappWebEnabled",
 };
 
 export async function isChannelEnabled(organizationId: string, channel: FeatureChannel): Promise<boolean> {

@@ -72,6 +72,8 @@ const MEDIA_UPLOAD_ENDPOINT: Record<Channel, string> = {
   // para WEBCHAT (attachmentsDisabled más abajo, roadmap P3-f es MVP solo
   // texto). Entrada presente solo para satisfacer Record<Channel, string>.
   WEBCHAT: "/api/webchat/media-not-supported",
+  // WhatsApp por QR guarda la copia local con el mismo helper genérico.
+  WHATSAPP_WEB: "/api/telegram/media",
 };
 
 interface ChatWorkspaceProps {
@@ -318,6 +320,7 @@ export function ChatWorkspace({
     { channel: "MESSENGER" as const, endpoint: "/api/messenger/chats" },
     { channel: "INSTAGRAM" as const, endpoint: "/api/instagram/chats" },
     { channel: "WEBCHAT" as const, endpoint: "/api/webchat/chats" },
+    { channel: "WHATSAPP_WEB" as const, endpoint: "/api/whatsapp-web/chats" },
   ], []);
 
   // Las cuentas vienen del servidor al cargar la página (getChatAccountOptions).
@@ -1125,7 +1128,7 @@ export function ChatWorkspace({
     const file = attachment;
     const filePreviewUrl = file ? attachmentPreview : null;
     const buttons = interactiveButtons;
-    const quotedMessage = selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM" ? replyTo : null;
+    const quotedMessage = selectedChat.channel === "WHATSAPP" || selectedChat.channel === "TELEGRAM" || selectedChat.channel === "WHATSAPP_WEB" ? replyTo : null;
 
     const optimisticMessage: Message = {
       id: tempId,
@@ -1576,8 +1579,8 @@ export function ChatWorkspace({
               onPreview={setPreviewMedia}
               onRetry={handleRetry}
               onReply={setReplyTo}
-              canQuote={selectedChat.channel === "TELEGRAM" || quoteEnabled}
-              canReact={selectedChat.channel === "TELEGRAM" || !displayNameBlocked}
+              canQuote={selectedChat.channel === "TELEGRAM" || selectedChat.channel === "WHATSAPP_WEB" || quoteEnabled}
+              canReact={selectedChat.channel === "TELEGRAM" || (selectedChat.channel !== "WHATSAPP_WEB" && !displayNameBlocked)}
               onReaction={(id, reaction) => setMessages((previous) => previous.map((message) => message.id === id ? { ...message, agentReactions: [reaction] } : message))}
               messagesContainerRef={messagesContainerRef}
               messagesEndRef={messagesEndRef}

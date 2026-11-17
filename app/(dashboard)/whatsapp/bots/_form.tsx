@@ -23,10 +23,10 @@ interface Props {
   preset?: BotPreset | null;
 }
 
-type BotChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+type BotChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 const CHANNEL_LABEL: Record<BotChannel, string> = {
   WHATSAPP: "WhatsApp", TELEGRAM: "Telegram", MESSENGER: "Messenger",
-  INSTAGRAM: "Instagram", WEBCHAT: "Chat web",
+  INSTAGRAM: "Instagram", WEBCHAT: "Chat web", WHATSAPP_WEB: "WhatsApp (QR)",
 };
 
 export function BotFormModal({ open, onClose, editId = null, onSaved, preset = null }: Props) {

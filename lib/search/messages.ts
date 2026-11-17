@@ -20,7 +20,7 @@ export interface MessageSearchHit {
   chatId: string;
   /** WAAccount o ChannelAccount del chat: arma la URL /whatsapp/chat/[accountId]/[chatId]. */
   accountId: string;
-  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
   direction: "INBOUND" | "OUTBOUND";
   snippet: string;
   timestamp: string;

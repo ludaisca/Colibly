@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { publicChannel, publicPhone } from "@/lib/api/public-channel";
 import type { DomainEvent } from "@/lib/events/types";
 import { toE164 } from "@/lib/phone/e164";
 import { MESSAGE_SERIALIZE_SELECT_CHANNEL, MESSAGE_SERIALIZE_SELECT_WA, resolveReplyIds, serializeMessage, type PublicMessage } from "@/lib/messages/serialize";
@@ -58,7 +59,7 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
   const [account, contact, conversation, message] = await Promise.all([
     isWhatsapp
       ? prisma.wAAccount.findUnique({ where: { id: event.account.id }, select: { id: true, name: true, phoneNumber: true } })
-      : prisma.channelAccount.findUnique({ where: { id: event.account.id }, select: { id: true, name: true } }),
+      : prisma.channelAccount.findUnique({ where: { id: event.account.id }, select: { id: true, name: true, externalAccountId: true } }),
     event.contactId
       ? prisma.contact.findUnique({
           where: { id: event.contactId },
@@ -81,7 +82,9 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
     event.type.startsWith("message.") ? loadPublicMessage(event) : null,
   ]);
 
-  const channel = event.account.kind === "whatsapp" ? "WHATSAPP" : event.account.channel;
+  // WhatsApp por QR sale como WhatsApp (lib/api/public-channel.ts).
+  const channel = event.account.kind === "whatsapp" ? "WHATSAPP" : publicChannel(event.account.channel);
+  const asWhatsapp = isWhatsapp || channel === "WHATSAPP";
 
   return {
     id: event.id,
@@ -92,8 +95,8 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
           id: account.id,
           channel,
           name: account.name,
-          phoneNumber: "phoneNumber" in account ? account.phoneNumber : null,
-          phoneE164: "phoneNumber" in account ? toE164(account.phoneNumber) : null,
+          phoneNumber: "phoneNumber" in account ? account.phoneNumber : asWhatsapp && account.externalAccountId ? `+${account.externalAccountId}` : null,
+          phoneE164: "phoneNumber" in account ? toE164(account.phoneNumber) : asWhatsapp && account.externalAccountId ? toE164(account.externalAccountId) : null,
         }
       : null,
     contact: contact
@@ -102,9 +105,9 @@ export async function buildPublicEvent(event: DomainEvent): Promise<PublicEvent>
           name: contact.realName ?? contact.name,
           realName: contact.realName,
           tags: contact.tags.map((t) => t.tag),
-          phone: isWhatsapp ? contact.remoteJid : null,
-          phoneE164: isWhatsapp ? toE164(contact.remoteJid) : null,
-          externalId: isWhatsapp ? null : contact.remoteJid,
+          phone: asWhatsapp ? publicPhone(contact.remoteJid) : null,
+          phoneE164: asWhatsapp ? toE164(publicPhone(contact.remoteJid)) : null,
+          externalId: asWhatsapp ? null : contact.remoteJid,
           leadStatus: contact.leadStatus,
           leadOrigin: contact.leadOrigin,
         }

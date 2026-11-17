@@ -17,6 +17,7 @@ export async function GET() {
         channelMessengerEnabled: true,
         channelInstagramEnabled: true,
         channelWebchatEnabled: true,
+        channelWhatsappWebEnabled: true,
       },
     });
     // Estado real: cuántas cuentas de cada canal tiene conectadas la organización.
@@ -30,12 +31,14 @@ export async function GET() {
       messenger: org.channelMessengerEnabled,
       instagram: org.channelInstagramEnabled,
       webchat: org.channelWebchatEnabled,
+      whatsappWeb: org.channelWhatsappWebEnabled,
       connected: {
         whatsapp,
         telegram: connected("TELEGRAM"),
         messenger: connected("MESSENGER"),
         instagram: connected("INSTAGRAM"),
         webchat: connected("WEBCHAT"),
+        whatsappWeb: org.channelWhatsappWebEnabled ? connected("WHATSAPP_WEB") : 0,
       },
     });
   } catch (error) {

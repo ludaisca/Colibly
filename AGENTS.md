@@ -96,6 +96,7 @@ Two parallel stacks (adapter layer, not a migration — the `WA*` tables hold pr
 - Media is stored on disk under `MEDIA_ROOT` (relative paths) and **always served through the authenticated proxy** (`/api/whatsapp/messages/[id]/media` etc.) — never expose Meta URLs. Client code imports `media-shared.ts`, never `media-store.ts`.
 - Channel scoping always via `getUserChannelAccountIds()`, never `channelAccount: { userId }`. Generic channels deliberately lack campaigns/templates, lead scoring and chat tags (guarded in the UI).
 - Web widget: we are the provider. The server assigns `visitorId`; the widget never renders its own message optimistically.
+- **WhatsApp por QR (`WHATSAPP_WEB`, GoWA, unofficial) is operator-only**: `Organization.channelWhatsappWebEnabled` is off by default and never set at signup; turning it off **stops** the channel (scope, sends, webhook), unlike the other flags. GoWA is never exposed (no ports, no browser calls) — `canales.md`.
 
 ## Events, API, webhooks, automations (detail: `integraciones.md`)
 

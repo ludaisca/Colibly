@@ -110,6 +110,13 @@ services:
       API_AUTH_CACHE_SECONDS: "${API_AUTH_CACHE_SECONDS:-}"
       WEBHOOK_WORKER_CONCURRENCY: "${WEBHOOK_WORKER_CONCURRENCY:-}"
       WEBHOOK_PER_ENDPOINT_CONCURRENCY: "${WEBHOOK_PER_ENDPOINT_CONCURRENCY:-}"
+      # WhatsApp no oficial vía GoWA (docs/arquitectura/canales.md → "WhatsApp por
+      # QR"): el contenedor gowa de abajo, solo en la red interna. La contraseña
+      # la genera Coolify (variable mágica SERVICE_PASSWORD_GOWA); sin ella el
+      # canal se muestra como no disponible.
+      GOWA_URL: "${GOWA_URL:-http://gowa:3000}"
+      GOWA_BASIC_AUTH: "colibly:${SERVICE_PASSWORD_GOWA:-}"
+      GOWA_WEBHOOK_BASE_URL: "${GOWA_WEBHOOK_BASE_URL:-http://app:5000}"
     healthcheck:
       # 127.0.0.1, no "localhost": dentro del contenedor localhost resuelve a
       # ::1 primero y next-server solo escucha en IPv4 — con localhost el
@@ -128,6 +135,33 @@ services:
       - media_data:/app/media
     restart: unless-stopped
 
+  # WhatsApp por QR (no oficial): un número por "device". Sin puertos: solo la
+  # app lo alcanza; su panel y su WebSocket no separan números entre sí. Sin
+  # contraseña GoWA se niega a arrancar (y se rinde tras 5 intentos).
+  gowa:
+    image: aldinokemal2104/go-whatsapp-web-multidevice:v9.9.0
+    expose:
+      - "3000"
+    environment:
+      APP_PORT: "3000"
+      APP_OS: "Colibly"
+      APP_BASIC_AUTH: "colibly:${SERVICE_PASSWORD_GOWA:-}"
+      APP_UI_ENABLED: "false"
+      APP_UI_AUTO_UPDATE: "false"
+      MCP_ENABLED: "false"
+      # Cada medio se descarga bajo demanda (cola media-download), no al llegar.
+      WHATSAPP_AUTO_DOWNLOAD_MEDIA: "false"
+      WHATSAPP_IGNORE_STATUS_MEDIA: "true"
+      # Grupos, estados y canales no entran a la bandeja.
+      WHATSAPP_WEBHOOK_IGNORE_JIDS: "@g.us,@newsletter,status@broadcast"
+    # Solo la sesión de WhatsApp se conserva (storages). statics (QR y copias de
+    # medios ya guardados en MEDIA_ROOT por la cola media-download) vive en el
+    # contenedor y se vacía en cada despliegue: GoWA no tiene limpieza propia.
+    volumes:
+      - gowa_storages:/app/storages
+    restart: on-failure:5
+
 volumes:
   pgdata_v2:
   media_data:
+  gowa_storages:

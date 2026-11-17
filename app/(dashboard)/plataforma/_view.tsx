@@ -77,6 +77,7 @@ export interface PlatformOrgRow {
   channels: number;
   channelFlags: { telegram: boolean; messenger: boolean; instagram: boolean; webchat: boolean };
   whatsappCoexistence: boolean;
+  whatsappWeb: boolean;
 }
 
 const n = (v: number) => v.toLocaleString("es-MX");
@@ -347,6 +348,27 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
               disabled={!!busy}
               onCheckedChange={(checked) =>
                 act({ action: "set_whatsapp_coexistence", enabled: checked }, `Coexistencia ${checked ? "habilitada" : "deshabilitada"}`)
+              }
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3 border-t border-border pt-4">
+          <div>
+            <p className="text-sm font-medium">WhatsApp por QR (no oficial)</p>
+            <p className="text-xs text-muted-darker">
+              Vincula un número escaneando un QR, sin la API de Meta. Solo para organizaciones que tú decidas: apagado por
+              defecto, no se anuncia y WhatsApp puede suspender el número. Apagarlo detiene sus cuentas (no envían ni reciben) sin borrarlas.
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">
+            <span className="text-sm">WhatsApp por QR</span>
+            <Switch
+              label="Habilitar WhatsApp por QR"
+              checked={org.whatsappWeb}
+              disabled={!!busy}
+              onCheckedChange={(checked) =>
+                act({ action: "set_whatsapp_web", enabled: checked }, `WhatsApp por QR ${checked ? "habilitado" : "deshabilitado"}`)
               }
             />
           </div>

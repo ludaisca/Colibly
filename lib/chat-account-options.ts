@@ -7,6 +7,7 @@ const CHANNEL_ORDER: Record<Exclude<Channel, "WHATSAPP">, number> = {
   MESSENGER: 1,
   INSTAGRAM: 2,
   WEBCHAT: 3,
+  WHATSAPP_WEB: 4,
 };
 
 // El primer cuadro del inbox ya conoce sus cuentas: el riel de escritorio y

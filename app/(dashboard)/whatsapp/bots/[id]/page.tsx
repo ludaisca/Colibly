@@ -39,7 +39,7 @@ interface BotDetail {
   createdAt: string;
   updatedAt: string;
   waAccount: { id: string; name: string; phoneNumber: string | null } | null;
-  channelAccount: { id: string; name: string; channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" } | null;
+  channelAccount: { id: string; name: string; channel: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB" } | null;
   _count: { conversations: number; knowledgeBots: number };
 }
 

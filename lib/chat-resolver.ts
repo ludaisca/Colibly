@@ -12,7 +12,7 @@ import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accoun
 // canal casi siempre vuelven a necesitarlos, y sin esto cada request ejecutaba
 // getUserAccountIds() dos veces (una aquí y otra en la ruta).
 export interface ResolvedChat {
-  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
   accountIds: string[];
 }
 

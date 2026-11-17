@@ -10,7 +10,7 @@ import { plural } from "@/lib/format/plural";
 
 // Canales como tabla de una línea por canal con su estado real: cuántas
 // cuentas tiene conectadas la organización, o si el canal está desactivado.
-type Key = "whatsapp" | "telegram" | "messenger" | "instagram" | "webchat";
+type Key = "whatsapp" | "telegram" | "messenger" | "instagram" | "webchat" | "whatsappWeb";
 type Flags = Record<Exclude<Key, "whatsapp">, boolean> & { connected?: Record<Key, number> };
 const CHANNELS: Array<{ key: Key; label: string; href: string }> = [
   { key: "whatsapp", label: "WhatsApp", href: "/whatsapp/cuentas" },
@@ -18,6 +18,7 @@ const CHANNELS: Array<{ key: Key; label: string; href: string }> = [
   { key: "messenger", label: "Messenger", href: "/messenger/cuentas" },
   { key: "instagram", label: "Instagram", href: "/instagram/cuentas" },
   { key: "webchat", label: "Chat web", href: "/webchat/cuentas" },
+  { key: "whatsappWeb", label: "WhatsApp (QR)", href: "/whatsapp-web/cuentas" },
 ];
 
 export function CanalesSection() {
@@ -41,7 +42,8 @@ export function CanalesSection() {
     <SettingsBlock title="Canales" description="Cada canal con su estado en tu cuenta.">
       {error && <Banner tone="danger">{error}</Banner>}
       <ul className="divide-y divide-border border-y border-border">
-        {CHANNELS.map(({ key, label, href }) => {
+        {/* WhatsApp por QR solo aparece donde el operador lo habilitó. */}
+        {CHANNELS.filter(({ key }) => key !== "whatsappWeb" || !!flags?.whatsappWeb).map(({ key, label, href }) => {
           const count = flags?.connected?.[key] ?? 0;
           return (
             <li key={key} className="flex h-11 items-center gap-3 text-sm">
@@ -62,7 +64,7 @@ export function CanalesSection() {
           );
         })}
       </ul>
-      {flags && CHANNELS.some(({ key }) => !enabled(key)) && (
+      {flags && CHANNELS.some(({ key }) => key !== "whatsappWeb" && !enabled(key)) && (
         <p className="text-sm text-muted">
           Para reactivar un canal desactivado, escribe a{" "}
           <a className="text-accent-ink underline" href={`mailto:${BRAND_CONTACT_EMAIL}?subject=Reactivar%20canal%20en%20Colibly`}>

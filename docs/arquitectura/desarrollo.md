@@ -7,7 +7,7 @@
 Everything runs in containers (`docker compose`; the dev server `ludaisca` runs rootful Docker, see CLAUDE.md → "Commands" — the `:z` on bind mounts is a harmless leftover from the old Podman/SELinux host). Never install dependencies or databases on the host.
 
 ```bash
-docker compose up --build   # dev server + postgres + redis, hot reload, port 1100
+docker compose up --build   # dev server + postgres + redis + gowa (WhatsApp por QR, sin puerto), hot reload, port 1100
 docker compose down -v      # full teardown including volumes
 npx tsc --noEmit            # type check
 # production build check: see CLAUDE.md → "Production build check" (builder stage; `npm run build` in the dev container fails)

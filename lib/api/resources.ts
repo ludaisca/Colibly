@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { isPublicWhatsapp, publicChannel, publicPhone } from "./public-channel";
 import { prisma } from "@/lib/prisma";
 import type { OutboundTarget } from "@/lib/messaging/outbound";
 import type { ApiContext } from "./auth";
@@ -43,7 +44,7 @@ export function contactScopeWhere(ctx: ApiContext): Prisma.ContactWhereInput {
 }
 
 export function serializeContact(c: ApiContactRow) {
-  const isWhatsapp = c.accountId !== null;
+  const isWhatsapp = isPublicWhatsapp({ waAccountId: c.accountId, channel: c.channelAccount?.channel });
   return {
     id: c.id,
     accountId: c.accountId ?? c.channelAccountId,
@@ -52,8 +53,8 @@ export function serializeContact(c: ApiContactRow) {
     realName: c.realName,
     // `phone` es el wa_id de Meta tal cual (puede traer el "1" móvil de México);
     // `phoneE164` es el número normalizado para cruzar con otros sistemas.
-    phone: isWhatsapp ? c.remoteJid : null,
-    phoneE164: isWhatsapp ? toE164(c.remoteJid) : null,
+    phone: isWhatsapp ? publicPhone(c.remoteJid) : null,
+    phoneE164: isWhatsapp ? toE164(publicPhone(c.remoteJid)) : null,
     externalId: isWhatsapp ? null : c.remoteJid,
     leadStatus: c.leadStatus,
     leadOrigin: c.leadOrigin,
@@ -122,7 +123,7 @@ export function serializeConversation(c: ConversationLike, accountId: string, ch
   return {
     id: c.id,
     accountId,
-    channel,
+    channel: publicChannel(channel),
     contactId: c.contactId,
     name: c.name,
     status: c.status,

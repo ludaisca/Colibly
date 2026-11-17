@@ -10,6 +10,8 @@ export interface ChannelFlags {
   messenger: boolean;
   instagram: boolean;
   webchat: boolean;
+  // WhatsApp por QR (no oficial): solo con la bandera del operador.
+  whatsappWeb: boolean;
 }
 
 const ChannelFlagsContext = createContext<ChannelFlags | null>(null);

@@ -126,7 +126,7 @@ export function buildChannelChatWhere(
   filters: ChatListFilters,
   channelAccountIds: string[],
   // Sin canal = todos los canales genéricos a la vez (contadores de la bandeja).
-  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT"
+  channel?: "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB"
 ): Prisma.ConversationWhereInput | null {
   if (filters.campaignId) return null;
 

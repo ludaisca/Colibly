@@ -72,7 +72,14 @@ export async function getBotControlState(ref: BotChatRef, now = new Date()): Pro
         select: { createdAt: true },
       })
     : await prisma.channelMessage.findFirst({
-        where: { conversationId: ref.conversationId, direction: "OUTBOUND", senderId: { not: null }, createdAt: { gt: since } },
+        // WhatsApp por QR: lo escrito desde el teléfono vinculado llega como
+        // sentVia "business_app" (lib/gowa/ingest.ts) y también es un humano.
+        where: {
+          conversationId: ref.conversationId,
+          direction: "OUTBOUND",
+          OR: [{ senderId: { not: null } }, { sentVia: "business_app" }],
+          createdAt: { gt: since },
+        },
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       });

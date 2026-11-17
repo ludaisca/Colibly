@@ -461,6 +461,10 @@ enum Channel {
   // visitante anónimo se identifica por un token de sesión propio (ver
   // lib/webchat/session-token.ts), no por credenciales de una plataforma.
   WEBCHAT
+  // WhatsApp NO oficial por QR vía GoWA (lib/gowa/). Solo organizaciones que
+  // habilita el operador (Organization.channelWhatsappWebEnabled, apagado por
+  // defecto) — docs/arquitectura/canales.md → "WhatsApp por QR".
+  WHATSAPP_WEB
 }
 
 model ChannelAccount {
@@ -2330,6 +2334,10 @@ model Organization {
   channelMessengerEnabled Boolean          @default(true) @map("channel_messenger_enabled")
   channelInstagramEnabled Boolean          @default(true) @map("channel_instagram_enabled")
   channelWebchatEnabled   Boolean          @default(true) @map("channel_webchat_enabled")
+  // WhatsApp por QR (GoWA, no oficial): APAGADO por defecto y nunca se enciende
+  // en el alta. Solo el operador lo cambia (/plataforma). A diferencia de los
+  // otros canales, apagarlo detiene también las cuentas ya conectadas.
+  channelWhatsappWebEnabled Boolean        @default(false) @map("channel_whatsapp_web_enabled")
   trialEndsAt          DateTime?          @map("trial_ends_at")
   currentPeriodEnd     DateTime?          @map("current_period_end")
   graceEndsAt          DateTime?          @map("grace_ends_at")

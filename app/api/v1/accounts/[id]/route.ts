@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { publicChannel } from "@/lib/api/public-channel";
 import { authenticateApiKey } from "@/lib/api/auth";
 import { ApiError, apiOk, methodNotAllowed, withApiErrors } from "@/lib/api/respond";
 import { toE164 } from "@/lib/phone/e164";
@@ -54,10 +55,11 @@ export const GET = withApiErrors(async (req: Request, { params }: Params) => {
   if (ctx.channelAccountIds.includes(id)) {
     const a = await prisma.channelAccount.findFirst({
       where: { id, organizationId: ctx.organizationId },
-      select: { id: true, name: true, channel: true, status: true, createdAt: true },
+      select: { id: true, name: true, channel: true, status: true, createdAt: true, externalAccountId: true },
     });
     if (a) {
-      return apiOk({ id: a.id, channel: a.channel, name: a.name, phoneNumber: null, phoneE164: null, status: a.status, wabaId: null, phoneNumberId: null, coexistence: false, health: null, createdAt: a.createdAt });
+      const phone = a.channel === "WHATSAPP_WEB" ? a.externalAccountId : null;
+      return apiOk({ id: a.id, channel: publicChannel(a.channel), name: a.name, phoneNumber: phone ? `+${phone}` : null, phoneE164: phone ? toE164(phone) : null, status: a.status, wabaId: null, phoneNumberId: null, coexistence: false, health: null, createdAt: a.createdAt });
     }
   }
   throw new ApiError(404, "not_found", "Cuenta no encontrada");

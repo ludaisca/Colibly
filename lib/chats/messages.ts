@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 // trae los últimos del chat abierto en la misma respuesta que la lista). El
 // caller ya resolvió el canal y el acceso con resolveChatChannel().
 
-export type ChatChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+export type ChatChannel = "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
 
 const MESSAGE_SELECT = {
   id: true,

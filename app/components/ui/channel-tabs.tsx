@@ -14,13 +14,16 @@ const TABS = [
   { href: "/messenger/cuentas", label: "Messenger", flag: "messenger" },
   { href: "/telegram/cuentas", label: "Telegram", flag: "telegram" },
   { href: "/webchat/cuentas", label: "Web", flag: "webchat" },
+  { href: "/whatsapp-web/cuentas", label: "WhatsApp (QR)", flag: "whatsappWeb" },
 ] as const;
 
 export function ChannelTabs() {
   const pathname = usePathname();
   const flags = useChannelFlags();
   if (!TABS.some((tab) => tab.href === pathname)) return null;
-  const tabs = TABS.filter((tab) => tab.flag === null || !flags || flags[tab.flag]);
+  // WhatsApp por QR nunca se muestra sin la bandera explícita (los demás, ante
+  // la duda, sí).
+  const tabs = TABS.filter((tab) => tab.flag === null || (tab.flag === "whatsappWeb" ? !!flags?.whatsappWeb : !flags || flags[tab.flag]));
   return (
     <nav aria-label="Canales" className="-mx-1 mb-4 flex gap-1 overflow-x-auto border-b border-border scrollbar-none">
       {tabs.map((tab) => {

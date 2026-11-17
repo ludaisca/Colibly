@@ -30,6 +30,7 @@ const CHANNELS: Record<Channel, { label: string }> = {
   MESSENGER: { label: "Messenger" },
   INSTAGRAM: { label: "Instagram" },
   WEBCHAT: { label: "Chat web" },
+  WHATSAPP_WEB: { label: "WhatsApp (QR)" },
 };
 
 interface Props {

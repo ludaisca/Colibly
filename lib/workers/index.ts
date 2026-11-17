@@ -53,6 +53,9 @@ export function startWorkers() {
       // servicio); la única bifurcación real de envío vive en
       // lib/channel-send.ts, no aquí.
       case "WEBCHAT":
+      // WhatsApp por QR: mismo perfil (sin ventana de servicio); el envío se
+      // bifurca en lib/channel-send.ts.
+      case "WHATSAPP_WEB":
         await processTelegramBotMessageJob(job.data, attemptInfo);
         break;
       case "MESSENGER":

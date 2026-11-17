@@ -10,6 +10,7 @@ const CHANNEL_NAME: Record<AvatarChannel, string> = {
   MESSENGER: "Messenger",
   TELEGRAM: "Telegram",
   WEBCHAT: "Chat web",
+  WHATSAPP_WEB: "WhatsApp (QR)",
 };
 
 // Avatar del contacto con la insignia del canal en la esquina: de un vistazo

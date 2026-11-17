@@ -25,7 +25,7 @@ export interface LeadCardData {
   isSample?: boolean;
   /** Cuenta (WhatsApp o canal) para la línea de color de la tarjeta. */
   lineAccountId?: string | null;
-  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT";
+  channel: "WHATSAPP" | "TELEGRAM" | "MESSENGER" | "INSTAGRAM" | "WEBCHAT" | "WHATSAPP_WEB";
   tags: { tag: { id: string; name: string; color: string } }[];
   bestScore: { score: number; label: string } | null;
   lastMessageAt: string | null;
@@ -50,6 +50,7 @@ const CHANNEL_LABEL: Record<LeadCardData["channel"], string> = {
   MESSENGER: "Messenger",
   INSTAGRAM: "Instagram",
   WEBCHAT: "Chat web",
+  WHATSAPP_WEB: "WhatsApp (QR)",
 };
 
 const SIGNAL_CLASS = {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { releaseOrgGowaDevices } from "@/lib/gowa/lifecycle";
 import { invalidateOrgBilling } from "@/lib/billing/gates";
 import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
 import { purgeDue } from "@/lib/billing/state";
@@ -58,6 +59,10 @@ export async function deleteOrganizationData(organizationId: string, opts: { onl
   }
 
   const accountIds = [...org.waAccounts.map((a) => a.id), ...org.channelAccounts.map((a) => a.id)];
+
+  // WhatsApp por QR: la sesión vive en GoWA, fuera de la cascada. Se cierra
+  // antes de borrar (best effort, nunca lanza).
+  await releaseOrgGowaDevices(organizationId);
 
   await prisma.$transaction(async (tx) => {
     // Conocimiento ligado a bots de esta organización y a ningún bot ajeno.

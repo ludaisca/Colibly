@@ -12,6 +12,7 @@ import { apiMediaToMetaId, looksLikeApiMediaId } from "@/lib/media/api-media";
 import { buildTemplateSend, TemplateParamsError, type TemplateSendInput } from "@/lib/whatsapp/template-send";
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
+import { sendGowaMessage, sendGowaMedia, sendGowaOptions } from "@/lib/gowa/send";
 import { sendMetaChannelOptions, sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { emitMessageSent } from "@/lib/events/message-sent";
 import type { OutboundOrigin } from "@/lib/messages/origin";
@@ -475,6 +476,10 @@ async function sendChannel(
       ({ externalMessageId: externalId } = options
         ? await sendTelegramOptions(channelAccount, { to: conversation.externalId, body: text, options })
         : await sendTelegramMessage(channelAccount, { to: conversation.externalId, body: text }));
+    } else if (channelAccount.channel === "WHATSAPP_WEB") {
+      ({ externalMessageId: externalId } = options
+        ? await sendGowaOptions(channelAccount, { to: conversation.externalId, body: text, options })
+        : await sendGowaMessage(channelAccount, { to: conversation.externalId, body: text }));
     } else if (channelAccount.channel === "MESSENGER" || channelAccount.channel === "INSTAGRAM") {
       // Conversación que nació de un comentario y aún no tiene respuesta: Meta
       // exige el endpoint de private reply (mismo criterio que
@@ -560,6 +565,9 @@ async function sendChannelMedia(
       const r = await sendTelegramMedia(channelAccount, { to: conversation.externalId, type: content.mediaType, buffer, filename, mimeType, caption: caption ?? undefined });
       externalId = r.externalMessageId;
       mediaId = r.fileId;
+    } else if (channelAccount.channel === "WHATSAPP_WEB") {
+      const r = await sendGowaMedia(channelAccount, { to: conversation.externalId, type: content.mediaType, buffer, filename, mimeType, caption: caption ?? undefined });
+      externalId = r.externalMessageId;
     } else {
       const r = await sendMetaChannelMedia(channelAccount, { to: conversation.externalId, buffer, filename, mimeType });
       externalId = r.externalMessageId;
