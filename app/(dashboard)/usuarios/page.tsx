@@ -2,7 +2,7 @@
 
 import { formatInZone } from "@/lib/format/dates";
 import { useState, useEffect, useCallback } from "react";
-import { BadgeCheck, Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X, KeyRound } from "lucide-react";
+import { BadgeCheck, Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X, KeyRound, LockKeyhole } from "lucide-react";
 import type { PlanId } from "@prisma/client";
 import { LICENSE_ORDER } from "@/lib/billing/licenses";
 import { PLANS } from "@/lib/billing/plans";
@@ -183,6 +183,28 @@ export default function UsersPage() {
     }
   }, [success, toastError]);
 
+  // Contraseña olvidada: el miembro recibe en su correo el enlace para poner
+  // una nueva (1 h). El admin nunca la ve ni la escribe.
+  const [confirmPasswordReset, setConfirmPasswordReset] = useState<UserData | null>(null);
+  const sendPasswordReset = useCallback(async (user: UserData) => {
+    setTogglingId(user.id);
+    try {
+      const res = await fetch("/api/usuarios", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, sendPasswordReset: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      success(`Enlace enviado a ${user.email}`);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setTogglingId(null);
+      setConfirmPasswordReset(null);
+    }
+  }, [success, toastError]);
+
   // Desactivar corta el acceso de inmediato (login rechazado y sesiones
   // vigentes invalidadas en ≤ 60 s) sin borrar sus datos ni su historial.
   const setDisabled = useCallback(async (user: UserData, disabled: boolean) => {
@@ -347,6 +369,13 @@ export default function UsersPage() {
                 </Button>
               </span>
             )}
+            {u.id !== session?.user?.id && !u.disabledAt && (
+              <span className="flex shrink-0 items-center justify-end border-t border-border pt-2 sm:border-0 sm:pt-0">
+                <Button variant="ghost" size="sm" icon={LockKeyhole} onClick={() => setConfirmPasswordReset(u)} disabled={togglingId === u.id} className="text-muted-darker">
+                  Contraseña
+                </Button>
+              </span>
+            )}
             {!u.isOwner && <span className="flex shrink-0 items-center justify-end gap-1 border-t border-border pt-2 sm:border-0 sm:pt-0">
               <Button
                 variant="ghost"
@@ -406,6 +435,17 @@ export default function UsersPage() {
         confirmLabel="Quitar"
         tone="warning"
         loading={!!confirmReset2fa && togglingId === confirmReset2fa.id}
+      />
+
+      <ConfirmDialog
+        open={!!confirmPasswordReset}
+        onClose={() => setConfirmPasswordReset(null)}
+        onConfirm={() => { if (confirmPasswordReset) return sendPasswordReset(confirmPasswordReset); }}
+        title={`Restablecer la contraseña de ${confirmPasswordReset?.name ?? confirmPasswordReset?.email ?? ""}`}
+        description={`Le llega a ${confirmPasswordReset?.email ?? ""} un enlace para poner una contraseña nueva. Vence en 1 hora. Su contraseña actual sigue funcionando hasta que la cambie.`}
+        confirmLabel="Enviar enlace"
+        tone="primary"
+        loading={!!confirmPasswordReset && togglingId === confirmPasswordReset.id}
       />
 
       <TeamsSection />

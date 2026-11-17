@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, Search, ShieldOff } from "lucide-react";
+import { Copy, LockKeyhole, RefreshCw, Search, ShieldOff } from "lucide-react";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { Card } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
@@ -17,6 +17,8 @@ import { canSendLabel, messagingLimitLabel, nameStatusLabel, qualityLabel } from
 
 // Soporte del operador: la misma lógica que las herramientas MCP
 // colibly_find_user / colibly_reset_two_factor / colibly_whatsapp_health.
+// Restablecer contraseña existe solo aquí (el enlace es una credencial: no
+// está en la API de tokens ni en el MCP).
 
 type UserRow = Omit<PlatformUserView, "createdAt" | "disabledAt" | "lastSeenAt" | "twoFactor"> & {
   createdAt: string;
@@ -54,6 +56,11 @@ export function PlataformaSoporte() {
   const [reason, setReason] = useState("");
   const [resetting, setResetting] = useState(false);
 
+  const [passwordTarget, setPasswordTarget] = useState<UserRow | null>(null);
+  const [passwordReason, setPasswordReason] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState<"email" | "link" | null>(null);
+  const [resetLink, setResetLink] = useState<{ url: string; expiresAt: string } | null>(null);
+
   const [orgId, setOrgId] = useState("");
   const [health, setHealth] = useState<HealthRow[] | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
@@ -90,6 +97,38 @@ export function PlataformaSoporte() {
       toastError(err instanceof Error ? err.message : "No se pudo quitar");
     } finally {
       setResetting(false);
+    }
+  }
+
+  function closePassword() {
+    if (passwordBusy) return;
+    setPasswordTarget(null);
+    setPasswordReason("");
+    setResetLink(null);
+  }
+
+  async function resetPassword(mode: "email" | "link") {
+    if (!passwordTarget) return;
+    setPasswordBusy(mode);
+    try {
+      const data = await readOps<{ url: string | null; expiresAt: string | null }>(
+        await fetch(`/api/plataforma/soporte/usuarios/${passwordTarget.id}/contrasena`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: passwordReason, mode }),
+        })
+      );
+      if (mode === "link" && data.url && data.expiresAt) {
+        setResetLink({ url: data.url, expiresAt: data.expiresAt });
+      } else {
+        success(`Enlace enviado a ${passwordTarget.email}`);
+        setPasswordTarget(null);
+        setPasswordReason("");
+      }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo restablecer");
+    } finally {
+      setPasswordBusy(null);
     }
   }
 
@@ -141,8 +180,15 @@ export function PlataformaSoporte() {
                   </div>
                   <p className="text-xs text-muted">Alta {date(user.createdAt)} · última conexión {date(user.lastSeenAt)}</p>
                 </div>
-                {user.twoFactor.enabled && !user.isPlatformAdmin && (
-                  <Button variant="secondary" size="sm" icon={ShieldOff} onClick={() => setResetTarget(user)}>Quitar 2FA</Button>
+                {!user.isPlatformAdmin && (
+                  <div className="flex flex-wrap gap-2">
+                    {!user.disabledAt && (
+                      <Button variant="secondary" size="sm" icon={LockKeyhole} onClick={() => setPasswordTarget(user)}>Contraseña</Button>
+                    )}
+                    {user.twoFactor.enabled && (
+                      <Button variant="secondary" size="sm" icon={ShieldOff} onClick={() => setResetTarget(user)}>Quitar 2FA</Button>
+                    )}
+                  </div>
                 )}
               </div>
             </Card>
@@ -214,6 +260,56 @@ export function PlataformaSoporte() {
             <Input id={id} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Perdió el teléfono; verificado por llamada con el dueño" />
           )}</FormField>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!passwordTarget}
+        onClose={closePassword}
+        persistent={!!resetLink}
+        title="Restablecer contraseña"
+        description={passwordTarget ? `Para ${passwordTarget.email}. Su contraseña actual sigue funcionando hasta que ponga una nueva; al ponerla se cierran todas sus sesiones.` : undefined}
+        footer={
+          resetLink ? (
+            <Button onClick={closePassword}>Listo</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={!!passwordBusy} onClick={closePassword}>Cancelar</Button>
+              <Button variant="secondary" loading={passwordBusy === "link"} disabled={passwordReason.trim().length < 5 || !!passwordBusy} onClick={() => void resetPassword("link")}>Generar enlace</Button>
+              <Button loading={passwordBusy === "email"} disabled={passwordReason.trim().length < 5 || !!passwordBusy} onClick={() => void resetPassword("email")}>Enviar por correo</Button>
+            </>
+          )
+        }
+      >
+        {resetLink ? (
+          <div className="space-y-3">
+            <Banner tone="info">Este enlace no se vuelve a mostrar. Sirve una sola vez y vence el {date(resetLink.expiresAt)}. Compártelo solo con la persona, por un medio privado.</Banner>
+            <p className="select-all break-all rounded-sm bg-surface-light p-2 font-mono text-xs text-foreground">{resetLink.url}</p>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={Copy}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(resetLink.url);
+                  success("Enlace copiado");
+                } catch {
+                  toastError("No se pudo copiar");
+                }
+              }}
+            >
+              Copiar enlace
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-darker">
+              «Enviar por correo» le manda el mismo enlace que «¿Olvidaste tu contraseña?». Si el correo no le llega, «Generar enlace» te lo muestra a ti para que se lo pases.
+            </p>
+            <FormField label="Motivo" hint="Queda en la auditoría con tu correo.">{(id) => (
+              <Input id={id} value={passwordReason} onChange={(e) => setPasswordReason(e.target.value)} placeholder="No recuerda su contraseña; verificado por llamada" />
+            )}</FormField>
+          </div>
+        )}
       </Modal>
     </PageContainer>
   );

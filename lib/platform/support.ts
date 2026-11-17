@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { invalidateUserSessionCache } from "@/lib/auth";
 import { decrypt } from "@/lib/crypto";
 import { disableTwoFactor } from "@/lib/two-factor";
+import { issueAuthToken } from "@/lib/auth-tokens";
+import { sendPasswordResetEmail } from "@/lib/auth-emails";
+import { appUrl } from "@/lib/app-url";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import { effectiveAvailability } from "@/lib/users/availability-rules";
 import { httpTimeout } from "@/lib/http-timeouts";
@@ -108,6 +111,49 @@ export async function resetUserTwoFactor(input: { userId: string; reason: string
   });
   const updated = await findUserRow({ id: user.id });
   return { ok: true, data: presentUser(updated!) };
+}
+
+/**
+ * Restablecer la contraseña de alguien que no puede entrar. Dos formas:
+ * - "email": le manda el mismo enlace que "¿Olvidaste tu contraseña?".
+ * - "link": devuelve el enlace al operador (una vez, vence en 1 h) para
+ *   cuando el correo no le llega o es una cuenta de prueba. Abrirlo deja poner
+ *   una contraseña nueva y cierra todas las sesiones de esa persona.
+ * El enlace es una credencial: solo lo pide la sesión de /plataforma, nunca la
+ * API de tokens ni el MCP. Nunca sobre un operador (usa /recuperar).
+ */
+export async function issueUserPasswordReset(input: {
+  userId: string;
+  reason: string;
+  mode: "email" | "link";
+  actor: PlatformActor;
+}): Promise<OpsResult<{ user: PlatformUserView; url: string | null; expiresAt: Date | null }>> {
+  const reason = input.reason.trim();
+  if (reason.length < 5) return fail(400, "invalid_request", "Escribe el motivo (mínimo 5 caracteres): queda en la auditoría");
+  const user = await findUserRow({ id: input.userId });
+  if (!user) return fail(404, "not_found", "Usuario no encontrado");
+  if (isPlatformAdminEmail(user.email)) {
+    return fail(403, "forbidden", "La contraseña de un operador de la plataforma no se restablece por aquí: usa ¿Olvidaste tu contraseña?");
+  }
+  if (user.disabledAt) return fail(400, "invalid_request", "El usuario está desactivado: que un admin de su organización lo reactive primero");
+
+  let url: string | null = null;
+  let expiresAt: Date | null = null;
+  if (input.mode === "email") {
+    await sendPasswordResetEmail({ id: user.id, email: user.email, name: user.name });
+  } else {
+    const { token, record } = await issueAuthToken({ type: "PASSWORD_RESET", email: user.email, userId: user.id });
+    url = appUrl(`/restablecer?token=${token}`);
+    expiresAt = record.expiresAt;
+  }
+  await logPlatformAction({
+    actor: { type: input.actor.type, email: input.actor.email, tokenId: input.actor.tokenId },
+    action: input.mode === "email" ? "user.password_reset_email" : "user.password_reset_link",
+    target: { type: "user", id: user.id },
+    before: { organizationId: user.organization.id },
+    after: { mode: input.mode, reason },
+  });
+  return { ok: true, data: { user: presentUser(user), url, expiresAt } };
 }
 
 // ── Salud de WhatsApp ────────────────────────────────────────────────────────

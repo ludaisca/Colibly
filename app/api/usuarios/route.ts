@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { sendPasswordResetEmail } from "@/lib/auth-emails";
 import { disableTwoFactor } from "@/lib/two-factor";
 import { pauseWebhooksOfUser } from "@/lib/webhooks/ownership";
 import { invalidateApiKeysOfUser } from "@/lib/api/auth-cache";
@@ -79,23 +80,46 @@ export async function PATCH(req: Request) {
       // Recuperación de la verificación en dos pasos de OTRO miembro que
       // perdió su teléfono y sus códigos de respaldo (lib/two-factor.ts).
       resetTwoFactor: z.literal(true).optional(),
-    }).refine((d) => d.role !== undefined || d.disabled !== undefined || d.resetTwoFactor, {
-      message: "Indica role, disabled o resetTwoFactor",
+      // Manda al correo del miembro el enlace para que él mismo ponga una
+      // contraseña nueva (el admin nunca la ve ni la escribe).
+      sendPasswordReset: z.literal(true).optional(),
+    }).refine((d) => d.role !== undefined || d.disabled !== undefined || d.resetTwoFactor || d.sendPasswordReset, {
+      message: "Indica role, disabled, resetTwoFactor o sendPasswordReset",
     }).safeParse(body);
 
     if (!validated.success) {
       return NextResponse.json({ error: validated.error.issues[0].message }, { status: 400 });
     }
 
-    const { userId, role, disabled, resetTwoFactor } = validated.data;
+    const { userId, role, disabled, resetTwoFactor, sendPasswordReset } = validated.data;
 
     const orgId = await requireOrgId(session.user.id);
     const target = await prisma.user.findFirst({
       where: { id: userId, organizationId: orgId },
-      select: { id: true, role: true, disabledAt: true, license: true, ownedOrganization: { select: { id: true } } },
+      select: { id: true, name: true, email: true, role: true, disabledAt: true, license: true, ownedOrganization: { select: { id: true } } },
     });
     if (!target) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    if (sendPasswordReset) {
+      if (role !== undefined || disabled !== undefined || resetTwoFactor) {
+        return NextResponse.json({ error: "Envía el enlace de contraseña en una solicitud aparte" }, { status: 400 });
+      }
+      if (target.id === session.user.id) {
+        return NextResponse.json({ error: "Para cambiar tu propia contraseña usa Configuración → Mi cuenta" }, { status: 400 });
+      }
+      if (target.disabledAt) {
+        return NextResponse.json({ error: "Reactiva a la persona antes de mandarle el enlace" }, { status: 400 });
+      }
+      // Evita llenarle la bandeja: 3 enlaces por persona por hora.
+      if (!(await rateLimit(`admin-password-reset:${target.id}`, 3, 3600)).allowed) {
+        return NextResponse.json({ error: "Ya se le mandaron varios enlaces; espera una hora" }, { status: 429 });
+      }
+      const recipient = { id: target.id, email: target.email, name: target.name };
+      after(() => sendPasswordResetEmail(recipient));
+      console.log(`[usuarios] ${session.user.id} mandó enlace de contraseña a ${target.id}`);
+      return NextResponse.json({ id: target.id, passwordResetSent: true });
     }
 
     // Invariante de cada organización: su dueño nunca pierde acceso total, y
