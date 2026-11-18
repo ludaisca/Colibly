@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, CalendarPlus, Search, ShieldOff, ShieldCheck } from "lucide-react";
+import { Building2, CalendarPlus, Search, ShieldOff, ShieldCheck, Trash2 } from "lucide-react";
 import type { OrganizationStatus, PlanId } from "@prisma/client";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { KpiStrip } from "@/app/components/ui/kpi-strip";
@@ -229,7 +229,17 @@ export function PlatformView({
             {totalPages > 1 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={(p) => go({ pagina: p })} />}
           </div>
 
-          {selected && <OrgModal org={selected} onClose={() => setSelectedId(null)} onChanged={() => router.refresh()} />}
+          {selected && (
+            <OrgModal
+              org={selected}
+              onClose={() => setSelectedId(null)}
+              onChanged={() => router.refresh()}
+              onDeleted={() => {
+                setSelectedId(null);
+                router.refresh();
+              }}
+            />
+          )}
         </PageContainer>
       )}
       </Tabs>
@@ -237,8 +247,9 @@ export function PlatformView({
   );
 }
 
-function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: () => void; onChanged: () => void }) {
+function OrgModal({ org, onClose, onChanged, onDeleted }: { org: PlatformOrgRow; onClose: () => void; onChanged: () => void; onDeleted: () => void }) {
   const { success } = useToast();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [days, setDays] = useState("7");
   const [credits, setCredits] = useState("200");
   const [busy, setBusy] = useState<string | null>(null);
@@ -423,9 +434,20 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
                 </Button>
               )}
             </div>
+
+            <div className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted">
+                Eliminar borra para siempre la organización, sus usuarios, cuentas, chats y contactos. Para cuentas de prueba o
+                abandonadas; con una suscripción de pago vigente no se puede.
+              </p>
+              <Button variant="danger" icon={Trash2} disabled={!!busy} onClick={() => setDeleteOpen(true)} className="shrink-0">
+                Eliminar
+              </Button>
+            </div>
           </div>
         )}
       </div>
+      {deleteOpen && <DeleteOrgModal org={org} onClose={() => setDeleteOpen(false)} onDeleted={onDeleted} />}
       <ConfirmDialog
         open={confirmSuspend}
         onClose={() => setConfirmSuspend(false)}
@@ -436,6 +458,66 @@ function OrgModal({ org, onClose, onChanged }: { org: PlatformOrgRow; onClose: (
         tone="danger"
         loading={busy === "suspend"}
       />
+    </Modal>
+  );
+}
+
+// Borrado definitivo desde /plataforma: nombre exacto + motivo (queda en la
+// auditoría con tu correo). El servidor repite todas las comprobaciones.
+function DeleteOrgModal({ org, onClose, onDeleted }: { org: PlatformOrgRow; onClose: () => void; onDeleted: () => void }) {
+  const { success } = useToast();
+  const [confirmName, setConfirmName] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const nameOk = confirmName.trim().toLocaleLowerCase("es") === org.name.trim().toLocaleLowerCase("es");
+  const canDelete = nameOk && reason.trim().length >= 5 && !busy;
+
+  async function remove() {
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/plataforma/organizaciones/${org.id}/eliminar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmName, reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error?.message || "No se pudo eliminar la organización");
+      success(`“${org.name}” eliminada`);
+      onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar la organización");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+      title={`Eliminar “${org.name}”`}
+      description={`Se borran ${plural(org.members, "usuario")}, ${plural(org.channels, "cuenta")} de canal y todos sus chats, contactos, bots y archivos. No se puede deshacer.`}
+      footer={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>Cancelar</Button>
+          <Button variant="danger" icon={Trash2} loading={busy} disabled={!canDelete} onClick={() => void remove()}>
+            Eliminar para siempre
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        {error && <Banner tone="danger">{error}</Banner>}
+        <FormField label={`Escribe “${org.name}” para confirmar`}>
+          {(id) => <Input id={id} value={confirmName} onChange={(e) => setConfirmName(e.target.value)} autoComplete="off" />}
+        </FormField>
+        <FormField label="Motivo" hint="Queda en la auditoría con tu correo.">
+          {(id) => <Input id={id} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Cuenta de prueba sin uso" />}
+        </FormField>
+      </div>
     </Modal>
   );
 }

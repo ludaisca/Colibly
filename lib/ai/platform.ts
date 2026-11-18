@@ -1,5 +1,5 @@
 import type { AIProvider } from "./types";
-import { AI_MODELS, DEFAULT_AI_MODEL, isCuratedModel, type AiModelOption } from "@/lib/billing/plans";
+import { AI_MODELS, DEFAULT_AI_MODEL, isCuratedModel } from "@/lib/billing/plans";
 import { getPlatformSettings } from "@/lib/platform-settings";
 
 // La IA la provee la plataforma: una key por proveedor y el modelo elegido,
@@ -27,11 +27,6 @@ export async function enabledProviders(): Promise<AIProvider[]> {
   const providers = ["opencode", "google"] as const;
   const keys = await Promise.all(providers.map((p) => getPlatformApiKey(p)));
   return providers.filter((_, i) => !!keys[i]);
-}
-
-export async function availableModels(): Promise<AiModelOption[]> {
-  const enabled = new Set(await enabledProviders());
-  return AI_MODELS.filter((m) => enabled.has(m.provider));
 }
 
 // Un modelo guardado que ya no está en la lista (bots viejos, un modelo que se

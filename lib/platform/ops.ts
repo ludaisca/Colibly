@@ -14,6 +14,9 @@ import { getPlatformDiagnostics } from "./diagnostics";
 import { reconcileCatalog, type ReconcileResult } from "./catalog";
 import { rotateStripeWebhook, testStripeWebhook } from "./webhook-rotate";
 import { logPlatformAction } from "./audit";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
+import { deleteOrganizationData } from "@/lib/org-data/delete";
+import { orgContactsWhere } from "@/lib/contacts/org-where";
 
 // Operaciones compartidas por el API v1 y el MCP. Devuelven resultados, no
 // NextResponse, para que cada superficie decida cómo responder.
@@ -148,6 +151,7 @@ export async function grantOrgCredits(id: string, credits: number, actor: Platfo
     data: { aiCreditsBonus: { increment: credits }, aiCreditsAlertLevel: 0 },
     select: { aiCreditsBonus: true },
   });
+  invalidateOrgBilling(id);
   await logPlatformAction({
     actor: { type: actor.type, email: actor.email, tokenId: actor.tokenId },
     action: "org.grant_credits",
@@ -243,6 +247,39 @@ export async function setOrgInternal(id: string, internal: boolean, actor: Platf
     after: { isInternal: internal },
   });
   return { ok: true, data: { isInternal: internal } };
+}
+
+/** Interruptores por organización (canales, coexistencia, WhatsApp por QR). Solo el panel. */
+export interface OrgChannelSwitches {
+  channelTelegramEnabled?: boolean;
+  channelMessengerEnabled?: boolean;
+  channelInstagramEnabled?: boolean;
+  channelWebchatEnabled?: boolean;
+  whatsappCoexistenceEnabled?: boolean;
+  channelWhatsappWebEnabled?: boolean;
+}
+
+export async function setOrgChannelSwitches(id: string, data: OrgChannelSwitches, actor: PlatformActor): Promise<OpsResult<unknown>> {
+  const keys = Object.keys(data) as (keyof OrgChannelSwitches)[];
+  const select = Object.fromEntries(keys.map((k) => [k, true])) as Record<keyof OrgChannelSwitches, true>;
+  const org = await prisma.organization.findUnique({ where: { id }, select: { id: true, ...select } });
+  if (!org) return fail(404, "not_found", "Organización no encontrada");
+  const before = Object.fromEntries(keys.map((k) => [k, (org as Record<string, unknown>)[k]]));
+  if (keys.every((k) => before[k] === data[k])) return { ok: true, data };
+
+  await prisma.organization.update({ where: { id }, data });
+  // Apagar WhatsApp por QR detiene el canal: sus cuentas salen del alcance de
+  // todos (getUserChannelAccountIds), por eso se invalida el caché de alcances.
+  if ("channelWhatsappWebEnabled" in data) invalidateAccountScopes();
+  invalidateOrgBilling(id);
+  await logPlatformAction({
+    actor: { type: actor.type, email: actor.email, tokenId: actor.tokenId },
+    action: "org.set_channels",
+    target: { type: "organization", id },
+    before,
+    after: data,
+  });
+  return { ok: true, data };
 }
 
 export async function getBillingState(): Promise<OpsResult<unknown>> {
@@ -395,4 +432,70 @@ export async function setPlatformSecret(input: {
     after: { [input.field]: "[set]" },
   });
   return { ok: true, data: { field: input.field, hasValue: true } };
+}
+
+/**
+ * Borrado definitivo de una organización desde /plataforma (cuentas de prueba,
+ * de juguete o abandonadas). Mismo borrado que usa el dueño y la purga:
+ * deleteOrganizationData(). Solo por sesión de operador (no está en la API de
+ * tokens ni en el MCP: ninguna herramienta borra organizaciones). Exige
+ * escribir el nombre exacto y un motivo; se niega con una suscripción de pago
+ * vigente, con una interna y con la organización del propio operador.
+ */
+export async function deleteOrgByOperator(
+  id: string,
+  input: { confirmName: string; reason: string },
+  actor: PlatformActor
+): Promise<OpsResult<{ users: number; accounts: number }>> {
+  const reason = input.reason.trim();
+  if (reason.length < 5) return fail(400, "invalid_request", "Escribe el motivo (mínimo 5 caracteres)");
+  const org = await prisma.organization.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      plan: true,
+      isInternal: true,
+      stripeSubscriptionId: true,
+      createdAt: true,
+      owner: { select: { email: true } },
+      members: { select: { id: true, email: true } },
+      _count: { select: { waAccounts: true, channelAccounts: true } },
+    },
+  });
+  if (!org) return fail(404, "not_found", "Organización no encontrada");
+  if (org.isInternal) return fail(400, "invalid_request", "Una organización interna no se puede eliminar; quítale la marca de interna primero");
+  if (org.members.some((m) => m.email.toLowerCase() === actor.email.toLowerCase())) {
+    return fail(400, "invalid_request", "No puedes eliminar tu propia organización desde aquí");
+  }
+  if (org.stripeSubscriptionId && (org.status === "ACTIVE" || org.status === "PAST_DUE")) {
+    return fail(400, "invalid_request", "Tiene una suscripción de pago vigente: cancélala en Stripe antes de eliminarla");
+  }
+  if (input.confirmName.trim().toLocaleLowerCase("es") !== org.name.trim().toLocaleLowerCase("es")) {
+    return fail(400, "invalid_request", "El nombre no coincide con el de la organización");
+  }
+
+  const contacts = await prisma.contact.count({ where: orgContactsWhere(id) });
+  const result = await deleteOrganizationData(id);
+  for (const member of org.members) invalidateUserSessionCache(member.id);
+
+  // El registro queda aunque la organización ya no exista: es la única huella.
+  await logPlatformAction({
+    actor: { type: actor.type, email: actor.email, tokenId: actor.tokenId },
+    action: "org.delete",
+    target: { type: "organization", id },
+    before: {
+      name: org.name,
+      status: org.status,
+      plan: org.plan,
+      createdAt: org.createdAt.toISOString(),
+      ownerEmail: org.owner?.email ?? null,
+      users: org.members.length,
+      accounts: org._count.waAccounts + org._count.channelAccounts,
+      contacts,
+    },
+    after: { deleted: true, reason },
+  });
+  return { ok: true, data: { users: result?.users ?? org.members.length, accounts: result?.accounts ?? 0 } };
 }

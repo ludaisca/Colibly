@@ -559,8 +559,6 @@ export async function listFlows(account: AdminAccount): Promise<FlowInfo[]> {
 // Meta valida el JSON al subirlo: los errores vuelven en validationErrors y el
 // Flow queda en DRAFT hasta que se publica sin errores.
 
-export const FLOW_CATEGORIES = ["SIGN_UP", "SIGN_IN", "APPOINTMENT_BOOKING", "LEAD_GENERATION", "CONTACT_US", "CUSTOMER_SUPPORT", "SURVEY", "OTHER"] as const;
-
 export interface FlowValidationError {
   error: string | null;
   message: string | null;

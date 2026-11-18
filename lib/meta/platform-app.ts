@@ -22,13 +22,6 @@ export async function getMetaPlatformApp(): Promise<MetaPlatformApp> {
   };
 }
 
-// Lista para conectar clientes con Embedded Signup: sin App ID, App Secret y
-// configuración el botón no puede funcionar.
-export async function isMetaPlatformConfigured(): Promise<boolean> {
-  const app = await getMetaPlatformApp();
-  return !!(app.appId && app.appSecret && app.embeddedSignupConfigId);
-}
-
 // Compara dos cadenas en tiempo constante sin filtrar su longitud (se comparan
 // los sha256, que siempre miden lo mismo).
 export function safeEqualStrings(a: string, b: string): boolean {

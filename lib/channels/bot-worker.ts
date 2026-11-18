@@ -2,7 +2,7 @@ import { markdownToWhatsApp } from "@/lib/whatsapp/markdown-to-whatsapp";
 import { promises as fs } from "fs";
 import { emitMessageSent } from "@/lib/events/message-sent";
 import { prisma } from "@/lib/prisma";
-import { sendMetaChannelText } from "@/lib/meta-messaging/send";
+import { sendChannelReplyText } from "@/lib/channel-send";
 import { getAIProvider } from "@/lib/ai/factory";
 import { searchKnowledge } from "@/lib/ai/rag";
 import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
@@ -19,21 +19,24 @@ import { botSendQueue } from "@/lib/queue";
 import type { AIMessage, ContentPart } from "@/lib/ai/types";
 import { BillingBlockedError, isBotWritable } from "@/lib/billing/gates";
 
-// Compartido entre Messenger e Instagram (a diferencia de lib/telegram/
-// bot-worker.ts, que es hermano deliberado de lib/workers/bot-worker.ts para
-// no arriesgar el pipeline de WhatsApp ya estable en producción — ese riesgo
-// no aplica aquí: Messenger e Instagram son código nuevo construido a la vez,
-// y ambos hablan con la misma API (mismo Page Access Token, modelo
-// Página-vinculada) así que no hay nada que bifurcar entre los dos más allá
-// de qué ChannelAccount.channel trae el bot — send funciona igual para
-// cualquiera de los dos). Algoritmo idéntico al de Telegram: prompt +
-// guardrail, RAG, memoria, buildUserContent multimodal, texto de salida.
+// Bot de IA de los canales genéricos (Telegram, Messenger, Instagram, chat
+// web y WhatsApp por QR): un solo worker, porque solo el envío cambia por
+// canal y vive en lib/channel-send.ts:sendChannelReplyText(). Hasta
+// 2026-11-17 Messenger/Instagram tenían una copia casi idéntica
+// (lib/meta-messaging/bot-worker.ts) que solo cambiaba esa llamada.
 //
-// Fuera de alcance por ahora (igual que Telegram): contexto de "última
-// campaña" y envío de media de salida desde el bot — solo responde texto.
-// humanizeEnabled funciona igual, vía botSendQueue con channel en el payload.
+// Hermano de lib/workers/bot-worker.ts (WhatsApp Cloud API), no una
+// bifurcación dentro de él: ese archivo está acoplado a WAAccount/WAChat/
+// WAMessage en ~10 puntos (historial, envío, persistencia, notificaciones).
+// El algoritmo (prompt, guardrail, RAG, presupuesto, llamada a IA, media
+// multimodal vía buildUserContent) es el mismo a propósito.
+//
+// Fuera de alcance por ahora: contexto de "última campaña" (los canales
+// genéricos no tienen campañas) y envío de media de salida (el bot responde
+// solo texto). humanizeEnabled sí funciona: reusa botSendQueue igual que
+// WhatsApp, con el discriminador `channel` en el payload del job.
 
-interface MetaChannelBotMessageJob {
+interface ChannelBotMessageJob {
   botId: string;
   conversationId: string;
   incomingMessage: string;
@@ -51,8 +54,8 @@ interface AttemptInfo {
   maxAttempts: number;
 }
 
-export async function processMetaChannelBotMessageJob(
-  job: MetaChannelBotMessageJob,
+export async function processChannelBotMessageJob(
+  job: ChannelBotMessageJob,
   attemptInfo: AttemptInfo = { attemptsMade: 0, maxAttempts: 1 }
 ) {
   // Cuenta en solo lectura (prueba vencida, impago): el bot no responde ni
@@ -62,10 +65,10 @@ export async function processMetaChannelBotMessageJob(
     return;
   }
   try {
-    await handleMetaChannelBotMessage(job);
+    await handleChannelBotMessage(job);
   } catch (err) {
     if (err instanceof BillingBlockedError) return;
-    console.error("[meta-messaging bot-worker] Error processing job:", err instanceof Error ? err.message : err);
+    console.error("[channel bot-worker] Error processing job:", err instanceof Error ? err.message : err);
     const isLastAttempt = attemptInfo.attemptsMade + 1 >= attemptInfo.maxAttempts;
     if (!isLastAttempt) {
       throw err;
@@ -102,7 +105,7 @@ async function sendFallbackReply(botId: string, conversationId: string) {
     if (!bot?.channelAccount || !conversation) return;
 
     const now = new Date();
-    await sendMetaChannelText(bot.channelAccount, { to: conversation.externalId, body: FALLBACK_REPLY });
+    await sendChannelReplyText(bot.channelAccount, conversation.externalId, FALLBACK_REPLY);
 
     const [botMessage] = await Promise.all([
       prisma.channelMessage.create({
@@ -123,11 +126,11 @@ async function sendFallbackReply(botId: string, conversationId: string) {
     ]);
     await emitMessageSent("channel", botMessage.id, "bot");
   } catch (err) {
-    console.error("[meta-messaging bot-worker] No se pudo enviar el mensaje de respaldo:", err instanceof Error ? err.message : err);
+    console.error("[channel bot-worker] No se pudo enviar el mensaje de respaldo:", err instanceof Error ? err.message : err);
   }
 }
 
-async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
+async function handleChannelBotMessage(job: ChannelBotMessageJob) {
   const { botId, conversationId, incomingMessage } = job;
 
   const bot = await prisma.wABot.findUnique({
@@ -139,7 +142,7 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
 
   const skipReason = await getBotSkipReason({ conversationId }, job.messageId);
   if (skipReason) {
-    console.log(`[meta-messaging bot-worker] El bot "${bot.name}" no responde: ${skipReason}`);
+    console.log(`[channel bot-worker] El bot "${bot.name}" no responde: ${skipReason}`);
     return;
   }
 
@@ -246,7 +249,7 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
   // El gasto de IA se registra en cuanto ocurre: si el envío de abajo falla y
   // BullMQ reintenta, esa llamada ya se hizo y debe contar en el presupuesto.
   await recordBotUsage({ botId, userId: bot.userId, model, provider, usage: result.usage, conversationId }).catch((err) =>
-    console.error("[meta-messaging bot-worker] No se pudo registrar el uso de IA:", err instanceof Error ? err.message : err)
+    console.error("[channel bot-worker] No se pudo registrar el uso de IA:", err instanceof Error ? err.message : err)
   );
 
   const conversation = await prisma.conversation.findUnique({
@@ -258,7 +261,7 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
   // Markdown del modelo (**negrita**, ## títulos) → formato de chat, sin asteriscos crudos.
   const replyText = markdownToWhatsApp(result.content.trim());
   if (!replyText) {
-    console.warn(`[meta-messaging bot-worker] El modelo devolvió una respuesta vacía — no se envía nada (conversación ${conversationId})`);
+    console.warn(`[channel bot-worker] El modelo devolvió una respuesta vacía — no se envía nada (conversación ${conversationId})`);
     return;
   }
 
@@ -291,7 +294,7 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
         delivered = true;
       }
     } else {
-      await sendMetaChannelText(bot.channelAccount, { to: conversation.externalId, body: replyText });
+      await sendChannelReplyText(bot.channelAccount, conversation.externalId, replyText);
       delivered = true;
 
       const [botMessage] = await Promise.all([
@@ -335,16 +338,16 @@ async function handleMetaChannelBotMessage(job: MetaChannelBotMessageJob) {
   } catch (err) {
     if (!delivered) throw err;
     console.error(
-      "[meta-messaging bot-worker] La respuesta ya se entregó; falló un paso posterior (no se reintenta para no duplicarla):",
+      "[channel bot-worker] La respuesta ya se entregó; falló un paso posterior (no se reintenta para no duplicarla):",
       err instanceof Error ? err.message : err
     );
   }
 }
 
-// Port de lib/telegram/bot-worker.ts:buildUserContent() — idéntico, sobre
-// las mismas tablas genéricas (ChannelMessage), los bytes de media ya están
-// en disco vía lib/workers/media-worker.ts:processMetaChannelMediaDownload.
-async function buildUserContent(job: MetaChannelBotMessageJob): Promise<string | ContentPart[]> {
+// Port de lib/workers/bot-worker.ts:buildUserContent(), leyendo ChannelMessage
+// en vez de WAMessage — los bytes de media ya están en disco (media-worker.ts
+// los guarda con saveMediaFromBuffer igual que para WhatsApp).
+async function buildUserContent(job: ChannelBotMessageJob): Promise<string | ContentPart[]> {
   const isImage = job.messageType === "image" || job.messageType === "sticker";
   const isDocument = job.messageType === "document";
   const bodyText = job.caption ?? job.incomingMessage ?? "";
@@ -394,7 +397,7 @@ async function buildUserContent(job: MetaChannelBotMessageJob): Promise<string |
     parts.push({ type: "image_url", image_url: { url: `data:${mime};base64,${base64}` } });
     return parts;
   } catch (err) {
-    console.error(`[meta-messaging bot-worker] No se pudo leer la imagen local:`, err);
+    console.error(`[channel bot-worker] No se pudo leer la imagen local:`, err);
     return bodyText || fallbackLabel;
   }
 }

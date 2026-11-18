@@ -57,6 +57,62 @@ export interface IngestChannelResult {
   conversationId: string;
 }
 
+/**
+ * Contacto + conversación de un mensaje (entrante o eco saliente de
+ * WhatsApp por QR, lib/gowa/ingest.ts). Una conversación nueva entra al
+ * equipo por defecto de la cuenta; un contacto nuevo pasa por
+ * afterContactCreated() (límite del plan y contact.created).
+ */
+export async function upsertChannelThread(
+  channelAccountId: string,
+  externalId: string,
+  opts: {
+    contactName: string;
+    updateContactName?: string | null;
+    updateConversationName?: string | null;
+    isGroup: boolean;
+    lastMessage: string;
+    timestamp: Date;
+    /** Entrante: suma un no leído. Un eco propio no. */
+    countUnread: boolean;
+    contactExists: boolean;
+    conversationExists: boolean;
+  }
+) {
+  const contact = await prisma.contact.upsert({
+    where: { channelAccountId_remoteJid: { channelAccountId, remoteJid: externalId } },
+    create: { channelAccountId, remoteJid: externalId, name: opts.contactName },
+    update: opts.updateContactName ? { name: opts.updateContactName } : {},
+  });
+  if (!opts.contactExists) await afterContactCreated({ channelAccountId }, contact.id);
+
+  const lastMessage = opts.lastMessage.slice(0, 500);
+  const conversation = await prisma.conversation.upsert({
+    where: { channelAccountId_externalId: { channelAccountId, externalId } },
+    create: {
+      channelAccountId,
+      externalId,
+      name: opts.contactName,
+      isGroup: opts.isGroup,
+      lastMessage,
+      lastMessageAt: opts.timestamp,
+      unreadCount: opts.countUnread ? 1 : 0,
+      contactId: contact.id,
+      // Conversación nueva: entra al equipo por defecto de la cuenta (lib/teams/).
+      teamId: opts.conversationExists ? undefined : await accountDefaultTeamId("channel", channelAccountId),
+    },
+    update: {
+      ...(opts.updateConversationName ? { name: opts.updateConversationName } : {}),
+      isGroup: opts.isGroup,
+      lastMessage,
+      lastMessageAt: opts.timestamp,
+      ...(opts.countUnread ? { unreadCount: { increment: 1 } } : {}),
+      contactId: contact.id,
+    },
+  });
+  return { contact, conversation };
+}
+
 export async function ingestChannelMessage(
   channelAccountId: string,
   channel: Channel,
@@ -109,35 +165,16 @@ export async function ingestChannelMessage(
   const contactNameShouldUpdate = nameCandidate ? shouldUpdateName(nameCandidate, existingContact?.name, msg.externalId) : false;
   const conversationNameShouldUpdate = nameCandidate ? shouldUpdateName(nameCandidate, existingConversation?.name, msg.externalId) : false;
 
-  const contactRecord = await prisma.contact.upsert({
-    where: { channelAccountId_remoteJid: { channelAccountId, remoteJid: msg.externalId } },
-    create: { channelAccountId, remoteJid: msg.externalId, name: nameCandidate ?? msg.externalId },
-    update: contactNameShouldUpdate ? { name: nameCandidate! } : {},
-  });
-  if (!existingContact) await afterContactCreated({ channelAccountId }, contactRecord.id);
-
-  const conversation = await prisma.conversation.upsert({
-    where: { channelAccountId_externalId: { channelAccountId, externalId: msg.externalId } },
-    create: {
-      channelAccountId,
-      externalId: msg.externalId,
-      name: nameCandidate ?? msg.externalId,
-      isGroup: msg.isGroup,
-      lastMessage: msg.body.slice(0, 500),
-      lastMessageAt: msg.timestamp,
-      unreadCount: 1,
-      contactId: contactRecord.id,
-      // Conversación nueva: entra al equipo por defecto de la cuenta (lib/teams/).
-      teamId: existingConversation ? undefined : await accountDefaultTeamId("channel", channelAccountId),
-    },
-    update: {
-      ...(conversationNameShouldUpdate ? { name: nameCandidate! } : {}),
-      isGroup: msg.isGroup,
-      lastMessage: msg.body.slice(0, 500),
-      lastMessageAt: msg.timestamp,
-      unreadCount: { increment: 1 },
-      contactId: contactRecord.id,
-    },
+  const { contact: contactRecord, conversation } = await upsertChannelThread(channelAccountId, msg.externalId, {
+    contactName: nameCandidate ?? msg.externalId,
+    updateContactName: contactNameShouldUpdate ? nameCandidate! : null,
+    updateConversationName: conversationNameShouldUpdate ? nameCandidate! : null,
+    isGroup: msg.isGroup,
+    lastMessage: msg.body,
+    timestamp: msg.timestamp,
+    countUnread: true,
+    contactExists: !!existingContact,
+    conversationExists: !!existingConversation,
   });
 
   // Mismo criterio que lib/whatsapp/ingest-message.ts: un mensaje nuevo

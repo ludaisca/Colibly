@@ -18,7 +18,6 @@ export type { PlanId };
 // sin tope). Telegram y Messenger no tienen tope. La prueba usa el plan Pro
 // con TRIAL_MAX_SEATS usuarios: los límites sí se multiplican.
 
-export const PRICE_CURRENCY = "MXN" as const;
 export const PRICE_UNIT = "MXN por usuario al mes";
 // TODO(IVA): pendiente de confirmar con el contador si los precios incluyen IVA
 // o son "más IVA". Mientras tanto, la copia pública solo dice "Precios en MXN"
@@ -263,11 +262,6 @@ export function monthlyTotalMxn(plan: Plan, seats: number): number {
 // "$1,495" — siempre con PRICE_UNIT o "MXN al mes" al lado.
 export function formatMxn(amount: number): string {
   return `$${amount.toLocaleString("es-MX")}`;
-}
-
-// "Avanzado: $89 MXN por usuario al mes" (+ la leyenda fiscal si existe).
-export function priceSentence(plan: Plan): string {
-  return `${plan.name}: ${formatMxn(plan.pricePerSeatMxn)} ${PRICE_UNIT}${PRICE_TAX_NOTE ? ` (${PRICE_TAX_NOTE})` : ""}`;
 }
 
 export const MIN_SEATS = 1;

@@ -16,15 +16,6 @@ export const STAGE_LABEL: Record<LeadStatus, string> = {
   LOST: "Perdidos",
 };
 
-export function scoreLabelToStage(label: string): LeadStatus | null {
-  const map: Record<string, LeadStatus> = {
-    frio: "NEW",
-    tibio: "CONTACTED",
-    caliente: "QUALIFIED",
-  };
-  return map[label.toLowerCase()] ?? null;
-}
-
 export type StageOutcome = "OPEN" | "WON" | "LOST";
 
 export const DEFAULT_PIPELINE_NAME = "Ventas";
@@ -49,10 +40,6 @@ export function leadStatusForStage(
   if (current === "CUSTOMER" || current === "LOST") return "QUALIFIED";
   return current;
 }
-
-// Columnas del tablero: todas con el mismo fondo (Andén). La etapa se lee en
-// la marca de estación del encabezado; el color de cada tarjeta es su cuenta.
-export const STAGE_COLUMN_CLASS = "border-border bg-surface-light";
 
 
 // ── Marca de estación (Andén, 2026-11-07) ────────────────────────────────────

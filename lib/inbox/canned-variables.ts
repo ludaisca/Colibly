@@ -5,12 +5,6 @@ import { isFallbackName } from "@/lib/whatsapp/contact-name";
 // agente ve el texto antes de mandarlo, así que una variable que no existe se
 // deja tal cual (y la ve) en vez de borrarse en silencio.
 
-export const CANNED_VARIABLES = [
-  { key: "nombre", label: "Nombre del contacto" },
-  { key: "agente", label: "Tu nombre" },
-  { key: "negocio", label: "Nombre del negocio" },
-] as const;
-
 export interface CannedContext {
   /** Nombre del chat; si es solo el número (fallback), cuenta como vacío. */
   contactName: string | null;

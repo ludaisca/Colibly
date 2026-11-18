@@ -84,6 +84,15 @@ describe("parseGowaEvent", () => {
     expect(parseGowaEvent({ event: "message.ack", payload: { ids: ["A"], receipt_type: "played" } }, NOW).kind).toBe("ignored");
   });
 
+  it("acuse propio desde otro dispositivo o con recibos apagados", () => {
+    const own = "5215599998888@s.whatsapp.net";
+    expect(parseGowaEvent({ event: "message.ack", device_id: own, payload: { ids: ["IN1"], receipt_type: "read", from: own } }, NOW).kind).toBe("ignored");
+    expect(parseGowaEvent({ event: "message.ack", device_id: own, payload: { ids: ["IN1"], receipt_type: "read", from: "5215599998888:3@s.whatsapp.net" } }, NOW).kind).toBe("ignored");
+    expect(parseGowaEvent({ event: "message.ack", device_id: own, payload: { ids: ["IN1"], receipt_type: "read-self" } }, NOW).kind).toBe("ignored");
+    expect(parseGowaEvent({ event: "message.ack", device_id: own, payload: { ids: ["OUT1"], receipt_type: "read", from: "5215511112222@s.whatsapp.net" } }, NOW))
+      .toEqual({ kind: "ack", ids: ["OUT1"], status: "read" });
+  });
+
   it("reacción y borrado", () => {
     expect(parseGowaEvent({ event: "message.reaction", payload: { chat_id: "5215511112222@s.whatsapp.net", reaction: "👍", reacted_message_id: "M1" } }, NOW))
       .toEqual({ kind: "reaction", externalId: "5215511112222@s.whatsapp.net", targetId: "M1", emoji: "👍" });

@@ -13,8 +13,6 @@ export const API_SCOPES = {
 
 export type ApiScope = keyof typeof API_SCOPES;
 
-export const API_SCOPE_LIST = Object.keys(API_SCOPES) as ApiScope[];
-
 export function isApiScope(value: string): value is ApiScope {
   return value in API_SCOPES;
 }

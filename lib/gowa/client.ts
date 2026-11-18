@@ -120,13 +120,6 @@ export const GOWA_WEBHOOK_EVENTS = [
   "device.reachout_timelock",
 ] as const;
 
-export async function setDeviceWebhook(deviceId: string, params: { webhookUrl: string; webhookSecret: string }): Promise<void> {
-  await call(`/devices/${encodeURIComponent(deviceId)}/webhook`, {
-    method: "PATCH",
-    json: { webhook_url: params.webhookUrl, webhook_secret: params.webhookSecret, webhook_events: GOWA_WEBHOOK_EVENTS.join(",") },
-  });
-}
-
 export async function getDevice(deviceId: string): Promise<GowaDevice> {
   return call<GowaDevice>(`/devices/${encodeURIComponent(deviceId)}`);
 }
@@ -198,10 +191,6 @@ export async function sendMedia(
   form.set(field, new Blob([new Uint8Array(params.buffer)], { type: params.mimeType }), params.filename);
   const r = await call<SendResult>(path, { deviceId, form, timeoutMs: HTTP_TRANSFER_TIMEOUT_MS });
   return r?.message_id ?? null;
-}
-
-export async function markRead(deviceId: string, messageId: string, chatJid: string): Promise<void> {
-  await call(`/message/${encodeURIComponent(messageId)}/read`, { deviceId, json: { phone: chatJid } });
 }
 
 /** Descarga el archivo de un mensaje entrante (GoWA lo baja de WhatsApp y lo sirve). */

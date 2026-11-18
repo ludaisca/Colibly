@@ -59,7 +59,6 @@ const PRO_FEATURES: readonly LicenseFeature[] = [...BUSINESS_FEATURES, "leadScor
 
 /** Canales: cada licencia ocupa como máximo uno de cada tipo. */
 export type LicenseChannel = "whatsapp" | "instagram" | "messenger" | "telegram" | "webchat";
-export const LICENSE_CHANNELS: readonly LicenseChannel[] = ["whatsapp", "instagram", "messenger", "telegram", "webchat"];
 export const CHANNELS_PER_LICENSE = 1;
 
 export interface LicenseTier {
@@ -235,15 +234,6 @@ export interface OrgLicenseLimits {
   channelsPerType: number;
 }
 
-export const UNLIMITED_ORG_LICENSE_LIMITS: OrgLicenseLimits = {
-  users: Infinity,
-  contacts: Infinity,
-  activeLeads: Infinity,
-  funnels: Infinity,
-  customFields: Infinity,
-  channelsPerType: Infinity,
-};
-
 /**
  * Contactos y leads activos: la suma de las licencias. Embudos y campos
  * personalizados son de la organización: los de su licencia más alta
@@ -365,8 +355,6 @@ export function monthlyTotalForLicenses(counts: LicenseCounts, pricePerLicense: 
 }
 
 // ── Clientes del catálogo anterior (decisión 4) ──
-
-export const LEGACY_GRACE_DAYS = 60;
 
 /** Mientras sea true, la organización conserva lo que tenía con el catálogo anterior. */
 export function isLegacyActive(org: { legacyUntil: Date | null }, now: Date): boolean {

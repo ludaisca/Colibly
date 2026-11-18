@@ -44,13 +44,3 @@ export function StripeIcon({ size, className, mono = false }: IconProps) {
 export function StripeButtonIcon(props: Omit<IconProps, "mono">) {
   return <StripeIcon {...props} mono />;
 }
-
-export function WhatsAppReadTicks({ size = 14, className }: IconProps) {
-  const width = typeof size === "number" ? size : 14;
-  return (
-    <svg viewBox="0 0 18 13" width={width} height={Math.round(width * 13 / 18)} className={className} aria-hidden="true" focusable="false">
-      <path fill="none" stroke="#53bdeb" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" d="M1.2 6.4 4.4 9.6 10.2 2.6" />
-      <path fill="none" stroke="#53bdeb" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" d="M6.4 6.4 9.6 9.6 15.4 2.6" />
-    </svg>
-  );
-}

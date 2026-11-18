@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import type { PlanId } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { BILLING_PLAN_PATH, checkPlanLimit, getOrgBilling, invalidateOrgBilling } from "./gates";
+import { BILLING_PLAN_PATH, checkPlanLimit, invalidateOrgBilling } from "./gates";
 import { invalidateUserEntitlement } from "./entitlements";
 import {
   catalogMode,
@@ -251,10 +251,4 @@ export function licenseResultResponse(result: Extract<LicenseBillingResult, { ok
     },
     { status: result.status }
   );
-}
-
-/** Para mostrar en pantallas: el plan de la licencia. */
-export async function orgDefaultLicense(organizationId: string): Promise<PlanId> {
-  const org = await getOrgBilling(organizationId);
-  return org?.plan ?? TRIAL_LICENSE;
 }

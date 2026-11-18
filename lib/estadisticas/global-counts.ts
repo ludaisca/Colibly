@@ -18,14 +18,6 @@ export async function countTotalAccounts(accountIds: string[], userId: string) {
   return accountIds.length + (await getUserChannelAccountIds(userId)).length;
 }
 
-export async function countConnectedAccounts(accountIds: string[], userId: string) {
-  const [wa, channel] = await Promise.all([
-    prisma.wAAccount.count({ where: { id: { in: accountIds }, status: "CONNECTED" } }),
-    prisma.channelAccount.count({ where: { id: { in: await getUserChannelAccountIds(userId) }, status: "CONNECTED" } }),
-  ]);
-  return wa + channel;
-}
-
 export async function countChats(accountIds: string[], userId: string) {
   const [wa, channel] = await Promise.all([
     prisma.wAChat.count({ where: { accountId: { in: accountIds } } }),
@@ -44,19 +36,6 @@ export async function countMessages(accountIds: string[], userId: string) {
 
 export async function countBots(userId: string) {
   return prisma.wABot.count({ where: { ...(await orgWhere(userId)) } });
-}
-
-// Misma regla que botDisplayStatus() (lib/bots/display-status.ts): encendido,
-// sin error y con una cuenta conectada.
-export async function countActiveBots(userId: string) {
-  return prisma.wABot.count({
-    where: {
-      ...(await orgWhere(userId)),
-      isActive: true,
-      status: { not: "ERROR" },
-      OR: [{ waAccountId: { not: null } }, { channelAccountId: { not: null } }],
-    },
-  });
 }
 
 export async function countCampaigns(userId: string) {

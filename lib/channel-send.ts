@@ -1,26 +1,31 @@
 import type { ChannelAccount } from "@prisma/client";
 import { sendTelegramMessage } from "@/lib/telegram/send";
 import { sendGowaMessage } from "@/lib/gowa/send";
+import { sendMetaChannelText } from "@/lib/meta-messaging/send";
 import { assertOrgCanSend } from "@/lib/billing/gates";
 
-// Roadmap P3-f — lib/telegram/bot-worker.ts se reutiliza tal cual para
-// WEBCHAT (mismo perfil simple: texto plano, sin medios, sin ventana de
-// servicio) en vez de escribir un cuarto bot-worker desde cero. La única
-// diferencia real de envío es que WEBCHAT no tiene ninguna API externa a la
-// que llamar — el ChannelMessage OUTBOUND que el bot-worker crea después de
-// esta llamada YA es la entrega, el widget lo recoge por polling. Este
-// helper centraliza esa bifurcación en los puntos de envío del bot-worker.
+// Texto plano por el canal de una cuenta genérica: el único punto donde el
+// bot (lib/channels/bot-worker.ts, también sus fragmentos humanizados en
+// bot-send-worker.ts) y la recuperación de leads (lib/channels/
+// lead-recovery.ts) se bifurcan por canal. WEBCHAT no tiene API externa: el
+// ChannelMessage OUTBOUND que se crea después de esta llamada YA es la
+// entrega, el widget lo recoge por polling. Cada remitente llama
+// assertOrgCanSend().
 export async function sendChannelReplyText(
   channelAccount: ChannelAccount,
   to: string,
   body: string
 ): Promise<{ externalMessageId: string | null }> {
-  await assertOrgCanSend(channelAccount.organizationId);
-  if (channelAccount.channel === "WEBCHAT") {
-    return { externalMessageId: null };
+  switch (channelAccount.channel) {
+    case "TELEGRAM":
+      return sendTelegramMessage(channelAccount, { to, body });
+    case "MESSENGER":
+    case "INSTAGRAM":
+      return sendMetaChannelText(channelAccount, { to, body });
+    case "WHATSAPP_WEB":
+      return sendGowaMessage(channelAccount, { to, body });
+    case "WEBCHAT":
+      await assertOrgCanSend(channelAccount.organizationId);
+      return { externalMessageId: null };
   }
-  if (channelAccount.channel === "WHATSAPP_WEB") {
-    return sendGowaMessage(channelAccount, { to, body });
-  }
-  return sendTelegramMessage(channelAccount, { to, body });
 }

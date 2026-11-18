@@ -41,13 +41,6 @@ export async function requireOrgId(userId: string): Promise<string> {
   return tenant.organizationId;
 }
 
-// ¿Ambos usuarios son del mismo espacio? Para shares, asignaciones y
-// cualquier relación entre usuarios.
-export async function sameOrganization(userA: string, userB: string): Promise<boolean> {
-  const [a, b] = await Promise.all([getUserTenant(userA), getUserTenant(userB)]);
-  return !!a && !!b && a.organizationId === b.organizationId;
-}
-
 // `where` para recursos que administra la organización (bots, calificadores,
 // Meta Ads, API keys, webhooks): cualquier admin del espacio los ve y edita,
 // no solo quien los creó.

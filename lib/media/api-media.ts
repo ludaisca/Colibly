@@ -11,7 +11,6 @@ import {
   defaultFilename,
   resolveOutboundMime,
   type OutboundMediaFile,
-  type OutboundMediaType,
 } from "@/lib/messaging/outbound-media";
 
 // Archivos de POST /api/v1/media: se suben una vez y se reusan en muchos
@@ -111,9 +110,4 @@ export async function apiMediaToMetaId(account: Pick<WAAccount, "organizationId"
   const file = await readApiMedia(row);
   const uploaded = await uploadMedia(account.phoneNumberId, decrypt(account.accessToken), file.buffer, file.filename, file.mimeType);
   return uploaded.id;
-}
-
-/** El tipo de envío admite un archivo de este tipo. */
-export function apiMediaMatches(row: Pick<ApiMedia, "mediaType">, sendType: OutboundMediaType | "sticker"): boolean {
-  return row.mediaType === sendType;
 }

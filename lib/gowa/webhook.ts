@@ -50,6 +50,11 @@ export function chatKey(p: GowaPayload): string | null {
   return candidates.find((c) => PERSONAL.test(c)) ?? primary;
 }
 
+/** ¿`from` es el propio número del device? (`device_id` es su JID, con o sin sufijo de dispositivo). */
+function isOwnJid(from: string | undefined, deviceJid: string | undefined): boolean {
+  return !!from && !!deviceJid && bareJid(from) === bareJid(deviceJid);
+}
+
 // ── Eventos ─────────────────────────────────────────────────────────────
 
 export interface GowaPayload {
@@ -92,7 +97,9 @@ export interface GowaPayload {
 
 export interface GowaEnvelope {
   event?: string;
+  /** JID del número que recibió el evento ("521…@s.whatsapp.net"). */
   device_id?: string;
+  /** Id del device (el que registramos con POST /devices = credentials.deviceId). Los eventos de device siempre lo traen; los demás pueden omitirlo. */
   session_id?: string;
   timestamp?: string;
   payload?: GowaPayload;
@@ -163,11 +170,15 @@ export function parseGowaEvent(env: GowaEnvelope, now: Date = new Date()): GowaE
       return parseMessage(p, now);
     case "message.ack": {
       const ids = (p.ids ?? []).filter((id): id is string => typeof id === "string");
-      // Los acuses de lectura PROPIOS (abrir el chat en el teléfono) traen
-      // from = nuestro número y los ids de mensajes ENTRANTES: no son un
-      // "leído" de nuestros salientes. Solo cuentan los del contacto.
-      if (p.is_from_me) return { kind: "ignored", why: "acuse propio" };
-      const status = p.receipt_type === "read" || p.receipt_type === "read-self" ? "read" : p.receipt_type === "delivered" ? "delivered" : null;
+      // Los acuses de lectura PROPIOS (abrir el chat en el teléfono u otro
+      // dispositivo vinculado) traen from = nuestro JID e ids de mensajes
+      // ENTRANTES: no son un "leído" de nuestros salientes. `read-self` es el
+      // mismo acuse propio con los recibos de lectura apagados. Solo cuentan
+      // los del contacto.
+      if (p.is_from_me || p.receipt_type === "read-self" || isOwnJid(p.from, env.device_id)) {
+        return { kind: "ignored", why: "acuse propio" };
+      }
+      const status = p.receipt_type === "read" ? "read" : p.receipt_type === "delivered" ? "delivered" : null;
       if (!status || ids.length === 0) return { kind: "ignored", why: `acuse ${p.receipt_type ?? "sin tipo"}` };
       return { kind: "ack", ids, status };
     }

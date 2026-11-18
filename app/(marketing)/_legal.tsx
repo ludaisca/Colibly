@@ -17,10 +17,6 @@ export const LEGAL = {
   updatedAt: "5 de noviembre de 2026",
 };
 
-export function Blank({ children }: { children: React.ReactNode }) {
-  return <mark className="rounded bg-warning-bg px-1 text-warning">{children}</mark>;
-}
-
 export function LegalPage({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-10 sm:py-12 md:px-6">

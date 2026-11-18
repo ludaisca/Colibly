@@ -76,16 +76,3 @@ export function interpretStatusEvent(value: TemplateStatusEventValue, templateNa
   }
   return null; // evento que no conocemos: se ignora y se sincronizará más tarde
 }
-
-export function describeStatusForUser(status: string): string {
-  switch (status) {
-    case "APPROVED": return "Aprobada";
-    case "PENDING": return "En revisión";
-    case "IN_APPEAL": return "En apelación";
-    case "REJECTED": return "Rechazada";
-    case "PAUSED": return "Pausada";
-    case "DISABLED": return "Desactivada";
-    case "DELETED": return "Eliminada";
-    default: return status;
-  }
-}

@@ -1,7 +1,6 @@
 import { Worker } from "bullmq";
 import { processBotMessageJob } from "./bot-worker";
-import { processTelegramBotMessageJob } from "@/lib/telegram/bot-worker";
-import { processMetaChannelBotMessageJob } from "@/lib/meta-messaging/bot-worker";
+import { processChannelBotMessageJob } from "@/lib/channels/bot-worker";
 import { processCampaignJob, processScheduledCampaignsTick } from "./campaign-worker";
 import { processRagJob } from "./rag-worker";
 import { processMediaDownloadJob } from "./media-worker";
@@ -44,23 +43,17 @@ export function startWorkers() {
   const botWorker = new Worker("bot-messages", async (job) => {
     const attemptInfo = { attemptsMade: job.attemptsMade, maxAttempts: job.opts.attempts ?? 1 };
     // El productor decide la forma del payload: lib/whatsapp/ingest-message.ts
-    // (WhatsApp) no manda `channel`, lib/telegram/ingest-message.ts (Telegram/
-    // Messenger/Instagram, ver ChannelAccount) sí lo manda explícito.
+    // (WhatsApp) no manda `channel`, lib/telegram/ingest-message.ts (canales
+    // genéricos, ver ChannelAccount) sí lo manda explícito.
     switch (job.data.channel) {
+      // Canales genéricos: un solo worker; el envío se bifurca por canal en
+      // lib/channel-send.ts.
       case "TELEGRAM":
-      // Roadmap P3-f — el widget de chat en vivo reutiliza el bot-worker de
-      // Telegram tal cual (mismo perfil simple: texto plano, sin ventana de
-      // servicio); la única bifurcación real de envío vive en
-      // lib/channel-send.ts, no aquí.
-      case "WEBCHAT":
-      // WhatsApp por QR: mismo perfil (sin ventana de servicio); el envío se
-      // bifurca en lib/channel-send.ts.
-      case "WHATSAPP_WEB":
-        await processTelegramBotMessageJob(job.data, attemptInfo);
-        break;
       case "MESSENGER":
       case "INSTAGRAM":
-        await processMetaChannelBotMessageJob(job.data, attemptInfo);
+      case "WEBCHAT":
+      case "WHATSAPP_WEB":
+        await processChannelBotMessageJob(job.data, attemptInfo);
         break;
       default:
         await processBotMessageJob(job.data, attemptInfo);

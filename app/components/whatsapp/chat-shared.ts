@@ -115,18 +115,6 @@ export interface ChatItem {
   updatedAt?: string;
 }
 
-/**
- * Orden del tablero de espera (Andén): primero quien lleva más esperando;
- * los que no esperan van al final, por último mensaje. Ordena solo lo cargado:
- * cada canal pagina por último mensaje (ver fetchChatsPage).
- */
-export function compareByWaiting(a: Pick<ChatItem, "waitingSince" | "lastMessageAt">, b: Pick<ChatItem, "waitingSince" | "lastMessageAt">): number {
-  if (a.waitingSince && b.waitingSince) return a.waitingSince < b.waitingSince ? -1 : a.waitingSince > b.waitingSince ? 1 : 0;
-  if (a.waitingSince) return -1;
-  if (b.waitingSince) return 1;
-  return (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? "");
-}
-
 /** El updatedAt más reciente de la lista (ISO en UTC: se comparan como texto). */
 export function latestUpdatedAt(chats: Array<{ updatedAt?: string }>): string | null {
   let latest: string | null = null;
@@ -308,7 +296,6 @@ function hashTone(id: string): AccountTone {
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   return ACCOUNT_TONES[hash % ACCOUNT_TONES.length];
 }
-export const accountTone = hashTone;
 // Separate name at call sites for readability — the badge doesn't get its own
 // color pool (Tailwind literals aside, 5 semantic tones is already what the
 // design system offers); a campaign badge always carries its name as text, so

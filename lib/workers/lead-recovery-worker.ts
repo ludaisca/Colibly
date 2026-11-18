@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendRecoveryMessage, isWithinBusinessHours, isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
-import { sendTelegramRecoveryMessage } from "@/lib/telegram/lead-recovery";
-import { sendMetaChannelRecoveryMessage } from "@/lib/meta-messaging/lead-recovery";
+import { RECOVERY_CHANNELS, sendChannelRecoveryMessage } from "@/lib/channels/lead-recovery";
 import { reserveAiCredit } from "@/lib/ai/credits";
 import { channelHasFeature } from "@/lib/billing/entitlements";
 import type { Organization, WABot, WAAccount, ChannelAccount } from "@prisma/client";
@@ -149,13 +148,15 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
   // Canales genéricos (Telegram/Messenger/Instagram) — mismo criterio de
   // candidatos que arriba, pero sin la ventana de 24h de Meta (ninguno de
   // los tres la impone), y comparte el mismo presupuesto sentCount/BATCH_SIZE
-  // del tick. El envío se despacha según el channel real de cada cuenta
-  // (channelBot.channelAccount.channel) — antes de este fix siempre se
-  // llamaba sendTelegramRecoveryMessage() sin importar el canal, así que una
-  // ChannelAccount de Messenger/Instagram (credentials sin `botToken`) hacía
-  // fallar el envío en silencio y la recuperación nunca ocurría para esos dos
-  // canales (ver lib/meta-messaging/lead-recovery.ts).
-  const channelAccountIds = (await prisma.channelAccount.findMany({ where: { organizationId: settings.id }, select: { id: true } })).map((a) => a.id);
+  // del tick. Solo RECOVERY_CHANNELS: incluir el chat web y WhatsApp por QR
+  // gastaba un crédito de IA por intento y el envío fallaba cada 15 min. El
+  // envío se bifurca por canal en lib/channel-send.ts.
+  const channelAccountIds = (
+    await prisma.channelAccount.findMany({
+      where: { organizationId: settings.id, channel: { in: [...RECOVERY_CHANNELS] } },
+      select: { id: true },
+    })
+  ).map((a) => a.id);
   if (channelAccountIds.length > 0) {
     const channelCandidates = await prisma.conversation.findMany({
       where: {
@@ -229,11 +230,7 @@ async function runRecoveryForOrg(settings: Organization, now: Date) {
         continue;
       }
       try {
-        if (channelBot.channelAccount.channel === "TELEGRAM") {
-          await sendTelegramRecoveryMessage(conv, channelBot, attemptNumber, now);
-        } else {
-          await sendMetaChannelRecoveryMessage(conv, channelBot, attemptNumber, now);
-        }
+        await sendChannelRecoveryMessage(conv, channelBot, attemptNumber, now);
         sentCount++;
       } catch (err) {
         console.error(`[lead-recovery] Error enviando reactivación a la conversación ${conv.id}:`, err instanceof Error ? err.message : err);

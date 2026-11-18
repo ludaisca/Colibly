@@ -9,9 +9,11 @@ import { PLATFORM_SECRET_FIELDS } from "@/lib/platform-settings";
 const SECRET_FIELDS = new Set<string>(PLATFORM_SECRET_FIELDS);
 const SECRET_LIKE = /(secret|password|passphrase|api_?key|private_?key)$/i;
 
-function redact(value: unknown, depth = 0): unknown {
+export function redact(value: unknown, depth = 0): unknown {
   if (depth > 6) return "[…]";
   if (value === null || value === undefined) return value;
+  // Un Date es un objeto sin propiedades propias: sin esto quedaba como {}.
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
   if (Array.isArray(value)) return value.slice(0, 50).map((item) => redact(item, depth + 1));
   if (typeof value === "object") {
     const out: Record<string, unknown> = {};

@@ -1,13 +1,12 @@
 import type { ChannelAccount } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ingestChannelMessage } from "@/lib/telegram/ingest-message";
-import { afterContactCreated } from "@/lib/billing/contact-limits";
-import { accountDefaultTeamId } from "@/lib/teams/teams";
+import { ingestChannelMessage, upsertChannelThread } from "@/lib/telegram/ingest-message";
 import { markReplied } from "@/lib/chats/waiting";
 import { emitMessageSent } from "@/lib/events/message-sent";
 import { queuePush } from "@/lib/notifications/push";
 import { mediaDownloadQueue } from "@/lib/queue";
+import { getOrgBusinessHours } from "@/lib/organizations";
 import { phoneOfJid, type GowaEvent, type NormalizedGowaMessage } from "./webhook";
 
 // Persistencia de los eventos de GoWA de UNA cuenta ya autenticada (firma
@@ -39,7 +38,9 @@ export async function handleGowaEvent(account: ChannelAccount, event: GowaEvent)
       await markAccountProblem(account, "ERROR", `Se cerró la sesión de WhatsApp (${event.reason}). Vuelve a escanear el código QR.`, "WhatsApp se desconectó");
       return;
     case "temporary_ban": {
-      const until = event.until ? ` hasta el ${event.until.toLocaleString("es-MX", { timeZone: "America/Mexico_City", dateStyle: "medium", timeStyle: "short" })}` : "";
+      // En la zona horaria de la organización (Configuración), no una fija.
+      const timeZone = event.until ? (await getOrgBusinessHours(account.organizationId)).timezone : undefined;
+      const until = event.until ? ` hasta el ${event.until.toLocaleString("es-MX", { timeZone, dateStyle: "medium", timeStyle: "short" })}` : "";
       await markAccountProblem(account, "ERROR", `WhatsApp suspendió el número${until}: ${event.reason}.`, "WhatsApp suspendió el número");
       return;
     }
@@ -90,35 +91,18 @@ async function persistPhoneEcho(account: ChannelAccount, msg: NormalizedGowaMess
   if (existing) return;
 
   const phone = phoneOfJid(msg.externalId);
-  const fallbackName = phone ? `+${phone}` : msg.externalId;
-  const contactWhere = { channelAccountId_remoteJid: { channelAccountId: account.id, remoteJid: msg.externalId } };
-  const knownContact = await prisma.contact.findUnique({ where: contactWhere, select: { id: true } });
-  const contact = knownContact ?? (await prisma.contact.upsert({
-    where: contactWhere,
-    create: { channelAccountId: account.id, remoteJid: msg.externalId, name: fallbackName },
-    update: {},
-    select: { id: true },
-  }));
-  if (!knownContact) await afterContactCreated({ channelAccountId: account.id }, contact.id);
-
-  const conversationExists = await prisma.conversation.findUnique({
-    where: { channelAccountId_externalId: { channelAccountId: account.id, externalId: msg.externalId } },
-    select: { id: true },
-  });
-  const conversation = await prisma.conversation.upsert({
-    where: { channelAccountId_externalId: { channelAccountId: account.id, externalId: msg.externalId } },
-    create: {
-      channelAccountId: account.id,
-      externalId: msg.externalId,
-      name: fallbackName,
-      isGroup: false,
-      lastMessage: msg.body.slice(0, 500),
-      lastMessageAt: msg.timestamp,
-      contactId: contact.id,
-      teamId: conversationExists ? undefined : await accountDefaultTeamId("channel", account.id),
-    },
-    update: { lastMessage: msg.body.slice(0, 500), lastMessageAt: msg.timestamp },
-    select: { id: true },
+  const [knownContact, knownConversation] = await Promise.all([
+    prisma.contact.findUnique({ where: { channelAccountId_remoteJid: { channelAccountId: account.id, remoteJid: msg.externalId } }, select: { id: true } }),
+    prisma.conversation.findUnique({ where: { channelAccountId_externalId: { channelAccountId: account.id, externalId: msg.externalId } }, select: { id: true } }),
+  ]);
+  const { conversation } = await upsertChannelThread(account.id, msg.externalId, {
+    contactName: phone ? `+${phone}` : msg.externalId,
+    isGroup: false,
+    lastMessage: msg.body,
+    timestamp: msg.timestamp,
+    countUnread: false,
+    contactExists: !!knownContact,
+    conversationExists: !!knownConversation,
   });
 
   let created;

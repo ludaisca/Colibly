@@ -23,7 +23,7 @@ export interface RecoveryHistoryMessage {
 
 // Parte pura (sin efectos secundarios: sin envío, sin persistencia) del
 // generador de mensajes de reactivación, compartida por WhatsApp
-// (lib/whatsapp/lead-recovery.ts) y Telegram (lib/telegram/lead-recovery.ts)
+// (lib/whatsapp/lead-recovery.ts) y los canales genéricos (lib/channels/lead-recovery.ts)
 // para no duplicar el prompt/guardrail/loop de mensajes en dos archivos.
 export async function generateRecoveryReply(params: {
   systemPrompt: string;

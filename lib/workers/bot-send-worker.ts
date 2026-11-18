@@ -1,11 +1,8 @@
-import type { ChannelAccount } from "@prisma/client";
 import { emitMessageSent } from "@/lib/events/message-sent";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/send";
-import { sendTelegramMessage } from "@/lib/telegram/send";
-import { sendGowaMessage } from "@/lib/gowa/send";
-import { sendMetaChannelText } from "@/lib/meta-messaging/send";
-import { assertOrgCanSend, isAccountWritable } from "@/lib/billing/gates";
+import { sendChannelReplyText } from "@/lib/channel-send";
+import { isAccountWritable } from "@/lib/billing/gates";
 
 interface BotSendJob {
   accountId: string;
@@ -71,7 +68,7 @@ async function processChannelBotSendJob(job: BotSendJob) {
   const account = await prisma.channelAccount.findUnique({ where: { id: job.accountId } });
   if (!account) return;
 
-  const sendResult = await sendChannelChunk(account, job.remoteJid, job.chunk);
+  const sendResult = await sendChannelReplyText(account, job.remoteJid, job.chunk);
 
   const now = new Date();
 
@@ -99,14 +96,4 @@ async function processChannelBotSendJob(job: BotSendJob) {
     }),
   ]);
   await emitMessageSent("channel", botMessage.id, "bot");
-}
-
-function sendChannelChunk(account: ChannelAccount, to: string, body: string): Promise<{ externalMessageId: string | null }> {
-  if (account.channel === "TELEGRAM") return sendTelegramMessage(account, { to, body });
-  if (account.channel === "WHATSAPP_WEB") return sendGowaMessage(account, { to, body });
-  // WEBCHAT (roadmap P3-f): no hay ninguna API externa a la que llamar — el
-  // ChannelMessage OUTBOUND creado justo abajo YA es la entrega, el widget
-  // lo recoge por polling.
-  if (account.channel === "WEBCHAT") return assertOrgCanSend(account.organizationId).then(() => ({ externalMessageId: null }));
-  return sendMetaChannelText(account, { to, body });
 }

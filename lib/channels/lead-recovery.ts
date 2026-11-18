@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { emitMessageSent } from "@/lib/events/message-sent";
-import { sendMetaChannelText } from "@/lib/meta-messaging/send";
+import { sendChannelReplyText } from "@/lib/channel-send";
 import { getPlatformApiKey, resolvePlatformModel } from "@/lib/ai/platform";
 import { estimateCost } from "@/lib/ai/pricing";
 import { generateRecoveryReply } from "@/lib/ai/recovery";
@@ -15,16 +15,20 @@ interface RecoveryConversation {
 
 type RecoveryBot = WABot & { channelAccount: ChannelAccount | null };
 
-// Hermano de lib/telegram/lead-recovery.ts:sendTelegramRecoveryMessage() —
-// mismo generador de mensaje (lib/ai/recovery.ts) y misma ausencia de ventana
-// de 24h (ni Messenger ni Instagram la imponen para páginas ya conectadas),
-// pero envía por lib/meta-messaging/send.ts:sendMetaChannelText en vez de la
-// API de Telegram. Antes de que existiera este archivo, lead-recovery-worker.ts
-// llamaba sendTelegramRecoveryMessage() incondicionalmente para cualquier
-// ChannelAccount no-WhatsApp, incluidas cuentas de Messenger/Instagram — con
-// credentials sin `botToken`, esa llamada fallaba en silencio (catch + log)
-// y la recuperación de leads nunca funcionaba para esos dos canales.
-export async function sendMetaChannelRecoveryMessage(
+/**
+ * Canales genéricos que reciben recuperación de leads. El chat web no tiene a
+ * quién escribirle si el visitante se fue, y WhatsApp por QR nunca se usa
+ * para mensajes no pedidos (riesgo de bloqueo del número).
+ */
+export const RECOVERY_CHANNELS = ["TELEGRAM", "MESSENGER", "INSTAGRAM"] as const;
+
+// Hermano de lib/whatsapp/lead-recovery.ts:sendRecoveryMessage() — comparte
+// el generador de mensaje vía lib/ai/recovery.ts, pero sin el chequeo de
+// ventana de 24h de Meta: ni Telegram ni Messenger/Instagram (páginas ya
+// conectadas) la imponen. El envío se bifurca por canal en
+// lib/channel-send.ts. Hasta 2026-11-17 Messenger/Instagram tenían una copia
+// propia (lib/meta-messaging/lead-recovery.ts) que solo cambiaba esa llamada.
+export async function sendChannelRecoveryMessage(
   conversation: RecoveryConversation,
   bot: RecoveryBot,
   attemptNumber: 1 | 2,
@@ -32,7 +36,11 @@ export async function sendMetaChannelRecoveryMessage(
 ): Promise<void> {
   const channelAccount = bot.channelAccount;
   if (!channelAccount) {
-    throw new Error(`Bot "${bot.name}" no tiene una cuenta de Messenger/Instagram asociada`);
+    throw new Error(`Bot "${bot.name}" no tiene una cuenta de canal asociada`);
+  }
+  // Antes de gastar IA: un canal sin recuperación no debe llegar aquí.
+  if (!(RECOVERY_CHANNELS as readonly string[]).includes(channelAccount.channel)) {
+    throw new Error(`La recuperación de leads no aplica al canal ${channelAccount.channel}`);
   }
 
   const picked = await resolvePlatformModel();
@@ -63,10 +71,7 @@ export async function sendMetaChannelRecoveryMessage(
     attemptNumber,
   });
 
-  const sendResult = await sendMetaChannelText(channelAccount, {
-    to: conversation.externalId,
-    body: result.content,
-  });
+  const sendResult = await sendChannelReplyText(channelAccount, conversation.externalId, result.content);
 
   const message = await prisma.channelMessage.create({
     data: {

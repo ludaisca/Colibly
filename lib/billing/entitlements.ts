@@ -138,12 +138,6 @@ export async function integrationOwnerHas(userId: string, feature: LicenseFeatur
   return !!e && integrationAllowed(e, feature);
 }
 
-/** Canal de un bot (WhatsApp o genérico). */
-export async function botChannelRef(botId: string): Promise<ChannelRef | null> {
-  const bot = await prisma.wABot.findUnique({ where: { id: botId }, select: { waAccountId: true, channelAccountId: true } });
-  return bot ? { waAccountId: bot.waAccountId, channelAccountId: bot.channelAccountId } : null;
-}
-
 // ── Respuestas 402 ──
 
 const planName = (id: PlanId) => PLANS[id].name;

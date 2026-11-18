@@ -3,7 +3,8 @@ import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
   // Paquetes aparte (nodo de n8n…): tienen su propio lint.
-  { ignores: ["integrations/**"] },
+  // .claude/: skills de terceros guardados tal cual (Impeccable); no son código de la app.
+  { ignores: ["integrations/**", ".claude/**"] },
   ...nextCoreWebVitals,
   ...nextTypescript,
   {

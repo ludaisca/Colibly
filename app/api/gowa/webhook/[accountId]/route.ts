@@ -8,9 +8,10 @@ import { handleGowaEvent } from "@/lib/gowa/ingest";
 
 // Eventos de GoWA para UNA cuenta WHATSAPP_WEB. La URL identifica la cuenta
 // (como Telegram) y la autenticación es el HMAC del cuerpo con el secreto de
-// ESA cuenta (X-Hub-Signature-256), más el device_id/session_id que debe
-// coincidir con el de sus credenciales. GoWA reintenta (5 veces, backoff) ante
-// un 5xx: el dedup por (conversación, id de mensaje) hace seguro el reintento.
+// ESA cuenta (X-Hub-Signature-256), más el session_id (id del device en GoWA;
+// device_id es el JID del número) que debe coincidir con el de sus
+// credenciales. GoWA reintenta (5 veces, backoff) ante un 5xx: el dedup por
+// (conversación, id de mensaje) hace seguro el reintento.
 
 export async function POST(req: Request, { params }: { params: Promise<{ accountId: string }> }) {
   try {

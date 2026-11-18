@@ -34,8 +34,6 @@ interface AccountOption {
 
 type ContactRow = ContactTableRow & { _count: { notes: number } };
 
-// Estado del lead: LeadStatusBadge (estación de la ruta, sin colores de lámpara).
-
 export default function ContactosPage() {
   const { error: toastError } = useToast();
   const { data: session } = useSession();

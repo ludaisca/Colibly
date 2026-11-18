@@ -31,10 +31,6 @@ export function applyRateLimitHeaders(req: Request, res: Response): Response {
   return res;
 }
 
-export function getRateLimitInfo(req: Request): RateLimitInfo | undefined {
-  return infoByRequest.get(req);
-}
-
 // Varios límites se aplican a la misma solicitud (key, organización, endpoint):
 // los headers informan el más ajustado (menos restantes), que es el que
 // rechazará primero.

@@ -1,5 +1,5 @@
 import { cn } from "./cn";
-import { leadStation, type Station } from "@/lib/pipeline/stages";
+import type { Station } from "@/lib/pipeline/stages";
 import type { LeadStatus } from "@prisma/client";
 
 // Estado del lead como estación de la ruta de la venta (Andén, 2026-11-07).
@@ -29,25 +29,6 @@ export function StationMark({ station, className }: { station: Station; classNam
           )}
         />
       ))}
-    </span>
-  );
-}
-
-export function LeadStatusBadge({ status, className }: { status: LeadStatus; className?: string }) {
-  const station = leadStation(status);
-  const tone =
-    station.tone === "won"
-      ? "border-success-border bg-success-bg text-success"
-      : station.tone === "lost"
-        ? "border-border bg-surface-light text-muted"
-        : "border-border bg-surface-light text-foreground";
-  return (
-    <span
-      className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-micro font-medium", tone, className)}
-      title={station.tone === "open" ? `Etapa ${station.step} de ${station.total}` : undefined}
-    >
-      <StationMark station={station} />
-      {LEAD_STATUS_LABEL[status]}
     </span>
   );
 }

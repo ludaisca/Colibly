@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { SLA_RESPONSE_MINUTES_RANGE, SLA_RESOLUTION_HOURS_RANGE } from "@/lib/sla/rules";
+import { AWAY_MESSAGE_MAX_LENGTH } from "@/lib/inbox/away-message-rules";
 import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
 import { MAX_SEATS } from "@/lib/billing/plans";
 
@@ -635,10 +637,10 @@ export const orgAiSettingsUpdateSchema = z
     autoTranscribeAudio: z.boolean().optional(),
     // SLA de la bandeja (lib/sla/): el interruptor se guarda como slaEnabledAt.
     slaEnabled: z.boolean().optional(),
-    slaResponseMinutes: z.number().int("Usa minutos enteros").min(5, "Mínimo 5 minutos").max(1440, "Máximo 1440 minutos (24 h)").optional(),
-    slaResolutionHours: z.number().int("Usa horas enteras").min(1, "Mínimo 1 hora").max(720, "Máximo 720 horas (30 días)").optional(),
+    slaResponseMinutes: z.number().int("Usa minutos enteros").min(SLA_RESPONSE_MINUTES_RANGE.min, `Mínimo ${SLA_RESPONSE_MINUTES_RANGE.min} minutos`).max(SLA_RESPONSE_MINUTES_RANGE.max, `Máximo ${SLA_RESPONSE_MINUTES_RANGE.max} minutos (24 h)`).optional(),
+    slaResolutionHours: z.number().int("Usa horas enteras").min(SLA_RESOLUTION_HOURS_RANGE.min, `Mínimo ${SLA_RESOLUTION_HOURS_RANGE.min} hora`).max(SLA_RESOLUTION_HOURS_RANGE.max, `Máximo ${SLA_RESOLUTION_HOURS_RANGE.max} horas (30 días)`).optional(),
     slaBusinessHoursOnly: z.boolean().optional(),
-    awayMessageText: z.string().trim().max(1000, "Máximo 1000 caracteres").nullable().optional()
+    awayMessageText: z.string().trim().max(AWAY_MESSAGE_MAX_LENGTH, `Máximo ${AWAY_MESSAGE_MAX_LENGTH} caracteres`).nullable().optional()
       .transform((v) => (v ? v : v === undefined ? undefined : null)),
   })
   .refine(
