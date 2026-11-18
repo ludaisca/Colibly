@@ -77,6 +77,19 @@ describe("apiCallerFor", () => {
     expect(await sent.json()).toEqual({ type: "text", text: "hola" });
   });
 
+  it("con una conexión OAuth ata la key al Request y no reenvía el token", async () => {
+    const { GET } = await import("@/app/api/v1/me/route");
+    const { boundApiKeyHash } = await import("@/lib/api/bound-key");
+    const handler = vi.mocked(GET as unknown as (req: Request, ctx: unknown) => Promise<Response>);
+    handler.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    const mcpReq = new Request("http://x/api/v1/mcp", { method: "POST", headers: { authorization: "Bearer mco_token" } });
+    await apiCallerFor(mcpReq, "http://x", { keyHash: "hash-de-la-key" })("GET", "/me");
+    const sent = handler.mock.calls[0][0] as Request;
+    expect(sent.headers.get("authorization")).toBeNull();
+    expect(boundApiKeyHash(sent)).toBe("hash-de-la-key");
+    expect(boundApiKeyHash(new Request("http://x/api/v1/me", { headers: { authorization: "Bearer mco_token" } }))).toBeUndefined();
+  });
+
   it("no llama a nada fuera de la lista", async () => {
     const api = apiCallerFor(new Request("http://x/api/v1/mcp"), "http://x");
     expect((await api("DELETE", "/contacts/c1")).status).toBe(404);

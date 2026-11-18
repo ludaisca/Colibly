@@ -2,6 +2,7 @@ import { WEBHOOK_DELIVERY_RETENTION_DAYS } from "@/lib/api/constants";
 import { promises as fs } from "fs";
 import { prisma } from "@/lib/prisma";
 import { resolveAbsolutePath } from "@/lib/whatsapp/media-store";
+import { purgeExpiredMcpOAuth } from "@/lib/mcp/customer/oauth";
 
 const RETENTION_DAYS = Number(process.env.MEDIA_RETENTION_DAYS ?? 90);
 const BATCH_SIZE = 200;
@@ -53,6 +54,12 @@ export async function processMediaCleanupJob() {
     (ids) => prisma.apiMedia.deleteMany({ where: { id: { in: ids } } })
   );
   if (apiMedia > 0) console.log(`[media-cleanup] ${apiMedia} archivo(s) de la API caducado(s)`);
+
+  // OAuth del MCP de clientes: códigos y tokens vencidos, conexiones sin uso.
+  const oauth = await purgeExpiredMcpOAuth();
+  if (oauth.codes + oauth.tokens + oauth.connections > 0) {
+    console.log(`[media-cleanup] MCP OAuth: ${oauth.codes} código(s), ${oauth.tokens} token(s), ${oauth.connections} conexión(es) sin uso`);
+  }
 
   if (!RETENTION_DAYS || RETENTION_DAYS <= 0) return;
 

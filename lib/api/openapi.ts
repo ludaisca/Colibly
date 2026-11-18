@@ -748,7 +748,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           tags: ["Cuenta"],
           summary: "Servidor MCP para asistentes de IA",
           description:
-            "Model Context Protocol (Streamable HTTP, JSON-RPC 2.0, sin sesión) para conectar Claude, ChatGPT, Cursor u otro cliente MCP con tu API key. Las herramientas que ve el asistente dependen de los permisos de la key y respetan el mismo alcance de cuentas, límites y solo lectura que el resto de la API; cada llamada a una herramienta cuenta como solicitud. Las que envían mensajes (send_message, send_template, run_automation) usan Idempotency-Key automática: la misma llamada repetida en 10 minutos no envía dos veces. Guía: /docs/mcp.",
+            "Model Context Protocol (Streamable HTTP, JSON-RPC 2.0, sin sesión) para conectar Claude, ChatGPT, Cursor u otro cliente MCP con tu API key o con OAuth (el cliente descubre el servidor de autorización en el 401: WWW-Authenticate con resource_metadata, RFC 9728; PKCE S256 y registro dinámico). Las herramientas que ve el asistente dependen de los permisos de la key y respetan el mismo alcance de cuentas, límites y solo lectura que el resto de la API; cada llamada a una herramienta cuenta como solicitud. Las que envían mensajes (send_message, send_template, run_automation) usan Idempotency-Key automática: la misma llamada repetida en 10 minutos no envía dos veces. Guía: /docs/mcp.",
           requestBody: { required: true, content: json({ type: "object", description: "Mensaje JSON-RPC 2.0 de MCP" }, { jsonrpc: "2.0", id: 1, method: "tools/list" }) },
           responses: {
             "200": ok(

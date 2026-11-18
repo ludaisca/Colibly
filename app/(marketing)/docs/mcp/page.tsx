@@ -7,7 +7,7 @@ import { CUSTOMER_TOOLS } from "@/lib/mcp/customer/tools";
 import { Code, DOCS_STYLES, ParamTable, Section } from "../api/_ui";
 import { CodeCopy } from "../api/_copy-button";
 
-const DESCRIPTION = `Conecta Claude, Cursor u otro asistente de IA con ${BRAND_NAME} por MCP: consulta conversaciones y contactos, contesta a quien espera y mueve tratos del embudo con tu API key.`;
+const DESCRIPTION = `Conecta Claude, ChatGPT, Cursor u otro asistente de IA con ${BRAND_NAME} por MCP: consulta conversaciones y contactos, contesta a quien espera y organiza tus contactos, con inicio de sesión o API key.`;
 
 export const metadata: Metadata = {
   title: "MCP: conecta tu asistente de IA",
@@ -23,6 +23,12 @@ const LINK = "font-medium text-accent-ink underline underline-offset-2 hover:tex
 // herramientas sale de lib/mcp/customer/tools.ts: no se desfasa del código.
 export default function McpDocsPage() {
   const url = appUrl("/api/v1/mcp");
+  const claudeCodeOAuth = `claude mcp add --transport http colibly ${url}`;
+  const cursorOAuth = `{
+  "mcpServers": {
+    "colibly": { "url": "${url}" }
+  }
+}`;
   const claudeCode = `claude mcp add --transport http colibly ${url} \\
   --header "Authorization: Bearer $COLIBLY_API_KEY"`;
   const jsonConfig = `{
@@ -30,15 +36,6 @@ export default function McpDocsPage() {
     "colibly": {
       "url": "${url}",
       "headers": { "Authorization": "Bearer sk_live_…" }
-    }
-  }
-}`;
-  const bridge = `{
-  "mcpServers": {
-    "colibly": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "${url}", "--header", "Authorization:\${COLIBLY_AUTH}"],
-      "env": { "COLIBLY_AUTH": "Bearer sk_live_…" }
     }
   }
 }`;
@@ -52,22 +49,42 @@ export default function McpDocsPage() {
         </p>
         <h1 className="mt-2 text-pretty font-display text-3xl font-semibold tracking-tight">Conecta tu asistente de IA con {BRAND_NAME}</h1>
         <p className="mt-4 max-w-3xl text-muted">
-          {BRAND_NAME} tiene un servidor <strong className="text-foreground">MCP</strong> (Model Context Protocol). Con él, Claude, Cursor u otro
-          asistente compatible puede leer tus conversaciones y contactos, decirte a quién contestar, redactar y enviar respuestas, y mover tratos
-          del embudo, con los mismos permisos de tu API key.
+          {BRAND_NAME} tiene un servidor <strong className="text-foreground">MCP</strong> (Model Context Protocol). Con él, Claude, ChatGPT, Cursor
+          u otro asistente compatible puede leer tus conversaciones y contactos, decirte a quién contestar, redactar y enviar respuestas, y
+          organizar tus contactos, solo con los permisos que tú le des.
         </p>
 
-        <Section id="conectar" title="Conectar">
-          <p>Necesitas una API key de un admin con licencia Pro. Créala en Configuración → API y elige solo los permisos que el asistente necesita.</p>
-          <ParamTable head={["Dato", "Valor"]} rows={[["URL del servidor", <code key="u" className="break-all text-sm">{url}</code>], ["Transporte", "Streamable HTTP (sin sesión)"], ["Autenticación", <code key="a" className="text-sm">Authorization: Bearer sk_live_…</code>]]} />
+        <Section id="conectar" title="Conectar con inicio de sesión">
+          <p>
+            La forma más simple. Necesitas ser admin con licencia Pro. Agrega {BRAND_NAME} como conector personalizado en tu asistente con esta
+            URL; te llevará a {BRAND_NAME} para iniciar sesión y elegir qué permites:
+          </p>
+          <ParamTable head={["Dato", "Valor"]} rows={[["URL del servidor", <code key="u" className="break-all text-sm">{url}</code>], ["Autenticación", "OAuth (inicio de sesión), sin configurar nada más"]]} />
+          <ul className="list-disc space-y-1.5 pl-5">
+            <li><strong>Claude (web y escritorio):</strong> en Conectores, agrega un conector personalizado y pega la URL.</li>
+            <li><strong>ChatGPT:</strong> en los conectores personalizados (modo de desarrollador), crea uno con la URL y autenticación OAuth.</li>
+            <li><strong>Claude Code:</strong> agrégalo y luego usa <code className="text-sm">/mcp</code> para iniciar sesión.</li>
+          </ul>
+          <Code>{claudeCodeOAuth}</Code>
+          <p className="font-medium">Cursor y clientes con archivo de configuración</p>
+          <Code>{cursorOAuth}</Code>
+          <p>
+            Al conectar eliges los permisos (consultar, organizar, enviar) y, si quieres, el <strong>modo de prueba</strong>: el asistente lee tus
+            datos reales pero los envíos se simulan. Cada conexión aparece en Configuración → API → API keys; desde ahí la desconectas al
+            instante. Reconectar la misma app reemplaza la conexión anterior, y una conexión que no se usa en 30 días se cierra sola.
+          </p>
+        </Section>
+
+        <Section id="api-key" title="Conectar con API key">
+          <p>
+            Para servidores, scripts o clientes sin inicio de sesión. Crea una API key en Configuración → API con solo los permisos que el
+            asistente necesita y mándala en el header:
+          </p>
+          <ParamTable head={["Dato", "Valor"]} rows={[["Transporte", "Streamable HTTP (sin sesión)"], ["Autenticación", <code key="a" className="text-sm">Authorization: Bearer sk_live_…</code>]]} />
           <p className="font-medium">Claude Code</p>
           <Code>{claudeCode}</Code>
           <p className="font-medium">Cursor y clientes que aceptan URL con headers</p>
           <Code>{jsonConfig}</Code>
-          <p className="font-medium">Claude Desktop y clientes que solo ejecutan comandos</p>
-          <p>Usa el puente <code className="text-sm">mcp-remote</code> (necesita Node.js 18 o superior):</p>
-          <Code>{bridge}</Code>
-          <p className="text-sm text-muted">Claude.ai y ChatGPT conectan servidores remotos con inicio de sesión (OAuth). Esa forma de conectar viene después; mientras tanto usa alguno de los clientes de arriba.</p>
         </Section>
 
         <Section id="herramientas" title="Herramientas">
@@ -93,14 +110,14 @@ export default function McpDocsPage() {
 
         <Section id="seguridad" title="Seguridad y límites">
           <ul className="list-disc space-y-1.5 pl-5">
-            <li>Mismas reglas que la API: la key solo ve las cuentas de su dueño (o las que le asignaste), y una cuenta en solo lectura puede consultar pero no escribir.</li>
+            <li>Mismas reglas que la API: la conexión o la key solo ve las cuentas de su dueño (o las que le asignaste a la key), y una cuenta en solo lectura puede consultar pero no escribir.</li>
             <li>
-              Cada llamada a una herramienta cuenta como una o dos solicitudes de la API (límite de {API_REQUESTS_PER_MINUTE} por minuto por key).
+              Cada llamada a una herramienta cuenta como una o dos solicitudes de la API (límite de {API_REQUESTS_PER_MINUTE} por minuto por conexión o key).
             </li>
             <li>Los envíos llevan clave de idempotencia automática: si el asistente repite la misma llamada en 10 minutos, el mensaje no sale dos veces.</li>
-            <li>Con una key de prueba (<code className="text-sm">sk_test_</code>) los envíos se simulan y no se cambian datos: úsala para probar tu configuración.</li>
+            <li>En modo de prueba (o con una key <code className="text-sm">sk_test_</code>) los envíos se simulan y no se cambian datos: úsalo para probar tu configuración.</li>
             <li>Los mensajes de tus clientes llegan al asistente marcados como datos de terceros. Aun así, revisa lo que el asistente quiere enviar antes de aprobarlo.</li>
-            <li>Revoca la key en Configuración → API para cortar el acceso al instante.</li>
+            <li>Desconecta la conexión (o revoca la key) en Configuración → API para cortar el acceso al instante.</li>
           </ul>
           <p>
             Referencia completa de la API: <a href="/docs/api" className={LINK}>/docs/api</a>.

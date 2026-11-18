@@ -21,6 +21,8 @@ interface ApiKeyRow {
   prefix: string;
   scopes: string[];
   test: boolean;
+  /** Conexión MCP por OAuth: la creó un asistente al conectarse; no se rota. */
+  oauth: boolean;
   accountIds: string[];
   channelAccountIds: string[];
   lastUsedAt: string | null;
@@ -153,12 +155,13 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
               title={k.name}
               subtitle={
                 <span className="tabular-nums">
-                  {k.prefix}… · {k.scopes.length} permiso{k.scopes.length === 1 ? "" : "s"} ·{" "}
+                  {k.oauth ? "Conexión de asistente" : `${k.prefix}…`} · {k.scopes.length} permiso{k.scopes.length === 1 ? "" : "s"} ·{" "}
                   {scopeSummary(k.accountIds, k.channelAccountIds, accounts)}
                 </span>
               }
               badges={
                 <>
+                  {k.oauth && <Badge size="sm" tone="neutral">MCP</Badge>}
                   {k.test && <Badge size="sm" tone="neutral">Prueba</Badge>}
                   <Badge size="sm" tone={state.tone}>{state.label}</Badge>
                 </>
@@ -169,11 +172,11 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
         }}
         rowActions={(k) => (
           <>
-            {keyState(k).label === "Activa" && (
+            {keyState(k).label === "Activa" && !k.oauth && (
               <DropdownItem icon={RefreshCw} onClick={() => setRotating(k)}>Rotar</DropdownItem>
             )}
             {!k.revokedAt && (
-              <DropdownItem icon={Ban} onClick={() => setRevoking(k)}>Revocar</DropdownItem>
+              <DropdownItem icon={Ban} onClick={() => setRevoking(k)}>{k.oauth ? "Desconectar" : "Revocar"}</DropdownItem>
             )}
             <DropdownItem icon={Trash2} danger onClick={() => setDeleting(k)}>Eliminar</DropdownItem>
           </>
@@ -188,9 +191,13 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
         onConfirm={handleRevoke}
         loading={busy}
         tone="warning"
-        title={`¿Revocar “${revoking?.name}”?`}
-        description="Las integraciones que la usan dejarán de funcionar de inmediato. No se puede deshacer."
-        confirmLabel="Revocar"
+        title={revoking?.oauth ? `¿Desconectar “${revoking?.name}”?` : `¿Revocar “${revoking?.name}”?`}
+        description={
+          revoking?.oauth
+            ? "El asistente pierde el acceso de inmediato. Para volver a usarlo, conéctalo de nuevo desde el asistente."
+            : "Las integraciones que la usan dejarán de funcionar de inmediato. No se puede deshacer."
+        }
+        confirmLabel={revoking?.oauth ? "Desconectar" : "Revocar"}
       />
       <Modal
         open={!!rotating}

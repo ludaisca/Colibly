@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { bindApiKeyHash } from "@/lib/api/bound-key";
 import * as me from "@/app/api/v1/me/route";
 import * as accounts from "@/app/api/v1/accounts/route";
 import * as contacts from "@/app/api/v1/contacts/route";
@@ -97,14 +98,19 @@ export function mcpIdempotencyKey(keyFingerprint: string, method: string, path: 
   return `mcp-${hash.slice(0, 48)}`;
 }
 
-/** Arma el `ApiCaller` del request MCP (misma credencial, misma IP). */
-export function apiCallerFor(mcpReq: Request, baseUrl: string): ApiCaller {
+/**
+ * Arma el `ApiCaller` del request MCP (misma credencial, misma IP). Con
+ * `keyHash` (conexión OAuth) la key va atada a cada Request (bound-key.ts) y
+ * el access token no viaja a los handlers.
+ */
+export function apiCallerFor(mcpReq: Request, baseUrl: string, auth: { keyHash?: string } = {}): ApiCaller {
   const forwarded = new Headers();
   for (const name of FORWARDED_HEADERS) {
     const value = mcpReq.headers.get(name);
     if (value) forwarded.set(name, value);
   }
-  const keyFingerprint = createHash("sha256").update(forwarded.get("authorization") ?? "").digest("hex").slice(0, 16);
+  if (auth.keyHash) forwarded.delete("authorization");
+  const keyFingerprint = createHash("sha256").update(auth.keyHash ?? forwarded.get("authorization") ?? "").digest("hex").slice(0, 16);
 
   return async (method, path, opts = {}) => {
     const match = matchRoute(method, path);
@@ -122,7 +128,9 @@ export function apiCallerFor(mcpReq: Request, baseUrl: string): ApiCaller {
     }
     if (opts.idempotent) headers.set("Idempotency-Key", mcpIdempotencyKey(keyFingerprint, method, path, opts.body));
 
-    const res = await match.handler(new Request(url, { method, headers, body }), { params: Promise.resolve(match.params) });
+    const apiReq = new Request(url, { method, headers, body });
+    if (auth.keyHash) bindApiKeyHash(apiReq, auth.keyHash);
+    const res = await match.handler(apiReq, { params: Promise.resolve(match.params) });
     const text = await res.text();
     let parsed: unknown = null;
     try {

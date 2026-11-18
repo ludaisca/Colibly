@@ -93,6 +93,7 @@ model User {
   routingRuleTargets    WAAccountRoutingRule[]
   sequences             WASequence[]
   apiKeys               ApiKey[]
+  mcpOAuthCodes         McpOAuthCode[]
   webhookEndpoints      WebhookEndpoint[]
   automations           Automation[]
   automationVersions    AutomationVersion[]
@@ -2034,6 +2035,11 @@ model ApiKey {
   // sk_test_: lee lo mismo que una real, pero los envíos se simulan (no sale
   // nada ni se guarda) y no cambia nada más (lib/api/test-mode.ts).
   test              Boolean   @default(false)
+  // Conexión MCP por OAuth (lib/mcp/customer/oauth.ts): la key la creó la
+  // autorización de ese cliente y nadie conoce su secreto. Revocarla corta la
+  // conexión; no se rota.
+  oauthClientId     String?   @map("oauth_client_id")
+  mcpOAuthTokens    McpOAuthToken[]
   lastUsedAt        DateTime? @map("last_used_at")
   expiresAt         DateTime? @map("expires_at")
   revokedAt         DateTime? @map("revoked_at")
@@ -2042,6 +2048,59 @@ model ApiKey {
   @@index([userId])
   @@index([organizationId])
   @@map("api_keys")
+}
+
+// OAuth 2.1 del MCP de clientes (/api/v1/mcp). Clientes públicos con PKCE y
+// registro dinámico; cada autorización crea una ApiKey con los permisos que
+// eligió el admin, y los tokens apuntan a esa key. Separado del OAuth del
+// operador (PlatformOAuth*). Detalle: docs/arquitectura/integraciones.md.
+model McpOAuthClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique @map("client_id")
+  clientName   String   @map("client_name")
+  redirectUris String[] @map("redirect_uris")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("mcp_oauth_clients")
+}
+
+model McpOAuthCode {
+  id            String    @id @default(cuid())
+  codeHash      String    @unique @map("code_hash")
+  clientId      String    @map("client_id")
+  redirectUri   String    @map("redirect_uri")
+  codeChallenge String    @map("code_challenge")
+  resource      String
+  userId        String    @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scopes        String[]  @default([])
+  test          Boolean   @default(false)
+  expiresAt     DateTime  @map("expires_at")
+  consumedAt    DateTime? @map("consumed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("mcp_oauth_codes")
+}
+
+model McpOAuthToken {
+  id               String    @id @default(cuid())
+  accessHash       String    @unique @map("access_hash")
+  refreshHash      String    @unique @map("refresh_hash")
+  familyId         String    @map("family_id")
+  clientId         String    @map("client_id")
+  apiKeyId         String    @map("api_key_id")
+  apiKey           ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  resource         String
+  accessExpiresAt  DateTime  @map("access_expires_at")
+  refreshExpiresAt DateTime  @map("refresh_expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([familyId])
+  @@index([apiKeyId])
+  @@index([refreshExpiresAt])
+  @@map("mcp_oauth_tokens")
 }
 
 // Archivo subido por POST /api/v1/media para reusarlo en varios envíos

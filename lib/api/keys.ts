@@ -26,6 +26,7 @@ export function serializeApiKey(k: ApiKey) {
     prefix: k.prefix,
     scopes: k.scopes,
     test: k.test,
+    oauth: !!k.oauthClientId,
     accountIds: k.accountIds,
     channelAccountIds: k.channelAccountIds,
     lastUsedAt: k.lastUsedAt,

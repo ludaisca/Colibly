@@ -4,6 +4,7 @@ import { rateLimit, RateLimitUnavailableError, type RateLimitResult } from "@/li
 import { resolveIntegrationScope, type ResolvedScope } from "@/lib/integrations/account-scope";
 import { ApiError } from "./respond";
 import { isApiKeySecret } from "./keys";
+import { boundApiKeyHash } from "./bound-key";
 import { assertTestKeyAllowed } from "./test-mode";
 import type { ApiScope } from "./scopes";
 import { hasApiAccess, isOrgWritable } from "@/lib/billing/gates";
@@ -124,15 +125,18 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
   // 1. Red de seguridad por IP (antes de tocar la base).
   await enforceLimit(req, "ip", `api-ip:${clientIp(req)}`, API_IP_REQUESTS_PER_MINUTE);
 
-  const header = req.headers.get("authorization") ?? "";
-  const secret = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
-
-  if (!isApiKeySecret(secret)) {
-    await throttleBadKey(req);
-    throw new ApiError(401, "unauthorized", "Falta la API key (Authorization: Bearer sk_live_...)");
+  // El MCP conectado por OAuth ata la key ya resuelta al Request (bound-key.ts).
+  let keyHash = boundApiKeyHash(req);
+  if (!keyHash) {
+    const header = req.headers.get("authorization") ?? "";
+    const secret = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+    if (!isApiKeySecret(secret)) {
+      await throttleBadKey(req);
+      throw new ApiError(401, "unauthorized", "Falta la API key (Authorization: Bearer sk_live_...)");
+    }
+    keyHash = hashToken(secret);
   }
 
-  const keyHash = hashToken(secret);
   const key = await loadKey(keyHash);
   if (!key || key.revokedAt || (key.expiresAt && new Date(key.expiresAt) <= new Date())) {
     await throttleBadKey(req);
@@ -184,7 +188,7 @@ export async function authenticateApiKey(req: Request, scope?: ApiScope): Promis
 
 // Frena la enumeración de keys desde una misma IP (IP confiable: ver
 // lib/net/client-ip.ts — el primer X-Forwarded-For lo inventa el cliente).
-async function throttleBadKey(req: Request): Promise<void> {
+export async function throttleBadKey(req: Request): Promise<void> {
   let result: RateLimitResult;
   try {
     result = await rateLimit(`api-bad-key:${clientIp(req)}`, API_BAD_KEY_ATTEMPTS_PER_MINUTE, 60, { failClosed: true });

@@ -27,7 +27,9 @@ const USER_BLOCKED = ["/whatsapp/contactos", "/whatsapp/bots", "/whatsapp/monito
 // /verificar-correo e /invitacion no van aquí: funcionan con o sin sesión.
 const AUTH = ["/login", "/register", "/recuperar", "/restablecer"];
 // /conectar/<token>: enlace de conexión de WhatsApp para clientes de un integrador (sin sesión).
-const APP_PUBLIC = [...AUTH, "/verificar-correo", "/invitacion", "/conectar"];
+// /oauth/autorizar: consentimiento del MCP de clientes; la página pide sesión
+// ella misma (con la URL completa en callbackUrl) y decide quién puede conectar.
+const APP_PUBLIC = [...AUTH, "/verificar-correo", "/invitacion", "/conectar", "/oauth"];
 const EXCLUDE = ["/_next", "/favicon.ico"];
 
 function configuredHost(value: string | undefined): string | null {
@@ -50,7 +52,8 @@ function onOrigin(origin: string, req: NextRequest, path = req.nextUrl.pathname)
 // traen sesión y siguen su curso: lo entrante se guarda igual, y los envíos
 // tienen su propio candado en los emisores y en la API v1.
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const READ_ONLY_ALLOWED = ["/api/auth", "/api/billing", "/api/organizacion", "/api/plataforma", "/api/usuarios", "/api/whatsapp/notifications"];
+// /api/oauth: conectar un asistente por MCP (en solo lectura, la conexión solo consulta).
+const READ_ONLY_ALLOWED = ["/api/auth", "/api/billing", "/api/oauth", "/api/organizacion", "/api/plataforma", "/api/usuarios", "/api/whatsapp/notifications"];
 
 export default async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;

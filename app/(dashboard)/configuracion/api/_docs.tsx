@@ -74,15 +74,14 @@ export function ApiDocsSection() {
       <Card as="section" className="space-y-3">
         <SectionHeader title="Asistentes de IA (MCP)" />
         <p className="text-sm text-muted">
-          Conecta Claude, Cursor u otro cliente MCP con una API key: el asistente puede ver quién espera respuesta, leer conversaciones,
-          editar contactos y enviar mensajes con tu aprobación, con los mismos permisos de la key. Usa una key con solo los permisos que
-          necesite; con una <code className="font-mono text-xs">sk_test_</code> los envíos se simulan.
+          Conecta Claude, ChatGPT, Cursor u otro cliente MCP: el asistente puede ver quién espera respuesta, leer conversaciones, editar
+          contactos y enviar mensajes con tu aprobación. Pega esta URL como conector personalizado en tu asistente; te pedirá iniciar
+          sesión aquí y elegir qué permites. Las conexiones aparecen en API keys, donde puedes desconectarlas.
         </p>
         <SecretField label="URL del servidor MCP" value={`${base}/mcp`} />
-        <Code>{`claude mcp add --transport http colibly ${base}/mcp \\
-  --header "Authorization: Bearer $COLIBLY_API_KEY"`}</Code>
+        <Code>{`claude mcp add --transport http colibly ${base}/mcp`}</Code>
         <p className="text-sm text-muted">
-          Configuración para Cursor, Claude Desktop y otros clientes, y la lista de herramientas:{" "}
+          Conexión con API key (servidores y scripts), configuración para otros clientes y la lista de herramientas:{" "}
           <a href="/docs/mcp" target="_blank" rel="noopener" className="font-medium text-accent-ink underline underline-offset-2">guía del MCP</a>.
         </p>
       </Card>

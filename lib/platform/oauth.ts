@@ -1,13 +1,17 @@
-import { createHash, randomBytes, randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
+import { OAuthError, isValidRedirectUri, pkceChallenge, randomOAuthToken as randomToken } from "@/lib/oauth/common";
 import { isPlatformScope, PLATFORM_SCOPES, type PlatformScope, type PlatformTokenContext } from "./scopes";
 
-// OAuth 2.1 para el MCP remoto: clientes públicos con PKCE S256, DCR y
-// refresh con rotación. Los tokens son opacos (se consultan en BD) para que
-// revocar sea inmediato, a diferencia de un JWT.
+// OAuth 2.1 para el MCP remoto del operador: clientes públicos con PKCE S256,
+// DCR y refresh con rotación. Los tokens son opacos (se consultan en BD) para
+// que revocar sea inmediato, a diferencia de un JWT. Las piezas puras viven en
+// lib/oauth/common.ts (las comparte el OAuth del MCP de clientes).
+
+export { OAuthError, isValidRedirectUri, pkceChallenge };
 
 export const OAUTH_ACCESS_PREFIX = "poa_";
 export const OAUTH_REFRESH_PREFIX = "por_";
@@ -15,20 +19,6 @@ export const OAUTH_CODE_PREFIX = "pac_";
 export const OAUTH_ACCESS_TTL_SECONDS = 60 * 60; // 1 h
 export const OAUTH_REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 días
 export const OAUTH_CODE_TTL_SECONDS = 10 * 60; // 10 min
-
-export class OAuthError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code: string,
-    message: string
-  ) {
-    super(message);
-  }
-}
-
-function randomToken(prefix: string): string {
-  return `${prefix}${randomBytes(32).toString("base64url")}`;
-}
 
 export function oauthIssuer(): string {
   return (process.env.APP_URL ?? "").replace(/\/+$/, "");
@@ -44,22 +34,6 @@ export function validateScopes(input: string[]): PlatformScope[] {
     throw new OAuthError(400, "invalid_scope", "Algún permiso no es válido");
   }
   return unique as PlatformScope[];
-}
-
-export function pkceChallenge(verifier: string): string {
-  return createHash("sha256").update(verifier).digest("base64url");
-}
-
-export function isValidRedirectUri(uri: string): boolean {
-  try {
-    const url = new URL(uri);
-    if (url.hash) return false;
-    if (url.protocol === "https:") return true;
-    if (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]")) return true;
-    return false;
-  } catch {
-    return false;
-  }
 }
 
 export async function registerOAuthClient(input: { clientName: string; redirectUris: string[] }) {

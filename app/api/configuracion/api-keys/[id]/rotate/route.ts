@@ -31,6 +31,10 @@ export async function POST(req: Request, { params }: Params) {
     const old = await prisma.apiKey.findFirst({ where: { id, ...(await orgWhere(admin.userId)) } });
     if (!old) return NextResponse.json({ error: "API key no encontrada" }, { status: 404 });
     const now = new Date();
+    // Una conexión MCP por OAuth no tiene secreto que mostrar: se reconecta desde el asistente.
+    if (old.oauthClientId) {
+      return NextResponse.json({ error: "Las conexiones de asistentes no se rotan: desconéctala y vuelve a conectar desde el asistente" }, { status: 409 });
+    }
     if (old.revokedAt || (old.expiresAt && old.expiresAt <= now)) {
       return NextResponse.json({ error: "Esta key ya no funciona: crea una nueva en lugar de rotarla" }, { status: 409 });
     }
