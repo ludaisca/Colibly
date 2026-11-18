@@ -41,6 +41,7 @@ interface ConfigResponse {
   metaAppId: string | null;
   hasMetaAppSecret: boolean;
   metaEmbeddedSignupConfigId: string | null;
+  metaMessagingConfigId: string | null;
   hasMetaWebhookVerifyToken: boolean;
   metaPixelId: string | null;
   hasMetaCapiAccessToken: boolean;
@@ -309,6 +310,7 @@ export function PlataformaConfiguracion() {
     turnstileSiteKey: "",
     metaAppId: "",
     metaEmbeddedSignupConfigId: "",
+    metaMessagingConfigId: "",
     metaPixelId: "",
     gaMeasurementId: "",
     googleAdsId: "",
@@ -343,6 +345,7 @@ export function PlataformaConfiguracion() {
         turnstileSiteKey: json.turnstileSiteKey ?? "",
         metaAppId: json.metaAppId ?? "",
         metaEmbeddedSignupConfigId: json.metaEmbeddedSignupConfigId ?? "",
+        metaMessagingConfigId: json.metaMessagingConfigId ?? "",
         metaPixelId: json.metaPixelId ?? "",
         gaMeasurementId: json.gaMeasurementId ?? "",
         googleAdsId: json.googleAdsId ?? "",
@@ -424,6 +427,7 @@ export function PlataformaConfiguracion() {
       payload.turnstileSiteKey = plain.turnstileSiteKey.trim() || null;
       payload.metaAppId = plain.metaAppId.trim() || null;
       payload.metaEmbeddedSignupConfigId = plain.metaEmbeddedSignupConfigId.trim() || null;
+      payload.metaMessagingConfigId = plain.metaMessagingConfigId.trim() || null;
       payload.metaPixelId = plain.metaPixelId.trim() || null;
       payload.gaMeasurementId = plain.gaMeasurementId.trim() || null;
       payload.googleAdsId = plain.googleAdsId.trim() || null;
@@ -669,9 +673,9 @@ export function PlataformaConfiguracion() {
         />
           </SettingsBlock>
 
-          <SettingsBlock id="meta" active={section === "meta"} eyebrow="WhatsApp" title="App de Meta de la plataforma (Embedded Signup)" status={blockStatus([!!data.metaAppId, data.hasMetaAppSecret, !!data.metaEmbeddedSignupConfigId, data.hasMetaWebhookVerifyToken])}>
+          <SettingsBlock id="meta" active={section === "meta"} eyebrow="WhatsApp, Messenger e Instagram" title="App de Meta de la plataforma" status={blockStatus([!!data.metaAppId, data.hasMetaAppSecret, !!data.metaEmbeddedSignupConfigId, data.hasMetaWebhookVerifyToken])}>
         <Banner tone="info">
-          Datos de la app de Meta de Colibly. Con ellos los clientes conectan su WhatsApp con un botón, sin copiar tokens. El App Secret
+          Datos de la app de Meta de Colibly. Con ellos los clientes conectan WhatsApp, Messenger e Instagram con un botón, sin copiar tokens. El App Secret
           firma los webhooks de esas cuentas; nunca se vuelve a mostrar.
         </Banner>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -680,6 +684,9 @@ export function PlataformaConfiguracion() {
           </FormField>
           <FormField label="ID de configuración de Embedded Signup" hint="Inicio de sesión para empresas → Configuraciones.">
             {(id) => <Input id={id} value={plain.metaEmbeddedSignupConfigId} inputMode="numeric" onChange={(e) => setPlain((p) => ({ ...p, metaEmbeddedSignupConfigId: e.target.value }))} />}
+          </FormField>
+          <FormField label="ID de configuración de Messenger e Instagram" hint="Otra configuración de Inicio de sesión para empresas, con los permisos de Páginas e Instagram. Sin ella, esos canales solo se conectan a mano.">
+            {(id) => <Input id={id} value={plain.metaMessagingConfigId} inputMode="numeric" onChange={(e) => setPlain((p) => ({ ...p, metaMessagingConfigId: e.target.value }))} />}
           </FormField>
         </div>
         <SecretField

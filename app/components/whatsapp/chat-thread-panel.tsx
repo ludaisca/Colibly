@@ -2,6 +2,7 @@
 
 import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName } from "@/lib/chats/display-name";
+import { commentPostUrl } from "@/lib/meta-messaging/comment-rules";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -370,6 +371,20 @@ function MessageBubble({
           <div className={`mb-1 flex items-center gap-1 text-micro font-medium ${isInbound ? "text-muted-darker" : "text-foreground/65"}`}>
             <MessageSquare size={10} />
             <span>Desde un comentario</span>
+            {commentPostUrl(msg.commentPostId) && (
+              <>
+                <span aria-hidden>·</span>
+                <a href={commentPostUrl(msg.commentPostId)!} target="_blank" rel="noopener noreferrer" className="text-accent-ink underline underline-offset-2">
+                  Ver publicación
+                </a>
+              </>
+            )}
+          </div>
+        )}
+        {msg.commentReplyKind && (
+          <div className="mb-1 flex items-center gap-1 text-micro font-medium text-muted-darker">
+            <MessageSquare size={10} />
+            <span>{msg.commentReplyKind === "public" ? "Respuesta en la publicación" : "Respuesta privada al comentario"}</span>
           </div>
         )}
         {msg.replyToWamid && (

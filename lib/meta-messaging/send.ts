@@ -1,6 +1,7 @@
 import type { ChannelAccount } from "@prisma/client";
 import { decrypt } from "@/lib/crypto";
-import { sendMetaChannelMessage, uploadMetaAttachment, sendPrivateReplyToComment } from "@/lib/meta-messaging";
+import { sendMetaChannelMessage, uploadMetaAttachment, sendPrivateReplyToComment, replyToCommentPublicly, replyToInstagramComment } from "@/lib/meta-messaging";
+import { prisma } from "@/lib/prisma";
 import { assertOrgCanSend } from "@/lib/billing/gates";
 
 // Shape de ChannelAccount.credentials para MESSENGER/INSTAGRAM — ambos
@@ -12,6 +13,8 @@ export interface MetaChannelCredentials {
   pageAccessToken: string;
   appSecret?: string;
   instagramBusinessId?: string;
+  /** "platform": conectada con la app de Colibly (sin appSecret propio; el webhook se firma con el de la plataforma). */
+  connection?: "manual" | "platform";
 }
 
 export function getMetaChannelCredentials(account: ChannelAccount): MetaChannelCredentials {
@@ -23,6 +26,20 @@ interface SendParams {
   body: string;
 }
 
+// Destinatario real de un mensaje directo: si la conversación nació de un
+// comentario y la persona tiene otro id en Messenger (aliasExternalId, lo
+// aprendió la respuesta privada), los envíos van a ese. Aquí y no en cada
+// llamador: así el chat, la API, las automatizaciones, el bot y la
+// recuperación de leads usan el mismo.
+async function resolveRecipient(account: ChannelAccount, to: string): Promise<string> {
+  if (account.channel !== "MESSENGER" && account.channel !== "INSTAGRAM") return to;
+  const conversation = await prisma.conversation.findUnique({
+    where: { channelAccountId_externalId: { channelAccountId: account.id, externalId: to } },
+    select: { aliasExternalId: true },
+  });
+  return conversation?.aliasExternalId ?? to;
+}
+
 // Unified outbound sender — paralelo a lib/telegram/send.ts:sendTelegramMessage.
 export async function sendMetaChannelText(
   account: ChannelAccount,
@@ -30,7 +47,7 @@ export async function sendMetaChannelText(
 ): Promise<{ externalMessageId: string | null }> {
   await assertOrgCanSend(account.organizationId);
   const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
-  const result = await sendMetaChannelMessage(pageAccessToken, pageId, params.to, { text: params.body });
+  const result = await sendMetaChannelMessage(pageAccessToken, pageId, await resolveRecipient(account, params.to), { text: params.body });
   return { externalMessageId: result.messageId };
 }
 
@@ -42,22 +59,37 @@ export async function sendMetaChannelOptions(
 ): Promise<{ externalMessageId: string | null }> {
   await assertOrgCanSend(account.organizationId);
   const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
-  const result = await sendMetaChannelMessage(pageAccessToken, pageId, params.to, { text: params.body, quickReplies: params.options });
+  const result = await sendMetaChannelMessage(pageAccessToken, pageId, await resolveRecipient(account, params.to), { text: params.body, quickReplies: params.options });
   return { externalMessageId: result.messageId };
 }
 
-// Roadmap P3-c — envío de la primera respuesta a una conversación que
-// arrancó de un comentario (ver isFromComment/isFirstResponse en
-// chats/[chatId]/send). Paralelo a sendMetaChannelText pero apuntando al
-// endpoint dedicado de Meta con el comment_id, no el `to` (PSID) normal.
+// Respuesta privada a un comentario de Facebook o Instagram (una por
+// comentario, 7 días; el mismo Send API de la Página).
+// Devuelve también el PSID de la persona: comment-reply.ts lo guarda como
+// aliasExternalId para que su respuesta por Messenger caiga en este chat.
 export async function sendMetaChannelPrivateReply(
+  account: ChannelAccount,
+  params: { commentId: string; body: string }
+): Promise<{ externalMessageId: string | null; recipientId: string | null }> {
+  await assertOrgCanSend(account.organizationId);
+  const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
+  const result = await sendPrivateReplyToComment(pageAccessToken, pageId, params.commentId, params.body);
+  return { externalMessageId: result.messageId || null, recipientId: result.recipientId || null };
+}
+
+// Respuesta pública bajo el comentario (publicación o anuncio de Facebook, o
+// publicación/reel de Instagram).
+export async function sendMetaChannelPublicCommentReply(
   account: ChannelAccount,
   params: { commentId: string; body: string }
 ): Promise<{ externalMessageId: string | null }> {
   await assertOrgCanSend(account.organizationId);
   const { pageAccessToken } = getMetaChannelCredentials(account);
-  const result = await sendPrivateReplyToComment(pageAccessToken, params.commentId, params.body);
-  return { externalMessageId: result.messageId || null };
+  const result =
+    account.channel === "INSTAGRAM"
+      ? await replyToInstagramComment(pageAccessToken, params.commentId, params.body)
+      : await replyToCommentPublicly(pageAccessToken, params.commentId, params.body);
+  return { externalMessageId: result.commentId || null };
 }
 
 interface SendMediaParams {
@@ -74,7 +106,7 @@ export async function sendMetaChannelMedia(
   await assertOrgCanSend(account.organizationId);
   const { pageId, pageAccessToken } = getMetaChannelCredentials(account);
   const uploaded = await uploadMetaAttachment(pageAccessToken, pageId, params.buffer, params.filename, params.mimeType);
-  const result = await sendMetaChannelMessage(pageAccessToken, pageId, params.to, {
+  const result = await sendMetaChannelMessage(pageAccessToken, pageId, await resolveRecipient(account, params.to), {
     attachmentId: uploaded.attachmentId,
     mimeType: params.mimeType,
   });

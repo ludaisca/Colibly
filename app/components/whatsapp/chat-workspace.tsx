@@ -18,6 +18,8 @@ import { ChatAccountRail } from "@/app/components/whatsapp/chat-account-rail";
 import { ChatListPanel } from "@/app/components/whatsapp/chat-list-panel";
 import { ChatThreadPanel, MediaPreviewModal } from "@/app/components/whatsapp/chat-thread-panel";
 import { ChatComposer } from "@/app/components/whatsapp/chat-composer";
+import { isCommentChannel } from "@/lib/meta-messaging/comment-rules";
+import { CommentReplyBar, commentRouteFromMessages, defaultCommentMode, type CommentReplyMode } from "@/app/components/whatsapp/comment-reply-bar";
 import { ChatClaimBanner } from "@/app/components/whatsapp/chat-claim-banner";
 import { useNowMs } from "@/app/components/whatsapp/use-now";
 import { ChatDisplayNameBanner, ChatWindowBanner, useChatServiceWindow } from "@/app/components/whatsapp/chat-window-banner";
@@ -260,6 +262,9 @@ export function ChatWorkspace({
   // Botones de respuesta rápida en construcción para el próximo envío (solo
   // WhatsApp Meta — ver "Interactive messages in every channel" en docs/arquitectura/integraciones.md).
   const [interactiveButtons, setInteractiveButtons] = useState<string[]>([]);
+  // Messenger con comentarios: contestar en privado o en la publicación.
+  // null = el modo por defecto según las reglas de Meta (comment-reply-bar.tsx).
+  const [commentModeChoice, setCommentModeChoice] = useState<CommentReplyMode | null>(null);
   const [buttonsPanelOpen, setButtonsPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageDraftsRef = useRef<Map<string, string>>(new Map());
@@ -908,6 +913,7 @@ export function ChatWorkspace({
     setCannedResponses([]);
     setCannedIndex(0);
     setInteractiveButtons([]);
+    setCommentModeChoice(null);
     setButtonsPanelOpen(false);
     lastTypingSentRef.current = 0;
     setTypingUsers([]);
@@ -962,6 +968,7 @@ export function ChatWorkspace({
     setCannedResponses([]);
     setCannedIndex(0);
     setInteractiveButtons([]);
+    setCommentModeChoice(null);
     setButtonsPanelOpen(false);
     lastTypingSentRef.current = 0;
     setTypingUsers([]);
@@ -1029,6 +1036,14 @@ export function ChatWorkspace({
   // real que devuelve el servidor, o lo marca "failed" con opción de
   // reintentar. Compartido por el submit del composer y por el botón
   // "Reintentar" de una burbuja fallida.
+  // Messenger/Instagram: ruta del próximo mensaje según los comentarios del chat (null
+  // si no hay comentarios) y el modo elegido en CommentReplyBar.
+  const commentRoute = useMemo(
+    () => (selectedChat && isCommentChannel(selectedChat.channel) ? commentRouteFromMessages(messages) : null),
+    [selectedChat, messages]
+  );
+  const commentMode: CommentReplyMode | null = commentRoute ? (commentModeChoice ?? defaultCommentMode(commentRoute)) : null;
+
   const performSend = useCallback(
     async (tempId: string, opts: { text: string; file: File | null; filePreviewUrl: string | null; buttons: string[]; replyTo: Message | null }) => {
       if (!selectedChatId || !selectedChat) return;
@@ -1079,7 +1094,12 @@ export function ChatWorkspace({
           const res = await fetch(`/api/whatsapp/chats/${selectedChatId}/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "text", body: opts.text.trim(), replyToMessageId: opts.replyTo?.id }),
+            body: JSON.stringify({
+              type: "text",
+              body: opts.text.trim(),
+              replyToMessageId: opts.replyTo?.id,
+              ...(commentMode === "public" ? { commentReply: "public" } : {}),
+            }),
           });
           data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "Error al enviar");
@@ -1090,7 +1110,7 @@ export function ChatWorkspace({
           const optimistic = prev.find((m) => m.id === tempId);
           return [
             ...prev.filter((m) => m.id !== tempId && m.id !== data.id),
-            { ...data, replyTo: opts.replyTo ? { id: opts.replyTo.id, direction: opts.replyTo.direction, body: opts.replyTo.body, caption: opts.replyTo.caption, messageType: opts.replyTo.messageType, filename: opts.replyTo.filename, mediaUrl: opts.replyTo.mediaUrl } : null, motionKey: optimistic?.motionKey ?? data.id },
+            { ...data, wamid: data.wamid ?? data.externalMessageId ?? null, replyToWamid: data.replyToWamid ?? data.replyToExternalId ?? null, replyTo: opts.replyTo ? { id: opts.replyTo.id, direction: opts.replyTo.direction, body: opts.replyTo.body, caption: opts.replyTo.caption, messageType: opts.replyTo.messageType, filename: opts.replyTo.filename, mediaUrl: opts.replyTo.mediaUrl } : null, motionKey: optimistic?.motionKey ?? data.id },
           ];
         });
         if (opts.filePreviewUrl) URL.revokeObjectURL(opts.filePreviewUrl);
@@ -1101,7 +1121,7 @@ export function ChatWorkspace({
         toastError(err instanceof Error ? err.message : "Error al enviar");
       }
     },
-    [selectedChatId, selectedChat, toastError, refreshChats]
+    [selectedChatId, selectedChat, toastError, refreshChats, commentMode]
   );
 
   function handleMessageChange(value: string) {
@@ -1606,6 +1626,9 @@ export function ChatWorkspace({
             {!selectedChat.assignedToId && selectedChat.status !== "RESOLVED" && (
               <ChatClaimBanner chatId={selectedChat.id} onAssigned={handleAssigned} />
             )}
+            {commentRoute && commentMode && (
+              <CommentReplyBar route={commentRoute} mode={commentMode} onModeChange={setCommentModeChoice} />
+            )}
             <ChatComposer
               signature={signature}
               onOpenTemplates={selectedChat.channel === "WHATSAPP" ? () => setTemplatePickerOpen(true) : undefined}
@@ -1633,7 +1656,7 @@ export function ChatWorkspace({
               // Webchat es MVP solo texto (roadmap P3-f) — sin medios, mismo
               // criterio que interactiveDisabled ya aplica para "no
               // WhatsApp" en botones interactivos.
-              attachmentsDisabled={interactiveButtons.length > 0 || selectedChat.channel === "WEBCHAT"}
+              attachmentsDisabled={interactiveButtons.length > 0 || selectedChat.channel === "WEBCHAT" || commentMode === "public"}
               interactiveButtons={interactiveButtons}
               onButtonsChange={setInteractiveButtons}
               buttonsPanelOpen={buttonsPanelOpen}

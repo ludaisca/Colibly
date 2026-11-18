@@ -8,7 +8,8 @@ import { sendInteractiveMessage } from "@/lib/whatsapp/send-interactive";
 import { sendTelegramMessage, sendTelegramMedia } from "@/lib/telegram/send";
 import { sendGowaMessage, sendGowaMedia, GowaChannelDisabledError } from "@/lib/gowa/send";
 import { GowaError } from "@/lib/gowa/client";
-import { sendMetaChannelText, sendMetaChannelMedia, sendMetaChannelPrivateReply } from "@/lib/meta-messaging/send";
+import { sendMetaChannelMedia } from "@/lib/meta-messaging/send";
+import { CommentReplyBlockedError, assertMetaMediaAllowed, sendMetaDirectText, sendMetaPublicReply, type CommentReplyColumns } from "@/lib/meta-messaging/comment-reply";
 import { resolveChatChannel } from "@/lib/chat-resolver";
 import { rateLimit } from "@/lib/rate-limit";
 import { resolveAbsolutePath, isAccountMediaPath, mediaSha256Of } from "@/lib/whatsapp/media-store";
@@ -432,44 +433,34 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
   let externalMessageId: string | null;
   let attachmentId: string | null = null;
 
-  // Roadmap P3-c — si la conversación arrancó de un comentario (no de un
-  // DM) y todavía no se le ha mandado NADA (isFirstResponse), el Send API
-  // normal falla: Meta exige un hilo de Messenger ya abierto. El endpoint de
-  // private reply usa el comment_id del último INBOUND como destinatario en
-  // vez del PSID — solo aplica a esa primera respuesta; una vez que existe,
-  // Meta trata la conversación como un hilo normal y las respuestas
-  // siguientes van por sendMetaChannelText() de siempre (isFirstResponse ya
-  // será false).
-  const originComment = isFirstResponse && channel === "MESSENGER" && type === "text"
-    ? await prisma.channelMessage.findFirst({
-        where: { conversationId: conversation.id, direction: "INBOUND", isFromComment: true },
-        orderBy: { timestamp: "desc" },
-        select: { externalMessageId: true },
-      })
-    : null;
-
-  if (originComment?.externalMessageId) {
-    const result = await sendMetaChannelPrivateReply(conversation.channelAccount, {
-      commentId: originComment.externalMessageId,
-      body: textBody!,
-    });
-    externalMessageId = result.externalMessageId;
-  } else if (type === "text") {
-    const result = await sendMetaChannelText(conversation.channelAccount, {
-      to: conversation.externalId,
-      body: textBody!,
-    });
-    externalMessageId = result.externalMessageId;
-  } else {
-    const buffer = await fs.readFile(resolveAbsolutePath(localMediaPath!));
-    const result = await sendMetaChannelMedia(conversation.channelAccount, {
-      to: conversation.externalId,
-      buffer,
-      filename: filename ?? `media-${Date.now()}`,
-      mimeType: mimeType ?? "application/octet-stream",
-    });
-    externalMessageId = result.externalMessageId;
-    attachmentId = result.attachmentId;
+  // Messenger con comentarios: la respuesta privada, el DM normal o el bloqueo
+  // (ventanas de Meta) los decide comment-reply.ts; "public" responde en la
+  // publicación. Instagram y el resto de Messenger salen como siempre.
+  let commentColumns: CommentReplyColumns = { commentReplyKind: null, replyToExternalId: null };
+  try {
+    if (parsed.data.commentReply === "public") {
+      const result = await sendMetaPublicReply(conversation, textBody!);
+      externalMessageId = result.externalMessageId;
+      commentColumns = result;
+    } else if (type === "text") {
+      const result = await sendMetaDirectText(conversation, { text: textBody! });
+      externalMessageId = result.externalMessageId;
+      commentColumns = result;
+    } else {
+      await assertMetaMediaAllowed(conversation);
+      const buffer = await fs.readFile(resolveAbsolutePath(localMediaPath!));
+      const result = await sendMetaChannelMedia(conversation.channelAccount, {
+        to: conversation.externalId,
+        buffer,
+        filename: filename ?? `media-${Date.now()}`,
+        mimeType: mimeType ?? "application/octet-stream",
+      });
+      externalMessageId = result.externalMessageId;
+      attachmentId = result.attachmentId;
+    }
+  } catch (err) {
+    if (err instanceof CommentReplyBlockedError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+    throw err;
   }
 
   const now = new Date();
@@ -490,6 +481,8 @@ async function sendMetaChannelReply(channel: "MESSENGER" | "INSTAGRAM", req: Req
       filename: type === "text" ? null : (filename ?? null),
       bytesSize: type === "text" ? null : (bytesSize ?? null),
       mediaSha256: type === "text" ? null : await mediaSha256Of(localMediaPath),
+      commentReplyKind: commentColumns.commentReplyKind,
+      replyToExternalId: commentColumns.replyToExternalId,
       status: "sent",
       senderId: userId,
       timestamp: now,

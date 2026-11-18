@@ -15,7 +15,7 @@ export default function Page() {
         connectLabel: "Conectar cuenta",
         deletedToast: "Cuenta desconectada correctamente",
         emptyTitle: "Sin cuentas conectadas",
-        emptyDescription: "No has conectado ninguna cuenta de Instagram. Debe estar vinculada a una Página de Facebook (modelo clásico) — conéctala desde Meta for Developers y agrégala aquí.",
+        emptyDescription: "Conecta tu cuenta profesional de Instagram (vinculada a una Página de Facebook) para atender aquí sus mensajes y comentarios.",
         rowSubtitle: "Cuenta de Instagram",
         deleteTitle: "Desconectar cuenta",
         deleteDescription: "Esta acción eliminará permanentemente la cuenta y todos sus chats y mensajes asociados. No se puede deshacer.",

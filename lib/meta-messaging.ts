@@ -1,12 +1,14 @@
 import { httpTimeout, HTTP_TRANSFER_TIMEOUT_MS } from "@/lib/http-timeouts";
-import { GRAPH_API_BASE } from "@/lib/meta/graph";
+import { GRAPH_API_ORIGIN, GRAPH_API_VERSION } from "@/lib/meta/graph";
 
 // Cliente núcleo para Messenger e Instagram — ambos comparten el mismo
 // Page Access Token y el mismo graph.facebook.com bajo el modelo
 // Página-vinculada (confirmado con el usuario, no el Instagram Login
 // standalone), así que un solo cliente basta para los dos canales, igual
 // que lib/telegram.ts es el único cliente para Telegram.
-const GRAPH_API = GRAPH_API_BASE;
+// En producción, graph.facebook.com; en dev puede apuntar a un Meta simulado
+// (META_GRAPH_ORIGIN) para probar envíos sin tocar páginas reales.
+const GRAPH_API = `${GRAPH_API_ORIGIN}/${GRAPH_API_VERSION}`;
 
 async function parseGraphError(res: Response, fallback: string): Promise<never> {
   const body = await res.json().catch(() => ({}));
@@ -63,33 +65,69 @@ export async function sendMetaChannelMessage(
   return { recipientId: data.recipient_id, messageId: data.message_id };
 }
 
-// Roadmap P3-c — Private Reply: la ÚNICA forma de mandarle un mensaje
-// privado a alguien que solo comentó una publicación (nunca abrió un DM) es
-// este endpoint dedicado con el comment_id como destinatario, no el Send
-// API normal con un PSID (Meta lo rechaza sin un hilo de Messenger ya
-// abierto). Válido solo para la PRIMERA respuesta — una vez que Meta abre
-// el hilo, las respuestas siguientes usan sendMetaChannelMessage() normal
-// con el mismo PSID (ver isFirstResponse en chats/[chatId]/send).
+// Respuesta privada a un comentario de la Página: la única forma de escribirle
+// por Messenger a alguien que solo comentó. Va por el Send API normal con
+// recipient.comment_id (el edge viejo /{comment-id}/private_replies ya no está
+// en la documentación de Meta). Una sola por comentario, dentro de 7 días; la
+// respuesta trae el PSID de la persona en recipient_id, que puede ser distinto
+// del id del comentarista. Reglas: lib/meta-messaging/comment-rules.ts.
 export async function sendPrivateReplyToComment(
   pageAccessToken: string,
+  pageId: string,
   commentId: string,
   text: string
 ): Promise<SendMessageResult> {
-  const url = `${GRAPH_API}/${commentId}/private_replies`;
+  const res = await fetch(`${GRAPH_API}/${pageId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${pageAccessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient: { comment_id: commentId }, message: { text } }),
+    signal: httpTimeout(),
+  });
+  if (!res.ok) await parseGraphError(res, "Private reply failed");
+  const data = await res.json();
+  return { recipientId: data.recipient_id ?? "", messageId: data.message_id ?? "" };
+}
 
-  const res = await fetch(url, {
+// Respuesta pública: un comentario de la Página bajo el comentario de la
+// persona. Necesita pages_manage_engagement en el token de la Página. Meta la
+// devuelve por el webhook `feed` como comentario de la propia Página, que la
+// ingesta descarta.
+export async function replyToCommentPublicly(pageAccessToken: string, commentId: string, text: string): Promise<{ commentId: string }> {
+  const res = await fetch(`${GRAPH_API}/${commentId}/comments`, {
     method: "POST",
     headers: { Authorization: `Bearer ${pageAccessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ message: text }),
     signal: httpTimeout(),
   });
-
-  if (!res.ok) await parseGraphError(res, "Private reply failed");
-
+  if (!res.ok) await parseGraphError(res, "Public comment reply failed");
   const data = await res.json();
-  // Meta no documenta recipient_id en la respuesta de este endpoint (a
-  // diferencia de /messages) — se deja vacío, ningún llamador lo usa hoy.
-  return { recipientId: "", messageId: data.message_id ?? data.id ?? "" };
+  return { commentId: data.id ?? "" };
+}
+
+// Instagram: la respuesta pública a un comentario es una respuesta en su hilo
+// (/{ig-comment-id}/replies, permiso instagram_manage_comments).
+export async function replyToInstagramComment(pageAccessToken: string, commentId: string, text: string): Promise<{ commentId: string }> {
+  const res = await fetch(`${GRAPH_API}/${commentId}/replies`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${pageAccessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text }),
+    signal: httpTimeout(),
+  });
+  if (!res.ok) await parseGraphError(res, "Instagram comment reply failed");
+  const data = await res.json();
+  return { commentId: data.id ?? "" };
+}
+
+// Enlace público de la publicación o reel de Instagram donde se comentó (el
+// webhook solo trae el id). null si Meta no lo da.
+export async function fetchInstagramPermalink(pageAccessToken: string, mediaId: string): Promise<string | null> {
+  const res = await fetch(`${GRAPH_API}/${mediaId}?fields=permalink`, {
+    headers: { Authorization: `Bearer ${pageAccessToken}` },
+    signal: httpTimeout(),
+  });
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => ({}))) as { permalink?: string };
+  return typeof data.permalink === "string" && data.permalink.startsWith("https://www.instagram.com/") ? data.permalink : null;
 }
 
 function attachmentTypeFromMime(mimeType: string): "image" | "video" | "audio" | "file" {

@@ -13,7 +13,7 @@ import { buildTemplateSend, TemplateParamsError, type TemplateSendInput } from "
 import { isWithinServiceWindow } from "@/lib/whatsapp/lead-recovery";
 import { sendTelegramMessage, sendTelegramOptions } from "@/lib/telegram/send";
 import { sendGowaMessage, sendGowaMedia, sendGowaOptions } from "@/lib/gowa/send";
-import { sendMetaChannelOptions, sendMetaChannelPrivateReply, sendMetaChannelText } from "@/lib/meta-messaging/send";
+import { CommentReplyBlockedError, assertMetaMediaAllowed, sendMetaDirectText, type CommentReplyColumns } from "@/lib/meta-messaging/comment-reply";
 import { emitMessageSent } from "@/lib/events/message-sent";
 import type { OutboundOrigin } from "@/lib/messages/origin";
 import { markReplied } from "@/lib/chats/waiting";
@@ -112,6 +112,12 @@ export class OutboundError extends Error {
   ) {
     super(message);
   }
+}
+
+// Las ventanas de Meta para comentarios son una ventana cerrada más para la
+// API (422 window_closed); "solo texto" es un error de la solicitud.
+function commentBlockedToOutbound(err: CommentReplyBlockedError): OutboundError {
+  return new OutboundError(err.code === "text_only" || err.code === "no_comment" ? "invalid_request" : "window_closed", err.message);
 }
 
 export interface OutboundOpts {
@@ -471,6 +477,7 @@ async function sendChannel(
   const options = content.type === "buttons" ? content.buttons : content.type === "list" ? content.rows : null;
   const interactivePayload = content.type === "text" ? undefined : payloadFor(content);
   let externalId: string | null = null;
+  let commentColumns: CommentReplyColumns = { commentReplyKind: null, replyToExternalId: null };
   try {
     if (channelAccount.channel === "TELEGRAM") {
       ({ externalMessageId: externalId } = options
@@ -481,34 +488,17 @@ async function sendChannel(
         ? await sendGowaOptions(channelAccount, { to: conversation.externalId, body: text, options })
         : await sendGowaMessage(channelAccount, { to: conversation.externalId, body: text }));
     } else if (channelAccount.channel === "MESSENGER" || channelAccount.channel === "INSTAGRAM") {
-      // Conversación que nació de un comentario y aún no tiene respuesta: Meta
-      // exige el endpoint de private reply (mismo criterio que
-      // chats/[chatId]/send — ver docs/arquitectura/canales.md "Comment-to-inbox"). Ese endpoint
-      // no admite quick replies: van las opciones numeradas en el texto.
-      const originComment =
-        channelAccount.channel === "MESSENGER" && conversation.firstResponseAt === null
-          ? await prisma.channelMessage.findFirst({
-              where: { conversationId: conversation.id, direction: "INBOUND", isFromComment: true },
-              orderBy: { timestamp: "desc" },
-              select: { externalMessageId: true },
-            })
-          : null;
-      if (originComment?.externalMessageId) {
-        const withMenu = options ? `${text}\n\n${options.map((o, i) => `${i + 1}. ${o.title}`).join("\n")}` : text;
-        ({ externalMessageId: externalId } = await sendMetaChannelPrivateReply(channelAccount, {
-          commentId: originComment.externalMessageId,
-          body: withMenu,
-        }));
-      } else {
-        ({ externalMessageId: externalId } = options
-          ? await sendMetaChannelOptions(channelAccount, { to: conversation.externalId, body: text, options })
-          : await sendMetaChannelText(channelAccount, { to: conversation.externalId, body: text }));
-      }
+      // Comentarios de Facebook: respuesta privada, DM normal o bloqueo por
+      // las ventanas de Meta (lib/meta-messaging/comment-reply.ts).
+      const result = await sendMetaDirectText(conversation, { text, options });
+      externalId = result.externalMessageId;
+      commentColumns = result;
     }
     // WEBCHAT: no hay API externa — el ChannelMessage de abajo ES la entrega
     // (el widget lo recoge por polling y dibuja los botones de
     // interactivePayload), igual que lib/channel-send.ts.
   } catch (err) {
+    if (err instanceof CommentReplyBlockedError) throw commentBlockedToOutbound(err);
     throw new OutboundError("upstream_error", err instanceof Error ? err.message : String(err));
   }
 
@@ -519,6 +509,7 @@ async function sendChannel(
     preview: text,
     interactivePayload,
     media: null,
+    comment: commentColumns,
   });
 }
 
@@ -547,14 +538,10 @@ async function sendChannelMedia(
   const { buffer, mimeType, filename } = content.file;
   const caption = content.caption?.trim() || null;
   assertMediaSupported({ kind: "channel", conversation }, caption);
-  if (channelAccount.channel === "MESSENGER" && conversation.firstResponseAt === null) {
-    const fromComment = await prisma.channelMessage.findFirst({
-      where: { conversationId: conversation.id, direction: "INBOUND", isFromComment: true },
-      select: { id: true },
+  if (channelAccount.channel === "MESSENGER") {
+    await assertMetaMediaAllowed(conversation).catch((err) => {
+      throw err instanceof CommentReplyBlockedError ? commentBlockedToOutbound(err) : err;
     });
-    if (fromComment) {
-      throw new OutboundError("invalid_request", "La primera respuesta a un comentario de Facebook solo puede ser texto (respuesta privada de Meta)");
-    }
   }
 
   const now = new Date();
@@ -598,6 +585,8 @@ async function persistChannelOutbound(
     preview: string;
     interactivePayload: InteractivePayload | undefined;
     media: StoredMediaColumns | null;
+    /** Respuesta a un comentario de Facebook (privada o pública). */
+    comment?: CommentReplyColumns;
   }
 ): Promise<OutboundResult> {
   const { channelAccount } = conversation;
@@ -613,6 +602,8 @@ async function persistChannelOutbound(
       body: row.body,
       ...(row.media ?? {}),
       interactivePayload: interactivePayload as Prisma.InputJsonObject | undefined,
+      commentReplyKind: row.comment?.commentReplyKind ?? null,
+      replyToExternalId: row.comment?.replyToExternalId ?? null,
       status: "sent",
       senderId: opts.senderId ?? null,
       sentVia: outboundOriginOf(opts),

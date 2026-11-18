@@ -661,7 +661,7 @@ export const API_ERROR_CODES: { code: string; status: number; description: strin
   { code: "method_not_allowed", status: 405, description: "La ruta existe pero no acepta ese método; el header `Allow` dice cuáles sí." },
   { code: "conflict", status: 409, description: "Choca con el estado actual (p. ej. automatización ya en curso, o la misma Idempotency-Key sigue en proceso)." },
   { code: "limit_reached", status: 409, description: `Tope por cuenta: ${MAX_WEBHOOKS} webhooks.` },
-  { code: "window_closed", status: 422, description: "WhatsApp: fuera de la ventana de 24 h solo se puede enviar una plantilla aprobada." },
+  { code: "window_closed", status: 422, description: "WhatsApp: fuera de la ventana de 24 h solo se puede enviar una plantilla aprobada. Messenger, en una conversación que viene de un comentario: Meta permite una sola respuesta privada por comentario (dentro de 7 días) y después solo cuando la persona contesta." },
   { code: "idempotency_conflict", status: 422, description: "La Idempotency-Key ya se usó con otro cuerpo o en otro endpoint." },
   { code: "required_fields", status: 422, description: "No se puede resolver la conversación: faltan atributos obligatorios (ver `details`)." },
   { code: "payload_too_large", status: 413, description: `El cuerpo supera ${Math.round(API_MAX_BODY_BYTES / 1024)} KB.` },
@@ -1486,6 +1486,7 @@ export function buildOpenApiSpec(serverUrl: string) {
           description:
             `${scopeNote("messages:send")} Destino (uno): \`conversationId\`, \`contactId\` o \`accountId\` + \`to\` (WhatsApp: el teléfono con código de país; si el contacto no existe se crea, solo con una plantilla). ` +
             "En WhatsApp todo salvo las plantillas va solo dentro de la ventana de 24 h (fuera de ella: 422 window_closed → usa una plantilla aprobada). Una plantilla a un contacto sin chat abre el chat. " +
+            "En Messenger, si lo último que escribió la persona es un comentario de la Página (publicación o anuncio), el texto sale como su respuesta privada (solo texto, una por comentario, dentro de 7 días); después hay que esperar a que conteste (window_closed). " +
             "**Tipos:** `text`, `buttons` (hasta 3), `list` (hasta 10 opciones), `template`, archivos (abajo) y, solo en WhatsApp, `sticker` (WebP 512×512 por `media.url`), `location`, `location_request` (botón \"Enviar ubicación\"; la respuesta llega como mensaje entrante `location`), `cta_url` (botón que abre una URL) `flow` (abre un WhatsApp Flow: formulario dentro del chat) y del catálogo de Meta `product` (un producto), `product_list` (hasta 30 productos en 10 secciones) y `catalog` (botón \"Ver catálogo\"). " +
             "Sin `catalogId` se usa el único catálogo conectado a la cuenta (GET /accounts/{id}/catalog); los productos se identifican por su `product_retailer_id` (\"ID de contenido\" en Commerce Manager). Un pedido del carrito llega como mensaje `order` y como evento `order.received`. " +
             "**Flows:** `flow.id` de GET /accounts/{id}/flows, `flow.cta` (texto del botón) y `flow.screen` (primera pantalla; sin ella el Flow pide datos a su endpoint). La respuesta del cliente llega como mensaje con `content.flowResponse` y como evento `flow.completed`, con el `flow.token` que mandaste. " +

@@ -4,7 +4,7 @@
 // probar los envíos (docs/META_JSON_CUENTAS_WA_2026-11-04.md §4).
 export const GRAPH_API_VERSION = "v25.0";
 // Base fija a graph.facebook.com para los clientes que no usan graphUrl(): no
-// siguen META_GRAPH_ORIGIN (el Meta simulado de dev solo cubre el alta).
+// siguen META_GRAPH_ORIGIN (Messenger/Instagram sí: lib/meta-messaging.ts).
 export const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 // Solo en desarrollo se puede apuntar a un Meta simulado (META_GRAPH_ORIGIN) para
 // probar el alta y la sincronización de punta a punta sin tocar cuentas reales.

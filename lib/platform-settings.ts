@@ -31,6 +31,7 @@ export interface PlatformSettings {
   metaAppId: string | null;
   metaAppSecret: string | null;
   metaEmbeddedSignupConfigId: string | null;
+  metaMessagingConfigId: string | null;
   metaWebhookVerifyToken: string | null;
   metaPixelId: string | null;
   metaCapiAccessToken: string | null;
@@ -79,6 +80,7 @@ async function loadSettings(): Promise<PlatformSettings> {
     metaAppId: row?.metaAppId ?? null,
     metaAppSecret: decryptOrNull(row?.metaAppSecret),
     metaEmbeddedSignupConfigId: row?.metaEmbeddedSignupConfigId ?? null,
+    metaMessagingConfigId: row?.metaMessagingConfigId ?? null,
     metaWebhookVerifyToken: decryptOrNull(row?.metaWebhookVerifyToken),
     metaPixelId: row?.metaPixelId ?? null,
     metaCapiAccessToken: decryptOrNull(row?.metaCapiAccessToken),

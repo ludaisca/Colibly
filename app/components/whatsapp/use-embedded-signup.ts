@@ -30,7 +30,7 @@ declare global {
   }
 }
 
-function loadFacebookSdk(appId: string, version: string): Promise<FacebookSdk> {
+export function loadFacebookSdk(appId: string, version: string): Promise<FacebookSdk> {
   return new Promise((resolve, reject) => {
     if (window.FB) {
       resolve(window.FB);

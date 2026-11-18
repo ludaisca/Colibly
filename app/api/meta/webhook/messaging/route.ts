@@ -4,9 +4,11 @@ import type { Channel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { compareMetaSignature } from "@/lib/meta/webhook-signature";
-import { fetchUserProfile } from "@/lib/meta-messaging";
+import { fetchInstagramPermalink, fetchUserProfile } from "@/lib/meta-messaging";
+import { getMetaPlatformApp, verifyTokenMatches } from "@/lib/meta/platform-app";
 import { getMetaChannelCredentials } from "@/lib/meta-messaging/send";
 import { ingestChannelMessage } from "@/lib/telegram/ingest-message";
+import { resolveInboundExternalId } from "@/lib/meta-messaging/comment-reply";
 
 // Webhook COMPARTIDO para Messenger e Instagram — mismo shape de payload
 // (entry[].messaging[]) bajo el modelo Página-vinculada, solo cambia
@@ -58,11 +60,22 @@ interface FeedChangeEvent {
   value: FeedCommentValue;
 }
 
+// Comentario de Instagram (field "comments" del objeto instagram). El id es el
+// del comentario; from.id el del comentarista (IGSID) y media.id la
+// publicación o reel. Meta no manda la fecha: se usa la del entry.
+interface InstagramCommentValue {
+  id: string;
+  text?: string;
+  from?: { id: string; username?: string };
+  media?: { id: string; media_product_type?: string };
+  parent_id?: string;
+}
+
 interface MessagingEntry {
   id: string;
   time: number;
   messaging?: MessagingEvent[];
-  changes?: FeedChangeEvent[];
+  changes?: Array<FeedChangeEvent | { field: string; value: InstagramCommentValue }>;
 }
 
 interface MessagingWebhookBody {
@@ -110,6 +123,13 @@ export async function GET(req: Request) {
     return new NextResponse("Bad Request", { status: 400 });
   }
 
+  // Primero el token de la app de plataforma (cuentas conectadas con
+  // "Conectar con Facebook", un solo webhook para todas); luego el de cada
+  // cuenta manual.
+  if (verifyTokenMatches(token, (await getMetaPlatformApp()).webhookVerifyToken)) {
+    return new NextResponse(challenge, { headers: { "Content-Type": "text/plain" } });
+  }
+
   const hash = createHash("sha256").update(token).digest("hex");
 
   // El handshake GET no trae entry[].id — no hay forma de saber de antemano
@@ -154,6 +174,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true });
     }
 
+    let platformSecret: string | null | undefined;
     for (const entry of body.entry ?? []) {
       const account = await prisma.channelAccount.findUnique({
         where: { channel_externalAccountId: { channel, externalAccountId: entry.id } },
@@ -161,7 +182,10 @@ export async function POST(req: Request) {
       if (!account) continue;
 
       const credentials = getMetaChannelCredentials(account);
-      const sigValid = compareMetaSignature(rawBody, signature, credentials.appSecret);
+      // Cuenta conectada con la app de Colibly: la firma es con el App Secret
+      // de la plataforma; una manual, con el de la app del cliente. Nunca al revés.
+      const secret = credentials.connection === "platform" ? (platformSecret ??= (await getMetaPlatformApp()).appSecret) : credentials.appSecret;
+      const sigValid = compareMetaSignature(rawBody, signature, secret ?? undefined);
       if (!sigValid) continue;
 
       await prisma.channelAccount.update({ where: { id: account.id }, data: { lastActivity: new Date() } });
@@ -173,7 +197,9 @@ export async function POST(req: Request) {
         const senderId = event.sender.id;
 
         await ingestChannelMessage(account.id, channel, {
-          externalId: senderId,
+          // Si este id lo aprendió una respuesta privada a un comentario, el DM
+          // entra a la conversación de ese comentario.
+          externalId: await resolveInboundExternalId(account.id, senderId),
           externalMessageId: event.message.mid,
           timestamp: new Date(event.timestamp),
           type: info.type,
@@ -193,13 +219,13 @@ export async function POST(req: Request) {
         });
       }
 
-      // Roadmap P3-c — solo Facebook Page (channel === "MESSENGER") por
-      // ahora; Instagram usa un field de comentarios distinto, fuera de
-      // alcance de esta primera versión (ver docs/ROADMAP_PANCAKE.md → "P3-c").
+      // Comentarios de la Página (publicaciones y anuncios; Meta manda los de
+      // anuncios por el mismo field). Solo Facebook: Instagram usa otro field
+      // (`comments`) que todavía no se procesa — docs/arquitectura/canales.md.
       if (channel === "MESSENGER") {
         for (const change of entry.changes ?? []) {
           if (change.field !== "feed") continue;
-          const { value } = change;
+          const value = change.value as FeedCommentValue;
           // "edited"/"remove" y cualquier item que no sea "comment" (post,
           // reaction, ...) se ignoran — solo comentarios nuevos abren
           // conversación.
@@ -222,6 +248,35 @@ export async function POST(req: Request) {
             contactName: value.from.name ?? value.from.id,
             isGroup: false,
             isFromComment: true,
+            commentPostId: value.post_id ?? null,
+          });
+        }
+      }
+
+      // Comentarios de Instagram (publicaciones, reels y anuncios): field
+      // "comments" del objeto instagram (permiso instagram_manage_comments).
+      if (channel === "INSTAGRAM") {
+        for (const change of entry.changes ?? []) {
+          if (change.field !== "comments") continue;
+          const value = change.value as InstagramCommentValue;
+          if (!value?.id || !value.from?.id) continue;
+          // Respuestas de la propia cuenta (desde la app o desde aquí): no son un lead.
+          if (value.from.id === entry.id || value.from.id === account.externalAccountId) continue;
+          const mediaId = value.media?.id ?? null;
+          const entryMs = entry.time > 1e12 ? entry.time : entry.time * 1000;
+
+          await ingestChannelMessage(account.id, channel, {
+            externalId: await resolveInboundExternalId(account.id, value.from.id),
+            externalMessageId: value.id,
+            timestamp: Number.isFinite(entryMs) && entryMs > 0 ? new Date(entryMs) : new Date(),
+            type: "text",
+            body: value.text ?? "",
+            contactName: value.from.username ? `@${value.from.username}` : value.from.id,
+            isGroup: false,
+            isFromComment: true,
+            // El permalink (https://www.instagram.com/p/…) para enlazarlo desde el
+            // chat; si Meta no lo da, nada (un id de media solo no sirve de enlace).
+            commentPostId: mediaId ? await fetchInstagramPermalink(credentials.pageAccessToken, mediaId).catch(() => null) : null,
           });
         }
       }

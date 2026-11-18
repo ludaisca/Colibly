@@ -18,8 +18,11 @@ interface CreateInput {
   name: string;
   pageId: string;
   pageAccessToken: string;
-  appSecret: string;
+  /** Solo en la conexión manual (app propia del cliente). */
+  appSecret?: string;
   instagramBusinessId?: string;
+  /** "platform": conectada con la app de Colibly (platform-connect.ts). */
+  connection?: "manual" | "platform";
 }
 
 const ACCOUNT_SELECT = { id: true, name: true, channel: true, status: true, createdAt: true } as const;
@@ -40,7 +43,7 @@ export async function createMetaChannelAccount(
     JSON.stringify({
       pageId: input.pageId,
       pageAccessToken: input.pageAccessToken,
-      appSecret: input.appSecret,
+      ...(input.connection === "platform" ? { connection: "platform" } : { appSecret: input.appSecret }),
       ...(input.instagramBusinessId ? { instagramBusinessId: input.instagramBusinessId } : {}),
     })
   );
@@ -64,10 +67,12 @@ export async function createMetaChannelAccount(
   // Equivalente a Telegram setWebhook(): sin esto, Meta nunca manda
   // webhooks a la cuenta recién creada aunque todo lo demás esté bien.
   try {
-    // "feed" (roadmap P3-c, comentarios de publicación → conversación) solo
-    // aplica a Facebook Page — Instagram usa su propio field de comentarios,
-    // fuera de alcance de esta primera versión.
-    await subscribePageToApp(input.pageAccessToken, input.pageId, input.channel === "MESSENGER" ? ["feed"] : []);
+    // subscribed_fields REEMPLAZA los campos de la Página: Messenger e
+    // Instagram de la misma Página piden los mismos ("feed" = comentarios de
+    // Facebook) para que conectar uno no le quite nada al otro. Los
+    // comentarios de Instagram llegan por el webhook de Instagram de la app
+    // (field "comments"), no por esta suscripción.
+    await subscribePageToApp(input.pageAccessToken, input.pageId, ["feed"]);
     const connected = await prisma.channelAccount.update({
       where: { id: account.id },
       data: { status: "CONNECTED", lastActivity: new Date() },
@@ -92,7 +97,20 @@ export async function deleteMetaChannelAccount(id: string, userId: string, chann
 
   try {
     const { pageId, pageAccessToken } = JSON.parse(decrypt(existing.credentials)) as { pageId: string; pageAccessToken: string };
-    await unsubscribePageFromApp(pageAccessToken, pageId);
+    // La suscripción es de la Página: si otra cuenta (el Messenger o el
+    // Instagram de la misma Página) la sigue usando, no se quita.
+    const siblings = await prisma.channelAccount.findMany({
+      where: { id: { not: id }, channel: { in: ["MESSENGER", "INSTAGRAM"] }, organizationId: existing.organizationId },
+      select: { credentials: true },
+    });
+    const shared = siblings.some((a) => {
+      try {
+        return (JSON.parse(decrypt(a.credentials)) as { pageId?: string }).pageId === pageId;
+      } catch {
+        return false;
+      }
+    });
+    if (!shared) await unsubscribePageFromApp(pageAccessToken, pageId);
   } catch (err) {
     console.error(`[${channel.toLowerCase()}] No se pudo desregistrar la suscripción al eliminar la cuenta:`, err);
   }

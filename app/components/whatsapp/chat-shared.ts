@@ -197,6 +197,10 @@ export interface Message {
   /** Roadmap P3-c — true si este INBOUND vino de un comentario de Facebook
    *  Page, no de un mensaje directo. Solo aplica a Messenger. */
   isFromComment?: boolean;
+  /** Comentario entrante: publicación o anuncio donde se escribió (post_id). */
+  commentPostId?: string | null;
+  /** Saliente que respondió a un comentario: "private" o "public". */
+  commentReplyKind?: string | null;
   /** Grupo de WhatsApp por QR: quién del grupo escribió este entrante. */
   senderName?: string | null;
 }

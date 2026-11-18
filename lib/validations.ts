@@ -212,10 +212,13 @@ export const metaChannelSendMessageSchema = z.object({
   filename: z.string().optional(),
   localMediaPath: z.string().nullable().optional(),
   bytesSize: z.number().optional(),
+  // Messenger: "public" responde en la publicación, bajo el último comentario
+  // de la persona (lib/meta-messaging/comment-reply.ts). Solo texto.
+  commentReply: z.literal("public").optional(),
 }).refine(
   (d) => d.type === "text" ? !!d.body : !!d.localMediaPath,
   { message: "Se requiere body para texto o localMediaPath para medios", path: ["body"] }
-);
+).refine((d) => !d.commentReply || d.type === "text", { message: "La respuesta pública solo puede ser texto", path: ["commentReply"] });
 
 export type MetaChannelSendMessageInput = z.infer<typeof metaChannelSendMessageSchema>;
 

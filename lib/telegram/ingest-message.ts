@@ -41,11 +41,11 @@ export interface NormalizedChannelMessage {
   // suprime el enqueue de bots más abajo: el pipeline de respuesta
   // automática (bot-worker) manda por el Send API normal, que Meta rechaza
   // para un contacto que solo comentó y nunca abrió un DM — la primera
-  // respuesta necesita el mecanismo de private reply, que solo dispara un
-  // agente humano desde la UI (ver sendMetaChannelReply en
-  // chats/[chatId]/send). Queda para una iteración futura enseñarle esto al
-  // bot-worker si se decide automatizar.
+  // respuesta necesita el mecanismo de private reply, que solo dispara una
+  // persona o una automatización (lib/meta-messaging/comment-reply.ts).
   isFromComment?: boolean;
+  /** Comentario: la publicación o anuncio donde se escribió (post_id de Meta). */
+  commentPostId?: string | null;
   // Id de la opción elegida al tocar un botón (callback_data de Telegram,
   // quick_reply.payload de Messenger/Instagram, replyId del widget web).
   interactiveReplyId?: string | null;
@@ -205,6 +205,7 @@ export async function ingestChannelMessage(
         filename: msg.filename ?? null,
         bytesSize: msg.bytesSize ?? null,
         isFromComment: msg.isFromComment ?? false,
+        commentPostId: msg.commentPostId ?? null,
         interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
         replyToExternalId: msg.replyToExternalId ?? null,
         timestamp: msg.timestamp,

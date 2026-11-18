@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
+import { FacebookConnectModal, type MessagingConnectConfig } from "./facebook-connect-modal";
 import { Copy, Check, Info } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
@@ -43,7 +45,7 @@ const CHANNEL_COPY = {
   },
 } as const;
 
-export function MetaChannelAccountFormModal({ channel, open, onClose, onCreated }: Props) {
+function ManualAccountFormModal({ channel, open, onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [pageId, setPageId] = useState("");
   const [pageAccessToken, setPageAccessToken] = useState("");
@@ -255,4 +257,39 @@ export function MetaChannelAccountFormModal({ channel, open, onClose, onCreated 
       </form>
     </Modal>
   );
+}
+
+// Alta de Messenger/Instagram: con la app de Colibly ("Conectar con Facebook")
+// cuando la plataforma la configuró; si no, o si la persona lo elige, el
+// formulario manual con la app propia del cliente.
+export function MetaChannelAccountFormModal(props: Props) {
+  const [config, setConfig] = useState<MessagingConnectConfig | null>(null);
+  const [manual, setManual] = useState(false);
+
+  useRunOnChange(async () => {
+    if (!props.open || config) return;
+    try {
+      const res = await fetch("/api/meta/messaging-connect/config");
+      setConfig(res.ok ? ((await res.json()) as MessagingConnectConfig) : { available: false, appId: null, configId: null, graphVersion: "" });
+    } catch {
+      setConfig({ available: false, appId: null, configId: null, graphVersion: "" });
+    }
+  }, [props.open]);
+
+  const close = () => {
+    setManual(false);
+    props.onClose();
+  };
+
+  if (props.open && !config) {
+    return (
+      <Modal open onClose={close} title={CHANNEL_COPY[props.channel].title} size="md">
+        <div className="flex justify-center py-6"><Spinner /></div>
+      </Modal>
+    );
+  }
+  if (config?.available && !manual) {
+    return <FacebookConnectModal channel={props.channel} config={config} open={props.open} onClose={close} onCreated={props.onCreated} onManual={() => setManual(true)} />;
+  }
+  return <ManualAccountFormModal {...props} onClose={close} />;
 }

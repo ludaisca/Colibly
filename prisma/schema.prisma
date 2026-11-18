@@ -552,6 +552,12 @@ model Conversation {
   channelAccountId String
   channelAccount   ChannelAccount @relation(fields: [channelAccountId], references: [id], onDelete: Cascade)
   externalId       String
+  // Messenger: el id con el que la persona escribe por Messenger (PSID) cuando
+  // la conversación nació de un comentario y ese id es otro que el del
+  // comentarista (externalId). Lo devuelve la respuesta privada; la ingesta lo
+  // usa para meter su respuesta por DM en esta misma conversación, y los envíos
+  // de Messenger van a él (lib/meta-messaging/comment-reply.ts).
+  aliasExternalId  String?        @map("alias_external_id")
   name             String?
   isGroup          Boolean        @default(false)
   contactId        String?        @unique
@@ -597,6 +603,7 @@ model Conversation {
   automationRuns   AutomationRun[]
 
   @@unique([channelAccountId, externalId])
+  @@unique([channelAccountId, aliasExternalId])
   @@index([assignedToId])
   @@index([channelAccountId, lastMessageAt])
   // Delta de GET /api/inbox/sync (updatedAt > since): sin él, cada tick filtraba
@@ -645,6 +652,13 @@ model ChannelMessage {
   // significados tiene. Necesario para decidir el mecanismo de envío de la
   // primera respuesta: ver sendMetaChannelReply() en chats/[chatId]/send.
   isFromComment     Boolean          @default(false) @map("is_from_comment")
+  // Comentario entrante: la publicación (o anuncio) donde se escribió, para
+  // enlazarla desde el chat.
+  commentPostId     String?          @map("comment_post_id")
+  // Respuesta SALIENTE a un comentario: "private" (mensaje privado, uno por
+  // comentario) o "public" (respuesta en la publicación). El comentario
+  // respondido va en replyToExternalId (la burbuja lo cita).
+  commentReplyKind  String?          @map("comment_reply_kind")
   // Botones/lista enviados (OUTBOUND) o la opción elegida (INBOUND:
   // { replyId }) — paridad con WAMessage.interactivePayload.
   interactivePayload Json?          @map("interactive_payload")
@@ -2689,6 +2703,9 @@ model PlatformSettings {
   metaAppId                  String? @map("meta_app_id")
   metaAppSecret              String? @map("meta_app_secret") // cifrado
   metaEmbeddedSignupConfigId String? @map("meta_embedded_signup_config_id")
+  // Configuración de "Inicio de sesión para empresas" para conectar Páginas de
+  // Messenger e Instagram con la misma app (lib/meta-messaging/platform-connect.ts).
+  metaMessagingConfigId      String? @map("meta_messaging_config_id")
   metaWebhookVerifyToken     String? @map("meta_webhook_verify_token") // cifrado
 
   // Medición del sitio público (lib/analytics/)

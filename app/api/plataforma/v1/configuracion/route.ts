@@ -34,6 +34,7 @@ export async function GET(req: Request) {
         turnstileSiteKey: settings.turnstileSiteKey,
         metaAppId: settings.metaAppId,
         metaEmbeddedSignupConfigId: settings.metaEmbeddedSignupConfigId,
+        metaMessagingConfigId: settings.metaMessagingConfigId,
         aiProvider: settings.aiProvider,
         aiTextModel: settings.aiTextModel,
         aiVisionModel: settings.aiVisionModel,

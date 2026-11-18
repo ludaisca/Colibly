@@ -45,6 +45,8 @@ export const CHANNEL_MESSAGE_SELECT = {
   ...MESSAGE_SELECT,
   interactivePayload: true,
   isFromComment: true,
+  commentPostId: true,
+  commentReplyKind: true,
   externalMessageId: true,
   replyToExternalId: true,
   reactionEmoji: true,

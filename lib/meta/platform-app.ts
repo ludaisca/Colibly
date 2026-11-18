@@ -2,13 +2,16 @@ import { createHash, timingSafeEqual } from "crypto";
 import { compareMetaSignature, validateMetaWebhookSignature } from "@/lib/meta/webhook-signature";
 import { getPlatformSettings } from "@/lib/platform-settings";
 
-// App de Meta de la PLATAFORMA (Embedded Signup y coexistencia). Los datos viven
+// App de Meta de la PLATAFORMA (Embedded Signup y coexistencia de WhatsApp, y
+// la conexión de Páginas de Messenger/Instagram). Los datos viven
 // en PlatformSettings (se editan en /plataforma), no en variables de entorno.
 
 export interface MetaPlatformApp {
   appId: string | null;
   appSecret: string | null;
   embeddedSignupConfigId: string | null;
+  /** Inicio de sesión para empresas de Messenger/Instagram (otra configuración de la misma app). */
+  messagingConfigId: string | null;
   webhookVerifyToken: string | null;
 }
 
@@ -18,6 +21,7 @@ export async function getMetaPlatformApp(): Promise<MetaPlatformApp> {
     appId: s.metaAppId,
     appSecret: s.metaAppSecret,
     embeddedSignupConfigId: s.metaEmbeddedSignupConfigId,
+    messagingConfigId: s.metaMessagingConfigId,
     webhookVerifyToken: s.metaWebhookVerifyToken,
   };
 }

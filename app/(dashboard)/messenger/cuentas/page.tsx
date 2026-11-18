@@ -15,7 +15,7 @@ export default function Page() {
         connectLabel: "Conectar Página",
         deletedToast: "Página desconectada correctamente",
         emptyTitle: "Sin Páginas conectadas",
-        emptyDescription: "No has conectado ninguna Página de Facebook para Messenger. Conéctala desde Meta for Developers y agrégala aquí.",
+        emptyDescription: "Conecta tu Página de Facebook para atender aquí sus mensajes y comentarios.",
         rowSubtitle: "Página de Messenger",
         deleteTitle: "Desconectar Página",
         deleteDescription: "Esta acción eliminará permanentemente la Página y todos sus chats y mensajes asociados. No se puede deshacer.",
