@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
 import { FormField } from "@/app/components/ui/form-field";
@@ -10,6 +10,7 @@ import { Select } from "@/app/components/ui/select";
 import { Switch } from "@/app/components/ui/switch";
 import { Textarea } from "@/app/components/ui/textarea";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 export interface ChatAttribute {
   id: string;
@@ -62,8 +63,7 @@ export function ChatAttributeFormModal({
     setError(null);
   }, [initialData]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza el formulario al abrir/editar
+  useRunOnChange(() => {
     if (open) reset();
   }, [open, reset]);
 

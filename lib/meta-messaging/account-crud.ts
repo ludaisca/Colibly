@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt, hashToken } from "@/lib/crypto";
 import { validatePageToken } from "@/lib/meta/validate-page-token";
 import { subscribePageToApp, unsubscribePageFromApp } from "@/lib/meta-messaging";
-import { requireOrgId } from "@/lib/tenancy";
+import { accountManageWhere, requireOrgId } from "@/lib/tenancy";
 import { claimChannelOwner } from "@/lib/billing/user-license";
 import { invalidateAccountScopes } from "@/lib/shared-accounts";
 
@@ -86,7 +86,8 @@ export async function createMetaChannelAccount(
 // deleteWebhook() de Telegram: un token revocado o la red caída no debe
 // impedir borrar el registro local.
 export async function deleteMetaChannelAccount(id: string, userId: string, channel: Channel): Promise<boolean> {
-  const existing = await prisma.channelAccount.findFirst({ where: { id, userId, channel } });
+  // Cualquier admin de la organización o el dueño, como Telegram (nunca solo quien la creó).
+  const existing = await prisma.channelAccount.findFirst({ where: { id, channel, ...(await accountManageWhere(userId)) } });
   if (!existing) return false;
 
   try {

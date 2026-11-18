@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Activity, Copy, KeyRound, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { Card } from "@/app/components/ui/card";
@@ -16,6 +16,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { Select } from "@/app/components/ui/select";
 import { PLATFORM_SCOPES, PLATFORM_SCOPE_LABELS, type PlatformScope } from "@/lib/platform/scopes";
 import { Checkbox } from "@/app/components/ui/checkbox";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Check {
   id: string;
@@ -119,8 +120,7 @@ export function PlataformaOperacion() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial desde el API
+  useRunOnChange(() => {
     void loadReport(false);
     void loadTokens();
   }, [loadReport, loadTokens]);

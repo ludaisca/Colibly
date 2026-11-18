@@ -7,6 +7,9 @@ import { emitMessageSent } from "@/lib/events/message-sent";
 import { queuePush } from "@/lib/notifications/push";
 import { mediaDownloadQueue } from "@/lib/queue";
 import { getOrgBusinessHours } from "@/lib/organizations";
+import { accountDefaultTeamId } from "@/lib/teams/teams";
+import { readGowaCredentials } from "./account";
+import { getGroupName } from "./client";
 import { phoneOfJid, type GowaEvent, type NormalizedGowaMessage } from "./webhook";
 
 // Persistencia de los eventos de GoWA de UNA cuenta ya autenticada (firma
@@ -16,8 +19,19 @@ import { phoneOfJid, type GowaEvent, type NormalizedGowaMessage } from "./webhoo
 export async function handleGowaEvent(account: ChannelAccount, event: GowaEvent): Promise<void> {
   switch (event.kind) {
     case "message":
+      if (event.message.isGroup) {
+        // Grupos solo con el interruptor de la cuenta; si no, se descartan.
+        if (account.groupsEnabled) await ingestGroupMessage(account, event.message);
+        return;
+      }
       if (event.message.fromMe) await persistPhoneEcho(account, event.message);
       else await ingestInbound(account, event.message);
+      return;
+    case "group_name":
+      await prisma.conversation.updateMany({
+        where: { channelAccountId: account.id, externalId: event.externalId, isGroup: true },
+        data: { name: event.name },
+      });
       return;
     case "ack":
       await applyAck(account.id, event.ids, event.status);
@@ -136,6 +150,95 @@ async function persistPhoneEcho(account: ChannelAccount, msg: NormalizedGowaMess
       .catch((err) => console.error("[gowa ingest] media-download enqueue failed:", err));
   }
   await emitMessageSent("channel", created.id, "business_app");
+}
+
+/**
+ * Mensaje de un grupo (entrante o escrito desde el teléfono). Un grupo es solo
+ * conversación: sin contacto del CRM, sin bot, automatizaciones ni avisos
+ * automáticos, sin "esperando respuesta" ni SLA, sin eventos de dominio
+ * (webhooks/API: no hay contacto al que atarlos) y sin notificación por
+ * mensaje — solo suma no leídos. Decisión de producto del 2026-11-18.
+ */
+async function ingestGroupMessage(account: ChannelAccount, msg: NormalizedGowaMessage): Promise<void> {
+  const where = { channelAccountId_externalId: { channelAccountId: account.id, externalId: msg.externalId } };
+  let conversation = await prisma.conversation.findUnique({ where, select: { id: true, status: true, snoozedUntil: true } });
+  if (conversation) {
+    const dup = await prisma.channelMessage.findFirst({
+      where: { conversationId: conversation.id, externalMessageId: msg.externalMessageId },
+      select: { id: true },
+    });
+    if (dup) return;
+  }
+
+  const lastMessage = (msg.senderName ? `${msg.senderName}: ${msg.body}` : msg.body).slice(0, 500);
+  const inbound = !msg.fromMe;
+  if (!conversation) {
+    // Primer mensaje del grupo: el nombre se pide a GoWA una sola vez (si
+    // falla, queda el JID y el evento group.info lo corrige al cambiar).
+    const name = await getGroupName(readGowaCredentials(account).deviceId, msg.externalId).catch(() => null);
+    conversation = await prisma.conversation.upsert({
+      where,
+      create: {
+        channelAccountId: account.id,
+        externalId: msg.externalId,
+        name: name ?? "Grupo de WhatsApp",
+        isGroup: true,
+        lastMessage,
+        lastMessageAt: msg.timestamp,
+        unreadCount: inbound ? 1 : 0,
+        teamId: await accountDefaultTeamId("channel", account.id),
+      },
+      update: {},
+      select: { id: true, status: true, snoozedUntil: true },
+    });
+  } else {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        lastMessage,
+        lastMessageAt: msg.timestamp,
+        ...(inbound ? { unreadCount: { increment: 1 } } : {}),
+        // Igual que un chat: un mensaje nuevo reabre el grupo resuelto o pospuesto.
+        ...(inbound && conversation.status === "RESOLVED" ? { status: "OPEN" as const, resolvedAt: null } : {}),
+        ...(inbound && conversation.snoozedUntil ? { snoozedUntil: null } : {}),
+      },
+    });
+  }
+
+  let created;
+  try {
+    created = await prisma.channelMessage.create({
+      data: {
+        externalMessageId: msg.externalMessageId,
+        conversationId: conversation.id,
+        direction: inbound ? "INBOUND" : "OUTBOUND",
+        messageType: msg.type,
+        body: msg.hasMedia ? (inbound ? msg.body : null) : msg.body,
+        caption: msg.caption,
+        mediaId: msg.hasMedia ? msg.externalMessageId : null,
+        mimeType: msg.mimeType,
+        filename: msg.filename,
+        replyToExternalId: msg.replyToExternalId,
+        interactivePayload: msg.interactiveReplyId ? { replyId: msg.interactiveReplyId } : undefined,
+        senderName: msg.senderName,
+        senderExternalId: msg.senderExternalId,
+        ...(inbound ? {} : { status: "sent", sentVia: "business_app" }),
+        timestamp: msg.timestamp,
+      },
+      select: { id: true },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return;
+    throw err;
+  }
+
+  if (msg.hasMedia) {
+    // La descarga usa el JID del chat (el grupo), igual que en un 1:1.
+    await mediaDownloadQueue
+      .add("download-media", { channel: "WHATSAPP_WEB", messageId: created.id, accountId: account.id, mediaId: msg.externalMessageId })
+      .catch((err) => console.error("[gowa ingest] media-download enqueue failed:", err));
+  }
+  await prisma.channelAccount.update({ where: { id: account.id }, data: { lastActivity: new Date() } });
 }
 
 const ACK_RANK: Record<string, number> = { failed: 0, sent: 1, delivered: 2, read: 3 };

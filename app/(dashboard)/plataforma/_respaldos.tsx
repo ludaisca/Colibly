@@ -18,6 +18,7 @@ import { PageContainer } from "@/app/components/ui/page-container";
 import { useToast } from "@/app/components/ui/toast";
 import { SecretField } from "./_configuracion";
 import { formatHourOfDay } from "@/app/components/ui/time-select";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface BackupRun {
   id: string;
@@ -127,10 +128,7 @@ export function PlataformaRespaldos() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
-    load();
-  }, [load]);
+  useRunOnChange(() => load(), [load]);
 
   // Mientras hay un respaldo en curso (o recién pedido) se refresca el historial.
   const busy = !!data?.running || starting;
@@ -139,10 +137,9 @@ export function PlataformaRespaldos() {
     const timer = setInterval(() => load({ keepForm: true }), 4000);
     return () => clearInterval(timer);
   }, [busy, load]);
-  useEffect(() => {
+  useRunOnChange(() => {
     // Si el respaldo pedido ya aparece en curso o terminó, deja de esperar la cola.
     if (starting && data && (data.running || data.runs.some((r) => Date.now() - new Date(r.startedAt).getTime() < 60_000))) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza con la respuesta del servidor
       setStarting(false);
     }
   }, [starting, data]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { CalendarRange } from "lucide-react";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { Card, CardHeader, CardTitle, CardBody } from "@/app/components/ui/card";
@@ -13,6 +13,7 @@ import { KpiStrip } from "@/app/components/ui/kpi-strip";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { localISODaysAgo } from "@/lib/format/calendar";
 import { templateCategoryLabel, templateLanguageLabel } from "@/lib/whatsapp/template-labels";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
   PENDING: { label: "Pendiente", tone: "warning" },
@@ -271,10 +272,7 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
   }, []);
 
   // Restablece el rango al cambiar de plantilla mediante navegación cliente.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch al cambiar de plantilla
-    loadTemplate(templateId);
-  }, [templateId, loadTemplate]);
+  useRunOnChange(() => loadTemplate(templateId), [templateId, loadTemplate]);
 
   const fetchAnalytics = useCallback(async () => {
     if (!dateFrom || !dateTo) return;
@@ -295,10 +293,7 @@ export function TemplateMetricsView({ templateId }: { templateId: string }) {
     }
   }, [templateId, dateFrom, dateTo]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch al cambiar el rango
-    fetchAnalytics();
-  }, [templateId, dateFrom, dateTo, fetchAnalytics]);
+  useRunOnChange(() => fetchAnalytics(), [templateId, dateFrom, dateTo, fetchAnalytics]);
 
   function applyPreset(days: number) {
     setDateTo(isoDaysAgo(0));

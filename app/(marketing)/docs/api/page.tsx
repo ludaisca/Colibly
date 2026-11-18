@@ -5,7 +5,8 @@ import { buildOpenApiSpec } from "@/lib/api/openapi";
 import { API_SCOPES } from "@/lib/api/scopes";
 import { WEBHOOK_DELIVERY_RETENTION_DAYS } from "@/lib/api/constants";
 import { NODE_VERIFY, PAGINATION_NODE, PHP_VERIFY, PYTHON_VERIFY } from "./_snippets";
-import { Code, InlineText, ParamTable, Section, SubHeading } from "./_ui";
+import { Code, DOCS_STYLES, InlineText, ParamTable, Section, SubHeading } from "./_ui";
+import { CodeCopy } from "./_copy-button";
 import { curlFor, endpointList, type EndpointDoc } from "./_endpoints";
 
 const DESCRIPTION = `Documentación de la API REST y los webhooks de ${BRAND_NAME}: autenticación con API key, límites, idempotencia, errores, paginación, eventos firmados y referencia de endpoints con ejemplos.`;
@@ -49,7 +50,8 @@ export default function ApiDocsPage() {
   return (
     // Monoespaciada real solo aquí: en el panel font-mono es la tipografía de
     // texto a propósito (globals.css), pero el código necesita columnas alineadas.
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:py-10 md:px-6 [&_code]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] [&_h4]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-12 lg:py-14">
+    <div className={`mx-auto max-w-6xl px-4 py-8 sm:py-10 md:px-6 [&_code]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] [&_h4]:font-[ui-monospace,SFMono-Regular,Menlo,Consolas,monospace] ${DOCS_STYLES} lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-12 lg:py-14`}>
+      <CodeCopy />
       <nav aria-label="Contenido de la documentación" className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">En esta página</p>
         <ol className="mt-3 space-y-1.5 border-l border-border text-sm">
@@ -104,17 +106,17 @@ export default function ApiDocsPage() {
             <dt className="font-semibold">Especificación</dt>
             <dd className="min-w-0 text-pretty">
               OpenAPI 3.1 en <a href="/api/v1/openapi.json" className={LINK}>/api/v1/openapi.json</a>, para generar clientes o importarla en Insomnia.
-              Colección de Postman lista para usar en <a href="/api/v1/postman.json" className={LINK}>/api/v1/postman.json</a> (Import → Link; pon tu key en la variable <code className="font-mono text-sm">apiKey</code>).
+              Colección de Postman lista para usar en <a href="/api/v1/postman.json" className={LINK}>/api/v1/postman.json</a> (Import → Link; pon tu key en la variable <code className="text-sm">apiKey</code>).
             </dd>
           </dl>
           <SubHeading>Primera llamada</SubHeading>
-          <p>Verifica tu key con <code className="font-mono text-sm">GET /me</code>:</p>
+          <p>Verifica tu key con <code className="text-sm">GET /me</code>:</p>
           <Code>{`curl ${base}/me \\\n  -H "Authorization: Bearer $COLIBLY_API_KEY"`}</Code>
         </header>
 
         <Section id="autenticacion" title="Autenticación">
           <p>
-            Cada solicitud lleva una API key en el header <code className="font-mono text-sm">Authorization: Bearer sk_live_…</code>. Un administrador la crea en{" "}
+            Cada solicitud lleva una API key en el header <code className="text-sm">Authorization: Bearer sk_live_…</code>. Un administrador la crea en{" "}
             <strong>Configuración → API</strong>, eligiendo sus permisos, las cuentas que puede usar (o todas) y su vigencia (30, 90 o 365 días, o sin vencimiento).
           </p>
           <ul className="list-disc space-y-1.5 pl-5">
@@ -127,7 +129,7 @@ export default function ApiDocsPage() {
           <SubHeading>Permisos</SubHeading>
           <ParamTable
             head={["Permiso", "Qué permite"]}
-            rows={Object.entries(API_SCOPES).map(([k, v]) => [<code key={k} className="font-mono text-sm">{k}</code>, v])}
+            rows={Object.entries(API_SCOPES).map(([k, v]) => [<code key={k} className="text-sm">{k}</code>, v])}
           />
           <p className="text-sm text-muted"><code className="font-mono">GET /me</code> y <code className="font-mono">GET /accounts</code> no piden permiso.</p>
         </Section>
@@ -142,8 +144,8 @@ export default function ApiDocsPage() {
               ["Por key", `${limits.requestsPerMinute} solicitudes por minuto`],
               ["Por cuenta (todas sus keys juntas)", `${limits.orgRequestsPerMinute} solicitudes por minuto`],
               ["Por IP (con o sin key)", `${limits.ipRequestsPerMinute} solicitudes por minuto`],
-              [<code key="m" className="font-mono text-sm">POST /messages</code>, `${limits.sendsPerMinutePerOrg} envíos por minuto y ${limits.dailySendsPerOrg.toLocaleString("es-MX")} por día (UTC) por cuenta`],
-              [<code key="c" className="font-mono text-sm">GET /conversations</code>, `${limits.conversationsListPerMinutePerKey} solicitudes por minuto por key`],
+              [<code key="m" className="text-sm">POST /messages</code>, `${limits.sendsPerMinutePerOrg} envíos por minuto y ${limits.dailySendsPerOrg.toLocaleString("es-MX")} por día (UTC) por cuenta`],
+              [<code key="c" className="text-sm">GET /conversations</code>, `${limits.conversationsListPerMinutePerKey} solicitudes por minuto por key`],
               ["Tamaño del cuerpo", `${Math.round(limits.maxBodyBytes / 1024)} KB como máximo (si no, 413 payload_too_large)`],
             ]}
           />
@@ -151,46 +153,46 @@ export default function ApiDocsPage() {
           <ParamTable
             head={["Header", "Significado"]}
             rows={[
-              [<code key="l" className="font-mono text-sm">X-RateLimit-Limit</code>, "Solicitudes permitidas en la ventana del límite informado."],
-              [<code key="r" className="font-mono text-sm">X-RateLimit-Remaining</code>, "Las que te quedan en la ventana actual."],
-              [<code key="s" className="font-mono text-sm">X-RateLimit-Reset</code>, "Segundos hasta que se libera un lugar."],
-              [<code key="sc" className="font-mono text-sm">X-RateLimit-Scope</code>, "Qué límite se informa: key, organization, ip, endpoint o daily."],
-              [<code key="a" className="font-mono text-sm">Retry-After</code>, "Solo en el 429 y el 503: segundos a esperar antes de reintentar."],
+              [<code key="l" className="text-sm">X-RateLimit-Limit</code>, "Solicitudes permitidas en la ventana del límite informado."],
+              [<code key="r" className="text-sm">X-RateLimit-Remaining</code>, "Las que te quedan en la ventana actual."],
+              [<code key="s" className="text-sm">X-RateLimit-Reset</code>, "Segundos hasta que se libera un lugar."],
+              [<code key="sc" className="text-sm">X-RateLimit-Scope</code>, "Qué límite se informa: key, organization, ip, endpoint o daily."],
+              [<code key="a" className="text-sm">Retry-After</code>, "Solo en el 429 y el 503: segundos a esperar antes de reintentar."],
             ]}
           />
-          <p>Al pasarte recibes <code className="font-mono text-sm">429 rate_limited</code>. Espera lo que indica <code className="font-mono text-sm">Retry-After</code>; reintentar antes vuelve a contar.</p>
+          <p>Al pasarte recibes <code className="text-sm">429 rate_limited</code>. Espera lo que indica <code className="text-sm">Retry-After</code>; reintentar antes vuelve a contar.</p>
           <Code>{`HTTP/1.1 429 Too Many Requests\nX-RateLimit-Limit: ${limits.requestsPerMinute}\nX-RateLimit-Remaining: 0\nX-RateLimit-Reset: 12\nX-RateLimit-Scope: key\nRetry-After: 12\n\n{ "error": { "code": "rate_limited", "message": "Límite de ${limits.requestsPerMinute} solicitudes por minuto excedido" } }`}</Code>
           <p className="text-sm text-muted">
             Además, una misma IP puede hacer hasta {limits.badKeyAttemptsPerMinutePerIp} intentos por minuto con keys inválidas; después recibe 429 aunque la siguiente key sea válida.
           </p>
           <p className="text-sm text-muted">
-            Si se agota el cupo diario de envíos recibes <code className="font-mono text-sm">429 daily_limit_reached</code>, con <code className="font-mono text-sm">Retry-After</code> hasta las 00:00 UTC. Si el servicio de límites no está disponible respondemos <code className="font-mono text-sm">503 service_unavailable</code> con <code className="font-mono text-sm">Retry-After: {limits.unavailableRetrySeconds}</code>: reintenta después.
+            Si se agota el cupo diario de envíos recibes <code className="text-sm">429 daily_limit_reached</code>, con <code className="text-sm">Retry-After</code> hasta las 00:00 UTC. Si el servicio de límites no está disponible respondemos <code className="text-sm">503 service_unavailable</code> con <code className="text-sm">Retry-After: {limits.unavailableRetrySeconds}</code>: reintenta después.
           </p>
         </Section>
 
         <Section id="idempotencia" title="Idempotencia">
           <p>
             Si una solicitud que crea algo se corta (timeout, red caída), no sabes si llegó. Para reintentar sin duplicar, manda el header{" "}
-            <code className="font-mono text-sm">Idempotency-Key</code> con un valor único por operación, por ejemplo un UUID o el id del pedido en tu sistema.
-            Lo aceptan <code className="font-mono text-sm">POST /messages</code>, <code className="font-mono text-sm">POST /contacts</code>,{" "}
-            <code className="font-mono text-sm">POST /contacts/{"{id}"}/tags</code> y <code className="font-mono text-sm">POST /automations/{"{id}"}/runs</code>.
+            <code className="text-sm">Idempotency-Key</code> con un valor único por operación, por ejemplo un UUID o el id del pedido en tu sistema.
+            Lo aceptan <code className="text-sm">POST /messages</code>, <code className="text-sm">POST /contacts</code>,{" "}
+            <code className="text-sm">POST /contacts/{"{id}"}/tags</code> y <code className="text-sm">POST /automations/{"{id}"}/runs</code>.
           </p>
           <Code>{curlFor(endpoints.find((e) => e.method === "POST" && e.path === "/messages")!, base, { idempotencyKey: "pedido-A-1043-confirmacion" })}</Code>
           <ul className="list-disc space-y-1.5 pl-5">
-            <li>Durante {limits.idempotencyTtlHours} horas, la misma clave con el mismo cuerpo devuelve la respuesta original, con el header <code className="font-mono text-sm">Idempotent-Replayed: true</code>, y no vuelve a ejecutar la operación.</li>
-            <li>La misma clave con otro cuerpo, o en otro endpoint, responde <code className="font-mono text-sm">422 idempotency_conflict</code>.</li>
-            <li>Si la primera solicitud sigue en proceso, la repetida recibe <code className="font-mono text-sm">409 conflict</code>: espera unos segundos y reintenta.</li>
+            <li>Durante {limits.idempotencyTtlHours} horas, la misma clave con el mismo cuerpo devuelve la respuesta original, con el header <code className="text-sm">Idempotent-Replayed: true</code>, y no vuelve a ejecutar la operación.</li>
+            <li>La misma clave con otro cuerpo, o en otro endpoint, responde <code className="text-sm">422 idempotency_conflict</code>.</li>
+            <li>Si la primera solicitud sigue en proceso, la repetida recibe <code className="text-sm">409 conflict</code>: espera unos segundos y reintenta.</li>
             <li>Los errores 401, 402, 403, 429 y 5xx no se guardan, así que puedes reintentarlos con la misma clave.</li>
             <li>Las claves son de tu cuenta: dos integraciones tuyas no deben compartir valores.</li>
           </ul>
         </Section>
 
         <Section id="errores" title="Errores">
-          <p>Los errores responden con el status HTTP y un cuerpo estable. Decide según <code className="font-mono text-sm">code</code>; <code className="font-mono text-sm">message</code> está en español y puede cambiar.</p>
+          <p>Los errores responden con el status HTTP y un cuerpo estable. Decide según <code className="text-sm">code</code>; <code className="text-sm">message</code> está en español y puede cambiar.</p>
           <Code>{`{ "error": { "code": "window_closed", "message": "Fuera de la ventana de 24 h: envía una plantilla aprobada", "requestId": "req_4fQm1x9TzK2bLw7a" } }`}</Code>
           <p>
-            En un error de validación, <code className="font-mono text-sm">details</code> lista cada campo con su ruta (<code className="font-mono text-sm">template.id</code>,{" "}
-            <code className="font-mono text-sm">buttons.0.title</code>), para que corrijas todo de una vez:
+            En un error de validación, <code className="text-sm">details</code> lista cada campo con su ruta (<code className="text-sm">template.id</code>,{" "}
+            <code className="text-sm">buttons.0.title</code>), para que corrijas todo de una vez:
           </p>
           <Code>{`{
   "error": {
@@ -204,22 +206,22 @@ export default function ApiDocsPage() {
   }
 }`}</Code>
           <p>
-            Cada respuesta, buena o mala, trae el header <code className="font-mono text-sm">X-Request-Id</code> (igual a <code className="font-mono text-sm">error.requestId</code>). Guárdalo en tus logs e
+            Cada respuesta, buena o mala, trae el header <code className="text-sm">X-Request-Id</code> (igual a <code className="text-sm">error.requestId</code>). Guárdalo en tus logs e
             inclúyelo si escribes a soporte: con él encontramos tu llamada.
           </p>
           <ParamTable
             head={["Status", "code", "Cuándo"]}
-            rows={spec["x-colibly-error-codes"].map((e) => [String(e.status), <code key={e.code} className="font-mono text-sm">{e.code}</code>, e.description])}
+            rows={spec["x-colibly-error-codes"].map((e) => [String(e.status), <code key={e.code} className="text-sm">{e.code}</code>, e.description])}
           />
         </Section>
 
         <Section id="paginacion" title="Paginación">
           <p>
-            Los listados devuelven <code className="font-mono text-sm">{"{ data, nextCursor }"}</code>. Pide la siguiente página con{" "}
-            <code className="font-mono text-sm">?cursor=&lt;nextCursor&gt;</code>; cuando <code className="font-mono text-sm">nextCursor</code> es <code className="font-mono text-sm">null</code>, terminaste.{" "}
-            <code className="font-mono text-sm">limit</code> va de 1 a {limits.pageMax} (por defecto {limits.pageDefault}). El cursor es opaco: no lo construyas ni lo guardes por mucho tiempo.{" "}
-            Los catálogos (<code className="font-mono text-sm">/accounts</code>, <code className="font-mono text-sm">/templates</code>, <code className="font-mono text-sm">/tags</code>,{" "}
-            <code className="font-mono text-sm">/users</code>, <code className="font-mono text-sm">/teams</code>, <code className="font-mono text-sm">/automations</code>) devuelven la lista completa en <code className="font-mono text-sm">data</code>, sin cursor.
+            Los listados devuelven <code className="text-sm">{"{ data, nextCursor }"}</code>. Pide la siguiente página con{" "}
+            <code className="text-sm">?cursor=&lt;nextCursor&gt;</code>; cuando <code className="text-sm">nextCursor</code> es <code className="text-sm">null</code>, terminaste.{" "}
+            <code className="text-sm">limit</code> va de 1 a {limits.pageMax} (por defecto {limits.pageDefault}). El cursor es opaco: no lo construyas ni lo guardes por mucho tiempo.{" "}
+            Los catálogos (<code className="text-sm">/accounts</code>, <code className="text-sm">/templates</code>, <code className="text-sm">/tags</code>,{" "}
+            <code className="text-sm">/users</code>, <code className="text-sm">/teams</code>, <code className="text-sm">/automations</code>) devuelven la lista completa en <code className="text-sm">data</code>, sin cursor.
           </p>
           <Code>{PAGINATION_NODE.replace("https://app.colibly.com/api/v1", base)}</Code>
           <p className="text-sm text-muted">
@@ -229,31 +231,31 @@ export default function ApiDocsPage() {
 
         <Section id="versiones" title="Versiones">
           <p>
-            La versión va en la ruta: hoy es <code className="font-mono text-sm">/api/v1</code>. Dentro de v1 solo agregamos: campos nuevos en las respuestas, endpoints, eventos y valores
+            La versión va en la ruta: hoy es <code className="text-sm">/api/v1</code>. Dentro de v1 solo agregamos: campos nuevos en las respuestas, endpoints, eventos y valores
             nuevos en los enumerados. Tu integración debe ignorar los campos que no conoce.
           </p>
           <p>
-            Un cambio incompatible (quitar o renombrar un campo, cambiar un tipo o el significado de un error) saldría como <code className="font-mono text-sm">/api/v2</code>. v1 se mantendría
+            Un cambio incompatible (quitar o renombrar un campo, cambiar un tipo o el significado de un error) saldría como <code className="text-sm">/api/v2</code>. v1 se mantendría
             al menos 12 meses después, y avisaríamos por correo a los administradores con keys activas.
           </p>
         </Section>
 
         <Section id="webhooks" title="Webhooks">
           <p>
-            Un webhook es una URL de tu servidor a la que {BRAND_NAME} manda un <code className="font-mono text-sm">POST</code> con JSON cada vez que ocurre un evento que elegiste. Se crean en{" "}
-            <strong>Configuración → API → Webhooks</strong> o con <code className="font-mono text-sm">POST /webhooks</code>, eligiendo eventos (o todos con <code className="font-mono text-sm">*</code>) y,
+            Un webhook es una URL de tu servidor a la que {BRAND_NAME} manda un <code className="text-sm">POST</code> con JSON cada vez que ocurre un evento que elegiste. Se crean en{" "}
+            <strong>Configuración → API → Webhooks</strong> o con <code className="text-sm">POST /webhooks</code>, eligiendo eventos (o todos con <code className="text-sm">*</code>) y,
             si quieres, solo algunas cuentas.
           </p>
           <ul className="list-disc space-y-1.5 pl-5">
-            <li>La URL debe ser <code className="font-mono text-sm">https://</code> y pública. Rechazamos direcciones internas o reservadas, y no seguimos redirecciones.</li>
+            <li>La URL debe ser <code className="text-sm">https://</code> y pública. Rechazamos direcciones internas o reservadas, y no seguimos redirecciones.</li>
             <li>
-              Al crearlo recibes un secreto <code className="font-mono text-sm">whsec_…</code>, que se muestra una vez y sirve para verificar la firma. Se rota en la pantalla o con{" "}
-              <code className="font-mono text-sm">POST /webhooks/{"{id}"}/rotate-secret</code>. Con <code className="font-mono text-sm">{"{ \"graceHours\": 24 }"}</code> el anterior sigue firmando ese tiempo
+              Al crearlo recibes un secreto <code className="text-sm">whsec_…</code>, que se muestra una vez y sirve para verificar la firma. Se rota en la pantalla o con{" "}
+              <code className="text-sm">POST /webhooks/{"{id}"}/rotate-secret</code>. Con <code className="text-sm">{"{ \"graceHours\": 24 }"}</code> el anterior sigue firmando ese tiempo
               (hasta 72 h); sin él, deja de firmar en ese momento.
             </li>
             <li>Máximo {limits.maxWebhooks} webhooks por cuenta.</li>
             <li>
-              El botón <strong>Probar</strong> (o <code className="font-mono text-sm">POST /webhooks/{"{id}"}/test</code>) envía un evento <code className="font-mono text-sm">webhook.test</code> firmado, para
+              El botón <strong>Probar</strong> (o <code className="text-sm">POST /webhooks/{"{id}"}/test</code>) envía un evento <code className="text-sm">webhook.test</code> firmado, para
               validar tu receptor sin esperar un evento real. Su resultado queda en el historial de entregas.
             </li>
           </ul>
@@ -262,16 +264,16 @@ export default function ApiDocsPage() {
           <ParamTable
             head={["Header", "Valor"]}
             rows={[
-              [<code key="s" className="font-mono text-sm">X-Colibly-Signature</code>, <span key="sv"><code className="font-mono text-sm">t=&lt;unix&gt;,v1=&lt;hex&gt;</code>: HMAC-SHA256 del texto <code className="font-mono text-sm">{"{t}.{cuerpo}"}</code> con tu secreto.</span>],
-              [<code key="e" className="font-mono text-sm">X-Colibly-Event</code>, "Tipo de evento, p. ej. contact.created."],
-              [<code key="d" className="font-mono text-sm">X-Colibly-Delivery</code>, "Id de la entrega; es el mismo en cada reintento."],
-              [<code key="i" className="font-mono text-sm">X-Colibly-Event-Id</code>, "Id del evento (el mismo que id en el cuerpo): igual en todos tus endpoints y reintentos, útil para descartar duplicados."],
-              [<code key="n" className="font-mono text-sm">X-Colibly-Attempt</code>, "Número de intento (1 = primera entrega)."],
-              [<code key="u" className="font-mono text-sm">User-Agent</code>, "Colibly-Webhooks/1.0"],
-              [<code key="c" className="font-mono text-sm">Content-Type</code>, "application/json"],
+              [<code key="s" className="text-sm">X-Colibly-Signature</code>, <span key="sv"><code className="text-sm">t=&lt;unix&gt;,v1=&lt;hex&gt;</code>: HMAC-SHA256 del texto <code className="text-sm">{"{t}.{cuerpo}"}</code> con tu secreto.</span>],
+              [<code key="e" className="text-sm">X-Colibly-Event</code>, "Tipo de evento, p. ej. contact.created."],
+              [<code key="d" className="text-sm">X-Colibly-Delivery</code>, "Id de la entrega; es el mismo en cada reintento."],
+              [<code key="i" className="text-sm">X-Colibly-Event-Id</code>, "Id del evento (el mismo que id en el cuerpo): igual en todos tus endpoints y reintentos, útil para descartar duplicados."],
+              [<code key="n" className="text-sm">X-Colibly-Attempt</code>, "Número de intento (1 = primera entrega)."],
+              [<code key="u" className="text-sm">User-Agent</code>, "Colibly-Webhooks/1.0"],
+              [<code key="c" className="text-sm">Content-Type</code>, "application/json"],
             ]}
           />
-          <p>El cuerpo siempre tiene la misma forma. <code className="font-mono text-sm">contact</code> y <code className="font-mono text-sm">conversation</code> traen los datos del momento de la entrega; <code className="font-mono text-sm">data</code> trae el hecho tal como ocurrió.</p>
+          <p>El cuerpo siempre tiene la misma forma. <code className="text-sm">contact</code> y <code className="text-sm">conversation</code> traen los datos del momento de la entrega; <code className="text-sm">data</code> trae el hecho tal como ocurrió.</p>
           <Code>{JSON.stringify(testEvent.example, null, 2)}</Code>
 
           <SubHeading>Eventos</SubHeading>
@@ -295,8 +297,8 @@ export default function ApiDocsPage() {
           <SubHeading>Verificar la firma</SubHeading>
           <p>Verifica cada entrega antes de confiar en ella: compara la firma con una función de tiempo constante y rechaza las que tengan más de 5 minutos.</p>
           <p>
-            El header puede traer <strong>más de una</strong> <code className="font-mono text-sm">v1</code>: al rotar el secreto con periodo de gracia, cada entrega va firmada con el nuevo y con el
-            anterior (<code className="font-mono text-sm">t=…,v1=&lt;nuevo&gt;,v1=&lt;anterior&gt;</code>) hasta que vence. Acepta la entrega si cualquiera coincide con tu secreto; así cambias el
+            El header puede traer <strong>más de una</strong> <code className="text-sm">v1</code>: al rotar el secreto con periodo de gracia, cada entrega va firmada con el nuevo y con el
+            anterior (<code className="text-sm">t=…,v1=&lt;nuevo&gt;,v1=&lt;anterior&gt;</code>) hasta que vence. Acepta la entrega si cualquiera coincide con tu secreto; así cambias el
             secreto de tu servidor sin perder eventos. Las recetas de abajo ya lo hacen.
           </p>
           <p className="text-sm font-semibold">Node.js</p>
@@ -314,13 +316,13 @@ export default function ApiDocsPage() {
               Si fallas (error, timeout o status distinto de 2xx), reintentamos hasta completar {limits.webhookAttempts} intentos. La primera espera es de {limits.webhookBackoffBaseSeconds} segundos y se duplica en cada intento,
               unos {retryMinutes} minutos en total. Una URL rechazada por seguridad no se reintenta.
             </li>
-            <li>Un evento puede llegar más de una vez y no siempre en orden. Usa <code className="font-mono text-sm">id</code> para descartar duplicados y <code className="font-mono text-sm">occurredAt</code> para ordenar.</li>
+            <li>Un evento puede llegar más de una vez y no siempre en orden. Usa <code className="text-sm">id</code> para descartar duplicados y <code className="text-sm">occurredAt</code> para ordenar.</li>
             <li>
               Tras {limits.webhookMaxConsecutiveFailures} entregas fallidas seguidas, el webhook se desactiva solo y avisamos a quien lo creó. Al reactivarlo, el contador vuelve a cero.
             </li>
             <li>
               Si quien creó el webhook deja de ser administrador o se desactiva, el webhook se pausa y avisamos a los demás administradores. Otro administrador lo reactiva y queda a su nombre
-              (por API: <code className="font-mono text-sm">PATCH /webhooks/{"{id}"}</code> con <code className="font-mono text-sm">{"{ \"active\": true, \"takeOwnership\": true }"}</code>).
+              (por API: <code className="text-sm">PATCH /webhooks/{"{id}"}</code> con <code className="text-sm">{"{ \"active\": true, \"takeOwnership\": true }"}</code>).
             </li>
             <li>En <strong>Configuración → API → Webhooks → Ver entregas</strong> está el registro de los últimos {WEBHOOK_DELIVERY_RETENTION_DAYS} días, con status, intentos y respuesta, y un botón para reintentar las fallidas.</li>
           </ul>
@@ -328,7 +330,7 @@ export default function ApiDocsPage() {
 
         <section id="referencia" className="scroll-mt-24 border-t border-border pt-10 mt-12">
           <h2 className="font-display text-2xl font-semibold tracking-tight">Referencia de endpoints</h2>
-          <p className="mt-2 text-muted">Todos los ejemplos usan datos ficticios. Las rutas son relativas a <code className="break-all font-mono text-sm">{base}</code>.</p>
+          <p className="mt-2 text-muted">Todos los ejemplos usan datos ficticios. Las rutas son relativas a <code className="break-all text-sm">{base}</code>.</p>
           {groups.map((g) => (
             <div key={g.name} className="mt-10">
               <h3 className="font-display text-xl font-semibold">{g.name}</h3>
@@ -350,7 +352,7 @@ function EndpointBlock({ endpoint: e, base }: { endpoint: EndpointDoc; base: str
   const id = `${e.method}-${e.path}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-$/, "");
   return (
     <section id={id} className="scroll-mt-24 border-l-2 border-border pl-4 sm:pl-5">
-      <h4 className="flex flex-wrap items-baseline gap-x-3 font-mono text-[15px]">
+      <h4 className="flex flex-wrap items-baseline gap-x-3 text-[15px]">
         <span className="font-semibold text-accent-ink">{e.method}</span>
         <span className="break-all font-semibold">{e.path}</span>
       </h4>
@@ -360,7 +362,7 @@ function EndpointBlock({ endpoint: e, base }: { endpoint: EndpointDoc; base: str
         <ParamTable
           head={["Parámetro", "En", "Descripción"]}
           rows={e.params.map((p) => [
-            <code key={p.name} className="font-mono text-sm">{p.name}{p.required ? "" : "?"}</code>,
+            <code key={p.name} className="text-sm">{p.name}{p.required ? "" : "?"}</code>,
             p.in === "path" ? "ruta" : p.in === "query" ? "query" : "header",
             p.description ? <InlineText key="d" text={p.description} /> : p.type,
           ])}
@@ -369,7 +371,7 @@ function EndpointBlock({ endpoint: e, base }: { endpoint: EndpointDoc; base: str
       {e.bodyFields.length > 0 && (
         <ParamTable
           head={["Campo del cuerpo", "Tipo", "Descripción"]}
-          rows={e.bodyFields.map((f) => [<code key={f.name} className="font-mono text-sm">{f.name}{f.required ? "" : "?"}</code>, f.type, f.description ?? ""])}
+          rows={e.bodyFields.map((f) => [<code key={f.name} className="text-sm">{f.name}{f.required ? "" : "?"}</code>, f.type, f.description ?? ""])}
         />
       )}
       <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Ejemplo</p>

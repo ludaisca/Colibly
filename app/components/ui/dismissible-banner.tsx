@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { bannerDismissKey } from "@/lib/billing/banner-copy";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Envoltorio cliente del aviso del plan: con `dismissible`, un botón lo cierra
 // durante la sesión (sessionStorage con la fecha de hoy: mañana reaparece). Sin
@@ -10,10 +11,9 @@ import { bannerDismissKey } from "@/lib/billing/banner-copy";
 export function DismissibleBanner({ dismissible, className, children }: { dismissible: boolean; className?: string; children: ReactNode }) {
   const [hidden, setHidden] = useState(false);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!dismissible) return;
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- lee sessionStorage solo en el cliente
       if (sessionStorage.getItem(bannerDismissKey(new Date())) === "1") setHidden(true);
     } catch {
       /* sin sessionStorage: se queda visible */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Webhook, Plus, Send, History, Pencil, Pause, Play, KeyRound, Trash2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -14,6 +14,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { SecretField } from "@/app/components/integrations/secret-field";
 import { WebhookFormModal, type WebhookRow } from "./_webhook-form";
 import { formatDateTime, scopeSummary, type IntegrationAccount } from "./_shared";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 function webhookState(w: WebhookRow): { label: string; tone: "success" | "danger" | "neutral" | "warning" } {
   if (w.status === "paused") return { label: "Pausado: su creador ya no es admin", tone: "warning" };
@@ -51,10 +52,7 @@ export function WebhooksSection({ accounts }: { accounts: IntegrationAccount[] }
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchItems también refresca tras cada acción
-    fetchItems();
-  }, [fetchItems]);
+  useRunOnChange(() => fetchItems(), [fetchItems]);
 
   async function call(url: string, init: RequestInit, okMessage: string) {
     const res = await fetch(url, init);

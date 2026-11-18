@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Plus, RefreshCw, Trash2, Settings2, AlertTriangle } from "lucide-react";
 import { MetaIcon } from "@/app/components/ui/brand-marks";
 import { Input } from "@/app/components/ui/input";
@@ -14,6 +14,7 @@ import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { MetaAdsAccountFormModal, type MetaAdsAccountDetail } from "./_form";
 import { plural } from "@/lib/format/plural";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface MetaAdsAccountRow {
   id: string;
@@ -65,10 +66,7 @@ export default function MetaAdsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAccounts also used for manual refresh
-    fetchAccounts();
-  }, [fetchAccounts]);
+  useRunOnChange(() => fetchAccounts(), [fetchAccounts]);
 
   async function handleDelete() {
     if (!deleteId) return;

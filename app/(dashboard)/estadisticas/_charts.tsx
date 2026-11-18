@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -29,17 +29,17 @@ import { compactCount, yAxisWidth } from "@/lib/format/compact-number";
 // globals.css). accessibilityLayer viene activado por defecto en Recharts v3
 // (foco por teclado + tooltip en focus, no solo hover).
 
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+function subscribeReducedMotion(onChange: () => void): () => void {
+  const mq = window.matchMedia(REDUCED_MOTION);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+// Estado del navegador sin efecto: en el servidor (y al hidratar) vale false.
 function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads platform state (matchMedia) unavailable during SSR, must sync on mount
-    setReduced(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-  return reduced;
+  return useSyncExternalStore(subscribeReducedMotion, () => window.matchMedia(REDUCED_MOTION).matches, () => false);
 }
 
 const TICK_STYLE = { fontSize: 11, fill: "var(--muted-darker)" };

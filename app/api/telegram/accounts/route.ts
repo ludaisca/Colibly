@@ -9,18 +9,12 @@ import { rateLimit } from "@/lib/rate-limit";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { requireOrgId } from "@/lib/tenancy";
 import { claimChannelOwner } from "@/lib/billing/user-license";
-import { getUserChannelAccountIds, invalidateAccountScopes } from "@/lib/shared-accounts";
+import { invalidateAccountScopes } from "@/lib/shared-accounts";
 import { requireVerifiedEmail } from "@/lib/auth-emails";
 import { checkPlanLimit } from "@/lib/billing/gates";
 import { assertChannelEnabled } from "@/lib/channel-flags";
-
-// El rol "ejecutivo" tiene /telegram/cuentas bloqueado en proxy.ts — este 403
-// cierra el acceso directo a la API (defensa en profundidad, mismo patrón que
-// /api/usuarios y /api/whatsapp/contacts). "user" sí administra cuentas, igual
-// que en WhatsApp.
-function isForbiddenRole(role: string | undefined): boolean {
-  return role === "ejecutivo";
-}
+import { forbidRoles } from "@/lib/roles";
+import { channelAccountsGET } from "@/lib/channels/routes";
 
 export async function POST(req: Request) {
   try {
@@ -28,9 +22,9 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-    if (isForbiddenRole(session.user.role)) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
+    // "ejecutivo" tiene /telegram/cuentas bloqueado en proxy.ts; este 403 cierra la API directa.
+    const forbidden = forbidRoles(session, ["ejecutivo"]);
+    if (forbidden) return forbidden;
 
     const unverified = await requireVerifiedEmail(session.user.id);
     if (unverified) return unverified;
@@ -103,39 +97,5 @@ export async function POST(req: Request) {
   }
 }
 
-// GET queda abierto a todos los roles a propósito (igual que
-// /api/whatsapp/accounts): chat-workspace.tsx lo usa para armar el rail de
-// cuentas del inbox, al que "ejecutivo" sí tiene acceso. Lo que se restringe
-// es crear/eliminar cuentas, no listarlas.
-export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const accounts = await prisma.channelAccount.findMany({
-      // Propias + compartidas: editar/eliminar sigue siendo solo del dueño.
-      where: { channel: "TELEGRAM", id: { in: await getUserChannelAccountIds(session.user.id) } },
-      select: {
-        id: true,
-        userId: true,
-        owner: { select: { id: true, name: true, email: true, license: true, disabledAt: true } },
-        name: true,
-        channel: true,
-        status: true,
-        errorMessage: true,
-        lastActivity: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: { select: { conversations: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-
-    return NextResponse.json(accounts);
-  } catch (error) {
-    const message = publicErrorMessage(error, "Error interno del servidor");
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+// GET abierto a todos los roles: el rail de cuentas de la bandeja (lib/channels/routes.ts).
+export const GET = channelAccountsGET("TELEGRAM");

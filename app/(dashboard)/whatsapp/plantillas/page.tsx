@@ -1,7 +1,7 @@
 "use client";
 
 import { NeedsChannelEmpty } from "@/app/components/ui/needs-channel";
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, RefreshCw, MessageSquareText } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -15,6 +15,7 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { EntityAvatar } from "@/app/components/ui/avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { templateCategoryLabel, templateLanguageLabel } from "@/lib/whatsapp/template-labels";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Account { id: string; name: string; channel: string; wabaId: string | null; status: string; }
 
@@ -78,10 +79,7 @@ function TemplatesContent() {
     }
   }, [preselectedId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial; fetchAccounts también se usa para reintentar
-    fetchAccounts();
-  }, [fetchAccounts]);
+  useRunOnChange(() => fetchAccounts(), [fetchAccounts]);
 
   const fetchTemplates = useCallback(async () => {
     if (!selectedAccountId) {
@@ -102,10 +100,7 @@ function TemplatesContent() {
     }
   }, [selectedAccountId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchTemplates also used for manual refresh
-    fetchTemplates();
-  }, [fetchTemplates]);
+  useRunOnChange(() => fetchTemplates(), [fetchTemplates]);
 
   async function handleSync() {
     if (!selectedAccountId) return;

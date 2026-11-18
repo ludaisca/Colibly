@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { UserPlus, X } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
@@ -8,6 +8,7 @@ import { Select } from "@/app/components/ui/select";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface UserOption {
   id: string;
@@ -58,9 +59,8 @@ export function ChannelAccountShareModal({
     }
   }, [account, toastError]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch al abrir
     setShareUserId("");
     fetchSharing();
   }, [open, fetchSharing]);

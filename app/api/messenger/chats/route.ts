@@ -1,3 +1,3 @@
-import { metaChatsRoutes } from "@/lib/meta-messaging/routes";
+import { channelChatsGET } from "@/lib/channels/routes";
 
-export const { GET } = metaChatsRoutes("MESSENGER");
+export const GET = channelChatsGET("MESSENGER");

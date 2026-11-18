@@ -30,6 +30,7 @@ import type { MessageSearchHit } from "@/lib/search/messages";
 import { MESSAGE_SEARCH_MIN } from "@/lib/search/message-rules";
 import { useToast } from "./toast";
 import "./command-palette.css";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface ChatHit {
   id: string;
@@ -137,8 +138,7 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga única desde localStorage al abrir
+  useRunOnChange(() => {
     if (open) setRecent(readRecent());
   }, [open]);
 

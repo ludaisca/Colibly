@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { Dropdown, DropdownButton } from "@/app/components/ui/dropdown";
@@ -10,6 +10,7 @@ import { Select } from "@/app/components/ui/select";
 import { useToast } from "@/app/components/ui/toast";
 import type { ScoreDetails } from "@/lib/whatsapp/export-columns";
 import { AiMark } from "@/app/components/ui/ai-mark";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface LeadScore {
   id: string;
@@ -95,8 +96,7 @@ export function LeadScoreBadge({ chatId }: { chatId: string }) {
     }
   }, [chatId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on chat change
+  useRunOnChange(() => {
     fetchScores();
     fetchScorers();
   }, [fetchScores, fetchScorers]);

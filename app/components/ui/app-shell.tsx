@@ -1,7 +1,7 @@
 "use client";
 
 import { Tooltip } from "./tooltip";
-import React, { Suspense, useState, useEffect, useCallback } from "react";
+import React, { Suspense, useState, useCallback } from "react";
 import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,6 +16,7 @@ import { BRAND_NAME } from "@/lib/brand";
 import { BrandMark } from "./logo";
 import { CommandPalette } from "./command-palette";
 import type { ShellUser } from "@/app/components/ui/user-dropdown";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 export interface NavItem {
   href: string;
@@ -85,10 +86,9 @@ function SidebarContent({
   // Grupos plegables: abiertos si la persona los abrió (localStorage) o si la
   // página actual es de uno de sus items (así nunca se pierde dónde estás).
   const [moreOpen, setMoreOpen] = useState<boolean | null>(null);
-  useEffect(() => {
+  useRunOnChange(() => {
     try {
       const stored = localStorage.getItem(NAV_MORE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage no existe en el servidor
       setMoreOpen(stored === null ? null : stored === "true");
     } catch {
       setMoreOpen(null);
@@ -291,13 +291,12 @@ export function AppShell({
     segments.length === 3 && segments[0] === "whatsapp" && segments[1] === "automatizaciones";
   const wideContent = immersive || automationEditor;
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!collapsible) return;
     const stored = localStorage.getItem("colibly:sidebar-collapsed");
     // Deliberately set state after mount: localStorage is unavailable during
     // SSR, so reading it during render would mismatch the server-rendered
     // markup. Reading it post-hydration in an effect is the correct fix here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored === "true") setCollapsed(true);
   }, [collapsible]);
 

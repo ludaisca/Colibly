@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { RefreshCw, RotateCcw } from "lucide-react";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { Card } from "@/app/components/ui/card";
@@ -10,6 +10,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { formatDateTime } from "./_shared";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Delivery {
   id: string;
@@ -53,10 +54,7 @@ export function WebhookDeliveriesView({ webhook }: { webhook: { id: string; name
     }
   }, [webhook.id]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open; load también refresca manualmente
-    load();
-  }, [load]);
+  useRunOnChange(() => load(), [load]);
 
   async function retry(id: string) {
     setRetrying(id);

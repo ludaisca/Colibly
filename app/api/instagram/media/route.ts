@@ -1,3 +1,3 @@
-import { metaMediaUploadRoutes } from "@/lib/meta-messaging/routes";
+import { channelMediaUploadPOST } from "@/lib/channels/routes";
 
-export const { POST } = metaMediaUploadRoutes("INSTAGRAM");
+export const POST = channelMediaUploadPOST("instagram");

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { DollarSign, Bot, Zap } from "lucide-react";
 import { Dropdown, DropdownButton } from "@/app/components/ui/dropdown";
 import { Badge } from "@/app/components/ui/badge";
 import { AiMark } from "@/app/components/ui/ai-mark";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface UsageEntry {
   source: "bot" | "scorer" | "automation";
@@ -45,10 +46,7 @@ export function ChatCostBadge({ chatId, showEmpty = false }: { chatId: string; s
     }
   }, [chatId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on chat change
-    fetchUsage();
-  }, [fetchUsage]);
+  useRunOnChange(() => fetchUsage(), [fetchUsage]);
 
   if (!data) return showEmpty ? <p className="text-xs text-muted-darker">Consumo no disponible todavía.</p> : null;
   if (data.interactions === 0) return showEmpty ? <p className="text-xs text-muted-darker">Sin consumo registrado en este chat.</p> : null;

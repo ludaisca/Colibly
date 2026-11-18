@@ -23,6 +23,7 @@ import { StepEditor, type EditorOptions } from "./_step-editor";
 import { TriggerEditor } from "./_trigger-editor";
 import { Simulator } from "./_simulator";
 import { BackLink } from "@/app/components/ui/back-link";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface AutomationDetail {
   id: string;
@@ -93,10 +94,7 @@ export default function AutomationEditorPage() {
     }
   }, [id]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; load también recarga tras publicar
-    load();
-  }, [load]);
+  useRunOnChange(() => load(), [load]);
 
   // Aviso al salir con cambios sin guardar.
   useEffect(() => {

@@ -49,6 +49,8 @@ export const CHANNEL_MESSAGE_SELECT = {
   replyToExternalId: true,
   reactionEmoji: true,
   agentReactionEmoji: true,
+  // Grupos de WhatsApp por QR: quién escribió cada entrante.
+  senderName: true,
 } as const;
 
 type WaMessageRow = Prisma.WAMessageGetPayload<{ select: typeof WA_MESSAGE_SELECT }>;

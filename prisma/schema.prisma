@@ -505,6 +505,10 @@ model ChannelAccount {
   // Igual que WAAccount.defaultTeamId.
   defaultTeamId        String?      @map("default_team_id")
   defaultTeam          Team?        @relation("ChannelAccountDefaultTeam", fields: [defaultTeamId], references: [id], onDelete: SetNull)
+  // Solo WHATSAPP_WEB: los grupos del número entran a la bandeja (apagado por
+  // defecto; un número con muchos grupos la inundaría). Sin bot ni avisos
+  // automáticos y sin contacto del CRM — docs/arquitectura/canales.md.
+  groupsEnabled        Boolean      @default(false) @map("groups_enabled")
   lastActivity      DateTime?
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
@@ -627,6 +631,10 @@ model ChannelMessage {
   status            String?
   senderId          String?
   sender            User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  // Mensajes ENTRANTES de un grupo (Conversation.isGroup): quién del grupo
+  // escribió. Nombre tal como lo resolvió el proveedor y su id (JID).
+  senderName        String?          @map("sender_name")
+  senderExternalId  String?          @map("sender_external_id")
   // Igual que WAMessage.sentVia (lib/messages/origin.ts).
   sentVia           String?          @map("sent_via")
   // Roadmap P3-c — true si este INBOUND vino de un comentario de Facebook

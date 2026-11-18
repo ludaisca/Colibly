@@ -363,6 +363,9 @@ function MessageBubble({
             : "chat-bubble-out rounded-bubble-out bg-bubble-out text-foreground"
         } ${msg.status === "sending" ? "opacity-70" : ""} ${isFailed ? "opacity-90 ring-1 ring-danger" : ""}`}
       >
+        {isInbound && msg.senderName && (
+          <p className="mb-0.5 truncate text-xs font-medium text-accent-ink">{msg.senderName}</p>
+        )}
         {msg.isFromComment && (
           <div className={`mb-1 flex items-center gap-1 text-micro font-medium ${isInbound ? "text-muted-darker" : "text-foreground/65"}`}>
             <MessageSquare size={10} />

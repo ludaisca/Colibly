@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Plus, RefreshCw, Trash2, QrCode, Share2, BadgeCheck } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Plus, RefreshCw, Trash2, QrCode, Share2, BadgeCheck, Users } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { WhatsAppIcon } from "@/app/components/ui/channel-icons";
 import { Badge } from "@/app/components/ui/badge";
@@ -17,6 +17,7 @@ import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/a
 import { plural } from "@/lib/format/plural";
 import { BRAND_NAME } from "@/lib/brand";
 import { WhatsappWebLinkModal, WhatsappWebNewModal } from "./_form";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // WhatsApp por QR (GoWA, no oficial). Solo llega aquí quien tiene el canal
 // habilitado por el operador (layout.tsx). Detalle: docs/arquitectura/canales.md.
@@ -30,6 +31,7 @@ interface Account {
   status: string;
   errorMessage: string | null;
   externalAccountId: string | null;
+  groupsEnabled: boolean;
   lastActivity: string | null;
   _count: { conversations: number };
 }
@@ -68,10 +70,7 @@ export default function WhatsappWebCuentasPage() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; también se usa para refrescar
-    fetchAccounts();
-  }, [fetchAccounts]);
+  useRunOnChange(() => fetchAccounts(), [fetchAccounts]);
 
   async function handleDelete() {
     if (!deleteId) return;
@@ -84,6 +83,23 @@ export default function WhatsappWebCuentasPage() {
       toastError(err instanceof Error ? err.message : "Error al eliminar");
     } finally {
       setDeleteId(null);
+    }
+  }
+
+  // Interruptor de grupos: una sola bandera, se cambia en línea desde el menú.
+  async function toggleGroups(a: Account) {
+    const next = !a.groupsEnabled;
+    try {
+      const res = await fetch(`/api/whatsapp-web/accounts/${a.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupsEnabled: next }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "No se pudo cambiar");
+      setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, groupsEnabled: next } : x)));
+      success(next ? "Los grupos de este número entran a Chats" : "Los grupos de este número ya no entran a Chats");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "No se pudo cambiar");
     }
   }
 
@@ -116,6 +132,9 @@ export default function WhatsappWebCuentasPage() {
               {a.status !== "CONNECTED" && (
                 <DropdownItem icon={QrCode} onClick={() => setLinking({ id: a.id, name: a.name })}>Vincular</DropdownItem>
               )}
+              <DropdownItem icon={Users} onClick={() => toggleGroups(a)}>
+                {a.groupsEnabled ? "Dejar de recibir grupos" : "Recibir grupos"}
+              </DropdownItem>
               {session?.user?.role === "admin" && (
                 <DropdownItem icon={BadgeCheck} onClick={() => setOwnerAccount(a)}>Dueño (licencia)</DropdownItem>
               )}
@@ -138,6 +157,7 @@ export default function WhatsappWebCuentasPage() {
                 <>
                   <Badge tone={badge.tone} size="sm">{badge.label}</Badge>
                   <ChannelOwnerBadge owner={a.owner} />
+                  {a.groupsEnabled && <Badge tone="neutral" size="sm">Grupos</Badge>}
                 </>
               }
               subtitle={a.errorMessage ?? (a.externalAccountId ? `+${a.externalAccountId}` : "Falta escanear el código QR")}

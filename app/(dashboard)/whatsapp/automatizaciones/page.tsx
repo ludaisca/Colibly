@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Workflow, Pause, Play, History, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -16,6 +16,7 @@ import type { Trigger } from "@/lib/automations/types";
 import { NewAutomationModal } from "./_new-modal";
 import { StarterTemplates } from "@/app/components/ui/starter-templates";
 import { AUTOMATION_TEMPLATES } from "@/lib/automations/templates";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Plantillas que se ofrecen en el estado vacío (las demás siguen en el alta).
 const STARTER_AUTOMATIONS = ["welcome_menu", "ai_triage", "post_appointment"];
@@ -50,10 +51,9 @@ export default function AutomationsPage() {
 
   // ?plantilla=ai_triage (enlaces desde Bots, el embudo o Contactos): abre el
   // alta con esa plantilla. Se lee de window para no envolver la página en Suspense.
-  useEffect(() => {
+  useRunOnChange(() => {
     const wanted = new URLSearchParams(window.location.search).get("plantilla");
     if (!wanted || !AUTOMATION_TEMPLATES.some((t) => t.id === wanted)) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- abre el alta pedida por la URL al montar
     setTemplateId(wanted);
     setNewOpen(true);
   }, []);
@@ -76,10 +76,7 @@ export default function AutomationsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; load también refresca tras cada acción
-    load();
-  }, [load]);
+  useRunOnChange(() => load(), [load]);
 
   async function setStatus(row: AutomationRow, status: "ACTIVE" | "PAUSED") {
     try {

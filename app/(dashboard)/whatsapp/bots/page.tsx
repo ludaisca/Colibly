@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, Bot, Trash2 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
@@ -18,6 +18,7 @@ import { channelAndAccount } from "@/lib/chats/display-name";
 import { Tooltip } from "@/app/components/ui/tooltip";
 import { StarterTemplates } from "@/app/components/ui/starter-templates";
 import { BOT_TEMPLATES, CLASSIFY_AUTOMATION_HREF, type BotPreset } from "@/lib/onboarding/starter-templates";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface WaBot {
   id: string;
@@ -62,8 +63,7 @@ export default function BotsPage() {
     }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchBots also used for manual refresh
-  useEffect(() => { fetchBots(); }, [fetchBots]);
+  useRunOnChange(() => fetchBots(), [fetchBots]);
 
   async function handleDelete() {
     if (!deleteId) return;

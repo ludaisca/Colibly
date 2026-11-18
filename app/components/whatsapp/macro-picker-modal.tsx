@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Zap } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -8,6 +8,7 @@ import { Modal } from "@/app/components/ui/modal";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { macroActionsSummary, type MacroAction } from "@/lib/macros/types";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface MacroRow {
   id: string;
@@ -48,9 +49,8 @@ export function MacroPickerModal({
     }
   }, []);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open
     void load();
   }, [open, load]);
 

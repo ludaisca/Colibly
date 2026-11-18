@@ -1,7 +1,7 @@
 "use client";
 
 import { usePoll } from "@/app/components/ui/use-poll";
-import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from "react";
+import { useState, useCallback, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell, BellOff, CheckCheck, X, MessageSquare, ShieldAlert, Megaphone, Bot as BotIcon, DollarSign, PhoneCall,
@@ -15,6 +15,7 @@ import { RelativeTime, useMinuteNow } from "./relative-time";
 import { useToast } from "./toast";
 import { cn } from "./cn";
 import { notificationGroup, type NotificationGroup } from "@/lib/notifications/present";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Centro de notificaciones (patrón tomado de Factzi, 2026-11-01): en escritorio
 // un panel anclado a la campana; en el teléfono una hoja que sube desde abajo
@@ -266,10 +267,7 @@ export function NotificationBell() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial; fetchNotifications también refresca a mano
-    fetchNotifications();
-  }, [fetchNotifications]);
+  useRunOnChange(() => fetchNotifications(), [fetchNotifications]);
 
   // Con la pestaña oculta solo un latido mínimo cada ~100 s, para que la
   // disponibilidad (lib/users/availability.ts, 5 min sin latido = desconectado)

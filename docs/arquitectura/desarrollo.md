@@ -60,3 +60,7 @@ Antes del primer deploy que incluye la búsqueda, en producción:
 
 La expresión del índice y la de `SEARCH_EXPR` en `lib/search/messages.ts` deben ser idénticas: si cambia una, cambia la otra, o Postgres vuelve al scan completo (comprobar con `EXPLAIN`).
 
+
+## Caída durante el deploy (QA-007, 2026-11-18)
+
+Coolify despliega este proyecto como Docker Compose: recrea el contenedor `app` en cada deploy (no hay despliegue escalonado con dos réplicas), así que mientras el contenedor nuevo arranca nadie atiende y Traefik responde 502/503 o tarda. El arranque (`scripts/startup.sh`) es solo `migrate deploy` + `next start`; ya no corre `prisma generate`, porque el cliente viene generado en la imagen y eso sumaba ~4 s de caída. Medido con la imagen `runner` contra una base nueva: Next queda listo en menos de 1 s después de las migraciones. Lo que queda de caída depende de las migraciones de ese deploy y de que Coolify cambie el contenedor; quitarla del todo pediría desplegar como imagen con despliegue escalonado en vez de Compose. Desplegar en horario de poco tráfico.

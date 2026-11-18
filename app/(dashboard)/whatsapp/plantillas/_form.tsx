@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Type, Plus, X, Upload } from "lucide-react";
 import { DetailPage } from "@/app/components/ui/detail-page";
@@ -17,6 +17,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { TemplatePreview } from "@/app/components/whatsapp/template-preview";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Account { id: string; name: string; wabaId: string | null; }
 
@@ -112,10 +113,7 @@ export function TemplateForm({ accounts, defaultAccountId = "" }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resets on close, header cleanup is intentionally not a dependency
   }, [defaultAccountId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- la navegación puede cambiar la cuenta preseleccionada
-    setWaAccountId(defaultAccountId);
-  }, [defaultAccountId]);
+  useRunOnChange(() => setWaAccountId(defaultAccountId), [defaultAccountId]);
 
   function handleHeaderFormatChange(format: typeof headerFormat) {
     setHeaderFormat(format);

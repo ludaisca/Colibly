@@ -16,6 +16,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 export interface AppointmentDetail {
   id: string;
@@ -151,8 +152,7 @@ export function AppointmentFormModal({ open, onClose, onSaved, contactId, contac
     setError("");
   }, [initialData]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- form reset on open, not a data fetch
+  useRunOnChange(() => {
     if (open) resetForm();
   }, [open, resetForm]);
 

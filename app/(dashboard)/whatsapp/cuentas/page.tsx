@@ -22,6 +22,7 @@ import { CuentaFormModal } from "./_form";
 import { ConectarWhatsAppModal } from "./_conectar-whatsapp";
 import { ChannelOwnerBadge, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
 import { plural } from "@/lib/format/plural";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface WaAccount {
   owner?: ChannelOwnerInfo | null;
@@ -102,10 +103,7 @@ function CuentasView() {
     }
   }, [refreshLimit]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAccounts also used for manual refresh
-    fetchAccounts();
-  }, [fetchAccounts]);
+  useRunOnChange(() => fetchAccounts(), [fetchAccounts]);
 
   async function handleDelete() {
     if (!deleteId) return;

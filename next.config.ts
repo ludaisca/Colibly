@@ -20,9 +20,14 @@ const GOOGLE_BEACON = [
   "https://pagead2.googlesyndication.com",
 ];
 const TURNSTILE = "https://challenges.cloudflare.com";
+// 'unsafe-eval' solo en dev: React lo usa ahí para el refresco en caliente y
+// las trazas; el build de producción de Next no evalúa código (QA-015). Los
+// nonces (para quitar también 'unsafe-inline') obligarían a renderizar cada
+// página por petición, incluido el sitio público: decisión en marca-y-sitio.md.
+const DEV_EVAL = process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'";
 const CSP = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${[...META, ...GOOGLE_SCRIPT, TURNSTILE].join(" ")}`,
+  `script-src 'self' 'unsafe-inline'${DEV_EVAL} ${[...META, ...GOOGLE_SCRIPT, TURNSTILE].join(" ")}`,
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${[...META, ...GOOGLE_BEACON].join(" ")}`,
   "font-src 'self'",

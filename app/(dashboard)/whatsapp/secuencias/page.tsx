@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Plus, Workflow, Trash2 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -14,6 +14,7 @@ import { SequenceFormModal } from "./_form";
 import { StarterTemplates } from "@/app/components/ui/starter-templates";
 import { SEQUENCE_TEMPLATES, type SequencePreset } from "@/lib/onboarding/starter-templates";
 import { Tooltip } from "@/app/components/ui/tooltip";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 const TRIGGER_LABEL: Record<string, string> = {
   TAG_ADDED: "Etiqueta agregada",
@@ -63,8 +64,7 @@ export default function SequencesPage() {
     }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchSequences also used for manual refresh
-  useEffect(() => { fetchSequences(); }, [fetchSequences]);
+  useRunOnChange(() => fetchSequences(), [fetchSequences]);
 
   async function handleDelete() {
     if (!deleteId) return;

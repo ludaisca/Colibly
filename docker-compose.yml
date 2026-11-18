@@ -152,8 +152,9 @@ services:
       # Cada medio se descarga bajo demanda (cola media-download), no al llegar.
       WHATSAPP_AUTO_DOWNLOAD_MEDIA: "false"
       WHATSAPP_IGNORE_STATUS_MEDIA: "true"
-      # Grupos, estados y canales no entran a la bandeja.
-      WHATSAPP_WEBHOOK_IGNORE_JIDS: "@g.us,@newsletter,status@broadcast"
+      # Estados y canales nunca entran. Los grupos sí llegan: cada cuenta decide
+      # con su interruptor (ChannelAccount.groupsEnabled) y la app descarta el resto.
+      WHATSAPP_WEBHOOK_IGNORE_JIDS: "@newsletter,status@broadcast"
     # Solo la sesión de WhatsApp se conserva (storages). statics (QR y copias de
     # medios ya guardados en MEDIA_ROOT por la cola media-download) vive en el
     # contenedor y se vacía en cada despliegue: GoWA no tiene limpieza propia.

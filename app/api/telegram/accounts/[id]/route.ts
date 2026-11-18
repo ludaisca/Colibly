@@ -7,6 +7,7 @@ import { deleteWebhook } from "@/lib/telegram";
 import { publicErrorMessage } from "@/lib/api-errors";
 import { accountManageWhere } from "@/lib/tenancy";
 import { invalidateAccountScopes } from "@/lib/shared-accounts";
+import { forbidRoles } from "@/lib/roles";
 
 export async function DELETE(
   _req: Request,
@@ -19,9 +20,8 @@ export async function DELETE(
     }
     // Mismo criterio que POST /api/telegram/accounts: "ejecutivo" tiene la
     // página bloqueada en proxy.ts, este 403 cierra la API directa.
-    if (session.user.role === "ejecutivo") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
+    const forbidden = forbidRoles(session, ["ejecutivo"]);
+    if (forbidden) return forbidden;
 
     const { allowed } = await rateLimit(`channel-account-mutate:${session.user.id}`, 20, 60);
     if (!allowed) {

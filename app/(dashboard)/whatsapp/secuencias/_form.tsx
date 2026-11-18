@@ -16,6 +16,7 @@ import { useToast } from "@/app/components/ui/toast";
 import type { SequencePreset } from "@/lib/onboarding/starter-templates";
 import Link from "next/link";
 import { STAGE_LABEL, PIPELINE_STAGES } from "@/lib/pipeline/stages";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Props {
   open: boolean;
@@ -87,10 +88,9 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved, prese
 
   // Las etiquetas son por cuenta — el selector del disparador solo ofrece las
   // de la cuenta elegida.
-  useEffect(() => {
+  useRunOnChange(() => {
     const account = accounts.find((a) => a.id === accountId);
     if (!open || !account) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sin cuenta no hay catálogo
       setTags([]);
       return;
     }
@@ -102,9 +102,8 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved, prese
   }, [open, accountId, accounts, toastError]);
 
   // Plantilla: prellena una secuencia nueva (la etiqueta del disparador, si aplica, se elige aquí).
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open || editId || !preset) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- prellenado al abrir con plantilla
     setName(preset.name);
     setTriggerType(preset.triggerType);
     setTriggerValue(preset.triggerValue ?? "");
@@ -112,9 +111,8 @@ export function SequenceFormModal({ open, onClose, editId = null, onSaved, prese
     setSteps(preset.steps.map((step) => ({ delayMinutes: String(step.delayMinutes), message: step.message })));
   }, [open, editId, preset]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open || !editId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-open for edit mode
     setLoading(true);
     fetch(`/api/whatsapp/sequences/${editId}`)
       .then(async (r) => { if (!r.ok) throw new Error("Error al cargar secuencia"); return r.json(); })

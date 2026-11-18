@@ -112,6 +112,8 @@ async function resolveOrg(org: OrgConfig, cutoff: Date, now: Date, result: AutoR
 
   const channelWhere: Prisma.ConversationWhereInput = {
     channelAccount: { organizationId: org.id },
+    // Los grupos no se cierran solos ni reciben el aviso de cierre.
+    isGroup: false,
     AND: candidateFilters(org, cutoff, now),
   };
   const conversations = await prisma.conversation.findMany({

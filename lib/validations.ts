@@ -4,6 +4,10 @@ import { AWAY_MESSAGE_MAX_LENGTH } from "@/lib/inbox/away-message-rules";
 import { DEAL_VALUE_MAX_PESOS } from "@/lib/money";
 import { MAX_SEATS } from "@/lib/billing/plans";
 
+// En el navegador, sin el JIT de zod: prueba `new Function`, que la CSP de
+// producción (sin 'unsafe-eval') reporta como violación aunque zod la atrape.
+if (typeof window !== "undefined") z.config({ jitless: true });
+
 // Email normalizado (trim + minúsculas) ANTES de validar el formato — lib/auth.ts
 // busca al usuario con el email en minúsculas, así que cualquier alta que lo
 // guarde tal cual lo tecleó ("Luis@Empresa.com") deja a esa persona sin poder

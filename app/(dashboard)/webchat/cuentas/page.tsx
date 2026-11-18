@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Plus, Trash2, Share2, BadgeCheck } from "lucide-react";
 import { WebchatIcon } from "@/app/components/ui/channel-icons";
 import { Badge } from "@/app/components/ui/badge";
@@ -17,6 +17,7 @@ import { useSession } from "next-auth/react";
 import { ChannelAccountShareModal } from "@/app/components/channel-accounts/share-modal";
 import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
 import { plural } from "@/lib/format/plural";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface ChannelAccount {
   owner?: ChannelOwnerInfo | null;
@@ -67,8 +68,7 @@ export default function WebchatCuentasPage() {
     }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAccounts also used for manual refresh
-  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
+  useRunOnChange(() => fetchAccounts(), [fetchAccounts]);
 
   async function handleDelete() {
     if (!deleteId) return;

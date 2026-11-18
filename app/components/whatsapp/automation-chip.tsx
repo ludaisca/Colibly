@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Zap, Pause, Play, Square, History } from "lucide-react";
 import { Dropdown, DropdownButton, DropdownDivider, DropdownItem } from "@/app/components/ui/dropdown";
 import { useToast } from "@/app/components/ui/toast";
+import { usePoll } from "@/app/components/ui/use-poll";
 
 interface ChatRun {
   id: string;
@@ -42,15 +43,9 @@ export function AutomationChip({ chatId, showEmpty = false }: { chatId: string; 
     }
   }, [chatId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch al cambiar de chat
-    load();
-    // Polling como el resto del inbox; se salta con la pestaña oculta.
-    const timer = setInterval(() => {
-      if (!document.hidden) load();
-    }, 20_000);
-    return () => clearInterval(timer);
-  }, [load]);
+  // Sondeo como el resto de la bandeja (usePoll: sin solaparse, pausado con
+  // la pestaña oculta); cambiar de chat cambia `load` y reinicia el ciclo.
+  usePoll(load, { intervalMs: 20_000 });
 
   async function act(runId: string, action: "pause" | "resume" | "cancel") {
     const res = await fetch(`/api/automations/runs/${runId}`, {

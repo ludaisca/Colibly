@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { KeyRound, Plus, Ban, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
@@ -13,6 +13,7 @@ import { SectionHeader } from "@/app/components/ui/section-header";
 import { useToast } from "@/app/components/ui/toast";
 import { ApiKeyFormModal } from "./_api-key-form";
 import { formatDateTime, scopeSummary, type IntegrationAccount } from "./_shared";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface ApiKeyRow {
   id: string;
@@ -61,10 +62,7 @@ export function ApiKeysSection({ accounts }: { accounts: IntegrationAccount[] })
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchKeys también refresca tras crear/revocar
-    fetchKeys();
-  }, [fetchKeys]);
+  useRunOnChange(() => fetchKeys(), [fetchKeys]);
 
   async function handleRevoke() {
     if (!revoking) return;

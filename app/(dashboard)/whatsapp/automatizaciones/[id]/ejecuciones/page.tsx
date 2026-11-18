@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
 import { History, MessageSquare, Pause, Play, Square, RefreshCw } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
@@ -12,6 +12,7 @@ import { EntityList, EntityRow } from "@/app/components/ui/entity-list";
 import { useToast } from "@/app/components/ui/toast";
 import { RUN_STATUS, formatWhen } from "../../_shared";
 import { BackLink } from "@/app/components/ui/back-link";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface RunRow {
   id: string;
@@ -77,10 +78,7 @@ export default function AutomationRunsPage() {
     }
   }, [id, filter]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/filtro; load también refresca manualmente
-    load();
-  }, [load]);
+  useRunOnChange(() => load(), [load]);
 
   const openDetail = useCallback(async (run: RunRow) => {
     setOpenRun(run);

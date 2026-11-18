@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { Copy, Download, LogOut, ShieldCheck, ShieldOff, KeyRound } from "lucide-react";
 import { SettingsBlock } from "@/app/components/ui/settings-block";
@@ -14,6 +14,7 @@ import { PasswordInput } from "@/app/components/ui/password-input";
 import { OtpInput } from "@/app/components/ui/otp-input";
 import { useToast } from "@/app/components/ui/toast";
 import { BRAND_NAME } from "@/lib/brand";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Seguridad de la cuenta propia (F7): verificación en dos pasos (TOTP + códigos
 // de respaldo, lib/two-factor.ts) y "Cerrar las demás sesiones".
@@ -44,10 +45,7 @@ export function SeguridadSection() {
     const res = await fetch("/api/usuarios/me/2fa", { cache: "no-store" });
     if (res.ok) setStatus(await res.json());
   }
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- el setState ocurre tras el fetch
-    void refresh();
-  }, []);
+  useRunOnChange(() => void refresh(), []);
 
   function open(next: Dialog) {
     setPassword("");

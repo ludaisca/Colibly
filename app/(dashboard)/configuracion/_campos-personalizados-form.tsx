@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -11,6 +11,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface CustomFieldDefinition {
   id: string;
@@ -61,8 +62,7 @@ export function CustomFieldFormModal({ open, onClose, accountId, channel, initia
     setError("");
   }, [initialData]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync form fields when the modal opens or the entity being edited changes
+  useRunOnChange(() => {
     if (open) resetForm();
   }, [open, resetForm]);
 

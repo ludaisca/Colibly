@@ -197,6 +197,8 @@ export interface Message {
   /** Roadmap P3-c — true si este INBOUND vino de un comentario de Facebook
    *  Page, no de un mensaje directo. Solo aplica a Messenger. */
   isFromComment?: boolean;
+  /** Grupo de WhatsApp por QR: quién del grupo escribió este entrante. */
+  senderName?: string | null;
 }
 
 export interface PreviewMedia {

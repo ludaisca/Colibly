@@ -1,12 +1,13 @@
 "use client";
 
 import { Tooltip } from "@/app/components/ui/tooltip";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Sticker, Upload, Star, Send, Trash2 } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Segmented } from "@/app/components/ui/segmented";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Item { id: string; name: string; favorite: boolean; animated: boolean; lastUsedAt: string | null }
 export function StickerPicker({ disabled, onSend, open: controlledOpen, onOpenChange, hideTrigger = false }: {
@@ -43,9 +44,8 @@ export function StickerPicker({ disabled, onSend, open: controlledOpen, onOpenCh
   }
   // El menú "+" abre el modal por props: ahí no pasa por el onClick del botón.
   // Solo carga la biblioteca; la selección se limpia al cerrar.
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch al abrir el modal (mismo patrón que /plataforma)
     void load();
   }, [open]);
   async function upload(file: File) {

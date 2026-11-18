@@ -118,7 +118,21 @@ export const GOWA_WEBHOOK_EVENTS = [
   "device.logged_out",
   "device.temporary_ban",
   "device.reachout_timelock",
+  // Cambio de nombre de un grupo (solo cuenta con groupsEnabled).
+  "group.info",
 ] as const;
+
+/**
+ * Vuelve a registrar el webhook del device con la lista de eventos actual
+ * (GOWA_WEBHOOK_EVENTS). Los devices creados antes de un evento nuevo no lo
+ * reciben hasta pasar por aquí: lo hace el interruptor de grupos.
+ */
+export async function setDeviceWebhook(deviceId: string, params: { webhookUrl: string; webhookSecret: string }): Promise<void> {
+  await call(`/devices/${encodeURIComponent(deviceId)}/webhook`, {
+    method: "PATCH",
+    json: { webhook_url: params.webhookUrl, webhook_secret: params.webhookSecret, webhook_events: GOWA_WEBHOOK_EVENTS.join(",") },
+  });
+}
 
 export async function getDevice(deviceId: string): Promise<GowaDevice> {
   return call<GowaDevice>(`/devices/${encodeURIComponent(deviceId)}`);
@@ -219,6 +233,17 @@ async function fetchInternalFile(link: string): Promise<{ buffer: Buffer; mimeTy
   if (!res.ok) throw new GowaError(`No se pudo descargar el archivo de GoWA (HTTP ${res.status})`, 502);
   const mimeType = res.headers.get("content-type")?.split(";")[0].trim() || null;
   return { buffer: Buffer.from(await res.arrayBuffer()), mimeType };
+}
+
+/**
+ * Nombre de un grupo (GET /group/info). GoWA devuelve el GroupInfo de
+ * whatsmeow sin esquema fijo ("structure may vary"): se acepta `Name` o `name`.
+ * null si no lo trae; el llamador deja el JID y group.info lo corrige después.
+ */
+export async function getGroupName(deviceId: string, groupJid: string): Promise<string | null> {
+  const r = await call<Record<string, unknown> | null>(`/group/info?group_id=${encodeURIComponent(groupJid)}`, { deviceId });
+  const name = r && (r.Name ?? r.name ?? r.subject ?? r.Subject);
+  return typeof name === "string" && name.trim() ? name.trim().slice(0, 200) : null;
 }
 
 /** Diagnóstico: GoWA responde con nuestras credenciales. */

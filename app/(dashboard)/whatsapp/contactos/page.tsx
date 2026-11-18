@@ -22,6 +22,7 @@ import { shouldNudgeUntagged } from "@/lib/pipeline/nudge";
 import { ContactLimitBanner, ContactUsageMeter, useContactUsage } from "@/app/components/billing/contact-usage";
 import { LEAD_STATUS_LABEL } from "@/app/components/ui/lead-status";
 import { plural } from "@/lib/format/plural";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 const PAGE_SIZE = 25;
 
@@ -62,18 +63,14 @@ export default function ContactosPage() {
   }, [searchInput]);
 
   // Deep link del buscador global: /whatsapp/contactos?search=teléfono
-  useEffect(() => {
+  useRunOnChange(() => {
     const q = new URLSearchParams(window.location.search).get("search");
     if (!q) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lectura única de la URL al montar
     setSearchInput(q);
     setSearch(q);
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination when filters change
-    setPage(1);
-  }, [search, leadStatusFilter, accountFilter]);
+  useRunOnChange(() => setPage(1), [search, leadStatusFilter, accountFilter]);
 
   const fetchContacts = useCallback(async () => {
     const currentRequest = ++requestId.current;
@@ -113,15 +110,9 @@ export default function ContactosPage() {
     }
   }, [toastError]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/filter-change; fetchContacts also used for manual refresh
-    fetchContacts();
-  }, [fetchContacts]);
+  useRunOnChange(() => fetchContacts(), [fetchContacts]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
-    fetchAccounts();
-  }, [fetchAccounts]);
+  useRunOnChange(() => fetchAccounts(), [fetchAccounts]);
 
   return (
     <div className="space-y-5">

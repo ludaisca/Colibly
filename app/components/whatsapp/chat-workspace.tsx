@@ -53,6 +53,7 @@ import {
 import { plural } from "@/lib/format/plural";
 import { handleMatches } from "@/lib/chats/search-terms";
 import { chatRowComparator } from "@/lib/chats/sort";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Orquestador del inbox de chat: dueño de todo el estado (chats, mensajes,
 // filtros, polling, envío optimista) y de la composición de los 4 paneles en
@@ -225,9 +226,8 @@ export function ChatWorkspace({
   // Ficha derecha de 288 px (solo xl). Abierta por defecto; la preferencia es por navegador.
   const [contactPanelOpen, setContactPanelOpen] = useState(true);
   const [contactPanelKey, setContactPanelKey] = useState(0);
-  useEffect(() => {
+  useRunOnChange(() => {
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- preferencia guardada, se lee tras hidratar
       if (localStorage.getItem("colibly:chat-contact-panel") === "0") setContactPanelOpen(false);
     } catch {
       // sin localStorage: queda abierta
@@ -288,13 +288,12 @@ export function ChatWorkspace({
 
   // Borrador persistente por usuario y chat. El ref en memoria ya cubre el
   // cambio de chat dentro de la sesión; localStorage sobrevive a un F5.
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!selectedChatId || !currentUserId || hydratedDraftRef.current === selectedChatId) return;
     hydratedDraftRef.current = selectedChatId;
     if (messageDraftsRef.current.has(selectedChatId)) return;
     const key = draftKey(selectedChatId);
     const stored = key ? window.localStorage.getItem(key) : null;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hidratación única del borrador guardado
     if (stored) setNewMessage(stored);
   }, [selectedChatId, currentUserId, draftKey]);
 

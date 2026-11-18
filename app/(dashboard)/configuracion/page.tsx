@@ -24,6 +24,7 @@ import { CanalesSection } from "./_canales";
 import { HorarioNegocioCard } from "./_horario";
 import { EtiquetasSection } from "./_etiquetas";
 import { SettingsBlock } from "@/app/components/ui/settings-block";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface GoogleSheetsStatus {
   connected: boolean;
@@ -90,8 +91,7 @@ export default function SettingsPage() {
       .finally(() => setLoadingGoogleStatus(false));
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchGoogleStatus también se usa para refrescar manualmente
+  useRunOnChange(() => {
     fetchGoogleStatus();
     // Lectura directa de window.location en vez de useSearchParams para no
     // tener que envolver esta página en Suspense (regla del proyecto para
@@ -110,7 +110,6 @@ export default function SettingsPage() {
       );
       window.history.replaceState({}, "", window.location.pathname);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar, para leer el retorno del OAuth una sola vez
   }, []);
 
   async function handleSyncNow() {

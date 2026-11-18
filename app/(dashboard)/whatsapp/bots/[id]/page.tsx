@@ -22,6 +22,7 @@ import { DetailPage, DetailRow } from "@/app/components/ui/detail-page";
 import { ClampedText } from "@/app/components/ui/clamped-text";
 import { useToast } from "@/app/components/ui/toast";
 import { BotFormModal } from "../_form";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface BotDetail {
   id: string;
@@ -134,12 +135,9 @@ function BotDetailPageContent() {
     } catch (err) { setUsageError(err instanceof Error ? err.message : "Error al cargar uso"); } finally { setUsageLoading(false); }
   }, [id]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchBot also used for manual refresh
-  useEffect(() => { fetchBot(); }, [fetchBot]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-tab-switch; fetchKnowledge also used for manual refresh
-  useEffect(() => { if (tab === "knowledge") fetchKnowledge(); }, [tab, fetchKnowledge]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-tab-switch
-  useEffect(() => { if (tab === "uso") fetchUsage(); }, [tab, fetchUsage]);
+  useRunOnChange(() => fetchBot(), [fetchBot]);
+  useRunOnChange(() => { if (tab === "knowledge") fetchKnowledge(); }, [tab, fetchKnowledge]);
+  useRunOnChange(() => { if (tab === "uso") fetchUsage(); }, [tab, fetchUsage]);
   useEffect(() => {
     if (tab !== "test") return;
     fetch(`/api/whatsapp/bots/${id}/test`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.testCredits) setTestCredits(d.testCredits); }).catch(() => {});

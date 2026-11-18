@@ -1,5 +1,6 @@
 "use client";
 
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -91,9 +92,8 @@ export default function NewLeadSheetSourcePage() {
       .finally(() => setAccountsLoaded(true));
   }, []);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!waAccountId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load templates when account selection changes
     setLoadingTemplates(true);
     setTemplateLoadError("");
     fetch(`/api/whatsapp/templates?waAccountId=${encodeURIComponent(waAccountId)}`)

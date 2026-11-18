@@ -2,7 +2,7 @@
 
 import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName } from "@/lib/chats/display-name";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, CalendarClock, Link2, X, Save, MessageSquare } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -25,6 +25,7 @@ import { CurrencyInput } from "@/app/components/ui/currency-input";
 import { amountValue, formatAmountValue } from "@/lib/format/currency-input";
 import { DEAL_VALUE_MAX_PESOS, centsToPesos, formatMxn } from "@/lib/money";
 import "./contact-drawer.css";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface ContactDetail {
   id: string;
@@ -177,10 +178,7 @@ export function ContactDrawer({
     }
   }, [contactId, toastError]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAll also used for manual refresh
-    fetchAll();
-  }, [fetchAll]);
+  useRunOnChange(() => fetchAll(), [fetchAll]);
 
   async function handleLeadStatusChange(leadStatus: string) {
     if (!contact) return;

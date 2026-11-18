@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { useToast } from "@/app/components/ui/toast";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Input } from "@/app/components/ui/input";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 type Task = { id: string; title: string; done: boolean };
 
@@ -21,10 +22,7 @@ export function ContactTasks({ contactId, onChanged }: { contactId: string; onCh
     if (Array.isArray(data)) setTasks(data);
   }, [contactId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga al abrir el contacto
-    void load();
-  }, [load]);
+  useRunOnChange(() => void load(), [load]);
 
   async function create(suggest = false) {
     setBusy(true);

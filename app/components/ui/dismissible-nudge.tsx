@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import { Banner } from "./banner";
 import { nudgeDismissKey } from "@/lib/pipeline/nudge";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 /**
  * Aviso de "siguiente paso" que la persona puede cerrar: el cierre se recuerda
@@ -27,14 +28,13 @@ export function DismissibleNudge({
   const userId = session?.user?.id ?? "anon";
   const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     let dismissed = false;
     try {
       dismissed = localStorage.getItem(nudgeDismissKey(id, userId, new Date())) === "1";
     } catch {
       // Sin almacenamiento (modo privado): se muestra y el cierre dura lo que la página.
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage no existe en el servidor
     setVisible(!dismissed);
   }, [id, userId]);
 

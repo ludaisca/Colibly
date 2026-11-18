@@ -1,7 +1,7 @@
 "use client";
 
 import { formatInZone } from "@/lib/format/dates";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { BadgeCheck, Mail, RotateCw, Shield, ShieldOff, UserPlus, Users, UserX, UserCheck, X, KeyRound, LockKeyhole } from "lucide-react";
 import type { PlanId } from "@prisma/client";
 import { LICENSE_ORDER } from "@/lib/billing/licenses";
@@ -23,6 +23,7 @@ import { LicenseModal } from "./_license";
 import { useLicenseState } from "./_licenses";
 import { TeamsSection } from "./_teams";
 import { plural } from "@/lib/format/plural";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface UserData {
   id: string;
@@ -80,8 +81,7 @@ export default function UsersPage() {
     }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
-  useEffect(() => { fetchInvitations(); }, [fetchInvitations]);
+  useRunOnChange(() => fetchInvitations(), [fetchInvitations]);
 
   const resendInvitation = useCallback(async (inv: Invitation) => {
     setInvitationBusy(inv.id);
@@ -132,8 +132,7 @@ export default function UsersPage() {
     }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchUsers also used for manual refresh
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useRunOnChange(() => fetchUsers(), [fetchUsers]);
 
   const toggleRole = useCallback(async (userId: string, currentRole: string) => {
     setTogglingId(userId);

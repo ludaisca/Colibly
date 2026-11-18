@@ -28,6 +28,7 @@ import { TemplatePreview } from "@/app/components/whatsapp/template-preview";
 import { plural } from "@/lib/format/plural";
 import { templateLanguageLabel } from "@/lib/whatsapp/template-labels";
 import { BackLink } from "@/app/components/ui/back-link";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Account { id: string; name: string; channel: string; }
 interface Template { id: string; name: string; language: string; category: string; status: string; components: unknown; }
@@ -121,8 +122,7 @@ export default function NewCampaignPage() {
 
   // Las etiquetas son por cuenta: se recargan al cambiar de número y se
   // descarta la selección anterior (pertenecía a otra cuenta).
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset al cambiar de cuenta
+  useRunOnChange(() => {
     setSelectedTagId("");
     if (!waAccountId) {
       setTags([]);
@@ -133,9 +133,8 @@ export default function NewCampaignPage() {
     }).catch(() => toastError("Error al cargar etiquetas"));
   }, [waAccountId, toastError]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!waAccountId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load templates when account selection changes
     setLoadingTemplates(true);
     setTemplateLoadError("");
     fetch(`/api/whatsapp/templates?waAccountId=${encodeURIComponent(waAccountId)}`)

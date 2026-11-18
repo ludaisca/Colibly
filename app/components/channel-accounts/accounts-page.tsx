@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, Plus, RefreshCw, Trash2, Share2, BadgeCheck } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
@@ -19,6 +19,7 @@ import { ChannelAccountShareModal } from "@/app/components/channel-accounts/shar
 import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
 import { ChannelAvailabilityNotice, useChannelAvailability } from "@/app/components/channel-accounts/availability";
 import { plural } from "@/lib/format/plural";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface ChannelAccount {
   owner?: ChannelOwnerInfo | null;
@@ -118,10 +119,7 @@ function ChannelAccountsView({ config }: { config: ChannelAccountsPageConfig }) 
     }
   }, [refreshLimit, slug]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAccounts also used for manual refresh
-    fetchAccounts();
-  }, [fetchAccounts]);
+  useRunOnChange(() => fetchAccounts(), [fetchAccounts]);
 
   async function handleDelete() {
     if (!deleteId) return;

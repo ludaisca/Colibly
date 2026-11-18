@@ -17,6 +17,7 @@ import { useToast } from "@/app/components/ui/toast";
 import type { PlatformSecretField } from "@/lib/platform-settings";
 import { ConfirmDialog } from "@/app/components/ui/confirm-dialog";
 import { AiMark } from "@/app/components/ui/ai-mark";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface ConfigResponse {
   hasOpencodeApiKey: boolean;
@@ -376,16 +377,12 @@ export function PlataformaConfiguracion() {
     }
   }
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
-    load();
-  }, []);
+  useRunOnChange(() => load(), []);
 
   // Enlace directo a una sección: /plataforma?...#ia
-  useEffect(() => {
+  useRunOnChange(() => {
     const fromHash = window.location.hash.replace(/^#(cfg-)?/, "");
     const match = SECTIONS.find((x) => x.id === fromHash);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lee el hash al montar
     if (match) setSection(match.id);
   }, []);
 

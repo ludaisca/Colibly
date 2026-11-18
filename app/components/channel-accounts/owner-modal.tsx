@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { PlanId } from "@prisma/client";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
@@ -11,6 +11,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { PLANS } from "@/lib/billing/plans";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 export interface ChannelOwnerInfo {
   id: string;
@@ -86,8 +87,7 @@ export function ChannelOwnerModal({
     }
   }, [account, kind]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open
+  useRunOnChange(() => {
     if (open) void load();
   }, [open, load]);
 

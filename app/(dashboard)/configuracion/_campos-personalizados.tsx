@@ -12,6 +12,7 @@ import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SettingsBlock } from "@/app/components/ui/settings-block";
 import { useToast } from "@/app/components/ui/toast";
 import { CustomFieldFormModal } from "./_campos-personalizados-form";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Mismo patrón que RespuestasRapidasSection: sección embebida en
 // /configuracion, selector de cuenta + tabla + modal de create/edit. Las
@@ -90,10 +91,7 @@ export function CamposPersonalizadosSection() {
     }
   }, [selectedAccount]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/account-change; fetchItems also used for manual refresh
-    fetchItems();
-  }, [fetchItems]);
+  useRunOnChange(() => fetchItems(), [fetchItems]);
 
   async function handleDelete() {
     if (!deleteId) return;

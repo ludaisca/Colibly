@@ -1,52 +1,51 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy } from "lucide-react";
-import { cn } from "@/app/components/ui/cn";
+import { useEffect } from "react";
 
-/** Copia el bloque de código al portapapeles con confirmación breve. */
-export function CopyButton({ text, className }: { text: string; className?: string }) {
-  const [copied, setCopied] = useState(false);
+// Un solo manejador para todos los botones "Copiar" de la documentación
+// (<button data-copy-code> dentro de cada <pre>, ver _ui.tsx:Code). Antes cada
+// bloque montaba su propio componente con el texto como prop, que viajaba
+// repetido en el payload de la página (QA-010).
+export function CodeCopy() {
+  useEffect(() => {
+    async function onClick(ev: MouseEvent) {
+      const button = (ev.target as Element | null)?.closest?.("button[data-copy-code]");
+      if (!(button instanceof HTMLButtonElement)) return;
+      const text = button.parentElement?.querySelector("code")?.textContent ?? "";
+      if (!(await copyText(text))) return;
+      button.textContent = "Copiado";
+      button.setAttribute("aria-label", "Código copiado");
+      window.setTimeout(() => {
+        button.textContent = "Copiar";
+        button.setAttribute("aria-label", "Copiar código");
+      }, 2000);
+    }
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+  return null;
+}
 
-  async function copy() {
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Navegadores sin permiso de Clipboard API: fallback clásico.
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
     let ok = false;
     try {
-      await navigator.clipboard.writeText(text);
-      ok = true;
+      ok = document.execCommand("copy");
     } catch {
-      // Navegadores sin permiso de Clipboard API: fallback clásico.
-      const area = document.createElement("textarea");
-      area.value = text;
-      area.setAttribute("readonly", "");
-      area.style.position = "fixed";
-      area.style.opacity = "0";
-      document.body.appendChild(area);
-      area.select();
-      try {
-        ok = document.execCommand("copy");
-      } catch {
-        ok = false;
-      }
-      document.body.removeChild(area);
+      ok = false;
     }
-    if (!ok) return;
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+    document.body.removeChild(area);
+    return ok;
   }
-
-  return (
-    <button
-      type="button"
-      onClick={copy}
-      aria-label={copied ? "Código copiado" : "Copiar código"}
-      title={copied ? "Copiado" : "Copiar"}
-      className={cn(
-        "absolute right-2 top-2 z-10 inline-flex h-8 items-center gap-1.5 rounded-md border border-code-foreground/20 bg-code-foreground/10 px-2 text-[11px] font-medium text-code-foreground transition-colors hover:bg-code-foreground/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-code-foreground",
-        className
-      )}
-    >
-      {copied ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
-      <span>{copied ? "Copiado" : "Copiar"}</span>
-    </button>
-  );
 }

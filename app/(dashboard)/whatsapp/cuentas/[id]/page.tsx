@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import { Copy, Check, Trash2, RefreshCw, MessageCircle, FileText, Pencil, UserPlus, X, ArrowLeft, Plus, KeyRound } from "lucide-react";
@@ -20,6 +20,7 @@ import { BienvenidaSection } from "./_bienvenida";
 import { useToast } from "@/app/components/ui/toast";
 import { canSendLabel, messagingLimitLabel, nameStatusLabel, qualityLabel } from "@/lib/platform/whatsapp-health-rules";
 import { ChannelOwnerBadge, ChannelOwnerModal, type ChannelOwnerInfo } from "@/app/components/channel-accounts/owner-modal";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface AccountDetail {
   owner?: ChannelOwnerInfo | null;
@@ -183,10 +184,7 @@ export default function CuentaDetailPage() {
     }
   }, [id]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
-    fetchAccount();
-  }, [fetchAccount]);
+  useRunOnChange(() => fetchAccount(), [fetchAccount]);
 
   const fetchSharing = useCallback(async () => {
     try {
@@ -203,9 +201,8 @@ export default function CuentaDetailPage() {
     }
   }, [id]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!isAdmin) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, gated by role
     fetchSharing();
   }, [isAdmin, fetchSharing]);
 
@@ -220,9 +217,8 @@ export default function CuentaDetailPage() {
     }
   }, [id]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!canManage) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, gated by account management access
     fetchRoutingRules();
     fetch(`/api/whatsapp/tags?waAccountId=${id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setTags(d); }).catch(() => {});
   }, [canManage, fetchRoutingRules, id]);

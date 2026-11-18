@@ -2,7 +2,7 @@
 
 import { Tooltip } from "@/app/components/ui/tooltip";
 import { displayName } from "@/lib/chats/display-name";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { RefreshCw, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, List, Plus, X } from "lucide-react";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -19,6 +19,7 @@ import { ChannelAvatar } from "@/app/components/ui/channel-avatar";
 import { useToast } from "@/app/components/ui/toast";
 import { cn } from "@/app/components/ui/cn";
 import { AppointmentFormModal, type AppointmentDetail } from "@/app/components/whatsapp/appointment-form-modal";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 const STATUS_BADGE: Record<AppointmentDetail["status"], { label: string; tone: "info" | "success" | "neutral" | "danger" }> = {
   SCHEDULED: { label: "Agendada", tone: "info" },
@@ -136,10 +137,7 @@ export function CitasView() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchAppointments also used for manual refresh
-    fetchAppointments();
-  }, [fetchAppointments]);
+  useRunOnChange(() => fetchAppointments(), [fetchAppointments]);
 
   // Línea de resumen (en lugar de cuatro tarjetas KPI).
   const summary = useMemo(() => {

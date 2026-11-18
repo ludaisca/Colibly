@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { Plus, Megaphone, Trash2, Send, Workflow, ExternalLink } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
@@ -14,6 +14,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { Tabs, useUrlTab } from "@/app/components/ui/tabs";
 import { plural } from "@/lib/format/plural";
 import { Tooltip } from "@/app/components/ui/tooltip";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Campaign {
   id: string;
@@ -95,8 +96,7 @@ function CampaignsTab() {
     }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchCampaigns also used for manual refresh
-  useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+  useRunOnChange(() => fetchCampaigns(), [fetchCampaigns]);
 
   // Un borrador se envía solo con confirmación y el número real de destinatarios.
   async function handleSend() {
@@ -254,8 +254,7 @@ function AutomationTab() {
     }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchSources also used for manual refresh
-  useEffect(() => { fetchSources(); }, [fetchSources]);
+  useRunOnChange(() => fetchSources(), [fetchSources]);
 
   async function handleToggle(source: LeadSheetSource) {
     setTogglingId(source.id);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Tag as TagIcon, Plus } from "lucide-react";
 import { Dropdown, DropdownButton } from "@/app/components/ui/dropdown";
 import { MultiSelect } from "@/app/components/ui/multi-select";
@@ -8,6 +8,7 @@ import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface TagOption {
   id: string;
@@ -37,14 +38,10 @@ export function ChatTagPicker({ chatId }: { chatId: string }) {
     }
   }, [chatId, toastError]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on chat change / dropdown open
-    fetchAll();
-  }, [fetchAll]);
+  useRunOnChange(() => fetchAll(), [fetchAll]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh when dropdown opens
     fetchAll();
   }, [open, fetchAll]);
 

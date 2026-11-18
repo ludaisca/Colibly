@@ -1,1 +1,1 @@
-export { metaMessageMediaGET as GET } from "@/lib/meta-messaging/routes";
+export { channelMessageMediaGET as GET } from "@/lib/channels/routes";

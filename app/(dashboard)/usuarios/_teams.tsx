@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -12,6 +12,7 @@ import { Modal } from "@/app/components/ui/modal";
 import { MultiSelect } from "@/app/components/ui/multi-select";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Usuarios → Equipos (lib/teams/). Un equipo agrupa personas para enrutar
 // chats: la autoasignación de un chat con equipo solo reparte entre sus
@@ -71,10 +72,7 @@ export function TeamsSection() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial desde el API
-    void load();
-  }, [load]);
+  useRunOnChange(() => void load(), [load]);
 
   async function remove(team: Team) {
     setBusy(true);

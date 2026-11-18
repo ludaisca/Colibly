@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useCallback, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Plus, Target, Trash2, Pencil, Clock, Download } from "lucide-react";
@@ -25,6 +25,7 @@ import { LeadScorerFormModal } from "./_form";
 import { localISODaysAgo } from "@/lib/format/calendar";
 import { plural } from "@/lib/format/plural";
 import { AiMark } from "@/app/components/ui/ai-mark";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface LeadScorerBot {
   id: string;
@@ -121,10 +122,7 @@ function CalificadoresTab() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchItems also used for manual refresh
-    fetchItems();
-  }, [fetchItems]);
+  useRunOnChange(() => fetchItems(), [fetchItems]);
 
   async function handleDelete() {
     if (!deleteId) return;
@@ -274,8 +272,7 @@ function LeadsTab() {
   // de la zona del navegador y el servidor está en UTC (error de hidratación).
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- rango por defecto según la zona del navegador
+  useRunOnChange(() => {
     setDateFrom((current) => current || isoDaysAgo(30));
     setDateTo((current) => current || isoDaysAgo(0));
   }, []);
@@ -302,10 +299,7 @@ function LeadsTab() {
     }
   }, [toastError]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
-    fetchRows();
-  }, [fetchRows]);
+  useRunOnChange(() => fetchRows(), [fetchRows]);
 
   const scorers = useMemo(() => {
     const seen = new Map<string, string>();
@@ -331,8 +325,7 @@ function LeadsTab() {
     });
   }, [rows, scorerFilter, labelFilter, accountFilter, dateFrom, dateTo]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- keeps pagination valid when filters narrow/widen the result set
-  useEffect(() => { setPage(1); }, [scorerFilter, labelFilter, accountFilter, dateFrom, dateTo]);
+  useRunOnChange(() => setPage(1), [scorerFilter, labelFilter, accountFilter, dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / LEADS_PAGE_SIZE));
   const pageRows = useMemo(

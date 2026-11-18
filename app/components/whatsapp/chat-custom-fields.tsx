@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Definition {
   id: string;
@@ -37,10 +38,7 @@ export function ChatCustomFields({ chatId, className }: { chatId: string; classN
     }
   }, [chatId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-chat-change
-    void load();
-  }, [load]);
+  useRunOnChange(() => void load(), [load]);
 
   async function save() {
     setSaving(true);

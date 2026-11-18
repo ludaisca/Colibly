@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { RefreshCw, History, Trash2, ExternalLink } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
@@ -15,6 +15,7 @@ import { DetailPage } from "@/app/components/ui/detail-page";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { useToast } from "@/app/components/ui/toast";
 import { plural } from "@/lib/format/plural";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface SourceDetail {
   id: string;
@@ -85,8 +86,7 @@ export default function LeadSheetSourceDetailPage() {
     }
   }, [id]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; fetchSource also used for manual refresh
-  useEffect(() => { fetchSource(); }, [fetchSource]);
+  useRunOnChange(() => fetchSource(), [fetchSource]);
 
   const seededCount = useMemo(
     () => source?.rowCounts.find((c) => c.status === "seeded")?._count._all ?? 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ChevronRight, ExternalLink, Plus } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Select } from "@/app/components/ui/select";
@@ -14,6 +14,7 @@ import { ChatTagPicker } from "./chat-tag-picker";
 import { ContactTimeline } from "./contact-timeline";
 import { AppointmentFormModal } from "./appointment-form-modal";
 import type { ChatItem } from "./chat-shared";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Ficha derecha de Chats (288 px, dirección congelada nov 2026): secciones
 // plegables — Contacto, Trato (etapa editable), Próxima cita, Notas e
@@ -90,10 +91,7 @@ export function ChatContactPanel({ chat, onOpenFull, onChanged }: { chat: ChatIt
     }
   }, [contactId, toastError]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga al cambiar de chat; load también refresca tras guardar
-    void load();
-  }, [load]);
+  useRunOnChange(() => void load(), [load]);
 
   async function patchContact(body: Record<string, unknown>) {
     setSavingStage(true);

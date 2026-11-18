@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { UserCheck } from "lucide-react";
 import { Dropdown, DropdownDivider, DropdownItem, DropdownButton } from "@/app/components/ui/dropdown";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Assignee {
   id: string;
@@ -34,9 +35,8 @@ export function ChatAssigneePicker({
     }
   }, [chatId, toastError]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch when dropdown opens; fetchAssignees also called each time it reopens
     fetchAssignees();
   }, [open, fetchAssignees]);
 

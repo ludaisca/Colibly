@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { PlanId } from "@prisma/client";
 import { Select } from "@/app/components/ui/select";
 import { LICENSE_ORDER, type CatalogMode, type LicenseCounts } from "@/lib/billing/licenses";
 import { formatMxn, PLANS } from "@/lib/billing/plans";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Licencias de la organización para /usuarios: contratadas, asignadas (personas
 // activas + invitaciones) y libres por plan (GET /api/billing/licenses).
@@ -33,8 +34,7 @@ export function useLicenseState(enabled = true) {
       // Sin el dato la pantalla sigue: el servidor valida igual.
     }
   }, []);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
+  useRunOnChange(() => {
     if (enabled) void reload();
   }, [enabled, reload]);
   return { state, reload };

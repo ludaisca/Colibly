@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { Button } from "@/app/components/ui/button";
 import { DetailPage } from "@/app/components/ui/detail-page";
 import { TemplateForm } from "../_form";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Account { id: string; name: string; channel: string; wabaId: string | null }
 
@@ -28,10 +29,7 @@ export function TemplateCreatePage({ defaultAccountId }: { defaultAccountId: str
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial; loadAccounts también se usa al reintentar
-    loadAccounts();
-  }, [loadAccounts]);
+  useRunOnChange(() => loadAccounts(), [loadAccounts]);
 
   if (loading) return <div className="flex justify-center py-16"><Spinner /></div>;
   if (error || accounts.length === 0) return (

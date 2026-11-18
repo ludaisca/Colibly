@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Copy, Check } from "lucide-react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
@@ -10,6 +10,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Props {
   open: boolean;
@@ -45,9 +46,8 @@ export function WebchatCuentaFormModal({ open, onClose, editId = null, onSaved }
     setCopied(false);
   }, []);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open || !editId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-open for edit mode
     setLoading(true);
     fetch(`/api/webchat/accounts/${editId}`)
       .then((r) => r.json())

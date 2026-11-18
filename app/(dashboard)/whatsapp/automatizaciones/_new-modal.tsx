@@ -12,6 +12,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { cn } from "@/app/components/ui/cn";
 import { AUTOMATION_TEMPLATES } from "@/lib/automations/templates";
 import { CHANNEL_LABEL, type AutomationAccount } from "./_shared";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Nueva automatización: nombre + cuenta + plantilla de la galería. Crea el
 // borrador y abre el editor.
@@ -22,8 +23,7 @@ export function NewAutomationModal({ open, onClose, initialTemplateId }: { open:
   const [accountId, setAccountId] = useState("");
   const [templateId, setTemplateId] = useState(initialTemplateId ?? "welcome_menu");
   // Elegida desde una tarjeta del estado vacío (o ?plantilla= en la URL).
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza la plantilla preelegida al abrir
+  useRunOnChange(() => {
     if (open && initialTemplateId) setTemplateId(initialTemplateId);
   }, [open, initialTemplateId]);
   const [saving, setSaving] = useState(false);

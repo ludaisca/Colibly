@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { SettingsBlock } from "@/app/components/ui/settings-block";
 import { Input } from "@/app/components/ui/input";
@@ -12,6 +12,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { cn } from "@/app/components/ui/cn";
 import { TAG_COLOR_OPTIONS, tagDeleteWarning, tagDotClass, type TagUsage } from "@/lib/tags-shared";
 import { loadContactAccounts, type ContactAccountOption } from "@/app/components/whatsapp/contact-accounts";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface TagRow {
   id: string;
@@ -44,10 +45,7 @@ export function EtiquetasSection() {
     }
   }, [toastError]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga al montar
-    void load();
-  }, [load]);
+  useRunOnChange(() => void load(), [load]);
 
   async function update(tag: TagRow, data: { name?: string; color?: string }) {
     const res = await fetch(`/api/whatsapp/tags/${tag.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });

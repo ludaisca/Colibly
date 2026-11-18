@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { RelativeTime } from "@/app/components/ui/relative-time";
 import type { ElementType } from "react";
 import { CalendarClock, CheckCircle2, GitBranch, Megaphone, RefreshCw, SlidersHorizontal, StickyNote, Tag, UserCheck, UserPlus, ListTodo, CircleDollarSign } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/app/components/ui/button";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import { AiMark } from "@/app/components/ui/ai-mark";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Activity {
   id: string;
@@ -60,10 +61,7 @@ export function ContactTimeline({ contactId, refreshKey = 0 }: { contactId: stri
     }
   }, [contactId, toastError]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/refresh
-    void load();
-  }, [load, refreshKey]);
+  useRunOnChange(() => void load(), [load, refreshKey]);
 
   return (
     <div>

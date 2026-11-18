@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, Radar } from "lucide-react";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -20,6 +20,7 @@ import { MonitorFormModal, type MonitorData } from "./_form";
 import { StarterTemplates } from "@/app/components/ui/starter-templates";
 import { MONITOR_TEMPLATES, type MonitorPreset } from "@/lib/onboarding/starter-templates";
 import { plural } from "@/lib/format/plural";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface MatchData {
   id: string;
@@ -63,10 +64,7 @@ export default function MonitoresPage() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- el setState ocurre tras el fetch
-    void load();
-  }, [load]);
+  useRunOnChange(() => void load(), [load]);
 
   async function toggle(monitor: MonitorData, active: boolean) {
     setMonitors((prev) => prev.map((m) => (m.id === monitor.id ? { ...m, active } : m)));

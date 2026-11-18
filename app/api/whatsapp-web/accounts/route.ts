@@ -94,6 +94,7 @@ export async function GET() {
         status: true,
         errorMessage: true,
         externalAccountId: true,
+        groupsEnabled: true,
         lastActivity: true,
         createdAt: true,
         updatedAt: true,

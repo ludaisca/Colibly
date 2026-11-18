@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Modal } from "@/app/components/ui/modal";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -9,6 +9,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { Segmented } from "@/app/components/ui/segmented";
 import { usePoll } from "@/app/components/ui/use-poll";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Alta de un número de WhatsApp por QR: primero el nombre (crea la cuenta y su
 // device en GoWA), luego la vinculación. La vinculación también se abre desde
@@ -131,10 +132,9 @@ export function WhatsappWebLinkModal({
     [accountId, onConnected]
   );
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!accountId) return;
     connectedRef.current = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reinicio al abrir otra cuenta
     setState({ phase: "loading" });
     setCode(null);
     setCodeError("");

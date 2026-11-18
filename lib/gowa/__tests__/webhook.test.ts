@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "crypto";
-import { bareJid, chatKey, gowaSignatureValid, isDirectChat, parseGowaEvent, phoneOfJid } from "../webhook";
+import { bareJid, chatKey, gowaSignatureValid, isDirectChat, isGroupJid, parseGowaEvent, phoneOfJid } from "../webhook";
 
 const sign = (body: string, secret: string) => `sha256=${createHmac("sha256", secret).update(body, "utf8").digest("hex")}`;
 const NOW = new Date("2026-11-17T12:00:00Z");
@@ -26,6 +26,8 @@ describe("direcciones", () => {
     expect(isDirectChat("120363402106@g.us")).toBe(false);
     expect(isDirectChat("status@broadcast")).toBe(false);
     expect(isDirectChat("123@newsletter")).toBe(false);
+    expect(isGroupJid("120363402106@g.us")).toBe(true);
+    expect(isGroupJid("5215511112222@s.whatsapp.net")).toBe(false);
   });
   it("quita el sufijo de dispositivo y saca el número", () => {
     expect(bareJid("5215511112222:12@s.whatsapp.net")).toBe("5215511112222@s.whatsapp.net");
@@ -36,7 +38,9 @@ describe("direcciones", () => {
     expect(chatKey({ chat_id: "251556368777322@lid", from: "5215511112222@s.whatsapp.net" })).toBe("5215511112222@s.whatsapp.net");
     expect(chatKey({ chat_id: "251556368777322@lid", recipient_alt: "5215511112222@s.whatsapp.net", is_from_me: true })).toBe("5215511112222@s.whatsapp.net");
     expect(chatKey({ chat_id: "251556368777322@lid" })).toBe("251556368777322@lid");
-    expect(chatKey({ chat_id: "120363402106@g.us", from: "5215511112222@s.whatsapp.net" })).toBeNull();
+    expect(chatKey({ chat_id: "120363402106@g.us", from: "5215511112222@s.whatsapp.net" })).toBe("120363402106@g.us");
+    expect(chatKey({ chat_id: "status@broadcast", from: "5215511112222@s.whatsapp.net" })).toBeNull();
+    expect(chatKey({ chat_id: "123@newsletter" })).toBeNull();
   });
 });
 
@@ -67,8 +71,27 @@ describe("parseGowaEvent", () => {
     expect(ev).toMatchObject({ kind: "message", message: { fromMe: true, externalId: "5215511112222@s.whatsapp.net" } });
   });
 
-  it("ignora grupos y mensajes sin id", () => {
-    expect(parseGowaEvent({ event: "message", payload: { id: "G", chat_id: "1203@g.us", body: "x" } }, NOW).kind).toBe("ignored");
+  it("grupo: el chat es el grupo y el remitente va aparte", () => {
+    const ev = parseGowaEvent({ event: "message", payload: { id: "G1", chat_id: "1203@g.us", from: "5215511112222:4@s.whatsapp.net", sender_display_name: "Ana", from_name: "ana", body: "Hola a todos" } }, NOW);
+    expect(ev).toMatchObject({ kind: "message", message: { externalId: "1203@g.us", isGroup: true, senderName: "Ana", senderExternalId: "5215511112222@s.whatsapp.net", body: "Hola a todos" } });
+    // Remitente @lid con el teléfono en sender_alt; sin nombre, el número.
+    const lid = parseGowaEvent({ event: "message", payload: { id: "G2", chat_id: "1203@g.us", from: "2515563@lid", sender_alt: "5215511112222@s.whatsapp.net", body: "x" } }, NOW);
+    expect(lid).toMatchObject({ kind: "message", message: { senderName: "+5215511112222", senderExternalId: "5215511112222@s.whatsapp.net" } });
+    // Escrito desde el teléfono vinculado: sin remitente (es el negocio).
+    const own = parseGowaEvent({ event: "message", payload: { id: "G3", chat_id: "1203@g.us", from: "5215599998888@s.whatsapp.net", is_from_me: true, body: "Listo" } }, NOW);
+    expect(own).toMatchObject({ kind: "message", message: { fromMe: true, isGroup: true, senderName: null, senderExternalId: null } });
+    // Un 1:1 no lleva remitente.
+    expect(parseGowaEvent({ event: "message", payload: { id: "D1", chat_id: "5215511112222@s.whatsapp.net", body: "x" } }, NOW)).toMatchObject({ message: { isGroup: false, senderName: null } });
+  });
+
+  it("nombre del grupo (group.info)", () => {
+    expect(parseGowaEvent({ event: "group.info", payload: { chat_id: "1203@g.us", name: "Ventas norte" } }, NOW)).toEqual({ kind: "group_name", externalId: "1203@g.us", name: "Ventas norte" });
+    expect(parseGowaEvent({ event: "group.info", payload: { chat_id: "1203@g.us" } }, NOW).kind).toBe("ignored");
+  });
+
+  it("ignora estados, canales y mensajes sin id", () => {
+    expect(parseGowaEvent({ event: "message", payload: { id: "S", chat_id: "status@broadcast", from: "5215511112222@s.whatsapp.net", body: "x" } }, NOW).kind).toBe("ignored");
+    expect(parseGowaEvent({ event: "message", payload: { id: "N", chat_id: "123@newsletter", body: "x" } }, NOW).kind).toBe("ignored");
     expect(parseGowaEvent({ event: "message", payload: { chat_id: "5215511112222@s.whatsapp.net", body: "x" } }, NOW).kind).toBe("ignored");
   });
 

@@ -11,6 +11,7 @@ import { Table, type TableColumn } from "@/app/components/ui/table";
 import { SettingsBlock } from "@/app/components/ui/settings-block";
 import { useToast } from "@/app/components/ui/toast";
 import { CannedResponseFormModal } from "./_respuestas-rapidas-form";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Sección embebida en /configuracion — antes era la página propia
 // /configuracion/respuestas-rapidas, degradada a sección porque el CRUD es
@@ -79,10 +80,7 @@ export function RespuestasRapidasSection() {
     }
   }, [selectedAccount]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/account-change; fetchItems also used for manual refresh
-    fetchItems();
-  }, [fetchItems]);
+  useRunOnChange(() => fetchItems(), [fetchItems]);
 
   async function handleDelete() {
     if (!deleteId) return;

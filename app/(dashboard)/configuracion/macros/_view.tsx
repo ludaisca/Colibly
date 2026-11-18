@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { Banner } from "@/app/components/ui/banner";
 import { Button } from "@/app/components/ui/button";
@@ -17,6 +17,7 @@ import { useToast } from "@/app/components/ui/toast";
 import { macroActionsSummary, type MacroAction } from "@/lib/macros/types";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { BackLink } from "@/app/components/ui/back-link";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface MacroRow {
   id: string;
@@ -61,10 +62,7 @@ export function MacrosView() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
-    void load();
-  }, [load]);
+  useRunOnChange(() => void load(), [load]);
 
   function openCreate() {
     setEditing(null);

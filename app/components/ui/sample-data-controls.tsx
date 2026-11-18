@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Trash2 } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "./button";
 import { ConfirmDialog } from "./confirm-dialog";
 import { useToast } from "./toast";
 import { AiMark } from "@/app/components/ui/ai-mark";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Datos de ejemplo (Spa Aurora): un botón para cargarlos y otro, con
 // confirmación, para borrarlos. Solo lo ve un admin. Los de ejemplo son
@@ -35,8 +36,7 @@ export function SampleDataControls({ size = "md", variant = "secondary" }: { siz
       /* sin estado: no se muestra el botón */
     }
   }, []);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial del estado
-  useEffect(() => { if (isAdmin) void refreshStatus(); }, [isAdmin, refreshStatus]);
+  useRunOnChange(() => { if (isAdmin) void refreshStatus(); }, [isAdmin, refreshStatus]);
 
   if (!isAdmin || loaded === null) return null;
   if (!loaded && hasRealData) return null;

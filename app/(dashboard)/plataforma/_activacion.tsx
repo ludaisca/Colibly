@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Mail, RefreshCw, Sprout } from "lucide-react";
 import { SectionHeader } from "@/app/components/ui/section-header";
 import { Card } from "@/app/components/ui/card";
@@ -14,6 +14,7 @@ import { RelativeTime } from "@/app/components/ui/relative-time";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { COHORT_DAYS, type FunnelRow } from "@/lib/activation/rules";
 import type { ActivationReport, StuckOrg } from "@/lib/activation/report";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 // Embudo de activación: de cada cohorte de registros, cuántos llegan a cada
 // paso y en cuánto tiempo, y las cuentas en prueba ordenadas de la más
@@ -54,10 +55,7 @@ export function PlataformaActivacion() {
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga desde el API al cambiar la cohorte
-    void load(days);
-  }, [days, load]);
+  useRunOnChange(() => void load(days), [days, load]);
 
   const step = (key: FunnelRow["step"]) => report?.funnel.find((r) => r.step === key);
   const columns: TableColumn<StuckOrg>[] = [

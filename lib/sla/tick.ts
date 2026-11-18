@@ -84,7 +84,8 @@ async function candidates(organizationId: string, clock: "response" | "resolutio
       select: { ...chatSelect, accountId: true, remoteJid: true },
     }),
     prisma.conversation.findMany({
-      where: { channelAccount: { organizationId }, status: "OPEN", AND: [notSnoozed, clockWhere] },
+      // Grupos (WhatsApp por QR) fuera del SLA: no son un cliente esperando.
+      where: { channelAccount: { organizationId }, isGroup: false, status: "OPEN", AND: [notSnoozed, clockWhere] },
       orderBy,
       take: BATCH,
       select: { ...chatSelect, channelAccountId: true, externalId: true },

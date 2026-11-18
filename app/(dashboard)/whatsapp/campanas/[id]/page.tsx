@@ -17,6 +17,7 @@ import { DetailPage } from "@/app/components/ui/detail-page";
 import { ListErrorState } from "@/app/components/ui/list-error-state";
 import { useToast } from "@/app/components/ui/toast";
 import { downloadCsv, toCsv } from "@/lib/csv";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "success" | "warning" | "info" | "danger" | "neutral" }> = {
   DRAFT: { label: "Borrador", tone: "neutral" },
@@ -103,8 +104,7 @@ export default function CampaignDetailPage() {
     }
   }, [id, statusFilter, toastError]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount/page-change; fetchCampaign also used for manual refresh
-  useEffect(() => { fetchCampaign(page); }, [fetchCampaign, page]);
+  useRunOnChange(() => fetchCampaign(page), [fetchCampaign, page]);
 
   // While the campaign is actively sending, poll silently (no loading spinner flash) so
   // the progress bar and recipient statuses animate live instead of requiring a manual

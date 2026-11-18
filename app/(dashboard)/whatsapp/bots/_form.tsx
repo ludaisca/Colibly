@@ -13,6 +13,7 @@ import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
 import { useToast } from "@/app/components/ui/toast";
 import type { BotPreset } from "@/lib/onboarding/starter-templates";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Props {
   open: boolean;
@@ -80,18 +81,16 @@ export function BotFormModal({ open, onClose, editId = null, onSaved, preset = n
   }, [open, toastError]);
 
   // Plantilla: al abrir un bot nuevo con plantilla, se prellena (todo se puede editar).
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open || editId || !preset) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- prellenado al abrir con plantilla
     setName(preset.name);
     setSystemPrompt(preset.systemPrompt);
     setAppointmentSchedulingEnabled(preset.appointmentSchedulingEnabled ?? false);
     setRagEnabled(preset.ragEnabled ?? false);
   }, [open, editId, preset]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open || !editId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-open for edit mode
     setLoading(true);
     fetch(`/api/whatsapp/bots/${editId}`)
       .then(async (r) => { if (!r.ok) throw new Error("Error al cargar bot"); return r.json(); })

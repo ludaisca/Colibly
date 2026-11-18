@@ -50,10 +50,12 @@ export async function emitMessageSent(
         body: true,
         senderId: true,
         sender: { select: { name: true } },
-        conversation: { select: { id: true, contactId: true, channelAccount: { select: { id: true, channel: true } } } },
+        conversation: { select: { id: true, contactId: true, isGroup: true, channelAccount: { select: { id: true, channel: true } } } },
       },
     });
-    if (!m) return;
+    // Grupos (WhatsApp por QR): sin eventos de dominio — no hay contacto al
+    // que atarlos y la API/webhooks hablan de clientes (docs/arquitectura/canales.md).
+    if (!m || m.conversation.isGroup) return;
     await emitDomainEvent(
       {
         type: "message.sent",
@@ -111,9 +113,9 @@ export async function emitMessageUpdated(kind: "whatsapp" | "channel", messageId
     }
     const m = await prisma.channelMessage.findUnique({
       where: { id: messageId },
-      select: { conversation: { select: { id: true, contactId: true, channelAccount: { select: { id: true, channel: true } } } } },
+      select: { conversation: { select: { id: true, contactId: true, isGroup: true, channelAccount: { select: { id: true, channel: true } } } } },
     });
-    if (!m) return;
+    if (!m || m.conversation.isGroup) return;
     await emitDomainEvent({
       type: "message.updated",
       account: { kind: "channel", id: m.conversation.channelAccount.id, channel: m.conversation.channelAccount.channel },

@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Users } from "lucide-react";
 import { Dropdown, DropdownDivider, DropdownItem, DropdownButton } from "@/app/components/ui/dropdown";
 import { useToast } from "@/app/components/ui/toast";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface TeamOption {
   id: string;
@@ -42,9 +43,8 @@ export function ChatTeamPicker({
     }
   }, [toastError]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open || teams) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga al abrir el menú
     void load();
   }, [open, teams, load]);
 

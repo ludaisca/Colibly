@@ -7,6 +7,7 @@ import { Input } from "@/app/components/ui/input";
 import { Spinner } from "@/app/components/ui/spinner";
 import { cn } from "@/app/components/ui/cn";
 import type { Graph, RunInput, RunState } from "@/lib/automations/types";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface SimEntry {
   kind: "bot" | "effect" | "client" | "status";
@@ -80,11 +81,9 @@ export function Simulator({ automationId, graph, triggerText }: { automationId: 
     step({ kind: "start" }, null, initialFacts, opening);
   }, [step, triggerText]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- arranca la simulación al abrir el panel
+  useRunOnChange(() => {
     restart();
     // Solo al abrir: los cambios del grafo se prueban con "Reiniciar".
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

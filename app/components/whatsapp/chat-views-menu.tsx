@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ViewCounts } from "./chat-shared";
 import { Bookmark, Hourglass, Inbox, Plus, TimerOff, Trash2, User, Users, UserX } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Dropdown } from "@/app/components/ui/dropdown";
 import { Input } from "@/app/components/ui/input";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface SavedView {
   id: string;
@@ -67,10 +68,7 @@ export function ChatViewsMenu({
   const [name, setName] = useState("");
   const awaiting = counts?.awaiting ?? 0;
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga única desde localStorage
-    setViews(readViews());
-  }, []);
+  useRunOnChange(() => setViews(readViews()), []);
 
   function persist(next: SavedView[]) {
     setViews(next);

@@ -17,10 +17,16 @@ export function gowaSignatureValid(rawBody: string, header: string | null, secre
 
 const PERSONAL = /@s\.whatsapp\.net$/;
 const LID = /@lid$/;
+const GROUP = /@g\.us$/;
 
-/** Solo chats 1:1: grupos, canales, estados y difusiones no entran a la bandeja. */
+/** Chat 1:1 (teléfono o @lid). */
 export function isDirectChat(jid: string | null | undefined): boolean {
   return !!jid && (PERSONAL.test(jid) || LID.test(jid));
+}
+
+/** Grupo de WhatsApp (`120363…@g.us`). Solo entra si la cuenta tiene `groupsEnabled`. */
+export function isGroupJid(jid: string | null | undefined): boolean {
+  return !!jid && GROUP.test(jid);
 }
 
 /** Quita el sufijo de dispositivo ("521…:12@s.whatsapp.net" → "521…@s.whatsapp.net"). */
@@ -34,13 +40,17 @@ export function phoneOfJid(jid: string): string | null {
 }
 
 /**
- * El chat se identifica por el JID de TELÉFONO siempre que GoWA lo conozca: el
+ * Grupos: el chat es el JID del grupo (`chat_id`). Canales, estados y
+ * difusiones nunca entran (null).
+ *
+ * 1:1: el chat se identifica por el JID de TELÉFONO siempre que GoWA lo conozca: el
  * mismo contacto puede llegar como `…@lid` (id interno de WhatsApp) en un
  * mensaje y como número en el siguiente, y usar el que venga duplicaría la
  * conversación. GoWA ya normaliza `chat_id` al teléfono cuando lo sabe; si
  * aún es @lid se buscan las direcciones alternas del payload.
  */
 export function chatKey(p: GowaPayload): string | null {
+  if (typeof p.chat_id === "string" && isGroupJid(p.chat_id)) return p.chat_id;
   const candidates = [p.chat_id, p.recipient_alt, p.sender_alt, !p.is_from_me ? p.from : null]
     .filter((v): v is string => typeof v === "string" && v.length > 0)
     .map(bareJid);
@@ -87,6 +97,8 @@ export interface GowaPayload {
   contact?: unknown;
   selection?: { selected_id?: string; text?: string };
   view_once?: boolean;
+  // group.info
+  name?: string;
   // Eventos de device
   code?: number;
   reason?: string;
@@ -119,6 +131,10 @@ export interface NormalizedGowaMessage {
   contactName: string;
   replyToExternalId: string | null;
   interactiveReplyId: string | null;
+  /** Grupo: `externalId` es el JID del grupo y `sender*` dice quién escribió (solo entrantes). */
+  isGroup: boolean;
+  senderName: string | null;
+  senderExternalId: string | null;
 }
 
 export type GowaEvent =
@@ -129,6 +145,7 @@ export type GowaEvent =
   | { kind: "logged_out"; reason: string }
   | { kind: "temporary_ban"; reason: string; until: Date | null }
   | { kind: "reachout_timelock"; active: boolean; until: Date | null }
+  | { kind: "group_name"; externalId: string; name: string }
   | { kind: "ignored"; why: string };
 
 const MEDIA_KEYS = ["image", "video", "audio", "ptt", "document", "sticker", "video_note"] as const;
@@ -185,7 +202,7 @@ export function parseGowaEvent(env: GowaEnvelope, now: Date = new Date()): GowaE
     case "message.reaction": {
       const externalId = chatKey(p);
       const targetId = str(p.reacted_message_id);
-      if (!externalId || !targetId || p.is_from_me) return { kind: "ignored", why: "reacción fuera de un chat 1:1" };
+      if (!externalId || !targetId || p.is_from_me) return { kind: "ignored", why: "reacción propia o fuera de un chat" };
       return { kind: "reaction", externalId, targetId, emoji: str(p.reaction) };
     }
     case "message.revoked": {
@@ -193,6 +210,11 @@ export function parseGowaEvent(env: GowaEnvelope, now: Date = new Date()): GowaE
       const targetId = str(p.revoked_message_id) ?? str(p.id);
       if (!externalId || !targetId) return { kind: "ignored", why: "borrado sin chat" };
       return { kind: "revoked", externalId, targetId };
+    }
+    case "group.info": {
+      const name = str(p.name);
+      if (!isGroupJid(p.chat_id) || !name) return { kind: "ignored", why: "group.info sin nombre" };
+      return { kind: "group_name", externalId: p.chat_id!, name: name.slice(0, 200) };
     }
     case "device.logged_out":
       return { kind: "logged_out", reason: str(p.reason) ?? "WhatsApp cerró la sesión" };
@@ -207,7 +229,8 @@ export function parseGowaEvent(env: GowaEnvelope, now: Date = new Date()): GowaE
 
 function parseMessage(p: GowaPayload, now: Date): GowaEvent {
   const externalId = chatKey(p);
-  if (!externalId) return { kind: "ignored", why: "no es un chat 1:1" };
+  if (!externalId) return { kind: "ignored", why: "ni chat 1:1 ni grupo" };
+  const isGroup = isGroupJid(externalId);
   const externalMessageId = str(p.id);
   if (!externalMessageId) return { kind: "ignored", why: "mensaje sin id" };
 
@@ -224,6 +247,9 @@ function parseMessage(p: GowaPayload, now: Date): GowaEvent {
   // medios sin texto se guardan como `[tipo]` (lo reconoce el bot-worker).
   const body = mediaKey ? (caption ?? `[${type}]`) : (text ?? `[${type}]`);
   const phone = phoneOfJid(externalId);
+  // En un grupo, quien escribió (el nombre del grupo lo pide la ingesta a GoWA).
+  const senderJid = isGroup && !p.is_from_me && p.from ? bareJid(p.sender_alt && PERSONAL.test(p.sender_alt) ? p.sender_alt : p.from) : null;
+  const senderPhone = senderJid ? phoneOfJid(senderJid) : null;
 
   return {
     kind: "message",
@@ -238,9 +264,12 @@ function parseMessage(p: GowaPayload, now: Date): GowaEvent {
       hasMedia: !!mediaKey,
       filename: meta.filename,
       mimeType: meta.mimeType,
-      contactName: str(p.from_name) ?? str(p.sender_display_name) ?? (phone ? `+${phone}` : externalId),
+      contactName: isGroup ? externalId : (str(p.from_name) ?? str(p.sender_display_name) ?? (phone ? `+${phone}` : externalId)),
       replyToExternalId: str(p.replied_to_id),
       interactiveReplyId: str(p.selection?.selected_id),
+      isGroup,
+      senderName: senderJid ? (str(p.sender_display_name) ?? str(p.from_name) ?? (senderPhone ? `+${senderPhone}` : senderJid.split("@")[0])) : null,
+      senderExternalId: senderJid,
     },
   };
 }

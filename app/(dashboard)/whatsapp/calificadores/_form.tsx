@@ -13,6 +13,7 @@ import { Spinner } from "@/app/components/ui/spinner";
 import { MultiSelect } from "@/app/components/ui/multi-select";
 import { useToast } from "@/app/components/ui/toast";
 import { LEAD_SCORER_SCHEDULE_INTERVALS } from "@/lib/validations";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface AccountOption { id: string; name: string; channel: "WHATSAPP" | "TELEGRAM"; }
 
@@ -77,9 +78,8 @@ export function LeadScorerFormModal({ open, onClose, editId = null, onSaved }: P
       .catch(() => { setError("Error al cargar cuentas"); toastError("Error al cargar cuentas"); });
   }, [open, toastError]);
 
-  useEffect(() => {
+  useRunOnChange(() => {
     if (!open || !editId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-open for edit mode
     setLoading(true);
     fetch(`/api/whatsapp/lead-scorers/${editId}`)
       .then(async (r) => { if (!r.ok) throw new Error("Error al cargar el calificador"); return r.json(); })

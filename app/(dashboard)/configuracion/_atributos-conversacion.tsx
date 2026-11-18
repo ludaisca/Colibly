@@ -1,7 +1,7 @@
 "use client";
 
 import { NeedsChannelEmpty } from "@/app/components/ui/needs-channel";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
@@ -13,6 +13,7 @@ import { Select } from "@/app/components/ui/select";
 import { Table, type TableColumn } from "@/app/components/ui/table";
 import { useToast } from "@/app/components/ui/toast";
 import { ChatAttributeFormModal, type ChatAttribute } from "./_atributos-conversacion-form";
+import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface Account {
   id: string;
@@ -49,8 +50,7 @@ export function AtributosConversacionSection() {
   const [editing, setEditing] = useState<ChatAttribute | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sin cuentas que cargar para este rol
+  useRunOnChange(() => {
     if (session?.user?.role === "ejecutivo") { setAccountsLoaded(true); return; }
     const endpoints = ["whatsapp", "telegram", "messenger", "instagram", "webchat"];
     const channels = ["WHATSAPP", "TELEGRAM", "MESSENGER", "INSTAGRAM", "WEBCHAT"];
@@ -96,10 +96,7 @@ export function AtributosConversacionSection() {
     }
   }, [selectedAccount]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-account-change
-    void load();
-  }, [load]);
+  useRunOnChange(() => void load(), [load]);
 
   async function remove() {
     if (!deleteId) return;
