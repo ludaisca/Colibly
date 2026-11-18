@@ -115,6 +115,8 @@ interface ConversationLike {
   unreadCount: number;
   lastMessage: string | null;
   lastMessageAt: Date | null;
+  waitingSince: Date | null;
+  isGroup: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -132,6 +134,11 @@ export function serializeConversation(c: ConversationLike, accountId: string, ch
     unreadCount: c.unreadCount,
     lastMessage: c.lastMessage,
     lastMessageAt: c.lastMessageAt,
+    // Desde cuándo el cliente espera respuesta (null = nadie espera). Mismo
+    // dato que "Esperando" en la bandeja (lib/chats/waiting.ts).
+    waitingSince: c.waitingSince,
+    // Grupo de WhatsApp por QR: sin contacto, solo conversación.
+    isGroup: c.isGroup,
     createdAt: c.createdAt,
     // Cambia con cualquier cambio de la conversación (mensaje, estado,
     // asignación, no leídos): el punto de control de `updatedSince`.

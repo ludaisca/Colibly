@@ -17,7 +17,7 @@ Essential rules for working on Colibly. This file is loaded into every agent ses
 | [`ia.md`](docs/arquitectura/ia.md) | providers, curated/operator-picked models, credits, multimodal, embeddings, pricing, prompt wrapping |
 | [`whatsapp.md`](docs/arquitectura/whatsapp.md) | template creation, Cloud API, multiple Meta apps, Calling API, webhook, media, Embedded Signup + coexistence |
 | [`canales.md`](docs/arquitectura/canales.md) | Telegram / Messenger / Instagram / web widget stack, comment-to-inbox, webchat security model |
-| [`integraciones.md`](docs/arquitectura/integraciones.md) | domain events, public API `/api/v1`, outgoing webhooks, SSRF, automations engine, Meta Ads CAPI |
+| [`integraciones.md`](docs/arquitectura/integraciones.md) | domain events, public API `/api/v1`, customer MCP `/api/v1/mcp`, outgoing webhooks, SSRF, automations engine, Meta Ads CAPI |
 | [`crm.md`](docs/arquitectura/crm.md) | contacts, assignment, notifications, campaigns → CRM, lead scoring, lead recovery, appointments, custom fields, sequences, pipelines, tasks |
 | [`bandeja.md`](docs/arquitectura/bandeja.md) | chat status, tags, canned responses, auto-assign, agent metrics, snooze/priority/bulk/typing/drafts, timeline, reports, command palette, import, CSAT, macros, conversation attributes |
 | [`auth.md`](docs/arquitectura/auth.md) | NextAuth setup, verification/reset/invite emails, session revalidation |
@@ -102,6 +102,7 @@ Two parallel stacks (adapter layer, not a migration — the `WA*` tables hold pr
 
 - **Code that changes a domain fact must emit its event** (`emitDomainEvent()`, never throws): `message.received/sent`, `contact.created`, `contact.lead_status_changed`, `tag.added`, `conversation.assigned/resolved`, `appointment.*`, `lead.scored`, `lead.ad_captured`. For lead status and contact tags call `afterLeadStatusChanged()` / `afterContactTagAdded()` instead of repeating side effects inline. A new `contact.created` source needs the union in `lib/events/types.ts` **and** the enum in `lib/api/openapi.ts`.
 - Public API `/api/v1/*`: `withApiErrors` + `authenticateApiKey(req, scope)`; ids outside the scope answer **404, never 403**; update `lib/api/openapi.ts` in the same change as any route.
+- **Customer MCP (`/api/v1/mcp`) has no business logic**: each tool calls the matching `/api/v1` handler in-process (`lib/mcp/customer/dispatch.ts`). A new tool adds a `ToolDef` (and, if needed, a route in `ROUTES`), never a Prisma query. Tools that send are `irreversible`. It is not the operator MCP (`/api/mcp`).
 - **`message.sent` has one emitter: `lib/events/message-sent.ts:emitMessageSent()`.** A new way to send sets `sentVia` (an `OUTBOUND_ORIGINS` value, `lib/messages/origin.ts`) on the saved row and calls it; a contract change bumps `API_SCHEMA_VERSION` + `API_CHANGELOG` (`integraciones.md`).
 - **A message's public shape lives only in `lib/messages/serialize.ts`** (API and `message.*` webhooks share it); media go out as `GET /api/v1/messages/{id}/media`, never Meta's URL. Meta data that doesn't fit `body`/media goes to `WAMessage.content` via `structuredContentOf()` — don't drop fields into `[type]` markers.
 - Any HTTP request to a user-supplied URL goes through `lib/net/safe-fetch.ts`.

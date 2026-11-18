@@ -40,3 +40,9 @@ export function mergeRateLimitInfo(req: Request, info: RateLimitInfo): void {
     infoByRequest.set(req, info);
   }
 }
+
+/** Pasa el estado del límite de una solicitud a otra (el MCP autentica sobre una copia GET). */
+export function copyRateLimitInfo(from: Request, to: Request): void {
+  const info = infoByRequest.get(from);
+  if (info) infoByRequest.set(to, info);
+}

@@ -72,6 +72,22 @@ export function ApiDocsSection() {
       </Card>
 
       <Card as="section" className="space-y-3">
+        <SectionHeader title="Asistentes de IA (MCP)" />
+        <p className="text-sm text-muted">
+          Conecta Claude, Cursor u otro cliente MCP con una API key: el asistente puede ver quién espera respuesta, leer conversaciones,
+          editar contactos y enviar mensajes con tu aprobación, con los mismos permisos de la key. Usa una key con solo los permisos que
+          necesite; con una <code className="font-mono text-xs">sk_test_</code> los envíos se simulan.
+        </p>
+        <SecretField label="URL del servidor MCP" value={`${base}/mcp`} />
+        <Code>{`claude mcp add --transport http colibly ${base}/mcp \\
+  --header "Authorization: Bearer $COLIBLY_API_KEY"`}</Code>
+        <p className="text-sm text-muted">
+          Configuración para Cursor, Claude Desktop y otros clientes, y la lista de herramientas:{" "}
+          <a href="/docs/mcp" target="_blank" rel="noopener" className="font-medium text-accent-ink underline underline-offset-2">guía del MCP</a>.
+        </p>
+      </Card>
+
+      <Card as="section" className="space-y-3">
         <SectionHeader title="Ejemplos" />
         <p className="text-sm text-muted">Crear (o encontrar) un contacto de WhatsApp con etiquetas y campos personalizados:</p>
         <Code>{`curl -X POST ${base}/contacts \\

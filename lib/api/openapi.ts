@@ -42,13 +42,22 @@ import {
 //   x-colibly-events     catálogo de eventos de webhook con su `data` y ejemplo
 //   x-colibly-error-codes  códigos de error estables con su status HTTP
 
-export const API_VERSION = "1.11.0";
+export const API_VERSION = "1.12.0";
 
 // Cambios del contrato, del más nuevo al más viejo. Todos aditivos dentro de v1.
 export const API_CHANGELOG: { version: string; schemaVersion: string; date: string; changes: string[] }[] = [
   {
-    version: "1.11.0",
+    version: "1.12.0",
     schemaVersion: API_SCHEMA_VERSION,
+    date: "2026-11-18",
+    changes: [
+      "Servidor MCP para asistentes de IA (Claude, ChatGPT, Cursor): `POST /api/v1/mcp` con tu API key; las herramientas respetan los mismos permisos y límites de la key. Guía en /docs/mcp.",
+      "Conversaciones: campos `waitingSince` (desde cuándo el cliente espera respuesta; null = nadie espera) e `isGroup` (grupo de WhatsApp por QR, sin contacto). GET /conversations acepta `waiting=true|false`.",
+    ],
+  },
+  {
+    version: "1.11.0",
+    schemaVersion: "2026-11-14.2",
     date: "2026-11-14",
     changes: [
       "Enlaces de conexión: POST /onboarding-links crea un enlace (`url`) para que un cliente conecte su número de WhatsApp con su Facebook, sin cuenta en Colibly; el número entra a tu organización. GET /onboarding-links, GET y DELETE /onboarding-links/{id}. Evento nuevo `account.connected` (también al conectar desde el panel).",
@@ -279,6 +288,8 @@ const EX = {
     unreadCount: 1,
     lastMessage: "¿Tienen envío a Puebla?",
     lastMessageAt: "2026-10-18T19:02:11.000Z",
+    waitingSince: "2026-10-18T19:02:11.000Z",
+    isGroup: false,
     createdAt: "2026-10-01T16:20:00.000Z",
     updatedAt: "2026-10-18T19:02:11.000Z",
   },
@@ -732,6 +743,22 @@ export function buildOpenApiSpec(serverUrl: string) {
       { name: "WhatsApp", description: "Administración de la cuenta en Meta: estado del número, perfil de empresa, bloqueos, plantillas, Flows, números, PIN y enlaces de conexión" },
     ],
     paths: {
+      "/mcp": {
+        post: {
+          tags: ["Cuenta"],
+          summary: "Servidor MCP para asistentes de IA",
+          description:
+            "Model Context Protocol (Streamable HTTP, JSON-RPC 2.0, sin sesión) para conectar Claude, ChatGPT, Cursor u otro cliente MCP con tu API key. Las herramientas que ve el asistente dependen de los permisos de la key y respetan el mismo alcance de cuentas, límites y solo lectura que el resto de la API; cada llamada a una herramienta cuenta como solicitud. Las que envían mensajes (send_message, send_template, run_automation) usan Idempotency-Key automática: la misma llamada repetida en 10 minutos no envía dos veces. Guía: /docs/mcp.",
+          requestBody: { required: true, content: json({ type: "object", description: "Mensaje JSON-RPC 2.0 de MCP" }, { jsonrpc: "2.0", id: 1, method: "tools/list" }) },
+          responses: {
+            "200": ok(
+              { type: "object", description: "Respuesta JSON-RPC 2.0" },
+              { jsonrpc: "2.0", id: 1, result: { tools: [{ name: "list_conversations", title: "Listar conversaciones", inputSchema: { type: "object", properties: { waiting: { type: "boolean" } } } }] } }
+            ),
+            ...errors,
+          },
+        },
+      },
       "/me": {
         get: {
           tags: ["Cuenta"],
@@ -1279,6 +1306,7 @@ export function buildOpenApiSpec(serverUrl: string) {
             { name: "assignedToId", in: "query", schema: { type: "string" } },
             { name: "teamId", in: "query", schema: { type: "string" }, description: "Solo las de ese equipo (GET /teams)" },
             { name: "contactId", in: "query", schema: { type: "string" } },
+            { name: "waiting", in: "query", description: "true: solo las que esperan respuesta (como «Esperando» en la bandeja); false: solo las que no", schema: { type: "string", enum: ["true", "false"] } },
             { name: "updatedSince", in: "query", description: "Solo las que cambiaron desde esa fecha (mensaje, estado, asignación, no leídos). Guarda el mayor `updatedAt` recibido y úsalo en la siguiente consulta", schema: { type: "string", format: "date-time" } },
           ],
           "x-example-query": "status=OPEN&limit=20",
@@ -2253,6 +2281,8 @@ export function buildOpenApiSpec(serverUrl: string) {
             unreadCount: { type: "integer" },
             lastMessage: strNull,
             lastMessageAt: { type: ["string", "null"], format: "date-time" },
+            waitingSince: { type: ["string", "null"], format: "date-time", description: "Desde cuándo el cliente espera respuesta (último entrante sin contestar); null = nadie espera" },
+            isGroup: { type: "boolean", description: "Grupo de WhatsApp por QR: no tiene contacto (contactId null)" },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time", description: "Último cambio (mensaje, estado, asignación…); punto de control de updatedSince" },
           },

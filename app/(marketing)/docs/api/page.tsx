@@ -67,6 +67,8 @@ export default function ApiDocsPage() {
           <a href="/api/v1/openapi.json" className={LINK}>openapi.json</a>
           {" · "}
           <a href="/api/v1/postman.json" className={LINK}>Postman</a>
+          <br />
+          <a href="/docs/mcp" className={LINK}>Servidor MCP para asistentes de IA</a>
         </p>
       </nav>
 

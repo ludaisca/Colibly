@@ -35,6 +35,10 @@ export const GET = withApiErrors(async (req: Request) => {
   const contactId = url.searchParams.get("contactId");
   const teamId = url.searchParams.get("teamId");
   const updatedSince = readDateParam(url, "updatedSince");
+  const waitingParam = url.searchParams.get("waiting");
+  if (waitingParam && waitingParam !== "true" && waitingParam !== "false") {
+    throw new ApiError(400, "invalid_request", "waiting debe ser true o false");
+  }
 
   const common = {
     lastMessageAt: { not: null },
@@ -43,6 +47,8 @@ export const GET = withApiErrors(async (req: Request) => {
     ...(contactId ? { contactId } : {}),
     ...(teamId ? { teamId } : {}),
     ...(updatedSince ? { updatedAt: { gte: updatedSince } } : {}),
+    // waiting=true: el cliente espera respuesta (la bandeja: "Esperando").
+    ...(waitingParam === "true" ? { waitingSince: { not: null } } : waitingParam === "false" ? { waitingSince: null } : {}),
     ...(after
       ? { OR: [{ lastMessageAt: { lt: after.t } }, { lastMessageAt: after.t, id: { lt: after.id } }] }
       : {}),
