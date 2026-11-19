@@ -27,9 +27,9 @@
     "ioredis": "^5.11.1",
     "lucide-react": "^1.17.0",
     "motion": "^12.43.0",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "next-auth": "^5.0.0-beta.32",
-    "nodemailer": "^8.0.11",
+    "nodemailer": "^10.6.0",
     "openai": "^6.45.0",
     "pdf-parse": "^1.1.1",
     "prisma": "^5.22.0",
@@ -54,8 +54,13 @@
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.6",
     "typescript": "^5",
     "vitest": "^3.2.7"
+  },
+  "overrides": {
+    "next-auth": {
+      "nodemailer": "$nodemailer"
+    }
   }
 }
