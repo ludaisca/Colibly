@@ -1,4 +1,4 @@
-import type { sheets_v4 } from "googleapis";
+import type { sheets_v4 } from "@googleapis/sheets";
 import { prisma } from "@/lib/prisma";
 import { getUserAccountIds, getUserChannelAccountIds } from "@/lib/shared-accounts";
 import { getGoogleSheetsClientForUser } from "@/lib/google/sheets-client";

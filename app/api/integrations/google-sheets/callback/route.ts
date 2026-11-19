@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { sheets as googleSheets } from "@googleapis/sheets";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/crypto";
@@ -57,16 +57,17 @@ export async function GET(req: Request) {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    const oauth2 = google.oauth2({ auth: oauth2Client, version: "v2" });
-    const { data: userinfo } = await oauth2.userinfo.get();
-    const googleEmail = userinfo.email;
+    // El email sale del propio access token (scope userinfo.email): sin el
+    // cliente de la API oauth2 de googleapis, que pesaba ~200 MB con todo lo demás.
+    const tokenInfo = tokens.access_token ? await oauth2Client.getTokenInfo(tokens.access_token) : null;
+    const googleEmail = tokenInfo?.email;
     if (!googleEmail) throw new Error("Google no devolvió el email de la cuenta");
 
     const existing = await prisma.googleAccount.findUnique({ where: { userId: session.user.id } });
 
     let spreadsheetId = existing?.spreadsheetId ?? null;
     if (!spreadsheetId) {
-      const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+      const sheets = googleSheets({ version: "v4", auth: oauth2Client });
       const created = await sheets.spreadsheets.create({
         requestBody: {
           properties: { title: `${BRAND_NAME} - Sincronización` },

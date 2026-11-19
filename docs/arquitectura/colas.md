@@ -4,7 +4,7 @@
 
 ## Redis + BullMQ
 
-25 queues, auto-started via `instrumentation.ts`. **There are no per-job timeouts** — BullMQ 5 has no `timeout` job option (it used to be set and was silently ignored); the real time limit lives on every outbound HTTP call (`lib/http-timeouts.ts`: 20s JSON, 120s file transfer, 90s AI completions). The "Attempts" column is BullMQ retries. **A new repeatable tick also goes into `EXPECTED_REPEATABLES` in `lib/platform/diagnostics.ts`**, so the doctor warns if it stops being scheduled.
+26 queues, auto-started via `instrumentation.ts` — **in production in their own `worker` service** (same image; `app` sets `COLIBLY_WORKERS=0` and only serves HTTP, `worker` sets `COLIBLY_WORKERS=1` + `COLIBLY_SKIP_MIGRATIONS=1` and starts after `app` is healthy; in dev both run in `app`). Caches that live per process (account scopes 10 s, `PlatformSettings` 30 s) are therefore per service. **There are no per-job timeouts** — BullMQ 5 has no `timeout` job option (it used to be set and was silently ignored); the real time limit lives on every outbound HTTP call (`lib/http-timeouts.ts`: 20s JSON, 120s file transfer, 90s AI completions). The "Attempts" column is BullMQ retries. **A new repeatable tick also goes into `EXPECTED_REPEATABLES` in `lib/platform/diagnostics.ts`**, so the doctor warns if it stops being scheduled.
 
 | Queue | Concurrency | Attempts | Trigger |
 |---|---|---|---|
@@ -12,6 +12,7 @@
 | `campaign-send` | 1 | 3 | "Enviar" on campaign — one job sends the whole campaign sequentially. Once Meta accepts a recipient's send, a later CRM bookkeeping error (contact/chat/tag upsert) no longer marks it `FAILED` |
 | `campaign-schedule-tick` | 1 | 3 | Repeatable `scheduled-tick` (`* * * * *`) that claims due `SCHEDULED` campaigns (`processScheduledCampaignsTick()`, atomic `updateMany` on status so overlapping ticks can't double-enqueue) and enqueues them on `campaign-send`. Split into its own queue 2026-09-16: on `campaign-send` (concurrency 1) scheduled campaigns waited behind any campaign being sent. The `campaign-send` worker still handles a leftover `scheduled-tick` job and startup removes the old repeatable there |
 | `rag-index` | 2 | 3 | User uploads knowledge document |
+| `whatsapp-inbound` | 8 | 5 (exponential, 3 s) | `/api/whatsapp/webhook` after validating the signature: one job per `messages` change (`{accountId, value}`); `lib/whatsapp/webhook-messages.ts:processMessagesValue()` ingests messages, reactions, edits and statuses. If Redis rejects the add, the route processes inline. Idempotent (wamid dedupe, statuses only move forward) |
 | `media-download` | 5 | 5 | `ingestInboundMessage()` with Meta `mediaId` → downloads binary bytes async |
 | `media-cleanup` | 1 | 3 | Self-scheduled: `startWorkers()` registers a repeatable job (`repeat: {pattern: "0 3 * * *"}`, daily at 3am) on boot — not triggered by user action |
 | `bot-message-send` | 5 | 3 | `bot-worker.ts` when `WABot.humanizeEnabled` is on — delivers each split chunk of a "humanized" reply as its own delayed job |

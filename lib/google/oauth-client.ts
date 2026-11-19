@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { OAuth2Client } from "google-auth-library";
 
 // Solo lo mínimo necesario: spreadsheets.create/update no requiere scope de
 // Drive, y userinfo.email es lo único que se usa para mostrar "conectado
@@ -26,5 +26,5 @@ export function createGoogleOAuthClient() {
     );
   }
 
-  return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  return new OAuth2Client(clientId, clientSecret, redirectUri);
 }

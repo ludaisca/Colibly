@@ -21,6 +21,8 @@ const mediaDownloadJobOptions = {
 };
 
 export const botQueue = new Queue("bot-messages", { connection, defaultJobOptions });
+// Mensajes y estados del webhook de WhatsApp, ya autenticados (lib/whatsapp/webhook-messages.ts).
+export const whatsappInboundQueue = new Queue("whatsapp-inbound", { connection, defaultJobOptions: { ...defaultJobOptions, removeOnComplete: { count: 1000 } } });
 export const campaignQueue = new Queue("campaign-send", { connection, defaultJobOptions });
 export const ragQueue = new Queue("rag-index", { connection, defaultJobOptions });
 export const mediaDownloadQueue = new Queue("media-download", {

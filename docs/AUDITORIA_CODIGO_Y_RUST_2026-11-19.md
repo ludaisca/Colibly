@@ -4,7 +4,7 @@ Cierre de la sesión de MCP, grupos de WhatsApp y comentarios de Meta. Dos pregu
 
 ## Resumen
 
-- **El código está sano.** 135 mil líneas de TypeScript, 1 `any` explícito, 0 `@ts-ignore`, 26 `eslint-disable` (casi todos justificados), 13 TODO, 1502 pruebas pasando. La deuda está concentrada en unos pocos archivos grandes, no repartida.
+- **El código está sano.** 135 mil líneas de TypeScript, 1 `any` explícito, 0 `@ts-ignore`, 26 `eslint-disable` (casi todos justificados), 1 TODO real (IVA en `lib/billing/plans.ts`, pendiente del contador), 1502 pruebas pasando. La deuda está concentrada en unos pocos archivos grandes, no repartida.
 - **Producción va muy holgada.** Último mes del servidor completo (Coolify, app, Postgres, Redis, GoWA): ~12 % de CPU promedio, 3,1 de 12,5 GB de RAM, red de ~1 KB/s. Los picos (25-40 %) coinciden con los despliegues, que construyen la imagen en el mismo servidor.
 - **El riesgo real eran las dependencias**: 13 vulnerabilidades (5 altas). Corregido en este cambio: quedan 0 altas y 5 moderadas indirectas.
 - **Migrar todo a Rust no conviene.** El trabajo de Colibly es esperar a Meta, a los proveedores de IA y a Postgres, no calcular. Reescribir 135 mil líneas costaría más de un año sin ganancia que el cliente note. Las alternativas útiles están al final.
@@ -100,6 +100,16 @@ Solo con una medición que lo justifique, y como pieza aislada:
 3. **Importaciones masivas** (CSV de contactos de cientos de miles de filas), si llegan a bloquear un worker.
 
 Antes que Rust, dos pasos más baratos: Node 24 (hoy `node:22-alpine`) y medir con `--cpu-prof` el worker que se queje.
+
+## Estado (2026-11-19, tarde)
+
+| # | Recomendación | Estado |
+|---|---|---|
+| 1 | Imagen fuera del servidor | **Preparado.** Job `image` en CI publica `ghcr.io/ludaisca/colibly`. Falta, del lado del operador: acceso de Coolify a GHCR y cambiar `build:` por `image:` (pasos en `desarrollo.md`). |
+| 2 | Workers aparte | **Hecho.** Servicio `worker` en `docker-compose.yml` (`COLIBLY_WORKERS`, `COLIBLY_SKIP_MIGRATIONS`). Probado con la imagen de producción. |
+| 3 | Ingesta del webhook encolada | **Hecho.** Cola `whatsapp-inbound`; la ruta pasó de 767 a 395 líneas y la lógica a `lib/whatsapp/webhook-messages.ts`. Si Redis falla, procesa en línea. Respuesta a Meta en dev: 80-140 ms. |
+| 4 | `googleapis` → paquetes sueltos | **Hecho.** `@googleapis/sheets` + `google-auth-library` (~3 MB contra 203 MB). El email de la cuenta de Google sale de `getTokenInfo()` del token. No probado contra Google real (dev no tiene credenciales de Google). |
+| 5 | Archivos grandes y Prisma 7 | **Planeado, sin tocar.** Partir `chat-workspace.tsx` necesita una prueba manual completa de la bandeja; `openapi.ts` es datos (sin ganancia de rendimiento). Prisma 7: proyecto aparte — cambia el generador (`prisma-client`, sin motor binario), requiere revisar el índice IVFFlat (`prisma/sql/ensure-vector-index.sql`), las consultas `$queryRaw` y `scripts/new-migration.sh`. |
 
 ## Próximos pasos sugeridos
 

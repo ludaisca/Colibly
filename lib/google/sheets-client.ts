@@ -1,4 +1,4 @@
-import { google, sheets_v4 } from "googleapis";
+import { sheets, type sheets_v4 } from "@googleapis/sheets";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { createGoogleOAuthClient } from "@/lib/google/oauth-client";
@@ -32,5 +32,5 @@ export async function getGoogleSheetsClientForUser(userId: string): Promise<shee
       .catch((err) => console.error("[google-sheets] Error persistiendo tokens refrescados:", err));
   });
 
-  return google.sheets({ version: "v4", auth: oauth2Client });
+  return sheets({ version: "v4", auth: oauth2Client });
 }

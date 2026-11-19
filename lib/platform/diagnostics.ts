@@ -9,6 +9,7 @@ import { PLANS } from "@/lib/billing/plans";
 import { backupFreshness } from "@/lib/backups/freshness";
 import {
   appointmentReminderQueue,
+  whatsappInboundQueue,
   automationTickQueue,
   billingTickQueue,
   campaignScheduleQueue,
@@ -83,6 +84,7 @@ export async function getPlatformDiagnostics(opts: { live?: boolean; now?: Date 
     checkSearchIndexes(),
     checkRedis(),
     checkQueues(),
+    checkWorkers(),
     checkBillingKey(settings),
     checkPrices(settings, live),
     checkLookupKeys(settings, live),
@@ -228,6 +230,22 @@ const EXPECTED_REPEATABLES: Array<{ queue: { getRepeatableJobs: () => Promise<Ar
   { queue: mediaCleanupQueue, name: "purge", label: "limpieza de media" },
 ];
 
+// En producción las colas corren en el servicio `worker`, no en el proceso
+// web: si ese contenedor no está, nada falla a la vista, pero los bots no
+// contestan y los mensajes del webhook de WhatsApp se acumulan. BullMQ
+// registra cada worker conectado como cliente de Redis.
+async function checkWorkers(): Promise<DiagnosticCheck> {
+  try {
+    const [workers, waiting] = await Promise.all([whatsappInboundQueue.getWorkersCount(), whatsappInboundQueue.getWaitingCount()]);
+    if (workers === 0) {
+      return check("queues.workers", "Workers", "fail", `Ningún worker conectado (${waiting} mensajes de WhatsApp en espera)`, "Revisa que el servicio worker esté corriendo en Coolify", { waiting });
+    }
+    return check("queues.workers", "Workers", waiting > 500 ? "warn" : "ok", `${workers} worker(s) conectados · ${waiting} mensajes de WhatsApp en espera`, undefined, { workers, waiting });
+  } catch (error) {
+    return check("queues.workers", "Workers", "unknown", `No se pudo leer: ${errorMessage(error)}`);
+  }
+}
+
 async function checkQueues(): Promise<DiagnosticCheck> {
   try {
     const queues = [...new Set(EXPECTED_REPEATABLES.map((entry) => entry.queue))];
@@ -239,7 +257,7 @@ async function checkQueues(): Promise<DiagnosticCheck> {
         "Colas programadas",
         "warn",
         `Faltan ticks: ${missing.join(", ")}`,
-        "Reinicia la app para que startWorkers() registre los repeatables",
+        "Reinicia el servicio worker para que startWorkers() registre los repeatables",
         { missing }
       );
     }

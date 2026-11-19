@@ -1,3 +1,4 @@
+import { processMessagesValue, type WebhookValue } from "@/lib/whatsapp/webhook-messages";
 import { Worker } from "bullmq";
 import { processBotMessageJob } from "./bot-worker";
 import { processChannelBotMessageJob } from "@/lib/channels/bot-worker";
@@ -79,6 +80,13 @@ export function startWorkers() {
   const ragWorker = new Worker("rag-index", async (job) => {
     await processRagJob(job.data);
   }, { connection, concurrency: 2 });
+
+  // Webhook de WhatsApp: la ruta valida la firma y encola; aquí se ingiere.
+  // Concurrencia moderada: Meta ya manda entregas en paralelo, y la ingesta
+  // deduplica por wamid y los estados solo avanzan.
+  const whatsappInboundWorker = new Worker("whatsapp-inbound", async (job) => {
+    await processMessagesValue(job.data.accountId as string, job.data.value as WebhookValue);
+  }, { connection, concurrency: 8 });
 
   const mediaWorker = new Worker("media-download", async (job) => {
     await processMediaDownloadJob(job.data);
@@ -212,7 +220,7 @@ export function startWorkers() {
     await processWebhookDelivery(job, token);
   }, { connection, concurrency: WEBHOOK_WORKER_CONCURRENCY });
 
-  workers.push(botWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker, platformHealthWorker, inboxWorker, seoWorker);
+  workers.push(botWorker, whatsappInboundWorker, campaignWorker, campaignScheduleWorker, ragWorker, mediaWorker, mediaCleanupWorker, botSendWorker, leadScoringWorker, leadRecoveryWorker, sheetsSyncWorker, leadSheetImportWorker, metaConversionsWorker, appointmentReminderWorker, sequenceWorker, domainEventWorker, webhookDeliveryWorker, automationRunWorker, automationTickWorker, billingTickWorker, coexistenceSyncWorker, coexistenceTickWorker, platformBackupWorker, platformHealthWorker, inboxWorker, seoWorker);
 
   mediaCleanupQueue
     .add(

@@ -15,6 +15,8 @@ services:
     env_file: .env
     environment:
       NODE_ENV: development
+      # En dev las colas corren en el mismo proceso (en producción, servicio worker).
+      COLIBLY_WORKERS: "1"
       # Correo de desarrollo: todo lo que la app envía cae en Mailpit
       # (http://localhost:1101), nunca en bandejas reales.
       SMTP_HOST: mailpit
@@ -22,6 +24,10 @@ services:
       EMAIL_FROM: "Colibly <noreply@colibly.com>"
     command: >
       sh -c "npx prisma generate && sh scripts/db-migrate.sh && mkdir -p /app/media && npm run dev"
+
+  # El worker de producción no se levanta en dev: las colas van en app.
+  worker:
+    profiles: ["prod-worker"]
 
   mailpit:
     image: docker.io/axllent/mailpit:v1.27

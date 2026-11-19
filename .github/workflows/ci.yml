@@ -1,6 +1,7 @@
 # Verificación de cada push y PR: lo mismo que se corre a mano antes de un
 # commit (tsc, eslint, vitest) y el build de producción tal como lo hace
-# Coolify (etapa `builder` del Dockerfile). No despliega nada.
+# Coolify (etapa `builder` del Dockerfile). En main, además, publica la imagen
+# de producción en GHCR (job `image`). No despliega nada.
 name: CI
 
 on:
@@ -43,5 +44,40 @@ jobs:
           context: .
           target: builder
           push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Imagen de producción (etapa runner) en GHCR, para que el servidor descargue
+  # la imagen en vez de construirla (los builds de ~7 min eran los únicos picos
+  # de CPU del servidor de producción). Etiquetas: el sha del commit y `main`.
+  # Cambiar Coolify a esta imagen está en docs/AUDITORIA_CODIGO_Y_RUST_2026-11-19.md.
+  image:
+    name: Imagen de producción (GHCR)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [checks, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runner
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/colibly:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/colibly:main
+          build-args: |
+            APP_URL=${{ vars.APP_URL || 'https://app.colibly.com' }}
+            SITE_URL=${{ vars.SITE_URL || 'https://colibly.com' }}
+            NEXT_PUBLIC_APP_URL=${{ vars.APP_URL || 'https://app.colibly.com' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

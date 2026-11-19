@@ -1,4 +1,4 @@
-// El OAuth2Client de googleapis lanza un error cuyo mensaje o response.data.error
+// El OAuth2Client de google-auth-library lanza un error cuyo mensaje o response.data.error
 // contiene "invalid_grant" cuando el usuario revocó el acceso desde su cuenta de
 // Google — distinto de un error transitorio de red/API. Compartido por cualquier
 // worker que use getGoogleSheetsClientForUser().

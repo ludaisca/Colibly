@@ -13,6 +13,12 @@ EXPOSE 5000
 CMD ["npm", "run", "dev"]
 
 FROM base AS builder
+# URLs públicas que quedan fijas en las páginas prerenderizadas (canonical,
+# enlaces de la documentación). Coolify las inyecta solo como build args; el
+# job `image` de CI las pasa explícitas (.github/workflows/ci.yml).
+ARG APP_URL
+ARG SITE_URL
+ARG NEXT_PUBLIC_APP_URL
 COPY package*.json ./
 # --include=dev: Coolify puede inyectar NODE_ENV=production como build-arg (ver
 # docker-compose.yml ARG COOLIFY_FQDN/NODE_ENV/etc.), lo que hace que "npm ci" a

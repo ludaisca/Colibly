@@ -64,7 +64,9 @@ services:
       target: runner
     expose:
       - "5000"
-    environment:
+    environment: &app-environment
+      # Este servicio solo atiende HTTP; las colas corren en `worker`.
+      COLIBLY_WORKERS: "0"
       DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:?Debes definir DB_PASSWORD en el entorno}@db:5432/colibly_db"
       AUTH_SECRET: "${AUTH_SECRET}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
@@ -130,6 +132,32 @@ services:
       db-init:
         condition: service_completed_successfully
       redis:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+    restart: unless-stopped
+
+  # Las 25 colas de BullMQ (bots, campañas, webhooks salientes, medios, ticks).
+  # Misma imagen y entorno que app; sin dominio ni migraciones (app ya migró).
+  # Escribe medios, así que monta el mismo volumen.
+  worker:
+    build:
+      context: .
+      target: runner
+    expose:
+      - "5000"
+    environment:
+      <<: *app-environment
+      COLIBLY_WORKERS: "1"
+      COLIBLY_SKIP_MIGRATIONS: "1"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      app:
         condition: service_healthy
     volumes:
       - media_data:/app/media
