@@ -105,7 +105,7 @@ Antes que Rust, dos pasos más baratos: Node 24 (hoy `node:22-alpine`) y medir c
 
 | # | Recomendación | Estado |
 |---|---|---|
-| 1 | Imagen fuera del servidor | **Preparado.** Job `image` en CI publica `ghcr.io/ludaisca/colibly`. Falta, del lado del operador: acceso de Coolify a GHCR y cambiar `build:` por `image:` (pasos en `desarrollo.md`). |
+| 1 | Imagen fuera del servidor | **Hecho en el código.** CI publica `ghcr.io/ludaisca/colibly`; `app` y `worker` usan `image:` con `pull_policy: always`. Requiere el login de GHCR en el servidor antes del primer despliegue (`desarrollo.md`). |
 | 2 | Workers aparte | **Hecho.** Servicio `worker` en `docker-compose.yml` (`COLIBLY_WORKERS`, `COLIBLY_SKIP_MIGRATIONS`). Probado con la imagen de producción. |
 | 3 | Ingesta del webhook encolada | **Hecho.** Cola `whatsapp-inbound`; la ruta pasó de 767 a 395 líneas y la lógica a `lib/whatsapp/webhook-messages.ts`. Si Redis falla, procesa en línea. Respuesta a Meta en dev: 80-140 ms. |
 | 4 | `googleapis` → paquetes sueltos | **Hecho.** `@googleapis/sheets` + `google-auth-library` (~3 MB contra 203 MB). El email de la cuenta de Google sale de `getTokenInfo()` del token. No probado contra Google real (dev no tiene credenciales de Google). |

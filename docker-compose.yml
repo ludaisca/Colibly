@@ -59,9 +59,11 @@ services:
     restart: unless-stopped
 
   app:
-    build:
-      context: .
-      target: runner
+    # Imagen construida por CI (job `image` de .github/workflows/ci.yml): el
+    # servidor de producción ya no compila. Desplegar solo cuando ese job
+    # terminó; para volver a una versión, COLIBLY_IMAGE_TAG=<sha del commit>.
+    image: ghcr.io/ludaisca/colibly:${COLIBLY_IMAGE_TAG:-main}
+    pull_policy: always
     expose:
       - "5000"
     environment: &app-environment
@@ -141,9 +143,8 @@ services:
   # Misma imagen y entorno que app; sin dominio ni migraciones (app ya migró).
   # Escribe medios, así que monta el mismo volumen.
   worker:
-    build:
-      context: .
-      target: runner
+    image: ghcr.io/ludaisca/colibly:${COLIBLY_IMAGE_TAG:-main}
+    pull_policy: always
     expose:
       - "5000"
     environment:

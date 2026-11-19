@@ -25,7 +25,11 @@ npx prisma generate         # after schema changes
 
 `docker-compose.yml` levanta la misma imagen dos veces: `app` (HTTP, dominio, migraciones; `COLIBLY_WORKERS=0`) y `worker` (las 26 colas; `COLIBLY_WORKERS=1`, `COLIBLY_SKIP_MIGRATIONS=1`, sin dominio, arranca cuando `app` está sano y monta `media_data` porque escribe medios). Comparten el entorno con un ancla YAML (`&app-environment`): **una variable nueva va en la lista de `app` y el worker la hereda**. En dev el override pone `COLIBLY_WORKERS=1` en `app` y deja `worker` fuera (perfil `prod-worker`). Probado con la imagen `runner` el 2026-11-19: app ~114 MB y worker ~135 MB.
 
-**Imagen en CI:** el job `image` de `.github/workflows/ci.yml` publica la etapa `runner` en `ghcr.io/ludaisca/colibly:{sha,main}` en cada push a main (con `APP_URL`/`SITE_URL` como build args: quedan fijas en las páginas prerenderizadas). Coolify **todavía construye** desde el repo; pasar a la imagen requiere (1) acceso del servidor a GHCR (paquete público o `docker login ghcr.io` con un token de solo lectura en el servidor) y (2) cambiar `build:` por `image: ghcr.io/ludaisca/colibly:${COLIBLY_IMAGE_TAG:-main}` en `app` y `worker`, desplegando solo cuando el job terminó.
+**Imagen en CI (desde 2026-11-19):** el job `image` de `.github/workflows/ci.yml` publica la etapa `runner` en `ghcr.io/ludaisca/colibly:{sha,main}` (paquete privado) en cada push a main, con `APP_URL`/`SITE_URL` como build args (quedan fijas en las páginas prerenderizadas; `vars.APP_URL`/`vars.SITE_URL` del repo o los valores de producción por defecto). `app` y `worker` usan `image: ghcr.io/ludaisca/colibly:${COLIBLY_IMAGE_TAG:-main}` con `pull_policy: always`: **Coolify ya no compila, solo descarga**. Reglas:
+- Desplegar solo cuando el job «Imagen de producción (GHCR)» del commit terminó en verde; antes, Coolify descargaría la imagen anterior.
+- El servidor necesita un login de `ghcr.io` (Coolify → servidor → registros, o `manage_registry`) con un token de GitHub de solo `read:packages`. Sin él, el despliegue falla al descargar.
+- Revertir: variable `COLIBLY_IMAGE_TAG=<sha completo>` en Coolify y redesplegar; quitarla vuelve a `main`.
+- En dev, `docker-compose.override.yml` reemplaza la imagen por `colibly-app:dev` (etapa `dev`, `pull_policy: build`).
 
 ## Puertos del servidor de desarrollo (convención, 2026-11-03)
 

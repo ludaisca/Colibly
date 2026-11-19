@@ -4,7 +4,11 @@ name: colibly
 
 services:
   app:
+    # Producción usa la imagen de GHCR; en dev se construye la etapa dev.
+    image: colibly-app:dev
+    pull_policy: build
     build:
+      context: .
       target: dev
     ports:
       - "1100:5000"

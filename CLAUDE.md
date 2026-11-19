@@ -41,7 +41,7 @@ Outgoing email in dev (verification, password reset, invitations) never leaves t
 
 ### Production build check
 
-Build the Dockerfile's `builder` stage in an isolated image — exactly what Coolify runs in production (`npm ci`, `prisma generate`, `next build` with `NODE_OPTIONS` set), without touching the dev container, `node_modules`, `.next` or `package.json`:
+Build the Dockerfile's `builder` stage in an isolated image — the same stage CI publishes as the production image (Coolify pulls it from GHCR) (`npm ci`, `prisma generate`, `next build` with `NODE_OPTIONS` set), without touching the dev container, `node_modules`, `.next` or `package.json`:
 
 ```bash
 docker build --target builder -t colibly-buildcheck:tmp . && docker rmi colibly-buildcheck:tmp && docker image prune -f
