@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
-import { cn } from "./cn";
+import { RadioList, RadioListItem } from "@astryxdesign/core/RadioList";
 
+// Adaptador (rediseño con Astryx): RadioList de Astryx. `name` sirve también
+// como nombre del grupo para lectores de pantalla (la etiqueta visible la pone
+// cada pantalla arriba del grupo).
 interface RadioOption {
   value: string;
   label: string;
@@ -19,57 +21,21 @@ interface RadioGroupProps {
   error?: string;
 }
 
-export function RadioGroup({
-  options,
-  value,
-  onChange,
-  name,
-  disabled,
-  className,
-  error,
-}: RadioGroupProps) {
+export function RadioGroup({ options, value, onChange, name, disabled, className, error }: RadioGroupProps) {
   return (
-    <div className={cn("space-y-3", className)} role="radiogroup">
-      {options.map((opt) => {
-        const isChecked = value === opt.value;
-        return (
-          <label
-            key={opt.value}
-            className={cn(
-              "flex items-start gap-3 cursor-pointer group",
-              disabled && "cursor-not-allowed opacity-50"
-            )}
-          >
-            <div className="relative mt-0.5">
-              <input
-                type="radio"
-                name={name}
-                value={opt.value}
-                checked={isChecked}
-                onChange={() => onChange?.(opt.value)}
-                disabled={disabled}
-                data-focus-ring=""
-                className={cn(
-                  "peer h-4 w-4 shrink-0 rounded-full border border-border bg-surface-light",
-                  "checked:border-accent-strong checked:bg-surface-light",
-                  "focus-visible:ring-2 focus-visible:ring-accent-strong focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                  "appearance-none cursor-pointer transition-colors"
-                )}
-              />
-              {isChecked && (
-                <div className="pointer-events-none absolute inset-0 m-auto h-2 w-2 rounded-full bg-accent" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <span className="text-sm text-foreground select-none">{opt.label}</span>
-              {opt.description && (
-                <p className="text-xs text-muted-darker mt-0.5">{opt.description}</p>
-              )}
-            </div>
-          </label>
-        );
-      })}
-      {error && <p className="text-xs text-danger">{error}</p>}
-    </div>
+    <RadioList
+      label={name}
+      isLabelHidden
+      htmlName={name}
+      value={value ?? ""}
+      onChange={(next) => onChange?.(next)}
+      isDisabled={disabled}
+      status={error ? { type: "error", message: error } : undefined}
+      containerClassName={className}
+    >
+      {options.map((opt) => (
+        <RadioListItem key={opt.value} value={opt.value} label={opt.label} description={opt.description} />
+      ))}
+    </RadioList>
   );
 }

@@ -1,5 +1,6 @@
-import { cn } from "./cn";
+import { ProgressBar } from "@astryxdesign/core/ProgressBar";
 
+// Adaptador (rediseño con Astryx): ProgressBar de Astryx.
 interface ProgressProps {
   value: number;
   label?: string;
@@ -7,35 +8,19 @@ interface ProgressProps {
   className?: string;
 }
 
-const BAR: Record<NonNullable<ProgressProps["tone"]>, string> = {
-  accent: "bg-accent",
-  warning: "bg-warning",
-  danger: "bg-danger",
-};
+const VARIANT = { accent: "accent", warning: "warning", danger: "error" } as const;
 
 export function Progress({ value, label, tone = "accent", className }: ProgressProps) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
-    <div className={cn("w-full space-y-1", className)}>
-      {label && (
-        <div className="flex justify-between text-xs text-muted-darker">
-          <span>{label}</span>
-          <span>{clamped}%</span>
-        </div>
-      )}
-      <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-surface-light"
-        role="progressbar"
-        aria-label={label ?? "Progreso"}
-        aria-valuenow={clamped}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <div
-          className={cn("h-full rounded-full transition-[width] duration-300 ease-out", BAR[tone])}
-          style={{ width: `${clamped}%` }}
-        />
-      </div>
+    <div className={className}>
+      <ProgressBar
+        label={label ?? "Progreso"}
+        isLabelHidden={!label}
+        hasValueLabel={!!label}
+        value={clamped}
+        variant={VARIANT[tone]}
+      />
     </div>
   );
 }
