@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useState } from "react";
 import { Filter, Trash2 } from "lucide-react";
+import { Popover } from "@astryxdesign/core/Popover";
+import { Badge } from "@astryxdesign/core/Badge";
 import { Select } from "./select";
 import { Button } from "./button";
 import { cn } from "./cn";
@@ -14,10 +16,9 @@ import { cn } from "./cn";
 // decorativo, no funcional — si algún día se suma un campo que sí lo
 // necesite (rango de fechas, texto libre), ahí vale la pena agregarlo.
 //
-// No reusa <Dropdown>: ese componente cierra el popover con onClick={close}
-// en cualquier click dentro del contenido — correcto para un menú de
-// opciones, pero rompería los <select> internos apenas el usuario intentara
-// abrirlos. Este panel maneja su propio open/close (click-outside + Escape).
+// El panel es un Popover de Astryx (clic fuera y Escape lo cierran; los
+// selectores de adentro abren su propia capa sin cerrarlo). No reusa
+// <Dropdown panel> porque ese cierra con cualquier clic dentro.
 
 export interface FilterFieldOption {
   value: string;
@@ -44,42 +45,21 @@ interface FiltersPanelProps {
 
 export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", className, compact = false }: FiltersPanelProps) {
   const [open, setOpen] = useState(false);
-  const panelId = useId();
   const [draft, setDraft] = useState<Record<string, string>>(values);
-  const [panelLeft, setPanelLeft] = useState(0);
   const [visibleKeys, setVisibleKeys] = useState<string[]>(() =>
     fields.filter((f) => values[f.key]).map((f) => f.key)
   );
-  const ref = useRef<HTMLDivElement>(null);
 
   const addableFields = fields.filter((f) => !visibleKeys.includes(f.key));
   const appliedCount = fields.filter((f) => values[f.key]).length;
 
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+  function changeOpen(next: boolean) {
+    if (next) {
+      // Cada vez que se abre parte de lo aplicado, no de un borrador viejo.
+      setDraft(values);
+      setVisibleKeys(fields.filter((f) => values[f.key]).map((f) => f.key));
     }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open]);
-
-  function openPanel() {
-    const left = ref.current?.getBoundingClientRect().left ?? 0;
-    const panelWidth = Math.min(320, window.innerWidth - 32);
-    setPanelLeft(Math.max(16 - left, Math.min(0, window.innerWidth - 16 - panelWidth - left)));
-    setDraft(values);
-    setVisibleKeys(fields.filter((f) => values[f.key]).map((f) => f.key));
-    setOpen(true);
+    setOpen(next);
   }
 
   function addField(key: string) {
@@ -101,99 +81,90 @@ export function FiltersPanel({ fields, values, onApply, panelTitle = "Filtrar", 
     setOpen(false);
   }
 
+  const label = appliedCount > 0 ? `Filtros (${appliedCount} aplicados)` : "Filtros";
+
   return (
-    <div ref={ref} className={cn("relative", className)}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={open ? panelId : undefined}
-        aria-label={compact ? (appliedCount > 0 ? `Filtros (${appliedCount} aplicados)` : "Filtros") : undefined}
-        title={compact ? "Filtros" : undefined}
-        onClick={() => (open ? setOpen(false) : openPanel())}
-        className={cn(
-          "relative flex items-center transition-colors",
-          compact
-            ? "h-8 w-8 justify-center rounded-sm"
-            : "h-[38px] gap-1.5 rounded-sm border px-3 text-xs font-semibold",
-          appliedCount > 0
-            ? compact ? "bg-accent-subtle text-accent-ink" : "border-accent-strong bg-accent-subtle text-accent-ink"
-            : compact ? "text-muted-darker hover:bg-surface-light hover:text-foreground" : "border-border bg-surface text-muted hover:bg-surface-light"
-        )}
-      >
-        <Filter size={compact ? 15 : 13} />
-        {!compact && "Filtros"}
-        {appliedCount > 0 && (
-          <span className={cn(
-            "flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-micro font-semibold text-on-accent",
-            compact && "absolute -right-1 -top-1"
-          )}>
-            {appliedCount}
-          </span>
-        )}
-      </button>
+    <div className={cn("relative inline-flex", className)}>
+      <Popover
+        isOpen={open}
+        onOpenChange={changeOpen}
+        label={panelTitle}
+        width={320}
+        padding={4}
+        closeButtonLabel="Cerrar filtros"
+        content={
+          <div>
+            <p className="mb-3 text-sm font-semibold">{panelTitle}</p>
 
-      {open && (
-        <div id={panelId} className="absolute z-30 mt-1.5 w-[min(20rem,calc(100vw-2rem))] origin-top-left animate-scale-in rounded-lg border border-border bg-surface p-4 shadow-lg" style={{ left: panelLeft }}>
-          <p className="mb-3 text-sm font-semibold">{panelTitle}</p>
+            {visibleKeys.length === 0 ? (
+              <p className="mb-3 text-xs text-muted">Sin condiciones — agrega una para filtrar la lista.</p>
+            ) : (
+              <div className="mb-3 space-y-2">
+                {visibleKeys.map((key) => {
+                  const field = fields.find((f) => f.key === key);
+                  if (!field) return null;
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className="w-20 shrink-0 text-xs font-semibold text-muted-darker">{field.label}</span>
+                      <Select
+                        aria-label={field.label}
+                        value={draft[key] ?? ""}
+                        onChange={(e) => setDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={field.options.some((opt) => opt.value === "") ? undefined : "Selecciona una opción"}
+                        compact
+                        className="flex-1"
+                      >
+                        {field.options.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        icon={Trash2}
+                        onClick={() => removeField(key)}
+                        aria-label={`Quitar condición ${field.label}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-          {visibleKeys.length === 0 ? (
-            <p className="mb-3 text-xs text-muted">Sin condiciones — agrega una para filtrar la lista.</p>
-          ) : (
-            <div className="mb-3 space-y-2">
-              {visibleKeys.map((key) => {
-                const field = fields.find((f) => f.key === key);
-                if (!field) return null;
-                return (
-                  <div key={key} className="flex items-center gap-2">
-                    <span className="w-20 shrink-0 text-xs font-semibold text-muted-darker">
-                      {field.label}
-                    </span>
-                    <Select
-                      aria-label={field.label}
-                      value={draft[key] ?? ""}
-                      onChange={(e) => setDraft((prev) => ({ ...prev, [key]: e.target.value }))}
-                      className="flex-1"
-                    >
-                      {!field.options.some((opt) => opt.value === "") && <option value="" disabled>Selecciona una opción</option>}
-                      {field.options.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </Select>
-                    <button
-                      type="button"
-                      onClick={() => removeField(key)}
-                      aria-label={`Quitar condición ${field.label}`}
-                      className="shrink-0 rounded-sm p-1.5 text-muted-darker transition-colors hover:bg-danger-bg hover:text-danger"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                );
-              })}
+            {addableFields.length > 0 && (
+              <Select
+                aria-label="Añadir condición"
+                value=""
+                onChange={(e) => { if (e.target.value) addField(e.target.value); }}
+                placeholder="+ Añadir condición"
+                compact
+                className="mb-3"
+              >
+                {addableFields.map((f) => (
+                  <option key={f.key} value={f.key}>{f.label}</option>
+                ))}
+              </Select>
+            )}
+
+            <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+              <Button variant="ghost" size="sm" onClick={clearAll}>Limpiar filtros</Button>
+              <Button variant="primary" size="sm" onClick={apply}>Aplicar filtros</Button>
             </div>
-          )}
-
-          {addableFields.length > 0 && (
-            <select
-              aria-label="Añadir condición"
-              value=""
-              onChange={(e) => {
-                if (e.target.value) addField(e.target.value);
-              }}
-              className="mb-3 cursor-pointer rounded border-none bg-transparent text-xs font-semibold text-accent-ink focus-visible:underline"
-            >
-              <option value="" disabled>+ Añadir condición</option>
-              {addableFields.map((f) => (
-                <option key={f.key} value={f.key}>{f.label}</option>
-              ))}
-            </select>
-          )}
-
-          <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-            <Button variant="ghost" size="sm" onClick={clearAll}>Limpiar filtros</Button>
-            <Button variant="primary" size="sm" onClick={apply}>Aplicar filtros</Button>
           </div>
-        </div>
+        }
+      >
+        {compact ? (
+          <Button variant="ghost" size="icon" icon={Filter} aria-label={label} />
+        ) : (
+          <Button variant="secondary" size="sm" icon={Filter} aria-label={label}>
+            Filtros
+          </Button>
+        )}
+      </Popover>
+      {appliedCount > 0 && (
+        <span className={cn("pointer-events-none", compact ? "absolute -right-1 -top-1" : "ml-1 self-center")} aria-hidden>
+          <Badge variant="teal" label={String(appliedCount)} />
+        </span>
       )}
     </div>
   );
