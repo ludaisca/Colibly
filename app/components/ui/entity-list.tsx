@@ -7,14 +7,14 @@ import { SkeletonRow } from "./skeleton";
 import { EmptyState } from "./empty-state";
 import { ListErrorState } from "./list-error-state";
 import { Dropdown } from "./dropdown";
-import { useRowActivation } from "./row-activation";
+import { List, ListItem } from "@astryxdesign/core/List";
+import { Card as AxCard } from "@astryxdesign/core/Card";
+import { Button } from "./button";
 
 // Lista densa de entidades (sustituye a TileGrid): mismas props y ciclo
 // loading/error/empty, pero filas tipo database (Linear/Notion) en vez de
-// tiles — más información por pantalla y lectura vertical. renderTile pasa a
-// llamarse renderRow y desaparece `columns`. Las acciones por fila usan el
-// mismo Dropdown, reveladas al hover/foco. Activación de la fila (teclado,
-// enlace): `row-activation.ts`.
+// tiles — más información por pantalla y lectura vertical. Dibujada con
+// List/ListItem de Astryx; las acciones por fila usan el mismo Dropdown.
 
 interface EntityListProps<T> {
   rows: T[];
@@ -54,7 +54,6 @@ export function EntityList<T>({
   className,
   rowClassName,
 }: EntityListProps<T>) {
-  const activation = useRowActivation(onRowClick, rowHref);
   if (loading) {
     return (
       <div className={cn("divide-y divide-border rounded-lg border border-border bg-surface px-3", className)} role="status" aria-label="Cargando datos">
@@ -81,44 +80,33 @@ export function EntityList<T>({
     );
   }
 
+  // List de Astryx dentro de una tarjeta: la fila que navega es un enlace real
+  // (Ctrl/⌘+clic y clic central abren otra pestaña) y la que abre algo es un
+  // botón; los controles dentro de la fila siguen funcionando aparte.
   return (
-    <div className={cn("divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface", className)}>
-      {rows.map((row) => (
-        <div
-          key={rowKey(row)}
-          {...activation?.(row)}
-          className={cn(
-            // Filas de 52 px a todo lo ancho (dirección congelada).
-            "group relative flex min-h-[52px] items-center gap-2.5 px-4 py-2 transition-colors duration-fast",
-            rowClassName,
-            activation && "cursor-pointer hover:bg-surface-light"
-          )}
-        >
-          {renderRow(row)}
-          {rowActions && (
-            <div
-              // md:opacity-0 y no opacity-0 a secas: en touch no hay hover que
-              // revele las acciones — en móvil quedan siempre visibles.
-              className="shrink-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 group-focus-visible:opacity-100 md:opacity-0"
-            >
-              <Dropdown
-                align="right"
-                // Con la lista en overflow-hidden un menú "absolute" se recorta
-                // (visto con una sola fila): se dibuja en el body.
-                portal
-                trigger={
-                  <button type="button" aria-label="Acciones" className="rounded-sm p-1.5 text-muted-darker transition-colors hover:bg-surface-light hover:text-foreground">
-                    <MoreVertical size={15} />
-                  </button>
-                }
-              >
-                {rowActions(row)}
-              </Dropdown>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
+    <AxCard padding={0} className={cn("overflow-hidden", className)}>
+      <List hasDividers edge="padded">
+        {rows.map((row) => (
+          <ListItem
+            key={rowKey(row)}
+            itemKey={rowKey(row)}
+            className={rowClassName}
+            // El área de etiqueta de ListItem apila en columna: la fila de
+            // Colibly (avatar, título, meta, botones) va en una sola línea.
+            label={<div className="flex w-full min-w-0 items-center gap-2.5">{renderRow(row)}</div>}
+            href={rowHref?.(row)}
+            onClick={!rowHref && onRowClick ? () => onRowClick(row) : undefined}
+            endContent={
+              rowActions ? (
+                <Dropdown align="right" trigger={<Button variant="ghost" size="icon" icon={MoreVertical} aria-label="Acciones" />}>
+                  {rowActions(row)}
+                </Dropdown>
+              ) : undefined
+            }
+          />
+        ))}
+      </List>
+    </AxCard>
   );
 }
 

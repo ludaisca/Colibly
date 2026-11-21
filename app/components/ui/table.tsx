@@ -2,6 +2,15 @@
 
 import React from "react";
 import { ChevronUp, ChevronDown, MoreVertical } from "lucide-react";
+import {
+  Table as AxTable,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHeaderCell,
+  TableCell,
+} from "@astryxdesign/core/Table";
+import { Button } from "./button";
 import { cn } from "./cn";
 import { SkeletonRow } from "./skeleton";
 import { EmptyState } from "./empty-state";
@@ -102,18 +111,18 @@ export function Table<T>({
   return (
     <div className={className}>
       <div className="-mx-4 hidden overflow-x-auto sm:block" role="region" aria-label="Tabla desplazable horizontalmente" tabIndex={0}>
-        <table className="w-full text-sm">
-          <thead>
+        <AxTable density="compact" hasHover>
+          <TableHeader>
             {/* Encabezado en surface-light, text-xs 500 sin mayúsculas; filas de 40 px. */}
-            <tr className="border-y border-border bg-surface-light">
+            <TableRow>
               {columns.map((col) => (
-                <th
+                <TableHeaderCell
                   key={col.key}
                   aria-sort={col.sortable && onSortChange
                     ? sort?.key === col.key ? sort.direction === "asc" ? "ascending" : "descending" : "none"
                     : undefined}
                   className={cn(
-                    "h-9 px-3 text-left text-xs font-medium text-muted first:pl-4",
+                    "text-left",
                     col.hideBelow && HIDE_BELOW_CLASS[col.hideBelow],
                     col.headerClassName
                   )}
@@ -128,53 +137,51 @@ export function Table<T>({
                       {sort?.key === col.key && (sort.direction === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                     </button>
                   ) : <span className="inline-flex items-center gap-1">{col.header}</span>}
-                </th>
+                </TableHeaderCell>
               ))}
               {rowActions && (
-                <th className="h-9 px-3 text-right text-xs font-medium text-muted w-12"><span className="sr-only">Acciones</span></th>
+                <TableHeaderCell className="w-12 text-right"><span className="sr-only">Acciones</span></TableHeaderCell>
               )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((row) => (
-              <tr
+              <TableRow
                 key={rowKey(row)}
-                className={cn("h-10 hover:bg-surface-light transition-colors duration-fast", activation && "cursor-pointer")}
+                className={cn(activation && "cursor-pointer")}
                 {...activation?.(row)}
               >
                 {columns.map((col) => (
-                  <td
+                  <TableCell
                     key={col.key}
                     className={cn(
-                      "px-3 py-1.5 first:pl-4 tabular-nums",
+                      "tabular-nums",
                       col.hideBelow && HIDE_BELOW_CLASS[col.hideBelow],
                       col.cellClassName
                     )}
                   >
                     {col.render(row)}
-                  </td>
+                  </TableCell>
                 ))}
                 {rowActions && (
-                  <td className="px-3 py-2 text-right">
+                  <TableCell className="text-right">
                     <Dropdown
                       align="right"
                       // El contenedor es overflow-x-auto (fuerza también overflow-y):
                       // un menú "absolute" se recortaría o abriría scroll.
                       portal
                       trigger={
-                        <button type="button" aria-label="Acciones" className="p-1.5 rounded-sm hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
-                          <MoreVertical size={14} />
-                        </button>
+                        <Button variant="ghost" size="icon" icon={MoreVertical} aria-label="Acciones" />
                       }
                     >
                       {rowActions(row)}
                     </Dropdown>
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </AxTable>
       </div>
 
       <div className="sm:hidden divide-y divide-border -mx-4">
@@ -196,9 +203,7 @@ export function Table<T>({
                   align="right"
                   portal
                   trigger={
-                    <button type="button" aria-label="Acciones" className="p-1.5 rounded-sm border border-border bg-surface hover:bg-surface-light text-muted-darker hover:text-foreground transition-colors">
-                      <MoreVertical size={14} />
-                    </button>
+                    <Button variant="ghost" size="icon" icon={MoreVertical} aria-label="Acciones" />
                   }
                 >
                   {rowActions(row)}

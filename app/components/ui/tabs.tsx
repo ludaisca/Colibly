@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useId, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Tabs as Base } from "@base-ui/react/tabs";
+import { TabList, Tab } from "@astryxdesign/core/TabList";
 
-// Pestañas sobre Base UI (2026-11-07; antes HeroUI). Flechas para moverse
-// entre pestañas, Inicio/Fin, foco itinerante y panel enlazado. Andén: la
-// pestaña activa se marca en tinta. Solo se pinta el panel activo.
+// Adaptador (rediseño con Astryx): TabList de Astryx (flechas, Inicio/Fin,
+// foco itinerante). Solo se pinta el panel activo.
 //
 // Web Design Guidelines: la pestaña de una página va en la URL (`?tab=`), así
 // el enlace se puede compartir y recargar sin perderla → `useUrlTab`.
@@ -20,26 +19,19 @@ interface TabsProps<T extends string> {
 }
 
 export function Tabs<T extends string>({ items, value, onChange, label, children }: TabsProps<T>) {
+  const baseId = useId();
+  const active = items.find((item) => item.id === value);
   return (
-    <Base.Root value={value} onValueChange={(next) => { if (next !== value) onChange(next as T); }}>
-      <Base.List aria-label={label} className="relative flex gap-1 overflow-x-auto border-b border-border scrollbar-none">
+    <div>
+      <TabList role="tablist" aria-label={label} value={value} onChange={(next) => { if (next !== value) onChange(next as T); }} hasDivider>
         {items.map((item) => (
-          <Base.Tab
-            key={item.id}
-            value={item.id}
-            className="relative inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-t-sm px-3.5 text-sm font-semibold text-muted transition-colors hover:bg-surface-light hover:text-foreground data-[selected]:text-foreground"
-          >
-            {item.label}
-          </Base.Tab>
+          <Tab key={item.id} value={item.id} label={item.label} panelId={`${baseId}-panel`} />
         ))}
-        <Base.Indicator className="absolute bottom-0 left-[var(--active-tab-left)] h-0.5 w-[var(--active-tab-width)] rounded-full bg-foreground transition-[left,width] duration-200 ease-brand motion-reduce:transition-none" />
-      </Base.List>
-      {items.map((item) => (
-        <Base.Panel key={item.id} value={item.id} className="pt-5">
-          {value === item.id ? children : null}
-        </Base.Panel>
-      ))}
-    </Base.Root>
+      </TabList>
+      <div role="tabpanel" id={`${baseId}-panel`} aria-label={active?.label} className="pt-5">
+        {children}
+      </div>
+    </div>
   );
 }
 

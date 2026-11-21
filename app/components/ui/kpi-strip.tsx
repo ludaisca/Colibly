@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Card as AxCard } from "@astryxdesign/core/Card";
 import { cn } from "./cn";
 
 // Franja KPI (dirección congelada, nov 2026): UNA superficie con divisores
@@ -71,14 +72,11 @@ export function KpiStrip({ items, size = "hero", className, columns }: KpiStripP
         ? "lg:grid-cols-3"
         : "lg:grid-cols-4";
   const oddMobile = items.length % 2 === 1;
+  // Astryx no trae un componente de cifras: la superficie es su Card y dentro
+  // va la cuadrícula con divisores de siempre (gap-px sobre el filete).
   return (
-    <div
-      className={cn(
-        "grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border",
-        desktopColumns,
-        className
-      )}
-    >
+    <AxCard padding={0} className={cn("overflow-hidden", className)}>
+    <div className={cn("grid grid-cols-2 gap-px bg-border", desktopColumns)}>
       {items.map((item) => {
         const inner = <KpiContent item={item} hero={hero} />;
         const cellClass = cn(
@@ -100,5 +98,6 @@ export function KpiStrip({ items, size = "hero", className, columns }: KpiStripP
         );
       })}
     </div>
+    </AxCard>
   );
 }

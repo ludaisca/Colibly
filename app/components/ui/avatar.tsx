@@ -1,6 +1,7 @@
 "use client";
 
 import { blobatar } from "blobatar";
+import { Avatar } from "@astryxdesign/core/Avatar";
 import { cn } from "./cn";
 import { useHueClass } from "./account-hues";
 
@@ -25,19 +26,7 @@ function figureUri(seed: string): string {
 // "use client", sin iconos como props), usable directo desde los RSC de
 // overview y desde componentes client.
 
-const SIZE: Record<"xs" | "sm" | "md" | "lg", string> = {
-  xs: "h-5 w-5 text-micro",
-  sm: "h-8 w-8 text-micro",
-  md: "h-10 w-10 text-sm",
-  lg: "h-12 w-12 text-base",
-};
-
-function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
+const SIZE = { xs: 20, sm: 32, md: 40, lg: 48 } as const;
 
 interface EntityAvatarProps {
   /** Id estable de la entidad (normalmente accountId) — decide el hue. */
@@ -51,27 +40,19 @@ interface EntityAvatarProps {
   seed?: string;
 }
 
+// Adaptador (rediseño con Astryx): Avatar de Astryx con las iniciales (o la
+// figura) sobre el tono de la entidad. Decorativo: el nombre ya está al lado.
 export function EntityAvatar({ id, name, size = "md", className, figure = false, seed }: EntityAvatarProps) {
   const hueClassFor = useHueClass();
   return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        // Iniciales sobre el tono de la cuenta, redondo (rounded-full es solo
-        // para avatares); la figura blobatar queda solo para bots.
-        "inline-flex shrink-0 select-none items-center justify-center rounded-full bg-entity-bg font-semibold text-entity",
-        SIZE[size],
-        hueClassFor(id),
-        figure && "overflow-hidden",
-        className
-      )}
-    >
-      {figure ? (
-        // eslint-disable-next-line @next/next/no-img-element -- SVG generado en memoria (data URI), no un recurso remoto
-        <img src={figureUri(seed ?? name)} alt="" className="h-full w-full scale-[1.18]" draggable={false} />
-      ) : (
-        initials(name)
-      )}
+    <span aria-hidden="true" className="inline-flex shrink-0">
+      <Avatar
+        name={name}
+        src={figure ? figureUri(seed ?? name) : undefined}
+        size={SIZE[size]}
+        tooltip={false}
+        className={cn("bg-entity-bg font-semibold text-entity", hueClassFor(id), className)}
+      />
     </span>
   );
 }

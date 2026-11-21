@@ -1,14 +1,15 @@
 import React from "react";
+import { Card as AxCard } from "@astryxdesign/core/Card";
+import { Heading } from "@astryxdesign/core/Heading";
 import { cn } from "./cn";
+
+// Adaptador (rediseño con Astryx): misma API de siempre, superficie del Card de
+// Astryx. Server-safe: no recibe funciones. `as` (section, aside) conserva la
+// semántica envolviendo la tarjeta en ese elemento sin caja propia.
 
 type Padding = "none" | "sm" | "md" | "lg";
 
-const PAD: Record<Padding, string> = {
-  none: "",
-  sm:   "p-3",
-  md:   "p-4",
-  lg:   "p-5",
-};
+const PAD = { none: 0, sm: 3, md: 4, lg: 5 } as const;
 
 interface CardProps {
   padding?: Padding;
@@ -20,48 +21,41 @@ interface CardProps {
 }
 
 export function Card({ padding = "md", interactive = false, className, children, as: Tag = "div", ...rest }: CardProps) {
-  return (
-    <Tag
-      className={cn(
-        "rounded-lg border border-border bg-surface",
-        PAD[padding],
-        interactive && "transition-colors cursor-pointer hover:bg-surface-light",
-        className
-      )}
-      {...rest}
+  const card = (
+    <AxCard
+      padding={PAD[padding]}
+      className={cn(interactive && "cursor-pointer transition-colors hover:bg-surface-light", className)}
+      {...(Tag === "div" ? rest : {})}
     >
       {children}
+    </AxCard>
+  );
+  if (Tag === "div") return card;
+  return (
+    <Tag className="contents" {...rest}>
+      {card}
     </Tag>
   );
 }
 
 export function CardHeader({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <div className={cn("flex items-center justify-between gap-3 mb-3", className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn("mb-3 flex items-center justify-between gap-3", className)}>{children}</div>;
 }
 
-// `as` cambia solo el nivel del encabezado (p. ej. "h1" cuando la tarjeta es
-// el contenido principal de la página, como en las de acceso); el aspecto no cambia.
-export function CardTitle({ className, children, as: Tag = "h3" }: { className?: string; children: React.ReactNode; as?: "h1" | "h2" | "h3" }) {
+// `as` cambia solo el nivel del encabezado (h1 en las tarjetas de acceso); el aspecto no cambia.
+export function CardTitle({ className, children, as = "h3" }: { className?: string; children: React.ReactNode; as?: "h1" | "h2" | "h3" }) {
+  const level = Number(as.slice(1)) as 1 | 2 | 3;
   return (
-    // Con text-page-title (pantallas de acceso) no se mezcla con text-base.
-    <Tag className={cn(className?.includes("text-page-title") ? "" : "text-base font-semibold tracking-tight", "text-foreground", className)}>
+    <Heading level={3} accessibilityLevel={level} className={className}>
       {children}
-    </Tag>
+    </Heading>
   );
 }
 
 export function CardBody({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn("", className)}>{children}</div>;
+  return <div className={className}>{children}</div>;
 }
 
 export function CardFooter({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <div className={cn("mt-3 pt-3 border-t border-border flex items-center gap-3", className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn("mt-3 flex items-center gap-3 border-t border-border pt-3", className)}>{children}</div>;
 }
