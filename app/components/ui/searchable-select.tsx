@@ -1,14 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Combobox } from "@base-ui/react/combobox";
-import { ChevronDown, Search, Check } from "lucide-react";
-import { cn } from "./cn";
+import { Selector } from "@astryxdesign/core/Selector";
+import { markFormFieldControl, useFormFieldContext } from "./form-field-context";
 
-// Selección única con búsqueda dentro del menú, sobre Base UI `Combobox`
-// (patrón "input dentro del popup") desde 2026-11-07: listbox con flechas,
-// Enter, Escape, `aria-activedescendant` y foco que vuelve al disparador. La
-// API pública no cambió.
+// Adaptador (rediseño con Astryx): Selector de Astryx con búsqueda dentro del
+// menú. API de siempre. Dentro de <FormField> toma etiqueta, error y ayuda.
 
 export interface SearchableSelectOption {
   value: string;
@@ -29,99 +25,40 @@ interface SearchableSelectProps {
   className?: string;
 }
 
-// El filtro empieza a los 3 caracteres: con menos, una lista larga (docenas de
-// plantillas) coincidiría casi entera y la lista solo parpadearía.
-const MIN_SEARCH_LENGTH = 3;
-
-function matches(option: SearchableSelectOption, query: string) {
-  const q = query.trim().toLowerCase();
-  return q.length < MIN_SEARCH_LENGTH || option.label.toLowerCase().includes(q);
-}
-
-export function SearchableSelect({
+export const SearchableSelect = markFormFieldControl(function SearchableSelect({
   options,
   value,
   onChange,
   placeholder = "Seleccionar…",
   searchPlaceholder = "Buscar…",
-  error,
+  error: errorProp,
   showErrorMessage = false,
   disabled,
   id,
   className,
 }: SearchableSelectProps) {
-  const [query, setQuery] = useState("");
-  const selected = useMemo(() => options.find((o) => o.value === value) ?? null, [options, value]);
-
+  const field = useFormFieldContext();
+  const direct = field?.direct === true;
+  const error = errorProp ?? (direct ? field?.error : undefined);
   return (
-    <div className={cn("relative", className)}>
-      <Combobox.Root
-        items={options}
-        value={selected}
-        onValueChange={(next: SearchableSelectOption | null) => {
-          if (next && !next.disabled) onChange(next.value);
-        }}
-        inputValue={query}
-        onInputValueChange={setQuery}
-        onOpenChange={(open) => { if (!open) setQuery(""); }}
-        filter={(item: SearchableSelectOption, q: string) => matches(item, q)}
-        itemToStringLabel={(o: SearchableSelectOption) => o.label}
-        isItemEqualToValue={(a: SearchableSelectOption, b: SearchableSelectOption) => a.value === b.value}
-        disabled={disabled}
-      >
-        <Combobox.Trigger
-          id={id}
-          data-focus-ring=""
-          aria-invalid={!!error}
-          className={cn(
-            "relative flex h-8 w-full items-center gap-2 rounded-sm border bg-surface pl-3 pr-9 text-sm text-left transition-colors outline-none",
-            "focus-visible:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-subtle data-[popup-open]:border-accent-strong",
-            error ? "border-danger-border" : "border-border-strong",
-            disabled && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          <span className={cn("truncate", !selected && "text-muted-darker")}>{selected ? selected.label : placeholder}</span>
-          <ChevronDown size={16} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-darker" />
-        </Combobox.Trigger>
-
-        <Combobox.Portal>
-          <Combobox.Positioner sideOffset={6} collisionPadding={8} className="z-[80] w-[var(--anchor-width)] outline-none">
-            <Combobox.Popup className="overflow-hidden rounded-lg border border-border bg-surface shadow-lg outline-none">
-              <div className="relative border-b border-border">
-                <Search size={14} aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-darker" />
-                <Combobox.Input
-                  placeholder={searchPlaceholder}
-                  className="w-full bg-transparent py-2.5 pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-darker"
-            // El anillo lo pinta el contenedor; la regla global de foco (sin capa) le gana a las utilidades.
-            style={{ outline: "none" }}
-                />
-              </div>
-              <Combobox.Empty className="px-3.5 py-2.5 text-sm text-muted-darker empty:hidden">Sin resultados</Combobox.Empty>
-              <Combobox.List className="max-h-[min(14rem,var(--available-height))] overflow-y-auto py-1 empty:py-0">
-                {(opt: SearchableSelectOption) => (
-                  <Combobox.Item
-                    key={opt.value}
-                    value={opt}
-                    disabled={opt.disabled}
-                    className="flex w-full cursor-default select-none items-center gap-2.5 px-3.5 py-2 text-left text-sm text-foreground outline-none data-[highlighted]:bg-surface-light data-[selected]:bg-accent-subtle data-[selected]:text-accent-ink data-[disabled]:cursor-not-allowed data-[disabled]:text-muted-darker"
-                  >
-                    <span className="flex-1 truncate">{opt.label}</span>
-                    <Combobox.ItemIndicator className="shrink-0">
-                      <Check size={14} aria-hidden />
-                    </Combobox.ItemIndicator>
-                  </Combobox.Item>
-                )}
-              </Combobox.List>
-            </Combobox.Popup>
-          </Combobox.Positioner>
-        </Combobox.Portal>
-      </Combobox.Root>
-
-      {error && showErrorMessage && (
-        <p className="mt-1.5 text-xs text-danger" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
+    <Selector
+      id={id}
+      label={field?.label ?? placeholder}
+      isLabelHidden={!direct}
+      aria-labelledby={field && !direct ? field.labelId : undefined}
+      description={direct ? field?.hint : undefined}
+      isRequired={direct ? field?.required : undefined}
+      options={options}
+      value={value === "" ? undefined : value}
+      onChange={(next) => onChange(next ?? "")}
+      placeholder={placeholder}
+      hasSearch
+      searchPlaceholder={searchPlaceholder}
+      emptySearchText="Sin resultados"
+      isDisabled={disabled}
+      status={error ? { type: "error", message: direct || showErrorMessage ? error : undefined } : undefined}
+      width="100%"
+      containerClassName={className}
+    />
   );
-}
+});

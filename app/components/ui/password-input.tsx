@@ -2,56 +2,64 @@
 
 import React, { useState } from "react";
 import { Eye, EyeOff, Lock } from "lucide-react";
-import { cn } from "./cn";
+import { InputGroup } from "@astryxdesign/core/InputGroup";
+import { Button as AxButton } from "@astryxdesign/core/Button";
+import { Icon as AxIcon } from "@astryxdesign/core/Icon";
+import { Input } from "./input";
+import { FormFieldContext, markFormFieldControl, useFormFieldContext } from "./form-field-context";
 
+// Adaptador (rediseño con Astryx): InputGroup de Astryx con el campo y el
+// botón "Mostrar contraseña" pegado (el TextInput de Astryx no lo trae).
+// Dentro de <FormField> el grupo lleva la etiqueta, la ayuda y el error.
 export interface PasswordInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
   error?: string;
   showErrorMessage?: boolean;
   showIcon?: boolean;
 }
 
-export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
-  ({ error, showErrorMessage = false, showIcon = true, className, ...props }, ref) => {
+export const PasswordInput = markFormFieldControl(
+  React.forwardRef<HTMLInputElement, PasswordInputProps>(function PasswordInput(
+    { showIcon = true, error: errorProp, showErrorMessage = false, className, required, ...props },
+    ref
+  ) {
     const [visible, setVisible] = useState(false);
+    const field = useFormFieldContext();
+    const direct = field?.direct === true;
+    const label = field?.label ?? props["aria-label"] ?? props.placeholder ?? "Contraseña";
+    const error = errorProp ?? (direct ? field?.error : undefined);
+    const showMessage = direct || showErrorMessage;
 
     return (
-      <div className={cn("relative", className)}>
-        {showIcon && (
-          <Lock
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-darker pointer-events-none"
-          />
-        )}
-        <input
-          ref={ref}
-          type={visible ? "text" : "password"}
-          data-focus-ring=""
-          aria-invalid={!!error}
-          className={cn(
-            "h-8 w-full rounded-sm border bg-surface py-1.5 text-sm text-foreground",
-            "transition-colors placeholder:text-muted-darker",
-            "focus:outline-none focus:border-accent-strong focus-visible:ring-2 focus-visible:ring-accent-subtle",
-            showIcon ? "pl-9 pr-10" : "pl-3 pr-10",
-            error ? "border-danger-border" : "border-border-strong"
-          )}
-          {...props}
-        />
-        <button
-          type="button"
-          onClick={() => setVisible((v) => !v)}
-          aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-          aria-pressed={visible}
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-darker hover:text-muted transition-colors"
+      <div className={className}>
+        <InputGroup
+          label={label}
+          isLabelHidden={!direct}
+          description={direct ? field?.hint : undefined}
+          isRequired={direct ? field?.required : required}
+          status={error ? { type: "error", message: showMessage ? error : undefined } : undefined}
         >
-          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
-        </button>
-        {error && showErrorMessage && (
-          <p className="mt-1.5 text-xs text-danger" role="alert">
-            {error}
-          </p>
-        )}
+          {/* El grupo ya pone la etiqueta: el campo no dibuja otra. */}
+          <FormFieldContext.Provider value={null}>
+            <Input
+              {...props}
+              ref={ref}
+              type={visible ? "text" : "password"}
+              icon={showIcon ? Lock : undefined}
+              aria-label={label}
+              aria-labelledby={field && !direct ? field.labelId : undefined}
+              error={error}
+            />
+          </FormFieldContext.Provider>
+          <AxButton
+            label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+            isIconOnly
+            icon={<AxIcon icon={visible ? EyeOff : Eye} />}
+            variant="secondary"
+            aria-pressed={visible}
+            onClick={() => setVisible((v) => !v)}
+          />
+        </InputGroup>
       </div>
     );
-  }
+  })
 );
-PasswordInput.displayName = "PasswordInput";

@@ -1,14 +1,11 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
-import { Combobox } from "@base-ui/react/combobox";
-import { ChevronDown, X, Check } from "lucide-react";
-import { cn } from "./cn";
+import { MultiSelector } from "@astryxdesign/core/MultiSelector";
+import { markFormFieldControl, useFormFieldContext } from "./form-field-context";
 
-// Selección múltiple con etiquetas, sobre Base UI `Combobox` (multiple) desde
-// 2026-11-07: listbox con flechas, Enter, Escape, `aria-activedescendant`,
-// quitar etiquetas con el teclado y escribir para filtrar. La API pública no
-// cambió (`options`, `value`, `onChange` con los `value` como strings).
+// Adaptador (rediseño con Astryx): MultiSelector de Astryx con búsqueda. API
+// de siempre (`options`, `value`, `onChange` con los `value` como strings).
+// Dentro de <FormField> toma etiqueta, error y ayuda.
 
 interface Option {
   value: string;
@@ -26,97 +23,37 @@ interface MultiSelectProps {
   className?: string;
 }
 
-export function MultiSelect({
+export const MultiSelect = markFormFieldControl(function MultiSelect({
   options,
   value = [],
   onChange,
   placeholder = "Seleccionar…",
-  error,
+  error: errorProp,
   disabled,
   id,
   className,
 }: MultiSelectProps) {
-  const chipsRef = useRef<HTMLDivElement>(null);
-  const selected = useMemo(() => {
-    const set = new Set(value);
-    return options.filter((o) => set.has(o.value));
-  }, [options, value]);
-
+  const field = useFormFieldContext();
+  const direct = field?.direct === true;
+  const error = errorProp ?? (direct ? field?.error : undefined);
   return (
-    <div className={cn("relative", className)}>
-      <Combobox.Root
-        multiple
-        items={options}
-        value={selected}
-        onValueChange={(next: Option[]) => onChange?.(next.map((o) => o.value))}
-        itemToStringLabel={(o: Option) => o.label}
-        isItemEqualToValue={(a: Option, b: Option) => a.value === b.value}
-        disabled={disabled}
-      >
-        <Combobox.Chips
-          ref={chipsRef}
-          className={cn(
-            "flex w-full min-h-8 flex-wrap items-center gap-1.5 rounded-sm border bg-surface px-3 py-1 text-sm transition-colors",
-            "focus-within:border-accent-strong focus-within:ring-2 focus-within:ring-accent-muted",
-            error ? "border-danger-border" : "border-border-strong",
-            disabled && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          <Combobox.Value>
-            {(items: Option[]) =>
-              items.map((item) => (
-                <Combobox.Chip
-                  key={item.value}
-                  aria-label={item.label}
-                  className="inline-flex items-center gap-0.5 rounded-md bg-accent-subtle px-2 py-0.5 text-xs font-medium text-accent-ink outline-none data-[highlighted]:ring-2 data-[highlighted]:ring-accent-muted"
-                >
-                  {item.label}
-                  <Combobox.ChipRemove aria-label={`Quitar ${item.label}`} className="rounded hover:text-foreground">
-                    <X size={12} aria-hidden />
-                  </Combobox.ChipRemove>
-                </Combobox.Chip>
-              ))
-            }
-          </Combobox.Value>
-          <Combobox.Input
-            id={id}
-            aria-invalid={!!error}
-            placeholder={selected.length === 0 ? placeholder : ""}
-            className="min-w-12 flex-1 bg-transparent py-0.5 text-sm text-foreground outline-none placeholder:text-muted-darker"
-            // El anillo lo pinta el contenedor; la regla global de foco (sin capa) le gana a las utilidades.
-            style={{ outline: "none" }}
-          />
-          <Combobox.Trigger aria-label="Ver opciones" className="ml-auto shrink-0 rounded text-muted-darker outline-none">
-            <ChevronDown size={14} aria-hidden className="transition-transform data-[popup-open]:rotate-180" />
-          </Combobox.Trigger>
-        </Combobox.Chips>
-
-        <Combobox.Portal>
-          <Combobox.Positioner anchor={chipsRef} sideOffset={6} collisionPadding={8} className="z-[80] w-[var(--anchor-width)] outline-none">
-            <Combobox.Popup className="max-h-[min(14rem,var(--available-height))] overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg outline-none">
-              <Combobox.Empty className="px-3.5 py-2 text-sm text-muted-darker empty:hidden">Sin resultados</Combobox.Empty>
-              <Combobox.List>
-                {(opt: Option) => (
-                  <Combobox.Item
-                    key={opt.value}
-                    value={opt}
-                    className="group flex w-full cursor-default select-none items-center gap-2.5 px-3.5 py-2 text-sm text-left text-foreground outline-none data-[highlighted]:bg-surface-light data-[selected]:text-accent-ink"
-                  >
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border group-data-[selected]:border-accent-strong group-data-[selected]:bg-accent group-data-[selected]:text-on-accent">
-                      <Combobox.ItemIndicator>
-                        <Check size={11} aria-hidden />
-                      </Combobox.ItemIndicator>
-                    </span>
-                    {opt.label}
-                  </Combobox.Item>
-                )}
-              </Combobox.List>
-            </Combobox.Popup>
-          </Combobox.Positioner>
-        </Combobox.Portal>
-      </Combobox.Root>
-
-      {error && <p className="mt-1.5 text-xs text-danger" role="alert">{error}</p>}
-    </div>
+    <MultiSelector
+      id={id}
+      label={field?.label ?? placeholder}
+      isLabelHidden={!direct}
+      aria-labelledby={field && !direct ? field.labelId : undefined}
+      description={direct ? field?.hint : undefined}
+      isRequired={direct ? field?.required : undefined}
+      options={options}
+      value={value}
+      onChange={(next) => onChange?.(next)}
+      placeholder={placeholder}
+      hasSearch={options.length > 8}
+      searchPlaceholder="Buscar…"
+      isDisabled={disabled}
+      status={error ? { type: "error", message: error } : undefined}
+      width="100%"
+      containerClassName={className}
+    />
   );
-}
+});
