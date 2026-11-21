@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "./cn";
+import { Button } from "./button";
 
 // Texto largo en dos líneas con "Ver todo" (QA-027: las instrucciones de un
 // bot ocupaban la pantalla entera).
@@ -13,9 +14,11 @@ export function ClampedText({ text, lines = 2, className }: { text: string | nul
     <span className={cn("block", className)}>
       <span className={cn("block whitespace-pre-line", !open && (lines === 2 ? "line-clamp-2" : "line-clamp-3"))}>{text}</span>
       {long && (
-        <button type="button" onClick={() => setOpen((v) => !v)} className="mt-1 text-xs font-medium text-accent-ink underline underline-offset-2">
-          {open ? "Ver menos" : "Ver todo"}
-        </button>
+        <span className="mt-1 block text-xs">
+          <Button variant="link" size="sm" onClick={() => setOpen((v) => !v)}>
+            {open ? "Ver menos" : "Ver todo"}
+          </Button>
+        </span>
       )}
     </span>
   );

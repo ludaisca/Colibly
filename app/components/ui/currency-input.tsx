@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
-import { cn } from "./cn";
+import type { KeyboardEvent } from "react";
+import { InputGroup, InputGroupText } from "@astryxdesign/core/InputGroup";
+import { Input } from "./input";
+import { FormFieldContext } from "./form-field-context";
 import { amountValue, formatAmountValue, parseAmount, reformatWithCaret, renderAmount } from "@/lib/format/currency-input";
 
 // Importe en pesos con formato mientras se escribe ("12,500.00"), portado de
@@ -29,7 +31,6 @@ export function CurrencyInput({
   className?: string;
   "aria-label"?: string;
 }) {
-  const [focused, setFocused] = useState(false);
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     // La coma del teclado numérico vale como punto decimal.
@@ -68,44 +69,37 @@ export function CurrencyInput({
   }
 
   return (
-    <div
-      className={cn(
-        "flex items-center rounded-sm border border-border-strong bg-surface text-sm transition-colors",
-        focused && "border-accent-strong ring-2 ring-accent-muted",
-        disabled && "opacity-60",
-        className
-      )}
-    >
-      <span aria-hidden className="pl-3 pr-1 text-muted-darker">$</span>
-      <input
-        id={id}
-        type="text"
-        inputMode="decimal"
-        autoComplete="off"
-        spellCheck={false}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        value={value}
-        placeholder={placeholder}
-        onKeyDown={onKeyDown}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          const parsed = parseAmount(value);
-          onChange(parsed.int || parsed.frac ? renderAmount(parsed, true) : "");
-        }}
-        onChange={(e) => {
-          const el = e.target;
-          const next = reformatWithCaret(el.value, el.selectionStart ?? el.value.length);
-          onChange(next.text);
-          requestAnimationFrame(() => el.setSelectionRange(next.caret, next.caret));
-        }}
-        // El foco lo marca el contenedor (anillo); la regla global de
-        // :focus-visible ganaría a `outline-none` y dibujaría un segundo anillo.
-        style={{ outline: "none" }}
-        className="min-w-0 flex-1 bg-transparent py-2 pr-2 tabular-nums text-foreground placeholder:text-muted-darker"
-      />
-      <span aria-hidden className="pr-3 text-xs text-muted-darker">MXN</span>
+    <div className={className}>
+      <InputGroup label={ariaLabel ?? "Importe"} isLabelHidden isDisabled={disabled}>
+        <InputGroupText>$</InputGroupText>
+        {/* El grupo no pone etiqueta visible: el campo lleva su aria-label o
+            la del FormField que lo envuelve (por `id`). */}
+        <FormFieldContext.Provider value={null}>
+          <Input
+            id={id}
+            inputMode="decimal"
+            autoComplete="off"
+            spellCheck={false}
+            disabled={disabled}
+            aria-label={ariaLabel}
+            value={value}
+            placeholder={placeholder}
+            onKeyDown={onKeyDown}
+            onBlur={() => {
+              const parsed = parseAmount(value);
+              onChange(parsed.int || parsed.frac ? renderAmount(parsed, true) : "");
+            }}
+            onChange={(e) => {
+              const el = e.target;
+              const next = reformatWithCaret(el.value, el.selectionStart ?? el.value.length);
+              onChange(next.text);
+              requestAnimationFrame(() => el.setSelectionRange(next.caret, next.caret));
+            }}
+            inputClassName="tabular-nums"
+          />
+        </FormFieldContext.Provider>
+        <InputGroupText>MXN</InputGroupText>
+      </InputGroup>
     </div>
   );
 }

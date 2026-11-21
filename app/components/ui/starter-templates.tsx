@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { cn } from "./cn";
+import { Button } from "./button";
 
 // Plantillas de partida en los estados vacíos (Bots, Automatizaciones,
 // Monitores, Secuencias) como filas con "Usar" (dirección congelada): cada
@@ -14,7 +14,6 @@ export interface StarterCard {
   href?: string;
 }
 
-const USE = "shrink-0 inline-flex h-7 items-center rounded-sm border border-border bg-surface px-2.5 text-xs font-medium text-foreground transition-colors duration-fast hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong";
 
 export function StarterTemplates({ cards, className }: { cards: StarterCard[]; className?: string }) {
   return (
@@ -25,11 +24,9 @@ export function StarterTemplates({ cards, className }: { cards: StarterCard[]; c
             <span className="block truncate text-sm font-medium text-foreground">{card.title}</span>
             <span className="block text-xs text-muted">{card.description}</span>
           </span>
-          {card.href ? (
-            <Link href={card.href} className={USE} aria-label={`Usar ${card.title}`}>Usar</Link>
-          ) : (
-            <button type="button" onClick={card.onSelect} className={USE} aria-label={`Usar ${card.title}`}>Usar</button>
-          )}
+          <Button variant="secondary" size="sm" href={card.href} onClick={card.href ? undefined : card.onSelect} aria-label={`Usar ${card.title}`}>
+            Usar
+          </Button>
         </li>
       ))}
     </ul>

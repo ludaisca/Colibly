@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { Button } from "./button";
 import { bannerDismissKey } from "@/lib/billing/banner-copy";
 import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
@@ -26,10 +27,11 @@ export function DismissibleBanner({ dismissible, className, children }: { dismis
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">{children}</div>
         {dismissible && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
+            icon={X}
             aria-label="Cerrar aviso"
-            className="mt-0.5 shrink-0 rounded-md p-1 text-muted hover:bg-surface hover:text-foreground"
             onClick={() => {
               try {
                 sessionStorage.setItem(bannerDismissKey(new Date()), "1");
@@ -38,9 +40,7 @@ export function DismissibleBanner({ dismissible, className, children }: { dismis
               }
               setHidden(true);
             }}
-          >
-            <X size={14} aria-hidden />
-          </button>
+          />
         )}
       </div>
     </div>
