@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { SessionProvider } from "next-auth/react";
 import { Theme } from "@astryxdesign/core/theme";
+import { LinkProvider } from "@astryxdesign/core/Link";
+import { InternationalizationProvider } from "@astryxdesign/core/i18n";
+import esES from "@astryxdesign/core/locales/es-ES.generated.js";
 import { ToastProvider } from "@/app/components/ui/toast";
 import { useApplyStoredTheme } from "@/app/components/theme-provider";
 import { themes, defaultThemeSlug } from "@/src/astryx-themes";
@@ -16,11 +20,18 @@ export function Providers({ children, sessionless = false }: { children: React.R
     // tiene una sola fuente de verdad y no parpadea. El <div> que crea Theme
     // usa `display: contents` (globals.css) para no alterar el layout.
     <Theme theme={themes[defaultThemeSlug]} mode="system">
-      <SessionProvider {...(sessionless ? { session: null, refetchOnWindowFocus: false } : {})}>
-        <ToastProvider>
-          {children}
-        </ToastProvider>
-      </SessionProvider>
+      {/* Textos de Astryx ("Obligatorio", "Cargando"…) en español; fechas y
+          números con formato de México. El catálogo es-ES sirve para es-MX. */}
+      <InternationalizationProvider locale="es-MX" messages={{ "es-MX": esES }}>
+      {/* Los enlaces de Astryx navegan con el router de Next (sin recarga). */}
+      <LinkProvider component={Link}>
+        <SessionProvider {...(sessionless ? { session: null, refetchOnWindowFocus: false } : {})}>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </SessionProvider>
+      </LinkProvider>
+      </InternationalizationProvider>
     </Theme>
   );
 }

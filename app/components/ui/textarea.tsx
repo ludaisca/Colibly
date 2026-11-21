@@ -1,36 +1,74 @@
-import React from "react";
-import { cn } from "./cn";
+"use client";
+
+import React, { useState } from "react";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { markFormFieldControl, useFormFieldContext } from "./form-field-context";
+
+// Adaptador (rediseño con Astryx): misma API de siempre, dibujado por el
+// TextArea de Astryx. Dentro de <FormField> toma de ahí etiqueta/error/ayuda.
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   error?: string;
   showErrorMessage?: boolean;
 }
 
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ error, showErrorMessage = false, className, ...props }, ref) => {
+export const Textarea = markFormFieldControl(
+  React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
+    {
+      error: errorProp,
+      showErrorMessage = false,
+      className,
+      value,
+      defaultValue,
+      onChange,
+      id,
+      name,
+      disabled,
+      readOnly,
+      required,
+      placeholder,
+      rows,
+      autoFocus,
+      "aria-label": ariaLabel,
+      "aria-describedby": ariaDescribedBy,
+      ...rest
+    },
+    ref
+  ) {
+    const field = useFormFieldContext();
+    const [inner, setInner] = useState(String(defaultValue ?? ""));
+    const current = value === undefined ? inner : String(value ?? "");
+
+    const direct = field?.direct === true;
+    const error = errorProp ?? (direct ? field?.error : undefined);
+    const showMessage = direct || showErrorMessage;
+
     return (
-      <div className={cn("relative", className)}>
-        <textarea
-          ref={ref}
-          data-focus-ring=""
-          aria-invalid={!!error}
-          className={cn(
-            "w-full rounded-sm border bg-surface px-3 py-2 text-sm text-foreground",
-            "transition-colors placeholder:text-subtle resize-y min-h-[80px]",
-            // Campo blanco con borde --border-strong; foco: borde acento + anillo 2 px
-            // --accent-subtle. Gris solo deshabilitado.
-            "focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-subtle disabled:bg-surface-light disabled:text-muted",
-            error ? "border-danger-border" : "border-border-strong"
-          )}
-          {...props}
-        />
-        {error && showErrorMessage && (
-          <p className="mt-1 text-xs text-danger" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
+      <TextArea
+        {...(rest as object)}
+        ref={ref}
+        id={id}
+        label={field?.label ?? ariaLabel ?? placeholder ?? name ?? "Texto"}
+        isLabelHidden={!direct}
+        aria-labelledby={field && !direct ? field.labelId : undefined}
+        aria-describedby={direct ? undefined : ariaDescribedBy}
+        description={direct ? field?.hint : undefined}
+        isRequired={direct ? field?.required : required}
+        isDisabled={disabled}
+        isReadOnly={readOnly}
+        placeholder={placeholder}
+        hasAutoFocus={autoFocus}
+        htmlName={name}
+        rows={rows}
+        status={error ? { type: "error", message: showMessage ? error : undefined } : undefined}
+        width="100%"
+        containerClassName={className}
+        value={current}
+        onChange={(v, e) => {
+          if (value === undefined) setInner(v);
+          onChange?.(e);
+        }}
+      />
     );
-  }
+  })
 );
-Textarea.displayName = "Textarea";

@@ -1,9 +1,15 @@
+"use client";
+
 import { Loader2 } from "lucide-react";
+import { Spinner as AxSpinner } from "@astryxdesign/core/Spinner";
 import { cn } from "./cn";
+
+// Adaptador (rediseño con Astryx): misma API de siempre, dibujado por el
+// Spinner de Astryx. Tamaños de Colibly 14/18/24 px → anillos de 14/18/28.
 
 type Size = "sm" | "md" | "lg";
 
-const SIZE: Record<Size, number> = { sm: 14, md: 18, lg: 24 };
+const AX_SIZE = { sm: "md", md: "lg", lg: "xl" } as const;
 
 interface SpinnerProps {
   size?: Size;
@@ -13,9 +19,8 @@ interface SpinnerProps {
 
 export function Spinner({ size = "md", label = "Cargando…", className }: SpinnerProps) {
   return (
-    <span className={cn("inline-flex items-center gap-2 text-muted-darker", className)}>
-      <Loader2 size={SIZE[size]} className="animate-spin" aria-hidden="true" />
-      {label && <span className="sr-only">{label}</span>}
+    <span className={cn("inline-flex items-center", className)}>
+      <AxSpinner size={AX_SIZE[size]} shade="subtle" aria-label={label || "Cargando…"} />
     </span>
   );
 }

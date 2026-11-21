@@ -1,5 +1,13 @@
-import React, { useId } from "react";
-import { cn } from "./cn";
+"use client";
+
+import React, { isValidElement, useId } from "react";
+import { Field } from "@astryxdesign/core/Field";
+import { FORM_FIELD_CONTROL, FormFieldContext, type FormFieldContextValue } from "./form-field-context";
+
+// Adaptador (rediseño con Astryx): misma API de siempre.
+// - Hijo directo que es un control adaptado (Input, Textarea…): ese control
+//   dibuja el campo completo de Astryx con la etiqueta/error/ayuda de aquí.
+// - Cualquier otro hijo: se envuelve en el <Field> de Astryx.
 
 interface FormFieldProps {
   label: string;
@@ -16,25 +24,38 @@ export function FormField({ label, required, error, hint, className, children }:
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
 
+  const node = children(id, describedBy);
+  const direct =
+    isValidElement(node) &&
+    typeof node.type !== "string" &&
+    (node.type as unknown as Record<symbol, unknown>)[FORM_FIELD_CONTROL] === true;
+
+  const ctx: FormFieldContextValue = { id, label, required, error, hint, direct, labelId: `${id}-label` };
+
+  if (direct) {
+    return (
+      <FormFieldContext value={ctx}>
+        <div className={className}>{node}</div>
+      </FormFieldContext>
+    );
+  }
+
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
-        {label}
-        {required && <span className="ml-1 text-danger" aria-hidden="true">*</span>}
-      </label>
-
-      {children(id, describedBy)}
-
-      {hint && !error && (
-        <p id={hintId} className="text-xs text-muted-darker">
-          {hint}
-        </p>
-      )}
-      {error && (
-        <p id={errorId} className="text-xs text-danger" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
+    <FormFieldContext value={ctx}>
+      <Field
+        label={label}
+        inputID={id}
+        labelID={ctx.labelId}
+        isRequired={required}
+        description={hint && !error ? hint : undefined}
+        descriptionID={hintId}
+        status={error ? { type: "error", message: error, messageID: errorId } : undefined}
+        statusVariant="detached"
+        width="100%"
+        className={className}
+      >
+        {node}
+      </Field>
+    </FormFieldContext>
   );
 }

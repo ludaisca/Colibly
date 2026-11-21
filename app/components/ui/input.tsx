@@ -1,5 +1,15 @@
-import React from "react";
-import { cn } from "./cn";
+"use client";
+
+import React, { useState } from "react";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { NumberInput } from "@astryxdesign/core/NumberInput";
+import type { IconType } from "@astryxdesign/core/Icon";
+import { markFormFieldControl, useFormFieldContext } from "./form-field-context";
+
+// Adaptador (rediseño con Astryx): misma API de siempre (onChange recibe el
+// evento nativo, value/defaultValue, ref al <input>), dibujado por el
+// TextInput/NumberInput de Astryx. Dentro de <FormField> toma de ahí la
+// etiqueta, el error y la ayuda (una sola etiqueta).
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ElementType;
@@ -8,41 +18,109 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   inputClassName?: string;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ icon: Icon, error, showErrorMessage = false, className, inputClassName, ...props }, ref) => {
-    return (
-      <div className={cn("relative", className)}>
-        {Icon && (
-          <Icon
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-darker pointer-events-none"
-          />
-        )}
-        <input
-          ref={ref}
-          data-focus-ring=""
-          aria-invalid={!!error}
-          className={cn(
-            "h-8 w-full rounded-sm border bg-surface py-1.5 text-sm text-foreground",
-            "transition-colors placeholder:text-subtle",
-            // Campo blanco con borde --border-strong; foco: borde acento + anillo 2 px
-            // --accent-subtle. Gris solo deshabilitado.
-            "focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-subtle disabled:bg-surface-light disabled:text-muted",
-            Icon ? "pl-9 pr-3" : "px-3",
-            error
-              ? "border-danger-border focus:border-danger"
-              : "border-border-strong",
-            inputClassName
-          )}
-          {...props}
+const TEXT_TYPES = new Set(["text", "password", "email", "search", "tel", "url"]);
+type TextType = "text" | "password" | "email" | "search" | "tel" | "url";
+
+/** Evento mínimo para el NumberInput, que entrega un número y no un evento. */
+function numberEvent(value: string, name?: string, id?: string) {
+  const target = { value, valueAsNumber: value === "" ? NaN : Number(value), name: name ?? "", id: id ?? "" };
+  return { target, currentTarget: target } as unknown as React.ChangeEvent<HTMLInputElement>;
+}
+
+export const Input = markFormFieldControl(
+  React.forwardRef<HTMLInputElement, InputProps>(function Input(
+    {
+      icon,
+      error: errorProp,
+      showErrorMessage = false,
+      className,
+      inputClassName,
+      value,
+      defaultValue,
+      onChange,
+      type = "text",
+      id,
+      name,
+      disabled,
+      readOnly,
+      required,
+      placeholder,
+      autoFocus,
+      min,
+      max,
+      step,
+      inputMode,
+      "aria-label": ariaLabel,
+      "aria-describedby": ariaDescribedBy,
+      ...rest
+    },
+    ref
+  ) {
+    const field = useFormFieldContext();
+    // Sin `value`: campo no controlado (defaultValue), el estado vive aquí.
+    const [inner, setInner] = useState(String(defaultValue ?? ""));
+    const current = value === undefined ? inner : String(value ?? "");
+
+    const direct = field?.direct === true;
+    const label = field?.label ?? ariaLabel ?? placeholder ?? name ?? "Campo";
+    const error = errorProp ?? (direct ? field?.error : undefined);
+    const showMessage = direct || showErrorMessage;
+    const status = error ? { type: "error" as const, message: showMessage ? error : undefined } : undefined;
+
+    const common = {
+      id,
+      label,
+      isLabelHidden: !direct,
+      // Anidado en un FormField que dibuja su <Field>: el nombre accesible es esa etiqueta.
+      "aria-labelledby": field && !direct ? field.labelId : undefined,
+      "aria-describedby": direct ? undefined : ariaDescribedBy,
+      description: direct ? field?.hint : undefined,
+      isRequired: direct ? field?.required : required,
+      isDisabled: disabled,
+      isReadOnly: readOnly,
+      placeholder,
+      hasAutoFocus: autoFocus,
+      htmlName: name,
+      status,
+      startIcon: icon as IconType | undefined,
+      width: "100%",
+      containerClassName: className,
+      controlClassName: inputClassName,
+    };
+
+    if (type === "number") {
+      return (
+        <NumberInput
+          {...common}
+          value={current === "" ? null : Number(current)}
+          min={min === undefined ? undefined : Number(min)}
+          max={max === undefined ? undefined : Number(max)}
+          step={step === undefined || step === "any" ? undefined : Number(step)}
+          onChange={(n) => {
+            const v = Number.isFinite(n) ? String(n) : "";
+            if (value === undefined) setInner(v);
+            onChange?.(numberEvent(v, name, id));
+          }}
+          onBlur={rest.onBlur}
+          onFocus={rest.onFocus}
+          onKeyDown={rest.onKeyDown}
         />
-        {error && showErrorMessage && (
-          <p className="mt-1 text-xs text-danger" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
+      );
+    }
+
+    return (
+      <TextInput
+        {...(rest as object)}
+        {...common}
+        ref={ref}
+        type={TEXT_TYPES.has(type) ? (type as TextType) : "text"}
+        inputMode={inputMode as React.ComponentProps<typeof TextInput>["inputMode"]}
+        value={current}
+        onChange={(v, e) => {
+          if (value === undefined) setInner(v);
+          onChange?.(e);
+        }}
+      />
     );
-  }
+  })
 );
-Input.displayName = "Input";

@@ -1,38 +1,26 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Button as AxButton } from "@astryxdesign/core/Button";
+import { Link as AxLink } from "@astryxdesign/core/Link";
+import { Icon as AxIcon, type IconType } from "@astryxdesign/core/Icon";
 import { cn } from "./cn";
+import { textOf } from "./text-of";
+
+// Adaptador (rediseño con Astryx, 2026-11-21): misma API de siempre, dibujado
+// por el Button/Link de Astryx. Las 131 pantallas que lo usan cambian de golpe
+// sin tocarlas. Para código nuevo, usa @astryxdesign/core/Button directamente.
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "link" | "link-danger";
-// `icon`: botón cuadrado de solo icono (32 px); exige `aria-label`.
+// `icon`: botón cuadrado de solo icono; exige `aria-label` (o `title`).
 type Size = "sm" | "md" | "lg" | "icon";
 
-const VARIANT: Record<Variant, string> = {
-  // Un solo primario teal por vista (dirección congelada, nov 2026).
-  primary:   "bg-accent text-on-accent font-medium hover:bg-accent-hover disabled:opacity-60",
-  secondary: "border border-border text-foreground bg-surface hover:border-border-strong disabled:opacity-60",
-  ghost:     "text-muted hover:bg-surface-light hover:text-foreground disabled:opacity-60",
-  danger:    "bg-danger-bg text-danger border border-danger-border hover:bg-danger/20 disabled:opacity-60",
-  link:      "text-accent-ink hover:underline underline-offset-4 p-0 h-auto disabled:opacity-60",
-  "link-danger": "text-danger hover:underline underline-offset-4 p-0 h-auto disabled:opacity-60",
-};
-
-const isLink = (variant: Variant) => variant === "link" || variant === "link-danger";
-
-// Los enlaces no tienen caja: el tamaño solo cambia la letra. El área táctil
-// crece con un pseudo-elemento (≥ 32 px de alto) sin mover el diseño.
-const LINK_HIT = "relative after:absolute after:-inset-x-1.5 after:-inset-y-2 after:content-['']";
-const LINK_SIZE: Record<Size, string> = { sm: "text-xs font-medium gap-1", md: "text-sm gap-1.5", lg: "text-sm gap-1.5", icon: "" };
-
-// Alturas 28 / 32 / 40, radio 6 (rounded-sm).
-const SIZE: Record<Size, string> = {
-  sm: "h-7 px-2.5 text-xs gap-1.5",
-  md: "h-8 px-3 text-sm font-medium gap-1.5",
-  lg: "h-10 px-4 text-sm font-medium gap-2",
-  icon: "h-8 w-8 p-0 shrink-0",
-};
+const AX_VARIANT = {
+  primary: "primary",
+  secondary: "secondary",
+  ghost: "ghost",
+  danger: "destructive",
+} as const;
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -59,72 +47,66 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       className,
       children,
       disabled,
-      ...props
+      title,
+      type = "button",
+      // HTML que el Button de Astryx no tipa (el botón siempre lo resuelve él).
+      autoFocus: _autoFocus,
+      formAction: _formAction,
+      ...rest
     },
     ref
   ) => {
-    const base = cn(
-      "inline-flex items-center justify-center cursor-pointer select-none whitespace-nowrap",
-      "transition-[background-color,color,border-color] duration-fast ease-brand motion-reduce:transition-none",
-      "focus-visible:outline-2 focus-visible:outline-accent-strong focus-visible:outline-offset-2",
-      // Andén: controles precisos y discretos, sin saltos al pasar el cursor.
-      isLink(variant) ? cn(LINK_HIT, LINK_SIZE[size]) : cn("rounded-sm", SIZE[size]),
-      VARIANT[variant],
-      fullWidth && "w-full",
-      (disabled || loading) && "pointer-events-none",
-      className
-    );
+    // Astryx exige un nombre accesible en texto; se toma del contenido.
+    const label =
+      (rest["aria-label"] as string | undefined) ?? textOf(children) ?? title ?? "";
+    // Los íconos de lucide son componentes SVG: válidos como IconType.
+    const icon = Icon ? <AxIcon icon={Icon as IconType} /> : undefined;
+    const iconRight = IconRight ? <AxIcon icon={IconRight as IconType} /> : undefined;
 
-    const content = (
-      <>
-        {loading
-          ? <Loader2 size={16} className="animate-spin shrink-0" />
-          : Icon && <Icon size={16} className="shrink-0" />}
-        {children}
-        {!loading && IconRight && <IconRight size={16} className="shrink-0" />}
-      </>
-    );
-
-    if (href && !disabled && !loading) {
-      const {
-        type: _type,
-        form: _form,
-        disabled: _disabled,
-        loading: _loading,
-        icon: _icon,
-        iconRight: _iconRight,
-        fullWidth: _fullWidth,
-        href: _href,
-        external: _external,
-        variant: _variant,
-        size: _size,
-        ...linkProps
-      } = props as Record<string, unknown>;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const safe = linkProps as any;
-      if (external) {
-        return (
-          <a href={href as string} className={base} target="_blank" rel="noopener noreferrer" {...safe}>
-            {content}
-          </a>
-        );
-      }
+    if (variant === "link" || variant === "link-danger") {
       return (
-        <Link href={href as string} className={base} {...safe}>
-          {content}
-        </Link>
+        <AxLink
+          ref={ref as React.Ref<HTMLAnchorElement | HTMLButtonElement>}
+          href={disabled || loading ? undefined : href}
+          isExternalLink={external}
+          isDisabled={disabled || loading}
+          tooltip={title}
+          type="inherit"
+          size={size === "sm" ? "xsm" : undefined}
+          color={variant === "link" ? "accent" : "inherit"}
+          className={cn(variant === "link-danger" && "text-danger", className)}
+          onClick={rest.onClick as React.MouseEventHandler | undefined}
+        >
+          {icon}
+          {children}
+          {iconRight}
+        </AxLink>
       );
     }
 
+    const isIconOnly = size === "icon";
     return (
-      <button
+      <AxButton
         ref={ref}
-        disabled={disabled || loading}
-        className={base}
-        {...props}
+        {...(rest as Omit<typeof rest, "color">)}
+        type={type as "button" | "submit" | "reset"}
+        label={label}
+        variant={AX_VARIANT[variant]}
+        size={isIconOnly ? "md" : size}
+        isIconOnly={isIconOnly}
+        isLoading={loading}
+        isDisabled={disabled}
+        icon={icon}
+        endContent={iconRight}
+        width={fullWidth ? "100%" : undefined}
+        tooltip={title}
+        href={disabled || loading ? undefined : href}
+        target={external ? "_blank" : undefined}
+        rel={external ? "noopener noreferrer" : undefined}
+        className={className}
       >
-        {content}
-      </button>
+        {isIconOnly ? undefined : children}
+      </AxButton>
     );
   }
 );
