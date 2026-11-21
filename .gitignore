@@ -37,3 +37,8 @@ dev/qa/.state/
 .impeccable/mocks/
 .impeccable/review/
 .impeccable/build/
+
+# Vistas previas que regenera el editor de temas de Astryx.
+themes/*/preview.html
+themes/*/sheet*.html
+themes/*/*.pictures.json

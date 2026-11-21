@@ -1,4 +1,61 @@
+/* Orden de capas para Astryx (rediseño, docs styling-libraries/tailwind). Va
+   ANTES del import de Tailwind: debajo, Astryx quedaría por encima de las
+   utilidades y les quitaría bordes y padding sin ningún error visible. */
+@layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
+
 @import "tailwindcss";
+/* Sin @astryxdesign/core/reset.css a propósito: el Preflight de Tailwind ya
+   hace ese trabajo, y el reset de Astryx aplica su tipografía a todo <p> suelto
+   (medido: cambiaba el tamaño de ~15 textos por página). El mapeo data-theme →
+   color-scheme que trae lo resuelve el script de theme-provider.tsx. Si algún
+   día se usa <MediaTheme>, copiar aquí sus reglas [data-astryx-media]. */
+@import "@astryxdesign/core/astryx.css";
+/* El tema (themes/colibly) lo importa src/astryx-themes.ts desde app/providers.tsx. */
+
+/* El <div> raíz de <Theme> (app/providers.tsx) no debe cambiar nada de lo que
+   ya existe:
+   - `display: contents`: no genera caja; el <body> es flex en columna y sus
+     hijos de siempre deben seguir siéndolo. Las variables del tema se heredan
+     igual.
+   - Tamaño de texto heredado: Theme fija el de cuerpo de Astryx (14/20 px) y
+     todo lo que no declara tamaño lo heredaría (medido: ~700 elementos por
+     página pasaban de 16 a 14 px). Los componentes de Astryx declaran el suyo.
+   Va sin capa a propósito: gana a las reglas de Astryx (en capas) sin importar
+   su especificidad. */
+body > [data-astryx-theme] {
+  display: contents;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* El tema de Astryx siempre genera tipografía de "prosa" para elementos
+   sueltos (h1-h6, p, small, code, pre) en su capa `reset`, sin opción para
+   apagarla (generateProseRules en @astryxdesign/core). En Colibly un elemento
+   sin clase hereda de su contenedor: se completa aquí, en la capa `base` del
+   Preflight (por encima de `reset`, por debajo de las utilidades y de los
+   componentes de Astryx), lo que el Preflight no cubre. */
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;
+    line-height: inherit;
+    color: inherit;
+  }
+  p {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    color: inherit;
+  }
+  small {
+    font-weight: inherit;
+    line-height: inherit;
+    color: inherit;
+  }
+  code, pre {
+    line-height: inherit;
+  }
+}
 
 /* ─────────────────────────────────────────────────
    TOKENS — dirección de diseño CONGELADA (noviembre 2026; AGENTS.md y
