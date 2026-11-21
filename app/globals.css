@@ -684,3 +684,10 @@ input, textarea, [contenteditable="true"] {
 @media (prefers-reduced-motion: reduce) {
   .typing-dot { animation: none; opacity: 0.7; }
 }
+
+/* El <dialog> de Astryx se dibuja donde está el componente (no en un portal).
+   Dentro de un contenedor de Colibly con `space-y-*` la utilidad le quita el
+   margen superior y lo pega arriba. Sin capa: gana a las utilidades. */
+dialog.astryx-dialog {
+  margin: auto;
+}

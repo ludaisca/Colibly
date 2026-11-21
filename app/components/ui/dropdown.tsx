@@ -1,33 +1,33 @@
 "use client";
 
 import React, { createContext, useContext } from "react";
-import { Menu } from "@base-ui/react/menu";
-import { Popover } from "@base-ui/react/popover";
-import { ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuDivider,
+  DropdownMenuGroup,
+  type DropdownMenuTriggerProps,
+} from "@astryxdesign/core/DropdownMenu";
+import { Popover } from "@astryxdesign/core/Popover";
+import { Button as AxButton } from "@astryxdesign/core/Button";
+import { Icon as AxIcon, type IconType } from "@astryxdesign/core/Icon";
 import { cn } from "./cn";
 
-// Menús y paneles flotantes sobre Base UI (2026-11-07). Antes era un
-// componente hecho a mano (portal + getBoundingClientRect, sin roles ni
-// flechas). Ahora:
-// - `Dropdown` (por defecto) es un **menú de acciones**: Base UI `Menu`, con
-//   roles menu/menuitem, flechas, Inicio/Fin, búsqueda por letra, Escape,
-//   foco que vuelve al disparador y posición que evita los bordes.
-// - `Dropdown panel` es un **panel con contenido propio** (búsqueda, campos,
-//   textos, varias acciones por fila): Base UI `Popover`. Dentro de un panel,
-//   `DropdownItem` es un botón normal.
-// La API pública se conserva (`trigger`, `align`, `open`, `onOpenChange`,
-// `closeOnSelect`, `className`); `portal` se acepta por compatibilidad pero ya
-// no hace falta: el menú siempre se dibuja en el body.
+// Adaptador (rediseño con Astryx): misma API de siempre (`trigger`, `align`,
+// `open`, `onOpenChange`, `closeOnSelect`, `panel`, `className`).
+// - `Dropdown` (por defecto) es un menú de acciones → DropdownMenu de Astryx
+//   (roles menu/menuitem, flechas, Escape, foco de vuelta, hoja inferior en
+//   el celular).
+// - `Dropdown panel` es un panel con contenido propio → Popover de Astryx.
+//   Dentro de un panel, `DropdownItem` es un botón normal.
+// El disparador es el elemento de siempre: recibe las props de Astryx.
 
 type Mode = "menu" | "panel";
 
 const DropdownContext = createContext<{ mode: Mode; closeOnSelect: boolean; close: () => void } | null>(null);
 
-const POPUP =
-  "z-[70] min-w-[180px] max-w-[calc(100vw-16px)] max-h-[var(--available-height)] overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg outline-none origin-[var(--transform-origin)] transition-[scale,opacity] duration-fast ease-brand data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 motion-reduce:transition-none";
-
 const ITEM =
-  "w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left outline-none transition-colors select-none cursor-default disabled:opacity-40 disabled:cursor-not-allowed data-[disabled]:opacity-40 data-[disabled]:cursor-not-allowed";
+  "w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left outline-none transition-colors select-none cursor-default rounded-sm disabled:opacity-40 disabled:cursor-not-allowed";
 
 interface DropdownProps {
   trigger: React.ReactNode;
@@ -36,7 +36,7 @@ interface DropdownProps {
   className?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Sin efecto: se dibuja siempre en el body. Se acepta por compatibilidad. */
+  /** Sin efecto: se acepta por compatibilidad. */
   portal?: boolean;
   /** Menú: cerrar al elegir una opción. Panel: cerrar con cualquier clic dentro. */
   closeOnSelect?: boolean;
@@ -46,13 +46,52 @@ interface DropdownProps {
   panelLabel?: string;
 }
 
-/** Disparador: un elemento que ya es botón (o un componente con ref) se usa tal
- * cual; cualquier otro contenido se envuelve en un botón sin estilo. */
-function triggerProps(trigger: React.ReactNode, className?: string) {
-  if (React.isValidElement(trigger) && (trigger.type === "button" || trigger.type === DropdownButton)) {
-    return { render: trigger as React.ReactElement<Record<string, unknown>>, className };
+type AnyProps = Record<string, unknown>;
+
+/** Funde las props que Astryx da al disparador con las que ya trae el elemento:
+ * los manejadores se encadenan (primero el del elemento) y las refs se unen. */
+function mergeTriggerProps(own: AnyProps, given: AnyProps, ownRef: unknown): AnyProps {
+  const out: AnyProps = { ...own, ...given };
+  for (const key of Object.keys(given)) {
+    const a = own[key];
+    const b = given[key];
+    if (/^on[A-Z]/.test(key) && typeof a === "function" && typeof b === "function") {
+      out[key] = (...args: unknown[]) => {
+        (a as (...x: unknown[]) => void)(...args);
+        (b as (...x: unknown[]) => void)(...args);
+      };
+    }
   }
-  return { className: cn("inline-flex max-w-full cursor-pointer rounded-lg text-left", className), children: trigger };
+  const refs = [ownRef, given.ref].filter(Boolean);
+  out.ref = (node: HTMLElement | null) => {
+    for (const r of refs) {
+      if (typeof r === "function") r(node);
+      else if (r && typeof r === "object") (r as React.RefObject<HTMLElement | null>).current = node;
+    }
+  };
+  return out;
+}
+
+/** Disparador: un elemento (botón o componente con ref) se usa tal cual con
+ * las props de Astryx; cualquier otro contenido va dentro de un botón sin estilo. */
+function renderTriggerFor(trigger: React.ReactNode, className?: string) {
+  return function RenderTrigger(props: DropdownMenuTriggerProps | AnyProps) {
+    const given = props as AnyProps;
+    if (React.isValidElement<AnyProps>(trigger) && typeof trigger.type !== "symbol") {
+      const ownRef = (trigger.props as AnyProps).ref;
+      return React.cloneElement(trigger, mergeTriggerProps(trigger.props, given, ownRef));
+    }
+    return (
+      <button
+        type="button"
+        {...(given as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+        ref={given.ref as React.Ref<HTMLButtonElement>}
+        className={cn("inline-flex max-w-full cursor-pointer rounded-lg text-left", className)}
+      >
+        {trigger}
+      </button>
+    );
+  };
 }
 
 export function Dropdown({
@@ -76,45 +115,59 @@ export function Dropdown({
     [open, onOpenChange]
   );
   const close = React.useCallback(() => setOpen(false), [setOpen]);
-  const ctx = React.useMemo(() => ({ mode: (panel ? "panel" : "menu") as Mode, closeOnSelect, close }), [panel, closeOnSelect, close]);
-  const positioner = { side: "bottom" as const, align: align === "right" ? ("end" as const) : ("start" as const), sideOffset: 6, collisionPadding: 8 };
+  const ctx = React.useMemo(
+    () => ({ mode: (panel ? "panel" : "menu") as Mode, closeOnSelect, close }),
+    [panel, closeOnSelect, close]
+  );
+  const alignment = align === "right" ? "end" : "start";
   const wrapperClass = cn("relative inline-flex max-w-full", className);
 
   if (panel) {
     return (
       <DropdownContext.Provider value={ctx}>
-        <Popover.Root open={isOpen} onOpenChange={(next) => setOpen(next)}>
-          <span className={wrapperClass}>
-            <Popover.Trigger {...triggerProps(trigger)} />
-          </span>
-          <Popover.Portal>
-            <Popover.Positioner {...positioner} className="z-[70] outline-none">
-              <Popover.Popup
-                aria-label={panelLabel}
-                className={POPUP}
-                onClick={closeOnSelect ? close : undefined}
-              >
+        <span className={wrapperClass}>
+          <Popover
+            isOpen={isOpen}
+            onOpenChange={setOpen}
+            placement="below"
+            alignment={alignment}
+            label={panelLabel}
+            padding={0}
+            presentation="adaptive"
+            closeButtonLabel="Cerrar"
+            content={
+              <div className="py-1" onClick={closeOnSelect ? close : undefined}>
                 {children}
-              </Popover.Popup>
-            </Popover.Positioner>
-          </Popover.Portal>
-        </Popover.Root>
+              </div>
+            }
+          >
+            {/* El Popover conecta su propio disparador: va el elemento tal cual. */}
+            {React.isValidElement(trigger) ? (
+              trigger
+            ) : (
+              <button type="button" className="inline-flex max-w-full cursor-pointer rounded-lg text-left">
+                {trigger}
+              </button>
+            )}
+          </Popover>
+        </span>
       </DropdownContext.Provider>
     );
   }
 
   return (
     <DropdownContext.Provider value={ctx}>
-      <Menu.Root open={isOpen} onOpenChange={(next) => setOpen(next)} modal={false}>
-        <span className={wrapperClass}>
-          <Menu.Trigger {...triggerProps(trigger)} />
-        </span>
-        <Menu.Portal>
-          <Menu.Positioner {...positioner} className="z-[70] outline-none">
-            <Menu.Popup className={POPUP}>{children}</Menu.Popup>
-          </Menu.Positioner>
-        </Menu.Portal>
-      </Menu.Root>
+      <span className={wrapperClass}>
+        <DropdownMenu
+          isMenuOpen={isOpen}
+          onOpenChange={setOpen}
+          placement="below"
+          alignment={alignment}
+          renderTrigger={renderTriggerFor(trigger)}
+        >
+          {children}
+        </DropdownMenu>
+      </span>
     </DropdownContext.Provider>
   );
 }
@@ -132,77 +185,74 @@ interface DropdownItemProps {
 
 export function DropdownItem({ children, onClick, icon: Icon, danger, disabled, className, keepOpen }: DropdownItemProps) {
   const ctx = useContext(DropdownContext);
-  const tone = danger
-    ? "text-danger hover:bg-danger-bg data-[highlighted]:bg-danger-bg"
-    : "text-foreground hover:bg-surface-light data-[highlighted]:bg-surface-light focus-visible:bg-surface-light";
-  const content = (
-    <>
-      {Icon && <Icon size={15} aria-hidden className={cn("shrink-0", danger ? "text-danger" : "text-muted-darker")} />}
-      {children}
-    </>
-  );
 
   if (ctx?.mode === "menu") {
     return (
-      <Menu.Item
-        onClick={onClick}
-        disabled={disabled}
-        closeOnClick={keepOpen ? false : ctx.closeOnSelect}
-        className={cn(ITEM, tone, className)}
-      >
-        {content}
-      </Menu.Item>
+      <DropdownMenuItem
+        label={children}
+        icon={Icon as IconType | undefined}
+        variant={danger ? "destructive" : "default"}
+        isDisabled={disabled}
+        hasCloseOnSelect={keepOpen ? false : ctx.closeOnSelect}
+        onClick={() => onClick?.()}
+      />
     );
   }
 
+  const tone = danger ? "text-danger hover:bg-danger-bg" : "text-foreground hover:bg-surface-light focus-visible:bg-surface-light";
   return (
     <button type="button" onClick={onClick} disabled={disabled} className={cn(ITEM, tone, className)}>
-      {content}
+      {Icon && <Icon size={15} aria-hidden className={cn("shrink-0", danger ? "text-danger" : "text-muted-darker")} />}
+      {children}
     </button>
   );
 }
 
 export function DropdownDivider() {
   const ctx = useContext(DropdownContext);
-  if (ctx?.mode === "menu") return <Menu.Separator className="my-1 border-t border-border" />;
+  if (ctx?.mode === "menu") return <DropdownMenuDivider />;
   return <div role="separator" className="my-1 border-t border-border" />;
 }
 
 /** Título de un grupo de opciones (no se puede elegir). */
 export function DropdownLabel({ children }: { children: React.ReactNode }) {
+  const ctx = useContext(DropdownContext);
+  if (ctx?.mode === "menu") return <DropdownMenuGroup title={children} />;
   return <div className="px-3.5 pb-1 pt-1.5 text-micro text-muted-darker">{children}</div>;
 }
 
-interface DropdownButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface DropdownButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
   label: string;
   icon?: React.ElementType;
   variant?: "default" | "outline";
   size?: "sm" | "md";
   chevron?: boolean;
+  ref?: React.Ref<HTMLButtonElement>;
 }
 
-/** Botón estándar para abrir un `Dropdown` (es un `<button>` real). */
-export const DropdownButton = React.forwardRef<HTMLButtonElement, DropdownButtonProps>(function DropdownButton(
-  { label, icon: Icon, variant = "outline", size = "md", chevron = true, className, type = "button", ...props },
-  ref
-) {
+/** Botón estándar para abrir un `Dropdown` (Button de Astryx con chevron). */
+export function DropdownButton({
+  label,
+  icon,
+  variant = "outline",
+  size = "md",
+  chevron = true,
+  className,
+  disabled,
+  type,
+  ...props
+}: DropdownButtonProps) {
   return (
-    <button
-      ref={ref}
-      type={type}
-      {...props}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg transition-colors select-none",
-        size === "sm" ? "h-8 px-2.5 text-xs" : "h-9 px-3 text-sm",
-        variant === "outline"
-          ? "border border-border hover:bg-surface-light text-foreground data-[popup-open]:bg-surface-light"
-          : "bg-surface-light hover:bg-surface text-foreground",
-        className
-      )}
-    >
-      {Icon && <Icon size={size === "sm" ? 13 : 15} aria-hidden className="shrink-0 text-muted-darker" />}
-      <span className="font-medium">{label}</span>
-      {chevron && <ChevronDown size={size === "sm" ? 12 : 14} aria-hidden className="shrink-0 text-muted-darker" />}
-    </button>
+    <AxButton
+      {...(props as AnyProps)}
+      label={label}
+      icon={icon ? <AxIcon icon={icon as IconType} /> : undefined}
+      endContent={chevron ? <AxIcon icon="chevronDown" /> : undefined}
+      variant={variant === "outline" ? "secondary" : "ghost"}
+      size={size === "sm" ? "sm" : "md"}
+      isDisabled={disabled}
+      type={type === "submit" ? "submit" : "button"}
+      className={className}
+    />
   );
-});
+}

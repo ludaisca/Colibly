@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { Theme } from "@astryxdesign/core/theme";
 import { LinkProvider } from "@astryxdesign/core/Link";
 import { InternationalizationProvider } from "@astryxdesign/core/i18n";
+import { LayerProvider } from "@astryxdesign/core/Layer";
 import esES from "@astryxdesign/core/locales/es-ES.generated.js";
 import { ToastProvider } from "@/app/components/ui/toast";
 import { useApplyStoredTheme } from "@/app/components/theme-provider";
@@ -24,6 +25,8 @@ export function Providers({ children, sessionless = false }: { children: React.R
           números con formato de México. El catálogo es-ES sirve para es-MX. */}
       <InternationalizationProvider locale="es-MX" messages={{ "es-MX": esES }}>
       {/* Los enlaces de Astryx navegan con el router de Next (sin recarga). */}
+      {/* Capas de Astryx (toasts, menús, diálogos) comparten un solo contexto. */}
+      <LayerProvider>
       <LinkProvider component={Link}>
         <SessionProvider {...(sessionless ? { session: null, refetchOnWindowFocus: false } : {})}>
           <ToastProvider>
@@ -31,6 +34,7 @@ export function Providers({ children, sessionless = false }: { children: React.R
           </ToastProvider>
         </SessionProvider>
       </LinkProvider>
+      </LayerProvider>
       </InternationalizationProvider>
     </Theme>
   );

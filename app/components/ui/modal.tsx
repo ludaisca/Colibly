@@ -1,21 +1,19 @@
 "use client";
 
-import React from "react";
-import { Dialog } from "@base-ui/react/dialog";
-import { AlertDialog } from "@base-ui/react/alert-dialog";
-import { X } from "lucide-react";
-import { cn } from "./cn";
-import "./modal.css";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
+import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
+import { Drawer, DrawerHeader } from "@astryxdesign/core/Drawer";
+import { BottomSheet } from "@astryxdesign/core/BottomSheet";
+import { VStack, HStack } from "@astryxdesign/core/Layout";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
 
-// Ventana de diálogo sobre Base UI (2026-11-07; antes HeroUI). API sin
-// cambios. Reglas (docs/INVENTARIO_MODALES_2026-11-07.md):
-// - Un modal solo cuando la tarea interrumpe con razón: secreto de una sola
-//   vez, seguridad, acción irreversible, bloquear hasta completar datos.
-// - `layout="drawer"`: cajón lateral para formularios largos (6+ campos) y
-//   paneles de consulta; deja ver la página detrás en escritorio y ocupa la
-//   pantalla completa en el celular.
-// - En el celular el modal normal es una hoja inferior.
-// - `kind="alert"` (ConfirmDialog) usa AlertDialog: no se cierra tocando fuera.
+// Adaptador (rediseño con Astryx): misma API de siempre, dibujado por Astryx.
+// - Escritorio: Dialog centrado, o Drawer lateral con `layout="drawer"`.
+// - Celular (< 768 px): BottomSheet (hoja inferior), o Drawer a ancho completo.
+// Reglas de siempre (docs/INVENTARIO_MODALES_2026-11-07.md): un modal solo
+// cuando la tarea interrumpe con razón; `drawer` para formularios de 6+
+// campos; `kind="alert"` (ConfirmDialog) no se cierra tocando fuera.
 
 type ModalSize = "sm" | "md" | "lg" | "xl";
 
@@ -34,6 +32,39 @@ export interface ModalProps {
   children: React.ReactNode;
 }
 
+const DIALOG_WIDTH: Record<ModalSize, number> = { sm: 400, md: 520, lg: 720, xl: 960 };
+const DRAWER_WIDTH: Record<ModalSize, number> = { sm: 400, md: 480, lg: 640, xl: 800 };
+
+const WIDE = "(min-width: 768px)";
+function useIsWide() {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = matchMedia(WIDE);
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => matchMedia(WIDE).matches,
+    () => true,
+  );
+}
+
+/**
+ * Astryx deja montado el <dialog> cerrado. Dentro de un contenedor `space-y-*`
+ * eso cambia cuál hijo es el último y mete márgenes en pantallas existentes
+ * (Base UI no montaba nada cerrado). Se monta al abrir y se desmonta cuando
+ * termina la animación de cierre.
+ */
+function useMountedWhileOpen(open: boolean, exitMs = 300) {
+  const [mounted, setMounted] = useState(open);
+  if (open && !mounted) setMounted(true);
+  useEffect(() => {
+    if (open || !mounted) return;
+    const t = setTimeout(() => setMounted(false), exitMs);
+    return () => clearTimeout(t);
+  }, [open, mounted, exitMs]);
+  return mounted;
+}
+
 export function Modal({
   open,
   onClose,
@@ -47,62 +78,75 @@ export function Modal({
   className,
   children,
 }: ModalProps) {
+  const isWide = useIsWide();
+  const mounted = useMountedWhileOpen(open);
   const alert = kind === "alert";
-  // El modal se abre por estado (no con Dialog.Trigger), así que Base UI no
-  // sabe a dónde devolver el foco al cerrar: se recuerda el último elemento
-  // enfocado mientras estaba cerrado (normalmente el botón que lo abrió).
-  // Si el modal se monta ya abierto (`{editing && <XxxModal open />}`), el
-  // foco todavía está en el botón durante este primer render.
-  const [initialFocused] = React.useState<HTMLElement | null>(() =>
-    typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null
-  );
-  const returnFocusRef = React.useRef<HTMLElement | null>(null);
-  React.useEffect(() => {
-    if (open) return;
-    const remember = (event: FocusEvent) => {
-      if (event.target instanceof HTMLElement) returnFocusRef.current = event.target;
-    };
-    document.addEventListener("focusin", remember);
-    return () => document.removeEventListener("focusin", remember);
-  }, [open]);
-  const Parts = alert ? AlertDialog : Dialog;
-  const onOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen && !persistent) onClose();
+  // persistent: no se puede cerrar; alert: no se cierra tocando fuera ni con Esc.
+  const purpose = persistent || alert ? "required" : "info";
+  const canClose = !persistent && !alert;
+  const onOpenChange = (next: boolean) => {
+    if (!next && !persistent) onClose();
   };
+  const label = title ?? "Ventana de diálogo";
+
+  if (!mounted) return null;
+
+  const body = (
+    <VStack gap={4} padding={4} className={className}>
+      {children}
+      {footer && (
+        <HStack gap={2} hAlign="end" wrap="wrap">
+          {footer}
+        </HStack>
+      )}
+    </VStack>
+  );
+
+  if (layout === "drawer") {
+    return (
+      <Drawer
+        isOpen={open}
+        onOpenChange={onOpenChange}
+        label={label}
+        width={DRAWER_WIDTH[size]}
+        purpose={purpose}
+        experimental={{ isFullWidthOnMobile: true }}
+      >
+        {title && (
+          <DrawerHeader title={title} subtitle={description} onOpenChange={canClose ? onOpenChange : undefined} />
+        )}
+        {body}
+      </Drawer>
+    );
+  }
+
+  if (!isWide) {
+    return (
+      <BottomSheet isOpen={open} onOpenChange={onOpenChange} label={label} purpose={purpose} height="hug">
+        {(title || description) && (
+          <VStack gap={1} paddingInline={4} paddingBlock={3}>
+            {title && <Heading level={2}>{title}</Heading>}
+            {description && <Text type="supporting" color="secondary">{description}</Text>}
+          </VStack>
+        )}
+        {body}
+      </BottomSheet>
+    );
+  }
 
   return (
-    <Parts.Root open={open} onOpenChange={onOpenChange} {...(alert ? {} : { disablePointerDismissal: persistent })}>
-      <Parts.Portal>
-        <Parts.Backdrop className="colibly-modal-backdrop" />
-        <Parts.Viewport className="colibly-modal-viewport" data-layout={layout}>
-          <Parts.Popup
-            className={cn("colibly-modal-dialog", className)}
-            data-colibly-size={size}
-            data-layout={layout}
-            aria-label={title ? undefined : "Ventana de diálogo"}
-            finalFocus={() => {
-              const target = returnFocusRef.current ?? initialFocused;
-              return target?.isConnected ? target : true;
-            }}
-          >
-            {(title || description || !persistent) && (
-              <div className="colibly-modal-header">
-                <div className="min-w-0">
-                  {title && <Parts.Title className="text-base font-semibold text-foreground">{title}</Parts.Title>}
-                  {description && <Parts.Description className="mt-1 text-sm text-muted">{description}</Parts.Description>}
-                </div>
-                {!persistent && !alert && (
-                  <Parts.Close aria-label="Cerrar" className="colibly-modal-close">
-                    <X size={18} aria-hidden />
-                  </Parts.Close>
-                )}
-              </div>
-            )}
-            <div className="colibly-modal-body">{children}</div>
-            {footer && <div className="colibly-modal-footer">{footer}</div>}
-          </Parts.Popup>
-        </Parts.Viewport>
-      </Parts.Portal>
-    </Parts.Root>
+    <Dialog
+      isOpen={open}
+      onOpenChange={onOpenChange}
+      width={DIALOG_WIDTH[size]}
+      maxHeight="85dvh"
+      purpose={purpose}
+      aria-label={title ? undefined : label}
+    >
+      {(title || description || canClose) && (
+        <DialogHeader title={title} subtitle={description} onOpenChange={canClose ? onOpenChange : undefined} />
+      )}
+      {body}
+    </Dialog>
   );
 }
