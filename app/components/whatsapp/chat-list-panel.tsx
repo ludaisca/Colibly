@@ -5,7 +5,8 @@ import { displayName, isWebchatVisitorId } from "@/lib/chats/display-name";
 import type { ElementType, ReactNode } from "react";
 import { GettingStarted } from "@/app/components/ui/getting-started";
 import { Search, MessageSquare, Flag, Clock, ListChecks, UserCheck, Check, X, ArrowUpDown } from "lucide-react";
-import { Combobox } from "@base-ui/react/combobox";
+import { Typeahead, type SearchSource, type SearchableItem } from "@astryxdesign/core/Typeahead";
+import type { IconType } from "@astryxdesign/core/Icon";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -69,6 +70,8 @@ function BulkButton({
     </button>
   );
 }
+
+type SuggestionItem = SearchableItem<{ chat: ChatItem }>;
 
 interface ChatListPanelProps {
   resizable?: boolean;
@@ -180,11 +183,19 @@ export function ChatListPanel({
   const hasResults = Object.keys(groupedChats).length > 0;
   // Las sugerencias salen de la misma lista autorizada y filtrada que se ve
   // debajo; el texto sigue pasando por la búsqueda paginada del servidor.
-  const suggestions = Object.values(groupedChats).flat().slice(0, 8).map((chat) => ({
-    value: chat.id,
-    label: `${displayName(chat.name, chat.remoteJid)} ${chat.remoteJid}`,
-    chat,
-  }));
+  // Sugerencias de la búsqueda: los chats ya cargados cuyo nombre o número
+  // coincide (la lista de abajo se filtra aparte con el mismo texto).
+  const loadedChats = Object.values(groupedChats).flat();
+  const suggestionSource: SearchSource<SuggestionItem> = {
+    bootstrap: () => [],
+    search: (query) => {
+      const needle = query.trim().toLowerCase();
+      return loadedChats
+        .filter((chat) => `${displayName(chat.name, chat.remoteJid)} ${chat.remoteJid}`.toLowerCase().includes(needle))
+        .slice(0, 8)
+        .map((chat) => ({ id: chat.id, label: displayName(chat.name, chat.remoteJid), auxiliaryData: { chat } }));
+    },
+  };
 
   return (
     <div className={`${selectedChatId ? "hidden lg:flex" : "flex"} lg:flex flex-col w-full ${resizable ? "" : "lg:w-80 shrink-0"} min-w-0 border-r border-border`}>
@@ -267,23 +278,37 @@ export function ChatListPanel({
         {/* Búsqueda en su propia fila, a todo lo ancho (como Chatwoot): con la
             lista angosta ya no se encima con los botones de la cabecera. */}
         <div className="min-w-0">
-          <Combobox.Root items={suggestions} inputValue={search}
-            onInputValueChange={(value, details) => { if (!details.isItemPress) onSearchChange(value); }}
-            onValueChange={(item) => { const selected = item as (typeof suggestions)[number] | null; if (selected) { onChatSelect(selected.chat); onSearchChange(""); } }}>
-            <Combobox.InputGroup className="flex h-8 items-center gap-2 rounded-sm border border-border-strong bg-surface px-3 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-subtle">
-              <Search size={16} className="shrink-0 text-muted-darker" />
-              <Combobox.Input data-inbox-search data-focus-ring="" aria-label="Buscar chat (atajo: /)" placeholder="Buscar chat…" className="h-full min-w-0 flex-1 self-stretch bg-transparent text-sm text-foreground placeholder:text-muted-darker" />
-            </Combobox.InputGroup>
-            <Combobox.Portal><Combobox.Positioner sideOffset={5} className="z-[60] w-[var(--anchor-width)]">
-              <Combobox.Popup className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-1.5 shadow-lg">
-                <Combobox.Empty className="px-3 py-3 text-xs text-muted">Busca un nombre o número para encontrar conversaciones.</Combobox.Empty>
-                <Combobox.List>{(item: (typeof suggestions)[number]) => <Combobox.Item key={item.value} value={item} className="flex cursor-pointer flex-col gap-0.5 rounded-sm px-3 py-2 text-sm text-foreground outline-none data-[highlighted]:bg-accent-subtle">
-                  <span className="truncate font-medium">{displayName(item.chat.name, item.chat.remoteJid)}</span>
-                  <span className="truncate text-micro text-muted">{item.chat.account.name}{isWebchatVisitorId(item.chat.remoteJid) ? "" : ` · ${item.chat.remoteJid}`}</span>
-                </Combobox.Item>}</Combobox.List>
-              </Combobox.Popup>
-            </Combobox.Positioner></Combobox.Portal>
-          </Combobox.Root>
+          {/* data-inbox-search: el atajo "/" enfoca el campo de adentro. */}
+          <div data-inbox-search>
+            <Typeahead<SuggestionItem>
+              label="Buscar chat (atajo: /)"
+              isLabelHidden
+              placeholder="Buscar chat…"
+              startIcon={Search as IconType}
+              size="sm"
+              width="100%"
+              hasClear={false}
+              value={null}
+              onChangeQuery={onSearchChange}
+              onChange={(item) => {
+                if (item?.auxiliaryData) {
+                  onChatSelect(item.auxiliaryData.chat);
+                  onSearchChange("");
+                }
+              }}
+              emptySearchText="Busca un nombre o número para encontrar conversaciones."
+              searchSource={suggestionSource}
+              renderItem={(item) => {
+                const chat = item.auxiliaryData!.chat;
+                return (
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate font-medium">{displayName(chat.name, chat.remoteJid)}</span>
+                    <span className="truncate text-micro text-muted">{chat.account.name}{isWebchatVisitorId(chat.remoteJid) ? "" : ` · ${chat.remoteJid}`}</span>
+                  </span>
+                );
+              }}
+            />
+          </div>
         </div>
 
         {selectionMode && (

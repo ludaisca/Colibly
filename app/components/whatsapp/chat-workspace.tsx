@@ -1446,7 +1446,7 @@ export function ChatWorkspace({
   async function runShortcut(action: InboxShortcutAction) {
     if (action === "help") return setShortcutsOpen(true);
     if (action === "focus-search") {
-      document.querySelector<HTMLInputElement>("[data-inbox-search]")?.focus();
+      document.querySelector<HTMLInputElement>("[data-inbox-search] input")?.focus();
       return;
     }
     if (action === "next-chat" || action === "prev-chat") {

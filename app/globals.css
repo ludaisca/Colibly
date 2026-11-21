@@ -498,7 +498,12 @@ input, textarea, [contenteditable="true"] {
 
 /* Sin border-radius: el contorno ya sigue el radio del elemento, y forzarlo
    aquí (regla sin capa) le cambiaba la forma a píldoras e interruptores. */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+/* Fuera quedan los controles de Astryx (clase astryx-* o dentro de un campo
+   .astryx-field): dibujan su propio foco en su capa y esta regla, que no
+   tiene capa, se lo cambiaba o le ponía un segundo anillo al <input> de
+   adentro del campo. El contenido de Colibly dentro de un Dialog o Drawer de
+   Astryx sí la conserva (el contenedor no es el elemento enfocado). */
+:where(a, button, input, select, textarea, [tabindex]):not(:where([class*="astryx-"], .astryx-field *)):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
