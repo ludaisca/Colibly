@@ -1,0 +1,240 @@
+{
+  "name": "colibly",
+  "like": "neutral",
+  "mode": "both",
+  "settings": [
+    {
+      "thing": "accent",
+      "value": "#0F6E7E",
+      "source": "dial"
+    },
+    {
+      "thing": "neutral",
+      "value": "#5E5F5A",
+      "source": "dial"
+    },
+    {
+      "thing": "success",
+      "value": "#1F6B45",
+      "source": "dial"
+    },
+    {
+      "thing": "warning",
+      "value": "#9A4A0B",
+      "source": "dial"
+    },
+    {
+      "thing": "danger",
+      "value": "#B3261E",
+      "source": "dial"
+    },
+    {
+      "thing": "info",
+      "value": "#2F5D8A",
+      "source": "dial"
+    },
+    {
+      "thing": "--color-background-body",
+      "value": "#F4F4F1",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-background-body",
+      "value": "#111211",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-text-primary",
+      "value": "#17181A",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-text-primary",
+      "value": "#ECECE8",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-text-secondary",
+      "value": "#5E5F5A",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-text-secondary",
+      "value": "#A3A49E",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-text-accent",
+      "value": "#0B5D6A",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-text-accent",
+      "value": "#5FB8C4",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--focus-outline-color",
+      "value": "#5FB8C4",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "font",
+      "value": "Barlow, system-ui, sans-serif",
+      "source": "dial"
+    },
+    {
+      "thing": "corners",
+      "value": "10px",
+      "source": "dial"
+    },
+    {
+      "thing": "--radius-element",
+      "value": "6px",
+      "source": "token"
+    },
+    {
+      "thing": "background-color",
+      "value": "#DCEFEC",
+      "source": "property",
+      "on": "chat-message-bubble",
+      "when": "sender:user",
+      "mode": "light"
+    },
+    {
+      "thing": "background-color",
+      "value": "#163A3E",
+      "source": "property",
+      "on": "chat-message-bubble",
+      "when": "sender:user",
+      "mode": "dark"
+    },
+    {
+      "thing": "background-color",
+      "value": "#FFFFFF",
+      "source": "property",
+      "on": "chat-message-bubble",
+      "when": "sender:assistant",
+      "mode": "light"
+    },
+    {
+      "thing": "background-color",
+      "value": "#222321",
+      "source": "property",
+      "on": "chat-message-bubble",
+      "when": "sender:assistant",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-accent-muted",
+      "value": "#A9CFD4",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-accent-muted",
+      "value": "#24474C",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-accent",
+      "value": "#00869a",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "--color-error",
+      "value": "#c04c40",
+      "source": "token",
+      "mode": "dark"
+    },
+    {
+      "thing": "background-color",
+      "value": "var(--color-neutral)",
+      "source": "property",
+      "on": "button",
+      "when": "variant:primary",
+      "state": "disabled"
+    },
+    {
+      "thing": "color",
+      "value": "var(--color-text-primary)",
+      "source": "property",
+      "on": "button",
+      "when": "variant:primary",
+      "state": "disabled"
+    },
+    {
+      "thing": "background-color",
+      "value": "var(--color-accent-muted)",
+      "source": "property",
+      "on": "side-nav-item",
+      "state": "selected"
+    },
+    {
+      "thing": "background-color",
+      "value": "var(--color-accent-muted)",
+      "source": "property",
+      "on": "pagination-item",
+      "state": "selected"
+    },
+    {
+      "thing": "background-color",
+      "value": "var(--color-accent-muted)",
+      "source": "property",
+      "on": "top-nav-item",
+      "state": "selected"
+    },
+    {
+      "thing": "--color-background-error-inverted",
+      "value": "#b3261e",
+      "source": "token",
+      "on": "toast",
+      "when": "type:error",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-background-error-inverted",
+      "value": "#c04c40",
+      "source": "token",
+      "on": "toast",
+      "when": "type:error",
+      "mode": "dark"
+    },
+    {
+      "thing": "color",
+      "value": "#ffffff",
+      "source": "property",
+      "on": "toast",
+      "when": "type:error",
+      "mode": "dark"
+    },
+    {
+      "thing": "color",
+      "value": "#ffffff",
+      "source": "property",
+      "on": "toast",
+      "when": "type:error",
+      "mode": "light"
+    },
+    {
+      "thing": "background-color",
+      "value": "#30312f",
+      "source": "property",
+      "on": "progress-bar-track",
+      "mode": "dark"
+    }
+  ],
+  "lifted": [],
+  "palette": "ce1c23b2e9ffae8f8d524215a27a1d2ecb55fbb228ec974dbba1cc598e45fdf3"
+}
