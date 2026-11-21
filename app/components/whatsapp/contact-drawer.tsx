@@ -6,7 +6,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, CalendarClock, Link2, X, Save, MessageSquare } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { Drawer } from "@base-ui/react/drawer";
+import { Drawer } from "@astryxdesign/core/Drawer";
 import { Banner } from "@/app/components/ui/banner";
 import { Select } from "@/app/components/ui/select";
 import { MultiSelect } from "@/app/components/ui/multi-select";
@@ -24,7 +24,6 @@ import { FormField } from "@/app/components/ui/form-field";
 import { CurrencyInput } from "@/app/components/ui/currency-input";
 import { amountValue, formatAmountValue } from "@/lib/format/currency-input";
 import { DEAL_VALUE_MAX_PESOS, centsToPesos, formatMxn } from "@/lib/money";
-import "./contact-drawer.css";
 import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface ContactDetail {
@@ -127,6 +126,16 @@ export function ContactDrawer({
   const [savingFields, setSavingFields] = useState(false);
   const [timelineKey, setTimelineKey] = useState(0);
   const [tab, setTab] = useState<DrawerTab>(readTabFromUrl);
+  // Se abre al montar; al cerrar se espera la animación de salida antes de
+  // limpiar la pestaña de la URL y avisar al padre (que desmonta la ficha).
+  const [open, setOpen] = useState(true);
+  const close = () => {
+    setOpen(false);
+    window.setTimeout(() => {
+      writeTabToUrl(null);
+      onClose();
+    }, 250);
+  };
   const [dealValue, setDealValue] = useState("");
   const [closeDate, setCloseDate] = useState("");
   const [savingDeal, setSavingDeal] = useState(false);
@@ -351,12 +360,16 @@ export function ContactDrawer({
   }
 
   return (
-    <Drawer.Root defaultOpen modal={!appointmentModalOpen} swipeDirection="right" onOpenChangeComplete={(open) => { if (!open) { writeTabToUrl(null); onClose(); } }}>
-      <Drawer.Portal>
-        <Drawer.Backdrop className="colibly-contact-backdrop" />
-        <Drawer.Viewport className="colibly-contact-viewport">
-          <Drawer.Popup className="colibly-contact-popup">
-            <Drawer.Content className="flex h-full flex-col">
+    <>
+    <Drawer
+      isOpen={open}
+      onOpenChange={(next) => { if (!next) close(); }}
+      label={contact ? displayName(contact.name, contact.remoteJid) : "Contacto"}
+      width={460}
+      padding={0}
+      experimental={{ isFullWidthOnMobile: true }}
+    >
+            <div className="flex h-full flex-col">
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
                 {editingName ? (
                   <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(event) => { event.preventDefault(); void saveName(); }}>
@@ -365,15 +378,19 @@ export function ContactDrawer({
                     <Button type="button" size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancelar</Button>
                   </form>
                 ) : (
-                  <Drawer.Title className="truncate text-sm font-semibold text-foreground">{contact ? displayName(contact.name, contact.remoteJid) : "Contacto"}</Drawer.Title>
+                  <h2 className="truncate text-sm font-semibold text-foreground">{contact ? displayName(contact.name, contact.remoteJid) : "Contacto"}</h2>
                 )}
                 <div className="flex shrink-0 items-center gap-1">
                   {contact && !editingName && (
                     <Button type="button" size="sm" variant="ghost" onClick={() => { setNameDraft(contact.name ?? ""); setEditingName(true); }}>Editar</Button>
                   )}
-                  <Tooltip label="Copiar enlace"><button
+                  <Button
                     type="button"
+                    size="icon"
+                    variant="ghost"
+                    icon={Link2}
                     aria-label="Copiar enlace del contacto"
+                    title="Copiar enlace"
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(window.location.href);
@@ -382,11 +399,8 @@ export function ContactDrawer({
                         toastError("No se pudo copiar el enlace");
                       }
                     }}
-                    className="rounded-sm p-1.5 text-muted hover:bg-surface-light hover:text-foreground"
-                  >
-                    <Link2 size={16} />
-                  </button></Tooltip>
-                  <Drawer.Close aria-label="Cerrar ficha" className="rounded-sm p-1.5 text-muted hover:bg-surface-light hover:text-foreground"><X size={18} /></Drawer.Close>
+                  />
+                  <Button type="button" size="icon" variant="ghost" icon={X} aria-label="Cerrar ficha" onClick={close} />
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
@@ -467,17 +481,15 @@ export function ContactDrawer({
           </div>
 
           {nextAppointment && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={CalendarClock}
+              fullWidth
               onClick={() => changeTab("tareas")}
-              className="flex w-full items-center gap-2 rounded-lg border border-border bg-surface-light px-3 py-2 text-left text-xs text-muted-darker hover:text-foreground"
             >
-              <CalendarClock size={14} className="shrink-0" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">
-                Próxima cita: <span className="font-medium text-foreground">{nextAppointment.title}</span> ·{" "}
-                {new Date(nextAppointment.scheduledAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
-              </span>
-            </button>
+              Próxima cita: {nextAppointment.title} · {new Date(nextAppointment.scheduledAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+            </Button>
           )}
                 </>
               )}
@@ -640,10 +652,8 @@ export function ContactDrawer({
                   )}
                 </div>
               )}
-            </Drawer.Content>
-          </Drawer.Popup>
-        </Drawer.Viewport>
-      </Drawer.Portal>
+            </div>
+    </Drawer>
 
       {contact && (
         <AppointmentFormModal
@@ -654,6 +664,6 @@ export function ContactDrawer({
           contactLabel={displayName(contact.name, contact.remoteJid)}
         />
       )}
-    </Drawer.Root>
+    </>
   );
 }
