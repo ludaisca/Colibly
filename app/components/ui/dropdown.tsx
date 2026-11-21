@@ -195,6 +195,9 @@ export function DropdownItem({ children, onClick, icon: Icon, danger, disabled, 
         isDisabled={disabled}
         hasCloseOnSelect={keepOpen ? false : ctx.closeOnSelect}
         onClick={() => onClick?.()}
+        // Las pantallas lo usan para esconder la opción según el ancho
+        // (p. ej. "sm:hidden" cuando el botón equivalente ya está visible).
+        className={className}
       />
     );
   }

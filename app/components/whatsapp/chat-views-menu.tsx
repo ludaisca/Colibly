@@ -193,14 +193,7 @@ export function ChatViewsMenu({
                   >
                     {view.name}
                   </button>
-                  <button
-                    type="button"
-                    aria-label={`Eliminar vista ${view.name}`}
-                    onClick={() => remove(view.id)}
-                    className="shrink-0 rounded-sm p-1.5 text-muted-darker transition-colors hover:bg-danger-bg hover:text-danger"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  <Button variant="ghost" size="icon" icon={Trash2} onClick={() => remove(view.id)} aria-label={`Eliminar vista ${view.name}`} type="button" />
                 </div>
               ))}
             </div>

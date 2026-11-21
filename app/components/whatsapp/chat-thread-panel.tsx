@@ -162,13 +162,7 @@ function MediaContent({ msg, channel, onPreview }: { msg: Message; channel: Medi
     return (
       <div className="relative group max-w-full">
         <video controls src={mediaSrc} className="max-h-[320px] max-w-full rounded-lg" />
-        <Tooltip label="Ver en grande"><button aria-label="Ver en grande"
-          type="button"
-          onClick={() => onPreview({ type: "video", src: mediaSrc, filename: msg.filename, mimeType: msg.mimeType })}
-          className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white hover:bg-black/70"
-        >
-          <Maximize2 size={14} />
-        </button></Tooltip>
+        <Button variant="ghost" size="icon" icon={Maximize2} onClick={() => onPreview({ type: "video", src: mediaSrc, filename: msg.filename, mimeType: msg.mimeType })} aria-label="Ver en grande" type="button" title="Ver en grande" />
       </div>
     );
   }
@@ -765,14 +759,7 @@ export function ChatThreadPanel({
           <div ref={messagesEndRef} />
         </div>
         {!atBottom && (
-          <Tooltip label="Ir al final"><button
-            type="button"
-            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })}
-            aria-label="Ir al final de la conversación"
-            className="absolute bottom-3 right-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-muted-darker shadow-md transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
-          >
-            <ArrowDown size={18} />
-          </button></Tooltip>
+          <Button variant="ghost" size="icon" icon={ArrowDown} onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })} aria-label="Ir al final de la conversación" type="button" title="Ir al final" />
         )}
       </div>
     </>

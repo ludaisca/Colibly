@@ -117,13 +117,7 @@ export function ChannelAccountShareModal({
             {sharedUsers.map((u) => (
               <Badge key={u.id} tone="neutral" size="sm" className="gap-1.5">
                 {u.name ?? u.email} · {ROLE_LABEL[u.role] ?? u.role}
-                <button
-                  onClick={() => handleUnshare(u.id)}
-                  className="hover:text-danger transition-colors"
-                  aria-label={`Quitar acceso a ${u.name ?? u.email}`}
-                >
-                  <X size={12} />
-                </button>
+                <Button variant="ghost" size="icon" icon={X} onClick={() => handleUnshare(u.id)} aria-label={`Quitar acceso a ${u.name ?? u.email}`} />
               </Badge>
             ))}
           </div>

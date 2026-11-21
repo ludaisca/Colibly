@@ -15,7 +15,6 @@ import { AiMark } from "@/app/components/ui/ai-mark";
 // de herramientas: un botón de IA (sugerir / reescribir) y un "+" con botones,
 // plantilla y stickers. Antes eran cinco iconos más el adjunto.
 
-const TOOL = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 interface BotOption { id: string; name: string; isActive: boolean }
 
@@ -127,15 +126,7 @@ export function ChatAiMenu({
       portal
       closeOnSelect={false}
       trigger={
-        <button
-          type="button"
-          disabled={disabled}
-          className={`${TOOL} ${open ? "bg-accent-subtle text-accent-ink" : ""}`}
-          aria-label="Herramientas de IA"
-          aria-expanded={open}
-        >
-          <AiMark size={18} />
-        </button>
+        <Button variant="ghost" size="icon" icon={AiMark} disabled={disabled} aria-label="Herramientas de IA" aria-expanded={open} type="button" />
       }
     >
       <div className="w-[min(21rem,calc(100vw-2rem))] p-1">
@@ -224,14 +215,7 @@ export function ChatMoreMenu({
         align="left"
         portal
         trigger={
-          <button
-            type="button"
-            disabled={disabled}
-            className={TOOL}
-            aria-label="Más herramientas"
-          >
-            <Plus size={18} />
-          </button>
+          <Button variant="ghost" size="icon" icon={Plus} disabled={disabled} aria-label="Más herramientas" type="button" />
         }
       >
         <div className="w-60">

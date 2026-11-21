@@ -137,7 +137,7 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
         ) : leadStatus === "LOST" ? (
           <Badge tone="neutral" size="sm" className="hidden sm:inline-flex">Perdido</Badge>
         ) : (
-          <Button type="button" variant="secondary" size="sm" icon={Trophy} loading={markingSale} onClick={() => void markSale()} className="hidden shrink-0 sm:inline-flex">
+          <Button type="button" variant="secondary" size="sm" icon={Trophy} loading={markingSale} onClick={() => void markSale()} className="hidden shrink-0 2xl:inline-flex">
             Marcar venta
           </Button>
         ))}
@@ -158,18 +158,12 @@ export function ChatConversationHeader({ chat, refreshKey, typingUsers, onCloseC
           align="right"
           portal
           trigger={
-            <button
-              type="button"
-              aria-label="Acciones de la conversación"
-              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent-strong ${detailsOpen ? "bg-nav-active text-foreground" : "text-muted hover:bg-surface-light hover:text-foreground"}`}
-            >
-              <MoreHorizontal size={16} />
-            </button>
+            <Button variant="ghost" size="icon" icon={MoreHorizontal} aria-label="Acciones de la conversación" type="button" />
           }
         >
           <div className="w-56">
             {chat.contactId && leadStatus !== "CUSTOMER" && leadStatus !== "LOST" && (
-              <DropdownItem icon={Trophy} className="sm:hidden" onClick={() => void markSale()}>Marcar venta</DropdownItem>
+              <DropdownItem icon={Trophy} className="2xl:hidden" onClick={() => void markSale()}>Marcar venta</DropdownItem>
             )}
             <DropdownItem icon={SlidersHorizontal} onClick={() => setDetailsOpen((open) => !open)}>
               {detailsOpen ? "Ocultar detalles" : "Detalles"}

@@ -1,6 +1,5 @@
 "use client";
 
-import { Tooltip } from "@/app/components/ui/tooltip";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { FormatToolbar } from "@/app/components/ui/format-toolbar";
 import { Send, Paperclip, X, FileAudio, Video, FileText, Plus, Reply, Mic, Check, MessageSquareText, Image as ImageIcon } from "lucide-react";
@@ -63,7 +62,6 @@ interface ChatComposerProps {
 
 const MAX_BUTTONS = 3;
 const MAX_BUTTON_LENGTH = 20;
-const TOOL_BUTTON = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-muted-darker hover:bg-surface-light hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent-strong";
 
 export function ChatComposer({
   signature,
@@ -311,14 +309,7 @@ export function ChatComposer({
             <p className="text-xs truncate">{attachment.name}</p>
             <p className="text-micro text-muted-darker">{(attachment.size / 1024).toFixed(0)} KB</p>
           </div>
-          <Tooltip label="Quitar adjunto"><button aria-label="Quitar adjunto"
-            type="button"
-            onClick={onClearAttachment}
-            className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
-            disabled={sending}
-          >
-            <X size={16} />
-          </button></Tooltip>
+          <Button variant="ghost" size="icon" icon={X} onClick={onClearAttachment} disabled={sending} aria-label="Quitar adjunto" type="button" title="Quitar adjunto" />
         </div>
       )}
 
@@ -328,13 +319,7 @@ export function ChatComposer({
             <span className="text-xs font-medium text-muted-darker">
               Botones de respuesta rápida ({interactiveButtons.length}/{MAX_BUTTONS})
             </span>
-            <Tooltip label="Cerrar y quitar botones"><button aria-label="Cerrar y quitar botones"
-              type="button"
-              onClick={toggleButtons}
-              className="text-muted-darker hover:text-danger transition-colors p-1 rounded-md hover:bg-surface-light"
-            >
-              <X size={14} />
-            </button></Tooltip>
+            <Button variant="ghost" size="icon" icon={X} onClick={toggleButtons} aria-label="Cerrar y quitar botones" type="button" title="Cerrar y quitar botones" />
           </div>
           <p className="text-xs text-muted-darker">Se enviarán con el mensaje. Hasta tres botones de 20 caracteres.</p>
           {interactiveButtons.map((title, i) => (
@@ -359,14 +344,7 @@ export function ChatComposer({
                 className="min-w-0 flex-1"
                 inputClassName="py-1.5"
               />
-              <button
-                type="button"
-                onClick={() => onButtonsChange(interactiveButtons.filter((_, idx) => idx !== i))}
-                className="text-muted-darker hover:text-danger transition-colors p-1.5 rounded-md hover:bg-surface-light shrink-0"
-                aria-label={`Quitar botón ${i + 1}`}
-              >
-                <X size={14} />
-              </button>
+              <Button variant="ghost" size="icon" icon={X} onClick={() => onButtonsChange(interactiveButtons.filter((_, idx) => idx !== i))} aria-label={`Quitar botón ${i + 1}`} type="button" />
             </div>
           ))}
           {interactiveButtons.length < MAX_BUTTONS && (
@@ -395,9 +373,7 @@ export function ChatComposer({
           <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-danger" />
           <span className="tabular-nums text-sm font-semibold text-foreground">{formatDuration(recording.seconds)}</span>
           <span className="flex-1 text-xs text-muted-darker">Grabando audio…</span>
-          <Tooltip label="Cancelar"><button type="button" onClick={() => finishRecording(true)} className={TOOL_BUTTON} aria-label="Cancelar grabación">
-            <X size={18} />
-          </button></Tooltip>
+          <Button variant="ghost" size="icon" icon={X} onClick={() => finishRecording(true)} aria-label="Cancelar grabación" type="button" title="Cancelar" />
           <Button type="button" size="sm" icon={Check} onClick={() => finishRecording(false)}>Adjuntar</Button>
         </div>
       ) : (
@@ -452,36 +428,12 @@ export function ChatComposer({
         />
         </div>
         <div className="flex items-center gap-0.5 px-1.5 pb-1.5" aria-label="Herramientas del mensaje">
-          <Tooltip label="Respuestas rápidas (/)"><button
-            type="button"
-            onClick={() => { onMessageChange("/"); onCannedIndexChange(0); messageInputRef.current?.focus(); }}
-            disabled={sending}
-            className={TOOL_BUTTON}
-            aria-label="Respuestas rápidas"
-          >
-            <MessageSquareText size={18} />
-          </button></Tooltip>
+          <Button variant="ghost" size="icon" icon={MessageSquareText} onClick={() => { onMessageChange("/"); onCannedIndexChange(0); messageInputRef.current?.focus(); }} disabled={sending} aria-label="Respuestas rápidas" type="button" title="Respuestas rápidas (/)" />
           {onOpenTemplates && (
-            <Tooltip label="Plantilla"><button
-              type="button"
-              onClick={onOpenTemplates}
-              disabled={sending}
-              className={TOOL_BUTTON}
-              aria-label="Enviar plantilla"
-            >
-              <FileText size={18} />
-            </button></Tooltip>
+            <Button variant="ghost" size="icon" icon={FileText} onClick={onOpenTemplates} disabled={sending} aria-label="Enviar plantilla" type="button" title="Plantilla" />
           )}
           {supportsAttachments && (
-            <Tooltip label={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar"}><button
-              type="button"
-              onClick={onPickFile}
-              disabled={sending || attachmentsDisabled}
-              className={TOOL_BUTTON}
-              aria-label="Adjuntar archivo"
-            >
-              <Paperclip size={18} />
-            </button></Tooltip>
+            <Button variant="ghost" size="icon" icon={Paperclip} onClick={onPickFile} disabled={sending || attachmentsDisabled} aria-label="Adjuntar archivo" type="button" title={interactiveButtons.length > 0 ? "Quita los botones para adjuntar un archivo" : "Adjuntar"} />
           )}
           <ChatAiMenu
             chatId={chatId}
@@ -503,15 +455,7 @@ export function ChatComposer({
             />
           )}
           {canRecord && !attachment && interactiveButtons.length === 0 && (
-            <Tooltip label="Grabar audio"><button
-              type="button"
-              onClick={() => void startRecording()}
-              disabled={sending}
-              className={TOOL_BUTTON}
-              aria-label="Grabar audio"
-            >
-              <Mic size={18} />
-            </button></Tooltip>
+            <Button variant="ghost" size="icon" icon={Mic} onClick={() => void startRecording()} disabled={sending} aria-label="Grabar audio" type="button" title="Grabar audio" />
           )}
           <Button
             type="submit"

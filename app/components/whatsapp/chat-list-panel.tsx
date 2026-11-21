@@ -421,7 +421,7 @@ export function ChatListPanel({
               return (
                 // content-visibility: con "cargar más" la lista pasa de 50 filas;
                 // el navegador omite pintar las que están fuera de la vista.
-                <li key={chat.id} className="relative [contain-intrinsic-size:auto_68px] [content-visibility:auto]">
+                <li key={chat.id} className="relative min-w-0 [contain-intrinsic-size:auto_68px] [content-visibility:auto]">
                   {selectionMode && (
                     <Checkbox
                       checked={selectedChatIds.has(chat.id)}

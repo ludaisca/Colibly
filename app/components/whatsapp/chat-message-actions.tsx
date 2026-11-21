@@ -128,14 +128,7 @@ export function ChatMessageActions(props: MessageActionProps) {
         onOpenChange={setOpen}
         closeOnSelect={false}
         trigger={
-          <button
-            type="button"
-            className="rounded-full p-1.5 text-muted-darker hover:bg-surface-light hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent-strong"
-            aria-expanded={open}
-            aria-label="Acciones del mensaje"
-          >
-            <MoreHorizontal size={16} />
-          </button>
+          <Button variant="ghost" size="icon" icon={MoreHorizontal} aria-label="Acciones del mensaje" aria-expanded={open} type="button" />
         }
       >
         <div className="w-56 p-1">
