@@ -3,10 +3,17 @@
 import { EntityAvatar } from "./avatar";
 import { useSession, signOut } from "next-auth/react";
 import { disablePush } from "@/lib/notifications/push-client";
-import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Menu } from "@base-ui/react/menu";
-import { Settings, LifeBuoy, LogOut, ChevronDown, Check, BellRing, Users, Megaphone } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuDivider,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuCheckboxItem,
+} from "@astryxdesign/core/DropdownMenu";
+import type { IconType } from "@astryxdesign/core/Icon";
+import { Settings, LifeBuoy, LogOut, ChevronDown, BellRing, Users, Megaphone } from "lucide-react";
 import { enablePush, needsHomeScreenInstall, pushSupported, syncPush } from "@/lib/notifications/push-client";
 import { AVAILABILITY_LABEL, type Availability } from "@/lib/users/availability-rules";
 import { useToast } from "./toast";
@@ -125,135 +132,109 @@ export function UserDropdown({ initialUser }: { initialUser?: ShellUser }) {
   const seed = (session?.user as { id?: string } | undefined)?.id ?? email ?? name;
   const shortName = name.split(/\s+/).slice(0, 2).join(" ");
 
-  const ITEM = "flex w-full cursor-default select-none items-center gap-3 px-4 py-2.5 text-left text-sm outline-none transition-colors data-[highlighted]:bg-surface-light data-[disabled]:opacity-50";
+  const signOutNow = async () => {
+    // El navegador deja de recibir los avisos de esta cuenta.
+    await disablePush();
+    // redirect: false + navegación relativa — ver app-shell.tsx: la
+    // redirección del servidor usa el origen interno del contenedor.
+    await signOut({ redirect: false });
+    // Recarga completa a propósito — ver app-shell.tsx.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = "/login";
+  };
 
   return (
-    <Menu.Root open={open} onOpenChange={(next) => setOpen(next)} modal={false}>
-      <Menu.Trigger
-        className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-surface-light"
-        aria-label={availability ? `Menú de usuario — ${AVAILABILITY_LABEL[availability]}` : "Menú de usuario"}
-      >
-        <span className="relative inline-flex shrink-0">
-          <EntityAvatar id={seed} name={name} size="sm" />
-          {availability && <StatusDot value={availability} className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5" />}
-        </span>
-        <span className="hidden md:block text-sm font-medium max-w-[130px] truncate">{shortName}</span>
-        <ChevronDown
-          size={14}
-          aria-hidden
-          className={`hidden md:block text-muted transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
-        />
-      </Menu.Trigger>
+    <DropdownMenu
+      isMenuOpen={open}
+      onOpenChange={setOpen}
+      placement="below"
+      alignment="end"
+      menuWidth={288}
+      menuMaxHeight={600}
+      footer={
+        !pushKey && iosHint ? (
+          <p className="px-1 py-1 text-xs text-muted-darker">
+            Para recibir avisos en iPhone, agrega la app a la pantalla de inicio (Compartir → Agregar a inicio) y ábrela desde ahí.
+          </p>
+        ) : undefined
+      }
+      header={
+        <div className="flex items-center gap-3 px-1 py-1">
+          <EntityAvatar id={seed} name={name} size="md" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{name}</p>
+            {/* Sin nombre, `name` ya es el correo: no repetirlo. */}
+            {email && email !== name && <p className="truncate text-xs text-muted-darker">{email}</p>}
+          </div>
+        </div>
+      }
+      renderTrigger={(props) => (
+        <button
+          type="button"
+          {...(props as unknown as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+          ref={props.ref as React.Ref<HTMLButtonElement>}
+          className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-surface-light"
+          aria-label={availability ? `Menú de usuario — ${AVAILABILITY_LABEL[availability]}` : "Menú de usuario"}
+        >
+          <span className="relative inline-flex shrink-0">
+            <EntityAvatar id={seed} name={name} size="sm" />
+            {availability && <StatusDot value={availability} className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5" />}
+          </span>
+          <span className="hidden max-w-[130px] truncate text-sm font-medium md:block">{shortName}</span>
+          <ChevronDown
+            size={14}
+            aria-hidden
+            className={`hidden text-muted transition-transform duration-200 motion-reduce:transition-none md:block ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      )}
+    >
+      {availability && (
+        <>
+          <DropdownMenuRadioGroup
+            label="Tu disponibilidad"
+            value={availability}
+            hasCloseOnSelect={false}
+            onChange={(value) => void changeAvailability(value as Availability)}
+          >
+            {AVAILABILITY_ORDER.map((value) => (
+              <DropdownMenuRadioItem
+                key={value}
+                value={value}
+                icon={<StatusDot value={value} className="h-2.5 w-2.5 shrink-0" />}
+                label={AVAILABILITY_LABEL[value]}
+                description={AVAILABILITY_HINT[value]}
+              />
+            ))}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuDivider />
+        </>
+      )}
 
-      <Menu.Portal>
-        <Menu.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={8} className="z-[70] outline-none">
-          <Menu.Popup className="w-64 max-w-[calc(100vw-16px)] overflow-hidden rounded-lg border border-border bg-surface shadow-lg outline-none origin-[var(--transform-origin)] transition-[scale,opacity] duration-fast ease-brand data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 motion-reduce:transition-none">
-            <div className="px-4 py-3 border-b border-border">
-              <div className="flex items-center gap-3">
-                <EntityAvatar id={seed} name={name} size="md" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate">{name}</p>
-                  {/* Sin nombre, `name` ya es el correo: no repetirlo. */}
-                  {email && email !== name && <p className="text-xs text-muted-darker truncate">{email}</p>}
-                </div>
-              </div>
-            </div>
+      {pushKey && (
+        <>
+          <DropdownMenuCheckboxItem
+            icon={BellRing as IconType}
+            label="Avisos en este navegador"
+            description="Mensajes y chats asignados, aunque la pestaña esté cerrada"
+            value={pushOn}
+            onChange={(next) => void togglePush(next)}
+            isDisabled={pushBusy}
+          />
+          <DropdownMenuDivider />
+        </>
+      )}
 
-            {availability && (
-              <div className="border-b border-border py-1">
-                <Menu.RadioGroup
-                  value={availability}
-                  onValueChange={(value) => void changeAvailability(value as Availability)}
-                  aria-label="Tu disponibilidad"
-                >
-                  {AVAILABILITY_ORDER.map((value) => (
-                    <Menu.RadioItem key={value} value={value} closeOnClick={false} className={ITEM}>
-                      <StatusDot value={value} className="h-2.5 w-2.5 shrink-0" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block">{AVAILABILITY_LABEL[value]}</span>
-                        <span className="block text-xs text-muted-darker">{AVAILABILITY_HINT[value]}</span>
-                      </span>
-                      <Menu.RadioItemIndicator className="shrink-0 text-accent-ink">
-                        <Check size={14} aria-hidden />
-                      </Menu.RadioItemIndicator>
-                    </Menu.RadioItem>
-                  ))}
-                </Menu.RadioGroup>
-                <p className="px-4 pb-1.5 pt-0.5 text-xs text-muted-darker">
-                  La asignación automática respeta tu estado en las cuentas con &quot;Solo asignar a ejecutivos en línea&quot;.
-                </p>
-              </div>
-            )}
-
-            {pushKey ? (
-              <div className="border-b border-border py-1">
-                <Menu.CheckboxItem
-                  checked={pushOn}
-                  onCheckedChange={(next) => void togglePush(next)}
-                  disabled={pushBusy}
-                  closeOnClick={false}
-                  className={ITEM}
-                >
-                  <BellRing size={15} className="shrink-0 text-muted" aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="block">Avisos en este navegador</span>
-                    <span className="block text-xs text-muted-darker">Mensajes y chats asignados, aunque la pestaña esté cerrada</span>
-                  </span>
-                  <span aria-hidden className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${pushOn ? "bg-accent" : "bg-border"}`}>
-                    <span className={`absolute h-4 w-4 rounded-full bg-surface transition-transform motion-reduce:transition-none ${pushOn ? "translate-x-[18px]" : "translate-x-0.5"}`} />
-                  </span>
-                </Menu.CheckboxItem>
-              </div>
-            ) : iosHint ? (
-              <p className="border-b border-border px-4 py-2.5 text-xs text-muted-darker">
-                Para recibir avisos en iPhone, agrega la app a la pantalla de inicio (Compartir → Agregar a inicio) y ábrela desde ahí.
-              </p>
-            ) : null}
-
-            <div className="py-1">
-              <Menu.LinkItem render={<Link href="/configuracion" />} closeOnClick className={ITEM}>
-                <Settings size={15} className="text-muted shrink-0" aria-hidden />
-                Configuración
-              </Menu.LinkItem>
-              <Menu.LinkItem render={<Link href="/ayuda" />} closeOnClick className={ITEM}>
-                <LifeBuoy size={15} className="text-muted shrink-0" aria-hidden />
-                Ayuda
-              </Menu.LinkItem>
-              {initialUser?.isAdmin && (
-                <>
-                  <Menu.LinkItem render={<Link href="/usuarios" />} closeOnClick className={ITEM}>
-                    <Users size={15} className="text-muted shrink-0" aria-hidden />
-                    Usuarios
-                  </Menu.LinkItem>
-                  <Menu.LinkItem render={<Link href="/meta-ads" />} closeOnClick className={ITEM}>
-                    <Megaphone size={15} className="text-muted shrink-0" aria-hidden />
-                    Meta Ads
-                  </Menu.LinkItem>
-                </>
-              )}
-            </div>
-
-            <div className="border-t border-border py-1">
-              <Menu.Item
-                // redirect: false + navegación relativa — ver app-shell.tsx: la
-                // redirección del servidor usa el origen interno del contenedor.
-                onClick={async () => {
-                  // El navegador deja de recibir los avisos de esta cuenta.
-                  await disablePush();
-                  await signOut({ redirect: false });
-                  // Recarga completa a propósito — ver app-shell.tsx.
-                  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                  window.location.href = "/login";
-                }}
-                className={`${ITEM} text-muted data-[highlighted]:text-foreground`}
-              >
-                <LogOut size={15} className="shrink-0" aria-hidden />
-                Cerrar sesión
-              </Menu.Item>
-            </div>
-          </Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.Root>
+      <DropdownMenuItem icon={Settings as IconType} label="Configuración" href="/configuracion" />
+      <DropdownMenuItem icon={LifeBuoy as IconType} label="Ayuda" href="/ayuda" />
+      {initialUser?.isAdmin && (
+        <>
+          <DropdownMenuItem icon={Users as IconType} label="Usuarios" href="/usuarios" />
+          <DropdownMenuItem icon={Megaphone as IconType} label="Meta Ads" href="/meta-ads" />
+        </>
+      )}
+      <DropdownMenuDivider />
+      <DropdownMenuItem icon={LogOut as IconType} label="Cerrar sesión" onClick={() => void signOutNow()} />
+    </DropdownMenu>
   );
 }

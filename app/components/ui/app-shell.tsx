@@ -6,7 +6,9 @@ import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Menu, LogOut, PanelLeftClose, PanelLeftOpen, MoreHorizontal, ChevronDown } from "lucide-react";
+import { Menu, LogOut, PanelLeftClose, PanelLeftOpen, MoreHorizontal } from "lucide-react";
+import { SideNav, SideNavSection, SideNavItem, SideNavHeading } from "@astryxdesign/core/SideNav";
+import { Badge } from "@astryxdesign/core/Badge";
 import { Drawer } from "./drawer";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
@@ -61,16 +63,9 @@ export interface AppShellProps {
   children: React.ReactNode;
 }
 
-function activeClass(accent: "accent" | "danger") {
-  return accent === "accent"
-    // Ítem activo: fondo --nav-active y texto de tinta, no un bloque negro.
-    ? "bg-nav-active text-foreground"
-    : "bg-danger text-surface";
-}
-
+/** Menú lateral con el SideNav de Astryx (escritorio y cajón del celular). */
 function SidebarContent({
   nav,
-  accent = "accent",
   bottomActions,
   footerNav,
   logoArea,
@@ -94,10 +89,10 @@ function SidebarContent({
       setMoreOpen(null);
     }
   }, []);
-  const toggleMore = (current: boolean) => {
-    setMoreOpen(!current);
+  const setMore = (open: boolean) => {
+    setMoreOpen(open);
     try {
-      localStorage.setItem(NAV_MORE_KEY, String(!current));
+      localStorage.setItem(NAV_MORE_KEY, String(open));
     } catch {
       /* sin localStorage: solo vale en esta pestaña */
     }
@@ -106,157 +101,87 @@ function SidebarContent({
     (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/"))
     || (item.matchPrefixes ?? []).some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
 
-  const renderLink = (item: NavItem) => {
-    const Icon = item.icon;
-    const active = isActiveItem(item);
+  const renderItem = (item: NavItem) => {
     const badge = item.badge && item.badge > 0 ? (item.badge > 99 ? "99+" : String(item.badge)) : null;
-
-    const linkEl = (
-      <Link
-        href={item.href}
-        onClick={onClose}
-        aria-label={collapsed ? item.label : undefined}
-        aria-current={active ? "page" : undefined}
-        className={cn(
-          "flex items-center rounded-sm text-sm font-medium transition-colors duration-fast focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
-          // Ítems de 30 px con íconos de 16 px (trazo 1.75).
-          collapsed ? "justify-center w-9 h-9 mx-auto" : "h-[30px] gap-2.5 px-2.5",
-          active
-            ? activeClass(accent ?? "accent")
-            : "text-muted hover:bg-surface-light hover:text-foreground"
-        )}
-      >
-        <Icon size={16} strokeWidth={1.75} className="shrink-0" />
-        {!collapsed && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
-        {!collapsed && badge && (
-          <span className="rounded-xs bg-warning-bg px-1.5 text-xs tabular-nums text-warning" aria-label={`${badge} en espera`}>{badge}</span>
-        )}
-      </Link>
-    );
-
     return (
-      <li key={item.href} className="relative w-full">
-        {collapsed ? <Tooltip label={item.label} side="right">{linkEl}</Tooltip> : linkEl}
-      </li>
+      <SideNavItem
+        key={item.href}
+        label={item.label}
+        href={item.href}
+        icon={<item.icon size={16} strokeWidth={1.75} aria-hidden />}
+        isSelected={isActiveItem(item)}
+        onClick={onClose}
+        endContent={badge ? <Badge variant="warning" label={badge} aria-label={`${badge} en espera`} /> : undefined}
+      />
     );
   };
 
+  const groups = nav.map((groupOrItem, index) => {
+    if (!("items" in groupOrItem)) {
+      return (
+        <SideNavSection key={groupOrItem.href} title={groupOrItem.label} isHeaderHidden>
+          {renderItem(groupOrItem)}
+        </SideNavSection>
+      );
+    }
+    const group = groupOrItem as NavGroup;
+    if (group.items.length === 0) return null;
+    if (group.collapsible) {
+      const hasActive = group.items.some(isActiveItem);
+      const open = hasActive || (moreOpen ?? group.defaultOpen ?? false);
+      const label = group.title ?? "Más";
+      return (
+        <SideNavSection key={label} title={label} isHeaderHidden>
+          <SideNavItem
+            label={label}
+            icon={<MoreHorizontal size={16} strokeWidth={1.75} aria-hidden />}
+            // Con una página del grupo abierta no se pliega: sería esconder dónde estás.
+            collapsible={{ isCollapsed: !open, onCollapsedChange: (isCollapsed) => { if (!hasActive) setMore(!isCollapsed); } }}
+          >
+            {group.items.map(renderItem)}
+          </SideNavItem>
+        </SideNavSection>
+      );
+    }
+    return (
+      <SideNavSection key={group.title || index} title={group.title ?? "Principal"} isHeaderHidden={!group.title}>
+        {group.items.map(renderItem)}
+      </SideNavSection>
+    );
+  });
+
   return (
-    <div className={cn("flex flex-col h-full", collapsed ? "items-center px-2" : "")}>
-      <div className={cn("shrink-0", collapsed ? "px-0 py-5" : "px-4 py-4")}>
-        {logoArea ?? (
-          <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2">
-            <BrandMark className="h-8 w-8" />
-            {!collapsed && (
-              <span className="text-base font-semibold tracking-tight whitespace-nowrap truncate">
-                {brand}
-              </span>
-            )}
-          </Link>
-        )}
-      </div>
-
-      <nav className={cn("scrollbar-none w-full flex-1 overflow-y-auto overflow-x-hidden", collapsed ? "px-1" : "px-3")}>
-        <div className="flex flex-col gap-4 w-full">
-          {nav.map((groupOrItem, index) => {
-            const isGroup = "items" in groupOrItem;
-            if (isGroup) {
-              const group = groupOrItem as NavGroup;
-              if (group.items.length === 0) return null;
-              if (group.collapsible) {
-                const hasActive = group.items.some(isActiveItem);
-                const open = hasActive || (moreOpen ?? group.defaultOpen ?? false);
-                const regionId = `nav-group-${index}`;
-                const label = group.title ?? "Más";
-                return (
-                  <div key={group.title || index} className="flex flex-col gap-1 w-full">
-                    {collapsed ? (
-                      <div className="mx-auto my-1 h-px w-8 bg-border/70" aria-hidden="true" />
-                    ) : null}
-                    {(() => { const toggle = (
-                      <button
-                        type="button"
-                        aria-expanded={open}
-                        aria-controls={regionId}
-                        aria-label={collapsed ? label : undefined}
-                        // Con una página del grupo abierta no se puede plegar: sería esconder dónde estás.
-                        onClick={() => { if (!hasActive) toggleMore(open); }}
-                        className={cn(
-                          "flex items-center text-sm font-medium text-muted transition-colors duration-fast hover:bg-surface-light hover:text-foreground rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong",
-                          collapsed ? "justify-center w-9 h-9 mx-auto" : "h-[30px] gap-2.5 px-2.5 w-full"
-                        )}
-                      >
-                        <MoreHorizontal size={16} strokeWidth={1.75} className="shrink-0" aria-hidden />
-                        {!collapsed && (
-                          <>
-                            <span className="flex-1 text-left">{label}</span>
-                            <ChevronDown size={14} aria-hidden className={cn("shrink-0 transition-transform", open && "rotate-180")} />
-                          </>
-                        )}
-                      </button>
-                    ); return collapsed ? <Tooltip label={label} side="right">{toggle}</Tooltip> : toggle; })()}
-                    <ul id={regionId} hidden={!open} className="flex flex-col gap-px w-full">
-                      {group.items.map(renderLink)}
-                    </ul>
-                  </div>
-                );
-              }
-              return (
-                <div key={group.title || index} className="flex flex-col gap-1 w-full">
-                  {collapsed && index > 0 && (
-                    <div className="mx-auto my-1 h-px w-8 bg-border/70" aria-hidden="true" />
-                  )}
-                  {!collapsed && group.title && (
-                    <div className="mb-0.5 px-2.5 text-xs font-medium text-subtle">
-                      {group.title}
-                    </div>
-                  )}
-                  <ul className="flex flex-col gap-px w-full">
-                    {group.items.map(renderLink)}
-                  </ul>
-                </div>
-              );
-            } else {
-              const item = groupOrItem as NavItem;
-              return (
-                <ul key={item.href} className="flex flex-col gap-0.5 w-full">
-                  {renderLink(item)}
-                </ul>
-              );
-            }
-          })}
-        </div>
-      </nav>
-
-      <div className={cn(
-        "shrink-0 border-t border-border w-full",
-        collapsed ? "px-1 pt-3 mt-1 pb-4" : "px-3 pt-3 mt-1 pb-4"
-      )}>
-        {!collapsed && bottomActions}
-        {footerNav && footerNav.length > 0 && <ul className="mb-1 flex w-full flex-col gap-px">{footerNav.map(renderLink)}</ul>}
-        <Tooltip label="Cerrar sesión" side="right"><button aria-label="Cerrar sesión"
-          // redirect: false + navegación relativa: la URL absoluta que arma el
-          // servidor usa el origen interno del contenedor (0.0.0.0:5000) y
-          // mandaba al usuario fuera de la app tras cerrar sesión.
-          onClick={async () => {
-            // El navegador deja de recibir los avisos de esta cuenta.
-                  await disablePush();
-                  await signOut({ redirect: false });
-            // Recarga completa a propósito: router.push conservaría en memoria
-            // el árbol de React y la caché del cliente de la sesión cerrada.
-            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-            window.location.href = "/login";
-          }}
-          className={cn(
-            "flex items-center text-sm font-medium text-muted transition-colors duration-fast hover:bg-surface-light hover:text-danger rounded-sm",
-            collapsed ? "justify-center w-9 h-9 mx-auto" : "h-[30px] gap-2.5 w-full px-2.5"
-          )}
-        >
-          <LogOut size={16} strokeWidth={1.75} />
-          {!collapsed && "Cerrar sesión"}
-        </button></Tooltip>
-      </div>
-    </div>
+    <SideNav
+      collapsible={{ isCollapsed: !!collapsed, onCollapsedChange: () => {}, hasButton: false }}
+      header={
+        logoArea ?? (
+          <SideNavHeading heading={brand} headingHref="/dashboard" icon={<BrandMark className="h-8 w-8" />} />
+        )
+      }
+      footer={
+        <>
+          {!collapsed && bottomActions}
+          {footerNav?.map(renderItem)}
+          <SideNavItem
+            label="Cerrar sesión"
+            icon={<LogOut size={16} strokeWidth={1.75} aria-hidden />}
+            // redirect: false + navegación relativa: la URL absoluta que arma el
+            // servidor usa el origen interno del contenedor (0.0.0.0:5000).
+            onClick={async () => {
+              // El navegador deja de recibir los avisos de esta cuenta.
+              await disablePush();
+              await signOut({ redirect: false });
+              // Recarga completa a propósito: router.push conservaría en memoria
+              // el árbol de React y la caché del cliente de la sesión cerrada.
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+              window.location.href = "/login";
+            }}
+          />
+        </>
+      }
+    >
+      {groups}
+    </SideNav>
   );
 }
 
@@ -313,7 +238,7 @@ export function AppShell({
     // abajo a la derecha de él, como la barra "Cambios sin guardar".
     <div
       className={cn("flex bg-background", immersive ? "h-svh" : "min-h-svh")}
-      style={{ "--sidebar-w": collapsed ? "4rem" : "232px" } as React.CSSProperties}
+      style={{ "--sidebar-w": collapsed ? "4rem" : "260px" } as React.CSSProperties}
     >
       <a
         href="#contenido-principal"
@@ -326,9 +251,9 @@ export function AppShell({
       </Suspense>
       <aside
         className={cn(
-          // Menú de 232 px sobre --background con filete a la derecha.
+          // Menú de 260 px (ancho del SideNav de Astryx) con filete a la derecha.
           "hidden md:flex sticky top-0 self-start h-svh overflow-hidden border-r border-border bg-background flex-col shrink-0 transition-[width] duration-200 motion-reduce:transition-none",
-          collapsed ? "w-16" : "w-[232px]"
+          collapsed ? "w-16" : "w-[260px]"
         )}
       >
         <SidebarContent
@@ -342,7 +267,7 @@ export function AppShell({
         />
       </aside>
 
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} side="left" width="w-64">
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} side="left" width="w-[260px]">
         <SidebarContent
           nav={nav}
           accent={accent}
