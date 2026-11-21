@@ -3,11 +3,13 @@
 import { Tooltip } from "./tooltip";
 import { displayName } from "@/lib/chats/display-name";
 import { assignChatToMe, oneHourFromNow, resolveChat, setChatPriority, snoozeChat } from "@/lib/inbox/actions";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElementType } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Command } from "cmdk";
+import { CommandPalette as AxCommandPalette, CommandPaletteInput } from "@astryxdesign/core/CommandPalette";
+import type { SearchSource, SearchableItem } from "@astryxdesign/core/Typeahead";
+import { Kbd as AxKbd } from "@astryxdesign/core/Kbd";
 import {
   Bot,
   CalendarPlus,
@@ -15,7 +17,6 @@ import {
   Clock,
   Contact,
   Flag,
-  Loader2,
   Megaphone,
   MessageSquare,
   MessageSquareText,
@@ -30,7 +31,6 @@ import type { MessageSearchHit } from "@/lib/search/messages";
 import { MESSAGE_SEARCH_MIN } from "@/lib/search/message-rules";
 import { useToast } from "./toast";
 import "./command-palette.css";
-import { useRunOnChange } from "@/app/components/ui/use-run-on-change";
 
 interface ChatHit {
   id: string;
@@ -113,19 +113,11 @@ function chatContext(pathname: string): { accountId: string; chatId: string } | 
 
 export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [chats, setChats] = useState<ChatHit[]>([]);
-  const [contacts, setContacts] = useState<ContactHit[]>([]);
-  const [messageHits, setMessageHits] = useState<MessageSearchHit[]>([]);
-  const [recent, setRecent] = useState<RecentItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [actionBusy, setActionBusy] = useState<string | null>(null);
   const { success: toastSuccess, error: toastError } = useToast();
   const { data: session } = useSession();
   const role = session?.user?.role;
   const router = useRouter();
   const pathname = usePathname();
-  const term = query.trim();
   const inChat = chatContext(pathname);
 
   useEffect(() => {
@@ -137,62 +129,6 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
-
-  useRunOnChange(() => {
-    if (open) setRecent(readRecent());
-  }, [open]);
-
-  // Búsqueda de contenido con debounce. Los endpoints ya están scoped por
-  // cuenta/organización; si el rol no puede ver contactos (user), el 403 se
-  // ignora y solo se muestran chats/secciones.
-  useEffect(() => {
-    if (!open || term.length < 2) return;
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setLoading(true);
-      const q = encodeURIComponent(term);
-      const urls = [
-        ...CHAT_ENDPOINTS.map((endpoint) => `${endpoint}?search=${q}&page=1&pageSize=4`),
-        `/api/whatsapp/contacts?search=${q}&page=1&pageSize=5`,
-        // Dentro de los mensajes: mínimo 3 caracteres (índice trigram).
-        ...(term.length >= MESSAGE_SEARCH_MIN ? [`/api/whatsapp/search/messages?q=${q}`] : []),
-      ];
-      const results = await Promise.allSettled(urls.map((url) => fetch(url, { signal: controller.signal })));
-      if (controller.signal.aborted) return;
-      const chatItems = (
-        await Promise.all(results.slice(0, CHAT_ENDPOINTS.length).map((result) => readItems<ChatHit>(result)))
-      ).flat();
-      const contactItems = await readItems<ContactHit>(results[CHAT_ENDPOINTS.length]);
-      const messageResult = results[CHAT_ENDPOINTS.length + 1];
-      const messageItems: MessageSearchHit[] =
-        messageResult?.status === "fulfilled" && messageResult.value.ok
-          ? ((await messageResult.value.json().catch(() => ({}))).results ?? [])
-          : [];
-      if (controller.signal.aborted) return;
-      chatItems.sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
-      setChats(chatItems.slice(0, 8));
-      setContacts(contactItems);
-      setMessageHits(messageItems.slice(0, 6));
-      setLoading(false);
-    }, 250);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [open, term]);
-
-  const pageGroups = useMemo(() => {
-    const needle = term.toLowerCase();
-    return nav
-      .map((entry, index) => {
-        const group = "items" in entry ? entry : { title: "Secciones", items: [entry] };
-        return {
-          title: group.title ?? `Sección ${index + 1}`,
-          items: group.items.filter((item) => !needle || item.label.toLowerCase().includes(needle)),
-        };
-      })
-      .filter((group) => group.items.length > 0);
-  }, [nav, term]);
 
   const actions = useMemo<PaletteAction[]>(() => {
     const list: PaletteAction[] = [];
@@ -252,13 +188,6 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
     return list;
   }, [inChat, role, router]);
 
-  const visibleActions = useMemo(() => {
-    if (!term) return actions;
-    const needle = term.toLowerCase();
-    return actions.filter((action) => action.label.toLowerCase().includes(needle));
-  }, [actions, term]);
-
-
   function selectChat(chat: ChatHit) {
     rememberRecent({
       key: `chat:${chat.id}`,
@@ -290,7 +219,6 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
   }
 
   async function runAction(action: PaletteAction) {
-    setActionBusy(action.id);
     try {
       await action.run();
       setOpen(false);
@@ -300,10 +228,92 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
       }
     } catch (err) {
       toastError(err instanceof Error ? err.message : "No se pudo completar la acción");
-    } finally {
-      setActionBusy(null);
     }
   }
+
+  // Fuente de búsqueda de Astryx. Sin texto: recientes, acciones y secciones.
+  // Con 2+ caracteres: además chats, contactos y (3+) mensajes, de los
+  // endpoints de siempre (ya filtrados por cuenta/organización; un 403 para
+  // el rol `user` en contactos se ignora). Espera 250 ms antes de pedir.
+  const searchSource = useMemo<SearchSource<PaletteItem>>(() => {
+    const pending: { controller: AbortController | null } = { controller: null };
+    const local = (term: string): PaletteItem[] => {
+      const needle = term.toLowerCase();
+      const matches = (label: string) => !needle || label.toLowerCase().includes(needle);
+      const items: PaletteItem[] = [];
+      if (!term) {
+        for (const item of readRecent()) {
+          items.push(paletteItem(`recent:${item.key}`, item.label, "Recientes", Clock, () => router.push(item.href), item.subtitle));
+        }
+      }
+      for (const action of actions) {
+        if (matches(action.label)) {
+          items.push(paletteItem(`action:${action.id}`, action.label, "Acciones", action.icon, () => void runAction(action), undefined, action.keys));
+        }
+      }
+      nav.forEach((entry) => {
+        const group = "items" in entry ? entry : { title: "Secciones", items: [entry] };
+        for (const item of group.items) {
+          if (matches(item.label)) {
+            items.push(paletteItem(`page:${item.href}`, item.label, group.title ?? "Secciones", item.icon, () => router.push(item.href)));
+          }
+        }
+      });
+      return items;
+    };
+    return {
+      bootstrap: () => local(""),
+      cancel: () => pending.controller?.abort(),
+      search: async (query: string) => {
+        const term = query.trim();
+        const pages = local(term);
+        if (term.length < 2) return pages;
+        pending.controller?.abort();
+        const own = new AbortController();
+        pending.controller = own;
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+        if (own.signal.aborted) return pages;
+        const q = encodeURIComponent(term);
+        const urls = [
+          ...CHAT_ENDPOINTS.map((endpoint) => `${endpoint}?search=${q}&page=1&pageSize=4`),
+          `/api/whatsapp/contacts?search=${q}&page=1&pageSize=5`,
+          // Dentro de los mensajes: mínimo 3 caracteres (índice trigram).
+          ...(term.length >= MESSAGE_SEARCH_MIN ? [`/api/whatsapp/search/messages?q=${q}`] : []),
+        ];
+        const results = await Promise.allSettled(urls.map((url) => fetch(url, { signal: own.signal })));
+        const chats = (
+          await Promise.all(results.slice(0, CHAT_ENDPOINTS.length).map((result) => readItems<ChatHit>(result)))
+        ).flat();
+        const contacts = await readItems<ContactHit>(results[CHAT_ENDPOINTS.length]);
+        const messageResult = results[CHAT_ENDPOINTS.length + 1];
+        const messages: MessageSearchHit[] =
+          messageResult?.status === "fulfilled" && messageResult.value.ok
+            ? ((await messageResult.value.json().catch(() => ({}))).results ?? [])
+            : [];
+        chats.sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
+        const actionsFirst = pages.filter((item) => item.auxiliaryData?.group === "Acciones");
+        const sections = pages.filter((item) => item.auxiliaryData?.group !== "Acciones");
+        return [
+          ...actionsFirst,
+          ...chats.slice(0, 8).map((chat) =>
+            paletteItem(`chat:${chat.id}`, displayName(chat.name, chat.remoteJid), "Chats", MessageSquare, () => selectChat(chat), chat.remoteJid)
+          ),
+          ...contacts.map((contact) =>
+            paletteItem(`contact:${contact.id}`, displayName(contact.name, contact.remoteJid), "Contactos", Contact, () => selectContact(contact), contact.remoteJid)
+          ),
+          ...messages.slice(0, 6).map((hit) =>
+            paletteItem(`message:${hit.messageId}`, hit.snippet, "En mensajes", MessageSquareText, () => selectMessage(hit), hit.chatName)
+          ),
+          ...sections,
+        ];
+      },
+    };
+    // runAction/selectX solo usan router y toasts, estables entre renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actions, nav, router]);
+
+  // Cada resultado guarda qué hacer al elegirlo; Astryx avisa con su id.
+  const byId = useRef(new Map<string, PaletteItem>());
 
   return (
     <>
@@ -318,129 +328,57 @@ export function CommandPalette({ nav }: { nav: (NavItem | NavGroup)[] }) {
         <span className="hidden lg:inline xl:hidden">Buscar</span>
         <kbd className="hidden lg:inline">⌘ K</kbd>
       </button></Tooltip>
-      <Command.Dialog
-        open={open}
-        onOpenChange={(next) => {
-          setOpen(next);
-          if (!next) setQuery("");
-        }}
-        shouldFilter={false}
+      <AxCommandPalette<PaletteItem>
+        isOpen={open}
+        onOpenChange={setOpen}
         label="Buscar en Colibly"
-        contentClassName="colibly-command"
-        overlayClassName="colibly-command-overlay"
-      >
-        <Command.Input
-          autoFocus
-          value={query}
-          onValueChange={setQuery}
-          placeholder="Buscar chats, contactos, acciones o secciones…"
-          aria-label="Buscar chats, contactos, acciones o secciones"
-        />
-        <Command.List>
-          {loading && term.length >= 2 && (
-            <div className="colibly-command-loading">
-              <Loader2 size={14} className="animate-spin" /> Buscando…
-            </div>
-          )}
-          {!term && recent.length > 0 && (
-            <Command.Group heading="Recientes">
-              {recent.map((item) => (
-                <Command.Item
-                  key={item.key}
-                  value={`recent:${item.key}`}
-                  onSelect={() => { setOpen(false); router.push(item.href); }}
-                >
-                  <Clock size={16} className="shrink-0 text-muted" />
-                  <span className="colibly-command-result">
-                    <span className="truncate">{item.label}</span>
-                    <span className="colibly-command-meta">{item.subtitle}</span>
-                  </span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-          {visibleActions.length > 0 && (
-            <Command.Group heading="Acciones">
-              {visibleActions.map((action) => (
-                <Command.Item
-                  key={action.id}
-                  value={`action:${action.id}`}
-                  disabled={actionBusy !== null}
-                  onSelect={() => void runAction(action)}
-                >
-                  {actionBusy === action.id
-                    ? <Loader2 size={16} className="shrink-0 animate-spin text-muted" />
-                    : <action.icon size={16} className="shrink-0 text-muted" />}
-                  <span className="flex-1">{action.label}</span>
-                  {action.keys && (
-                    <kbd className="ml-auto shrink-0 rounded-md border border-border bg-surface-light px-1.5 py-0.5 text-micro font-medium text-muted-darker">
-                      {action.keys}
-                    </kbd>
-                  )}
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-          {!loading && term.length >= 2 && chats.length > 0 && (
-            <Command.Group heading="Chats">
-              {chats.map((chat) => (
-                <Command.Item key={chat.id} value={`chat:${chat.id}`} onSelect={() => selectChat(chat)}>
-                  <MessageSquare size={16} className="shrink-0 text-muted" />
-                  <span className="colibly-command-result">
-                    <span className="truncate">{displayName(chat.name, chat.remoteJid)}</span>
-                    <span className="colibly-command-meta">{chat.remoteJid}</span>
-                  </span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-          {!loading && term.length >= 2 && contacts.length > 0 && (
-            <Command.Group heading="Contactos">
-              {contacts.map((contact) => (
-                <Command.Item key={contact.id} value={`contact:${contact.id}`} onSelect={() => selectContact(contact)}>
-                  <Contact size={16} className="shrink-0 text-muted" />
-                  <span className="colibly-command-result">
-                    <span className="truncate">{displayName(contact.name, contact.remoteJid)}</span>
-                    <span className="colibly-command-meta">{contact.remoteJid}</span>
-                  </span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-          {!loading && term.length >= MESSAGE_SEARCH_MIN && messageHits.length > 0 && (
-            <Command.Group heading="En mensajes">
-              {messageHits.map((hit) => (
-                <Command.Item key={hit.messageId} value={`message:${hit.messageId}`} onSelect={() => selectMessage(hit)}>
-                  <MessageSquareText size={16} className="shrink-0 text-muted" />
-                  <span className="colibly-command-result">
-                    <span className="truncate">{hit.snippet}</span>
-                    <span className="colibly-command-meta">{hit.chatName}</span>
-                  </span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-          {pageGroups.map((group) => (
-            <Command.Group key={group.title} heading={group.title}>
-              {group.items.map((item) => (
-                <Command.Item
-                  key={item.href}
-                  value={`page:${item.href}`}
-                  onSelect={() => {
-                    setOpen(false);
-                    router.push(item.href);
-                  }}
-                >
-                  <item.icon size={16} className="shrink-0 text-muted" />
-                  <span>{item.label}</span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          ))}
-          {!loading && <Command.Empty>No hay resultados para “{term}”.</Command.Empty>}
-        </Command.List>
-        <div className="colibly-command-hint">↑ ↓ para navegar · Enter para abrir · Esc para cerrar</div>
-      </Command.Dialog>
+        searchSource={{
+          ...searchSource,
+          bootstrap: () => remember(byId.current, searchSource.bootstrap() as PaletteItem[]),
+          search: async (query: string) => remember(byId.current, await searchSource.search(query)),
+        }}
+        onValueChange={(id) => byId.current.get(id)?.auxiliaryData?.select()}
+        input={<CommandPaletteInput placeholder="Buscar chats, contactos, acciones o secciones…" label="Buscar chats, contactos, acciones o secciones" />}
+        emptySearchText="No hay resultados."
+        emptyBootstrapText="Escribe para buscar."
+        renderItem={(item) => {
+          const data = item.auxiliaryData;
+          const Icon = data?.icon ?? Search;
+          return (
+            <span className="flex min-w-0 flex-1 items-center gap-3">
+              <Icon size={16} className="shrink-0 text-muted" aria-hidden />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate">{item.label}</span>
+                {data?.meta && <span className="truncate text-xs text-muted-darker">{data.meta}</span>}
+              </span>
+              {data?.keys && <Kbd keys={data.keys} />}
+            </span>
+          );
+        }}
+      />
     </>
   );
+}
+
+interface PaletteItemData {
+  group: string;
+  icon: ElementType;
+  meta?: string;
+  keys?: string;
+  select: () => void;
+}
+type PaletteItem = SearchableItem<PaletteItemData>;
+
+function paletteItem(id: string, label: string, group: string, icon: ElementType, select: () => void, meta?: string, keys?: string): PaletteItem {
+  return { id, label, auxiliaryData: { group, icon, select, meta, keys } };
+}
+
+function remember(map: Map<string, PaletteItem>, items: PaletteItem[]): PaletteItem[] {
+  for (const item of items) map.set(item.id, item);
+  return items;
+}
+
+/** Atajo ("Alt + A") con el Kbd de Astryx. */
+function Kbd({ keys }: { keys: string }) {
+  return <AxKbd keys={keys.replace(/\s*\+\s*/g, "+").toLowerCase()} />;
 }
