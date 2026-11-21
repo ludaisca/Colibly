@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { FileInput } from "@astryxdesign/core/FileInput";
 import { ArrowLeft, Upload } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Modal } from "@/app/components/ui/modal";
@@ -59,6 +60,7 @@ export function ContactImportModal({
   const { success, error: toastError } = useToast();
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [fileName, setFileName] = useState("");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csv, setCsv] = useState("");
   const [table, setTable] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] });
   const [mapping, setMapping] = useState<ColumnTarget[]>([]);
@@ -89,6 +91,7 @@ export function ContactImportModal({
 
   function reset() {
     setFileName("");
+    setCsvFile(null);
     setCsv("");
     setTable({ headers: [], rows: [] });
     setMapping([]);
@@ -210,15 +213,18 @@ export function ContactImportModal({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-darker" htmlFor="import-file">Archivo CSV</label>
-              <input
-                id="import-file"
-                type="file"
+              <FileInput
+                label="Archivo CSV"
+                description="Máximo 2 MB y 5,000 filas."
                 accept=".csv,text/csv"
-                onChange={(event) => void onFile(event.target.files?.[0] ?? null)}
-                className="block w-full cursor-pointer rounded-sm border border-border bg-surface-light px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-sm file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-accent-subtle"
+                placeholder="Elige un archivo"
+                value={csvFile}
+                onChange={(files) => {
+                  const file = Array.isArray(files) ? files[0] ?? null : files;
+                  setCsvFile(file);
+                  void onFile(file);
+                }}
               />
-              <p className="mt-1 text-micro text-muted-darker">Máximo 2 MB y 5,000 filas.</p>
             </div>
 
             {fileName && (

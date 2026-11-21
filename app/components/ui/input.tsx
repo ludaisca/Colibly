@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { NumberInput } from "@astryxdesign/core/NumberInput";
 import type { IconType } from "@astryxdesign/core/Icon";
-import { markFormFieldControl, useFormFieldContext } from "./form-field-context";
+import { markFormFieldControl, useExternalLabel, useFormFieldContext } from "./form-field-context";
 
 // Adaptador (rediseño con Astryx): misma API de siempre (onChange recibe el
 // evento nativo, value/defaultValue, ref al <input>), dibujado por el
@@ -62,7 +62,8 @@ export const Input = markFormFieldControl(
     const current = value === undefined ? inner : String(value ?? "");
 
     const direct = field?.direct === true;
-    const label = field?.label ?? ariaLabel ?? placeholder ?? name ?? "Campo";
+    const external = useExternalLabel(id, !field && !ariaLabel);
+    const label = field?.label ?? ariaLabel ?? external ?? placeholder ?? name ?? "Campo";
     const error = errorProp ?? (direct ? field?.error : undefined);
     const showMessage = direct || showErrorMessage;
     const status = error ? { type: "error" as const, message: showMessage ? error : undefined } : undefined;

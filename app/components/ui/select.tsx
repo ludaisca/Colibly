@@ -2,7 +2,7 @@
 
 import React, { Children, isValidElement, useState, type ReactNode } from "react";
 import { Selector } from "@astryxdesign/core/Selector";
-import { markFormFieldControl, useFormFieldContext } from "./form-field-context";
+import { markFormFieldControl, useExternalLabel, useFormFieldContext } from "./form-field-context";
 import { textOf } from "./text-of";
 
 // Adaptador (rediseño con Astryx): misma API de siempre (<option> como hijos,
@@ -63,6 +63,7 @@ export const Select = markFormFieldControl(
     _ref
   ) {
     const field = useFormFieldContext();
+    const external = useExternalLabel(id, !field && !ariaLabel);
     const [inner, setInner] = useState(String(defaultValue ?? ""));
     const current = value === undefined ? inner : String(value ?? "");
     const options = optionsOf(children);
@@ -74,7 +75,7 @@ export const Select = markFormFieldControl(
     return (
       <Selector
         id={id}
-        label={field?.label ?? ariaLabel ?? placeholder ?? name ?? "Opción"}
+        label={field?.label ?? ariaLabel ?? external ?? placeholder ?? name ?? "Opción"}
         isLabelHidden={!direct}
         aria-labelledby={field && !direct ? field.labelId : undefined}
         aria-describedby={direct ? undefined : ariaDescribedBy}

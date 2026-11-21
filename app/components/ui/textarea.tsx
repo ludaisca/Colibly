@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { TextArea } from "@astryxdesign/core/TextArea";
-import { markFormFieldControl, useFormFieldContext } from "./form-field-context";
+import { markFormFieldControl, useExternalLabel, useFormFieldContext } from "./form-field-context";
 
 // Adaptador (rediseño con Astryx): misma API de siempre, dibujado por el
 // TextArea de Astryx. Dentro de <FormField> toma de ahí etiqueta/error/ayuda.
@@ -36,6 +36,7 @@ export const Textarea = markFormFieldControl(
     ref
   ) {
     const field = useFormFieldContext();
+    const external = useExternalLabel(id, !field && !ariaLabel);
     const [inner, setInner] = useState(String(defaultValue ?? ""));
     const current = value === undefined ? inner : String(value ?? "");
 
@@ -48,7 +49,7 @@ export const Textarea = markFormFieldControl(
         {...(rest as object)}
         ref={ref}
         id={id}
-        label={field?.label ?? ariaLabel ?? placeholder ?? name ?? "Texto"}
+        label={field?.label ?? ariaLabel ?? external ?? placeholder ?? name ?? "Texto"}
         isLabelHidden={!direct}
         aria-labelledby={field && !direct ? field.labelId : undefined}
         aria-describedby={direct ? undefined : ariaDescribedBy}

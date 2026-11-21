@@ -1,6 +1,7 @@
 "use client";
 
 import { Modal } from "@/app/components/ui/modal";
+import { RadioList, RadioListItem } from "@astryxdesign/core/RadioList";
 import { Button } from "@/app/components/ui/button";
 import { Banner } from "@/app/components/ui/banner";
 import { Spinner } from "@/app/components/ui/spinner";
@@ -62,28 +63,25 @@ function ConectarWhatsAppDialog({ onClose, onConnected }: { onClose: () => void;
         {problem && <Banner tone="danger">{problem}</Banner>}
 
         {config?.available && (
-          <fieldset className="space-y-2" disabled={busy !== "idle"}>
-            <legend className="mb-1 text-sm font-medium">¿Qué número quieres conectar?</legend>
-            <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-3 has-[:checked]:border-foreground has-[:checked]:ring-1 has-[:checked]:ring-foreground">
-              <input type="radio" name="mode" checked={mode === "new"} onChange={() => setMode("new")} className="mt-1" />
-              <span className="text-sm">
-                <span className="block font-medium">Un número nuevo</span>
-                <span className="text-muted-darker">Un número que no está en WhatsApp ni en la app WhatsApp Business.</span>
-              </span>
-            </label>
+          <RadioList
+            label="¿Qué número quieres conectar?"
+            value={mode}
+            onChange={(next) => setMode(next as typeof mode)}
+            isDisabled={busy !== "idle"}
+          >
+            <RadioListItem
+              value="new"
+              label="Un número nuevo"
+              description="Un número que no está en WhatsApp ni en la app WhatsApp Business."
+            />
             {config.coexistenceAllowed && (
-              <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-3 has-[:checked]:border-foreground has-[:checked]:ring-1 has-[:checked]:ring-foreground">
-                <input type="radio" name="mode" checked={mode === "coexistence"} onChange={() => setMode("coexistence")} className="mt-1" />
-                <span className="text-sm">
-                  <span className="block font-medium">El número que ya uso en la app WhatsApp Business</span>
-                  <span className="text-muted-darker">
-                    Sigues contestando desde tu teléfono y todo se ve también en Colibly. Puedes compartir tu historial de los últimos 180
-                    días (lo eliges en tu teléfono). Necesitas la app WhatsApp Business actualizada y abierta durante la conexión.
-                  </span>
-                </span>
-              </label>
+              <RadioListItem
+                value="coexistence"
+                label="El número que ya uso en la app WhatsApp Business"
+                description="Sigues contestando desde tu teléfono y todo se ve también en Colibly. Puedes compartir tu historial de los últimos 180 días (lo eliges en tu teléfono). Necesitas la app WhatsApp Business actualizada y abierta durante la conexión."
+              />
             )}
-          </fieldset>
+          </RadioList>
         )}
         <p className="text-xs text-muted-darker">
           Para enviar mensajes, Meta te pedirá agregar un método de pago en el Administrador de WhatsApp. Esos cargos son de Meta, aparte de tu plan de Colibly.

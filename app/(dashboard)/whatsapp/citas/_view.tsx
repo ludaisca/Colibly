@@ -270,13 +270,7 @@ export function CitasView() {
         {contactIdParam && (
           <Badge tone="accent" size="md">
             {contactFilterLabel ? contactLabelOf(contactFilterLabel) : "Contacto"}
-            <button
-              onClick={() => router.push("/whatsapp/citas")}
-              className="ml-1 hover:text-foreground"
-              aria-label="Quitar filtro de contacto"
-            >
-              <X size={12} />
-            </button>
+            <Button variant="ghost" size="icon" icon={X} onClick={() => router.push("/whatsapp/citas")} aria-label="Quitar filtro de contacto" />
           </Badge>
         )}
       </div>}
