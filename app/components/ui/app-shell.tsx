@@ -1,6 +1,5 @@
 "use client";
 
-import { Tooltip } from "./tooltip";
 import React, { Suspense, useState, useCallback } from "react";
 import { disablePush } from "@/lib/notifications/push-client";
 import Link from "next/link";
@@ -10,6 +9,7 @@ import { Menu, LogOut, PanelLeftClose, PanelLeftOpen, MoreHorizontal } from "luc
 import { SideNav, SideNavSection, SideNavItem, SideNavHeading } from "@astryxdesign/core/SideNav";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Drawer } from "./drawer";
+import { Button } from "./button";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { UserDropdown } from "./user-dropdown";
 import { RouteProgressBar } from "./route-progress-bar";
@@ -288,24 +288,21 @@ export function AppShell({
             su flecha de volver) ocupa este lugar: como la barra inferior. */}
         <header className={cn("relative z-40 flex shrink-0 items-center gap-2 bg-background/80 px-3 py-1 backdrop-blur-sm sm:gap-3 sm:px-4 md:px-6", inConversation && "max-md:hidden")}>
           {/* 40 px de objetivo táctil (antes 22 px, el tamaño del ícono). */}
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            className="-ml-2 grid h-10 w-10 shrink-0 place-items-center rounded-sm text-foreground transition-colors hover:bg-surface-light md:hidden"
-            aria-label="Abrir menú"
-          >
-            <Menu size={22} aria-hidden />
-          </button>
+          <div className="-ml-1 md:hidden">
+            <Button variant="ghost" size="icon" icon={Menu} onClick={() => setDrawerOpen(true)} aria-label="Abrir menú" />
+          </div>
 
           {collapsible && (
-            <Tooltip label={collapsed ? "Expandir menú" : "Colapsar menú"}><button
-              onClick={toggleCollapsed}
-              className="hidden md:flex text-muted-darker hover:text-foreground transition-colors p-1 rounded-md"
-              aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-              aria-expanded={!collapsed}
-            >
-              {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-            </button></Tooltip>
+            <div className="hidden md:block">
+              <Button
+                variant="ghost"
+                size="icon"
+                icon={collapsed ? PanelLeftOpen : PanelLeftClose}
+                onClick={toggleCollapsed}
+                aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+                aria-expanded={!collapsed}
+              />
+            </div>
           )}
 
           <div className="md:hidden flex-1 flex items-center">

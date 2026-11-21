@@ -10,6 +10,9 @@ import {
 import type { NotificationType } from "@prisma/client";
 import { Dropdown } from "./dropdown";
 import { Drawer } from "./drawer";
+import { Button } from "./button";
+import { Segmented } from "./segmented";
+import { EmptyState } from "./empty-state";
 import { ChannelAvatar, type AvatarChannel } from "./channel-avatar";
 import { RelativeTime, useMinuteNow } from "./relative-time";
 import { useToast } from "./toast";
@@ -151,61 +154,33 @@ function Panel({
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {unreadCount > 0 && (
-            <button
-              type="button"
-              onClick={onMarkAll}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-accent-ink transition-colors hover:bg-accent-subtle"
-            >
-              <CheckCheck size={14} /> Marcar todo
-            </button>
+            <Button variant="ghost" size="sm" icon={CheckCheck} onClick={onMarkAll}>
+              Marcar todo
+            </Button>
           )}
           {sheet && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Cerrar notificaciones"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-darker hover:bg-surface-light hover:text-foreground"
-            >
-              <X size={18} />
-            </button>
+            <Button variant="ghost" size="icon" icon={X} onClick={onClose} aria-label="Cerrar notificaciones" />
           )}
         </div>
       </div>
 
-      <div className="px-4 pb-3 md:px-5" role="group" aria-label="Filtrar notificaciones">
-        <div className="inline-flex rounded-full bg-surface-light p-0.5">
-          {tabs.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              aria-pressed={tab === t.value}
-              onClick={() => setTab(t.value)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
-                // Como Segmented: la opción activa en tinta.
-                tab === t.value ? "bg-foreground text-background" : "text-muted-darker hover:text-foreground",
-              )}
-            >
-              {t.label}
-              <span className={cn("tabular-nums", tab === t.value ? "text-background" : "text-muted-darker")}>{t.count}</span>
-            </button>
-          ))}
-        </div>
+      <div className="px-4 pb-3 md:px-5">
+        <Segmented
+          label="Filtrar notificaciones"
+          value={tab}
+          onChange={setTab}
+          options={tabs.map((t) => ({ value: t.value, label: `${t.label} ${t.count}` }))}
+        />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border">
         {visible.length === 0 ? (
-          <div className="flex flex-col items-center px-6 py-14 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-light text-muted-darker">
-              {tab === "unread" ? <BellOff size={22} /> : <Bell size={22} />}
-            </span>
-            <p className="mt-4 text-sm font-medium text-foreground">
-              {tab === "unread" ? "No tienes nada pendiente" : "Aún no hay notificaciones"}
-            </p>
-            <p className="mt-1 max-w-[16rem] text-xs text-muted-darker">
-              Aquí te avisamos de mensajes en tus chats, chats que te asignen, citas y lo que necesite tu atención.
-            </p>
-          </div>
+          <EmptyState
+            className="px-6 py-8"
+            icon={tab === "unread" ? BellOff : Bell}
+            title={tab === "unread" ? "No tienes nada pendiente" : "Aún no hay notificaciones"}
+            description="Aquí te avisamos de mensajes en tus chats, chats que te asignen, citas y lo que necesite tu atención."
+          />
         ) : (
           groups.map((g) => (
             <section key={g.label ?? "todas"} aria-label={g.label ?? undefined}>
