@@ -112,6 +112,13 @@ export const Input = markFormFieldControl(
       <TextInput
         {...(rest as object)}
         {...common}
+        // No controlado: el código existente a veces restaura el valor
+        // escribiendo en el DOM al perder el foco (`event.target.value = …`);
+        // se lee de vuelta para que el siguiente render no lo deshaga.
+        onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
+          rest.onBlur?.(e);
+          if (value === undefined) setInner(e.target.value);
+        }}
         ref={ref}
         type={TEXT_TYPES.has(type) ? (type as TextType) : "text"}
         inputMode={inputMode as React.ComponentProps<typeof TextInput>["inputMode"]}
