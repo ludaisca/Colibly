@@ -12,6 +12,8 @@ Un solo acento teal y neutros cálidos de una sola temperatura. **No cambiar pal
 
 Hex espejo: `lib/brand-colors.ts` ↔ `app/globals.css`. Contraste: `lib/design/__tests__/contrast.test.ts`.
 
+**Tema de Astryx (2026-11-21).** Desde la migración a Astryx los componentes se pintan con el tema `themes/colibly/` (se edita solo con `npx astryx experimental theme editor …`; `src/themes/colibly/colibly.css` es la copia generada), que usa esta misma paleta. Ajustes aprobados donde se desvía (`rediseno-astryx/DECISION.md`): en oscuro el relleno de acento es `#00869A` con texto casi negro y el de peligro `#C04C40`; el toast de error va en rojo lleno con texto blanco; el ítem activo del menú usa el borde decorativo `#A9CFD4` (oscuro `#24474C`). Contraste del tema: `lib/design/__tests__/astryx-theme-contrast.test.ts`.
+
 ## Historial
 
-Colibrí (violeta) → Menta y grafito → Laguna (2026-10-24) → Laguna + coral (2026-10-25) → Andén (2026-11-07) → paleta congelada (2026-11-14). Los laboratorios están en el historial de git.
+Colibrí (violeta) → Menta y grafito → Laguna (2026-10-24) → Laguna + coral (2026-10-25) → Andén (2026-11-07) → paleta congelada (2026-11-14) → misma paleta en el tema de Astryx (2026-11-21). Los laboratorios están en el historial de git.
