@@ -14,6 +14,7 @@ el rediseño esté integrado.
 | Carpeta | Qué es |
 |---|---|
 | [`DECISION.md`](DECISION.md) | Qué se decidió, desviaciones de la dirección congelada y trampas encontradas |
+| [`PENDIENTES.md`](PENDIENTES.md) | Lo que falta de la migración, con casillas para dar seguimiento |
 | `capturas/` | El prototipo en celular (390 px) y escritorio (1280 px), claro y oscuro |
 | `tema/` | Tema `colibly` del editor de temas de Astryx (fuente + build) |
 | `prototipo/` | Bandeja hecha con Astryx y datos ficticios (Next 16, de `~/Proyectos/crm`) |
